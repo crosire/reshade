@@ -53,6 +53,7 @@ static void convert_cube_uv_to_vec(D3DCUBEMAP_FACES face, float u, float v, floa
 void reshade::d3d9::device_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
 {
 	assert(fbo.handle != 0);
+
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
@@ -125,10 +126,10 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 }
 void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
 {
-	if (count == 0)
+	if (first != 0 || count == 0)
 		return;
 
-	assert(first == 0 && count == 1 && viewports != nullptr);
+	assert(count == 1 && viewports != nullptr);
 
 	D3DVIEWPORT9 d3d_viewport;
 	d3d_viewport.X = static_cast<DWORD>(viewports[0]);
@@ -142,10 +143,10 @@ void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, 
 }
 void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
 {
-	if (count == 0)
+	if (first != 0 || count == 0)
 		return;
 
-	assert(first == 0 && count == 1 && rects != nullptr);
+	assert(count == 1 && rects != nullptr);
 
 	_orig->SetScissorRect(reinterpret_cast<const RECT *>(rects));
 }
@@ -228,8 +229,6 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 }
 void reshade::d3d9::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(sets != nullptr);
-
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto set_impl = reinterpret_cast<const descriptor_set_impl *>(sets[i].handle);
@@ -325,6 +324,7 @@ void reshade::d3d9::device_impl::copy_buffer_to_texture(api::resource, uint64_t,
 void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[3], api::filter_mode filter)
 {
 	assert(src.handle != 0 && dst.handle != 0);
+
 	const auto src_object = reinterpret_cast<IDirect3DResource9 *>(src.handle);
 	const auto dst_object = reinterpret_cast<IDirect3DResource9 *>(dst.handle);
 
@@ -702,6 +702,7 @@ void reshade::d3d9::device_impl::clear_unordered_access_view_float(api::resource
 void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
 {
 	assert(srv.handle != 0);
+
 	const auto texture = reinterpret_cast<IDirect3DBaseTexture9 *>(srv.handle & ~1ull);
 
 	texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
@@ -711,11 +712,13 @@ void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
 void reshade::d3d9::device_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)
 {
 	assert(pool.handle != 0);
+
 	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Issue(D3DISSUE_BEGIN);
 }
 void reshade::d3d9::device_impl::finish_query(api::query_pool pool, api::query_type, uint32_t index)
 {
 	assert(pool.handle != 0);
+
 	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Issue(D3DISSUE_END);
 }
 void reshade::d3d9::device_impl::copy_query_pool_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)

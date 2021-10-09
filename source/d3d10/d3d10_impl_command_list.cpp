@@ -42,7 +42,9 @@ void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *,
 void reshade::d3d10::device_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
 {
 	assert(fbo.handle != 0);
+
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
 	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->dsv);
 }
 void reshade::d3d10::device_impl::finish_render_pass()
@@ -121,7 +123,8 @@ void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api
 }
 void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
 {
-	assert(first == 0);
+	if (first != 0)
+		return;
 
 	if (count > D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)
 	{
@@ -144,7 +147,8 @@ void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count,
 }
 void reshade::d3d10::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
 {
-	assert(first == 0);
+	if (first != 0)
+		return;
 
 	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D10_RECT *>(rects));
 }
@@ -291,8 +295,6 @@ void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api
 }
 void reshade::d3d10::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(sets != nullptr);
-
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto set_impl = reinterpret_cast<const descriptor_set_impl *>(sets[i].handle);

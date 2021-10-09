@@ -49,7 +49,10 @@ ULONG   STDMETHODCALLTYPE D3D11CommandList::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
-		return _orig->Release(), ref;
+	{
+		_orig->Release();
+		return ref;
+	}
 
 	const auto orig = _orig;
 #if 0

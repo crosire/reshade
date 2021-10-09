@@ -347,8 +347,6 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 }
 void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(sets != nullptr);
-
 	static_assert(sizeof(*sets) == sizeof(VkDescriptorSet));
 
 	if ((stages & api::shader_stage::all_compute) == api::shader_stage::all_compute)

@@ -1355,7 +1355,6 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_binding);
 	}
-
 }
 void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
 {
@@ -1440,24 +1439,24 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		glGetTexLevelParameteriv(level_target, level, GL_TEXTURE_DEPTH,  reinterpret_cast<GLint *>(&depth));
 	}
 
-	const auto row_size_packed = api::format_row_pitch(convert_format(format), width);
-	const auto slice_size_packed = api::format_slice_pitch(convert_format(format), row_size_packed, height);
-	const auto total_size = depth * slice_size_packed;
+	const auto row_pitch = api::format_row_pitch(convert_format(format), width);
+	const auto slice_pitch = api::format_slice_pitch(convert_format(format), row_pitch, height);
+	const auto total_image_size = depth * slice_pitch;
 
 	format = convert_upload_format(format, type);
 
 	std::vector<uint8_t> temp_pixels;
 	const uint8_t *pixels = static_cast<const uint8_t *>(data.data);
 
-	if ((row_size_packed != data.row_pitch && height == 1) ||
-		(slice_size_packed != data.slice_pitch && depth == 1))
+	if ((row_pitch != data.row_pitch && height == 1) ||
+		(slice_pitch != data.slice_pitch && depth == 1))
 	{
-		temp_pixels.resize(total_size);
+		temp_pixels.resize(total_image_size);
 		uint8_t *dst_pixels = temp_pixels.data();
 
 		for (GLuint z = 0; z < depth; ++z)
-			for (GLuint y = 0; y < height; ++y, dst_pixels += row_size_packed)
-				std::memcpy(dst_pixels, pixels + z * data.slice_pitch + y * data.row_pitch, row_size_packed);
+			for (GLuint y = 0; y < height; ++y, dst_pixels += row_pitch)
+				std::memcpy(dst_pixels, pixels + z * data.slice_pitch + y * data.row_pitch, row_pitch);
 
 		pixels = temp_pixels.data();
 	}
@@ -1465,10 +1464,13 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	switch (level_target)
 	{
 	case GL_TEXTURE_1D:
-		if (type != GL_COMPRESSED_TEXTURE_FORMATS) {
+		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+		{
 			glTexSubImage1D(level_target, level, xoffset, width, format, type, pixels);
-		} else {
-			glCompressedTexSubImage1D(level_target, level, xoffset, width, format, total_size, pixels);
+		}
+		else
+		{
+			glCompressedTexSubImage1D(level_target, level, xoffset, width, format, total_image_size, pixels);
 		}
 		break;
 	case GL_TEXTURE_1D_ARRAY:
@@ -1481,20 +1483,26 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-		if (type != GL_COMPRESSED_TEXTURE_FORMATS) {
+		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+		{
 			glTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, type, pixels);
-		} else {
-			glCompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, total_size, pixels);
+		}
+		else
+		{
+			glCompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, total_image_size, pixels);
 		}
 		break;
 	case GL_TEXTURE_2D_ARRAY:
 		zoffset += layer;
 		[[fallthrough]];
 	case GL_TEXTURE_3D:
-		if (type != GL_COMPRESSED_TEXTURE_FORMATS) {
+		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+		{
 			glTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
-		} else {
-			glCompressedTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, total_size, pixels);
+		}
+		else
+		{
+			glCompressedTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, total_image_size, pixels);
 		}
 		break;
 	}
@@ -1581,6 +1589,7 @@ void reshade::opengl::device_impl::set_resource_name(api::resource resource, con
 void reshade::opengl::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
+
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
 	if (params != nullptr)
@@ -1603,6 +1612,7 @@ void reshade::opengl::device_impl::get_descriptor_pool_offset(api::descriptor_se
 void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
+
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
 	if (ranges != nullptr)
@@ -1621,8 +1631,6 @@ void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descripto
 
 reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource resource) const
 {
-	GLint width = 0, height = 1, depth = 1, levels = 1, samples = 1, internal_format = GL_NONE, prev_object = 0;
-
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
@@ -1630,21 +1638,24 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	{
 		case GL_BUFFER:
 		{
+			GLint size = 0;
+
 			if (_supports_dsa)
 			{
-				glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &width);
+				glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &size);
 			}
 			else
 			{
-				glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_object);
+				GLint prev_binding = 0;
+				glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_binding);
 				glBindBuffer(GL_COPY_READ_BUFFER, object);
 
-				glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &width);
+				glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
 
-				glBindBuffer(GL_COPY_READ_BUFFER, prev_object);
+				glBindBuffer(GL_COPY_READ_BUFFER, prev_binding);
 			}
 
-			return convert_resource_desc(target, width);
+			return convert_resource_desc(target, size);
 		}
 		case GL_TEXTURE_BUFFER:
 		case GL_TEXTURE_1D:
@@ -1658,6 +1669,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		case GL_TEXTURE_CUBE_MAP_ARRAY:
 		case GL_TEXTURE_RECTANGLE:
 		{
+			GLint width = 0, height = 1, depth = 1, levels = 1, samples = 1, internal_format = GL_NONE;
 			GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 
 			if (_supports_dsa)
@@ -1689,7 +1701,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			}
 			else
 			{
-				glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_object);
+				GLint prev_binding = 0;
+				glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
 				glBindTexture(target, object);
 
 				GLenum level_target = target;
@@ -1719,7 +1732,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 				glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
-				glBindTexture(target, prev_object);
+				glBindTexture(target, prev_binding);
 			}
 
 			if (0 == levels)
@@ -1731,6 +1744,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		}
 		case GL_RENDERBUFFER:
 		{
+			GLint width = 0, height = 1, samples = 1, internal_format = GL_NONE;
+
 			if (_supports_dsa)
 			{
 				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_WIDTH, &width);
@@ -1740,7 +1755,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			}
 			else
 			{
-				glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_object);
+				GLint prev_binding = 0;
+				glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
 				glBindRenderbuffer(GL_RENDERBUFFER, object);
 
 				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &width);
@@ -1748,7 +1764,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
 				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_SAMPLES, &samples);
 
-				glBindRenderbuffer(GL_RENDERBUFFER, prev_object);
+				glBindRenderbuffer(GL_RENDERBUFFER, prev_binding);
 			}
 
 			if (0 == samples)
@@ -1758,11 +1774,9 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		}
 		case GL_FRAMEBUFFER_DEFAULT:
 		{
-			width = _default_fbo_width;
-			height = _default_fbo_height;
-			internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
+			const GLenum internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
 
-			return convert_resource_desc(target, levels, samples, internal_format, width, height);
+			return convert_resource_desc(target, 1, 1, internal_format, _default_fbo_width, _default_fbo_height);
 		}
 	}
 
@@ -1781,6 +1795,7 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
 {
 	assert(fbo.handle != 0);
+
 	const GLuint fbo_object = fbo.handle & 0xFFFFFFFF;
 
 	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO

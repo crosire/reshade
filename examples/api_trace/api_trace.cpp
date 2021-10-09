@@ -4,7 +4,7 @@
  */
 
 #include <imgui.h>
-#include "reshade.hpp"
+#include <reshade.hpp>
 #include <mutex>
 #include <sstream>
 #include <unordered_set>

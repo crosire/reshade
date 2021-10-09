@@ -81,6 +81,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 void reshade::d3d12::command_list_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
 {
 	assert(fbo.handle != 0);
+
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	// It is not allowed to call "ClearRenderTargetView", "ClearDepthStencilView" etc. inside a render pass, which would break the "command_impl::clear_attachments" implementation, so use plain old "OMSetRenderTargets" instead of render pass API
@@ -142,7 +143,6 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			blend_factor[1] = ((values[i] >>  4) & 0xFF) / 255.0f;
 			blend_factor[2] = ((values[i] >>  8) & 0xFF) / 255.0f;
 			blend_factor[3] = ((values[i] >> 12) & 0xFF) / 255.0f;
-
 			_orig->OMSetBlendFactor(blend_factor);
 			break;
 		}
@@ -160,13 +160,15 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 }
 void reshade::d3d12::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
 {
-	assert(first == 0);
+	if (first != 0)
+		return;
 
 	_orig->RSSetViewports(count, reinterpret_cast<const D3D12_VIEWPORT *>(viewports));
 }
 void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
 {
-	assert(first == 0);
+	if (first != 0)
+		return;
 
 	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
@@ -484,6 +486,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 	assert(src.handle != 0 && dst.handle != 0);
 
 	D3D12_RESOURCE_DESC res_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
+
 	if (row_length != 0)
 		res_desc.Width = row_length;
 	if (slice_height != 0)

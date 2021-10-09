@@ -80,7 +80,10 @@ ULONG   STDMETHODCALLTYPE D3D12GraphicsCommandList::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
-		return _orig->Release(), ref;
+	{
+		_orig->Release();
+		return ref;
+	}
 
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;
@@ -249,8 +252,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 		}
 		else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT)
 		{
-			static_assert(sizeof(D3D12_BOX) == (sizeof(int32_t) * 6));
-
 			// TODO: Destination box size is not implemented (would have to get it from the resource)
 			assert(DstX == 0 && DstY == 0 && DstZ == 0);
 
@@ -310,8 +311,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetScissorRects(UINT NumRects
 	_orig->RSSetScissorRects(NumRects, pRects);
 
 #if RESHADE_ADDON
-	static_assert(sizeof(D3D12_RECT) == (sizeof(int32_t) * 4));
-
 	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, NumRects, reinterpret_cast<const int32_t *>(pRects));
 #endif
 }
@@ -652,7 +651,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU
 {
 #if RESHADE_ADDON
 	static_assert(
-		(UINT)reshade::api::attachment_type::depth == (D3D12_CLEAR_FLAG_DEPTH << 1) &&
+		(UINT)reshade::api::attachment_type::depth   == (D3D12_CLEAR_FLAG_DEPTH << 1) &&
 		(UINT)reshade::api::attachment_type::stencil == (D3D12_CLEAR_FLAG_STENCIL << 1));
 
 	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view { DepthStencilView.ptr }, static_cast<reshade::api::attachment_type>(ClearFlags << 1), Depth, Stencil, NumRects, reinterpret_cast<const int32_t *>(pRects)))
@@ -751,7 +750,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresourceRegion(ID3D12
 	if (reshade::has_addon_event<reshade::addon_event::resolve_texture_region>())
 	{
 		int32_t src_box[6];
-		const int32_t dst_offset[3] = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), 0 };
 		if (pSrcRect != nullptr)
 		{
 			src_box[0] = pSrcRect->left;
@@ -761,6 +759,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresourceRegion(ID3D12
 			src_box[4] = pSrcRect->bottom;
 			src_box[5] = 1;
 		}
+
+		const int32_t dst_offset[3] = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), 0 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcResource) }, SrcSubresource, pSrcRect != nullptr ? src_box : nullptr,

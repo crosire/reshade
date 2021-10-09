@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "reshade.hpp"
+#include <reshade.hpp>
 #include "crc32_hash.hpp"
 #include <fstream>
 #include <filesystem>

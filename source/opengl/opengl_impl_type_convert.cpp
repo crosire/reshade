@@ -3,7 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "opengl_impl_device.hpp"
+#include <vector>
+#include <limits>
+#include <cassert>
+#include "reshade_api_pipeline.hpp"
 #include "opengl_impl_type_convert.hpp"
 
 auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) -> GLenum

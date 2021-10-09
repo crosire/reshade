@@ -4,7 +4,7 @@
  */
 
 #include <imgui.h> // Include here as well, so that 'register_addon' initializes the Dear ImGui function table
-#include "reshade.hpp"
+#include <reshade.hpp>
 #include "crc32_hash.hpp"
 #include <vector>
 #include <filesystem>
@@ -467,11 +467,10 @@ static inline bool filter_texture(device *device, const resource_desc &desc, con
 
 static void on_init_texture(device *device, const resource_desc &desc, const subresource_data *initial_data, resource_usage, resource)
 {
-	if (!filter_texture(device, desc, nullptr))
+	if (initial_data == nullptr || !filter_texture(device, desc, nullptr))
 		return; // Ignore resources that are not 2D textures
 
-	if (initial_data != nullptr)
-		dump_texture(desc, *initial_data);
+	dump_texture(desc, *initial_data);
 }
 static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_subresource, const int32_t /*src_box*/[6], resource dst, uint32_t dst_subresource, const int32_t dst_box[6], filter_mode)
 {
@@ -526,7 +525,8 @@ static void on_map_texture(device *device, resource resource, uint32_t subresour
 		return;
 
 	const resource_desc desc = device->get_resource_desc(resource);
-	if (!filter_texture(device, desc, box))
+	if (!filter_texture(device, desc, box) ||
+		desc.texture.format == format::l8_unorm) // Skip this format since it is used for videos in Mirror's Edge
 		return;
 
 	s_current_mapping.res = resource;

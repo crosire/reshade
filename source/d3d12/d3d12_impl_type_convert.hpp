@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <d3d12.h>
+
 namespace reshade::d3d12
 {
 	extern const GUID extra_data_guid;

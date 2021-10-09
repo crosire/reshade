@@ -4115,6 +4115,8 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 			if (binding.semantic != semantic)
 				continue;
 
+			assert(num_bindings != 0);
+
 			api::descriptor_set_update &write = descriptor_writes.emplace_back();
 			write.set = binding.set;
 			write.offset = write.binding = binding.index;

@@ -28,31 +28,9 @@ static lockfree_linear_map<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16
 #define INIT_DISPATCH_PTR(name) \
 	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
 
-static inline const char *vk_format_to_string(VkFormat format)
-{
-	switch (format)
-	{
-	case VK_FORMAT_UNDEFINED:
-		return "VK_FORMAT_UNDEFINED";
-	case VK_FORMAT_R8G8B8A8_UNORM:
-		return "VK_FORMAT_R8G8B8A8_UNORM";
-	case VK_FORMAT_R8G8B8A8_SRGB:
-		return "VK_FORMAT_R8G8B8A8_SRGB";
-	case VK_FORMAT_B8G8R8A8_UNORM:
-		return "VK_FORMAT_B8G8R8A8_UNORM";
-	case VK_FORMAT_B8G8R8A8_SRGB:
-		return "VK_FORMAT_B8G8R8A8_SRGB";
-	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
-		return "VK_FORMAT_A2R10G10B10_UNORM_PACK32";
-	case VK_FORMAT_R16G16B16A16_SFLOAT:
-		return "VK_FORMAT_R16G16B16A16_SFLOAT";
-	default:
-		return nullptr;
-	}
-}
-
 extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
 
+#if RESHADE_ADDON
 static void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
 {
 	if (image == VK_NULL_HANDLE)
@@ -87,6 +65,7 @@ static void destroy_default_view(reshade::vulkan::device_impl *device_impl, VkIm
 		vkDestroyImageView(device_impl->_orig, default_view, nullptr);
 	}
 }
+#endif
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
@@ -594,10 +573,38 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	LOG(INFO) << "  | flags                                   | " << std::setw(39) << std::hex << create_info.flags << std::dec << " |";
 	LOG(INFO) << "  | surface                                 | " << std::setw(39) << create_info.surface << " |";
 	LOG(INFO) << "  | minImageCount                           | " << std::setw(39) << create_info.minImageCount << " |";
-	if (const char *format_string = vk_format_to_string(create_info.imageFormat); format_string != nullptr)
+
+	const char *format_string = nullptr;
+	switch (create_info.imageFormat)
+	{
+	case VK_FORMAT_UNDEFINED:
+		format_string = "VK_FORMAT_UNDEFINED";
+		break;
+	case VK_FORMAT_R8G8B8A8_UNORM:
+		format_string = "VK_FORMAT_R8G8B8A8_UNORM";
+		break;
+	case VK_FORMAT_R8G8B8A8_SRGB:
+		format_string = "VK_FORMAT_R8G8B8A8_SRGB";
+		break;
+	case VK_FORMAT_B8G8R8A8_UNORM:
+		format_string = "VK_FORMAT_B8G8R8A8_UNORM";
+		break;
+	case VK_FORMAT_B8G8R8A8_SRGB:
+		format_string = "VK_FORMAT_B8G8R8A8_SRGB";
+		break;
+	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+		format_string = "VK_FORMAT_A2R10G10B10_UNORM_PACK32";
+		break;
+	case VK_FORMAT_R16G16B16A16_SFLOAT:
+		format_string = "VK_FORMAT_R16G16B16A16_SFLOAT";
+		break;
+	}
+
+	if (format_string != nullptr)
 		LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << format_string << " |";
 	else
 		LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << create_info.imageFormat << " |";
+
 	LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << create_info.imageColorSpace << " |";
 	LOG(INFO) << "  | imageExtent                             | " << std::setw(19) << create_info.imageExtent.width << ' ' << std::setw(19) << create_info.imageExtent.height << " |";
 	LOG(INFO) << "  | imageArrayLayers                        | " << std::setw(39) << create_info.imageArrayLayers << " |";
@@ -695,7 +702,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan swapchain " << *pSwapchain << '.';
+	LOG(INFO) << "Returning Vulkan swap chain " << *pSwapchain << '.';
 #endif
 	return result;
 }

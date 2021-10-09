@@ -150,8 +150,9 @@ namespace reshade { namespace api
 	/// The base class for objects provided by the ReShade API.
 	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
-	struct __declspec(novtable) api_object
+	class __declspec(novtable) api_object
 	{
+	public:
 		/// <summary>
 		/// Gets a custom data pointer from the object that was previously set via <see cref="set_user_data"/>.
 		/// </summary>
@@ -207,8 +208,9 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class is safe to use concurrently from multiple threads in D3D10+ and Vulkan (with the exception of <see cref="device::wait_idle"/>).
 	/// </remarks>
-	struct __declspec(novtable) device : public api_object
+	class __declspec(novtable) device : public api_object
 	{
+	public:
 		/// <summary>
 		/// Gets the underlying render API used by this device.
 		/// </summary>
@@ -483,8 +485,9 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The base class for objects that are children to a logical render <see cref="device"/>.
 	/// </summary>
-	struct __declspec(novtable) device_object : public api_object
+	class __declspec(novtable) device_object : public api_object
 	{
+	public:
 		/// <summary>
 		/// Gets the parent device for this object.
 		/// </summary>
@@ -498,8 +501,9 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	struct __declspec(novtable) command_list : public device_object
+	class __declspec(novtable) command_list : public device_object
 	{
+	public:
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
 		/// When both <paramref name="old_state"/> and <paramref name="new_state"/> are <see cref="resource_usage::unordered_access"/> a UAV barrier is added, otherwise a state transition is performed.
@@ -851,8 +855,9 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	struct __declspec(novtable) command_queue : public device_object
+	class __declspec(novtable) command_queue : public device_object
 	{
+	public:
 		/// <summary>
 		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
 		/// </summary>
@@ -895,8 +900,9 @@ namespace reshade { namespace api
 	/// A swap chain, used to present images to the screen.
 	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
 	/// </summary>
-	struct __declspec(novtable) swapchain : public device_object
+	class __declspec(novtable) swapchain : public device_object
 	{
+	public:
 		/// <summary>
 		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
 		/// </summary>
@@ -919,7 +925,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the effect runtime associated with this swap chain.
 		/// </summary>
-		inline  struct effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
+		inline  class effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
 	};
 
 	/// <summary>
@@ -935,8 +941,9 @@ namespace reshade { namespace api
 	/// A ReShade effect runtime, used to control effects.
 	/// <para>A separate runtime is instantiated for every swap chain.</para>
 	/// </summary>
-	struct __declspec(novtable) effect_runtime : public swapchain
+	class __declspec(novtable) effect_runtime : public swapchain
 	{
+	public:
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
 		/// This may potentially be different from the presentation queue and should be used to execute graphics commands on.

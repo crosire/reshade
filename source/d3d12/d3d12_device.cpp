@@ -44,7 +44,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Sub
 					data.data = *ppData;
 
 					D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-					device_proxy->_orig->GetCopyableFootprints(&desc, Subresource, 1, 0, &layout, &data.slice_pitch, nullptr, nullptr);
+					device->GetCopyableFootprints(&desc, Subresource, 1, 0, &layout, &data.slice_pitch, nullptr, nullptr);
 					data.row_pitch = layout.Footprint.RowPitch;
 					data.slice_pitch *= layout.Footprint.RowPitch;
 				}
@@ -58,6 +58,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Sub
 			}
 		}
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pWrittenRange)
@@ -323,7 +324,10 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
-		return _orig->Release(), ref;
+	{
+		_orig->Release();
+		return ref;
+	}
 
 	if (_downlevel != nullptr)
 	{
@@ -543,6 +547,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 		register_descriptor_heap(static_cast<ID3D12DescriptorHeap *>(*ppvHeap));
 	}
 #endif
+
 	return hr;
 }
 UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType)

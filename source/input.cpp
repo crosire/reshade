@@ -634,7 +634,7 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 	return TRUE;
 }
 
-static POINT last_cursor_position = {};
+static POINT s_last_cursor_position = {};
 
 HOOK_EXPORT BOOL WINAPI HookClipCursor(const RECT *lpRect)
 {
@@ -648,8 +648,8 @@ HOOK_EXPORT BOOL WINAPI HookClipCursor(const RECT *lpRect)
 
 HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {
-	last_cursor_position.x = X;
-	last_cursor_position.y = Y;
+	s_last_cursor_position.x = X;
+	s_last_cursor_position.y = Y;
 
 	if (is_blocking_mouse_input())
 		return TRUE;
@@ -664,7 +664,7 @@ HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 		assert(lpPoint != nullptr);
 
 		// Just return the last cursor position before we started to block mouse input, to stop it from moving
-		*lpPoint = last_cursor_position;
+		*lpPoint = s_last_cursor_position;
 
 		return TRUE;
 	}

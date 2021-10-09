@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <d3d11_4.h>
+
 namespace reshade::d3d11
 {
 	struct pipeline_impl

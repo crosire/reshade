@@ -1296,6 +1296,7 @@ void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, 
 void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource.handle != 0);
+
 	assert(!_queues.empty());
 
 	for (command_queue_impl *const queue : _queues)
@@ -1314,8 +1315,6 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 }
 void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
 {
-	assert(!_queues.empty());
-
 	const auto resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
 	VkExtent3D extent = resource_data->create_info.extent;
@@ -1328,16 +1327,16 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 		extent.depth  = box[5] - box[2];
 	}
 
-	const auto row_size_packed = api::format_row_pitch(convert_format(resource_data->create_info.format), extent.width);
-	const auto slice_size_packed = api::format_slice_pitch(convert_format(resource_data->create_info.format), row_size_packed, extent.height);
-	const auto total_size = extent.depth * slice_size_packed;
+	const auto row_pitch = api::format_row_pitch(convert_format(resource_data->create_info.format), extent.width);
+	const auto slice_pitch = api::format_slice_pitch(convert_format(resource_data->create_info.format), row_pitch, extent.height);
+	const auto total_image_size = extent.depth * slice_pitch;
 
 	// Allocate host memory for upload
 	VkBuffer intermediate = VK_NULL_HANDLE;
 	VmaAllocation intermediate_mem = VK_NULL_HANDLE;
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		create_info.size = total_size;
+		create_info.size = total_image_size;
 		create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 		VmaAllocationCreateInfo alloc_info = {};
@@ -1355,19 +1354,21 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	uint8_t *mapped_data = nullptr;
 	if (vmaMapMemory(_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) == VK_SUCCESS)
 	{
-		if ((row_size_packed == data.row_pitch || extent.height == 1) &&
-			(slice_size_packed == data.slice_pitch || extent.depth == 1))
+		if ((row_pitch == data.row_pitch || extent.height == 1) &&
+			(slice_pitch == data.slice_pitch || extent.depth == 1))
 		{
-			std::memcpy(mapped_data, data.data, total_size);
+			std::memcpy(mapped_data, data.data, total_image_size);
 		}
 		else
 		{
 			for (uint32_t z = 0; z < extent.depth; ++z)
-				for (uint32_t y = 0; y < extent.height; ++y, mapped_data += row_size_packed)
-					std::memcpy(mapped_data, static_cast<const uint8_t *>(data.data) + z * data.slice_pitch + y * data.row_pitch, row_size_packed);
+				for (uint32_t y = 0; y < extent.height; ++y, mapped_data += row_pitch)
+					std::memcpy(mapped_data, static_cast<const uint8_t *>(data.data) + z * data.slice_pitch + y * data.row_pitch, row_pitch);
 		}
 
 		vmaUnmapMemory(_alloc, intermediate_mem);
+
+		assert(!_queues.empty());
 
 		// Copy data from upload buffer into target texture using the first available immediate command list
 		for (command_queue_impl *const queue : _queues)

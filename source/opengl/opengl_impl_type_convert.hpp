@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "opengl.hpp"
+
 namespace reshade::opengl
 {
 	struct pipeline_impl

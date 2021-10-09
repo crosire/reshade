@@ -380,8 +380,6 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 }
 void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(sets != nullptr);
-
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto set_impl = reinterpret_cast<const descriptor_set_impl *>(sets[i].handle);
@@ -616,19 +614,22 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 			glGetTexLevelParameteriv(level_target, level, GL_TEXTURE_DEPTH,  reinterpret_cast<GLint *>(&depth));
 		}
 
-		const auto row_size_packed = api::format_row_pitch(convert_format(format), row_length != 0 ? row_length : width);
-		const auto slice_size_packed = api::format_slice_pitch(convert_format(format), row_size_packed, slice_height != 0 ? slice_height : height);
-		const auto total_size = depth * slice_size_packed;
+		const auto row_pitch = api::format_row_pitch(convert_format(format), row_length != 0 ? row_length : width);
+		const auto slice_pitch = api::format_slice_pitch(convert_format(format), row_pitch, slice_height != 0 ? slice_height : height);
+		const auto total_image_size = depth * slice_pitch;
 
 		format = convert_upload_format(format, type);
 
 		switch (level_target)
 		{
 		case GL_TEXTURE_1D:
-			if (type != GL_COMPRESSED_TEXTURE_FORMATS) {
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+			{
 				glTexSubImage1D(level_target, level, xoffset, width, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			} else {
-				glCompressedTexSubImage1D(level_target, level, xoffset, width, format, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			else
+			{
+				glCompressedTexSubImage1D(level_target, level, xoffset, width, format, total_image_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 			}
 			break;
 		case GL_TEXTURE_1D_ARRAY:
@@ -641,20 +642,26 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 		case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-			if (type != GL_COMPRESSED_TEXTURE_FORMATS) {
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+			{
 				glTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			} else {
-				glCompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			else
+			{
+				glCompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, total_image_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 			}
 			break;
 		case GL_TEXTURE_2D_ARRAY:
 			zoffset += layer;
 			[[fallthrough]];
 		case GL_TEXTURE_3D:
-			if (type != GL_COMPRESSED_TEXTURE_FORMATS) {
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+			{
 				glTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			} else {
-				glCompressedTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			else
+			{
+				glCompressedTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, total_image_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 			}
 			break;
 		}
@@ -872,26 +879,26 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	glPixelStorei(GL_PACK_SKIP_IMAGES, 0);
 	glPixelStorei(GL_PACK_IMAGE_HEIGHT, slice_height);
 
-	GLint x = 0;
-	GLint y = 0;
-	GLint z = 0;
-	GLint w = 0;
-	GLint h = 0;
-	GLint d = 1;
+	GLuint xoffset, yoffset, zoffset, width, height, depth = 1;
 	if (src_box != nullptr)
 	{
-		x = src_box[0];
-		y = src_box[1];
-		z = src_box[2];
-		w = src_box[3] - src_box[0];
-		h = src_box[4] - src_box[1];
-		d = src_box[5] - src_box[2];
+		xoffset = src_box[0];
+		yoffset = src_box[1];
+		zoffset = src_box[2];
+		width   = src_box[3] - src_box[0];
+		height  = src_box[4] - src_box[1];
+		depth   = src_box[5] - src_box[2];
+	}
+	else
+	{
+		xoffset = yoffset = zoffset = 0;
+		width = height = 0;
 	}
 
 	if (src_target == GL_FRAMEBUFFER_DEFAULT)
 	{
 		assert(src_subresource == 0);
-		assert(z == 0 && d == 1);
+		assert(zoffset == 0 && depth == 1);
 
 		GLint prev_binding = 0;
 		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_binding);
@@ -901,14 +908,14 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 		if (src_box == nullptr)
 		{
-			w = _default_fbo_width;
-			h = _default_fbo_height;
+			width = _default_fbo_width;
+			height = _default_fbo_height;
 		}
 
 		GLenum format = src_object == GL_BACK ? _default_color_format : _default_depth_format, type;
 		format = convert_upload_format(format, type);
 
-		glReadPixels(x, y, w, h, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+		glReadPixels(xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_binding);
 	}
@@ -933,13 +940,13 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 		if (src_box == nullptr)
 		{
-			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &w);
-			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &h);
+			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&width));
+			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&height));
 		}
 
 		format = convert_upload_format(format, type);
 
-		glReadPixels(x, y, w, h, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+		glReadPixels(xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 
 		glBindRenderbuffer(GL_RENDERBUFFER, prev_rbo_binding);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_fbo_binding);
@@ -956,56 +963,51 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 			levels = 1;
 
 		const GLuint level = src_subresource % levels;
-		const GLuint layer = src_subresource / levels;
+		      GLuint layer = src_subresource / levels;
+
+		GLenum level_target = src_target;
+		if (src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY)
+		{
+			const GLuint face = layer % 6;
+			layer /= 6;
+			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
+		}
 
 		GLenum format = GL_NONE, type;
-		GLenum src_level_target = (src_target == GL_TEXTURE_CUBE_MAP) ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer : src_target;
-		glGetTexLevelParameteriv(src_level_target, level, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+		glGetTexLevelParameteriv(level_target, level, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
 
 		if (src_box == nullptr)
 		{
-			glGetTexLevelParameteriv(src_level_target, level, GL_TEXTURE_WIDTH,  &w);
-			glGetTexLevelParameteriv(src_level_target, level, GL_TEXTURE_HEIGHT, &h);
-			glGetTexLevelParameteriv(src_level_target, level, GL_TEXTURE_DEPTH,  &d);
+			glGetTexLevelParameteriv(level_target, level, GL_TEXTURE_WIDTH,  reinterpret_cast<GLint *>(&width));
+			glGetTexLevelParameteriv(level_target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&height));
+			glGetTexLevelParameteriv(level_target, level, GL_TEXTURE_DEPTH,  reinterpret_cast<GLint *>(&depth));
 		}
 
-		const auto row_size_packed = api::format_row_pitch(convert_format(format), row_length != 0 ? row_length : w);
-		const auto slice_size_packed = api::format_slice_pitch(convert_format(format), row_size_packed, slice_height != 0 ? slice_height : h);
-		const auto total_size = d * slice_size_packed;
+		const auto row_pitch = api::format_row_pitch(convert_format(format), row_length != 0 ? row_length : width);
+		const auto slice_pitch = api::format_slice_pitch(convert_format(format), row_pitch, slice_height != 0 ? slice_height : height);
+		const auto total_image_size = depth * slice_pitch;
 
 		format = convert_upload_format(format, type);
 
 		if (src_box == nullptr)
 		{
-			if (src_target == GL_TEXTURE_CUBE_MAP)
-			{
-				for (GLuint face = 0; face < 6; ++face)
-				{
-					const GLenum face_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-
-					glGetTexImage(face_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset + (face * slice_size_packed))));
-				}
-			}
-			else
-			{
-				glGetTexImage(src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
-			}
+			glGetTexImage(src_target == GL_TEXTURE_CUBE_MAP ? level_target : src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
 		else if (_supports_dsa)
 		{
 			switch (src_target)
 			{
 			case GL_TEXTURE_1D_ARRAY:
-				y += layer;
+				yoffset += layer;
 				break;
 			case GL_TEXTURE_CUBE_MAP:
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
 			case GL_TEXTURE_2D_ARRAY:
-				z += layer;
+				zoffset += layer;
 				break;
 			}
 
-			glGetTextureSubImage(src_object, level, x, y, z, w, h, d, format, type, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			glGetTextureSubImage(src_object, level, xoffset, yoffset, zoffset, width, height, depth, format, type, total_image_size, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
 
 		glBindTexture(src_target, prev_binding);

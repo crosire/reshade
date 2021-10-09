@@ -371,7 +371,6 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(handle.handle) };
 
 	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
-
 	_views.erase(descriptor_handle.ptr);
 
 	for (UINT i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
@@ -823,7 +822,6 @@ void reshade::d3d12::device_impl::unmap_texture_region(api::resource resource, u
 void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource.handle != 0);
-	assert(!_queues.empty());
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
@@ -854,6 +852,8 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 
 	intermediate->Unmap(0, nullptr);
 
+	assert(!_queues.empty());
+
 	// Copy data from upload buffer into target texture using the first available immediate command list
 	for (command_queue_impl *const queue : _queues)
 	{
@@ -871,7 +871,6 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
 {
 	assert(resource.handle != 0);
-	assert(!_queues.empty());
 
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 
@@ -930,6 +929,8 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	}
 
 	intermediate->Unmap(0, nullptr);
+
+	assert(!_queues.empty());
 
 	// Copy data from upload buffer into target texture using the first available immediate command list
 	for (command_queue_impl *const queue : _queues)
@@ -1066,6 +1067,7 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 void reshade::d3d12::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
+
 	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
 
 	if (ranges != nullptr)
@@ -1108,6 +1110,7 @@ reshade::api::resource reshade::d3d12::device_impl::get_resource_from_view(api::
 reshade::api::resource_view reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
 {
 	assert(fbo.handle != 0);
+
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	if (type == api::attachment_type::color)
@@ -1179,12 +1182,14 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 void reshade::d3d12::device_impl::register_descriptor_heap(ID3D12DescriptorHeap *heap)
 {
 	assert(heap != nullptr);
+
 	const std::unique_lock<std::shared_mutex> lock(_heap_mutex);
 	_descriptor_heaps.push_back(heap);
 }
 void reshade::d3d12::device_impl::unregister_descriptor_heap(ID3D12DescriptorHeap *heap)
 {
 	assert(heap != nullptr);
+
 	const std::unique_lock<std::shared_mutex> lock(_heap_mutex);
 	_descriptor_heaps.erase(std::find(_descriptor_heaps.begin(), _descriptor_heaps.end(), heap));
 }

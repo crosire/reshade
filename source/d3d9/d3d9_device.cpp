@@ -58,7 +58,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface
 			convert_rect_to_box(pRect, box);
 
 			uint32_t subresource;
-			const reshade::api::resource resource = device_proxy->get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSurface) }, &subresource);
+			const reshade::api::resource resource = device_proxy->get_resource_from_view({ reinterpret_cast<uintptr_t>(pSurface) }, &subresource);
 
 			reshade::api::subresource_data data;
 			data.data = pLockedRect->pBits;
@@ -77,6 +77,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface
 			pLockedRect->Pitch = data.row_pitch;
 		}
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE IDirect3DSurface9_UnlockRect(IDirect3DSurface9 *pSurface)
@@ -87,7 +88,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_UnlockRect(IDirect3DSurface9 *pSurfa
 			device_proxy != nullptr)
 		{
 			uint32_t subresource;
-			const reshade::api::resource resource = device_proxy->get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSurface) }, &subresource);
+			const reshade::api::resource resource = device_proxy->get_resource_from_view({ reinterpret_cast<uintptr_t>(pSurface) }, &subresource);
 
 			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, resource, subresource);
 		}
@@ -130,6 +131,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DTexture9_LockRect(IDirect3DTexture9 *pTexture
 			pLockedRect->Pitch = data.row_pitch;
 		}
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE IDirect3DTexture9_UnlockRect(IDirect3DTexture9 *pTexture, UINT Level)
@@ -178,6 +180,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolumeTexture9_LockBox(IDirect3DVolumeTexture
 			pLockedVolume->SlicePitch = data.slice_pitch;
 		}
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE IDirect3DVolumeTexture9_UnlockBox(IDirect3DVolumeTexture9 *pTexture, UINT Level)
@@ -208,10 +211,10 @@ HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_LockRect(IDirect3DCubeTexture9 *
 		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pTexture);
 			device_proxy != nullptr)
 		{
-			const UINT subresource = Level + static_cast<UINT>(FaceType) * pTexture->GetLevelCount();
-
 			int32_t box[6];
 			convert_rect_to_box(pRect, box);
+
+			const uint32_t subresource = Level + static_cast<UINT>(FaceType) * pTexture->GetLevelCount();
 
 			reshade::api::subresource_data data;
 			data.data = pLockedRect->pBits;
@@ -230,6 +233,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_LockRect(IDirect3DCubeTexture9 *
 			pLockedRect->Pitch = data.row_pitch;
 		}
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_UnlockRect(IDirect3DCubeTexture9 *pTexture, D3DCUBEMAP_FACES FaceType, UINT Level)
@@ -239,7 +243,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_UnlockRect(IDirect3DCubeTexture9
 		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pTexture);
 			device_proxy != nullptr)
 		{
-			const UINT subresource = Level + static_cast<UINT>(FaceType) * pTexture->GetLevelCount();
+			const uint32_t subresource = Level + static_cast<UINT>(FaceType) * pTexture->GetLevelCount();
 
 			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pTexture) }, subresource);
 		}
@@ -271,6 +275,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Lock(IDirect3DVertexBuffer9 *pV
 				ppbData);
 		}
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Unlock(IDirect3DVertexBuffer9 *pVertexBuffer)
@@ -310,6 +315,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Lock(IDirect3DIndexBuffer9 *pInd
 				ppbData);
 		}
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Unlock(IDirect3DIndexBuffer9 *pIndexBuffer)
@@ -390,7 +396,10 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
-		return _orig->Release(), ref;
+	{
+		_orig->Release();
+		return ref;
+	}
 
 	// Release remaining references to this device
 	_implicit_swapchain->Release();
@@ -465,6 +474,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	dump_and_modify_present_parameters(pp, _d3d.get(), _cp.AdapterOrdinal);
 
 	const HRESULT hr = _orig->CreateAdditionalSwapChain(&pp, ppSwapChain);
+
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-createadditionalswapchain)
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
 	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
@@ -523,6 +533,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	device_impl::on_reset();
 
 	const HRESULT hr = _orig->Reset(&pp);
+
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-reset)
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
 	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
@@ -542,13 +553,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
-#endif
-
 	// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
+	{
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
+#endif
 		_implicit_swapchain->on_present();
+	}
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
@@ -927,7 +939,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		// In case surface was replaced with a texture resource
-		const reshade::api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
+		const reshade::api::resource resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(surface) });
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::render_target, resource);
@@ -977,7 +989,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		// In case surface was replaced with a texture resource
-		const reshade::api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
+		const reshade::api::resource resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(surface) });
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::depth_stencil, resource);
@@ -1001,58 +1013,70 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 
 	return hr;
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const POINT *pDestinationPoint)
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrcSurface, const RECT *pSrcRect, IDirect3DSurface9 *pDstSurface, const POINT *pDstPoint)
 {
 #if RESHADE_ADDON
+	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
+
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
-		assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
-
-		D3DSURFACE_DESC desc;
-		pSourceSurface->GetDesc(&desc);
-
 		int32_t src_box[6];
-		convert_rect_to_box(pSourceRect, src_box);
+		convert_rect_to_box(pSrcRect, src_box);
+
 		int32_t dst_box[6];
-		convert_rect_to_box(pDestinationPoint, (pSourceRect != nullptr) ? pSourceRect->right - pSourceRect->left : desc.Width, (pSourceRect != nullptr) ? pSourceRect->bottom - pSourceRect->top : desc.Height, dst_box);
+		if (pSrcRect != nullptr)
+		{
+			convert_rect_to_box(pDstPoint, pSrcRect->right - pSrcRect->left, pSrcRect->bottom - pSrcRect->top, dst_box);
+		}
+		else
+		{
+			D3DSURFACE_DESC desc;
+			pSrcSurface->GetDesc(&desc);
+
+			convert_rect_to_box(pDstPoint, desc.Width, desc.Height, dst_box);
+		}
 
 		uint32_t src_subresource;
-		const reshade::api::resource src_resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSourceSurface) }, &src_subresource);
+		const reshade::api::resource src_resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(pSrcSurface) }, &src_subresource);
 		uint32_t dst_subresource;
-		const reshade::api::resource dst_resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDestinationSurface) }, &dst_subresource);
+		const reshade::api::resource dst_resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(pDstSurface) }, &dst_subresource);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationPoint != nullptr) ? dst_box : nullptr, reshade::api::filter_mode::min_mag_mip_point))
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, (pSrcRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDstPoint != nullptr) ? dst_box : nullptr, reshade::api::filter_mode::min_mag_mip_point))
 			return D3D_OK;
 	}
 #endif
 
-	return _orig->UpdateSurface(pSourceSurface, pSourceRect, pDestinationSurface, pDestinationPoint);
+	return _orig->UpdateSurface(pSrcSurface, pSrcRect, pDstSurface, pDstPoint);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *pSourceTexture, IDirect3DBaseTexture9 *pDestinationTexture)
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *pSrcTexture, IDirect3DBaseTexture9 *pDstTexture)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pSourceTexture) }, reshade::api::resource { reinterpret_cast<uintptr_t>(pDestinationTexture) }))
+	assert(pSrcTexture != nullptr && pDstTexture != nullptr);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcTexture) }, reshade::api::resource { reinterpret_cast<uintptr_t>(pDstTexture) }))
 		return D3D_OK;
 #endif
 
-	return _orig->UpdateTexture(pSourceTexture, pDestinationTexture);
+	return _orig->UpdateTexture(pSrcTexture, pDstTexture);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pDestSurface)
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pSrcSurface, IDirect3DSurface9 *pDstSurface)
 {
 #if RESHADE_ADDON
+	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
+
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		uint32_t src_subresource;
-		const reshade::api::resource src_resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pRenderTarget) }, &src_subresource);
+		const reshade::api::resource src_resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(pSrcSurface) }, &src_subresource);
 		uint32_t dst_subresource;
-		const reshade::api::resource dst_resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>( pDestSurface) }, &dst_subresource);
+		const reshade::api::resource dst_resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(pDstSurface) }, &dst_subresource);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, nullptr, dst_resource, dst_subresource, nullptr, reshade::api::filter_mode::min_mag_mip_point))
 			return D3D_OK;
 	}
 #endif
 
-	return _orig->GetRenderTargetData(pRenderTarget, pDestSurface);
+	return _orig->GetRenderTargetData(pSrcSurface, pDstSurface);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, IDirect3DSurface9 *pDestSurface)
 {
@@ -1064,43 +1088,43 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 
 	return _implicit_swapchain->GetFrontBufferData(pDestSurface);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const RECT *pDestinationRect, D3DTEXTUREFILTERTYPE Filter)
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSurface, const RECT *pSrcRect, IDirect3DSurface9 *pDstSurface, const RECT *pDstRect, D3DTEXTUREFILTERTYPE Filter)
 {
 #if RESHADE_ADDON
+	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
+
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>() ||
 		reshade::has_addon_event<reshade::addon_event::resolve_texture_region>())
 	{
-		assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
-
 		D3DSURFACE_DESC desc;
-		pSourceSurface->GetDesc(&desc);
+		pSrcSurface->GetDesc(&desc);
 
 		int32_t src_box[6];
-		convert_rect_to_box(pSourceRect, src_box);
+		convert_rect_to_box(pSrcRect, src_box);
 		int32_t dst_box[6];
-		convert_rect_to_box(pDestinationRect, dst_box);
+		convert_rect_to_box(pDstRect, dst_box);
 
 		uint32_t src_subresource;
-		const reshade::api::resource src_resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSourceSurface) }, &src_subresource);
+		const reshade::api::resource src_resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(pSrcSurface) }, &src_subresource);
 		uint32_t dst_subresource;
-		const reshade::api::resource dst_resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDestinationSurface) }, &dst_subresource);
+		const reshade::api::resource dst_resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(pDstSurface) }, &dst_subresource);
 
 		if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
 		{
 			const reshade::api::filter_mode filter_mode = (Filter == D3DTEXF_NONE || Filter == D3DTEXF_POINT) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear;
 
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationRect != nullptr) ? dst_box : nullptr, filter_mode))
+			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, (pSrcRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDstRect != nullptr) ? dst_box : nullptr, filter_mode))
 				return D3D_OK;
 		}
 		else
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationRect != nullptr) ? dst_box : nullptr, reshade::d3d9::convert_format(desc.Format)))
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, src_resource, src_subresource, (pSrcRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDstRect != nullptr) ? dst_box : nullptr, reshade::d3d9::convert_format(desc.Format)))
 				return D3D_OK;
 		}
 	}
 #endif
 
-	return _orig->StretchRect(pSourceSurface, pSourceRect, pDestinationSurface, pDestinationRect, Filter);
+	return _orig->StretchRect(pSrcSurface, pSrcRect, pDstSurface, pDstRect, Filter);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ColorFill(IDirect3DSurface9 *pSurface, const RECT *pRect, D3DCOLOR Color)
 {
@@ -1140,7 +1164,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
 			reshade::hooks::install("IDirect3DSurface9::UnlockRect", vtable_from_instance(surface), 14, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_UnlockRect));
 
-		const reshade::api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
+		const reshade::api::resource resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(surface) });
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::render_target, resource);
@@ -1528,8 +1552,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetScissorRect(const RECT *pRect)
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		static_assert(sizeof(RECT) == (sizeof(int32_t) * 4));
-
 		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, 1, reinterpret_cast<const int32_t *>(pRect));
 	}
 #endif
@@ -1994,12 +2016,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
-#endif
-
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
+	{
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
+#endif
 		_implicit_swapchain->on_present();
+	}
 
 	assert(_extended_interface);
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
@@ -2072,7 +2095,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		const reshade::api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
+		const reshade::api::resource resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(surface) });
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::render_target, resource);
@@ -2126,7 +2149,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
 			reshade::hooks::install("IDirect3DSurface9::UnlockRect", vtable_from_instance(surface), 14, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_UnlockRect));
 
-		const reshade::api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
+		const reshade::api::resource resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(surface) });
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::render_target, resource);
@@ -2177,7 +2200,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		const reshade::api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
+		const reshade::api::resource resource = get_resource_from_view({ reinterpret_cast<uintptr_t>(surface) });
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::depth_stencil, resource);
@@ -2220,6 +2243,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	assert(_extended_interface);
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pp.Windowed ? nullptr : &fullscreen_mode);
+
+	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9ex-resetex)
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
 	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
 	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;

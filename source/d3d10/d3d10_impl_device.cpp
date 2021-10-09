@@ -339,9 +339,9 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 		return false;
 	}
 
-#define create_state_object(name, type, extra_check) \
+#define create_state_object(name, type, condition) \
 	api::pipeline name##_handle = { 0 }; \
-	if (extra_check && !create_##name(desc, &name##_handle)) { \
+	if (condition && !create_##name(desc, &name##_handle)) { \
 		*out_handle = { 0 }; \
 		return false; \
 	} \
@@ -733,6 +733,7 @@ bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uin
 		return false;
 
 	assert(resource.handle != 0);
+
 	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
 
 	D3D10_RESOURCE_DIMENSION dimension;
@@ -757,6 +758,7 @@ bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uin
 void reshade::d3d10::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
 {
 	assert(resource.handle != 0);
+
 	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
 
 	D3D10_RESOURCE_DIMENSION dimension;
@@ -781,6 +783,7 @@ void reshade::d3d10::device_impl::update_buffer_region(const void *data, api::re
 	assert(offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	const D3D10_BOX box = { static_cast<UINT>(offset), 0, 0, static_cast<UINT>(offset + size), 1, 1 };
+
 	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(resource.handle), 0, offset != 0 ? &box : nullptr, data, static_cast<UINT>(size), 0);
 }
 void reshade::d3d10::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
@@ -819,6 +822,7 @@ void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t count, const a
 bool reshade::d3d10::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(pool.handle != 0);
+
 	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
 	for (uint32_t i = 0; i < count; ++i)
@@ -841,6 +845,7 @@ void reshade::d3d10::device_impl::set_resource_name(api::resource resource, cons
 void reshade::d3d10::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
+
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
 	if (params != nullptr)
@@ -863,6 +868,7 @@ void reshade::d3d10::device_impl::get_descriptor_pool_offset(api::descriptor_set
 void reshade::d3d10::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
+
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
 	if (ranges != nullptr)
@@ -882,6 +888,7 @@ void reshade::d3d10::device_impl::get_descriptor_set_layout_desc(api::descriptor
 reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::resource resource) const
 {
 	assert(resource.handle != 0);
+
 	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
 
 	D3D10_RESOURCE_DIMENSION dimension;
@@ -921,6 +928,7 @@ reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::
 reshade::api::resource reshade::d3d10::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
+
 	com_ptr<ID3D10Resource> resource;
 	reinterpret_cast<ID3D10View *>(view.handle)->GetResource(&resource);
 
@@ -930,6 +938,7 @@ reshade::api::resource reshade::d3d10::device_impl::get_resource_from_view(api::
 reshade::api::resource_view reshade::d3d10::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
 {
 	assert(fbo.handle != 0);
+
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	if (type == api::attachment_type::color)

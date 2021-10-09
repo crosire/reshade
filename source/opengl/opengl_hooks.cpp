@@ -4760,7 +4760,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 
 		if (desc.texture.level_count == 0xFFFFFFFF)
 			numlevels = g_current_context->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.levels;
-		if (desc.texture.level_count == 0xFFFFFFFF)
+		if (desc.texture.layer_count == 0xFFFFFFFF)
 			numlayers = g_current_context->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.depth_or_layers;
 	}
 #endif

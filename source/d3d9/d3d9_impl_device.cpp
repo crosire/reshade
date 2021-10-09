@@ -88,7 +88,7 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[0].descriptor_layout);
 
-	// See https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
 	layout_params[5].type = api::pipeline_layout_param_type::push_constants;
 	layout_params[5].push_constants.count = 224 * 4; // c#
 	layout_params[5].push_constants.visibility = api::shader_stage::pixel;
@@ -217,7 +217,7 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		pp.EnableAutoDepthStencil &&
 		SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
 	{
-		auto desc = get_resource_desc(api::resource { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		auto desc = get_resource_desc({ reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 
 		if (invoke_addon_event<addon_event::create_resource>(this, desc, nullptr, api::resource_usage::depth_stencil))
 		{
@@ -264,7 +264,6 @@ void reshade::d3d9::device_impl::on_reset()
 		return;
 
 	// Release backup state before invoking device destroy event, since it may still hold references to resources and releasing it may therefore invoke resource destroy events
-	// And all resource destroy events should have happened before the device destroy event
 	_backup_state.release_state_block();
 
 #if RESHADE_ADDON
@@ -384,7 +383,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				{
 					D3DINDEXBUFFER_DESC internal_desc = {};
 					convert_resource_desc(desc, internal_desc);
-					internal_desc.Format = D3DFMT_INDEX16; // TODO: The index format of the index buffer is hardcoded ...
+					internal_desc.Format = D3DFMT_INDEX16; // TODO: The index format of the index buffer is hardcoded here, which is rather unfortuante ...
 
 					if (com_ptr<IDirect3DIndexBuffer9> object;
 						SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
@@ -443,11 +442,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 					if (initial_data != nullptr)
 					{
-						// Cannot get level information for textures created with the 'generate_mipmaps' flag, so only upload to the base level
-						if (levels == 0)
-							levels  = 1;
-
-						for (uint32_t subresource = 0; subresource < levels; ++subresource)
+						for (uint32_t subresource = 0; subresource < desc.texture.levels; ++subresource)
 							update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
 					}
 					return true;
@@ -495,7 +490,6 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
 						update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
 				}
-
 				return true;
 			}
 			break;
@@ -591,8 +585,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DSurface9 *>(object)->GetDesc(&internal_desc);
 				if (D3DFORMAT view_format = convert_format(desc.format);
-					!convert_format_internal(desc.format, view_format) ||
-					internal_desc.Format != view_format)
+					!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
 
 				object->AddRef();
@@ -616,8 +609,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(desc.texture.first_level, &internal_desc);
 				if (D3DFORMAT view_format = convert_format(desc.format);
-					!convert_format_internal(desc.format, view_format) ||
-					internal_desc.Format != view_format)
+					!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
 
 				if (com_ptr<IDirect3DSurface9> surface;
@@ -632,8 +624,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 				if (D3DFORMAT view_format = convert_format(desc.format);
-					!convert_format_internal(desc.format, view_format) ||
-					internal_desc.Format != view_format)
+					!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
 
 				object->AddRef();
@@ -656,8 +647,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(desc.texture.first_level, &internal_desc);
 				if (D3DFORMAT view_format = convert_format(desc.format);
-					!convert_format_internal(desc.format, view_format) ||
-					internal_desc.Format != view_format)
+					!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
 
 				if (com_ptr<IDirect3DSurface9> surface;
@@ -674,8 +664,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 				if (D3DFORMAT view_format = convert_format(desc.format);
-					!convert_format_internal(desc.format, view_format) ||
-					internal_desc.Format != view_format)
+					!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
 
 				object->AddRef();
@@ -729,9 +718,9 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		return false;
 	}
 
-#define create_state_object(name, type, extra_check) \
+#define create_state_object(name, type, condition) \
 	api::pipeline name##_handle = { 0 }; \
-	if (extra_check && !create_##name(desc, &name##_handle)) { \
+	if (condition && !create_##name(desc, &name##_handle)) { \
 		*out_handle = { 0 }; \
 		return false; \
 	} \
@@ -758,7 +747,7 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 	}
 	else
 	{
-		// Setup default input (used to have a vertex ID in vertex shaders)
+		// Setup default input (so that vertex shaders can get the vertex IDs)
 		_orig->SetStreamSource(0, _default_input_stream.get(), 0, sizeof(float));
 		_orig->SetVertexDeclaration(_default_input_layout.get());
 	}
@@ -871,6 +860,8 @@ bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &d
 {
 	std::vector<D3DVERTEXELEMENT9> internal_elements;
 	convert_pipeline_desc(desc, internal_elements);
+	// Should always contain a 'D3DDECL_END' element
+	assert(internal_elements.size() >= 1);
 
 	if (com_ptr<IDirect3DVertexDeclaration9> object;
 		internal_elements.size() == 1 || SUCCEEDED(_orig->CreateVertexDeclaration(internal_elements.data(), &object)))
@@ -1144,6 +1135,7 @@ bool reshade::d3d9::device_impl::map_buffer_region(api::resource resource, uint6
 		}
 	}
 
+	assert(false); // Not implemented
 	return false;
 }
 void reshade::d3d9::device_impl::unmap_buffer_region(api::resource resource)
@@ -1156,14 +1148,16 @@ void reshade::d3d9::device_impl::unmap_buffer_region(api::resource resource)
 		case D3DRTYPE_VERTEXBUFFER:
 		{
 			static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
-			break;
+			return;
 		}
 		case D3DRTYPE_INDEXBUFFER:
 		{
 			static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
-			break;
+			return;
 		}
 	}
+
+	assert(false); // Not implemented
 }
 bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
 {
@@ -1186,36 +1180,28 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 			RECT rect;
 			convert_box_to_rect(box, &rect);
 
-			D3DLOCKED_RECT locked;
-			if (SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
+			D3DLOCKED_RECT locked_rect;
+			if (SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked_rect, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
 			{
-				D3DSURFACE_DESC desc;
-				static_cast<IDirect3DSurface9 *>(object)->GetDesc(&desc);
-
-				out_data->data = locked.pBits;
-				out_data->row_pitch = locked.Pitch;
-				out_data->slice_pitch = api::format_slice_pitch(convert_format(desc.Format), locked.Pitch, 1);
+				out_data->data = locked_rect.pBits;
+				out_data->row_pitch = locked_rect.Pitch;
 				return true;
 			}
-			break;
+			return false;
 		}
 		case D3DRTYPE_TEXTURE:
 		{
 			RECT rect;
 			convert_box_to_rect(box, &rect);
 
-			D3DLOCKED_RECT locked;
-			if (SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
+			D3DLOCKED_RECT locked_rect;
+			if (SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked_rect, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
 			{
-				D3DSURFACE_DESC desc;
-				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(subresource, &desc);
-
-				out_data->data = locked.pBits;
-				out_data->row_pitch = locked.Pitch;
-				out_data->slice_pitch = api::format_slice_pitch(convert_format(desc.Format), locked.Pitch, 1);
+				out_data->data = locked_rect.pBits;
+				out_data->row_pitch = locked_rect.Pitch;
 				return true;
 			}
-			break;
+			return false;
 		}
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
@@ -1227,7 +1213,7 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 				out_data->slice_pitch = locked_box.SlicePitch;
 				return true;
 			}
-			break;
+			return false;
 		}
 		case D3DRTYPE_CUBETEXTURE:
 		{
@@ -1236,21 +1222,18 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 			RECT rect;
 			convert_box_to_rect(box, &rect);
 
-			D3DLOCKED_RECT locked;
-			if (SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
+			D3DLOCKED_RECT locked_rect;
+			if (SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
 			{
-				D3DSURFACE_DESC desc;
-				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(subresource % levels, &desc);
-
-				out_data->data = locked.pBits;
-				out_data->row_pitch = locked.Pitch;
-				out_data->slice_pitch = api::format_slice_pitch(convert_format(desc.Format), locked.Pitch, 1);
+				out_data->data = locked_rect.pBits;
+				out_data->row_pitch = locked_rect.Pitch;
 				return true;
 			}
-			break;
+			return false;
 		}
 	}
 
+	assert(false); // Not implemented
 	return false;
 }
 void reshade::d3d9::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
@@ -1265,40 +1248,28 @@ void reshade::d3d9::device_impl::unmap_texture_region(api::resource resource, ui
 			assert(subresource == 0);
 
 			static_cast<IDirect3DSurface9 *>(object)->UnlockRect();
-			break;
+			return;
 		}
 		case D3DRTYPE_TEXTURE:
 		{
 			static_cast<IDirect3DTexture9 *>(object)->UnlockRect(subresource);
-			break;
+			return;
 		}
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
 			static_cast<IDirect3DVolumeTexture9 *>(object)->UnlockBox(subresource);
-			break;
+			return;
 		}
 		case D3DRTYPE_CUBETEXTURE:
 		{
 			const UINT levels = static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount();
 
 			static_cast<IDirect3DCubeTexture9 *>(object)->UnlockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels);
-			break;
-		}
-		case D3DRTYPE_VERTEXBUFFER:
-		{
-			assert(subresource == 0);
-
-			static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
-			break;
-		}
-		case D3DRTYPE_INDEXBUFFER:
-		{
-			assert(subresource == 0);
-
-			static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
-			break;
+			return;
 		}
 	}
+
+	assert(false); // Not implemented
 }
 
 void reshade::d3d9::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
@@ -1311,8 +1282,8 @@ void reshade::d3d9::device_impl::update_buffer_region(const void *data, api::res
 	{
 		case D3DRTYPE_VERTEXBUFFER:
 		{
-			if (void *mapped_ptr = nullptr;
-				SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
+			void *mapped_ptr;
+			if (SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
 			{
 				std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
 				static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
@@ -1321,8 +1292,8 @@ void reshade::d3d9::device_impl::update_buffer_region(const void *data, api::res
 		}
 		case D3DRTYPE_INDEXBUFFER:
 		{
-			if (void *mapped_ptr = nullptr;
-				SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
+			void *mapped_ptr;
+			if (SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
 			{
 				std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
 				static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
@@ -1342,11 +1313,13 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 	{
 		case D3DRTYPE_TEXTURE:
 		{
-			D3DSURFACE_DESC desc = {}; // Get D3D texture format
-			static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(subresource, &desc);
+			// Get D3D texture format
+			D3DSURFACE_DESC desc;
+			if (FAILED(static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(subresource, &desc)))
+				return;
 
-			UINT width = box != nullptr ? box[3] - box[0] : desc.Width;
-			UINT height = box != nullptr ? box[4] - box[1] : desc.Height;
+			const UINT width = (box != nullptr) ? box[3] - box[0] : desc.Width;
+			const UINT height = (box != nullptr) ? box[4] - box[1] : desc.Height;
 			const bool use_systemmem_texture = static_cast<IDirect3DTexture9 *>(object)->GetLevelCount() == 1 && box == nullptr;
 
 			com_ptr<IDirect3DTexture9> intermediate;
@@ -1364,7 +1337,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			auto upload_data = static_cast<const uint8_t *>(data.data);
 
 			// If format is one of these two, assume they were overwritten by 'convert_format_internal', so handle them accordingly
-			// TODO: Maybe store the original format as user data in the resource to avoid this hack
+			// TODO: Maybe store the original format as user data in the resource to avoid this hack?
 			if (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8)
 			{
 				for (uint32_t y = 0; y < height; ++y, mapped_data += locked_rect.Pitch, upload_data += data.row_pitch)
@@ -1426,6 +1399,16 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			}
 			return;
 		}
+		case D3DRTYPE_VOLUMETEXTURE:
+		{
+			// TODO: Implement texture upload for 3D textures
+			break;
+		}
+		case D3DRTYPE_CUBETEXTURE:
+		{
+			// TODO: Implement texture upload for cube textures
+			break;
+		}
 	}
 
 	assert(false); // Not implemented
@@ -1460,6 +1443,7 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t count, const ap
 bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(pool.handle != 0);
+
 	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
 	for (uint32_t i = 0; i < count; ++i)
@@ -1481,6 +1465,7 @@ bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool pool, ui
 void reshade::d3d9::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
+
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
 	if (params != nullptr)
@@ -1503,6 +1488,7 @@ void reshade::d3d9::device_impl::get_descriptor_pool_offset(api::descriptor_set,
 void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
+
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
 	if (ranges != nullptr)
@@ -1522,6 +1508,7 @@ void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_
 reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource resource) const
 {
 	assert(resource.handle != 0);
+
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
 	switch (object->GetType())
@@ -1574,6 +1561,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
+
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle & ~1ull);
 
 	// Get container in case this is a surface resource
@@ -1640,6 +1628,7 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 reshade::api::resource_view reshade::d3d9::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
 {
 	assert(fbo.handle != 0);
+
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	if (type == api::attachment_type::color)

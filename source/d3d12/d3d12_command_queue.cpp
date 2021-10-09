@@ -89,7 +89,10 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
-		return _orig->Release(), ref;
+	{
+		_orig->Release();
+		return ref;
+	}
 
 	if (_downlevel != nullptr)
 	{
@@ -110,7 +113,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for " << "ID3D12CommandQueue" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 
-	// Release the explicit reference to the device that was added in the D3D12CommandQueue constructor above now that the queue implementation was destroyed and is no longer referencing it
+	// Release the explicit reference to the device that was added in the 'D3D12CommandQueue' constructor above now that the queue implementation was destroyed and is no longer referencing it
 	device->Release();
 	return 0;
 }

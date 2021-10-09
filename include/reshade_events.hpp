@@ -60,7 +60,7 @@ namespace reshade
 		/// </remarks>
 		create_swapchain,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Reset(Ex)', 'IDXGISwapChain::ResizeBuffers(1)' and on swapchain destruction, before last 'IDirect3DSwapChain9::Release', 'IDXGISwapChain::Release' or 'vkDestroySwapchainKHR'.
+		/// Called before 'IDirect3DDevice9::Reset(Ex)', 'IDXGISwapChain::ResizeBuffers(1)' and on swap chain destruction, before last 'IDirect3DSwapChain9::Release', 'IDXGISwapChain::Release' or 'vkDestroySwapchainKHR'.
 		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
 		/// </summary>
 		destroy_swapchain,

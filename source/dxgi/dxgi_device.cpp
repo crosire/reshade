@@ -76,7 +76,10 @@ ULONG   STDMETHODCALLTYPE DXGIDevice::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
-		return _orig->Release(), ref;
+	{
+		_orig->Release();
+		return ref;
+	}
 
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;

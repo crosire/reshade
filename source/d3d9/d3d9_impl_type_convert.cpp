@@ -3,7 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "d3d9_impl_device.hpp"
+#include <vector>
+#include <limits>
+#include "com_ptr.hpp"
+#include "reshade_api_pipeline.hpp"
 #include "d3d9_impl_type_convert.hpp"
 
 auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORMAT

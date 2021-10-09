@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * Copyright (C) 2021 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 

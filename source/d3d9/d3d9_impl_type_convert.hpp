@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <d3d9.h>
+
 namespace reshade::d3d9
 {
 	struct sampler_impl

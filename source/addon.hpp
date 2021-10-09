@@ -11,11 +11,11 @@
 
 namespace reshade::api
 {
-	struct api_object;
-	struct effect_runtime;
+	class api_object;
+	class effect_runtime;
 
 	template <typename T, typename... api_object_base>
-	class  api_object_impl : public api_object_base...
+	class api_object_impl : public api_object_base...
 	{
 		static_assert(sizeof(T) <= sizeof(uint64_t));
 

@@ -466,7 +466,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 			else
 			{
-				// Synchronization is handled in "swapchain_impl::on_present"
+				// Synchronization is handled in 'swapchain_impl::on_present'
 				HR_CHECK(swapchain->Present(1, 0));
 			}
 		}
@@ -825,7 +825,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 #  ifndef NDEBUG
 #include <DbgHelp.h>
 
-static PVOID g_exception_handler_handle = nullptr;
+static PVOID s_exception_handler_handle = nullptr;
 #  endif
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
@@ -849,7 +849,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #  endif
 
 #  ifndef NDEBUG
-		g_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
+		s_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
 			// Ignore debugging and some common language exceptions
 			if (const DWORD code = ex->ExceptionRecord->ExceptionCode;
 				code == CONTROL_C_EXIT || code == 0x406D1388 /* SetThreadName */ ||
@@ -915,6 +915,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::hooks::register_module(L"user32.dll");
 		reshade::hooks::register_module(L"ws2_32.dll");
 
+		// user32.dll will always be loaded at this point, so can safely initialize trampoline pointers
+		extern void init_message_queue_trampolines();
+		init_message_queue_trampolines();
+
 		reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
 		reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
 		reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
@@ -941,10 +945,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		if (_wcsicmp(g_reshade_dll_path.stem().c_str(), L"dinput8") == 0)
 			reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
 
-		// user32.dll will always be loaded at this point, so can safely initialize trampoline pointers
-		extern void init_message_queue_trampolines();
-		init_message_queue_trampolines();
-
 		LOG(INFO) << "Initialized.";
 		break;
 	case DLL_PROCESS_DETACH:
@@ -962,7 +962,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		Sleep(1000);
 
 #  ifndef NDEBUG
-		RemoveVectoredExceptionHandler(g_exception_handler_handle);
+		RemoveVectoredExceptionHandler(s_exception_handler_handle);
 #  endif
 
 		LOG(INFO) << "Finished exiting.";
