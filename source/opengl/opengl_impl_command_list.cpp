@@ -967,7 +967,15 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		const GLuint layer = src_subresource / levels;
 
 		GLenum format = GL_NONE, type;
-		glGetTexLevelParameteriv(src_target == GL_TEXTURE_CUBE_MAP ? GL_TEXTURE_CUBE_MAP_POSITIVE_X : src_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+		GLenum src_level_target = (src_target == GL_TEXTURE_CUBE_MAP) ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer : src_target;
+		glGetTexLevelParameteriv(src_level_target, level, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+
+		if (src_box == nullptr)
+		{
+			glGetTexLevelParameteriv(src_level_target, level, GL_TEXTURE_WIDTH,  &w);
+			glGetTexLevelParameteriv(src_level_target, level, GL_TEXTURE_HEIGHT, &h);
+			glGetTexLevelParameteriv(src_level_target, level, GL_TEXTURE_DEPTH,  &d);
+		}
 
 		const auto row_size_packed = api::format_row_pitch(convert_format(format), row_length != 0 ? row_length : w);
 		const auto slice_size_packed = api::format_slice_pitch(convert_format(format), row_size_packed, slice_height != 0 ? slice_height : h);
