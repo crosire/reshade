@@ -426,8 +426,8 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	}
 
 	GLuint object = 0;
-	GLuint prev_object = 0;
-	glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_object));
+	GLuint prev_binding = 0;
+	glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 
 	if (desc.type == api::resource_type::buffer)
 	{
@@ -455,14 +455,16 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			update_buffer_region(initial_data->data, make_resource_handle(GL_BUFFER, object), 0, desc.buffer.size);
 		}
 
-		glBindBuffer(target, prev_object);
+		glBindBuffer(target, prev_binding);
 
 		// Handles to buffer resources always have the target set to 'GL_BUFFER'
 		target = GL_BUFFER;
 	}
 	else
 	{
-		const GLenum internal_format = convert_format(desc.texture.format);
+		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+
+		const GLenum internal_format = convert_format(desc.texture.format, swizzle_mask);
 		if (desc.texture.width == 0 || internal_format == GL_NONE)
 		{
 			*out_handle = { 0 };
@@ -497,13 +499,15 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			break;
 		}
 
+		glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
 		if (initial_data != nullptr)
 		{
 			for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
 				update_texture_region(initial_data[subresource], make_resource_handle(target, object), subresource, nullptr);
 		}
 
-		glBindTexture(target, prev_object);
+		glBindTexture(target, prev_binding);
 	}
 
 	*out_handle = make_resource_handle(target, object);
@@ -606,14 +610,18 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	}
 	else
 	{
-		GLuint prev_object = 0;
-		glGetIntegerv(reshade::opengl::get_binding_for_target(resource_target), reinterpret_cast<GLint *>(&prev_object));
+		GLuint prev_binding = 0;
+		glGetIntegerv(reshade::opengl::get_binding_for_target(resource_target), reinterpret_cast<GLint *>(&prev_binding));
 		glBindTexture(resource_target, resource.handle & 0xFFFFFFFF);
+
 		glGetTexLevelParameteriv(resource_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
-		glBindTexture(resource_target, prev_object);
+
+		glBindTexture(resource_target, prev_binding);
 	}
 
-	const GLenum internal_format = convert_format(desc.format);
+	GLint texture_swizzle[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+
+	const GLenum internal_format = convert_format(desc.format, texture_swizzle);
 	if (internal_format == GL_NONE)
 	{
 		*out_handle = { 0 };
@@ -638,18 +646,21 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	else
 	{
 		GLuint object = 0;
-		GLuint prev_object = 0;
 		glGenTextures(1, &object);
+
+		GLuint prev_binding = 0;
+		glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 
 		if (target != GL_TEXTURE_BUFFER)
 		{
 			// Number of levels and layers are clamped to those of the original texture
 			glTextureView(object, target, resource.handle & 0xFFFFFFFF, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, desc.texture.layer_count);
+
+			glBindTexture(target, object);
+			glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
 		}
 		else
 		{
-			glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_object));
-
 			glBindTexture(target, object);
 
 			if (desc.buffer.offset == 0 && desc.buffer.size == static_cast<uint64_t>(-1))
@@ -662,9 +673,9 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 				assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, static_cast<GLintptr>(desc.buffer.offset), static_cast<GLsizeiptr>(desc.buffer.size));
 			}
-
-			glBindTexture(target, prev_object);
 		}
+
+		glBindTexture(target, prev_binding);
 
 		*out_handle = make_resource_view_handle(target, object, is_srgb_format ? 0x2 : 0);
 		return true;
@@ -859,9 +870,9 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 	impl->program = program;
 
 	{
-		GLuint prev_vao = 0;
+		GLint prev_vao = 0;
 		glGenVertexArrays(1, &impl->vao);
-		glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&prev_vao));
+		glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
 
 		glBindVertexArray(impl->vao);
 
@@ -1336,13 +1347,13 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 	}
 	else
 	{
-		GLint previous_buf = 0;
-		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &previous_buf);
-
+		GLint prev_binding = 0;
+		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_binding);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
+
 		glBufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 
-		glBindBuffer(GL_COPY_WRITE_BUFFER, previous_buf);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_binding);
 	}
 
 }
@@ -1354,26 +1365,27 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
 	// Get current state
-	GLint previous_tex = 0;
-	GLint previous_unpack = 0;
-	GLint previous_unpack_lsb = GL_FALSE;
-	GLint previous_unpack_swap = GL_FALSE;
-	GLint previous_unpack_alignment = 0;
-	GLint previous_unpack_row_length = 0;
-	GLint previous_unpack_image_height = 0;
-	GLint previous_unpack_skip_rows = 0;
-	GLint previous_unpack_skip_pixels = 0;
-	GLint previous_unpack_skip_images = 0;
-	glGetIntegerv(get_binding_for_target(target), &previous_tex);
-	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &previous_unpack);
-	glGetIntegerv(GL_UNPACK_LSB_FIRST, &previous_unpack_lsb);
-	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &previous_unpack_swap);
-	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
-	glGetIntegerv(GL_UNPACK_ROW_LENGTH, &previous_unpack_row_length);
-	glGetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &previous_unpack_image_height);
-	glGetIntegerv(GL_UNPACK_SKIP_ROWS, &previous_unpack_skip_rows);
-	glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &previous_unpack_skip_pixels);
-	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &previous_unpack_skip_images);
+	GLint prev_binding = 0;
+	glGetIntegerv(get_binding_for_target(target), &prev_binding);
+
+	GLint prev_unpack_binding = 0;
+	GLint prev_unpack_lsb = GL_FALSE;
+	GLint prev_unpack_swap = GL_FALSE;
+	GLint prev_unpack_alignment = 0;
+	GLint prev_unpack_row_length = 0;
+	GLint prev_unpack_image_height = 0;
+	GLint prev_unpack_skip_rows = 0;
+	GLint prev_unpack_skip_pixels = 0;
+	GLint prev_unpack_skip_images = 0;
+	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &prev_unpack_binding);
+	glGetIntegerv(GL_UNPACK_LSB_FIRST, &prev_unpack_lsb);
+	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &prev_unpack_swap);
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &prev_unpack_alignment);
+	glGetIntegerv(GL_UNPACK_ROW_LENGTH, &prev_unpack_row_length);
+	glGetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &prev_unpack_image_height);
+	glGetIntegerv(GL_UNPACK_SKIP_ROWS, &prev_unpack_skip_rows);
+	glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &prev_unpack_skip_pixels);
+	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &prev_unpack_skip_images);
 
 	// Unset any existing unpack buffer so pointer is not interpreted as an offset
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
@@ -1490,16 +1502,17 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	}
 
 	// Restore previous state from application
-	glBindTexture(target, previous_tex);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, previous_unpack);
-	glPixelStorei(GL_UNPACK_LSB_FIRST, previous_unpack_lsb);
-	glPixelStorei(GL_UNPACK_SWAP_BYTES, previous_unpack_swap);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, previous_unpack_row_length);
-	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, previous_unpack_image_height);
-	glPixelStorei(GL_UNPACK_SKIP_ROWS, previous_unpack_skip_rows);
-	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
-	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
+	glBindTexture(target, prev_binding);
+
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, prev_unpack_binding);
+	glPixelStorei(GL_UNPACK_LSB_FIRST, prev_unpack_lsb);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, prev_unpack_swap);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, prev_unpack_alignment);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, prev_unpack_row_length);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, prev_unpack_image_height);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, prev_unpack_skip_rows);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, prev_unpack_skip_pixels);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, prev_unpack_skip_images);
 }
 
 void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates)
@@ -1647,6 +1660,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		case GL_TEXTURE_CUBE_MAP_ARRAY:
 		case GL_TEXTURE_RECTANGLE:
 		{
+			GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+
 			if (_supports_dsa)
 			{
 				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_WIDTH, &width);
@@ -1671,6 +1686,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 						}
 					}
 				}
+
+				glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 			}
 			else
 			{
@@ -1698,10 +1715,12 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 					}
 				}
 
+				glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
 				glBindTexture(target, prev_object);
 			}
 
-			return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
+			return convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
 		}
 		case GL_RENDERBUFFER:
 		{

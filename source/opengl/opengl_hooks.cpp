@@ -10,6 +10,8 @@
 
 #define gl3wGetFloatv gl3wProcs.gl.GetFloatv
 #define gl3wGetIntegerv gl3wProcs.gl.GetIntegerv
+#define gl3wTexParameteriv gl3wProcs.gl.TexParameteriv
+#define gl3wGetTexParameteriv gl3wProcs.gl.GetTexParameteriv
 #define gl3wGetTextureParameteriv gl3wProcs.gl.GetTextureParameteriv
 #define gl3wNamedFramebufferTexture gl3wProcs.gl.NamedFramebufferTexture
 #define gl3wNamedFramebufferRenderbuffer gl3wProcs.gl.NamedFramebufferRenderbuffer
@@ -4223,7 +4225,10 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 	}
 
 #if RESHADE_ADDON
-	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width);
+	GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+	gl3wGetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
+	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, 1, 1, swizzle_mask);
 	auto initial_data = convert_mapped_subresource(format, type, pixels, width);
 
 	// Ignore proxy texture objects
@@ -4233,11 +4238,13 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 		level == 0 && !proxy_object &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
-		internalformat = reshade::opengl::convert_format(desc.texture.format);
+		internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 		width = desc.texture.width;
 
 		// Skip initial upload, data is uploaded after creation in 'init_resource' below
 		pixels = nullptr;
+
+		gl3wTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 	}
 #endif
 
@@ -4287,7 +4294,10 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	}
 
 #if RESHADE_ADDON
-	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height);
+	GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+	gl3wGetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
+	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1, swizzle_mask);
 	auto initial_data = convert_mapped_subresource(format, type, pixels, width, height);
 
 	// Ignore proxy texture objects
@@ -4297,12 +4307,14 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		level == 0 && !proxy_object && // TODO: Add support for other mipmap levels
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
-		internalformat = reshade::opengl::convert_format(desc.texture.format);
+		internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 		width = desc.texture.width;
 		height = desc.texture.height;
 
 		// Skip initial upload, data is uploaded after creation in 'init_resource' below
 		pixels = nullptr;
+
+		gl3wTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 	}
 #endif
 
@@ -4317,15 +4329,20 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 			void WINAPI glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLboolean fixedsamplelocations)
 {
 #if RESHADE_ADDON
-	auto desc =	reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height);
+	GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+	gl3wGetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
+	auto desc =	reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, 1, swizzle_mask);
 
 	if (g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
 	{
 		samples = desc.texture.samples;
-		internalformat = reshade::opengl::convert_format(desc.texture.format);
+		internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 		width = desc.texture.width;
 		height = desc.texture.height;
+
+		gl3wTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 	}
 #endif
 
@@ -4374,7 +4391,10 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	}
 
 #if RESHADE_ADDON
-	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
+	GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+	gl3wGetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
+	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth, swizzle_mask);
 	auto initial_data = convert_mapped_subresource(format, type, pixels, width, height, depth);
 
 	// Ignore proxy texture objects
@@ -4384,13 +4404,15 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		level == 0 && !proxy_object &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
-		internalformat = reshade::opengl::convert_format(desc.texture.format);
+		internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 		width = desc.texture.width;
 		height = desc.texture.height;
 		depth = desc.texture.depth_or_layers;
 
 		// Skip initial upload, data is uploaded after creation in 'init_resource' below
 		pixels = nullptr;
+
+		gl3wTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 	}
 #endif
 
@@ -4405,16 +4427,21 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 			void WINAPI glTexImage3DMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedsamplelocations)
 {
 #if RESHADE_ADDON
-	auto desc =	reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, depth);
+	GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+	gl3wGetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
+	auto desc =	reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, depth, swizzle_mask);
 
 	if (g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
 	{
 		samples = desc.texture.samples;
-		internalformat = reshade::opengl::convert_format(desc.texture.format);
+		internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 		width = desc.texture.width;
 		height = desc.texture.height;
 		depth = desc.texture.depth_or_layers;
+
+		gl3wTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 	}
 #endif
 

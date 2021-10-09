@@ -86,8 +86,8 @@ namespace reshade::opengl
 		std::vector<uint64_t> descriptors;
 	};
 
-	auto convert_format(api::format format) -> GLenum;
-	auto convert_format(GLenum internal_format) -> api::format;
+	auto convert_format(api::format format, GLint swizzle_mask[4] = nullptr) -> GLenum;
+	auto convert_format(GLenum internal_format, const GLint swizzle_mask[4] = nullptr) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;
 	auto convert_upload_format(GLenum internal_format, GLenum &type) -> GLenum;
 
@@ -103,7 +103,7 @@ namespace reshade::opengl
 
 	api::resource_type convert_resource_type(GLenum target);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size);
-	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1, const GLint swizzle_mask[4] = nullptr);
 
 	api::resource_view_type convert_resource_view_type(GLenum target);
 	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internal_format, GLintptr offset, GLsizeiptr size);

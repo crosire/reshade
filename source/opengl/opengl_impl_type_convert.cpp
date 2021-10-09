@@ -6,7 +6,7 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_type_convert.hpp"
 
-auto reshade::opengl::convert_format(api::format format) -> GLenum
+auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) -> GLenum
 {
 	switch (format)
 	{
@@ -18,8 +18,24 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 	case api::format::r1_unorm:
 		break; // Unsupported
 	case api::format::l8_unorm:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_RED;
+			swizzle_mask[1] = GL_RED;
+			swizzle_mask[2] = GL_RED;
+			swizzle_mask[3] = GL_ONE;
+			return GL_R8;
+		}
 		return GL_LUMINANCE8;
 	case api::format::a8_unorm:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_ZERO;
+			swizzle_mask[1] = GL_ZERO;
+			swizzle_mask[2] = GL_ZERO;
+			swizzle_mask[3] = GL_RED;
+			return GL_R8;
+		}
 		return GL_ALPHA8;
 	case api::format::r8_uint:
 		return GL_R8UI;
@@ -31,6 +47,14 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 	case api::format::r8_snorm:
 		return GL_R8_SNORM;
 	case api::format::l8a8_unorm:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_RED;
+			swizzle_mask[1] = GL_RED;
+			swizzle_mask[2] = GL_RED;
+			swizzle_mask[3] = GL_GREEN;
+			return GL_RG8;
+		}
 		return GL_LUMINANCE8_ALPHA8;
 	case api::format::r8g8_uint:
 		return GL_RG8UI;
@@ -75,6 +99,14 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 	case api::format::b10g10r10a2_unorm:
 		break; // Unsupported
 	case api::format::l16_unorm:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_RED;
+			swizzle_mask[1] = GL_RED;
+			swizzle_mask[2] = GL_RED;
+			swizzle_mask[3] = GL_ONE;
+			return GL_R16;
+		}
 		return GL_LUMINANCE16;
 	case api::format::r16_uint:
 		return GL_R16UI;
@@ -88,6 +120,14 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 	case api::format::r16_snorm:
 		return GL_R16_SNORM;
 	case api::format::l16a16_unorm:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_RED;
+			swizzle_mask[1] = GL_RED;
+			swizzle_mask[2] = GL_RED;
+			swizzle_mask[3] = GL_GREEN;
+			return GL_RG16;
+		}
 		return GL_LUMINANCE16_ALPHA16;
 	case api::format::r16g16_uint:
 		return GL_RG16UI;
@@ -211,7 +251,7 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 
 	return GL_NONE;
 }
-auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
+auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle_mask[4]) -> api::format
 {
 	switch (internal_format)
 	{
@@ -227,6 +267,17 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 	case GL_R8I:
 		return api::format::r8_sint;
 	case GL_R8: // { R, 0, 0, 1 }
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_RED &&
+			swizzle_mask[1] == GL_RED &&
+			swizzle_mask[2] == GL_RED)
+			return api::format::l8_unorm;
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_ZERO &&
+			swizzle_mask[1] == GL_ZERO &&
+			swizzle_mask[2] == GL_ZERO &&
+			swizzle_mask[3] == GL_RED)
+			return api::format::a8_unorm;
 		return api::format::r8_unorm;
 	case GL_R8_SNORM:
 		return api::format::r8_snorm;
@@ -237,6 +288,12 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 	case GL_RG8I:
 		return api::format::r8g8_sint;
 	case GL_RG8: // { R, G, 0, 1 }
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_RED &&
+			swizzle_mask[1] == GL_RED &&
+			swizzle_mask[2] == GL_RED &&
+			swizzle_mask[3] == GL_GREEN)
+			return api::format::l8a8_unorm;
 		return api::format::r8g8_unorm;
 	case GL_RG8_SNORM:
 		return api::format::r8g8_snorm;
@@ -268,6 +325,11 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 	case GL_R16F:
 		return api::format::r16_float;
 	case GL_R16: // { R, 0, 0, 1 }
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_RED &&
+			swizzle_mask[1] == GL_RED &&
+			swizzle_mask[2] == GL_RED)
+			return api::format::l16_unorm;
 		return api::format::r16_unorm;
 	case GL_R16_SNORM:
 		return api::format::r16_snorm;
@@ -280,6 +342,12 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 	case GL_RG16F:
 		return api::format::r16g16_float;
 	case GL_RG16: // { R, G, 0, 1 }
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_RED &&
+			swizzle_mask[1] == GL_RED &&
+			swizzle_mask[2] == GL_RED &&
+			swizzle_mask[3] == GL_GREEN)
+			return api::format::l16a16_unorm;
 		return api::format::r16g16_unorm;
 	case GL_RG16_SNORM:
 		return api::format::r16g16_snorm;
@@ -847,7 +915,7 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	desc.usage = api::resource_usage::shader_resource | api::resource_usage::copy_dest | api::resource_usage::copy_source;
 	return desc;
 }
-reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth)
+reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth, const GLint swizzle_mask[4])
 {
 	api::resource_desc desc = {};
 	desc.type = convert_resource_type(target);
@@ -857,7 +925,7 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	desc.texture.depth_or_layers = static_cast<uint16_t>(depth);
 	assert(levels <= std::numeric_limits<uint16_t>::max());
 	desc.texture.levels = static_cast<uint16_t>(levels);
-	desc.texture.format = convert_format(internal_format);
+	desc.texture.format = convert_format(internal_format, swizzle_mask);
 	desc.texture.samples = static_cast<uint16_t>(samples);
 	desc.heap = api::memory_heap::gpu_only;
 
