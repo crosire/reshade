@@ -300,32 +300,29 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 {
 	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
 		return false; // Skip resources that are not 2D textures
-	if (desc.texture.samples != 1)
-		return false; // Skip MSAA textures
+	if (desc.texture.samples != 1 || (desc.usage & resource_usage::depth_stencil) == resource_usage::undefined)
+		return false; // Skip MSAA textures and resources that are not used for depth-stencil views
 
-	// Allow shader access to images that are used as depth-stencil attachments
-	if ((desc.usage & resource_usage::depth_stencil) == resource_usage::undefined ||
-		(desc.usage & resource_usage::shader_resource) != resource_usage::undefined)
-		return false;
-
-	const device_api api = device->get_api();
-
-	if (api == device_api::d3d9)
+	switch (device->get_api())
 	{
+	case device_api::d3d9:
 		if (s_disable_intz)
 			return false;
 		desc.texture.format = format::intz;
-	}
-	if (api >= device_api::d3d10 && api <= device_api::d3d12)
-	{
-		desc.texture.format = format_to_typeless(desc.texture.format);
-	}
-
-	// D3D12 and Vulkan always use backup texture, but need to be able to copy to it
-	if (api == device_api::d3d12 || api == device_api::vulkan)
-		desc.usage |= resource_usage::copy_source;
-	else
 		desc.usage |= resource_usage::shader_resource;
+		break;
+	case device_api::d3d10:
+	case device_api::d3d11:
+		// Allow shader access to images that are used as depth-stencil attachments
+		desc.texture.format = format_to_typeless(desc.texture.format);
+		desc.usage |= resource_usage::shader_resource;
+		break;
+	case device_api::d3d12:
+	case device_api::vulkan:
+		// D3D12 and Vulkan always use backup texture, but need to be able to copy to it
+		desc.usage |= resource_usage::copy_source;
+		break;
+	}
 
 	return true;
 }
@@ -466,8 +463,10 @@ static bool on_clear_depth_stencil_attachment(command_list *cmd_list, attachment
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
-	// Also cannot preserve depth buffers here in Vulkan, since it is not valid to issue copy commands inside a render pass (and since this event is being called from 'vkCmdClearAttachments' always is inside one)
-	if ((flags & attachment_type::depth) == attachment_type::depth && device_state.preserve_depth_buffers && device->get_api() != device_api::vulkan)
+	if ((flags & attachment_type::depth) == attachment_type::depth &&
+		device_state.preserve_depth_buffers &&
+		// Cannot preserve depth buffers here in Vulkan though, since it is not valid to issue copy commands inside a render pass (and since this event is called from 'vkCmdClearAttachments' always is inside one)
+		device->get_api() != device_api::vulkan)
 	{
 		auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 
