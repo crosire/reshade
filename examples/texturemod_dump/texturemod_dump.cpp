@@ -112,11 +112,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 		{
 			for (uint32_t x = 0; x < desc.texture.width; ++x)
 			{
-				uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
-				rgba_pixel_data_p[0] = data_p[x];
-				rgba_pixel_data_p[1] = data_p[x];
-				rgba_pixel_data_p[2] = data_p[x];
-				rgba_pixel_data_p[3] = 255;
+				const uint8_t *const src = data_p + x;
+				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
+
+				dst[0] = src[0];
+				dst[1] = src[0];
+				dst[2] = src[0];
+				dst[3] = 255;
 			}
 		}
 		break;
@@ -125,11 +127,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 		{
 			for (uint32_t x = 0; x < desc.texture.width; ++x)
 			{
-				uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
-				rgba_pixel_data_p[0] = 0;
-				rgba_pixel_data_p[1] = 0;
-				rgba_pixel_data_p[2] = 0;
-				rgba_pixel_data_p[3] = data_p[x];
+				const uint8_t *const src = data_p + x;
+				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
+
+				dst[0] = 0;
+				dst[1] = 0;
+				dst[2] = 0;
+				dst[3] = src[0];
 			}
 		}
 		break;
@@ -140,11 +144,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 		{
 			for (uint32_t x = 0; x < desc.texture.width; ++x)
 			{
-				uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
-				rgba_pixel_data_p[0] = data_p[x];
-				rgba_pixel_data_p[1] = 0;
-				rgba_pixel_data_p[2] = 0;
-				rgba_pixel_data_p[3] = 255;
+				const uint8_t *const src = data_p + x;
+				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
+
+				dst[0] = src[0];
+				dst[1] = 0;
+				dst[2] = 0;
+				dst[3] = 255;
 			}
 		}
 		break;
@@ -153,11 +159,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 		{
 			for (uint32_t x = 0; x < desc.texture.width; ++x)
 			{
-				uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
-				rgba_pixel_data_p[0] = data_p[x * 2 + 0];
-				rgba_pixel_data_p[1] = data_p[x * 2 + 0];
-				rgba_pixel_data_p[2] = data_p[x * 2 + 0];
-				rgba_pixel_data_p[3] = data_p[x * 2 + 1];
+				const uint8_t *const src = data_p + x * 2;
+				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
+
+				dst[0] = src[0];
+				dst[1] = src[0];
+				dst[2] = src[0];
+				dst[3] = src[1];
 			}
 		}
 		break;
@@ -168,11 +176,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 		{
 			for (uint32_t x = 0; x < desc.texture.width; ++x)
 			{
-				uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
-				rgba_pixel_data_p[0] = data_p[x * 2 + 0];
-				rgba_pixel_data_p[1] = data_p[x * 2 + 1];
-				rgba_pixel_data_p[2] = 0;
-				rgba_pixel_data_p[3] = 255;
+				const uint8_t *const src = data_p + x * 2;
+				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
+
+				dst[0] = src[0];
+				dst[1] = src[1];
+				dst[2] = 0;
+				dst[3] = 255;
 			}
 		}
 		break;
@@ -186,11 +196,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 		{
 			for (uint32_t x = 0; x < desc.texture.width; ++x)
 			{
-				uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
-				rgba_pixel_data_p[0] = data_p[x * 4 + 0];
-				rgba_pixel_data_p[1] = data_p[x * 4 + 1];
-				rgba_pixel_data_p[2] = data_p[x * 4 + 2];
-				rgba_pixel_data_p[3] = data_p[x * 4 + 3];
+				const uint8_t *const src = data_p + x * 4;
+				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
+
+				dst[0] = src[0];
+				dst[1] = src[1];
+				dst[2] = src[2];
+				dst[3] = src[3];
 			}
 		}
 		break;
@@ -204,12 +216,14 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 		{
 			for (uint32_t x = 0; x < desc.texture.width; ++x)
 			{
-				uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
+				const uint8_t *const src = data_p + x * 4;
+				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
+
 				// Swap red and blue channel
-				rgba_pixel_data_p[0] = data_p[x * 4 + 2];
-				rgba_pixel_data_p[1] = data_p[x * 4 + 1];
-				rgba_pixel_data_p[2] = data_p[x * 4 + 0];
-				rgba_pixel_data_p[3] = data_p[x * 4 + 3];
+				dst[0] = src[2];
+				dst[1] = src[1];
+				dst[2] = src[0];
+				dst[3] = src[3];
 			}
 		}
 		break;
@@ -217,13 +231,15 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 	case format::bc1_unorm:
 	case format::bc1_unorm_srgb:
 		// See https://docs.microsoft.com/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc1
-		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y)
+		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
 		{
 			for (uint32_t block_x = 0; block_x < block_count_x; ++block_x)
 			{
-				const uint16_t color_0 = *reinterpret_cast<const uint16_t *>(data_p);
-				const uint16_t color_1 = *reinterpret_cast<const uint16_t *>(data_p + 2);
-				const uint32_t color_i = *reinterpret_cast<const uint32_t *>(data_p + 4);
+				const uint8_t *const src = data_p + block_x * 8;
+
+				const uint16_t color_0 = *reinterpret_cast<const uint16_t *>(src);
+				const uint16_t color_1 = *reinterpret_cast<const uint16_t *>(src + 2);
+				const uint32_t color_i = *reinterpret_cast<const uint32_t *>(src + 4);
 
 				uint8_t color_0_rgb[3];
 				unpack_r5g6b5(color_0, color_0_rgb);
@@ -235,12 +251,11 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 				{
 					for (int x = 0; x < 4; ++x)
 					{
-						uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + ((block_y * 4 + y) * desc.texture.width + (block_x * 4 + x)) * 4;
-						unpack_bc1_value(color_0_rgb, color_1_rgb, (color_i >> (2 * (y * 4 + x))) & 0x3, rgba_pixel_data_p, degenerate);
+						uint8_t *const dst = rgba_pixel_data.data() + ((block_y * 4 + y) * desc.texture.width + (block_x * 4 + x)) * 4;
+
+						unpack_bc1_value(color_0_rgb, color_1_rgb, (color_i >> (2 * (y * 4 + x))) & 0x3, dst, degenerate);
 					}
 				}
-
-				data_p += 8;
 			}
 		}
 		break;
@@ -248,17 +263,19 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 	case format::bc3_unorm:
 	case format::bc3_unorm_srgb:
 		// See https://docs.microsoft.com/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc3
-		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y)
+		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
 		{
 			for (uint32_t block_x = 0; block_x < block_count_x; ++block_x)
 			{
-				const uint8_t  alpha_0 = *reinterpret_cast<const uint8_t  *>(data_p);
-				const uint8_t  alpha_1 = *reinterpret_cast<const uint8_t  *>(data_p + 1);
-				const uint64_t alpha_i = *reinterpret_cast<const uint64_t *>(data_p + 2);
+				const uint8_t *const src = data_p + block_x * 16;
 
-				const uint16_t color_0 = *reinterpret_cast<const uint16_t *>(data_p + 8);
-				const uint16_t color_1 = *reinterpret_cast<const uint16_t *>(data_p + 10);
-				const uint32_t color_i = *reinterpret_cast<const uint32_t *>(data_p + 12);
+				const uint8_t  alpha_0 = src[0];
+				const uint8_t  alpha_1 = src[1];
+				const uint64_t alpha_i = *reinterpret_cast<const uint32_t *>(src + 2) | (static_cast<uint64_t>(*reinterpret_cast<const uint32_t *>(src + 6)) << 32);
+
+				const uint16_t color_0 = *reinterpret_cast<const uint16_t *>(src + 8);
+				const uint16_t color_1 = *reinterpret_cast<const uint16_t *>(src + 10);
+				const uint32_t color_i = *reinterpret_cast<const uint32_t *>(src + 12);
 
 				uint8_t color_0_rgb[3];
 				unpack_r5g6b5(color_0, color_0_rgb);
@@ -269,13 +286,12 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 				{
 					for (int x = 0; x < 4; ++x)
 					{
-						uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + ((block_y * 4 + y) * desc.texture.width + (block_x * 4 + x)) * 4;
-						unpack_bc1_value(color_0_rgb, color_1_rgb, (color_i >> (2 * (y * 4 + x))) & 0x3, rgba_pixel_data_p);
-						unpack_bc4_value(alpha_0, alpha_1, (alpha_i >> (3 * (y * 4 + x))) & 0x7, rgba_pixel_data_p + 3);
+						uint8_t *const dst = rgba_pixel_data.data() + ((block_y * 4 + y) * desc.texture.width + (block_x * 4 + x)) * 4;
+
+						unpack_bc1_value(color_0_rgb, color_1_rgb, (color_i >> (2 * (y * 4 + x))) & 0x3, dst);
+						unpack_bc4_value(alpha_0, alpha_1, (alpha_i >> (3 * (y * 4 + x))) & 0x7, dst + 3);
 					}
 				}
-
-				data_p += 16;
 			}
 		}
 		break;
@@ -283,27 +299,28 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 	case format::bc4_unorm:
 	case format::bc4_snorm:
 		// See https://docs.microsoft.com/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc4
-		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y)
+		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
 		{
 			for (uint32_t block_x = 0; block_x < block_count_x; ++block_x)
 			{
-				const uint8_t  red_0 = *reinterpret_cast<const uint8_t  *>(data_p);
-				const uint8_t  red_1 = *reinterpret_cast<const uint8_t  *>(data_p + 1);
-				const uint64_t red_i = *reinterpret_cast<const uint64_t *>(data_p + 2);
+				const uint8_t *const src = data_p + block_x * 8;
+
+				const uint8_t  red_0 = src[0];
+				const uint8_t  red_1 = src[1];
+				const uint64_t red_i = *reinterpret_cast<const uint32_t *>(src + 2) | (static_cast<uint64_t>(*reinterpret_cast<const uint16_t *>(src + 6)) << 32);
 
 				for (int y = 0; y < 4; ++y)
 				{
 					for (int x = 0; x < 4; ++x)
 					{
-						uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + ((block_y * 4 + y) * desc.texture.width + (block_x * 4 + x)) * 4;
-						unpack_bc4_value(red_0, red_1, (red_i >> (3 * (y * 4 + x))) & 0x7, rgba_pixel_data_p);
-						rgba_pixel_data_p[1] = rgba_pixel_data_p[0];
-						rgba_pixel_data_p[2] = rgba_pixel_data_p[0];
-						rgba_pixel_data_p[3] = 255;
+						uint8_t *const dst = rgba_pixel_data.data() + ((block_y * 4 + y) * desc.texture.width + (block_x * 4 + x)) * 4;
+
+						unpack_bc4_value(red_0, red_1, (red_i >> (3 * (y * 4 + x))) & 0x7, dst);
+						dst[1] = dst[0];
+						dst[2] = dst[0];
+						dst[3] = 255;
 					}
 				}
-
-				data_p += 8;
 			}
 		}
 		break;
@@ -311,31 +328,32 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 	case format::bc5_unorm:
 	case format::bc5_snorm:
 		// See https://docs.microsoft.com/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc5
-		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y)
+		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
 		{
 			for (uint32_t block_x = 0; block_x < block_count_x; ++block_x)
 			{
-				const uint8_t  red_0 = *reinterpret_cast<const uint8_t  *>(data_p);
-				const uint8_t  red_1 = *reinterpret_cast<const uint8_t  *>(data_p + 1);
-				const uint64_t red_i = *reinterpret_cast<const uint64_t *>(data_p + 2);
+				const uint8_t *const src = data_p + block_x * 16;
 
-				const uint8_t  green_0 = *reinterpret_cast<const uint8_t  *>(data_p + 8);
-				const uint8_t  green_1 = *reinterpret_cast<const uint8_t  *>(data_p + 9);
-				const uint64_t green_i = *reinterpret_cast<const uint64_t *>(data_p + 10);
+				const uint8_t  red_0 = src[0];
+				const uint8_t  red_1 = src[1];
+				const uint64_t red_i = *reinterpret_cast<const uint32_t *>(data_p + 2) | (static_cast<uint64_t>(*reinterpret_cast<const uint16_t *>(data_p + 6)) << 32);
+
+				const uint8_t  green_0 = src[8];
+				const uint8_t  green_1 = src[9];
+				const uint64_t green_i = *reinterpret_cast<const uint32_t *>(data_p + 10) | (static_cast<uint64_t>(*reinterpret_cast<const uint16_t *>(data_p + 14)) << 32);
 
 				for (int y = 0; y < 4; ++y)
 				{
 					for (int x = 0; x < 4; ++x)
 					{
-						uint8_t *const rgba_pixel_data_p = rgba_pixel_data.data() + ((block_y * 4 + y) * desc.texture.width + (block_x * 4 + x)) * 4;
-						unpack_bc4_value(red_0, red_1, (red_i >> (3 * (y * 4 + x))) & 0x7, rgba_pixel_data_p);
-						unpack_bc4_value(green_0, green_1, (green_i >> (3 * (y * 4 + x))) & 0x7, rgba_pixel_data_p + 1);
-						rgba_pixel_data_p[2] = 0;
-						rgba_pixel_data_p[3] = 255;
+						uint8_t *const dst = rgba_pixel_data.data() + ((block_y * 4 + y) * desc.texture.width + (block_x * 4 + x)) * 4;
+
+						unpack_bc4_value(red_0, red_1, (red_i >> (3 * (y * 4 + x))) & 0x7, dst);
+						unpack_bc4_value(green_0, green_1, (green_i >> (3 * (y * 4 + x))) & 0x7, dst + 1);
+						dst[2] = 0;
+						dst[3] = 255;
 					}
 				}
-
-				data_p += 16;
 			}
 		}
 		break;
