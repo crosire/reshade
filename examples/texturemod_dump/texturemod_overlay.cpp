@@ -11,9 +11,7 @@
 #include <unordered_set>
 #include <malloc.h>
 
-#ifndef BUILTIN_ADDON
 imgui_function_table g_imgui_function_table;
-#endif
 
 using namespace reshade::api;
 
@@ -357,53 +355,42 @@ static void draw_overlay(effect_runtime *runtime, void *)
 
 	int texture_index = 0;
 
-#ifdef BUILTIN_ADDON
-	ImGuiListClipper clipper;
-	clipper.Begin(static_cast<int>(filtered_texture_list.size()), single_image_max_size / num_columns);
-	while (clipper.Step())
+	for (size_t i = 0; i < filtered_texture_list.size(); ++i)
 	{
-		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
-#else
-		for (size_t i = 0; i < filtered_texture_list.size(); ++i)
-#endif
+		const tex_data &tex_data = filtered_texture_list[i].second;
+
+		ImGui::PushID(texture_index);
+		ImGui::BeginGroup();
+
+		ImGui::Text("%ux%u", tex_data.desc.texture.width, tex_data.desc.texture.height);
+
+		const float aspect_ratio = static_cast<float>(tex_data.desc.texture.width) / static_cast<float>(tex_data.desc.texture.height);
+
+		const ImVec2 pos = ImGui::GetCursorScreenPos();
+		const ImVec2 size = aspect_ratio > 1 ? ImVec2(single_image_max_size, single_image_max_size / aspect_ratio) : ImVec2(single_image_max_size * aspect_ratio, single_image_max_size);
+
+		ImGui::Image(tex_data.last_view.handle, size, ImVec2(0, 0), ImVec2(1, 1), ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + size.x, pos.y + size.y)) ? ImColor(0.0f, 1.0f, 0.0f) : ImColor(1.0f, 1.0f, 1.0f));
+
+		if (ImGui::IsItemHovered())
+			data.replaced_texture_srv = tex_data.last_view;
+
+		if (ImGui::IsItemClicked())
+			dump_texture(runtime->get_command_queue(), filtered_texture_list[i].first, tex_data.desc);
+
+		if (aspect_ratio < 1)
 		{
-			const tex_data &tex_data = filtered_texture_list[i].second;
-
-			ImGui::PushID(texture_index);
-			ImGui::BeginGroup();
-
-			ImGui::Text("%ux%u", tex_data.desc.texture.width, tex_data.desc.texture.height);
-
-			const float aspect_ratio = static_cast<float>(tex_data.desc.texture.width) / static_cast<float>(tex_data.desc.texture.height);
-
-			const ImVec2 pos = ImGui::GetCursorScreenPos();
-			const ImVec2 size = aspect_ratio > 1 ? ImVec2(single_image_max_size, single_image_max_size / aspect_ratio) : ImVec2(single_image_max_size * aspect_ratio, single_image_max_size);
-
-			ImGui::Image(tex_data.last_view.handle, size, ImVec2(0, 0), ImVec2(1, 1), ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + size.x, pos.y + size.y)) ? ImColor(0.0f, 1.0f, 0.0f) : ImColor(1.0f, 1.0f, 1.0f));
-
-			if (ImGui::IsItemHovered())
-				data.replaced_texture_srv = tex_data.last_view;
-
-			if (ImGui::IsItemClicked())
-				dump_texture(runtime->get_command_queue(), filtered_texture_list[i].first, tex_data.desc);
-
-			if (aspect_ratio < 1)
-			{
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::Dummy(ImVec2(single_image_max_size * (1 - aspect_ratio), single_image_max_size));
-			}
-
-			ImGui::EndGroup();
-			ImGui::PopID();
-
-			if ((texture_index++ % num_columns) != (num_columns - 1))
-				ImGui::SameLine(0.0f, 5.0f);
-			else
-				ImGui::Spacing();
+			ImGui::SameLine(0.0f, 0.0f);
+			ImGui::Dummy(ImVec2(single_image_max_size * (1 - aspect_ratio), single_image_max_size));
 		}
-#ifdef BUILTIN_ADDON
+
+		ImGui::EndGroup();
+		ImGui::PopID();
+
+		if ((texture_index++ % num_columns) != (num_columns - 1))
+			ImGui::SameLine(0.0f, 5.0f);
+		else
+			ImGui::Spacing();
 	}
-#endif
 
 	if ((texture_index % num_columns) != 0)
 		ImGui::NewLine(); // Reset ImGui::SameLine() so the following starts on a new line

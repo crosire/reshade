@@ -9,10 +9,6 @@
 #include <filesystem>
 #include <stb_image.h>
 
-#ifdef BUILTIN_ADDON
-#include "ini_file.hpp"
-#endif
-
 using namespace reshade::api;
 
 static bool replace_texture(const resource_desc &desc, subresource_data &data)
@@ -23,29 +19,12 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data)
 		desc.texture.format != format::b8g8r8x8_typeless && desc.texture.format != format::b8g8r8x8_unorm && desc.texture.format != format::b8g8r8x8_unorm_srgb)
 		return false;
 
-	bool replace = false;
-	std::filesystem::path replace_path;
-
-#ifdef BUILTIN_ADDON
-	ini_file &config = reshade::global_config();
-	config.get("TEXTURE", "Replace", replace);
-	config.get("TEXTURE", "ReplacePath", replace_path);
-#else
-	replace = true;
-#endif
-
-	if (!replace)
-		return false;
-
-	// TODO: Handle row pitch properly
-	const size_t row_pitch = format_row_pitch(desc.texture.format, desc.texture.width);
-	const size_t total_size = row_pitch * desc.texture.height;
-
-	const uint32_t hash = compute_crc32(static_cast<const uint8_t *>(data.data), total_size);
+	const uint32_t hash = compute_crc32(static_cast<const uint8_t *>(data.data), format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
 
 	char hash_string[11];
 	sprintf_s(hash_string, "0x%08x", hash);
 
+	std::filesystem::path replace_path;
 	replace_path /= L"texture_";
 	replace_path += hash_string;
 	replace_path += L".bmp";

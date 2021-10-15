@@ -10,10 +10,6 @@
 #include <filesystem>
 #include <stb_image_write.h>
 
-#ifdef BUILTIN_ADDON
-#include "ini_file.hpp"
-#endif
-
 using namespace reshade::api;
 
 static void unpack_r5g6b5(uint16_t data, uint8_t rgb[3])
@@ -85,22 +81,12 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 	}
 }
 
-bool dump_texture(const resource_desc &desc, const subresource_data &data, bool force_dump = false)
+bool dump_texture(const resource_desc &desc, const subresource_data &data)
 {
-	bool dump_all = false;
-	std::filesystem::path dump_path;
-
-#ifdef BUILTIN_ADDON
-	ini_file &config = reshade::global_config();
-	config.get("TEXTURE", "DumpAll", dump_all);
-	config.get("TEXTURE", "DumpPath", dump_path);
-#endif
-
-	if (!dump_all && !force_dump)
-		return false;
-
 	uint8_t *data_p = static_cast<uint8_t *>(data.data);
 	std::vector<uint8_t> rgba_pixel_data(desc.texture.width * desc.texture.height * 4);
+
+	const uint32_t hash = compute_crc32(static_cast<const uint8_t *>(data.data), format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
 
 	const uint32_t block_count_x = (desc.texture.width + 3) / 4;
 	const uint32_t block_count_y = (desc.texture.height + 3) / 4;
@@ -362,11 +348,10 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 		return false;
 	}
 
-	const uint32_t hash = compute_crc32(rgba_pixel_data.data(), rgba_pixel_data.size());
-
 	char hash_string[11];
 	sprintf_s(hash_string, "0x%08x", hash);
 
+	std::filesystem::path dump_path;
 	dump_path /= L"texture_";
 	dump_path += hash_string;
 	dump_path += L".bmp";
@@ -439,7 +424,7 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 
 	if (mapped_data.data != nullptr)
 	{
-		dump_texture(desc, mapped_data, true);
+		dump_texture(desc, mapped_data);
 
 		if (desc.heap == memory_heap::gpu_only &&
 			device->check_capability(device_caps::copy_buffer_to_texture))

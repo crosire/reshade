@@ -8,28 +8,10 @@
 #include <fstream>
 #include <filesystem>
 
-#ifdef BUILTIN_ADDON
-#include "ini_file.hpp"
-#endif
-
 using namespace reshade::api;
 
 static void dump_shader_code(device_api device_type, pipeline_stage, const shader_desc &desc)
 {
-	bool dump_all = false;
-	std::filesystem::path dump_path;
-
-#ifdef BUILTIN_ADDON
-	ini_file &config = reshade::global_config();
-	config.get("SHADER", "DumpAll", dump_all);
-	config.get("SHADER", "DumpPath", dump_path);
-#else
-	dump_all = true;
-#endif
-
-	if (!dump_all)
-		return;
-
 	uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
 
 	const wchar_t *extension = L".cso";
@@ -42,6 +24,7 @@ static void dump_shader_code(device_api device_type, pipeline_stage, const shade
 	char hash_string[11];
 	sprintf_s(hash_string, "0x%08x", shader_hash);
 
+	std::filesystem::path dump_path;
 	dump_path /= L"shader_";
 	dump_path += hash_string;
 	dump_path += extension;

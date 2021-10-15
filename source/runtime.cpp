@@ -308,7 +308,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 		break;
 	}
 
-	// Reset frame count to zero so effects are loaded in 'update_and_render_effects'
+	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_framecount = 0;
 
 	_is_initialized = true;
@@ -474,7 +474,7 @@ void reshade::runtime::on_present()
 			_effects_enabled = !_effects_enabled;
 
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
-			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot next frame
+			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
 
 		// Do not allow the next shortcuts while effects are being loaded or initialized (since they affect that state)
 		if (!is_loading() && _reload_create_queue.empty())
@@ -660,13 +660,13 @@ void reshade::runtime::load_current_preset()
 	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
 
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
-	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
+	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_effects'
 	{
 		if (_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions)
 		{
 			_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
 			reload_effects();
-			return; // Preset values are loaded in 'update_and_render_effects' during effect loading
+			return; // Preset values are loaded in 'update_effects' during effect loading
 		}
 
 		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string &technique_name) {
@@ -1632,7 +1632,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 		_reload_remaining_effects--;
 	else
-		_reload_remaining_effects = 0; // Force effect initialization in 'update_and_render_effects'
+		_reload_remaining_effects = 0; // Force effect initialization in 'update_effects'
 
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{

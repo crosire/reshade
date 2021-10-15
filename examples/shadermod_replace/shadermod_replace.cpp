@@ -8,28 +8,10 @@
 #include <fstream>
 #include <filesystem>
 
-#ifdef BUILTIN_ADDON
-#include "ini_file.hpp"
-#endif
-
 using namespace reshade::api;
 
 static bool replace_shader_code(device_api device_type, pipeline_stage, shader_desc &desc)
 {
-	bool replace = false;
-	std::filesystem::path replace_path;
-
-#ifdef BUILTIN_ADDON
-	ini_file &config = reshade::global_config();
-	config.get("SHADER", "Replace", replace);
-	config.get("SHADER", "ReplacePath", replace_path);
-#else
-	replace = true;
-#endif
-
-	if (!replace)
-		return false;
-
 	uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
 
 	const wchar_t *extension = L".cso";
@@ -42,6 +24,7 @@ static bool replace_shader_code(device_api device_type, pipeline_stage, shader_d
 	char hash_string[11];
 	sprintf_s(hash_string, "0x%08x", shader_hash);
 
+	std::filesystem::path replace_path;
 	replace_path /= L"shader_";
 	replace_path += hash_string;
 	replace_path += extension;
