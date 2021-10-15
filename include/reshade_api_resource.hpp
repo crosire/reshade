@@ -129,9 +129,7 @@ namespace reshade { namespace api
 		resolve_dest = 0x1000,
 		resolve_source = 0x2000,
 
-		/// <remarks>
-		/// The following are resource states and may only be used in <see cref="command_list::barrier"/>.
-		/// </remarks>
+		// The following are resource states and may only be used in 'command_list::barrier'.
 
 		general = 0x80000000,
 		present = 0x80000000 | render_target | copy_source,
