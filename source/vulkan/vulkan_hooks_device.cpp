@@ -1244,11 +1244,14 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	}
 
 #if RESHADE_ADDON
+	const uint32_t set_desc_count = pCreateInfo->setLayoutCount;
+	const uint32_t total_desc_count = set_desc_count + pCreateInfo->pushConstantRangeCount;
+
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
-	data.desc.resize(pCreateInfo->setLayoutCount + pCreateInfo->pushConstantRangeCount);
+	data.desc.resize(total_desc_count);
 	data.num_sets = pCreateInfo->setLayoutCount;
 
-	for (uint32_t i = 0; i < pCreateInfo->setLayoutCount; ++i)
+	for (uint32_t i = 0; i < set_desc_count; ++i)
 	{
 		const bool push_descriptors = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pCreateInfo->pSetLayouts[i])->push_descriptors;
 
@@ -1256,7 +1259,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		data.desc[i].descriptor_layout = { (uint64_t)pCreateInfo->pSetLayouts[i] };
 	}
 
-	for (uint32_t i = pCreateInfo->setLayoutCount; i < pCreateInfo->setLayoutCount + pCreateInfo->pushConstantRangeCount; ++i)
+	for (uint32_t i = set_desc_count; i < total_desc_count; ++i)
 	{
 		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i];
 
@@ -1350,43 +1353,48 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 	data.num_descriptors = 0;
 	data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
 
-	std::vector<uint32_t> descriptor_counts_per_binding;
-	descriptor_counts_per_binding.reserve(pCreateInfo->bindingCount);
-
-	for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
+	if (pCreateInfo->bindingCount != 0)
 	{
-		const VkDescriptorSetLayoutBinding &binding = pCreateInfo->pBindings[i];
+		assert(pCreateInfo->pBindings != nullptr);
 
-		if (binding.binding >= descriptor_counts_per_binding.size())
-			descriptor_counts_per_binding.resize(binding.binding + 1);
-		descriptor_counts_per_binding[binding.binding] = binding.descriptorCount;
+		std::vector<uint32_t> descriptor_counts_per_binding;
+		descriptor_counts_per_binding.reserve(pCreateInfo->bindingCount);
 
-		data.desc[i].binding = binding.binding;
-		data.desc[i].dx_register_index = 0;
-		data.desc[i].dx_register_space = 0;
-		data.desc[i].count = binding.descriptorCount;
-		data.desc[i].array_size = binding.descriptorCount;
-		data.desc[i].type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
-		data.desc[i].visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
-
-		data.num_descriptors += binding.descriptorCount;
-	}
-
-	for (size_t i = 1; i < descriptor_counts_per_binding.size(); ++i)
-		descriptor_counts_per_binding[i] += descriptor_counts_per_binding[i - 1];
-
-	data.binding_to_offset.reserve(descriptor_counts_per_binding.back());
-
-	for (uint32_t i = 0, offset = 0; i < pCreateInfo->bindingCount; ++i)
-	{
-		const uint32_t binding = data.desc[i].binding;
-		if (binding != 0)
+		for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
 		{
-			offset = descriptor_counts_per_binding[binding - 1];
-			data.desc[i].offset = offset;
+			const VkDescriptorSetLayoutBinding &binding = pCreateInfo->pBindings[i];
+
+			if (binding.binding >= descriptor_counts_per_binding.size())
+				descriptor_counts_per_binding.resize(binding.binding + 1);
+			descriptor_counts_per_binding[binding.binding] = binding.descriptorCount;
+
+			data.desc[i].binding = binding.binding;
+			data.desc[i].dx_register_index = 0;
+			data.desc[i].dx_register_space = 0;
+			data.desc[i].count = binding.descriptorCount;
+			data.desc[i].array_size = binding.descriptorCount;
+			data.desc[i].type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
+			data.desc[i].visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
+
+			data.num_descriptors += binding.descriptorCount;
 		}
 
-		data.binding_to_offset[binding] = offset;
+		for (size_t i = 1; i < descriptor_counts_per_binding.size(); ++i)
+			descriptor_counts_per_binding[i] += descriptor_counts_per_binding[i - 1];
+
+		data.binding_to_offset.reserve(descriptor_counts_per_binding.back());
+
+		for (uint32_t i = 0, offset = 0; i < pCreateInfo->bindingCount; ++i)
+		{
+			const uint32_t binding = data.desc[i].binding;
+			if (binding != 0)
+			{
+				offset = descriptor_counts_per_binding[binding - 1];
+				data.desc[i].offset = offset;
+			}
+
+			data.binding_to_offset[binding] = offset;
+		}
 	}
 
 	device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(*pSetLayout, std::move(data));
