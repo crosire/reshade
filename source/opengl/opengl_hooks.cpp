@@ -703,6 +703,32 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #endif
 }
 
+			void WINAPI glBindMultiTextureEXT(GLenum texunit, GLenum target, GLuint texture)
+{
+	static const auto trampoline = reshade::hooks::call(glBindMultiTextureEXT);
+	trampoline(texunit, target, texture);
+
+#if RESHADE_ADDON
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+	{
+		texunit -= GL_TEXTURE0;
+
+		GLint sampler_binding = 0;
+		glGetIntegeri_v(GL_SAMPLER_BINDING, texunit, &sampler_binding);
+
+		const reshade::api::sampler_with_resource_view descriptor_data = {
+			reshade::api::sampler { static_cast<uint64_t>(sampler_binding) },
+			reshade::opengl::make_resource_view_handle(target, texture)
+		};
+
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
+			reshade::api::descriptor_set_update(texunit, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
+	}
+#endif
+}
+
 HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 {
 	static const auto trampoline = reshade::hooks::call(glBindTexture);
@@ -712,12 +738,12 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
-		GLint unit = GL_TEXTURE0;
-		gl3wGetIntegerv(GL_ACTIVE_TEXTURE, &unit);
-		unit -= GL_TEXTURE0;
+		GLint texunit = GL_TEXTURE0;
+		gl3wGetIntegerv(GL_ACTIVE_TEXTURE, &texunit);
+		texunit -= GL_TEXTURE0;
 
 		GLint sampler_binding = 0;
-		glGetIntegeri_v(GL_SAMPLER_BINDING, unit, &sampler_binding);
+		glGetIntegeri_v(GL_SAMPLER_BINDING, texunit, &sampler_binding);
 
 		const reshade::api::sampler_with_resource_view descriptor_data = {
 			reshade::api::sampler { static_cast<uint64_t>(sampler_binding) },
@@ -726,7 +752,7 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
-			reshade::api::descriptor_set_update(static_cast<GLuint>(unit), 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
+			reshade::api::descriptor_set_update(static_cast<GLuint>(texunit), 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
 #endif
 }

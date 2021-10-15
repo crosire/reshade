@@ -365,7 +365,10 @@ HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlag
 
 bool reshade::hooks::install(const char *name, hook::address target, hook::address replacement, bool queue_enable)
 {
-	assert(target != nullptr && replacement != nullptr);
+	if (target == nullptr)
+		return false;
+
+	assert(replacement != nullptr);
 
 	hook hook = find_internal(nullptr, replacement);
 	// If the hook was already installed, make sure it was installed for the same target function
