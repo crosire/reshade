@@ -955,22 +955,22 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		return nullptr;
 #if RESHADE_ADDON
 	// Redirect some old extension functions to their modern variants in core OpenGL
-	else if (0 == strcmp(lpszProc, "glIsRenderbufferEXT")) // GL_EXT_framebuffer_object
-		lpszProc = "glIsRenderbuffer";
-	else if (0 == strcmp(lpszProc, "glBindRenderbufferEXT"))
-		lpszProc = "glBindRenderbuffer";
-	else if (0 == strcmp(lpszProc, "glGenRenderbuffersEXT"))
-		lpszProc = "glGenRenderbuffers";
-	else if (0 == strcmp(lpszProc, "glDeleteRenderbuffersEXT"))
-		lpszProc = "glDeleteRenderbuffers";
-	else if (0 == strcmp(lpszProc, "glRenderbufferStorageEXT"))
-		lpszProc = "glRenderbufferStorage";
-	else if (0 == strcmp(lpszProc, "glGetRenderbufferParameterivEXT"))
-		lpszProc = "glGetRenderbufferParameteriv";
+	#pragma region GL_ARB_draw_instanced
+	else if (0 == strcmp(lpszProc, "glDrawArraysInstancedARB"))
+		lpszProc = "glDrawArraysInstanced";
+	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedARB"))
+		lpszProc = "glDrawElementsInstanced";
+	#pragma endregion
+	#pragma region GL_EXT_draw_instanced
+	else if (0 == strcmp(lpszProc, "glDrawArraysInstancedEXT"))
+		lpszProc = "glDrawArraysInstanced";
+	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedEXT"))
+		lpszProc = "glDrawElementsInstanced";
+	#pragma endregion
+	#pragma region GL_EXT_framebuffer_object
 	else if (0 == strcmp(lpszProc, "glIsFramebufferEXT"))
 		lpszProc = "glIsFramebuffer";
-	else if (0 == strcmp(lpszProc, "glBindFramebufferEXT"))
-		lpszProc = "glBindFramebuffer";
+	// glBindFramebuffer and glBindFramebufferEXT have different semantics (core variant requires an existing FBO), so do not redirect
 	else if (0 == strcmp(lpszProc, "glGenFramebuffersEXT"))
 		lpszProc = "glGenFramebuffers";
 	else if (0 == strcmp(lpszProc, "glDeleteFramebuffersEXT"))
@@ -987,12 +987,20 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		lpszProc = "glFramebufferTexture3D";
 	else if (0 == strcmp(lpszProc, "glGetFramebufferAttachmentParameterivEXT"))
 		lpszProc = "glGetFramebufferAttachmentParameteriv";
+	else if (0 == strcmp(lpszProc, "glIsRenderbufferEXT"))
+		lpszProc = "glIsRenderbuffer";
+	// glBindRenderbuffer and glBindRenderbufferEXT have different semantics (core variant requires an existing RBO), so do not redirect
+	else if (0 == strcmp(lpszProc, "glGenRenderbuffersEXT"))
+		lpszProc = "glGenRenderbuffers";
+	else if (0 == strcmp(lpszProc, "glDeleteRenderbuffersEXT"))
+		lpszProc = "glDeleteRenderbuffers";
+	else if (0 == strcmp(lpszProc, "glRenderbufferStorageEXT"))
+		lpszProc = "glRenderbufferStorage";
+	else if (0 == strcmp(lpszProc, "glGetRenderbufferParameterivEXT"))
+		lpszProc = "glGetRenderbufferParameteriv";
 	else if (0 == strcmp(lpszProc, "glGenerateMipmapEXT"))
 		lpszProc = "glGenerateMipmap";
-	else if (0 == strcmp(lpszProc, "glDrawArraysInstancedARB") || 0 == strcmp(lpszProc, "glDrawArraysInstancedEXT")) // GL_ARB_draw_instanced and GL_EXT_draw_instanced
-		lpszProc = "glDrawArraysInstanced";
-	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedARB") || 0 == strcmp(lpszProc, "glDrawElementsInstancedEXT"))
-		lpszProc = "glDrawElementsInstanced";
+	#pragma endregion
 #endif
 
 	static const auto trampoline = reshade::hooks::call(wglGetProcAddress);
@@ -1141,6 +1149,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBindBuffersBase);
 		HOOK_PROC(glBindBuffersRange);
 		HOOK_PROC(glBindFramebuffer);
+		HOOK_PROC(glBindFramebufferEXT);
 		HOOK_PROC(glBindImageTexture);
 		HOOK_PROC(glBindImageTextures);
 		HOOK_PROC(glBindMultiTextureEXT);

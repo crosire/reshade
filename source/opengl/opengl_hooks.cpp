@@ -652,6 +652,29 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	}
 #endif
 }
+			void WINAPI glBindFramebufferEXT(GLenum target, GLuint framebuffer)
+{
+	static const auto trampoline = reshade::hooks::call(glBindFramebufferEXT);
+	trampoline(target, framebuffer);
+
+#if RESHADE_ADDON
+	if (g_current_context && (
+		target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) && (
+		reshade::has_addon_event<reshade::addon_event::begin_render_pass>() ||
+		reshade::has_addon_event<reshade::addon_event::finish_render_pass>()) &&
+		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
+	{
+		if (framebuffer != g_current_context->_current_fbo)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(g_current_context);
+
+			g_current_context->_current_fbo = framebuffer;
+
+			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer));
+		}
+	}
+#endif
+}
 
 			void WINAPI glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format)
 {
