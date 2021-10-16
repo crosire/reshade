@@ -257,7 +257,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 
 				const uint8_t  alpha_0 = src[0];
 				const uint8_t  alpha_1 = src[1];
-				const uint64_t alpha_i = *reinterpret_cast<const uint32_t *>(src + 2) | (static_cast<uint64_t>(*reinterpret_cast<const uint32_t *>(src + 6)) << 32);
+				const uint64_t alpha_i =
+					(static_cast<uint64_t>(src[2])      ) |
+					(static_cast<uint64_t>(src[3]) <<  8) |
+					(static_cast<uint64_t>(src[4]) << 16) |
+					(static_cast<uint64_t>(src[5]) << 24) |
+					(static_cast<uint64_t>(src[6]) << 32) |
+					(static_cast<uint64_t>(src[7]) << 40);
 
 				const uint16_t color_0 = *reinterpret_cast<const uint16_t *>(src + 8);
 				const uint16_t color_1 = *reinterpret_cast<const uint16_t *>(src + 10);
@@ -293,7 +299,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 
 				const uint8_t  red_0 = src[0];
 				const uint8_t  red_1 = src[1];
-				const uint64_t red_i = *reinterpret_cast<const uint32_t *>(src + 2) | (static_cast<uint64_t>(*reinterpret_cast<const uint16_t *>(src + 6)) << 32);
+				const uint64_t red_i =
+					(static_cast<uint64_t>(src[2])      ) |
+					(static_cast<uint64_t>(src[3]) <<  8) |
+					(static_cast<uint64_t>(src[4]) << 16) |
+					(static_cast<uint64_t>(src[5]) << 24) |
+					(static_cast<uint64_t>(src[6]) << 32) |
+					(static_cast<uint64_t>(src[7]) << 40);
 
 				for (int y = 0; y < 4; ++y)
 				{
@@ -322,11 +334,23 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 
 				const uint8_t  red_0 = src[0];
 				const uint8_t  red_1 = src[1];
-				const uint64_t red_i = *reinterpret_cast<const uint32_t *>(data_p + 2) | (static_cast<uint64_t>(*reinterpret_cast<const uint16_t *>(data_p + 6)) << 32);
+				const uint64_t red_i =
+					(static_cast<uint64_t>(src[2])      ) |
+					(static_cast<uint64_t>(src[3]) <<  8) |
+					(static_cast<uint64_t>(src[4]) << 16) |
+					(static_cast<uint64_t>(src[5]) << 24) |
+					(static_cast<uint64_t>(src[6]) << 32) |
+					(static_cast<uint64_t>(src[7]) << 40);
 
 				const uint8_t  green_0 = src[8];
 				const uint8_t  green_1 = src[9];
-				const uint64_t green_i = *reinterpret_cast<const uint32_t *>(data_p + 10) | (static_cast<uint64_t>(*reinterpret_cast<const uint16_t *>(data_p + 14)) << 32);
+				const uint64_t green_i =
+					(static_cast<uint64_t>(src[10])      ) |
+					(static_cast<uint64_t>(src[11]) <<  8) |
+					(static_cast<uint64_t>(src[12]) << 16) |
+					(static_cast<uint64_t>(src[13]) << 24) |
+					(static_cast<uint64_t>(src[14]) << 32) |
+					(static_cast<uint64_t>(src[15]) << 40);
 
 				for (int y = 0; y < 4; ++y)
 				{
@@ -363,7 +387,7 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 	device *const device = queue->get_device();
 
 	uint32_t row_pitch = format_row_pitch(desc.texture.format, desc.texture.width);
-	if (device->get_api() == device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
+	if (device->get_api() == device_api::d3d12) // Align row pitch to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT (256)
 		row_pitch = (row_pitch + 255) & ~255;
 	const uint32_t slice_pitch = format_slice_pitch(desc.texture.format, row_pitch, desc.texture.height);
 
@@ -441,13 +465,13 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 
 // There are multiple different ways textures can be initialized, so try and intercept them all
 // - Via initial data provided during texture creation (e.g. for immutable textures, common in D3D11 and OpenGL): See 'on_init_texture' implementation below
-// - Via a copy operation from a buffer in host memory to the texture (common in D3D12 and Vulkan): See 'on_copy_texture' implementation below
 // - Via a direct update operation from host memory to the texture (common in D3D11): See 'on_update_texture' implementation below
+// - Via a copy operation from a buffer in host memory to the texture (common in D3D12 and Vulkan): See 'on_copy_buffer_to_texture' implementation below
 // - Via mapping and writing to texture that is accessible in host memory (common in D3D9): See 'on_map_texture' and 'on_unmap_texture' implementation below
 
 static inline bool filter_texture(device *device, const resource_desc &desc, const int32_t box[6])
 {
-	if (desc.type != resource_type::texture_2d || (desc.usage & resource_usage::shader_resource) == resource_usage::undefined || (desc.heap != memory_heap::unknown && desc.heap != memory_heap::gpu_only) || (desc.flags & resource_flags::dynamic) == resource_flags::dynamic)
+	if (desc.type != resource_type::texture_2d || (desc.usage & resource_usage::shader_resource) == resource_usage::undefined || (desc.heap != memory_heap::gpu_only && desc.heap != memory_heap::unknown) || (desc.flags & resource_flags::dynamic) == resource_flags::dynamic)
 		return false; // Ignore resources that are not static 2D textures that can be used as shader input
 
 	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
@@ -465,6 +489,9 @@ static inline bool filter_texture(device *device, const resource_desc &desc, con
 	if (desc.texture.height <= 8 || (desc.texture.width == 128 && desc.texture.height == 32))
 		return false; // Filter out small textures, which are commonly just lookup tables that are not interesting to save
 
+	if (desc.texture.format == format::r8_unorm || desc.texture.format == format::l8_unorm)
+		return false; // Filter out single component textures, since they are commonly used for video processing
+
 	return true;
 }
 
@@ -474,32 +501,6 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 		return; // Ignore resources that are not 2D textures
 
 	dump_texture(desc, *initial_data);
-}
-static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_subresource, const int32_t /*src_box*/[6], resource dst, uint32_t dst_subresource, const int32_t dst_box[6], filter_mode)
-{
-	if (src_subresource != 0 || src_subresource != dst_subresource)
-		return false; // Ignore copies to mipmap levels other than the base level
-
-	device *const device = cmd_list->get_device();
-
-	const resource_desc src_desc = device->get_resource_desc(src);
-	if (src_desc.heap != memory_heap::cpu_to_gpu)
-		return false; // Ignore copies that are not from a buffer in host memory
-
-	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if (!filter_texture(device, dst_desc, dst_box))
-		return false;
-
-	// Map source buffer to get the contents that will be copied into the target texture (this should succeed, since it was already checked that the buffer is in host memory)
-	if (subresource_data mapped_data;
-		device->map_texture_region(src, src_subresource, nullptr, map_access::read_only, &mapped_data))
-	{
-		dump_texture(dst_desc, mapped_data);
-
-		device->unmap_texture_region(src, src_subresource);
-	}
-
-	return false;
 }
 static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
@@ -511,6 +512,41 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 		return false;
 
 	dump_texture(dst_desc, data);
+
+	return false;
+}
+
+static bool on_copy_buffer_to_texture(command_list *cmd_list, resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+{
+	if (dst_subresource != 0)
+		return false; // Ignore copies to mipmap levels other than the base level
+
+	device *const device = cmd_list->get_device();
+
+	const resource_desc src_desc = device->get_resource_desc(src);
+	if (src_desc.heap != memory_heap::cpu_to_gpu && src_desc.heap != memory_heap::unknown)
+		return false; // Ignore copies that are not from a buffer in host memory
+
+	const resource_desc dst_desc = device->get_resource_desc(dst);
+	if (!filter_texture(device, dst_desc, dst_box))
+		return false;
+
+	// Map source buffer to get the contents that will be copied into the target texture (this should succeed, since it was already checked that the buffer is in host memory)
+	if (void *mapped_ptr;
+		device->map_buffer_region(src, src_offset, std::numeric_limits<uint64_t>::max(), map_access::read_only, &mapped_ptr))
+	{
+		subresource_data mapped_data;
+		mapped_data.data = mapped_ptr;
+		mapped_data.row_pitch = format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : dst_desc.texture.width);
+		mapped_data.slice_pitch = format_slice_pitch(dst_desc.texture.format, mapped_data.row_pitch, slice_height != 0 ? slice_height : dst_desc.texture.height);
+
+		if (device->get_api() == device_api::d3d12) // Align row pitch to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT (256)
+			mapped_data.row_pitch = (mapped_data.row_pitch + 255) & ~255;
+
+		dump_texture(dst_desc, mapped_data);
+
+		device->unmap_buffer_region(src);
+	}
 
 	return false;
 }
@@ -528,8 +564,7 @@ static void on_map_texture(device *device, resource resource, uint32_t subresour
 		return;
 
 	const resource_desc desc = device->get_resource_desc(resource);
-	if (!filter_texture(device, desc, box) ||
-		desc.texture.format == format::l8_unorm) // Skip this format since it is used for videos in Mirror's Edge
+	if (!filter_texture(device, desc, box))
 		return;
 
 	s_current_mapping.res = resource;
@@ -549,16 +584,16 @@ static void on_unmap_texture(device *, resource resource, uint32_t subresource)
 void register_addon_texmod_dump()
 {
 	reshade::register_event<reshade::addon_event::init_resource>(on_init_texture);
-	reshade::register_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
 	reshade::register_event<reshade::addon_event::update_texture_region>(on_update_texture);
+	reshade::register_event<reshade::addon_event::copy_buffer_to_texture>(on_copy_buffer_to_texture);
 	reshade::register_event<reshade::addon_event::map_texture_region>(on_map_texture);
 	reshade::register_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }
 void unregister_addon_texmod_dump()
 {
 	reshade::unregister_event<reshade::addon_event::init_resource>(on_init_texture);
-	reshade::unregister_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
 	reshade::unregister_event<reshade::addon_event::update_texture_region>(on_update_texture);
+	reshade::unregister_event<reshade::addon_event::copy_buffer_to_texture>(on_copy_buffer_to_texture);
 	reshade::unregister_event<reshade::addon_event::map_texture_region>(on_map_texture);
 	reshade::unregister_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }

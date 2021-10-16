@@ -8,8 +8,11 @@
 
 reshade::api::resource_view descriptor_set_tracking::lookup_descriptor(reshade::api::descriptor_pool pool, uint32_t offset)
 {
+	const std::shared_lock<std::shared_mutex> lock(mutex);
+
 	if (offset >= pools.at(pool).descriptors.size())
 		return {};
+
 	return pools.at(pool).descriptors[offset];
 }
 
@@ -25,6 +28,8 @@ static void on_destroy_device(reshade::api::device *device)
 static bool on_update_descriptor_sets(reshade::api::device *device, uint32_t count, const reshade::api::descriptor_set_update *updates)
 {
 	descriptor_set_tracking &ctx = device->get_user_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
+
+	const std::unique_lock<std::shared_mutex> lock(ctx.mutex);
 
 	for (uint32_t i = 0; i < count; ++i)
 	{

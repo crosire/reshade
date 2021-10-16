@@ -807,6 +807,12 @@ VkResult VKAPI_CALL vkBindBufferMemory(VkDevice device, VkBuffer buffer, VkDevic
 		return result;
 	}
 
+#if RESHADE_ADDON
+	const auto buffer_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_BUFFER>(buffer);
+	buffer_data->memory = memory;
+	buffer_data->memory_offset = memoryOffset;
+#endif
+
 	return result;
 }
 VkResult VKAPI_CALL vkBindBufferMemory2(VkDevice device, uint32_t bindInfoCount, const VkBindBufferMemoryInfo *pBindInfos)
@@ -822,6 +828,15 @@ VkResult VKAPI_CALL vkBindBufferMemory2(VkDevice device, uint32_t bindInfoCount,
 #endif
 		return result;
 	}
+
+#if RESHADE_ADDON
+	for (uint32_t i = 0; i < bindInfoCount; ++i)
+	{
+		const auto buffer_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_BUFFER>(pBindInfos[i].buffer);
+		buffer_data->memory = pBindInfos[i].memory;
+		buffer_data->memory_offset = pBindInfos[i].memoryOffset;
+	}
+#endif
 
 	return result;
 }
@@ -842,6 +857,10 @@ VkResult VKAPI_CALL vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMe
 
 #if RESHADE_ADDON
 	create_default_view(device_impl, image);
+
+	const auto image_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(image);
+	image_data->memory = memory;
+	image_data->memory_offset = memoryOffset;
 #endif
 
 	return result;
@@ -862,7 +881,13 @@ VkResult VKAPI_CALL vkBindImageMemory2(VkDevice device, uint32_t bindInfoCount, 
 
 #if RESHADE_ADDON
 	for (uint32_t i = 0; i < bindInfoCount; ++i)
+	{
 		create_default_view(device_impl, pBindInfos[i].image);
+
+		const auto image_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(pBindInfos[i].image);
+		image_data->memory = pBindInfos[i].memory;
+		image_data->memory_offset = pBindInfos[i].memoryOffset;
+	}
 #endif
 
 	return result;

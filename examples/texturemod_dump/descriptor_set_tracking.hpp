@@ -7,6 +7,7 @@
 
 #include <map>
 #include <vector>
+#include <shared_mutex>
 
 struct descriptor_pool_data
 {
@@ -20,4 +21,5 @@ struct descriptor_set_tracking
 	reshade::api::resource_view lookup_descriptor(reshade::api::descriptor_pool pool, uint32_t offset);
 
 	std::map<reshade::api::descriptor_pool, descriptor_pool_data> pools;
+	std::shared_mutex mutex;
 };
