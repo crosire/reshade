@@ -951,7 +951,7 @@ namespace reshade { namespace api
 		virtual command_queue *get_command_queue() = 0;
 
 		/// <summary>
-		/// Applies post-processing effects to the specified render target and prevents the usual rendering of effects before swap chain presentation of the current frame.
+		/// Applies post-processing effects to the specified render targets and prevents the usual rendering of effects before swap chain presentation of the current frame.
 		/// This can be used to force ReShade to render effects at a certain point during the frame to e.g. avoid effects being applied to user interface elements of the application.
 		/// <para>The resource the <paramref name="rtv"/> view points to has to be in the <see cref="resource_usage::render_target"/> state.</para>
 		/// </summary>

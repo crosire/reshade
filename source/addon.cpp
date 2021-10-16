@@ -7,7 +7,8 @@
 
 #include "addon.hpp"
 #include "dll_log.hpp"
-#include <Windows.h>
+
+typedef struct HINSTANCE__ *HMODULE;
 
 extern reshade::addon::info *find_addon(HMODULE module);
 

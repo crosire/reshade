@@ -532,7 +532,7 @@ static void on_bind_vertex_buffers(reshade::api::command_list *, uint32_t first,
 
 	std::stringstream s;
 	for (uint32_t i = 0; i < count; ++i)
-		s << "bind_vertex_buffer(" << (first + i) << ", " << (void *)buffers[i].handle << ", " << offsets[i] << ", " << strides[i] << ")";
+		s << "bind_vertex_buffer(" << (first + i) << ", " << (void *)buffers[i].handle << ", " << (offsets != nullptr ? offsets[i] : 0) << ", " << (strides != nullptr ? strides[i] : 0) << ")";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
 

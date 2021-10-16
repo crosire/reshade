@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * Copyright (C) 2018 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 
@@ -10,8 +10,10 @@
 #include <unordered_map>
 
 struct ImFont;
+struct ImDrawData;
+struct ImGuiContext;
 
-namespace reshade::gui
+namespace reshade::imgui
 {
 	/// <summary>
 	/// A text editor for ImGui with syntax highlighting.

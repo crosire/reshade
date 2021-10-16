@@ -5,16 +5,18 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+#include <filesystem>
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <filesystem>
 
 namespace reshade
 {
 	class input;
 }
 
-namespace reshade::gui::widgets
+namespace reshade::imgui
 {
 	/// <summary>
 	/// Adds a widget to manage a list of directory paths.
@@ -74,7 +76,7 @@ namespace reshade::gui::widgets
 	/// <summary>
 	/// Adds a button with a visible toggle state. Clicking it toggles that state.
 	/// </summary>
-	bool toggle_button(const char *label, bool &v);
+	bool toggle_button(const char *label, bool &v, float width = 0.0f, ImGuiWindowFlags flags = 0);
 
 	/// <summary>
 	/// Adds an ImGui drag widget but with additional "&lt;" and "&gt;" buttons to decrease/increase the value.

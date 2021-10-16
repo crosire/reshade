@@ -5,20 +5,18 @@
 
 #pragma once
 
+#include <mutex>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <atomic>
+#include <chrono>
+#include <memory>
+#include <filesystem>
 #include "reshade_api.hpp"
 #if RESHADE_GUI
 #include "imgui_code_editor.hpp"
-
-struct ImDrawData;
-struct ImGuiContext;
 #endif
-
-#include <mutex>
-#include <memory>
-#include <atomic>
-#include <chrono>
-#include <functional>
-#include <filesystem>
 
 class ini_file;
 
@@ -36,8 +34,14 @@ namespace reshade
 	class __declspec(novtable) runtime : public api::effect_runtime
 	{
 	public:
+		/// <summary>
+		/// Gets the parent device for this effect runtime.
+		/// </summary>
 		api::device *get_device() final { return _device; }
 
+		/// <summary>
+		/// Gets the main graphics command queue associated with this effect runtime.
+		/// </summary>
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
 
 		/// <summary>
@@ -51,14 +55,23 @@ namespace reshade
 
 		virtual api::resource get_back_buffer_resolved(uint32_t index) = 0;
 
+		/// <summary>
+		/// Applies post-processing effects to the specified render targets.
+		/// </summary>
 		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
 
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
+		/// <summary>
+		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
+		/// </summary>
 		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(get_back_buffer_resolved(get_current_back_buffer_index()), api::resource_usage::present, pixels); }
 
+		/// <summary>
+		/// Gets the current buffer dimensions of the swap chain as used with effect rendering.
+		/// </summary>
 		void get_screenshot_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
 
 		void enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data) final;
@@ -71,9 +84,7 @@ namespace reshade
 		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-
 		const char *get_uniform_name(api::effect_uniform_variable variable) const final;
-
 		const char *get_uniform_annotation(api::effect_uniform_variable variable, const char *name) const final;
 
 		void get_uniform_data(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
@@ -117,9 +128,7 @@ namespace reshade
 		void get_texture_annotation(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		void get_texture_annotation(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		void get_texture_annotation(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-
 		const char *get_texture_name(api::effect_texture_variable variable) const final;
-
 		const char *get_texture_annotation(api::effect_texture_variable variable, const char *name) const final;
 
 		/// <summary>
@@ -163,15 +172,15 @@ namespace reshade
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
-		void enable_technique(technique &technique);
-		void disable_technique(technique &technique);
-
 		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
 		bool create_effect(size_t effect_index);
 		void destroy_effect(size_t effect_index);
 
 		bool create_texture(texture &texture);
 		void destroy_texture(texture &texture);
+
+		void enable_technique(technique &technique);
+		void disable_technique(technique &technique);
 
 		void load_effects();
 		void load_textures();
@@ -180,7 +189,7 @@ namespace reshade
 		void destroy_effects();
 
 		bool load_effect_cache(const std::string &id, const std::string &type, std::string &data) const;
-		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &source) const;
+		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const;
 		void clear_effect_cache();
 
 		void update_effects();
@@ -189,8 +198,6 @@ namespace reshade
 		void save_texture(const texture &texture);
 
 		void reset_uniform_value(uniform &variable);
-
-		texture &get_texture_internal(const std::string &unique_name);
 
 		// === Status ===
 
@@ -340,7 +347,7 @@ namespace reshade
 
 		unsigned int _window_width = 0;
 		unsigned int _window_height = 0;
-		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
+		std::vector<std::pair<std::string, void(runtime::*)()>> _menu_callables;
 		bool _show_splash = true;
 		bool _show_overlay = false;
 		bool _show_fps = false;
@@ -406,7 +413,7 @@ namespace reshade
 			size_t effect_index;
 			std::filesystem::path file_path;
 			std::string entry_point_name;
-			gui::code_editor editor;
+			imgui::code_editor editor;
 			bool selected = false;
 		};
 
@@ -416,7 +423,7 @@ namespace reshade
 		void draw_code_editor(editor_instance &instance);
 
 		std::vector<editor_instance> _editors;
-		uint32_t _editor_palette[gui::code_editor::color_palette_max];
+		uint32_t _editor_palette[imgui::code_editor::color_palette_max];
 #endif
 	};
 }

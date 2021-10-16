@@ -20,8 +20,6 @@
 #include <Windows.h>
 #include <Shellapi.h>
 
-using namespace reshade::gui;
-
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
@@ -71,14 +69,14 @@ void reshade::runtime::init_gui()
 
 	ImGui::SetCurrentContext(nullptr);
 
-	_menu_callables.emplace_back("Home", [this]() { draw_gui_home(); });
+	_menu_callables.emplace_back("Home", &runtime::draw_gui_home);
 #if RESHADE_ADDON
-	_menu_callables.emplace_back("Add-ons", [this]() { draw_gui_addons(); });
+	_menu_callables.emplace_back("Add-ons", &runtime::draw_gui_addons);
 #endif
-	_menu_callables.emplace_back("Settings", [this]() { draw_gui_settings(); });
-	_menu_callables.emplace_back("Statistics", [this]() { draw_gui_statistics(); });
-	_menu_callables.emplace_back("Log", [this]() { draw_gui_log(); });
-	_menu_callables.emplace_back("About", [this]() { draw_gui_about(); });
+	_menu_callables.emplace_back("Settings", &runtime::draw_gui_settings);
+	_menu_callables.emplace_back("Statistics", &runtime::draw_gui_statistics);
+	_menu_callables.emplace_back("Log", &runtime::draw_gui_log);
+	_menu_callables.emplace_back("About", &runtime::draw_gui_about);
 
 #if RESHADE_ADDON
 	if (!addon::loaded_info.empty())
@@ -434,99 +432,99 @@ void reshade::runtime::load_custom_style()
 	switch (_editor_style_index)
 	{
 	case 0: // Dark
-		_editor_palette[code_editor::color_default] = 0xffffffff;
-		_editor_palette[code_editor::color_keyword] = 0xffd69c56;
-		_editor_palette[code_editor::color_number_literal] = 0xff00ff00;
-		_editor_palette[code_editor::color_string_literal] = 0xff7070e0;
-		_editor_palette[code_editor::color_punctuation] = 0xffffffff;
-		_editor_palette[code_editor::color_preprocessor] = 0xff409090;
-		_editor_palette[code_editor::color_identifier] = 0xffaaaaaa;
-		_editor_palette[code_editor::color_known_identifier] = 0xff9bc64d;
-		_editor_palette[code_editor::color_preprocessor_identifier] = 0xffc040a0;
-		_editor_palette[code_editor::color_comment] = 0xff206020;
-		_editor_palette[code_editor::color_multiline_comment] = 0xff406020;
-		_editor_palette[code_editor::color_background] = 0xff101010;
-		_editor_palette[code_editor::color_cursor] = 0xffe0e0e0;
-		_editor_palette[code_editor::color_selection] = 0x80a06020;
-		_editor_palette[code_editor::color_error_marker] = 0x800020ff;
-		_editor_palette[code_editor::color_warning_marker] = 0x8000ffff;
-		_editor_palette[code_editor::color_line_number] = 0xff707000;
-		_editor_palette[code_editor::color_current_line_fill] = 0x40000000;
-		_editor_palette[code_editor::color_current_line_fill_inactive] = 0x40808080;
-		_editor_palette[code_editor::color_current_line_edge] = 0x40a0a0a0;
+		_editor_palette[imgui::code_editor::color_default] = 0xffffffff;
+		_editor_palette[imgui::code_editor::color_keyword] = 0xffd69c56;
+		_editor_palette[imgui::code_editor::color_number_literal] = 0xff00ff00;
+		_editor_palette[imgui::code_editor::color_string_literal] = 0xff7070e0;
+		_editor_palette[imgui::code_editor::color_punctuation] = 0xffffffff;
+		_editor_palette[imgui::code_editor::color_preprocessor] = 0xff409090;
+		_editor_palette[imgui::code_editor::color_identifier] = 0xffaaaaaa;
+		_editor_palette[imgui::code_editor::color_known_identifier] = 0xff9bc64d;
+		_editor_palette[imgui::code_editor::color_preprocessor_identifier] = 0xffc040a0;
+		_editor_palette[imgui::code_editor::color_comment] = 0xff206020;
+		_editor_palette[imgui::code_editor::color_multiline_comment] = 0xff406020;
+		_editor_palette[imgui::code_editor::color_background] = 0xff101010;
+		_editor_palette[imgui::code_editor::color_cursor] = 0xffe0e0e0;
+		_editor_palette[imgui::code_editor::color_selection] = 0x80a06020;
+		_editor_palette[imgui::code_editor::color_error_marker] = 0x800020ff;
+		_editor_palette[imgui::code_editor::color_warning_marker] = 0x8000ffff;
+		_editor_palette[imgui::code_editor::color_line_number] = 0xff707000;
+		_editor_palette[imgui::code_editor::color_current_line_fill] = 0x40000000;
+		_editor_palette[imgui::code_editor::color_current_line_fill_inactive] = 0x40808080;
+		_editor_palette[imgui::code_editor::color_current_line_edge] = 0x40a0a0a0;
 		break;
 	case 1: // Light
-		_editor_palette[code_editor::color_default] = 0xff000000;
-		_editor_palette[code_editor::color_keyword] = 0xffff0c06;
-		_editor_palette[code_editor::color_number_literal] = 0xff008000;
-		_editor_palette[code_editor::color_string_literal] = 0xff2020a0;
-		_editor_palette[code_editor::color_punctuation] = 0xff000000;
-		_editor_palette[code_editor::color_preprocessor] = 0xff409090;
-		_editor_palette[code_editor::color_identifier] = 0xff404040;
-		_editor_palette[code_editor::color_known_identifier] = 0xff606010;
-		_editor_palette[code_editor::color_preprocessor_identifier] = 0xffc040a0;
-		_editor_palette[code_editor::color_comment] = 0xff205020;
-		_editor_palette[code_editor::color_multiline_comment] = 0xff405020;
-		_editor_palette[code_editor::color_background] = 0xffffffff;
-		_editor_palette[code_editor::color_cursor] = 0xff000000;
-		_editor_palette[code_editor::color_selection] = 0x80600000;
-		_editor_palette[code_editor::color_error_marker] = 0xa00010ff;
-		_editor_palette[code_editor::color_warning_marker] = 0x8000ffff;
-		_editor_palette[code_editor::color_line_number] = 0xff505000;
-		_editor_palette[code_editor::color_current_line_fill] = 0x40000000;
-		_editor_palette[code_editor::color_current_line_fill_inactive] = 0x40808080;
-		_editor_palette[code_editor::color_current_line_edge] = 0x40000000;
+		_editor_palette[imgui::code_editor::color_default] = 0xff000000;
+		_editor_palette[imgui::code_editor::color_keyword] = 0xffff0c06;
+		_editor_palette[imgui::code_editor::color_number_literal] = 0xff008000;
+		_editor_palette[imgui::code_editor::color_string_literal] = 0xff2020a0;
+		_editor_palette[imgui::code_editor::color_punctuation] = 0xff000000;
+		_editor_palette[imgui::code_editor::color_preprocessor] = 0xff409090;
+		_editor_palette[imgui::code_editor::color_identifier] = 0xff404040;
+		_editor_palette[imgui::code_editor::color_known_identifier] = 0xff606010;
+		_editor_palette[imgui::code_editor::color_preprocessor_identifier] = 0xffc040a0;
+		_editor_palette[imgui::code_editor::color_comment] = 0xff205020;
+		_editor_palette[imgui::code_editor::color_multiline_comment] = 0xff405020;
+		_editor_palette[imgui::code_editor::color_background] = 0xffffffff;
+		_editor_palette[imgui::code_editor::color_cursor] = 0xff000000;
+		_editor_palette[imgui::code_editor::color_selection] = 0x80600000;
+		_editor_palette[imgui::code_editor::color_error_marker] = 0xa00010ff;
+		_editor_palette[imgui::code_editor::color_warning_marker] = 0x8000ffff;
+		_editor_palette[imgui::code_editor::color_line_number] = 0xff505000;
+		_editor_palette[imgui::code_editor::color_current_line_fill] = 0x40000000;
+		_editor_palette[imgui::code_editor::color_current_line_fill_inactive] = 0x40808080;
+		_editor_palette[imgui::code_editor::color_current_line_edge] = 0x40000000;
 		break;
 	case 3: // Solarized Dark
-		_editor_palette[code_editor::color_default] = 0xff969483;
-		_editor_palette[code_editor::color_keyword] = 0xff0089b5;
-		_editor_palette[code_editor::color_number_literal] = 0xff98a12a;
-		_editor_palette[code_editor::color_string_literal] = 0xff98a12a;
-		_editor_palette[code_editor::color_punctuation] = 0xff969483;
-		_editor_palette[code_editor::color_preprocessor] = 0xff164bcb;
-		_editor_palette[code_editor::color_identifier] = 0xff969483;
-		_editor_palette[code_editor::color_known_identifier] = 0xff969483;
-		_editor_palette[code_editor::color_preprocessor_identifier] = 0xffc4716c;
-		_editor_palette[code_editor::color_comment] = 0xff756e58;
-		_editor_palette[code_editor::color_multiline_comment] = 0xff756e58;
-		_editor_palette[code_editor::color_background] = 0xff362b00;
-		_editor_palette[code_editor::color_cursor] = 0xff969483;
-		_editor_palette[code_editor::color_selection] = 0xa0756e58;
-		_editor_palette[code_editor::color_error_marker] = 0x7f2f32dc;
-		_editor_palette[code_editor::color_warning_marker] = 0x7f0089b5;
-		_editor_palette[code_editor::color_line_number] = 0xff756e58;
-		_editor_palette[code_editor::color_current_line_fill] = 0x7f423607;
-		_editor_palette[code_editor::color_current_line_fill_inactive] = 0x7f423607;
-		_editor_palette[code_editor::color_current_line_edge] = 0x7f423607;
+		_editor_palette[imgui::code_editor::color_default] = 0xff969483;
+		_editor_palette[imgui::code_editor::color_keyword] = 0xff0089b5;
+		_editor_palette[imgui::code_editor::color_number_literal] = 0xff98a12a;
+		_editor_palette[imgui::code_editor::color_string_literal] = 0xff98a12a;
+		_editor_palette[imgui::code_editor::color_punctuation] = 0xff969483;
+		_editor_palette[imgui::code_editor::color_preprocessor] = 0xff164bcb;
+		_editor_palette[imgui::code_editor::color_identifier] = 0xff969483;
+		_editor_palette[imgui::code_editor::color_known_identifier] = 0xff969483;
+		_editor_palette[imgui::code_editor::color_preprocessor_identifier] = 0xffc4716c;
+		_editor_palette[imgui::code_editor::color_comment] = 0xff756e58;
+		_editor_palette[imgui::code_editor::color_multiline_comment] = 0xff756e58;
+		_editor_palette[imgui::code_editor::color_background] = 0xff362b00;
+		_editor_palette[imgui::code_editor::color_cursor] = 0xff969483;
+		_editor_palette[imgui::code_editor::color_selection] = 0xa0756e58;
+		_editor_palette[imgui::code_editor::color_error_marker] = 0x7f2f32dc;
+		_editor_palette[imgui::code_editor::color_warning_marker] = 0x7f0089b5;
+		_editor_palette[imgui::code_editor::color_line_number] = 0xff756e58;
+		_editor_palette[imgui::code_editor::color_current_line_fill] = 0x7f423607;
+		_editor_palette[imgui::code_editor::color_current_line_fill_inactive] = 0x7f423607;
+		_editor_palette[imgui::code_editor::color_current_line_edge] = 0x7f423607;
 		break;
 	case 4: // Solarized Light
-		_editor_palette[code_editor::color_default] = 0xff837b65;
-		_editor_palette[code_editor::color_keyword] = 0xff0089b5;
-		_editor_palette[code_editor::color_number_literal] = 0xff98a12a;
-		_editor_palette[code_editor::color_string_literal] = 0xff98a12a;
-		_editor_palette[code_editor::color_punctuation] = 0xff756e58;
-		_editor_palette[code_editor::color_preprocessor] = 0xff164bcb;
-		_editor_palette[code_editor::color_identifier] = 0xff837b65;
-		_editor_palette[code_editor::color_known_identifier] = 0xff837b65;
-		_editor_palette[code_editor::color_preprocessor_identifier] = 0xffc4716c;
-		_editor_palette[code_editor::color_comment] = 0xffa1a193;
-		_editor_palette[code_editor::color_multiline_comment] = 0xffa1a193;
-		_editor_palette[code_editor::color_background] = 0xffe3f6fd;
-		_editor_palette[code_editor::color_cursor] = 0xff837b65;
-		_editor_palette[code_editor::color_selection] = 0x60a1a193;
-		_editor_palette[code_editor::color_error_marker] = 0x7f2f32dc;
-		_editor_palette[code_editor::color_warning_marker] = 0x7f0089b5;
-		_editor_palette[code_editor::color_line_number] = 0xffa1a193;
-		_editor_palette[code_editor::color_current_line_fill] = 0x7fd5e8ee;
-		_editor_palette[code_editor::color_current_line_fill_inactive] = 0x7fd5e8ee;
-		_editor_palette[code_editor::color_current_line_edge] = 0x7fd5e8ee;
+		_editor_palette[imgui::code_editor::color_default] = 0xff837b65;
+		_editor_palette[imgui::code_editor::color_keyword] = 0xff0089b5;
+		_editor_palette[imgui::code_editor::color_number_literal] = 0xff98a12a;
+		_editor_palette[imgui::code_editor::color_string_literal] = 0xff98a12a;
+		_editor_palette[imgui::code_editor::color_punctuation] = 0xff756e58;
+		_editor_palette[imgui::code_editor::color_preprocessor] = 0xff164bcb;
+		_editor_palette[imgui::code_editor::color_identifier] = 0xff837b65;
+		_editor_palette[imgui::code_editor::color_known_identifier] = 0xff837b65;
+		_editor_palette[imgui::code_editor::color_preprocessor_identifier] = 0xffc4716c;
+		_editor_palette[imgui::code_editor::color_comment] = 0xffa1a193;
+		_editor_palette[imgui::code_editor::color_multiline_comment] = 0xffa1a193;
+		_editor_palette[imgui::code_editor::color_background] = 0xffe3f6fd;
+		_editor_palette[imgui::code_editor::color_cursor] = 0xff837b65;
+		_editor_palette[imgui::code_editor::color_selection] = 0x60a1a193;
+		_editor_palette[imgui::code_editor::color_error_marker] = 0x7f2f32dc;
+		_editor_palette[imgui::code_editor::color_warning_marker] = 0x7f0089b5;
+		_editor_palette[imgui::code_editor::color_line_number] = 0xffa1a193;
+		_editor_palette[imgui::code_editor::color_current_line_fill] = 0x7fd5e8ee;
+		_editor_palette[imgui::code_editor::color_current_line_fill_inactive] = 0x7fd5e8ee;
+		_editor_palette[imgui::code_editor::color_current_line_edge] = 0x7fd5e8ee;
 		break;
 	default:
 	case 2:
 		ImVec4 value;
-		for (ImGuiCol i = 0; i < code_editor::color_palette_max; i++)
+		for (ImGuiCol i = 0; i < imgui::code_editor::color_palette_max; i++)
 			value = ImGui::ColorConvertU32ToFloat4(_editor_palette[i]), // Get default value first
-			config.get("STYLE", code_editor::get_palette_color_name(i), (float(&)[4])value),
+			config.get("STYLE",  imgui::code_editor::get_palette_color_name(i), (float(&)[4])value),
 			_editor_palette[i] = ImGui::ColorConvertFloat4ToU32(value);
 		break;
 	}
@@ -544,9 +542,9 @@ void reshade::runtime::save_custom_style() const
 	if (_editor_style_index == 2) // Custom
 	{
 		ImVec4 value;
-		for (ImGuiCol i = 0; i < code_editor::color_palette_max; i++)
+		for (ImGuiCol i = 0; i < imgui::code_editor::color_palette_max; i++)
 			value = ImGui::ColorConvertU32ToFloat4(_editor_palette[i]),
-			config.set("STYLE", code_editor::get_palette_color_name(i), (const float(&)[4])value);
+			config.set("STYLE",  imgui::code_editor::get_palette_color_name(i), (const float(&)[4])value);
 	}
 }
 
@@ -825,7 +823,7 @@ void reshade::runtime::draw_gui()
 		for (const auto &widget : _menu_callables)
 		{
 			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
-				widget.second();
+				(this->*widget.second)();
 			ImGui::End();
 		}
 
@@ -1034,7 +1032,7 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		ImGui::SetNextWindowPos(popup_pos);
-		if (widgets::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }))
+		if (imgui::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }))
 		{
 			// Check that this is actually a valid preset file
 			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
@@ -1157,7 +1155,7 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 1)
 	{
-		if (widgets::search_input_box(_effect_filter, sizeof(_effect_filter), (_variable_editor_tabs ? -10.0f : -20.0f) * _font_size))
+		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), (_variable_editor_tabs ? -10.0f : -20.0f) * _font_size))
 		{
 			_effects_expanded_state = 3;
 			const std::string_view filter_view = _effect_filter;
@@ -1306,7 +1304,7 @@ void reshade::runtime::draw_gui_home()
 		{
 			load_config(); // Reload configuration too
 
-			if (!_no_effect_cache && (ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeyShift))
+			if (!_no_effect_cache && (_imgui_context->IO.KeyCtrl || _imgui_context->IO.KeyShift))
 				clear_effect_cache();
 
 			reload_effects();
@@ -1371,15 +1369,15 @@ void reshade::runtime::draw_gui_settings()
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		modified |= widgets::key_input_box("Overlay key", _overlay_key_data, *_input);
+		modified |= imgui::key_input_box("Overlay key", _overlay_key_data, *_input);
 
-		modified |= widgets::key_input_box("Effect toggle key", _effects_key_data, *_input);
-		modified |= widgets::key_input_box("Effect reload key", _reload_key_data, *_input);
+		modified |= imgui::key_input_box("Effect toggle key", _effects_key_data, *_input);
+		modified |= imgui::key_input_box("Effect reload key", _reload_key_data, *_input);
 
-		modified |= widgets::key_input_box("Performance mode toggle key", _performance_mode_key_data, *_input);
+		modified |= imgui::key_input_box("Performance mode toggle key", _performance_mode_key_data, *_input);
 
-		modified |= widgets::key_input_box("Previous preset key", _prev_preset_key_data, *_input);
-		modified |= widgets::key_input_box("Next preset key", _next_preset_key_data, *_input);
+		modified |= imgui::key_input_box("Previous preset key", _prev_preset_key_data, *_input);
+		modified |= imgui::key_input_box("Next preset key", _next_preset_key_data, *_input);
 
 		modified |= ImGui::SliderInt("Preset transition delay", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
 		if (ImGui::IsItemHovered())
@@ -1392,8 +1390,8 @@ void reshade::runtime::draw_gui_settings()
 
 		ImGui::Spacing();
 
-		modified |= widgets::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
-		modified |= widgets::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
+		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
+		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 
 		if (ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping))
 		{
@@ -1412,8 +1410,8 @@ void reshade::runtime::draw_gui_settings()
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		modified |= widgets::key_input_box("Screenshot key", _screenshot_key_data, *_input);
-		modified |= widgets::directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
+		modified |= imgui::key_input_box("Screenshot key", _screenshot_key_data, *_input);
+		modified |= imgui::directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
 		std::string screenshot_naming_items;
 		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss " + '\0';
@@ -1544,12 +1542,12 @@ void reshade::runtime::draw_gui_settings()
 			if (ImGui::BeginChild("##editor_colors", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
 			{
 				ImGui::PushItemWidth(-160);
-				for (ImGuiCol i = 0; i < code_editor::color_palette_max; i++)
+				for (ImGuiCol i = 0; i < imgui::code_editor::color_palette_max; i++)
 				{
 					ImVec4 color = ImGui::ColorConvertU32ToFloat4(_editor_palette[i]);
 					ImGui::PushID(i);
 					modified_custom_style |= ImGui::ColorEdit4("##editor_color", &color.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
-					ImGui::SameLine(); ImGui::TextUnformatted(code_editor::get_palette_color_name(i));
+					ImGui::SameLine(); ImGui::TextUnformatted(imgui::code_editor::get_palette_color_name(i));
 					ImGui::PopID();
 					_editor_palette[i] = ImGui::ColorConvertFloat4ToU32(color);
 				}
@@ -1558,13 +1556,13 @@ void reshade::runtime::draw_gui_settings()
 		}
 		#pragma endregion
 
-		if (widgets::font_input_box("Global font", _font, _file_selection_path, _font_size))
+		if (imgui::font_input_box("Global font", _font, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_rebuild_font_atlas = true;
 		}
 
-		if (widgets::font_input_box("Text editor font", _editor_font, _file_selection_path, _editor_font_size))
+		if (imgui::font_input_box("Text editor font", _editor_font, _file_selection_path, _editor_font_size))
 		{
 			modified = true;
 			_rebuild_font_atlas = true;
@@ -1831,7 +1829,7 @@ void reshade::runtime::draw_gui_statistics()
 			}
 
 			const auto button_size = ImGui::GetFrameHeight();
-			const auto button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+			const auto button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 			const bool supports_saving = (
 				tex.format == reshadefx::texture_format::r8 ||
 				tex.format == reshadefx::texture_format::rg8 ||
@@ -1894,27 +1892,29 @@ void reshade::runtime::draw_gui_statistics()
 			bool g = (_preview_size[2] & 0x0000FF00) != 0;
 			bool b = (_preview_size[2] & 0x00FF0000) != 0;
 			ImGui::SameLine();
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 1));
-			widgets::toggle_button("R", r);
+			imgui::toggle_button("R", r, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
 			ImGui::PopStyleColor();
 			if (tex.format >= reshadefx::texture_format::rg8)
 			{
 				ImGui::SameLine(0, 1);
 				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 1, 0, 1));
-				widgets::toggle_button("G", g);
+				imgui::toggle_button("G", g, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
 				ImGui::PopStyleColor();
 				if (tex.format >= reshadefx::texture_format::rgba8)
 				{
 					ImGui::SameLine(0, 1);
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 1, 1));
-					widgets::toggle_button("B", b);
+					imgui::toggle_button("B", b, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
 					ImGui::PopStyleColor();
 				}
 			}
+			ImGui::PopStyleVar();
 			_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
 
 			const float aspect_ratio = static_cast<float>(tex.width) / static_cast<float>(tex.height);
-			widgets::image_with_checkerboard_background(tex.srv[0].handle, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
+			imgui::image_with_checkerboard_background(tex.srv[0].handle, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
 
 			ImGui::EndGroup();
 			ImGui::PopID();
@@ -2103,7 +2103,7 @@ void reshade::runtime::draw_gui_addons()
 		return;
 	}
 
-	widgets::search_input_box(_addons_filter, sizeof(_addons_filter));
+	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
 	const std::string_view filter_view = _addons_filter;
 
 	ImGui::Spacing();
@@ -2117,7 +2117,7 @@ void reshade::runtime::draw_gui_addons()
 				[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == info.name.end())
 			continue;
 
-		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, info.settings_height + ImGui::GetStyle().FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
+		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, info.settings_height + _imgui_context->Style.FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
 
 		const bool open = _open_addon_name == info.name;
 		if (ImGui::ArrowButton("addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
@@ -2164,7 +2164,7 @@ void reshade::runtime::draw_variable_editor()
 {
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
-	if (widgets::popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvail().x, ImGuiWindowFlags_NoMove))
+	if (imgui::popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvail().x, ImGuiWindowFlags_NoMove))
 	{
 		ImGui::SetWindowPos(popup_pos);
 
@@ -2356,7 +2356,7 @@ void reshade::runtime::draw_variable_editor()
 		}
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
-		if (widgets::popup_button(ICON_FK_UNDO " Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
+		if (imgui::popup_button(ICON_FK_UNDO " Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
 		{
 			ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", effect_name.c_str());
 
@@ -2481,7 +2481,7 @@ void reshade::runtime::draw_variable_editor()
 				get_uniform_value(variable, &data, 1);
 
 				if (ui_type == "combo")
-					modified = widgets::combo_with_buttons(label.data(), data);
+					modified = imgui::combo_with_buttons(label.data(), data);
 				else
 					modified = ImGui::Checkbox(label.data(), &data);
 
@@ -2500,17 +2500,17 @@ void reshade::runtime::draw_variable_editor()
 				const auto ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
 
 				if (ui_type == "slider")
-					modified = widgets::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
+					modified = imgui::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
 				else if (ui_type == "drag")
 					modified = variable.annotation_as_int("ui_step") == 0 ?
 						ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val) :
-						widgets::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
+						imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
 				else if (ui_type == "list")
-					modified = widgets::list_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
+					modified = imgui::list_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
 				else if (ui_type == "combo")
-					modified = widgets::combo_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
+					modified = imgui::combo_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
 				else if (ui_type == "radio")
-					modified = widgets::radio_list(label.data(), variable.annotation_as_string("ui_items"), data[0]);
+					modified = imgui::radio_list(label.data(), variable.annotation_as_string("ui_items"), data[0]);
 				else if (variable.type.is_matrix())
 					for (unsigned int row = 0; row < variable.type.rows; ++row)
 						modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, &data[0] + row * variable.type.cols, variable.type.cols) || modified;
@@ -2536,13 +2536,13 @@ void reshade::runtime::draw_variable_editor()
 					++precision_format[2]; // This changes the text to "%.1f", "%.2f", "%.3f", ...
 
 				if (ui_type == "slider")
-					modified = widgets::slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
+					modified = imgui::slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
 				else if (ui_type == "drag")
 					modified = variable.annotation_as_float("ui_step") == 0 ?
 						ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format) :
-						widgets::drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
+						imgui::drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
 				else if (ui_type == "color" && variable.type.rows == 1)
-					modified = widgets::slider_for_alpha_value(label.data(), data);
+					modified = imgui::slider_for_alpha_value(label.data(), data);
 				else if (ui_type == "color" && variable.type.rows == 3)
 					modified = ImGui::ColorEdit3(label.data(), data, ImGuiColorEditFlags_NoOptions);
 				else if (ui_type == "color" && variable.type.rows == 4)
@@ -2573,7 +2573,7 @@ void reshade::runtime::draw_variable_editor()
 			if (ImGui::BeginPopupContextItem("##context"))
 			{
 				if (variable.supports_toggle_key() &&
-					widgets::key_input_box("##toggle_key", variable.toggle_key_data, *_input))
+					imgui::key_input_box("##toggle_key", variable.toggle_key_data, *_input))
 					modified = true;
 
 				const float button_width = ImGui::CalcItemWidth();
@@ -2785,7 +2785,7 @@ void reshade::runtime::draw_technique_editor()
 
 				ImGui::Separator();
 
-				if (widgets::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
+				if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
 				{
 					std::filesystem::path source_file;
 					if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
@@ -2810,7 +2810,7 @@ void reshade::runtime::draw_technique_editor()
 				}
 
 				if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
-					widgets::popup_button("Show compiled results", 230.0f))
+					imgui::popup_button("Show compiled results", 230.0f))
 				{
 					std::string entry_point_name;
 					if (ImGui::MenuItem("Generated code"))
@@ -2910,7 +2910,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 			ImGui::SetNextItemWidth(230.0f);
-			if (widgets::key_input_box("##toggle_key", technique.toggle_key_data, *_input))
+			if (imgui::key_input_box("##toggle_key", technique.toggle_key_data, *_input))
 				save_current_preset();
 
 			const bool is_not_top = index > 0;
@@ -2945,7 +2945,7 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::Separator();
 
-			if (widgets::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
+			if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
 			{
 				std::filesystem::path source_file;
 				if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
@@ -2975,7 +2975,7 @@ void reshade::runtime::draw_technique_editor()
 			}
 
 			if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
-				widgets::popup_button("Show compiled results", 230.0f))
+				imgui::popup_button("Show compiled results", 230.0f))
 			{
 				std::string entry_point_name;
 				if (ImGui::MenuItem("Generated code"))
@@ -3032,7 +3032,7 @@ void reshade::runtime::draw_technique_editor()
 			move_technique(_selected_technique, hovered_technique_index);
 
 			// Pressing shift moves all techniques from the same effect file to the new location as well
-			if (ImGui::GetIO().KeyShift)
+			if (_imgui_context->IO.KeyShift)
 			{
 				for (size_t i = hovered_technique_index + 1, offset = 1; i < _techniques.size(); ++i)
 				{

@@ -225,9 +225,12 @@ void reshade::runtime::draw_gui_vr()
 
 	if (ImGui::BeginChild("##menu", ImVec2(0, ImGui::GetFrameHeight()), false, ImGuiWindowFlags_NoScrollbar))
 	{
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
+
 		for (size_t menu_index = 0; menu_index < _menu_callables.size(); ++menu_index)
 		{
-			if (bool state = (menu_index == _selected_menu); gui::widgets::toggle_button(_menu_callables[menu_index].first.c_str(), state))
+			if (bool state = (menu_index == _selected_menu);
+				imgui::toggle_button(_menu_callables[menu_index].first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
 				_selected_menu = menu_index;
 			ImGui::SameLine();
 		}
@@ -237,17 +240,20 @@ void reshade::runtime::draw_gui_vr()
 		{
 			for (size_t menu_index = _menu_callables.size(); menu_index < addon::overlay_list.size() + _menu_callables.size(); ++menu_index)
 			{
-				if (bool state = (menu_index == _selected_menu); gui::widgets::toggle_button(addon::overlay_list[menu_index - _menu_callables.size()].first.c_str(), state))
+				if (bool state = (menu_index == _selected_menu);
+					imgui::toggle_button(addon::overlay_list[menu_index - _menu_callables.size()].first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
 					_selected_menu = menu_index;
 				ImGui::SameLine();
 			}
 		}
 #endif
+
+		ImGui::PopStyleVar();
 	}
 	ImGui::EndChild();
 
 	if (_selected_menu < _menu_callables.size())
-		_menu_callables[_selected_menu].second();
+		(this->*_menu_callables[_selected_menu].second)();
 #if RESHADE_ADDON
 	else if ((_selected_menu - _menu_callables.size()) < addon::overlay_list.size())
 		addon::overlay_list[_selected_menu - _menu_callables.size()].second(this, _imgui_context);

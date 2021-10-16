@@ -25,8 +25,6 @@
 #include <malloc.h>
 #include <d3dcompiler.h>
 
-extern volatile long g_network_traffic;
-
 bool resolve_path(std::filesystem::path &path)
 {
 	std::error_code ec;
@@ -426,7 +424,7 @@ void reshade::runtime::on_present()
 
 	update_effects();
 
-	if (!_effects_rendered_this_frame && _effects_enabled)
+	if (_effects_enabled && !_effects_rendered_this_frame)
 	{
 		if (_should_save_screenshot && _screenshot_save_before)
 			save_screenshot(L" original");
@@ -446,8 +444,8 @@ void reshade::runtime::on_present()
 
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
-	_last_frame_duration = current_time - _last_present_time;
-	_last_present_time = current_time;
+	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
+	_effects_rendered_this_frame = false;
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
@@ -517,6 +515,8 @@ void reshade::runtime::on_present()
 
 #if RESHADE_ADDON
 	// Detect high network traffic
+	extern volatile long g_network_traffic;
+
 	static int cooldown = 0, traffic = 0;
 	if (cooldown-- > 0)
 	{
@@ -540,11 +540,9 @@ void reshade::runtime::on_present()
 			}
 		}
 	}
-#endif
 
-	// Reset frame statistics
 	g_network_traffic = 0;
-	_effects_rendered_this_frame = false;
+#endif
 }
 
 void reshade::runtime::load_config()
@@ -921,40 +919,6 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	}
 
 	return true;
-}
-
-void reshade::runtime::enable_technique(technique &tech)
-{
-	assert(tech.effect_index < _effects.size());
-
-	if (!_effects[tech.effect_index].compiled)
-		return; // Cannot enable techniques that failed to compile
-
-	const bool status_changed = !tech.enabled;
-	tech.enabled = true;
-	tech.time_left = tech.annotation_as_int("timeout");
-
-	// Queue effect file for initialization if it was not fully loaded yet
-	if (tech.passes_data.empty() &&
-		// Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
-		std::find(_reload_create_queue.begin(), _reload_create_queue.end(), tech.effect_index) == _reload_create_queue.end())
-		_reload_create_queue.push_back(tech.effect_index);
-
-	if (status_changed) // Increase rendering reference count
-		_effects[tech.effect_index].rendering++;
-}
-void reshade::runtime::disable_technique(technique &tech)
-{
-	assert(tech.effect_index < _effects.size());
-
-	const bool status_changed = tech.enabled;
-	tech.enabled = false;
-	tech.time_left = 0;
-	tech.average_cpu_duration.clear();
-	tech.average_gpu_duration.clear();
-
-	if (status_changed) // Decrease rendering reference count
-		_effects[tech.effect_index].rendering--;
 }
 
 bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required)
@@ -2014,16 +1978,18 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 					for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 					{
-						texture &texture = get_texture_internal(pass_info.render_target_names[k]);
+						const auto texture = std::find_if(_textures.begin(), _textures.end(),
+							[&unique_name = pass_info.render_target_names[k]](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+						assert(texture != _textures.end());
 
-						pass_data.modified_resources.push_back(texture.resource);
+						pass_data.modified_resources.push_back(texture->resource);
 
-						if (texture.levels > 1)
-							pass_data.generate_mipmap_views.push_back(texture.srv[pass_info.srgb_write_enable]);
+						if (texture->levels > 1)
+							pass_data.generate_mipmap_views.push_back(texture->srv[pass_info.srgb_write_enable]);
 
-						const api::resource_desc res_desc = _device->get_resource_desc(texture.resource);
+						const api::resource_desc res_desc = _device->get_resource_desc(texture->resource);
 
-						fbo_desc.render_targets[k] = texture.rtv[pass_info.srgb_write_enable];
+						fbo_desc.render_targets[k] = texture->rtv[pass_info.srgb_write_enable];
 						pass_desc.render_targets_format[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
 					}
 
@@ -2159,7 +2125,9 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
-					const texture &texture = get_texture_internal(info.texture_name);
+					const auto texture = std::find_if(_textures.begin(), _textures.end(),
+						[&unique_name = info.texture_name](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+					assert(texture != _textures.end());
 
 					api::resource_view &srv = sampler_descriptors[sampler_with_resource_view ? info.binding : effect.module.num_sampler_bindings + info.texture_binding].view;
 
@@ -2217,24 +2185,24 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						write.descriptors = &srv;
 					}
 
-					if (texture.semantic == "COLOR")
+					if (texture->semantic == "COLOR")
 					{
 						srv = _backbuffer_texture_view[info.srgb];
 					}
-					else if (!texture.semantic.empty())
+					else if (!texture->semantic.empty())
 					{
-						if (const auto it = _texture_semantic_bindings.find(texture.semantic);
+						if (const auto it = _texture_semantic_bindings.find(texture->semantic);
 							it != _texture_semantic_bindings.end())
 							srv = info.srgb ? it->second.second : it->second.first;
 						else
 							srv = _empty_texture_view;
 
 						// Keep track of the texture descriptor to simplify updating it
-						effect.texture_semantic_to_binding.push_back({ texture.semantic, write.set, write.binding, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 }, !!info.srgb });
+						effect.texture_semantic_to_binding.push_back({ texture->semantic, write.set, write.binding, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 }, !!info.srgb });
 					}
 					else
 					{
-						srv = texture.srv[info.srgb];
+						srv = texture->srv[info.srgb];
 					}
 
 					assert(srv != 0);
@@ -2247,21 +2215,22 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
-					const texture &texture = get_texture_internal(info.texture_name);
+					const auto texture = std::find_if(_textures.begin(), _textures.end(),
+						[&unique_name = info.texture_name](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+					assert(texture != _textures.end());
+					assert(texture->semantic.empty() && texture->uav != 0);
 
-					assert(texture.semantic.empty() && texture.uav != 0);
+					pass_data.modified_resources.push_back(texture->resource);
 
-					pass_data.modified_resources.push_back(texture.resource);
-
-					if (texture.levels > 1)
-						pass_data.generate_mipmap_views.push_back(texture.srv[0]);
+					if (texture->levels > 1)
+						pass_data.generate_mipmap_views.push_back(texture->srv[0]);
 
 					api::descriptor_set_update &write = descriptor_writes.emplace_back();
 					write.set = pass_data.storage_set;
 					write.offset = write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
-					write.descriptors = &texture.uav;
+					write.descriptors = &texture->uav;
 				}
 			}
 		}
@@ -2516,6 +2485,40 @@ void reshade::runtime::destroy_texture(texture &tex)
 	tex.uav = {};
 }
 
+void reshade::runtime::enable_technique(technique &tech)
+{
+	assert(tech.effect_index < _effects.size());
+
+	if (!_effects[tech.effect_index].compiled)
+		return; // Cannot enable techniques that failed to compile
+
+	const bool status_changed = !tech.enabled;
+	tech.enabled = true;
+	tech.time_left = tech.annotation_as_int("timeout");
+
+	// Queue effect file for initialization if it was not fully loaded yet
+	if (tech.passes_data.empty() &&
+		// Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
+		std::find(_reload_create_queue.begin(), _reload_create_queue.end(), tech.effect_index) == _reload_create_queue.end())
+		_reload_create_queue.push_back(tech.effect_index);
+
+	if (status_changed) // Increase rendering reference count
+		_effects[tech.effect_index].rendering++;
+}
+void reshade::runtime::disable_technique(technique &tech)
+{
+	assert(tech.effect_index < _effects.size());
+
+	const bool status_changed = tech.enabled;
+	tech.enabled = false;
+	tech.time_left = 0;
+	tech.average_cpu_duration.clear();
+	tech.average_gpu_duration.clear();
+
+	if (status_changed) // Decrease rendering reference count
+		_effects[tech.effect_index].rendering--;
+}
+
 void reshade::runtime::load_effects()
 {
 	// Ensure HLSL compiler is loaded before trying to compile effects
@@ -2672,7 +2675,7 @@ void reshade::runtime::destroy_effects()
 	_textures_loaded = false;
 }
 
-bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &source) const
+bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &data) const
 {
 	if (_no_effect_cache)
 		return false;
@@ -2684,13 +2687,13 @@ bool reshade::runtime::load_effect_cache(const std::string &id, const std::strin
 		if (file == INVALID_HANDLE_VALUE)
 			return false;
 		DWORD size = GetFileSize(file, nullptr);
-		source.resize(size);
-		const BOOL result = ReadFile(file, source.data(), size, &size, nullptr);
+		data.resize(size);
+		const BOOL result = ReadFile(file, data.data(), size, &size, nullptr);
 		CloseHandle(file);
 		return result != FALSE;
 	}
 }
-bool reshade::runtime::save_effect_cache(const std::string &id, const std::string &type, const std::string &source) const
+bool reshade::runtime::save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const
 {
 	if (_no_effect_cache)
 		return false;
@@ -2701,8 +2704,8 @@ bool reshade::runtime::save_effect_cache(const std::string &id, const std::strin
 	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 		if (file == INVALID_HANDLE_VALUE)
 			return false;
-		DWORD size = static_cast<DWORD>(source.size());
-		const BOOL result = WriteFile(file, source.data(), size, &size, nullptr);
+		DWORD size = static_cast<DWORD>(data.size());
+		const BOOL result = WriteFile(file, data.data(), size, &size, nullptr);
 		CloseHandle(file);
 		return result != FALSE;
 	}
@@ -3536,7 +3539,6 @@ void reshade::runtime::get_uniform_annotation(api::effect_uniform_variable varia
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_uint(name, array_index + i);
 }
-
 const char *reshade::runtime::get_uniform_name(api::effect_uniform_variable variable) const
 {
 	if (variable == 0)
@@ -3544,7 +3546,6 @@ const char *reshade::runtime::get_uniform_name(api::effect_uniform_variable vari
 
 	return reinterpret_cast<const uniform *>(variable.handle)->name.c_str();
 }
-
 const char *reshade::runtime::get_uniform_annotation(api::effect_uniform_variable variable, const char *name) const
 {
 	if (variable == 0)
@@ -3854,7 +3855,6 @@ void reshade::runtime::get_texture_annotation(api::effect_texture_variable varia
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_uint(name, array_index + i);
 }
-
 const char *reshade::runtime::get_texture_name(api::effect_texture_variable variable) const
 {
 	if (variable == 0)
@@ -3862,7 +3862,6 @@ const char *reshade::runtime::get_texture_name(api::effect_texture_variable vari
 
 	return reinterpret_cast<const texture *>(variable.handle)->unique_name.c_str();
 }
-
 const char *reshade::runtime::get_texture_annotation(api::effect_texture_variable variable, const char *name) const
 {
 	if (variable == 0)
@@ -4140,12 +4139,4 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	}
 
 	_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
-}
-
-reshade::texture &reshade::runtime::get_texture_internal(const std::string &unique_name)
-{
-	const auto it = std::find_if(_textures.begin(), _textures.end(),
-		[&unique_name](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
-	assert(it != _textures.end());
-	return *it;
 }
