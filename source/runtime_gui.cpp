@@ -22,16 +22,11 @@
 
 using namespace reshade::gui;
 
-static std::string s_window_state_path;
-
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_gui()
 {
-	if (s_window_state_path.empty())
-		s_window_state_path = (g_reshade_base_path / L"ReShadeGUI.ini").u8string();
-
 	// Default shortcut: Home
 	_overlay_key_data[0] = 0x24;
 	_overlay_key_data[1] = false;
@@ -172,15 +167,13 @@ void reshade::runtime::build_font_atlas()
 
 void reshade::runtime::load_config_gui(const ini_file &config)
 {
-	auto &imgui_io = _imgui_context->IO;
-	auto &imgui_style = _imgui_context->Style;
-
 	config.get("INPUT", "KeyOverlay", _overlay_key_data);
 	config.get("INPUT", "InputProcessing", _input_processing_mode);
 
 	config.get("OVERLAY", "ClockFormat", _clock_format);
 	config.get("OVERLAY", "FPSPosition", _fps_pos);
 	config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
+	config.get("OVERLAY", "SaveWindowState", _save_imgui_window_state);
 	config.get("OVERLAY", "ShowClock", _show_clock);
 	config.get("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
 	config.get("OVERLAY", "ShowFPS", _show_fps);
@@ -190,10 +183,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 
-	bool save_imgui_window_state = false;
-	config.get("OVERLAY", "SaveWindowState", save_imgui_window_state);
-	imgui_io.IniFilename = save_imgui_window_state ? s_window_state_path.c_str() : nullptr;
-
+	auto &imgui_style = _imgui_context->Style;
 	config.get("STYLE", "Alpha", imgui_style.Alpha);
 	config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
 	config.get("STYLE", "ColFPSText", _fps_col);
@@ -216,18 +206,24 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 		_fps_col[3] = 1.0f;
 
 	load_custom_style();
+
+	if (_save_imgui_window_state && !_imgui_context->SettingsLoaded)
+	{
+		ImGuiContext *const backup_context = ImGui::GetCurrentContext();
+		ImGui::SetCurrentContext(_imgui_context);
+		ImGui::LoadIniSettingsFromDisk((_config_path.parent_path() / L"ReShadeGUI.ini").u8string().c_str());
+		ImGui::SetCurrentContext(backup_context);
+	}
 }
 void reshade::runtime::save_config_gui(ini_file &config) const
 {
-	const auto &imgui_io = _imgui_context->IO;
-	const auto &imgui_style = _imgui_context->Style;
-
 	config.set("INPUT", "KeyOverlay", _overlay_key_data);
 	config.set("INPUT", "InputProcessing", _input_processing_mode);
 
 	config.set("OVERLAY", "ClockFormat", _clock_format);
 	config.set("OVERLAY", "FPSPosition", _fps_pos);
 	config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
+	config.set("OVERLAY", "SaveWindowState", _save_imgui_window_state);
 	config.set("OVERLAY", "ShowClock", _show_clock);
 	config.set("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
 	config.set("OVERLAY", "ShowFPS", _show_fps);
@@ -237,9 +233,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 
-	const bool save_imgui_window_state = imgui_io.IniFilename != nullptr;
-	config.set("OVERLAY", "SaveWindowState", save_imgui_window_state);
-
+	const auto &imgui_style = _imgui_context->Style;
 	config.set("STYLE", "Alpha", imgui_style.Alpha);
 	config.set("STYLE", "ChildRounding", imgui_style.ChildRounding);
 	config.set("STYLE", "ColFPSText", _fps_col);
@@ -258,6 +252,14 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("STYLE", "WindowRounding", imgui_style.WindowRounding);
 
 	// Do not save custom style colors by default, only when actually used and edited
+
+	if (_save_imgui_window_state)
+	{
+		ImGuiContext *const backup_context = ImGui::GetCurrentContext();
+		ImGui::SetCurrentContext(_imgui_context);
+		ImGui::SaveIniSettingsToDisk((_config_path.parent_path() / L"ReShadeGUI.ini").u8string().c_str());
+		ImGui::SetCurrentContext(backup_context);
+	}
 }
 
 void reshade::runtime::load_custom_style()
@@ -581,7 +583,9 @@ void reshade::runtime::draw_gui()
 	if (_font_atlas_srv == 0)
 		return; // Cannot render GUI without font atlas
 
+	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	ImGui::SetCurrentContext(_imgui_context);
+
 	auto &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 	imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_gui);
@@ -941,6 +945,8 @@ void reshade::runtime::draw_gui()
 		render_imgui_draw_data(cmd_list, draw_data, _backbuffer_passes[back_buffer_index * 2], _backbuffer_fbos[back_buffer_index]);
 		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 	}
+
+	ImGui::SetCurrentContext(backup_context);
 }
 
 void reshade::runtime::draw_gui_home()
@@ -1436,13 +1442,7 @@ void reshade::runtime::draw_gui_settings()
 		if (_effect_load_skipping)
 			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_show_force_load_effects_button);
 
-		bool save_imgui_window_state = _imgui_context->IO.IniFilename != nullptr;
-		if (ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &save_imgui_window_state))
-		{
-			modified = true;
-			_imgui_context->IO.IniFilename = save_imgui_window_state ? s_window_state_path.c_str() : nullptr;
-		}
-
+		modified |= ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &_save_imgui_window_state);
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
 
 		#pragma region Style

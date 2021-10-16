@@ -350,6 +350,7 @@ namespace reshade
 		bool _no_font_scaling = false;
 		bool _rebuild_font_atlas = true;
 		bool _gather_gpu_statistics = false;
+		bool _save_imgui_window_state = false;
 		unsigned int _reload_count = 0;
 		unsigned int _overlay_key_data[4];
 		int _fps_pos = 1;

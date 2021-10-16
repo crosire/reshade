@@ -115,12 +115,13 @@ reshade::runtime::~runtime()
 	assert(_worker_threads.empty());
 	assert(!_is_initialized && _techniques.empty());
 
-	if (_d3d_compiler != nullptr)
-		FreeLibrary(static_cast<HMODULE>(_d3d_compiler));
-
+	save_config();
 #if RESHADE_GUI
 	deinit_gui();
 #endif
+
+	if (_d3d_compiler != nullptr)
+		FreeLibrary(static_cast<HMODULE>(_d3d_compiler));
 }
 
 bool reshade::runtime::on_init(input::window_handle window)

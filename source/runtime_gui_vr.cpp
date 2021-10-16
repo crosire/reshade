@@ -131,7 +131,9 @@ void reshade::runtime::draw_gui_vr()
 	if (_font_atlas_srv.handle == 0)
 		return; // Cannot render GUI without font atlas
 
+	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	ImGui::SetCurrentContext(_imgui_context);
+
 	auto &imgui_io = ImGui::GetIO();
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 	imgui_io.DisplaySize.x = static_cast<float>(OVERLAY_WIDTH);
@@ -253,7 +255,7 @@ void reshade::runtime::draw_gui_vr()
 	else
 		_selected_menu = 0;
 
-	ImGui::End();
+	ImGui::End(); // VR Viewport window
 
 	ImGui::Render();
 
@@ -266,6 +268,8 @@ void reshade::runtime::draw_gui_vr()
 		render_imgui_draw_data(cmd_list, draw_data, _vr_overlay_pass, _vr_overlay_fbo);
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
 	}
+
+	ImGui::SetCurrentContext(backup_context);
 
 	vr::Texture_t texture;
 	texture.eColorSpace = vr::ColorSpace_Auto;
