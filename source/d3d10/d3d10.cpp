@@ -11,6 +11,10 @@ extern thread_local bool g_in_dxgi_runtime;
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, ID3D10Device **ppDevice)
 {
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(D3D10CreateDevice)(
+			pAdapter, DriverType, Software, Flags, SDKVersion, ppDevice);
+
 	LOG(INFO) << "Redirecting " << "D3D10CreateDevice" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType
@@ -31,6 +35,10 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVE
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, ID3D10Device1 **ppDevice)
 {
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(D3D10CreateDevice1)(
+			pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, ppDevice);
+
 	LOG(INFO) << "Redirecting " << "D3D10CreateDevice1" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType
@@ -47,6 +55,10 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIV
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device **ppDevice)
 {
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(D3D10CreateDeviceAndSwapChain)(
+			pAdapter, DriverType, Software, Flags, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
+
 	LOG(INFO) << "Redirecting " << "D3D10CreateDeviceAndSwapChain" << '('
 		<<   "pAdapter = " << pAdapter
 		<< ", DriverType = " << DriverType

@@ -13,6 +13,9 @@
 #include "vulkan_impl_type_convert.hpp"
 #include <malloc.h>
 
+// Set during Vulkan device creation and presentation, to avoid hooking internal D3D devices created e.g. by NVIDIA Ansel and Optimus
+extern thread_local bool g_in_dxgi_runtime;
+
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 static lockfree_linear_map<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
 extern lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispatch;
@@ -263,7 +266,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	// Continue calling down the chain
+	g_in_dxgi_runtime = true;
 	const VkResult result = trampoline(physicalDevice, &create_info, pAllocator, pDevice);
+	g_in_dxgi_runtime = false;
 	if (result < VK_SUCCESS)
 	{
 		LOG(WARN) << "vkCreateDevice" << " failed with error code " << result << '.';
@@ -790,7 +795,10 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	present_info.pWaitSemaphores = wait_semaphores.data();
 
 	GET_DISPATCH_PTR(QueuePresentKHR, queue);
-	return trampoline(queue, &present_info);
+	g_in_dxgi_runtime = true;
+	const VkResult result = trampoline(queue, &present_info);
+	g_in_dxgi_runtime = false;
+	return result;
 }
 
 VkResult VKAPI_CALL vkBindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset)
