@@ -64,19 +64,19 @@ void reshade::runtime::init_gui_vr()
 
 	s_overlay->SetOverlayWidthInMeters(s_main_handle, 1.5f);
 
-	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_texture))
+	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_tex))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay texture!";
 		return;
 	}
-	if (!_device->create_resource_view(_vr_overlay_texture, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_vr_overlay_target))
+	if (!_device->create_resource_view(_vr_overlay_tex, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_vr_overlay_target))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render target!";
 		return;
 	}
 
 	api::render_pass_desc pass_desc = {};
-	pass_desc.depth_stencil_format = _effect_stencil_format;
+	pass_desc.depth_stencil_format = _device->get_resource_desc(_effect_stencil_tex).texture.format;
 	pass_desc.render_targets_format[0] = api::format::r8g8b8a8_unorm;
 	pass_desc.samples = 1;
 
@@ -88,7 +88,7 @@ void reshade::runtime::init_gui_vr()
 
 	api::framebuffer_desc fbo_desc = {};
 	fbo_desc.render_pass_template = _vr_overlay_pass;
-	fbo_desc.depth_stencil = _effect_stencil_target;
+	fbo_desc.depth_stencil = _effect_stencil_dsv;
 	fbo_desc.render_targets[0] = _vr_overlay_target;
 	fbo_desc.width = OVERLAY_WIDTH;
 	fbo_desc.height = OVERLAY_HEIGHT;
@@ -106,8 +106,8 @@ void reshade::runtime::deinit_gui_vr()
 	if (s_main_handle == vr::k_ulOverlayHandleInvalid)
 		return;
 
-	_device->destroy_resource(_vr_overlay_texture);
-	_vr_overlay_texture = {};
+	_device->destroy_resource(_vr_overlay_tex);
+	_vr_overlay_tex = {};
 	_device->destroy_resource_view(_vr_overlay_target);
 	_vr_overlay_target = {};
 	_device->destroy_render_pass(_vr_overlay_pass);
@@ -213,6 +213,17 @@ void reshade::runtime::draw_gui_vr()
 		s_overlay->SetKeyboardPositionForOverlay(s_main_handle, vr::HmdRect2_t { { 0.0f, 1.0f }, { 1.0f, 0.0f } });
 	}
 
+	static constexpr std::pair<const char *, void(runtime::*)()> overlay_callbacks[] = {
+		{ "Home", &runtime::draw_gui_home },
+#if RESHADE_ADDON
+		{ "Add-ons", &runtime::draw_gui_addons },
+#endif
+		{ "Settings", &runtime::draw_gui_settings },
+		{ "Statistics", &runtime::draw_gui_statistics },
+		{ "Log", &runtime::draw_gui_log },
+		{ "About", &runtime::draw_gui_about }
+	};
+
 	const ImGuiViewport *const viewport = ImGui::GetMainViewport();
 
 	ImGui::SetNextWindowPos(viewport->Pos);
@@ -223,72 +234,73 @@ void reshade::runtime::draw_gui_vr()
 		ImGuiWindowFlags_NoMove |
 		ImGuiWindowFlags_NoDocking);
 
-	if (ImGui::BeginChild("##menu", ImVec2(0, ImGui::GetFrameHeight()), false, ImGuiWindowFlags_NoScrollbar))
+	int overlay_index = 0;
+	int selected_overlay_index = ImGui::GetStateStorage()->GetInt(ImGui::GetID("##overlay_index"), 0);
+
+	ImGui::BeginChild("##overlay", ImVec2(0, ImGui::GetFrameHeight()), false, ImGuiWindowFlags_NoScrollbar);
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
+
+	for (const auto &widget : overlay_callbacks)
 	{
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
+		if (bool state = (overlay_index == selected_overlay_index);
+			imgui::toggle_button(widget.first, state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
+			selected_overlay_index = overlay_index;
+		ImGui::SameLine();
 
-		size_t menu_index = 0;
-
-		for (const auto &widget : _menu_callables)
-		{
-			if (bool state = (menu_index == _selected_menu);
-				imgui::toggle_button(widget.first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
-				_selected_menu = menu_index;
-			ImGui::SameLine();
-
-			++menu_index;
-		}
+		++overlay_index;
+	}
 
 #if RESHADE_ADDON
-		if (addon::enabled)
+	if (addon::enabled)
+	{
+		for (const auto &info : addon::loaded_info)
 		{
-			for (const auto &info : addon::loaded_info)
+			for (const auto &widget : info.overlay_callbacks)
 			{
-				for (const auto &widget : info.overlay_callbacks)
-				{
-					if (bool state = (menu_index == _selected_menu);
-						imgui::toggle_button(widget.first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
-						_selected_menu = menu_index;
-					ImGui::SameLine();
+				if (bool state = (overlay_index == selected_overlay_index);
+					imgui::toggle_button(widget.first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
+					selected_overlay_index = overlay_index;
+				ImGui::SameLine();
 
-					++menu_index;
-				}
+				++overlay_index;
 			}
 		}
+	}
 #endif
 
-		ImGui::PopStyleVar();
-	}
+	ImGui::PopStyleVar();
 	ImGui::EndChild();
 
-	if (_selected_menu < _menu_callables.size())
+	if (selected_overlay_index < static_cast<int>(std::size(overlay_callbacks)))
 	{
-		(this->*_menu_callables[_selected_menu].second)();
+		(this->*overlay_callbacks[selected_overlay_index].second)();
 	}
 #if RESHADE_ADDON
-	else
+	else if (selected_overlay_index < overlay_index)
 	{
-		size_t menu_index = _menu_callables.size();
+		assert(addon::enabled);
 
-		if (addon::enabled)
+		overlay_index = static_cast<int>(std::size(overlay_callbacks));
+
+		for (const auto &info : addon::loaded_info)
 		{
-			for (const auto &info : addon::loaded_info)
+			for (const auto &widget : info.overlay_callbacks)
 			{
-				for (const auto &widget : info.overlay_callbacks)
+				if (selected_overlay_index == overlay_index++)
 				{
-					if (_selected_menu == menu_index++)
-					{
-						widget.second(this, _imgui_context);
-						break;
-					}
+					widget.second(this, _imgui_context);
+					break;
 				}
 			}
 		}
-
-		if (menu_index < _selected_menu)
-			_selected_menu = 0;
 	}
 #endif
+	else
+	{
+		selected_overlay_index = 0;
+	}
+
+	ImGui::GetStateStorage()->SetInt(ImGui::GetID("##overlay_index"), selected_overlay_index);
 
 	ImGui::End(); // VR Viewport window
 
@@ -299,9 +311,9 @@ void reshade::runtime::draw_gui_vr()
 	{
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
-		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
+		cmd_list->barrier(_vr_overlay_tex, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
 		render_imgui_draw_data(cmd_list, draw_data, _vr_overlay_pass, _vr_overlay_fbo);
-		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
+		cmd_list->barrier(_vr_overlay_tex, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
 	}
 
 	ImGui::SetCurrentContext(backup_context);
@@ -314,20 +326,20 @@ void reshade::runtime::draw_gui_vr()
 	{
 	case api::device_api::d3d10:
 	case api::device_api::d3d11:
-		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle);
+		texture.handle = reinterpret_cast<void *>(_vr_overlay_tex.handle);
 		texture.eType = vr::TextureType_DirectX;
 		break;
 	case api::device_api::d3d12:
-		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle);
+		texture.handle = reinterpret_cast<void *>(_vr_overlay_tex.handle);
 		texture.eType = vr::TextureType_DirectX12;
 		break;
 	case api::device_api::opengl:
-		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle & 0xFFFFFFFF);
+		texture.handle = reinterpret_cast<void *>(_vr_overlay_tex.handle & 0xFFFFFFFF);
 		texture.eType = vr::TextureType_OpenGL;
 		break;
 	case api::device_api::vulkan:
 		const auto device_impl = static_cast<vulkan::device_impl *>(_device);
-		vulkan_data.m_nImage = _vr_overlay_texture.handle;
+		vulkan_data.m_nImage = _vr_overlay_tex.handle;
 		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(_device->get_native_object());
 		vulkan_data.m_pPhysicalDevice = device_impl->_physical_device;
 		vulkan_data.m_pInstance = VK_NULL_HANDLE;

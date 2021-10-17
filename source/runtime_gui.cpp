@@ -77,15 +77,6 @@ void reshade::runtime::init_gui()
 	imgui_style.WindowBorderSize = 0.0f;
 
 	ImGui::SetCurrentContext(nullptr);
-
-	_menu_callables.emplace_back("Home", &runtime::draw_gui_home);
-#if RESHADE_ADDON
-	_menu_callables.emplace_back("Add-ons", &runtime::draw_gui_addons);
-#endif
-	_menu_callables.emplace_back("Settings", &runtime::draw_gui_settings);
-	_menu_callables.emplace_back("Statistics", &runtime::draw_gui_statistics);
-	_menu_callables.emplace_back("Log", &runtime::draw_gui_log);
-	_menu_callables.emplace_back("About", &runtime::draw_gui_about);
 }
 void reshade::runtime::deinit_gui()
 {
@@ -143,8 +134,8 @@ void reshade::runtime::build_font_atlas()
 	unsigned char *pixels;
 	atlas->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-	_device->destroy_resource(_font_atlas);
-	_font_atlas = {};
+	_device->destroy_resource(_font_atlas_tex);
+	_font_atlas_tex = {};
 	_device->destroy_resource_view(_font_atlas_srv);
 	_font_atlas_srv = {};
 
@@ -153,18 +144,18 @@ void reshade::runtime::build_font_atlas()
 	// Create font atlas texture and upload it
 	if (!_device->create_resource(
 		api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
-		&initial_data, api::resource_usage::shader_resource, &_font_atlas))
+		&initial_data, api::resource_usage::shader_resource, &_font_atlas_tex))
 	{
 		LOG(ERROR) << "Failed to create front atlas resource!";
 		return;
 	}
-	if (!_device->create_resource_view(_font_atlas, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_font_atlas_srv))
+	if (!_device->create_resource_view(_font_atlas_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_font_atlas_srv))
 	{
 		LOG(ERROR) << "Failed to create font atlas resource view!";
 		return;
 	}
 
-	_device->set_resource_name(_font_atlas, "ImGui Font Atlas");
+	_device->set_resource_name(_font_atlas_tex, "ImGui Font Atlas");
 }
 
 void reshade::runtime::load_config_gui(const ini_file &config)
@@ -783,6 +774,17 @@ void reshade::runtime::draw_gui()
 			save_config();
 		}
 
+		static constexpr std::pair<const char *, void(runtime::*)()> overlay_callbacks[] = {
+			{ "Home", &runtime::draw_gui_home },
+#if RESHADE_ADDON
+			{ "Add-ons", &runtime::draw_gui_addons },
+#endif
+			{ "Settings", &runtime::draw_gui_settings },
+			{ "Statistics", &runtime::draw_gui_statistics },
+			{ "Log", &runtime::draw_gui_log },
+			{ "About", &runtime::draw_gui_about }
+		};
+
 		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
 		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
 
@@ -800,8 +802,8 @@ void reshade::runtime::draw_gui()
 			ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
 
 			// Attach most windows to the main dock space
-			for (const auto &widget : _menu_callables)
-				ImGui::DockBuilderDockWindow(widget.first.c_str(), main_space_id);
+			for (const auto &widget : overlay_callbacks)
+				ImGui::DockBuilderDockWindow(widget.first, main_space_id);
 
 			// Attach editor window to the remaining dock space
 			ImGui::DockBuilderDockWindow("###editor", right_space_id);
@@ -824,9 +826,9 @@ void reshade::runtime::draw_gui()
 		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
 		ImGui::End();
 
-		for (const auto &widget : _menu_callables)
+		for (const auto &widget : overlay_callbacks)
 		{
-			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
+			if (ImGui::Begin(widget.first, nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
 				(this->*widget.second)();
 			ImGui::End();
 		}
@@ -945,9 +947,8 @@ void reshade::runtime::draw_gui()
 		const api::resource back_buffer_resource = get_back_buffer_resolved(back_buffer_index);
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-
 		cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
-		render_imgui_draw_data(cmd_list, draw_data, _backbuffer_passes[back_buffer_index * 2], _backbuffer_fbos[back_buffer_index]);
+		render_imgui_draw_data(cmd_list, draw_data, _back_buffer_passes[0], _back_buffer_fbos[back_buffer_index]);
 		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 	}
 
@@ -1386,7 +1387,7 @@ void reshade::runtime::draw_gui_settings()
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
 
-		modified |= ImGui::Combo("Input processing", &_input_processing_mode,
+		modified |= ImGui::Combo("Input processing", reinterpret_cast<int *>(&_input_processing_mode),
 			"Pass on all input\0"
 			"Block input when cursor is on overlay\0"
 			"Block all input when overlay is visible\0");
@@ -1589,10 +1590,10 @@ void reshade::runtime::draw_gui_settings()
 		modified |= ImGui::Checkbox("Show clock", &_show_clock);
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show FPS", &_show_fps);
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show frame time", &_show_frametime);
-		modified |= ImGui::Combo("Clock format", &_clock_format, "HH:mm\0HH:mm:ss\0");
+		modified |= ImGui::Combo("Clock format", reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0");
 		modified |= ImGui::SliderFloat("FPS text size", &_fps_scale, 0.2f, 2.5f, "%.1f");
 		modified |= ImGui::ColorEdit4("FPS text color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
-		modified |= ImGui::Combo("Position on screen", &_fps_pos, "Top Left\0Top Right\0Bottom Left\0Bottom Right\0");
+		modified |= ImGui::Combo("Position on screen", reinterpret_cast<int *>(&_fps_pos), "Top Left\0Top Right\0Bottom Left\0Bottom Right\0");
 	}
 
 	if (modified)
@@ -3407,7 +3408,7 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
 	pso_desc.graphics.viewport_count = 1;
 	pso_desc.graphics.topology = api::primitive_topology::triangle_list;
-	pso_desc.graphics.render_pass_template = _backbuffer_passes[0];
+	pso_desc.graphics.render_pass_template = _back_buffer_passes[0];
 
 	if (_device->create_pipeline(pso_desc, &_imgui_pipeline))
 	{
@@ -3555,8 +3556,8 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 }
 void reshade::runtime::destroy_imgui_resources()
 {
-	_device->destroy_resource(_font_atlas);
-	_font_atlas = {};
+	_device->destroy_resource(_font_atlas_tex);
+	_font_atlas_tex = {};
 	_device->destroy_resource_view(_font_atlas_srv);
 	_font_atlas_srv = {};
 	_rebuild_font_atlas = true;

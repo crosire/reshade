@@ -62,7 +62,6 @@ namespace reshade
 
 	struct texture final : reshadefx::texture_info
 	{
-		texture() {} // For standalone textures like the font atlas
 		texture(const reshadefx::texture_info &init) : texture_info(init) {}
 
 		auto annotation_as_int(const char *ann_name, size_t i = 0) const
@@ -154,7 +153,7 @@ namespace reshade
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		special_uniform special = special_uniform::none;
-		uint32_t toggle_key_data[4] = {};
+		unsigned int toggle_key_data[4] = {};
 	};
 
 	struct technique final : reshadefx::technique_info
@@ -187,7 +186,7 @@ namespace reshade
 		bool hidden = false;
 		bool enabled = false;
 		int64_t time_left = 0;
-		uint32_t toggle_key_data[4] = {};
+		unsigned int toggle_key_data[4] = {};
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
 
@@ -236,7 +235,7 @@ namespace reshade
 		api::descriptor_set_layout set_layouts[4] = {};
 		api::descriptor_set cb_set = {};
 		api::descriptor_set sampler_set = {};
-		api::query_pool query_heap = {};
+		api::query_pool query_pool = {};
 		std::vector<binding_data> texture_semantic_to_binding;
 	};
 }

@@ -31,7 +31,7 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compa
 		}
 	}
 
-	_backbuffer_format = convert_format(_default_color_format);
+	_back_buffer_format = convert_format(_default_color_format);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);

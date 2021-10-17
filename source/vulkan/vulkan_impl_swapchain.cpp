@@ -97,7 +97,7 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 	_width = desc.imageExtent.width;
 	_height = desc.imageExtent.height;
-	_backbuffer_format = convert_format(desc.imageFormat);
+	_back_buffer_format = convert_format(desc.imageFormat);
 
 	for (uint32_t i = 0; i < NUM_SYNC_SEMAPHORES; ++i)
 	{
@@ -205,7 +205,7 @@ bool reshade::vulkan::swapchain_impl::on_vr_submit(uint32_t eye, VkImage source,
 	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
 	const int32_t width_difference = std::abs(static_cast<int32_t>(target_extent.width) - static_cast<int32_t>(_width));
 
-	if (width_difference > 2 || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
+	if (width_difference > 2 || target_extent.height != _height || convert_format(source_format) != _back_buffer_format)
 	{
 		on_reset();
 

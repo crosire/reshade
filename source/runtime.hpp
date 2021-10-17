@@ -158,7 +158,7 @@ namespace reshade
 		unsigned int _vendor_id = 0;
 		unsigned int _device_id = 0;
 		unsigned int _renderer_id = 0;
-		api::format  _backbuffer_format = api::format::unknown;
+		api::format  _back_buffer_format = api::format::unknown;
 		bool _is_vr = false;
 
 	private:
@@ -174,6 +174,7 @@ namespace reshade
 
 		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
 		bool create_effect(size_t effect_index);
+		bool create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
 
 		bool create_texture(texture &texture);
@@ -193,35 +194,33 @@ namespace reshade
 		void clear_effect_cache();
 
 		void update_effects();
-		void render_technique(api::command_list *cmd_list, technique &technique, api::resource backbuffer);
+		void render_technique(api::command_list *cmd_list, technique &technique, api::resource back_buffer_resource, const api::framebuffer back_buffer_fbos[2]);
 
 		void save_texture(const texture &texture);
 
 		void reset_uniform_value(uniform &variable);
 
-		// === Status ===
-
-		bool _is_initialized = false;
-		bool _effects_enabled = true;
-		bool _effects_rendered_this_frame = false;
-		bool _ignore_shortcuts = false;
-		bool _force_shortcut_modifiers = true;
-		unsigned int _effects_key_data[4];
-		std::shared_ptr<class input> _input;
-		std::chrono::high_resolution_clock::duration _last_frame_duration;
-		std::chrono::high_resolution_clock::time_point _start_time;
-		std::chrono::high_resolution_clock::time_point _last_present_time;
-		uint64_t _framecount = 0;
-		unsigned int _color_bit_depth = 8;
-
-		// === Configuration ===
-
+		#pragma region Status
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
 		std::filesystem::path _config_path;
 
-		// === Effect Loading ===
+		bool _is_initialized = false;
+		bool _effects_enabled = true;
+		bool _effects_rendered_this_frame = false;
 
+		bool _ignore_shortcuts = false;
+		bool _force_shortcut_modifiers = true;
+		unsigned int _effects_key_data[4] = {};
+		std::shared_ptr<class input> _input;
+
+		std::chrono::high_resolution_clock::duration _last_frame_duration;
+		std::chrono::high_resolution_clock::time_point _start_time;
+		std::chrono::high_resolution_clock::time_point _last_present_time;
+		unsigned long long _framecount = 0;
+		#pragma endregion
+
+		#pragma region Effect Loading
 		bool _no_debug_info = 0;
 		bool _no_effect_cache = false;
 		bool _no_reload_on_init = false;
@@ -229,72 +228,75 @@ namespace reshade
 		bool _performance_mode = false;
 		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;
-		std::atomic<int> _last_reload_successfull = true;
-		bool _last_texture_reload_successfull = true;
+		unsigned int _reload_key_data[4] = {};
+		unsigned int _performance_mode_key_data[4] = {};
+		std::vector<std::string> _global_preprocessor_definitions;
+		std::vector<std::string> _preset_preprocessor_definitions;
+		std::filesystem::path _intermediate_cache_path;
+		std::vector<std::filesystem::path> _effect_search_paths;
+		std::vector<std::filesystem::path> _texture_search_paths;
+
+		std::atomic<bool> _last_reload_successfull = true;
 		bool _textures_loaded = false;
-		unsigned int _reload_key_data[4];
-		unsigned int _performance_mode_key_data[4];
+		bool _last_texture_reload_successfull = true;
 		std::vector<size_t> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 		std::mutex _reload_mutex;
 		std::vector<std::thread> _worker_threads;
-		std::vector<std::string> _global_preprocessor_definitions;
-		std::vector<std::string> _preset_preprocessor_definitions;
-		std::vector<std::filesystem::path> _effect_search_paths;
-		std::vector<std::filesystem::path> _texture_search_paths;
-		std::filesystem::path _intermediate_cache_path;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
-		void *_d3d_compiler = nullptr;
 
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
+		#pragma endregion
 
-		// === Effect Rendering ===
+		#pragma region Effect Rendering
+		api::resource _empty_tex = {};
+		api::resource_view _empty_srv = {};
+		api::resource _effect_color_tex = {};
+		api::resource_view _effect_color_srv[2] = {};
+		api::resource _effect_stencil_tex = {};
+		api::resource_view _effect_stencil_dsv = {};
 
-		std::vector<api::framebuffer> _backbuffer_fbos, _effect_backbuffer_fbos;
-		std::vector<api::render_pass> _backbuffer_passes;
-		std::vector<api::resource_view> _backbuffer_targets;
-		api::resource _backbuffer_texture = {};
-		api::resource_view _backbuffer_texture_view[2] = {};
-		api::format _effect_stencil_format = api::format::unknown;
-		api::resource _effect_stencil = {};
-		api::resource_view _effect_stencil_target = {};
-		api::resource _empty_texture = {};
-		api::resource_view _empty_texture_view = {};
+		api::render_pass   _back_buffer_passes[2] = {};
+		std::vector<api::framebuffer  > _back_buffer_fbos;
+		std::vector<api::framebuffer  > _effect_back_buffer_fbos;
+		std::vector<api::resource_view> _back_buffer_targets;
+
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _backup_texture_semantic_bindings;
+		#pragma endregion
 
-		// === Screenshots ===
-
-		bool _should_save_screenshot = false;
+		#pragma region Screenshot
 		bool _screenshot_save_gui = false;
 		bool _screenshot_save_before = false;
-		bool _screenshot_save_success = true;
 		bool _screenshot_include_preset = false;
 		bool _screenshot_clear_alpha = true;
 		unsigned int _screenshot_format = 1;
 		unsigned int _screenshot_naming = 0;
-		unsigned int _screenshot_key_data[4];
+		unsigned int _screenshot_jpeg_quality = 90;
+		unsigned int _screenshot_key_data[4] = {};
 		std::filesystem::path _screenshot_path;
+
+		bool _should_save_screenshot = false;
+		bool _screenshot_save_success = true;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
-		unsigned int _screenshot_jpeg_quality = 90;
+		#pragma endregion
 
-		// === Preset Switching ===
+		#pragma region Preset Switching
+		unsigned int _prev_preset_key_data[4] = {};
+		unsigned int _next_preset_key_data[4] = {};
+		unsigned int _preset_transition_delay = 1000;
+		std::filesystem::path _current_preset_path;
 
 		bool _preset_save_success = true;
 		bool _is_in_between_presets_transition = false;
-		unsigned int _prev_preset_key_data[4];
-		unsigned int _next_preset_key_data[4];
-		unsigned int _preset_transition_delay = 1000;
-		std::filesystem::path _current_preset_path;
 		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
+		#pragma endregion
 
 #if RESHADE_GUI
-		// === ImGui ===
-
 		void init_gui();
 		void init_gui_vr();
 		void deinit_gui();
@@ -310,30 +312,6 @@ namespace reshade
 		void draw_gui();
 		void draw_gui_vr();
 
-		bool init_imgui_resources();
-		void render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo);
-		void destroy_imgui_resources();
-
-		ImGuiContext *_imgui_context = nullptr;
-
-		api::resource _font_atlas = {};
-		api::resource_view _font_atlas_srv = {};
-		api::sampler _imgui_sampler_state = {};
-		api::pipeline _imgui_pipeline = {};
-		api::pipeline_layout _imgui_pipeline_layout = {};
-		api::descriptor_set_layout _imgui_set_layouts[2] = {};
-		api::resource _imgui_indices[4] = {};
-		api::resource _imgui_vertices[4] = {};
-		int _imgui_num_indices[4] = {};
-		int _imgui_num_vertices[4] = {};
-
-		api::resource _vr_overlay_texture = {};
-		api::framebuffer _vr_overlay_fbo = {};
-		api::render_pass _vr_overlay_pass = {};
-		api::resource_view _vr_overlay_target = {};
-
-		// === User Interface ===
-
 		void draw_gui_home();
 		void draw_gui_settings();
 		void draw_gui_statistics();
@@ -345,29 +323,52 @@ namespace reshade
 		void draw_variable_editor();
 		void draw_technique_editor();
 
-		unsigned int _window_width = 0;
-		unsigned int _window_height = 0;
-		std::vector<std::pair<std::string, void(runtime::*)()>> _menu_callables;
+		bool init_imgui_resources();
+		void render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo);
+		void destroy_imgui_resources();
+
+		#pragma region Overlay
+		ImGuiContext *_imgui_context = nullptr;
+
 		bool _show_splash = true;
 		bool _show_overlay = false;
 		bool _show_fps = false;
 		bool _show_clock = false;
 		bool _show_frametime = false;
 		bool _show_screenshot_message = true;
-		bool _no_font_scaling = false;
 		bool _rebuild_font_atlas = true;
-		bool _gather_gpu_statistics = false;
-		bool _save_imgui_window_state = false;
 		unsigned int _reload_count = 0;
+		unsigned int _window_width = 0;
+		unsigned int _window_height = 0;
+
+		bool _no_font_scaling = false;
+		bool _save_imgui_window_state = false;
 		unsigned int _overlay_key_data[4];
-		int _fps_pos = 1;
-		int _clock_format = 0;
-		int _input_processing_mode = 2;
-		size_t _selected_menu = 0;
+		unsigned int _fps_pos = 1;
+		unsigned int _clock_format = 0;
+		unsigned int _input_processing_mode = 2;
 
-		// === User Interface - Home ===
+		api::resource _font_atlas_tex = {};
+		api::resource_view _font_atlas_srv = {};
 
-		char _effect_filter[64] = "";
+		api::pipeline _imgui_pipeline = {};
+		api::pipeline_layout _imgui_pipeline_layout = {};
+		api::descriptor_set_layout _imgui_set_layouts[2] = {};
+		api::sampler  _imgui_sampler_state = {};
+
+		int _imgui_num_indices[4] = {};
+		api::resource _imgui_indices[4] = {};
+		int _imgui_num_vertices[4] = {};
+		api::resource _imgui_vertices[4] = {};
+
+		api::resource _vr_overlay_tex = {};
+		api::framebuffer _vr_overlay_fbo = {};
+		api::render_pass _vr_overlay_pass = {};
+		api::resource_view _vr_overlay_target = {};
+		#pragma endregion
+
+		#pragma region Overlay Home
+		char _effect_filter[32] = {};
 		bool _variable_editor_tabs = false;
 		bool _duplicate_current_preset = false;
 		bool _was_preprocessor_popup_edited = false;
@@ -376,13 +377,13 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		float _variable_editor_height = 300.0f;
+		#pragma endregion
 
-		// === User Interface - Add-ons ===
+		#pragma region Overlay Add-ons
+		char _addons_filter[32] = {};
+		#pragma endregion
 
-		char _addons_filter[64] = {};
-
-		// === User Interface - Settings ===
-
+		#pragma region Overlay Settings
 		int _font_size = 13;
 		int _editor_font_size = 13;
 		int _style_index = 2;
@@ -392,22 +393,23 @@ namespace reshade
 		std::filesystem::path _file_selection_path;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
-		bool _show_force_load_effects_button = true;
+		bool  _show_force_load_effects_button = true;
+		#pragma endregion
 
-		// === User Interface - Statistics ===
-
+		#pragma region Overlay Statistics
+		bool _gather_gpu_statistics = false;
 		api::resource_view _preview_texture = { 0 };
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
+		#pragma endregion
 
-		// === User Interface - Log ===
-
-		char _log_filter[64] = "";
+		#pragma region Overlay Log
+		char _log_filter[64] = {};
 		bool _log_wordwrap = false;
 		uintmax_t _last_log_size;
 		std::vector<std::string> _log_lines;
+		#pragma endregion
 
-		// === User Interface - Code Editor ===
-
+		#pragma region Overlay Code Editor
 		struct editor_instance
 		{
 			size_t effect_index;
@@ -424,6 +426,7 @@ namespace reshade
 
 		std::vector<editor_instance> _editors;
 		uint32_t _editor_palette[imgui::code_editor::color_palette_max];
+		#pragma endregion
 #endif
 	};
 }

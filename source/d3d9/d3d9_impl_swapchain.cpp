@@ -62,22 +62,22 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 
 	_width = pp.BackBufferWidth;
 	_height = pp.BackBufferHeight;
-	_backbuffer_format = convert_format(pp.BackBufferFormat);
+	_back_buffer_format = convert_format(pp.BackBufferFormat);
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
 	{
 		// Some effects rely on there being an alpha channel available, so create custom back buffer in case that is not the case
-		switch (_backbuffer_format)
+		switch (_back_buffer_format)
 		{
 		case api::format::r8g8b8x8_unorm:
-			_backbuffer_format = api::format::r8g8b8a8_unorm;
+			_back_buffer_format = api::format::r8g8b8a8_unorm;
 			break;
 		case api::format::b8g8r8x8_unorm:
-			_backbuffer_format = api::format::b8g8r8a8_unorm;
+			_back_buffer_format = api::format::b8g8r8a8_unorm;
 			break;
 		}
 
-		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTarget(_width, _height, convert_format(_backbuffer_format), D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTarget(_width, _height, convert_format(_back_buffer_format), D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
 		{
 			LOG(ERROR) << "Failed to create back buffer resolve render target!";
 			return false;
