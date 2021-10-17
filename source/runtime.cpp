@@ -1813,6 +1813,11 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
 				desc.mip_lod_bias = info.lod_bias;
 				desc.max_anisotropy = 1;
+				desc.compare_op = api::compare_op::always;
+				desc.border_color[0] = 0.0f;
+				desc.border_color[1] = 0.0f;
+				desc.border_color[2] = 0.0f;
+				desc.border_color[3] = 0.0f;
 				desc.min_lod = info.min_lod;
 				desc.max_lod = info.max_lod;
 
@@ -2148,7 +2153,11 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
 						desc.mip_lod_bias = info.lod_bias;
 						desc.max_anisotropy = 1;
-						desc.compare_op = api::compare_op::never;
+						desc.compare_op = api::compare_op::always;
+						desc.border_color[0] = 0.0f;
+						desc.border_color[1] = 0.0f;
+						desc.border_color[2] = 0.0f;
+						desc.border_color[3] = 0.0f;
 						desc.min_lod = info.min_lod;
 						desc.max_lod = info.max_lod;
 
