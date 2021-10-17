@@ -380,7 +380,6 @@ namespace reshade
 		// === User Interface - Add-ons ===
 
 		char _addons_filter[64] = {};
-		std::string _open_addon_name;
 
 		// === User Interface - Settings ===
 
@@ -402,6 +401,7 @@ namespace reshade
 
 		// === User Interface - Log ===
 
+		char _log_filter[64] = "";
 		bool _log_wordwrap = false;
 		uintmax_t _last_log_size;
 		std::vector<std::string> _log_lines;

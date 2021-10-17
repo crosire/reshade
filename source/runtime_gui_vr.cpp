@@ -227,23 +227,32 @@ void reshade::runtime::draw_gui_vr()
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 
-		for (size_t menu_index = 0; menu_index < _menu_callables.size(); ++menu_index)
+		size_t menu_index = 0;
+
+		for (const auto &widget : _menu_callables)
 		{
 			if (bool state = (menu_index == _selected_menu);
-				imgui::toggle_button(_menu_callables[menu_index].first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
+				imgui::toggle_button(widget.first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
 				_selected_menu = menu_index;
 			ImGui::SameLine();
+
+			++menu_index;
 		}
 
 #if RESHADE_ADDON
 		if (addon::enabled)
 		{
-			for (size_t menu_index = _menu_callables.size(); menu_index < addon::overlay_list.size() + _menu_callables.size(); ++menu_index)
+			for (const auto &info : addon::loaded_info)
 			{
-				if (bool state = (menu_index == _selected_menu);
-					imgui::toggle_button(addon::overlay_list[menu_index - _menu_callables.size()].first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
-					_selected_menu = menu_index;
-				ImGui::SameLine();
+				for (const auto &widget : info.overlay_callbacks)
+				{
+					if (bool state = (menu_index == _selected_menu);
+						imgui::toggle_button(widget.first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
+						_selected_menu = menu_index;
+					ImGui::SameLine();
+
+					++menu_index;
+				}
 			}
 		}
 #endif
@@ -253,13 +262,33 @@ void reshade::runtime::draw_gui_vr()
 	ImGui::EndChild();
 
 	if (_selected_menu < _menu_callables.size())
+	{
 		(this->*_menu_callables[_selected_menu].second)();
+	}
 #if RESHADE_ADDON
-	else if ((_selected_menu - _menu_callables.size()) < addon::overlay_list.size())
-		addon::overlay_list[_selected_menu - _menu_callables.size()].second(this, _imgui_context);
-#endif
 	else
-		_selected_menu = 0;
+	{
+		size_t menu_index = _menu_callables.size();
+
+		if (addon::enabled)
+		{
+			for (const auto &info : addon::loaded_info)
+			{
+				for (const auto &widget : info.overlay_callbacks)
+				{
+					if (_selected_menu == menu_index++)
+					{
+						widget.second(this, _imgui_context);
+						break;
+					}
+				}
+			}
+		}
+
+		if (menu_index < _selected_menu)
+			_selected_menu = 0;
+	}
+#endif
 
 	ImGui::End(); // VR Viewport window
 

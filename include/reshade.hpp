@@ -155,11 +155,12 @@ namespace reshade
 	/// Unregisters an overlay that was previously registered via <see cref="register_overlay"/>.
 	/// </summary>
 	/// <param name="title">A null-terminated title string.</param>
-	inline void unregister_overlay(const char *title)
+	/// <param name="callback">Pointer to the callback function.</param>
+	inline void unregister_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context))
 	{
-		static const auto func = reinterpret_cast<void(*)(const char *)>(
+		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *, void *))>(
 			GetProcAddress(get_reshade_module_handle(), "ReShadeUnregisterOverlay"));
 		if (func != nullptr)
-			func(title);
+			func(title, callback);
 	}
 }

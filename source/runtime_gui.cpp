@@ -20,6 +20,15 @@
 #include <Windows.h>
 #include <Shellapi.h>
 
+static bool filter_text(const std::string_view &text, const std::string_view &filter)
+{
+	return filter.empty() ||
+		std::search(text.begin(), text.end(), filter.begin(), filter.end(),
+			[](const char c1, const char c2) { // Search case-insensitive
+				return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2);
+			}) != text.end();
+}
+
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
@@ -77,11 +86,6 @@ void reshade::runtime::init_gui()
 	_menu_callables.emplace_back("Statistics", &runtime::draw_gui_statistics);
 	_menu_callables.emplace_back("Log", &runtime::draw_gui_log);
 	_menu_callables.emplace_back("About", &runtime::draw_gui_about);
-
-#if RESHADE_ADDON
-	if (!addon::loaded_info.empty())
-		_open_addon_name = addon::loaded_info.front().name;
-#endif
 }
 void reshade::runtime::deinit_gui()
 {
@@ -830,11 +834,14 @@ void reshade::runtime::draw_gui()
 #if RESHADE_ADDON
 		if (addon::enabled)
 		{
-			for (const auto &widget : addon::overlay_list)
+			for (const auto &info : addon::loaded_info)
 			{
-				if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
-					widget.second(this, _imgui_context);
-				ImGui::End();
+				for (const auto &widget : info.overlay_callbacks)
+				{
+					if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+						widget.second(this, _imgui_context);
+					ImGui::End();
+				}
 			}
 		}
 #endif
@@ -1155,10 +1162,9 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 1)
 	{
-		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), (_variable_editor_tabs ? -10.0f : -20.0f) * _font_size))
+		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 10.0f : 20.0f) * _font_size + (_variable_editor_tabs ? 1.0f : 2.0f) * _imgui_context->Style.ItemSpacing.x)))
 		{
 			_effects_expanded_state = 3;
-			const std::string_view filter_view = _effect_filter;
 
 			for (technique &tech : _techniques)
 			{
@@ -1166,16 +1172,13 @@ void reshade::runtime::draw_gui_home()
 				if (label.empty())
 					label = tech.name;
 
-				tech.hidden = tech.annotation_as_int("hidden") != 0 || (
-					!filter_view.empty() && // Reset visibility state if filter is empty
-					std::search(label.begin(), label.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
-						[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == label.end());
+				tech.hidden = tech.annotation_as_int("hidden") != 0 || !filter_text(label, _effect_filter);
 			}
 		}
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("Active to top", ImVec2(10 * _font_size - _imgui_context->Style.ItemSpacing.x, 0)))
+		if (ImGui::Button("Active to top", ImVec2(10.0f * _font_size, 0)))
 		{
 			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
 			{
@@ -1211,7 +1214,7 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::SameLine();
 
-		if (ImGui::Button((_effects_expanded_state & 2) ? "Collapse all" : "Expand all", ImVec2(10 * _font_size - _imgui_context->Style.ItemSpacing.x, 0)))
+		if (ImGui::Button((_effects_expanded_state & 2) ? "Collapse all" : "Expand all", ImVec2(10.0f * _font_size, 0)))
 			_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 
 		if (_tutorial_index == 2)
@@ -1948,16 +1951,19 @@ void reshade::runtime::draw_gui_log()
 	const std::filesystem::path log_path =
 		g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log");
 
-	if (ImGui::Button("Clear Log"))
+	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(16.0f * _font_size + 2 * _imgui_context->Style.ItemSpacing.x));
+
+	ImGui::SameLine();
+
+	imgui::toggle_button("Word Wrap", _log_wordwrap, 8.0f * _font_size);
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Clear Log", ImVec2(8.0f * _font_size, 0.0f)))
 		// Close and open the stream again, which will clear the file too
 		log::open_log_file(log_path);
 
-	ImGui::SameLine();
-	ImGui::Checkbox("Word Wrap", &_log_wordwrap);
-	ImGui::SameLine();
-
-	static ImGuiTextFilter filter; // TODO: Better make this a member of the runtime class, in case there are multiple instances.
-	const bool filter_changed = filter.Draw("Filter (inc, -exc)", -150);
+	ImGui::Spacing();
 
 	if (ImGui::BeginChild("log", ImVec2(0, 0), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
@@ -1971,7 +1977,7 @@ void reshade::runtime::draw_gui_log()
 			_log_lines.clear();
 			std::ifstream log_file(log_path);
 			for (std::string line; std::getline(log_file, line) && _log_lines.size() < line_limit;)
-				if (filter.PassFilter(line.c_str()))
+				if (filter_text(line, _log_filter))
 					_log_lines.push_back(line);
 			_last_log_size = last_log_size;
 
@@ -2104,43 +2110,73 @@ void reshade::runtime::draw_gui_addons()
 	}
 
 	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
-	const std::string_view filter_view = _addons_filter;
 
 	ImGui::Spacing();
+
+	std::vector<std::string> disabled_addons;
+	reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons);
 
 	const float child_window_width = ImGui::GetContentRegionAvail().x;
 
 	for (addon::info &info : addon::loaded_info)
 	{
-		if (!filter_view.empty() &&
-			std::search(info.name.begin(), info.name.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
-				[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == info.name.end())
+		if (!filter_text(info.name, _addons_filter))
 			continue;
 
 		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, info.settings_height + _imgui_context->Style.FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
 
-		const bool open = _open_addon_name == info.name;
-		if (ImGui::ArrowButton("addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
-			_open_addon_name = open ? std::string() : info.name;
+		bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"));
+		if (ImGui::ArrowButton("##addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
+			ImGui::GetStateStorage()->SetBool(ImGui::GetID("##addon_open"), open = !open);
+
 		ImGui::SameLine();
-		ImGui::TextUnformatted(info.name.c_str());
+
+		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[info.handle != nullptr ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
+
+		bool enabled = std::find(disabled_addons.begin(), disabled_addons.end(), info.name) == disabled_addons.end();
+		if (ImGui::Checkbox(info.name.c_str(), &enabled))
+		{
+			if (enabled)
+				disabled_addons.erase(std::remove(disabled_addons.begin(), disabled_addons.end(), info.name), disabled_addons.end());
+			else
+				disabled_addons.push_back(info.name);
+
+			reshade::global_config().set("ADDON", "DisabledAddons", disabled_addons);
+			reshade::global_config().save();
+		}
+
+		ImGui::PopStyleColor();
+
+		if (enabled == (info.handle == nullptr))
+		{
+			ImGui::SameLine();
+			ImGui::Text("(will be %s on next application restart)", enabled ? "enabled" : "disabled");
+		}
 
 		if (open)
 		{
+			ImGui::Spacing();
+
 			ImGui::BeginGroup();
-			ImGui::Text("Author:");
-			ImGui::Text("Version:");
 			ImGui::Text("File:");
-			ImGui::Text("Description:");
+			if (!info.author.empty())
+				ImGui::Text("Author:");
+			ImGui::Text("Version:");
+			if (!info.description.empty())
+				ImGui::Text("Description:");
 			ImGui::EndGroup();
 			ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
 			ImGui::BeginGroup();
-			ImGui::TextUnformatted(info.author.c_str());
-			ImGui::TextUnformatted(info.version.c_str());
 			ImGui::TextUnformatted(info.file.c_str());
-			ImGui::PushTextWrapPos();
-			ImGui::TextUnformatted(info.description.c_str());
-			ImGui::PopTextWrapPos();
+			if (!info.author.empty())
+				ImGui::TextUnformatted(info.author.c_str());
+			ImGui::TextUnformatted(info.version.c_str());
+			if (!info.description.empty())
+			{
+				ImGui::PushTextWrapPos();
+				ImGui::TextUnformatted(info.description.c_str());
+				ImGui::PopTextWrapPos();
+			}
 			ImGui::EndGroup();
 
 			if (info.settings_overlay_callback != nullptr)
