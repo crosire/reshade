@@ -1186,6 +1186,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDeleteBuffers);
 		HOOK_PROC(glDeleteFramebuffers);
 		HOOK_PROC(glDeleteProgram);
+		HOOK_PROC(glDeleteRenderbuffers);
 		HOOK_PROC(glDeleteSamplers);
 		HOOK_PROC(glDispatchCompute);
 		HOOK_PROC(glDispatchComputeIndirect);

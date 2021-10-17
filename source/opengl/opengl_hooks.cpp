@@ -1860,6 +1860,21 @@ HOOK_EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
 	trampoline(program);
 }
 
+			void WINAPI glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
+{
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		for (GLsizei i = 0; i < n; ++i)
+			if (renderbuffers[i] != 0)
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_RENDERBUFFER, renderbuffers[i]));
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glDeleteRenderbuffers);
+	trampoline(n, renderbuffers);
+}
+
 			void WINAPI glDeleteSamplers(GLsizei n, const GLuint *samplers)
 {
 #if RESHADE_ADDON

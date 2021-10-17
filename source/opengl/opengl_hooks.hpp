@@ -115,6 +115,8 @@ extern "C" void WINAPI glDeleteBuffers(GLsizei n, const GLuint *buffers);
 extern "C" void WINAPI glDeleteFramebuffers(GLsizei n, const GLuint *framebuffers);
 #undef glDeleteProgram
 extern "C" void WINAPI glDeleteProgram(GLuint program);
+#undef glDeleteRenderbuffers
+extern "C" void WINAPI glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers);
 #undef glDeleteSamplers
 extern "C" void WINAPI glDeleteSamplers(GLsizei n, const GLuint *samplers);
 #undef glDeleteTextures
