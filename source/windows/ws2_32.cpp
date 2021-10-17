@@ -17,7 +17,7 @@ static bool is_local_socket(SOCKET s)
 	if (getpeername(s, reinterpret_cast<PSOCKADDR>(&peer_address), &address_size) == SOCKET_ERROR)
 		return false;
 
-	const int32_t ipv4_loopback = INADDR_LOOPBACK; // 127.0.0.1
+	const int32_t ipv4_loopback = htonl(INADDR_LOOPBACK); // 127.0.0.1
 	const uint8_t ipv6_loopback[16] = IN6ADDR_LOOPBACK_INIT; // ::1
 	const uint8_t ipv6_ipv4_loopback[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 127, 0, 0, 1 }; // ::ffff:127.0.0.1
 	static_assert(sizeof(ipv4_loopback) == sizeof(IN_ADDR) && sizeof(ipv6_loopback) == sizeof(IN6_ADDR));
@@ -39,21 +39,25 @@ volatile long g_network_traffic = 0;
 
 HOOK_EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	if (!is_local_socket(s))
+	static const auto trampoline = reshade::hooks::call(HookWSASend);
+	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
+
+	if (status == 0 && !is_local_socket(s))
 		for (DWORD i = 0; i < dwBufferCount; ++i)
 			InterlockedAdd(&g_network_traffic, lpBuffers[i].len);
 
-	static const auto trampoline = reshade::hooks::call(HookWSASend);
-	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
+	return status;
 }
 HOOK_EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, const struct sockaddr *lpTo, int iToLen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	if (!is_local_socket(s))
+	static const auto trampoline = reshade::hooks::call(HookWSASendTo);
+	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
+
+	if (status == 0 && !is_local_socket(s))
 		for (DWORD i = 0; i < dwBufferCount; ++i)
 			InterlockedAdd(&g_network_traffic, lpBuffers[i].len);
 
-	static const auto trampoline = reshade::hooks::call(HookWSASendTo);
-	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
+	return status;
 }
 HOOK_EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
@@ -79,22 +83,22 @@ HOOK_EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBuf
 HOOK_EXPORT int WSAAPI HookSend(SOCKET s, const char *buf, int len, int flags)
 {
 	static const auto trampoline = reshade::hooks::call(HookSend);
-	const auto num_bytes_send = trampoline(s, buf, len, flags);
+	const auto num_bytes_sent = trampoline(s, buf, len, flags);
 
-	if (num_bytes_send != SOCKET_ERROR && !is_local_socket(s))
-		InterlockedAdd(&g_network_traffic, num_bytes_send);
+	if (num_bytes_sent != SOCKET_ERROR && !is_local_socket(s))
+		InterlockedAdd(&g_network_traffic, num_bytes_sent);
 
-	return num_bytes_send;
+	return num_bytes_sent;
 }
 HOOK_EXPORT int WSAAPI HookSendTo(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
 {
 	static const auto trampoline = reshade::hooks::call(HookSendTo);
-	const auto num_bytes_send = trampoline(s, buf, len, flags, to, tolen);
+	const auto num_bytes_sent = trampoline(s, buf, len, flags, to, tolen);
 
-	if (num_bytes_send != SOCKET_ERROR && !is_local_socket(s))
-		InterlockedAdd(&g_network_traffic, num_bytes_send);
+	if (num_bytes_sent != SOCKET_ERROR && !is_local_socket(s))
+		InterlockedAdd(&g_network_traffic, num_bytes_sent);
 
-	return num_bytes_send;
+	return num_bytes_sent;
 }
 HOOK_EXPORT int WSAAPI HookRecv(SOCKET s, char *buf, int len, int flags)
 {
