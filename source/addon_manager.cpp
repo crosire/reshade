@@ -37,15 +37,22 @@ void reshade::load_addons()
 	LOG(INFO) << "Loading built-in add-ons ...";
 #endif
 
+	std::vector<std::string> disabled_addons;
+	reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons);
+
 	{	addon::info &info = addon::loaded_info.emplace_back();
-		info.handle = g_module_handle;
 		info.name = "Generic Depth";
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
 		info.file = g_reshade_dll_path.u8string();
 		info.author = "crosire";
 		info.version = VERSION_STRING_FILE;
 
-		register_addon_depth();
+		if (std::find(disabled_addons.begin(), disabled_addons.end(), info.name) == disabled_addons.end())
+		{
+			info.handle = g_module_handle;
+
+			register_addon_depth();
+		}
 	}
 #endif
 
