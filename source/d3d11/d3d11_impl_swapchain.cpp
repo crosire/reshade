@@ -76,10 +76,15 @@ bool reshade::d3d11::swapchain_impl::on_init()
 		tex_desc.Height = swap_desc.BufferDesc.Height;
 		tex_desc.MipLevels = 1;
 		tex_desc.ArraySize = 1;
-		tex_desc.Format = swap_desc.BufferDesc.Format;
+		tex_desc.Format = convert_format(api::format_to_typeless(convert_format(swap_desc.BufferDesc.Format)));
 		tex_desc.SampleDesc = { 1, 0 };
 		tex_desc.Usage = D3D11_USAGE_DEFAULT;
 		tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.Format = swap_desc.BufferDesc.Format;
+		srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Texture2D.MipLevels = 1;
 
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 		{
@@ -91,7 +96,7 @@ bool reshade::d3d11::swapchain_impl::on_init()
 			LOG(ERROR) << "Failed to create original back buffer render target!";
 			return false;
 		}
-		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_resolved.get(), nullptr, &_backbuffer_resolved_srv)))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_resolved.get(), &srv_desc, &_backbuffer_resolved_srv)))
 		{
 			LOG(ERROR) << "Failed to create back buffer resolve shader resource view!";
 			return false;
