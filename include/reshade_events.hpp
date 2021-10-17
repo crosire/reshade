@@ -506,6 +506,11 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, api::command_list *cmd_list)</c></para>
 		/// </summary>
 		reshade_finish_effects,
+		/// <summary>
+		/// Called right after ReShade effects were reloaded.
+		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime)</c></para>
+		/// </summary>
+		reshade_reloaded_effects,
 
 #ifdef RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
@@ -616,4 +621,5 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_begin_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_finish_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reloaded_effects, void, api::effect_runtime *runtime);
 }

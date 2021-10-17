@@ -2810,6 +2810,9 @@ void reshade::runtime::update_effects()
 				open_code_editor(instance);
 		}
 #endif
+
+		if (_reload_create_queue.empty())
+			invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
 	}
 	else if (!_textures_loaded)
 	{

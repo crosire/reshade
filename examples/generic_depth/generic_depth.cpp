@@ -247,7 +247,7 @@ static void update_effect_runtime(effect_runtime *runtime)
 	device *const device = runtime->get_device();
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
-	// TODO: This only reliably works if there is a single effect runtime (swap chain).
+	// TODO: This only works reliably if there is a single effect runtime (swap chain).
 	// With multiple presenting swap chains it can happen that not all effect runtimes are updated after the selected depth-stencil resource changed (or worse the backup texture was updated).
 	runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
 
@@ -833,8 +833,6 @@ void register_addon_depth()
 	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
 	reshade::register_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
 	reshade::register_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
-	// Need to set texture binding again after a runtime was reset
-	reshade::register_event<reshade::addon_event::init_effect_runtime>(update_effect_runtime);
 
 	reshade::register_event<reshade::addon_event::create_resource>(on_create_resource);
 	reshade::register_event<reshade::addon_event::create_resource_view>(on_create_resource_view);
@@ -857,6 +855,8 @@ void register_addon_depth()
 
 	reshade::register_event<reshade::addon_event::reshade_begin_effects>(on_begin_render_effects);
 	reshade::register_event<reshade::addon_event::reshade_finish_effects>(on_finish_render_effects);
+	// Need to set texture binding again after reloading
+	reshade::register_event<reshade::addon_event::reshade_reloaded_effects>(update_effect_runtime);
 }
 void unregister_addon_depth()
 {
@@ -866,7 +866,6 @@ void unregister_addon_depth()
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
 	reshade::unregister_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
 	reshade::unregister_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
-	reshade::unregister_event<reshade::addon_event::init_effect_runtime>(update_effect_runtime);
 
 	reshade::unregister_event<reshade::addon_event::create_resource>(on_create_resource);
 	reshade::unregister_event<reshade::addon_event::create_resource_view>(on_create_resource_view);
@@ -889,6 +888,7 @@ void unregister_addon_depth()
 
 	reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(on_begin_render_effects);
 	reshade::unregister_event<reshade::addon_event::reshade_finish_effects>(on_finish_render_effects);
+	reshade::unregister_event<reshade::addon_event::reshade_reloaded_effects>(update_effect_runtime);
 }
 
 #ifdef _WINDLL
