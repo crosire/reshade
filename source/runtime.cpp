@@ -713,6 +713,7 @@ void reshade::runtime::load_current_preset()
 		{
 			if (variable.special != special_uniform::none)
 				continue;
+
 			const std::string section = effect.source_file.filename().u8string();
 
 			if (variable.supports_toggle_key())
@@ -1117,7 +1118,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				reset_uniform_value(variable);
 
 				const std::string_view special = variable.annotation_as_string("source");
-				if (special.empty()) /* Ignore if annotation is missing */;
+				if (special.empty()) /* Ignore if annotation is missing */
+					variable.special = special_uniform::none;
 				else if (special == "frametime")
 					variable.special = special_uniform::frame_time;
 				else if (special == "framecount")
@@ -1142,12 +1144,14 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					variable.special = special_uniform::mouse_wheel;
 				else if (special == "freepie")
 					variable.special = special_uniform::freepie;
-				else if (special == "ui_open" ||special == "overlay_open")
+				else if (special == "ui_open" || special == "overlay_open")
 					variable.special = special_uniform::overlay_open;
 				else if (special == "ui_active" || special == "overlay_active")
 					variable.special = special_uniform::overlay_active;
 				else if (special == "ui_hovered" || special == "overlay_hovered")
 					variable.special = special_uniform::overlay_hovered;
+				else
+					variable.special = special_uniform::unknown;
 
 				effect.uniforms.push_back(std::move(variable));
 			}
