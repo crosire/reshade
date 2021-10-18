@@ -424,7 +424,7 @@ void unregister_addon_texmod_overlay()
 {
 	unregister_addon_descriptor_set_tracking();
 
-	reshade::unregister_overlay("TexMod");
+	reshade::unregister_overlay("TexMod", draw_overlay);
 
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);

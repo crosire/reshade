@@ -2834,8 +2834,10 @@ void reshade::runtime::update_effects()
 		}
 #endif
 
+#if RESHADE_ADDON
 		if (_reload_create_queue.empty())
 			invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+#endif
 	}
 	else if (!_textures_loaded)
 	{

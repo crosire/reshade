@@ -8,6 +8,7 @@
 #include <mutex>
 #include <sstream>
 #include <unordered_set>
+#include <unordered_map>
 #include <cassert>
 
 imgui_function_table g_imgui_function_table;
@@ -864,7 +865,7 @@ void register_addon_api_trace()
 }
 void unregister_addon_api_trace()
 {
-	reshade::unregister_overlay("API Trace");
+	reshade::unregister_overlay("API Trace", draw_overlay);
 
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
 	reshade::unregister_event<reshade::addon_event::init_swapchain>(on_init_swapchain);
