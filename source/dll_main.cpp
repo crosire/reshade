@@ -912,38 +912,55 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			}
 		}
 
-		reshade::hooks::register_module(L"user32.dll");
-		reshade::hooks::register_module(L"ws2_32.dll");
+		// Register modules to hook
+		{
+			reshade::hooks::register_module(L"user32.dll");
+			reshade::hooks::register_module(L"ws2_32.dll");
 
-		// user32.dll will always be loaded at this point, so can safely initialize trampoline pointers
-		extern void init_message_queue_trampolines();
-		init_message_queue_trampolines();
+			// user32.dll will always be loaded at this point, so can safely initialize trampoline pointers
+			extern void init_message_queue_trampolines();
+			init_message_queue_trampolines();
 
-		reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
-		reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
-		reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
-		reshade::hooks::register_module(get_system_path() / L"d3d10_1.dll");
-		reshade::hooks::register_module(get_system_path() / L"d3d11.dll");
+			const std::filesystem::path module_name = g_reshade_dll_path.stem();
 
-		// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
-		if (is_windows7() && _wcsicmp(g_reshade_dll_path.stem().c_str(), L"d3d12") != 0)
-			reshade::hooks::register_module(L"d3d12.dll");
-		else
-			reshade::hooks::register_module(get_system_path() / L"d3d12.dll");
+			// Only register D3D hooks when module is not called opengl32.dll
+			if (_wcsicmp(module_name.c_str(), L"opengl32") != 0)
+			{
+				reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
+				reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
+				reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
+				reshade::hooks::register_module(get_system_path() / L"d3d10_1.dll");
+				reshade::hooks::register_module(get_system_path() / L"d3d11.dll");
 
-		reshade::hooks::register_module(get_system_path() / L"dxgi.dll");
-		reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
-		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
+				// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
+				if (is_windows7() && _wcsicmp(module_name.c_str(), L"d3d12") != 0)
+					reshade::hooks::register_module(L"d3d12.dll");
+				else
+					reshade::hooks::register_module(get_system_path() / L"d3d12.dll");
+
+				reshade::hooks::register_module(get_system_path() / L"dxgi.dll");
+			}
+
+			// Only register OpenGL hooks when module is not called any D3D module name
+			if (_wcsnicmp(module_name.c_str(), L"d3d", 3) != 0 && _wcsicmp(module_name.c_str(), L"dxgi") != 0)
+			{
+				reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
+			}
+
+			// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
 #  ifdef WIN64
-		reshade::hooks::register_module(L"vrclient_x64.dll");
+			reshade::hooks::register_module(L"vrclient_x64.dll");
 #  else
-		reshade::hooks::register_module(L"vrclient.dll");
+			reshade::hooks::register_module(L"vrclient.dll");
 #  endif
 
-		// Register DirectInput module in case it was used to load ReShade (but ignore otherwise)
-		if (_wcsicmp(g_reshade_dll_path.stem().c_str(), L"dinput8") == 0)
-			reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
+			// Register DirectInput module in case it was used to load ReShade (but ignore otherwise)
+			if (_wcsicmp(module_name.c_str(), L"dinput8") == 0)
+			{
+				reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
+			}
+		}
 
 		LOG(INFO) << "Initialized.";
 		break;
