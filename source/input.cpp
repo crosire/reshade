@@ -471,11 +471,6 @@ static inline bool is_blocking_keyboard_input()
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 }
 
-// The "PeekMessage" functions may be called very frequently, so cache trampoline pointers
-// Use global variables for this instead of static variables inside the functions below to avoid the overhead of checking whether they have been initialized on every call
-static decltype(&PeekMessageA) s_trampoline_peek_message_a = nullptr;
-static decltype(&PeekMessageW) s_trampoline_peek_message_w = nullptr;
-
 HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
 #if 1
@@ -535,8 +530,8 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 }
 HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
-	assert(s_trampoline_peek_message_a != nullptr);
-	if (!s_trampoline_peek_message_a(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
+	static const auto trampoline = reshade::hooks::call(HookPeekMessageA);
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
 		return FALSE;
 
 	assert(lpMsg != nullptr);
@@ -554,8 +549,8 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 }
 HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
-	assert(s_trampoline_peek_message_w != nullptr);
-	if (!s_trampoline_peek_message_w(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
+	static const auto trampoline = reshade::hooks::call(HookPeekMessageW);
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
 		return FALSE;
 
 	assert(lpMsg != nullptr);
@@ -570,12 +565,6 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 	}
 
 	return TRUE;
-}
-
-void init_message_queue_trampolines()
-{
-	s_trampoline_peek_message_a = reshade::hooks::call(HookPeekMessageA);
-	s_trampoline_peek_message_w = reshade::hooks::call(HookPeekMessageW);
 }
 
 HOOK_EXPORT BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
