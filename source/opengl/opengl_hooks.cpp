@@ -1173,7 +1173,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 		return;
 #endif
 
-	static const auto trampoline = reshade::hooks::call(glBufferSubData);
+	static const auto trampoline = reshade::hooks::call(glNamedBufferSubData);
 	trampoline(buffer, offset, size, data);
 }
 
