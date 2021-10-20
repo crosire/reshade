@@ -374,6 +374,7 @@ static void update_framebuffer_object(GLenum target, GLuint fbo)
 		old_desc.render_targets[i] = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::color, i);
 		if (old_desc.render_targets[i].handle == 0)
 			continue;
+
 		const reshade::api::resource_desc res_desc = g_current_context->get_resource_desc(g_current_context->get_resource_from_view(old_desc.render_targets[i]));
 		old_desc.width  = std::min(old_desc.width,  res_desc.texture.width);
 		old_desc.height = std::min(old_desc.height, res_desc.texture.width);
@@ -1224,8 +1225,9 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 
 		const auto type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
 
-		if (const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo), type, drawbuffer);
-			view.handle != 0)
+		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo), type, drawbuffer);
+
+		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
 				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, type, *value, static_cast<uint8_t>(0), 0, nullptr) :
@@ -1249,12 +1251,19 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 		GLint fbo = 0;
 		gl3wGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		const auto type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
+		const reshade::api::resource_view depth_view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo), reshade::api::attachment_type::depth, drawbuffer);
+		const reshade::api::resource_view stencil_view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo), reshade::api::attachment_type::stencil, drawbuffer);
 
-		if (const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo), type, drawbuffer);
-			view.handle != 0)
+		if (depth_view.handle != 0 && depth_view.handle == stencil_view.handle)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, type, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, reshade::api::attachment_type::depth | reshade::api::attachment_type::stencil, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+				return;
+		}
+		else
+		{
+			if (depth_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, reshade::api::attachment_type::depth, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+				return;
+			if (stencil_view.handle != 0 &&	reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, stencil_view, reshade::api::attachment_type::stencil, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
 				return;
 		}
 	}
@@ -1274,8 +1283,9 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 
 		const auto type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
 
-		if (const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer), type, drawbuffer);
-			view.handle != 0)
+		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer), type, drawbuffer);
+
+		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
 				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, type, *value, static_cast<uint8_t>(0), 0, nullptr) :
@@ -1296,12 +1306,19 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 	{
 		assert(buffer == GL_DEPTH_STENCIL && drawbuffer == 0);
 
-		const auto type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
+		const reshade::api::resource_view depth_view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer), reshade::api::attachment_type::depth, drawbuffer);
+		const reshade::api::resource_view stencil_view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer), reshade::api::attachment_type::stencil, drawbuffer);
 
-		if (const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer), type, drawbuffer);
-			view.handle != 0)
+		if (depth_view.handle != 0 && depth_view.handle == stencil_view.handle)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, type, depth, static_cast<uint8_t>(stencil), 0, nullptr))
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, reshade::api::attachment_type::depth | reshade::api::attachment_type::stencil, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+				return;
+		}
+		else
+		{
+			if (depth_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, reshade::api::attachment_type::depth, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+				return;
+			if (stencil_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, stencil_view, reshade::api::attachment_type::stencil, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
 				return;
 		}
 	}
