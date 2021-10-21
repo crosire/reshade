@@ -141,22 +141,11 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMOD
 }
 
 template <typename T>
-static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESENT_PARAMETERS &pp, bool use_software_rendering)
+static void init_device_proxy(T *&device, D3DDEVTYPE device_type, bool use_software_rendering)
 {
 	// Enable software vertex processing if the application requested a software device
 	if (use_software_rendering)
 		device->SetSoftwareVertexProcessing(TRUE);
-
-#if 0
-	// TODO: Make this configurable, since it prevents ReShade from being applied to video players
-	if (pp.Flags & D3DPRESENTFLAG_VIDEO)
-	{
-		LOG(WARN) << "Skipping device because it uses a video swap chain.";
-		return;
-	}
-#else
-	UNREFERENCED_PARAMETER(pp);
-#endif
 
 	if (device_type == D3DDEVTYPE_NULLREF)
 	{
@@ -240,7 +229,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		return hr;
 	}
 
-	init_device_proxy(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
+	init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
 
 	return hr;
 }
@@ -300,7 +289,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		return hr;
 	}
 
-	init_device_proxy(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
+	init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
 
 	return hr;
 }

@@ -252,6 +252,9 @@
     <ClCompile Include="source\opengl\opengl_hooks.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClCompile Include="source\opengl\opengl_hooks_ffp.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>

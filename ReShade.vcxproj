@@ -462,6 +462,7 @@
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\input_freepie.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks.cpp" />
+    <ClCompile Include="source\opengl\opengl_hooks_ffp.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp" />
     <ClCompile Include="source\opengl\opengl_impl_command_list.cpp" />
     <ClCompile Include="source\opengl\opengl_impl_command_queue.cpp" />
