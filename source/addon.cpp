@@ -26,6 +26,7 @@ extern "C" __declspec(dllexport) void ReShadeLogMessage(HMODULE module, int leve
 }
 
 #if RESHADE_GUI
+
 #include "reshade.hpp"
 #include "imgui_function_table.hpp"
 
@@ -37,6 +38,7 @@ extern "C" __declspec(dllexport) const imgui_function_table *ReShadeGetImGuiFunc
 		return &g_imgui_function_table;
 	return nullptr;
 }
+
 #endif
 
 #endif

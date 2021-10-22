@@ -921,6 +921,11 @@ namespace reshade { namespace api
 		virtual uint32_t get_current_back_buffer_index() const = 0;
 
 		/// <summary>
+		/// Gets the description of the back buffer resources.
+		/// </summary>
+		inline  resource_desc get_desc() const { return const_cast<swapchain *>(this)->get_device()->get_resource_desc(const_cast<swapchain *>(this)->get_back_buffer(0)); }
+
+		/// <summary>
 		/// Gets the effect runtime associated with this swap chain.
 		/// </summary>
 		inline  class effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
@@ -991,15 +996,20 @@ namespace reshade { namespace api
 		/// <param name="effect_name">File name of the effect file the variable is declared in, or <c>nullptr</c> to search in all loaded effects.</param>
 		/// <param name="variable_name">Name of the uniform variable declaration to find.</param>
 		/// <returns>Opaque handle to the uniform variable, or zero in case it was not found.</returns>
-		virtual effect_uniform_variable get_uniform_variable(const char *effect_name, const char *variable_name) const = 0;
+		virtual effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const = 0;
 
 		/// <summary>
-		/// Gets the constant buffer and offset of the specified uniform <paramref name="variable"/>.
+		/// Gets the name of a uniform <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
-		/// <param name="out_buffer">Pointer to a variable that is set to the constant buffer resource.</param>
-		/// <param name="out_offset">Pointer to a variable that is set to the offset (in bytes) from the start of the constant buffer.</param>
-		virtual void get_uniform_binding(effect_uniform_variable variable, resource *out_buffer, uint64_t *out_offset) const = 0;
+		virtual const char *get_uniform_name(effect_uniform_variable variable) const = 0;
+
+		/// <summary>
+		/// Gets the offset of the specified uniform <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="out_offset">Pointer to a variable that is set to the offset (in bytes) of the variable from the start of the effect.</param>
+		virtual void get_uniform_binding(effect_uniform_variable variable, uint32_t *out_offset) const = 0;
 
 		/// <summary>
 		/// Gets the value from a named annotation attached to the specified uniform <paramref name="variable"/>.
@@ -1008,13 +1018,6 @@ namespace reshade { namespace api
 		virtual void get_uniform_annotation(effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
 		virtual void get_uniform_annotation(effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		virtual void get_uniform_annotation(effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
-
-		/// <summary>
-		/// Gets the name of a uniform <paramref name="variable"/>.
-		/// </summary>
-		/// <param name="variable">Opaque handle to the uniform variable.</param>
-		virtual const char *get_uniform_name(effect_uniform_variable variable) const = 0;
-
 		/// <summary>
 		/// Gets the value from a named annotation attached to the specified uniform <paramref name="variable"/> as a null-terminated string.
 		/// </summary>
@@ -1062,7 +1065,13 @@ namespace reshade { namespace api
 		/// <param name="effect_name">File name of the effect file the variable is declared in, or <c>nullptr</c> to search in all loaded effects.</param>
 		/// <param name="variable_name">Name of the texture variable declaration to find.</param>
 		/// <returns>Opaque handle to the texture variable, or zero in case it was not found.</returns>
-		virtual effect_texture_variable get_texture_variable(const char *effect_name, const char *variable_name) const = 0;
+		virtual effect_texture_variable find_texture_variable(const char *effect_name, const char *variable_name) const = 0;
+
+		/// <summary>
+		/// Gets the name of a texture <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the texture variable.</param>
+		virtual const char *get_texture_name(effect_texture_variable variable) const = 0;
 
 		/// <summary>
 		/// Gets the shader resource views that are bound to the specified texture <paramref name="variable"/>.
@@ -1079,13 +1088,6 @@ namespace reshade { namespace api
 		virtual void get_texture_annotation(effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
 		virtual void get_texture_annotation(effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		virtual void get_texture_annotation(effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
-
-		/// <summary>
-		/// Gets the name of a texture <paramref name="variable"/>.
-		/// </summary>
-		/// <param name="variable">Opaque handle to the texture variable.</param>
-		virtual const char *get_texture_name(effect_texture_variable variable) const = 0;
-
 		/// <summary>
 		/// Gets the value from a named annotation attached to the specified texture <paramref name="variable"/> as a null-terminated string.
 		/// </summary>

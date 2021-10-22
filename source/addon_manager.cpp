@@ -90,8 +90,8 @@ void reshade::unload_addons()
 
 #if RESHADE_ADDON_LOAD
 	// Create copy of add-on list before unloading, since add-ons call 'ReShadeUnregisterAddon' during 'FreeLibrary', which modifies the list
-	const std::vector<reshade::addon::info> loaded_info_copy = addon::loaded_info;
-	for (const reshade::addon::info &info : loaded_info_copy)
+	const std::vector<addon::info> loaded_info_copy = addon::loaded_info;
+	for (const addon::info &info : loaded_info_copy)
 	{
 		if (info.handle == nullptr || info.handle == g_module_handle)
 			continue; // Skip disabled and built-in add-ons

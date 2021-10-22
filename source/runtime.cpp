@@ -3501,7 +3501,7 @@ void reshade::runtime::enumerate_uniform_variables(const char *effect_name, void
 	}
 }
 
-reshade::api::effect_uniform_variable reshade::runtime::get_uniform_variable(const char *effect_name, const char *variable_name) const
+reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable(const char *effect_name, const char *variable_name) const
 {
 	if (is_loading())
 		return { 0 };
@@ -3524,13 +3524,19 @@ reshade::api::effect_uniform_variable reshade::runtime::get_uniform_variable(con
 	return { 0 };
 }
 
-void reshade::runtime::get_uniform_binding(api::effect_uniform_variable variable, api::resource *out_buffer, uint64_t *out_offset) const
+auto reshade::runtime::get_uniform_name(api::effect_uniform_variable variable) const -> const char *
+{
+	if (variable == 0)
+		return nullptr;
+
+	return reinterpret_cast<const uniform *>(variable.handle)->name.c_str();
+}
+
+void reshade::runtime::get_uniform_binding(api::effect_uniform_variable variable, uint32_t *out_offset) const
 {
 	if (variable == 0)
 		return;
 
-	if (out_buffer != nullptr)
-		*out_buffer = _effects[reinterpret_cast<const uniform *>(variable.handle)->effect_index].cb;
 	if (out_offset != nullptr)
 		*out_offset = reinterpret_cast<const uniform *>(variable.handle)->offset;
 }
@@ -3567,14 +3573,7 @@ void reshade::runtime::get_uniform_annotation(api::effect_uniform_variable varia
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_uint(name, array_index + i);
 }
-const char *reshade::runtime::get_uniform_name(api::effect_uniform_variable variable) const
-{
-	if (variable == 0)
-		return nullptr;
-
-	return reinterpret_cast<const uniform *>(variable.handle)->name.c_str();
-}
-const char *reshade::runtime::get_uniform_annotation(api::effect_uniform_variable variable, const char *name) const
+auto reshade::runtime::get_uniform_annotation(api::effect_uniform_variable variable, const char *name) const -> const char *
 {
 	if (variable == 0)
 		return nullptr;
@@ -3823,7 +3822,7 @@ void reshade::runtime::enumerate_texture_variables(const char *effect_name, void
 	}
 }
 
-reshade::api::effect_texture_variable reshade::runtime::get_texture_variable(const char *effect_name, const char *variable_name) const
+reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(const char *effect_name, const char *variable_name) const
 {
 	if (is_loading())
 		return { 0 };
@@ -3838,6 +3837,14 @@ reshade::api::effect_texture_variable reshade::runtime::get_texture_variable(con
 	}
 
 	return { 0 };
+}
+
+auto reshade::runtime::get_texture_name(api::effect_texture_variable variable) const -> const char *
+{
+	if (variable == 0)
+		return nullptr;
+
+	return reinterpret_cast<const texture *>(variable.handle)->unique_name.c_str();
 }
 
 void reshade::runtime::get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const
@@ -3883,14 +3890,7 @@ void reshade::runtime::get_texture_annotation(api::effect_texture_variable varia
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_uint(name, array_index + i);
 }
-const char *reshade::runtime::get_texture_name(api::effect_texture_variable variable) const
-{
-	if (variable == 0)
-		return nullptr;
-
-	return reinterpret_cast<const texture *>(variable.handle)->unique_name.c_str();
-}
-const char *reshade::runtime::get_texture_annotation(api::effect_texture_variable variable, const char *name) const
+auto reshade::runtime::get_texture_annotation(api::effect_texture_variable variable, const char *name) const -> const char *
 {
 	if (variable == 0)
 		return nullptr;
