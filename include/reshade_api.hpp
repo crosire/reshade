@@ -154,18 +154,16 @@ namespace reshade { namespace api
 	{
 	public:
 		/// <summary>
-		/// Gets a custom data pointer from the object that was previously set via <see cref="set_user_data"/>.
+		/// Gets a user-defined 64-bit value from the object that was previously set via <see cref="set_private_data"/>, or zero if none associated with the specified <paramref name="guid"/> exists.
 		/// </summary>
-		/// <returns><see langword="true"/> if a pointer was previously set with this <paramref name="guid"/>, <see langword="false"/> otherwise.</returns>
-		virtual bool get_user_data(const uint8_t guid[16], void **ptr) const = 0;
+		virtual void get_private_data(const uint8_t guid[16], uint64_t *data) const = 0;
 		/// <summary>
-		/// Sets a custom data pointer associated with the specified <paramref name="guid"/> to the object.
-		/// You can call this with <paramref name="ptr"/> set to <c>nullptr</c> to remove the pointer associated with the provided <paramref name="guid"/> from this object.
+		/// Stores a user-defined 64-bit value in the object and associates it with the specified <paramref name="guid"/>.
 		/// </summary>
 		/// <remarks>
 		/// This function may NOT be called concurrently from multiple threads!
 		/// </remarks>
-		virtual void set_user_data(const uint8_t guid[16], void * const ptr) = 0;
+		virtual void set_private_data(const uint8_t guid[16], const uint64_t data)  = 0;
 
 		/// <summary>
 		/// Gets the underlying native object for this API object.
@@ -178,26 +176,26 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual uint64_t get_native_object() const = 0;
 
-		// Need to call 'create_user_data' for this custom data before this
-		template <typename T> inline T &get_user_data(const uint8_t guid[16])
+		// Need to call 'create_private_data' for this custom data before this
+		template <typename T> inline T &get_private_data(const uint8_t guid[16])
 		{
-			T *res = nullptr;
-			get_user_data(guid, reinterpret_cast<void **>(&res));
-			return *res;
+			uint64_t res;
+			get_private_data(guid, &res);
+			return *reinterpret_cast<T *>(static_cast<uintptr_t>(res));
 		}
-		// Need to call 'destroy_user_data' for this custom data before object is destroyed
-		template <typename T> inline T &create_user_data(const uint8_t guid[16])
+		// Need to call 'destroy_private_data' for this custom data before object is destroyed
+		template <typename T> inline T &create_private_data(const uint8_t guid[16])
 		{
-			T *res = new T();
-			set_user_data(guid, res);
-			return *res;
+			uint64_t res = reinterpret_cast<uintptr_t>(new T());
+			set_private_data(guid,  res);
+			return *reinterpret_cast<T *>(static_cast<uintptr_t>(res));
 		}
-		template <typename T> inline void destroy_user_data(const uint8_t guid[16])
+		template <typename T> inline void destroy_private_data(const uint8_t guid[16])
 		{
-			T *res = nullptr;
-			get_user_data(guid, reinterpret_cast<void **>(&res));
-			delete res;
-			set_user_data(guid, nullptr);
+			uint64_t res;
+			get_private_data(guid, &res);
+			delete  reinterpret_cast<T *>(static_cast<uintptr_t>(res));
+			set_private_data(guid, 0);
 		}
 	};
 

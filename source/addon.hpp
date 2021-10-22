@@ -20,46 +20,39 @@ namespace reshade::api
 		static_assert(sizeof(T) <= sizeof(uint64_t));
 
 	public:
-		template <typename... Args>
-		explicit api_object_impl(T orig, Args... args) : api_object_base(std::forward<Args>(args)...)..., _orig(orig) {}
-		~api_object_impl()
-		{
-			// All user data should ideally have been removed before destruction, to avoid leaks
-			assert(_data_entries.empty());
-		}
-
 		api_object_impl(const api_object_impl &) = delete;
 		api_object_impl &operator=(const api_object_impl &) = delete;
 
-		bool get_user_data(const uint8_t guid[16], void **ptr) const override
+		void get_private_data(const uint8_t guid[16], uint64_t *data) const override
 		{
-			for (auto it = _data_entries.begin(); it != _data_entries.end(); ++it)
+			for (auto it = _private_data.begin(); it != _private_data.end(); ++it)
 			{
 				if (std::memcmp(it->guid, guid, 16) == 0)
 				{
-					*ptr = it->data;
-					return true;
-				}
-			}
-			return false;
-		}
-		void set_user_data(const uint8_t guid[16], void * const ptr) override
-		{
-			for (auto it = _data_entries.begin(); it != _data_entries.end(); ++it)
-			{
-				if (std::memcmp(it->guid, guid, 16) == 0)
-				{
-					if (ptr == nullptr)
-						_data_entries.erase(it);
-					else
-						it->data = ptr;
+					*data = it->data;
 					return;
 				}
 			}
 
-			if (ptr != nullptr)
+			*data = 0;
+		}
+		void set_private_data(const uint8_t guid[16], const uint64_t data)  override
+		{
+			for (auto it = _private_data.begin(); it != _private_data.end(); ++it)
 			{
-				_data_entries.push_back({ ptr, {
+				if (std::memcmp(it->guid, guid, 16) == 0)
+				{
+					if (data != 0)
+						it->data = data;
+					else
+						_private_data.erase(it);
+					return;
+				}
+			}
+
+			if (data != 0)
+			{
+				_private_data.push_back({ data, {
 					reinterpret_cast<const uint64_t *>(guid)[0],
 					reinterpret_cast<const uint64_t *>(guid)[1] } });
 			}
@@ -69,14 +62,23 @@ namespace reshade::api
 
 		T _orig;
 
-	private:
-		struct entry
+	protected:
+		template <typename... Args>
+		explicit api_object_impl(T orig, Args... args) : api_object_base(std::forward<Args>(args)...)..., _orig(orig) {}
+		~api_object_impl()
 		{
-			void *data;
+			// All user data should ideally have been removed before destruction, to avoid leaks
+			assert(_private_data.empty());
+		}
+
+	private:
+		struct private_data
+		{
+			uint64_t data;
 			uint64_t guid[2];
 		};
 
-		std::vector<entry> _data_entries;
+		std::vector<private_data> _private_data;
 	};
 }
 

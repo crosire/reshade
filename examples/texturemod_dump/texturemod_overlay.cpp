@@ -65,7 +65,7 @@ static bool s_is_in_reshade_runtime = false;
 
 static void on_init_device(device *device)
 {
-	auto &data = device->create_user_data<device_data>(device_data::GUID);
+	auto &data = device->create_private_data<device_data>(device_data::GUID);
 
 	constexpr uint32_t GREEN = 0xff00ff00;
 
@@ -85,20 +85,20 @@ static void on_init_device(device *device)
 }
 static void on_destroy_device(device *device)
 {
-	auto &data = device->get_user_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>(device_data::GUID);
 
 	device->destroy_resource(data.green_texture);
 	device->destroy_resource_view(data.green_texture_srv);
 
-	device->destroy_user_data<device_data>(device_data::GUID);
+	device->destroy_private_data<device_data>(device_data::GUID);
 }
 static void on_init_cmd_list(command_list *cmd_list)
 {
-	cmd_list->create_user_data<cmd_data>(cmd_data::GUID);
+	cmd_list->create_private_data<cmd_data>(cmd_data::GUID);
 }
 static void on_destroy_cmd_list(command_list *cmd_list)
 {
-	cmd_list->destroy_user_data<cmd_data>(cmd_data::GUID);
+	cmd_list->destroy_private_data<cmd_data>(cmd_data::GUID);
 }
 
 static void on_init_texture(device *device, const resource_desc &desc, const subresource_data *, resource_usage, resource res)
@@ -108,7 +108,7 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
 		return;
 
-	auto &data = device->get_user_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>(device_data::GUID);
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
@@ -116,7 +116,7 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 }
 static void on_destroy_texture(device *device, resource res)
 {
-	auto &data = device->get_user_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>(device_data::GUID);
 
 	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
 	if (&data == nullptr)
@@ -137,7 +137,7 @@ static void on_destroy_texture(device *device, resource res)
 }
 static void on_destroy_texture_view(device *device, resource_view view)
 {
-	auto &data = device->get_user_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>(device_data::GUID);
 
 	// In some cases the 'destroy_device' event may be called before all resource views have been destroyed
 	if (&data == nullptr)
@@ -164,8 +164,8 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 		return;
 
 	device *const device = cmd_list->get_device();
-	auto &data = device->get_user_data<device_data>(device_data::GUID);
-	auto &cmd_data = cmd_list->get_user_data<::cmd_data>(::cmd_data::GUID);
+	auto &data = device->get_private_data<device_data>(device_data::GUID);
+	auto &cmd_data = cmd_list->get_private_data<::cmd_data>(::cmd_data::GUID);
 
 	for (uint32_t i = 0; i < update.count; ++i)
 	{
@@ -221,8 +221,8 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 		return;
 
 	device *const device = cmd_list->get_device();
-	auto &cmd_data = cmd_list->get_user_data<::cmd_data>(::cmd_data::GUID);
-	auto &descriptor_data = device->get_user_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
+	auto &cmd_data = cmd_list->get_private_data<::cmd_data>(::cmd_data::GUID);
+	auto &descriptor_data = device->get_private_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
 	assert((&descriptor_data) != nullptr);
 
 	uint32_t param_count = 0;
@@ -268,8 +268,8 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 static void on_execute(command_queue *, command_list *cmd_list)
 {
 	device *const device = cmd_list->get_device();
-	auto &data = device->get_user_data<device_data>(device_data::GUID);
-	auto &cmd_data = cmd_list->get_user_data<::cmd_data>(::cmd_data::GUID);
+	auto &data = device->get_private_data<device_data>(device_data::GUID);
+	auto &cmd_data = cmd_list->get_private_data<::cmd_data>(::cmd_data::GUID);
 
 	data.current_texture_list.insert(cmd_data.current_texture_list.begin(), cmd_data.current_texture_list.end());
 	cmd_data.current_texture_list.clear();
@@ -282,7 +282,7 @@ static void on_present(command_queue *queue, swapchain *runtime)
 	if (device->get_api() != device_api::d3d12 && device->get_api() != device_api::vulkan)
 		on_execute(queue, queue->get_immediate_command_list());
 
-	auto &data = device->get_user_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>(device_data::GUID);
 
 	data.frame_index++;
 
@@ -318,7 +318,7 @@ static void draw_overlay(effect_runtime *runtime, void *)
 	assert(s_is_in_reshade_runtime);
 
 	device *const device = runtime->get_device();
-	auto &data = device->get_user_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>(device_data::GUID);
 
 	ImGui::Checkbox("Show only used this frame", &data.filter);
 

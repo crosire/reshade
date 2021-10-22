@@ -18,16 +18,16 @@ reshade::api::resource_view descriptor_set_tracking::lookup_descriptor(reshade::
 
 static void on_init_device(reshade::api::device *device)
 {
-	device->create_user_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
+	device->create_private_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
 }
 static void on_destroy_device(reshade::api::device *device)
 {
-	device->destroy_user_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
+	device->destroy_private_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
 }
 
 static bool on_update_descriptor_sets(reshade::api::device *device, uint32_t count, const reshade::api::descriptor_set_update *updates)
 {
-	descriptor_set_tracking &ctx = device->get_user_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
+	descriptor_set_tracking &ctx = device->get_private_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
 
 	const std::unique_lock<std::shared_mutex> lock(ctx.mutex);
 
