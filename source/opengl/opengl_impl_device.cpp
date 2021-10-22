@@ -429,6 +429,11 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	GLuint prev_binding = 0;
 	glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 
+	// Clear any errors that may still be on the stack
+	while (glGetError() != GL_NO_ERROR)
+		continue;
+	GLenum status = GL_NO_ERROR;
+
 	if (desc.type == api::resource_type::buffer)
 	{
 		if (desc.buffer.size == 0)
@@ -450,7 +455,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		glBufferStorage(target, static_cast<GLsizeiptr>(desc.buffer.size), nullptr, usage_flags);
 
-		if (initial_data != nullptr)
+		status = glGetError();
+
+		if (initial_data != nullptr && status == GL_NO_ERROR)
 		{
 			update_buffer_region(initial_data->data, make_resource_handle(GL_BUFFER, object), 0, desc.buffer.size);
 		}
@@ -459,6 +466,14 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		// Handles to buffer resources always have the target set to 'GL_BUFFER'
 		target = GL_BUFFER;
+
+		if (status != GL_NO_ERROR)
+		{
+			glDeleteBuffers(1, &object);
+
+			*out_handle = { 0 };
+			return false;
+		}
 	}
 	else
 	{
@@ -499,15 +514,25 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			break;
 		}
 
+		status = glGetError();
+
 		glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
-		if (initial_data != nullptr)
+		if (initial_data != nullptr && status == GL_NO_ERROR)
 		{
 			for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
 				update_texture_region(initial_data[subresource], make_resource_handle(target, object), subresource, nullptr);
 		}
 
 		glBindTexture(target, prev_binding);
+
+		if (status != GL_NO_ERROR)
+		{
+			glDeleteTextures(1, &object);
+
+			*out_handle = { 0 };
+			return false;
+		}
 	}
 
 	*out_handle = make_resource_handle(target, object);
@@ -643,43 +668,56 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		*out_handle = make_resource_view_handle(GL_TEXTURE_CUBE_MAP_POSITIVE_X + desc.texture.first_layer, resource.handle & 0xFFFFFFFF, 0x1);
 		return true;
 	}
+
+	GLuint object = 0;
+	GLuint prev_binding = 0;
+	glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
+
+	// Clear any errors that may still be on the stack
+	while (glGetError() != GL_NO_ERROR)
+		continue;
+	GLenum status = GL_NO_ERROR;
+
+	glGenTextures(1, &object);
+
+	if (target != GL_TEXTURE_BUFFER)
+	{
+		// Number of levels and layers are clamped to those of the original texture
+		glTextureView(object, target, resource.handle & 0xFFFFFFFF, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, desc.texture.layer_count);
+
+		glBindTexture(target, object);
+		glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
+	}
 	else
 	{
-		GLuint object = 0;
-		glGenTextures(1, &object);
+		glBindTexture(target, object);
 
-		GLuint prev_binding = 0;
-		glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
-
-		if (target != GL_TEXTURE_BUFFER)
+		if (desc.buffer.offset == 0 && desc.buffer.size == static_cast<uint64_t>(-1))
 		{
-			// Number of levels and layers are clamped to those of the original texture
-			glTextureView(object, target, resource.handle & 0xFFFFFFFF, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, desc.texture.layer_count);
-
-			glBindTexture(target, object);
-			glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
+			glTexBuffer(target, internal_format, resource.handle & 0xFFFFFFFF);
 		}
 		else
 		{
-			glBindTexture(target, object);
-
-			if (desc.buffer.offset == 0 && desc.buffer.size == static_cast<uint64_t>(-1))
-			{
-				glTexBuffer(target, internal_format, resource.handle & 0xFFFFFFFF);
-			}
-			else
-			{
-				assert(desc.buffer.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-				assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, static_cast<GLintptr>(desc.buffer.offset), static_cast<GLsizeiptr>(desc.buffer.size));
-			}
+			assert(desc.buffer.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+			assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+			glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, static_cast<GLintptr>(desc.buffer.offset), static_cast<GLsizeiptr>(desc.buffer.size));
 		}
-
-		glBindTexture(target, prev_binding);
-
-		*out_handle = make_resource_view_handle(target, object, is_srgb_format ? 0x2 : 0);
-		return true;
 	}
+
+	status = glGetError();
+
+	glBindTexture(target, prev_binding);
+
+	if (status != GL_NO_ERROR)
+	{
+		glDeleteTextures(1, &object);
+
+		*out_handle = { 0 };
+		return false;
+	}
+
+	*out_handle = make_resource_view_handle(target, object, is_srgb_format ? 0x2 : 0);
+	return true;
 }
 void reshade::opengl::device_impl::destroy_resource_view(api::resource_view handle)
 {
