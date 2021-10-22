@@ -3574,7 +3574,7 @@ void reshade::runtime::destroy_imgui_resources()
 
 	_device->destroy_sampler(_imgui_sampler_state);
 	_imgui_sampler_state = {};
-	_device->destroy_pipeline(api::pipeline_stage::all_graphics, _imgui_pipeline);
+	_device->destroy_pipeline(_imgui_pipeline);
 	_imgui_pipeline = {};
 	_device->destroy_pipeline_layout(_imgui_pipeline_layout);
 	_imgui_pipeline_layout = {};

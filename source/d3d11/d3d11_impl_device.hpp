@@ -46,7 +46,7 @@ namespace reshade::d3d11
 		bool create_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		bool create_blend_state(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		bool create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out_handle);
-		void destroy_pipeline(api::pipeline_stage type, api::pipeline handle) final;
+		void destroy_pipeline(api::pipeline handle) final;
 
 		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out_handle) final;
 		void destroy_render_pass(api::render_pass handle) final;

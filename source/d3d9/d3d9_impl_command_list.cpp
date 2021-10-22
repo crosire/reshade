@@ -85,8 +85,9 @@ void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage type, api::pi
 	switch (type)
 	{
 	case api::pipeline_stage::all_graphics:
-		reinterpret_cast<pipeline_impl *>(pipeline.handle)->state_block->Apply();
-		_current_prim_type = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_type;
+		assert(pipeline.handle & 1);
+		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->state_block->Apply();
+		_current_prim_type = reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->prim_type;
 		break;
 	case api::pipeline_stage::input_assembler:
 		_orig->SetVertexDeclaration(reinterpret_cast<IDirect3DVertexDeclaration9 *>(pipeline.handle));

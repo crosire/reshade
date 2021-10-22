@@ -953,7 +953,7 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
-void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
+void reshade::opengl::device_impl::destroy_pipeline(api::pipeline handle)
 {
 	if (handle.handle == 0)
 		return;

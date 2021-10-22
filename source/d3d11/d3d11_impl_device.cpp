@@ -499,11 +499,16 @@ bool reshade::d3d11::device_impl::create_graphics_pipeline(const api::pipeline_d
 	impl->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
 	impl->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
 
-	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
+	// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
+	static_assert(alignof(pipeline_impl) >= 2);
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
 	return true;
 }
 bool reshade::d3d11::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11InputLayout) >= 2);
+
 	std::vector<D3D11_INPUT_ELEMENT_DESC> internal_elements;
 	convert_pipeline_desc(desc, internal_elements);
 
@@ -522,6 +527,8 @@ bool reshade::d3d11::device_impl::create_input_layout(const api::pipeline_desc &
 }
 bool reshade::d3d11::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11VertexShader) >= 2);
+
 	if (com_ptr<ID3D11VertexShader> object;
 		SUCCEEDED(_orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, nullptr, &object)))
 	{
@@ -539,6 +546,8 @@ bool reshade::d3d11::device_impl::create_vertex_shader(const api::pipeline_desc 
 }
 bool reshade::d3d11::device_impl::create_hull_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11HullShader) >= 2);
+
 	if (com_ptr<ID3D11HullShader> object;
 		SUCCEEDED(_orig->CreateHullShader(desc.graphics.hull_shader.code, desc.graphics.hull_shader.code_size, nullptr, &object)))
 	{
@@ -556,6 +565,8 @@ bool reshade::d3d11::device_impl::create_hull_shader(const api::pipeline_desc &d
 }
 bool reshade::d3d11::device_impl::create_domain_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11DomainShader) >= 2);
+
 	if (com_ptr<ID3D11DomainShader> object;
 		SUCCEEDED(_orig->CreateDomainShader(desc.graphics.domain_shader.code, desc.graphics.domain_shader.code_size, nullptr, &object)))
 	{
@@ -573,6 +584,8 @@ bool reshade::d3d11::device_impl::create_domain_shader(const api::pipeline_desc 
 }
 bool reshade::d3d11::device_impl::create_geometry_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11GeometryShader) >= 2);
+
 	if (com_ptr<ID3D11GeometryShader> object;
 		SUCCEEDED(_orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, nullptr, &object)))
 	{
@@ -590,6 +603,8 @@ bool reshade::d3d11::device_impl::create_geometry_shader(const api::pipeline_des
 }
 bool reshade::d3d11::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11PixelShader) >= 2);
+
 	if (com_ptr<ID3D11PixelShader> object;
 		SUCCEEDED(_orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, nullptr, &object)))
 	{
@@ -607,6 +622,8 @@ bool reshade::d3d11::device_impl::create_pixel_shader(const api::pipeline_desc &
 }
 bool reshade::d3d11::device_impl::create_compute_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11ComputeShader) >= 2);
+
 	if (com_ptr<ID3D11ComputeShader> object;
 		SUCCEEDED(_orig->CreateComputeShader(desc.compute.shader.code, desc.compute.shader.code_size, nullptr, &object)))
 	{
@@ -624,6 +641,8 @@ bool reshade::d3d11::device_impl::create_compute_shader(const api::pipeline_desc
 }
 bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11BlendState) >= 2);
+
 	com_ptr<ID3D11Device1> device1;
 	if (SUCCEEDED(_orig->QueryInterface(&device1)))
 	{
@@ -655,6 +674,8 @@ bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &d
 }
 bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11RasterizerState) >= 2);
+
 	D3D11_RASTERIZER_DESC internal_desc = {};
 	convert_pipeline_desc(desc, internal_desc);
 
@@ -672,6 +693,8 @@ bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_de
 }
 bool reshade::d3d11::device_impl::create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(ID3D11DepthStencilState) >= 2);
+
 	D3D11_DEPTH_STENCIL_DESC internal_desc = {};
 	convert_pipeline_desc(desc, internal_desc);
 
@@ -687,10 +710,10 @@ bool reshade::d3d11::device_impl::create_depth_stencil_state(const api::pipeline
 		return false;
 	}
 }
-void reshade::d3d11::device_impl::destroy_pipeline(api::pipeline_stage type, api::pipeline handle)
+void reshade::d3d11::device_impl::destroy_pipeline(api::pipeline handle)
 {
-	if (type == api::pipeline_stage::all_graphics)
-		delete reinterpret_cast<pipeline_impl *>(handle.handle);
+	if (handle.handle & 1)
+		delete reinterpret_cast<pipeline_impl *>(handle.handle ^ 1);
 	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }

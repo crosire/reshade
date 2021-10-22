@@ -2291,15 +2291,12 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		if (tech.effect_index != effect_index)
 			continue;
 
-		size_t pass_index = 0;
-
 		for (const technique::pass_data &pass : tech.passes_data)
 		{
 			_device->destroy_framebuffer(pass.fbo);
 			_device->destroy_render_pass(pass.pass);
 
-			const bool is_compute_pass = !tech.passes[pass_index++].cs_entry_point.empty();
-			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, pass.pipeline);
+			_device->destroy_pipeline(pass.pipeline);
 
 			_device->destroy_descriptor_sets(1, &pass.texture_set);
 			_device->destroy_descriptor_sets(1, &pass.storage_set);

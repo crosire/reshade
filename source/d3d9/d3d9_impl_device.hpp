@@ -37,7 +37,7 @@ namespace reshade::d3d9
 		bool create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		bool create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		bool create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
-		void destroy_pipeline(api::pipeline_stage type, api::pipeline handle) final;
+		void destroy_pipeline(api::pipeline handle) final;
 
 		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out_handle) final;
 		void destroy_render_pass(api::render_pass handle) final;

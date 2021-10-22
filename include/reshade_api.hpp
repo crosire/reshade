@@ -276,8 +276,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
 		/// </summary>
-		/// <param name="type">The type of the pipeline state object.</param>
-		virtual void destroy_pipeline(pipeline_stage type, pipeline handle) = 0;
+		virtual void destroy_pipeline(pipeline handle) = 0;
 
 		/// <summary>
 		/// Creates a new render pass.
@@ -292,7 +291,7 @@ namespace reshade { namespace api
 		virtual void destroy_render_pass(render_pass handle) = 0;
 
 		/// <summary>
-		/// Creates a new framebuffer object.
+		/// Creates a new framebuffer.
 		/// </summary>
 		/// <param name="desc">Description of the framebuffer to create.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created framebuffer.</param>
@@ -467,10 +466,12 @@ namespace reshade { namespace api
 		/// Gets the description of the specified <paramref name="resource"/>.
 		/// </summary>
 		virtual resource_desc get_resource_desc(resource resource) const = 0;
+
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
 		virtual      resource get_resource_from_view(resource_view view) const = 0;
+
 		/// <summary>
 		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
 		/// </summary>

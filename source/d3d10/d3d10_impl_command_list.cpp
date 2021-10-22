@@ -80,7 +80,8 @@ void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_stage type, api::p
 	switch (type)
 	{
 	case api::pipeline_stage::all_graphics:
-		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(_orig);
+		assert(pipeline.handle & 1);
+		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->apply(_orig);
 		break;
 	case api::pipeline_stage::input_assembler:
 		_orig->IASetInputLayout(reinterpret_cast<ID3D10InputLayout *>(pipeline.handle));

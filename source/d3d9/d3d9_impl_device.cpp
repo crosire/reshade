@@ -847,7 +847,10 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		impl->prim_type = static_cast<D3DPRIMITIVETYPE>(desc.graphics.topology);
 		impl->state_block = std::move(state_block);
 
-		*out_handle = { reinterpret_cast<uintptr_t>(impl) };
+		// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
+		static_assert(alignof(pipeline_impl) >= 2);
+
+		*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
 		return true;
 	}
 	else
@@ -858,6 +861,8 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 }
 bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(IDirect3DVertexDeclaration9) >= 2);
+
 	std::vector<D3DVERTEXELEMENT9> internal_elements;
 	convert_pipeline_desc(desc, internal_elements);
 	// Should always contain a 'D3DDECL_END' element
@@ -877,6 +882,8 @@ bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &d
 }
 bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(IDirect3DVertexShader9) >= 2);
+
 	if (com_ptr<IDirect3DVertexShader9> object;
 		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), &object)))
 	{
@@ -893,6 +900,8 @@ bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &
 }
 bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	static_assert(alignof(IDirect3DPixelShader9) >= 2);
+
 	if (com_ptr<IDirect3DPixelShader9> object;
 		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), &object)))
 	{
@@ -907,10 +916,10 @@ bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &d
 		return false;
 	}
 }
-void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_stage type, api::pipeline handle)
+void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline handle)
 {
-	if (type == api::pipeline_stage::all_graphics)
-		delete reinterpret_cast<pipeline_impl *>(handle.handle);
+	if (handle.handle & 1)
+		delete reinterpret_cast<pipeline_impl *>(handle.handle ^ 1);
 	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }

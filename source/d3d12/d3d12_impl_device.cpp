@@ -478,7 +478,7 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 		return false;
 	}
 }
-void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
+void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline handle)
 {
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();

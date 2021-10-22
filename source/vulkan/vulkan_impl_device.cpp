@@ -851,7 +851,7 @@ exit_failure:
 	*out_handle = { 0 };
 	return false;
 }
-void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
+void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline handle)
 {
 	vk.DestroyPipeline(_orig, (VkPipeline)handle.handle, nullptr);
 }
