@@ -435,8 +435,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetPrimitiveTopology(D3D11_PRIMI
 		(DWORD)reshade::api::primitive_topology::triangle_list_adj  == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ &&
 		(DWORD)reshade::api::primitive_topology::triangle_strip_adj == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ);
 
-	const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&Topology));
+	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::primitive_topology };
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, states, reinterpret_cast<const uint32_t *>(&Topology));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
@@ -556,8 +556,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetDepthStencilState(ID3D11Depth
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
 		reshade::api::pipeline_stage::depth_stencil, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pDepthStencilState) });
 
-	const reshade::api::dynamic_state state = reshade::api::dynamic_state::stencil_reference_value;
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &StencilRef);
+	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_reference_value };
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, states, &StencilRef);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::SOSetTargets(UINT NumBuffers, ID3D11Buffer *const *ppSOTargets, const UINT *pOffsets)

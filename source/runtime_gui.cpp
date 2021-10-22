@@ -3410,7 +3410,7 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.topology = api::primitive_topology::triangle_list;
 	pso_desc.graphics.render_pass_template = _back_buffer_passes[0];
 
-	if (_device->create_pipeline(pso_desc, &_imgui_pipeline))
+	if (_device->create_pipeline(pso_desc, 0, nullptr, &_imgui_pipeline))
 	{
 		return true;
 	}

@@ -543,14 +543,15 @@ bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits st
 	return vk.CreateShaderModule(_orig, &create_info, nullptr, &stage_info.module) == VK_SUCCESS;
 }
 
-bool reshade::vulkan::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::vulkan::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
 	switch (desc.type)
 	{
 	case api::pipeline_stage::all_compute:
+		assert(dynamic_state_count == 0);
 		return create_compute_pipeline(desc, out_handle);
 	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out_handle);
+		return create_graphics_pipeline(desc, dynamic_state_count, dynamic_states, out_handle);
 	default:
 		*out_handle = { 0 };
 		return false;
@@ -585,7 +586,7 @@ exit_failure:
 	*out_handle = { 0 };
 	return false;
 }
-bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
 	if (desc.graphics.render_pass_template.handle == 0)
 	{
@@ -640,14 +641,14 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 
 	{
 		std::vector<VkDynamicState> dyn_states;
-		dyn_states.reserve(2 + ARRAYSIZE(desc.graphics.dynamic_states));
+		dyn_states.reserve(2 + dynamic_state_count);
 		// Always make scissor rectangles and viewports dynamic
 		dyn_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
 		dyn_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
 
-		for (uint32_t i = 0; i < ARRAYSIZE(desc.graphics.dynamic_states) && desc.graphics.dynamic_states[i] != api::dynamic_state::unknown; ++i)
+		for (uint32_t i = 0; i < dynamic_state_count; ++i)
 		{
-			switch (desc.graphics.dynamic_states[i])
+			switch (dynamic_states[i])
 			{
 			case api::dynamic_state::blend_constant:
 				dyn_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
@@ -666,7 +667,7 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 			if (!_extended_dynamic_state_ext)
 				goto exit_failure;
 
-			switch (desc.graphics.dynamic_states[i])
+			switch (dynamic_states[i])
 			{
 			case api::dynamic_state::cull_mode:
 				dyn_states.push_back(VK_DYNAMIC_STATE_CULL_MODE_EXT);

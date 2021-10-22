@@ -429,7 +429,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_pipeline_desc(internal_desc);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
+	reshade::api::dynamic_state states[3] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::stencil_reference_value };
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 3, states))
 	{
 		reshade::d3d12::convert_pipeline_desc(desc, internal_desc);
 		pDesc = &internal_desc;
@@ -447,7 +448,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 
 		pipeline->SetPrivateData(reshade::d3d12::extra_data_guid, sizeof(extra_data), &extra_data);
 
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 3, states, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
 
 		register_destruction_callback(pipeline, [this, pipeline]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
@@ -474,7 +475,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 	D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_pipeline_desc(internal_desc);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		reshade::d3d12::convert_pipeline_desc(desc, internal_desc);
 		pDesc = &internal_desc;
@@ -487,7 +488,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 #if RESHADE_ADDON
 		const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
 
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 0, nullptr, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
 
 		register_destruction_callback(pipeline, [this, pipeline]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });

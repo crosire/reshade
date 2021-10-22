@@ -686,7 +686,7 @@ void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle
 		reinterpret_cast<IUnknown *>(handle.handle & ~1ull)->Release();
 }
 
-bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t, const api::dynamic_state *, api::pipeline *out_handle)
 {
 	switch (desc.type)
 	{

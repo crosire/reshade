@@ -48,7 +48,7 @@ static bool replace_shader_code(device_api device_type, pipeline_stage, shader_d
 
 static thread_local shader_stage replaced_stages = static_cast<shader_stage>(0);
 
-static bool on_create_pipeline(device *device, pipeline_desc &desc)
+static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, const dynamic_state *)
 {
 	const device_api device_type = device->get_api();
 
@@ -75,7 +75,7 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc)
 	// Return whether any shader code was replaced
 	return static_cast<shader_stage>(0) != replaced_stages;
 }
-static void on_after_create_pipeline(device *device, const pipeline_desc &desc, pipeline)
+static void on_after_create_pipeline(device *device, const pipeline_desc &desc, uint32_t, const dynamic_state *, pipeline)
 {
 	if (device->get_api() != device_api::opengl) // TODO: Does not work in OpenGL because 'glLinkProgram' calls this with different pointers
 	{

@@ -268,9 +268,11 @@ namespace reshade { namespace api
 		/// Creates a new pipeline state object.
 		/// </summary>
 		/// <param name="desc">Description of the pipeline state object to create.</param>
+		/// <param name="dynamic_state_count">Number of dynamic pipeline states.</param>
+		/// <param name="dynamic_states">Optional pointer to an array of pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding the created pipeline state object.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
 		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_pipeline(const pipeline_desc &desc, pipeline *out_handle) = 0;
+		virtual bool create_pipeline(const pipeline_desc &desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states, pipeline *out_handle) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
 		/// </summary>

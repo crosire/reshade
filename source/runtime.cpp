@@ -1942,7 +1942,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					desc.compute.shader.spec_constant_values = spec_data.data();
 				}
 
-				if (!_device->create_pipeline(desc, &pass_data.pipeline))
+				if (!_device->create_pipeline(desc, 0, nullptr, &pass_data.pipeline))
 				{
 					effect.compiled = false;
 					_last_reload_successfull = false;
@@ -2135,7 +2135,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				depth_stencil_state.front_stencil_pass_op = depth_stencil_state.back_stencil_pass_op;
 				depth_stencil_state.front_stencil_func = depth_stencil_state.back_stencil_func;
 
-				if (!_device->create_pipeline(desc, &pass_data.pipeline))
+				if (!_device->create_pipeline(desc, 0, nullptr, &pass_data.pipeline))
 				{
 					effect.compiled = false;
 					_last_reload_successfull = false;

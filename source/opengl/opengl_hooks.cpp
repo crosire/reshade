@@ -1627,7 +1627,7 @@ void APIENTRY glLinkProgram(GLuint program)
 				}
 			}
 
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, desc, reshade::api::pipeline { program });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, desc, 0, nullptr, reshade::api::pipeline { program });
 		}
 	}
 #endif
@@ -1695,7 +1695,7 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 			shader_desc->code_size = combined_source.size();
 			shader_desc->entry_point = "main";
 
-			if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, desc))
+			if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, desc, 0, nullptr))
 			{
 				assert(shader_desc->code_size <= static_cast<size_t>(std::numeric_limits<GLint>::max()));
 				combined_source_length = static_cast<GLint>(shader_desc->code_size);

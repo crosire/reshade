@@ -377,11 +377,23 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 		_view_heaps[i].free(descriptor_handle);
 }
 
-bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
+	for (uint32_t i = 0; i < dynamic_state_count; ++i)
+	{
+		if (dynamic_states[i] != api::dynamic_state::stencil_reference_value &&
+			dynamic_states[i] != api::dynamic_state::blend_constant &&
+			dynamic_states[i] != api::dynamic_state::primitive_topology)
+		{
+			*out_handle = { 0 };
+			return false;
+		}
+	}
+
 	switch (desc.type)
 	{
 	case api::pipeline_stage::all_compute:
+		assert(dynamic_state_count == 0);
 		return create_compute_pipeline(desc, out_handle);
 	case api::pipeline_stage::all_graphics:
 		return create_graphics_pipeline(desc, out_handle);
@@ -414,17 +426,6 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 	{
 		*out_handle = { 0 };
 		return false;
-	}
-
-	for (UINT i = 0; i < ARRAYSIZE(desc.graphics.dynamic_states) && desc.graphics.dynamic_states[i] != api::dynamic_state::unknown; ++i)
-	{
-		if (desc.graphics.dynamic_states[i] != api::dynamic_state::stencil_reference_value &&
-			desc.graphics.dynamic_states[i] != api::dynamic_state::blend_constant &&
-			desc.graphics.dynamic_states[i] != api::dynamic_state::primitive_topology)
-		{
-			*out_handle = { 0 };
-			return false;
-		}
 	}
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC internal_desc = {};

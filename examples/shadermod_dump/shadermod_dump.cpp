@@ -33,7 +33,7 @@ static void dump_shader_code(device_api device_type, pipeline_stage, const shade
 	file.write(static_cast<const char *>(desc.code), desc.code_size);
 }
 
-static bool on_create_pipeline(device *device, pipeline_desc &desc)
+static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, const dynamic_state *)
 {
 	const device_api device_type = device->get_api();
 

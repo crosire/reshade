@@ -408,8 +408,17 @@ void reshade::d3d11::device_impl::destroy_resource_view(api::resource_view handl
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
+	for (uint32_t i = 0; i < dynamic_state_count; ++i)
+	{
+		if (dynamic_states[i] != api::dynamic_state::primitive_topology)
+		{
+			*out_handle = { 0 };
+			return false;
+		}
+	}
+
 	switch (desc.type)
 	{
 	case api::pipeline_stage::all_graphics:
@@ -441,8 +450,7 @@ bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc
 }
 bool reshade::d3d11::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
-	if (desc.graphics.topology == api::primitive_topology::triangle_fan ||
-		desc.graphics.dynamic_states[0] != api::dynamic_state::unknown)
+	if (desc.graphics.topology == api::primitive_topology::triangle_fan)
 	{
 		*out_handle = { 0 };
 		return false;

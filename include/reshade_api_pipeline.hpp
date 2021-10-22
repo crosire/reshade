@@ -616,6 +616,9 @@ namespace reshade { namespace api
 				/// <seealso cref="pipeline_stage::input_assembler"/>
 				input_layout_element input_layout[16];
 
+				/// <summary>Primitive topology to use when rendering.</summary>
+				primitive_topology topology;
+
 				/// <summary>State of the rasterizer stage.</summary>
 				/// <seealso cref="pipeline_stage::rasterizer"/>
 				rasterizer_desc rasterizer_state;
@@ -623,6 +626,7 @@ namespace reshade { namespace api
 				/// <summary>State of the output-merger stage.</summary>
 				/// <seealso cref="pipeline_stage::output_merger"/>
 				blend_desc blend_state;
+
 				/// <summary>State of the depth-stencil stage.</summary>
 				/// <seealso cref="pipeline_stage::depth_stencil"/>
 				depth_stencil_desc depth_stencil_state;
@@ -631,14 +635,9 @@ namespace reshade { namespace api
 				uint32_t sample_mask;
 				/// <summary>Maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> with this pipeline.</summary>
 				uint32_t viewport_count;
-				/// <summary>Primitive topology to use when rendering.</summary>
-				primitive_topology topology;
+
 				/// <summary>A render pass that describes the format of the render target and depth-stencil views that may be used with this pipeline.</summary>
 				render_pass render_pass_template;
-
-				/// <summary>A list of all pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/>.
-				/// Elements following one set to <see cref="dynamic_state::unknown"/> will be ignored (which is used to terminate this list).</summary>
-				dynamic_state dynamic_states[32];
 			} graphics;
 		};
 	};

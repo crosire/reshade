@@ -740,7 +740,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 	}
 }
 
-bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t, const api::dynamic_state *, api::pipeline *out_handle)
 {
 	*out_handle = { 0 };
 

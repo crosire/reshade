@@ -162,6 +162,8 @@ namespace reshade::vulkan
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
 
+	void convert_dynamic_states(const VkPipelineDynamicStateCreateInfo &create_info, std::vector<api::dynamic_state> &states);
+
 	auto convert_logic_op(api::logic_op value) -> VkLogicOp;
 	auto convert_logic_op(VkLogicOp value) -> api::logic_op;
 	auto convert_blend_op(api::blend_op value) -> VkBlendOp;

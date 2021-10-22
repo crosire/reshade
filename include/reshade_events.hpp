@@ -143,7 +143,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called after successfull pipeline creation from 'IDirect3DDevice9::Create(...)(Shader/VertexDeclaration)', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState', 'glLinkProgram' or 'vkCreate(...)Pipelines'.
-		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_desc &amp;desc, api::pipeline pipeline)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_desc &amp;desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states, api::pipeline pipeline)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// May be called multiple times with the same pipeline handle (whenever the pipeline is updated or its reference count is incremented).
@@ -151,7 +151,7 @@ namespace reshade
 		init_pipeline,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)(Shader/VertexDeclaration)', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState', 'glShaderSource' or 'vkCreate(...)Pipelines'.
-		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -555,8 +555,8 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_resource_view, bool, api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &desc);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_resource_view, void, api::device *device, api::resource_view view);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline, void, api::device *device, const api::pipeline_desc &desc, api::pipeline pipeline);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline, void, api::device *device, const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline pipeline);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_render_pass, void, api::device *device, const api::render_pass_desc &desc, api::render_pass pass);

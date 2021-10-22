@@ -340,7 +340,7 @@ static void on_destroy_resource_view(reshade::api::device *device, reshade::api:
 	assert(s_resource_views.find(handle.handle) != s_resource_views.end());
 	s_resource_views.erase(handle.handle);
 }
-static void on_init_pipeline(reshade::api::device *device, const reshade::api::pipeline_desc &desc, reshade::api::pipeline handle)
+static void on_init_pipeline(reshade::api::device *device, const reshade::api::pipeline_desc &desc, uint32_t, const reshade::api::dynamic_state *, reshade::api::pipeline handle)
 {
 	const std::lock_guard<std::mutex> lock(s_mutex);
 

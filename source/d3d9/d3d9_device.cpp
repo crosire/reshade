@@ -1665,7 +1665,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 
 	std::vector<D3DVERTEXELEMENT9> internal_elements;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		reshade::d3d9::convert_pipeline_desc(desc, internal_elements);
 		pVertexElements = internal_elements.data();
@@ -1678,7 +1678,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 		assert(ppDecl != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppDecl) });
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 0, nullptr, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppDecl) });
 #endif
 	}
 	else
@@ -1732,7 +1732,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 	for (int i = 0; pFunction[i] != 0x0000FFFF; ++i)
 		desc.graphics.vertex_shader.code_size += sizeof(DWORD);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pFunction = static_cast<const DWORD *>(desc.graphics.vertex_shader.code);
 	}
@@ -1744,7 +1744,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 		assert(ppShader != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppShader) });
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 0, nullptr, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppShader) });
 #endif
 	}
 	else
@@ -1895,7 +1895,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 	for (int i = 0; pFunction[i] != 0x0000FFFF; ++i)
 		desc.graphics.pixel_shader.code_size += sizeof(DWORD);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pFunction = static_cast<const DWORD *>(desc.graphics.pixel_shader.code);
 	}
@@ -1907,7 +1907,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 		assert(ppShader != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppShader) });
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 0, nullptr, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppShader) });
 #endif
 	}
 	else

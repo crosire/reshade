@@ -44,9 +44,9 @@ namespace reshade::vulkan
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
 
-		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle) final;
+		bool create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle) final;
 		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
-		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_graphics_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle);
 		void destroy_pipeline(api::pipeline_stage type, api::pipeline handle) final;
 
 		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out_handle) final;

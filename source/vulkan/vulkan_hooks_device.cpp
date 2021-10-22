@@ -1168,12 +1168,16 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		VkGraphicsPipelineCreateInfo create_info = pCreateInfos[i];
 		auto desc = device_impl->convert_pipeline_desc(create_info);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc))
+		std::vector<reshade::api::dynamic_state> states;
+		if (create_info.pDynamicState != nullptr)
+			reshade::vulkan::convert_dynamic_states(*create_info.pDynamicState, states);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, static_cast<uint32_t>(states.size()), states.data()))
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
 			result = device_impl->create_graphics_pipeline(
-				desc, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+				desc, static_cast<uint32_t>(states.size()), states.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -1182,7 +1186,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 
 		if (result >= VK_SUCCESS)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, reshade::api::pipeline { (uint64_t)pPipelines[i] });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, static_cast<uint32_t>(states.size()), states.data(), reshade::api::pipeline { (uint64_t)pPipelines[i] });
 		}
 		else
 		{
@@ -1215,7 +1219,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		VkComputePipelineCreateInfo create_info = pCreateInfos[i];
 		auto desc = device_impl->convert_pipeline_desc(pCreateInfos[i]);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, 0, nullptr))
 		{
 			result = device_impl->create_compute_pipeline(
 				desc, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
@@ -1227,7 +1231,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 
 		if (result >= VK_SUCCESS)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, reshade::api::pipeline { (uint64_t)pPipelines[i] });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, 0, nullptr, reshade::api::pipeline { (uint64_t)pPipelines[i] });
 		}
 		else
 		{
