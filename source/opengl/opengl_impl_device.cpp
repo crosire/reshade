@@ -223,6 +223,8 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true; // OpenGL 4.0
 	case api::device_caps::fill_mode_non_solid:
 		return true;
+	case api::device_caps::conservative_rasterization:
+		return false;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 		return false;
 	case api::device_caps::multi_viewport:
@@ -848,6 +850,12 @@ bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_d
 }
 bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	if (desc.graphics.rasterizer_state.conservative_rasterization)
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
 	GLuint vs, hs, ds, gs, ps;
 	const GLuint program = glCreateProgram();
 

@@ -160,6 +160,9 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return _enabled_features.independentBlend;
 	case api::device_caps::fill_mode_non_solid:
 		return _enabled_features.fillModeNonSolid;
+	case api::device_caps::conservative_rasterization:
+		// TODO: Enable when the 'VK_EXT_conservative_rasterization' extension is available
+		return false;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 		return false;
 	case api::device_caps::multi_viewport:
@@ -767,6 +770,14 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 		rasterization_state_info.depthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
 		rasterization_state_info.depthBiasSlopeFactor = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
 		rasterization_state_info.lineWidth = 1.0f;
+
+		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
+
+		if (desc.graphics.rasterizer_state.conservative_rasterization != 0)
+		{
+			rasterization_state_info.pNext = &conservative_rasterization_info;
+			conservative_rasterization_info.conservativeRasterizationMode = static_cast<VkConservativeRasterizationModeEXT>(desc.graphics.rasterizer_state.conservative_rasterization);
+		}
 
 		create_info.renderPass = (VkRenderPass)desc.graphics.render_pass_template.handle;
 		const auto render_pass_data = get_user_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(create_info.renderPass);

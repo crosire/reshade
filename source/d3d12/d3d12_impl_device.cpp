@@ -124,6 +124,12 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::dual_source_blend:
 	case api::device_caps::independent_blend:
 	case api::device_caps::fill_mode_non_solid:
+		return true;
+	case api::device_caps::conservative_rasterization:
+		if (D3D12_FEATURE_DATA_D3D12_OPTIONS options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options))))
+			return options.ConservativeRasterizationTier != D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED;
+		return false;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 	case api::device_caps::multi_viewport:
 	case api::device_caps::partial_push_constant_updates:

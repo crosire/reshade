@@ -99,6 +99,9 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::dual_source_blend:
 	case api::device_caps::independent_blend: // Supported in D3D10.1
 	case api::device_caps::fill_mode_non_solid:
+		return true;
+	case api::device_caps::conservative_rasterization:
+		return false;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 	case api::device_caps::multi_viewport:
 		return true;
@@ -340,6 +343,7 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 {
 	if (desc.graphics.hull_shader.code_size != 0 ||
 		desc.graphics.domain_shader.code_size != 0 ||
+		desc.graphics.rasterizer_state.conservative_rasterization ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
 		desc.graphics.topology == api::primitive_topology::triangle_fan)
 	{

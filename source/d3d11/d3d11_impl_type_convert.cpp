@@ -1020,8 +1020,10 @@ void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11
 void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_RASTERIZER_DESC2 &internal_desc)
 {
 	// D3D11_RASTERIZER_DESC2 is a superset of D3D11_RASTERIZER_DESC1
-	// Missing fields: ForcedSampleCount, ConservativeRaster
+	// Missing fields: ForcedSampleCount
 	convert_pipeline_desc(desc, reinterpret_cast<D3D11_RASTERIZER_DESC &>(internal_desc));
+
+	internal_desc.ConservativeRaster = static_cast<D3D11_CONSERVATIVE_RASTERIZATION_MODE>(desc.graphics.rasterizer_state.conservative_rasterization);
 }
 void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_DEPTH_STENCIL_DESC &internal_desc)
 {
@@ -1189,8 +1191,15 @@ reshade::api::pipeline_desc reshade::d3d11::convert_pipeline_desc(const D3D11_RA
 reshade::api::pipeline_desc reshade::d3d11::convert_pipeline_desc(const D3D11_RASTERIZER_DESC2 *internal_desc)
 {
 	// D3D11_RASTERIZER_DESC2 is a superset of D3D11_RASTERIZER_DESC1
-	// Missing fields: ForcedSampleCount, ConservativeRaster
-	return convert_pipeline_desc(reinterpret_cast<const D3D11_RASTERIZER_DESC *>(internal_desc));
+	// Missing fields: ForcedSampleCount
+	api::pipeline_desc desc = convert_pipeline_desc(reinterpret_cast<const D3D11_RASTERIZER_DESC *>(internal_desc));
+
+	if (internal_desc != nullptr)
+	{
+		desc.graphics.rasterizer_state.conservative_rasterization = static_cast<uint32_t>(internal_desc->ConservativeRaster);
+	}
+
+	return desc;
 }
 reshade::api::pipeline_desc reshade::d3d11::convert_pipeline_desc(const D3D11_DEPTH_STENCIL_DESC *internal_desc)
 {

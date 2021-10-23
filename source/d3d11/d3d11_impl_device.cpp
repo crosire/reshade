@@ -96,8 +96,6 @@ reshade::d3d11::device_impl::~device_impl()
 
 bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) const
 {
-	D3D11_FEATURE_DATA_D3D11_OPTIONS options;
-
 	switch (capability)
 	{
 	case api::device_caps::compute_shader:
@@ -109,11 +107,19 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::hull_and_domain_shader:
 		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_0;
 	case api::device_caps::logic_op:
-		_orig->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &options, sizeof(options));
-		return options.OutputMergerLogicOp;
+		if (D3D11_FEATURE_DATA_D3D11_OPTIONS options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &options, sizeof(options))))
+			return options.OutputMergerLogicOp;
+		return false;
 	case api::device_caps::dual_source_blend:
 	case api::device_caps::independent_blend:
 	case api::device_caps::fill_mode_non_solid:
+		return true;
+	case api::device_caps::conservative_rasterization:
+		if (D3D11_FEATURE_DATA_D3D11_OPTIONS2 options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS2, &options, sizeof(options))))
+			return options.ConservativeRasterizationTier != D3D11_CONSERVATIVE_RASTERIZATION_NOT_SUPPORTED;
+		return false;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 	case api::device_caps::multi_viewport:
 		return true;
@@ -450,7 +456,8 @@ bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc
 }
 bool reshade::d3d11::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
-	if (desc.graphics.topology == api::primitive_topology::triangle_fan)
+	if (desc.graphics.rasterizer_state.conservative_rasterization ||
+		desc.graphics.topology == api::primitive_topology::triangle_fan)
 	{
 		*out_handle = { 0 };
 		return false;
@@ -673,20 +680,34 @@ bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_de
 {
 	static_assert(alignof(ID3D11RasterizerState) >= 2);
 
-	D3D11_RASTERIZER_DESC internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
-
-	if (com_ptr<ID3D11RasterizerState> object;
-		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
+	com_ptr<ID3D11Device3> device3;
+	if (SUCCEEDED(_orig->QueryInterface(&device3)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
-		return true;
+		D3D11_RASTERIZER_DESC2 internal_desc = {};
+		convert_pipeline_desc(desc, internal_desc);
+
+		if (com_ptr<ID3D11RasterizerState2> object;
+			SUCCEEDED(device3->CreateRasterizerState2(&internal_desc, &object)))
+		{
+			*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+			return true;
+		}
 	}
 	else
 	{
-		*out_handle = { 0 };
-		return false;
+		D3D11_RASTERIZER_DESC internal_desc = {};
+		convert_pipeline_desc(desc, internal_desc);
+
+		if (com_ptr<ID3D11RasterizerState> object;
+			SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
+		{
+			*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+			return true;
+		}
 	}
+
+	*out_handle = { 0 };
+	return false;
 }
 bool reshade::d3d11::device_impl::create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {

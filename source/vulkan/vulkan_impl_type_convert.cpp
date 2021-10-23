@@ -1224,6 +1224,14 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 		desc.graphics.rasterizer_state.slope_scaled_depth_bias = rasterization_state_info.depthBiasSlopeFactor;
 		desc.graphics.rasterizer_state.depth_clip_enable = !rasterization_state_info.depthClampEnable;
 		desc.graphics.rasterizer_state.scissor_enable = true;
+
+		const auto conservative_rasterization_info = find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(
+			rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT);
+
+		if (conservative_rasterization_info != nullptr)
+		{
+			desc.graphics.rasterizer_state.conservative_rasterization = static_cast<uint32_t>(conservative_rasterization_info->conservativeRasterizationMode);
+		}
 	}
 
 	if (create_info.pMultisampleState != nullptr)

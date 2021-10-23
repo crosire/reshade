@@ -454,6 +454,10 @@ namespace reshade { namespace api
 		/// Enable or disable line antialiasing. Only applies if doing line drawing and <see cref="multisample_enable"/> is <see langword="false"/>.
 		/// </summary>
 		bool antialiased_line_enable;
+		/// <summary>
+		/// Enable or disable conservative rasterization mode.
+		/// </summary>
+		uint32_t conservative_rasterization;
 	};
 
 	/// <summary>

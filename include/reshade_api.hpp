@@ -75,6 +75,11 @@ namespace reshade { namespace api
 		/// </summary>
 		fill_mode_non_solid,
 		/// <summary>
+		/// Specifies whether conservative rasterization is supported.
+		/// If this feature is not present, the "conservative_rasterization" field of <see cref="rasterizer_desc"/> must be 0.
+		/// </summary>
+		conservative_rasterization,
+		/// <summary>
 		/// Specifies whether binding individual render target and depth-stencil resource views is supported.
 		/// If this feature is not present, <see cref="command_list::bind_render_targets_and_depth_stencil"/> must not be used (only render passes).
 		/// </summary>
