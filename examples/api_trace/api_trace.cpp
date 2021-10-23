@@ -150,15 +150,15 @@ static inline auto to_string(reshade::api::dynamic_state value)
 		return "logic_op_enable";
 	case reshade::api::dynamic_state::color_blend_op:
 		return "color_blend_op";
-	case reshade::api::dynamic_state::src_color_blend_factor:
+	case reshade::api::dynamic_state::source_color_blend_factor:
 		return "src_color_blend_factor";
-	case reshade::api::dynamic_state::dst_color_blend_factor:
+	case reshade::api::dynamic_state::dest_color_blend_factor:
 		return "dst_color_blend_factor";
 	case reshade::api::dynamic_state::alpha_blend_op:
 		return "alpha_blend_op";
-	case reshade::api::dynamic_state::src_alpha_blend_factor:
+	case reshade::api::dynamic_state::source_alpha_blend_factor:
 		return "src_alpha_blend_factor";
-	case reshade::api::dynamic_state::dst_alpha_blend_factor:
+	case reshade::api::dynamic_state::dest_alpha_blend_factor:
 		return "dst_alpha_blend_factor";
 	case reshade::api::dynamic_state::logic_op:
 		return "logic_op";

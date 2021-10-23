@@ -217,7 +217,7 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true; // OpenGL 4.0
 	case api::device_caps::logic_op:
 		return true; // OpenGL 1.1
-	case api::device_caps::dual_src_blend:
+	case api::device_caps::dual_source_blend:
 		return true; // OpenGL 3.3
 	case api::device_caps::independent_blend:
 		return true; // OpenGL 4.0
@@ -938,17 +938,14 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 	impl->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage_enable;
 	impl->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0]; // Logic operation applies to all attachments
 	impl->logic_op = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
-	impl->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
-	impl->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
-	impl->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
-	impl->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
+	std::copy_n(desc.graphics.blend_state.blend_constant, 4, impl->blend_constant);
 	for (int i = 0; i < 8; ++i)
 	{
 		impl->blend_enable[i] = desc.graphics.blend_state.blend_enable[i];
-		impl->blend_src[i] = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
-		impl->blend_dst[i] = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
-		impl->blend_src_alpha[i] = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
-		impl->blend_dst_alpha[i] = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
+		impl->blend_src[i] = convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[i]);
+		impl->blend_dst[i] = convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[i]);
+		impl->blend_src_alpha[i] = convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[i]);
+		impl->blend_dst_alpha[i] = convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[i]);
 		impl->blend_eq[i] = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
 		impl->blend_eq_alpha[i] = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
 		impl->color_write_mask[i][0] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 0)) != 0;

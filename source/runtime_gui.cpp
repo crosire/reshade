@@ -3386,11 +3386,11 @@ bool reshade::runtime::init_imgui_resources()
 
 	{	auto &blend_state = pso_desc.graphics.blend_state;
 		blend_state.blend_enable[0] = true;
-		blend_state.src_color_blend_factor[0] = api::blend_factor::src_alpha;
-		blend_state.dst_color_blend_factor[0] = api::blend_factor::inv_src_alpha;
+		blend_state.source_color_blend_factor[0] = api::blend_factor::source_alpha;
+		blend_state.dest_color_blend_factor[0] = api::blend_factor::one_minus_source_alpha;
 		blend_state.color_blend_op[0] = api::blend_op::add;
-		blend_state.src_alpha_blend_factor[0] = api::blend_factor::one;
-		blend_state.dst_alpha_blend_factor[0] = api::blend_factor::inv_src_alpha;
+		blend_state.source_alpha_blend_factor[0] = api::blend_factor::one;
+		blend_state.dest_alpha_blend_factor[0] = api::blend_factor::one_minus_source_alpha;
 		blend_state.alpha_blend_op[0] = api::blend_op::add;
 		blend_state.render_target_write_mask[0] = 0xF;
 	}

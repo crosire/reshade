@@ -295,7 +295,7 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 	case api::device_caps::geometry_shader:
 	case api::device_caps::hull_and_domain_shader:
 	case api::device_caps::logic_op:
-	case api::device_caps::dual_src_blend:
+	case api::device_caps::dual_source_blend:
 	case api::device_caps::independent_blend:
 		return false;
 	case api::device_caps::fill_mode_non_solid:
@@ -761,9 +761,9 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 	_orig->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
 	_orig->SetRenderState(D3DRS_LASTPIXEL, TRUE);
 	_orig->SetRenderState(D3DRS_SRCBLEND,
-		convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]));
+		convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[0]));
 	_orig->SetRenderState(D3DRS_DESTBLEND,
-		convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]));
+		convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[0]));
 	_orig->SetRenderState(D3DRS_CULLMODE,
 		convert_cull_mode(desc.graphics.rasterizer_state.cull_mode, desc.graphics.rasterizer_state.front_counter_clockwise));
 	_orig->SetRenderState(D3DRS_ZFUNC,
@@ -829,14 +829,14 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 	_orig->SetRenderState(D3DRS_COLORWRITEENABLE3,
 		desc.graphics.blend_state.render_target_write_mask[3]);
 	_orig->SetRenderState(D3DRS_BLENDFACTOR,
-		desc.graphics.blend_state.blend_constant);
+		D3DCOLOR_COLORVALUE(desc.graphics.blend_state.blend_constant[0], desc.graphics.blend_state.blend_constant[1], desc.graphics.blend_state.blend_constant[2], desc.graphics.blend_state.blend_constant[3]));
 	_orig->SetRenderState(D3DRS_DEPTHBIAS,
 		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.depth_bias));
 	_orig->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
 	_orig->SetRenderState(D3DRS_SRCBLENDALPHA,
-		convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]));
+		convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[0]));
 	_orig->SetRenderState(D3DRS_DESTBLENDALPHA,
-		convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]));
+		convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[0]));
 	_orig->SetRenderState(D3DRS_BLENDOPALPHA,
 		convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]));
 

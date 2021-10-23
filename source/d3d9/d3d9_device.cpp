@@ -1379,8 +1379,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 			(DWORD)reshade::api::dynamic_state::fill_mode                   == D3DRS_FILLMODE &&
 			(DWORD)reshade::api::dynamic_state::depth_write_mask            == D3DRS_ZWRITEENABLE &&
 			(DWORD)reshade::api::dynamic_state::alpha_test_enable           == D3DRS_ALPHATESTENABLE &&
-			(DWORD)reshade::api::dynamic_state::src_color_blend_factor      == D3DRS_SRCBLEND &&
-			(DWORD)reshade::api::dynamic_state::dst_color_blend_factor      == D3DRS_DESTBLEND &&
+			(DWORD)reshade::api::dynamic_state::source_color_blend_factor   == D3DRS_SRCBLEND &&
+			(DWORD)reshade::api::dynamic_state::dest_color_blend_factor     == D3DRS_DESTBLEND &&
 			(DWORD)reshade::api::dynamic_state::cull_mode                   == D3DRS_CULLMODE &&
 			(DWORD)reshade::api::dynamic_state::depth_func                  == D3DRS_ZFUNC &&
 			(DWORD)reshade::api::dynamic_state::alpha_reference_value       == D3DRS_ALPHAREF &&
@@ -1409,8 +1409,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 			(DWORD)reshade::api::dynamic_state::blend_constant              == D3DRS_BLENDFACTOR &&
 			(DWORD)reshade::api::dynamic_state::srgb_write_enable           == D3DRS_SRGBWRITEENABLE &&
 			(DWORD)reshade::api::dynamic_state::depth_bias                  == D3DRS_DEPTHBIAS &&
-			(DWORD)reshade::api::dynamic_state::src_alpha_blend_factor      == D3DRS_SRCBLENDALPHA &&
-			(DWORD)reshade::api::dynamic_state::dst_alpha_blend_factor      == D3DRS_DESTBLENDALPHA &&
+			(DWORD)reshade::api::dynamic_state::source_alpha_blend_factor   == D3DRS_SRCBLENDALPHA &&
+			(DWORD)reshade::api::dynamic_state::dest_alpha_blend_factor     == D3DRS_DESTBLENDALPHA &&
 			(DWORD)reshade::api::dynamic_state::alpha_blend_op              == D3DRS_BLENDOPALPHA);
 
 		switch (State)

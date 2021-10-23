@@ -121,7 +121,7 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options))))
 			return options.OutputMergerLogicOp;
 		return false;
-	case api::device_caps::dual_src_blend:
+	case api::device_caps::dual_source_blend:
 	case api::device_caps::independent_blend:
 	case api::device_caps::fill_mode_non_solid:
 	case api::device_caps::bind_render_targets_and_depth_stencil:
@@ -435,7 +435,7 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 	internal_elements.reserve(16);
 	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
 	{
-		const api::input_layout_element &element = desc.graphics.input_layout[i];
+		const api::input_element &element = desc.graphics.input_layout[i];
 
 		D3D12_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
 		internal_element.SemanticName = element.semantic;
@@ -466,6 +466,8 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 	{
 		pipeline_graphics_impl extra_data;
 		extra_data.topology = static_cast<D3D12_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
+
+		std::copy_n(desc.graphics.blend_state.blend_constant, 4, extra_data.blend_constant);
 
 		pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
 

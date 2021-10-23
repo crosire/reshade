@@ -111,7 +111,7 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::logic_op:
 		_orig->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &options, sizeof(options));
 		return options.OutputMergerLogicOp;
-	case api::device_caps::dual_src_blend:
+	case api::device_caps::dual_source_blend:
 	case api::device_caps::independent_blend:
 	case api::device_caps::fill_mode_non_solid:
 	case api::device_caps::bind_render_targets_and_depth_stencil:
@@ -494,10 +494,7 @@ bool reshade::d3d11::device_impl::create_graphics_pipeline(const api::pipeline_d
 	impl->sample_mask = desc.graphics.sample_mask;
 	impl->stencil_reference_value = desc.graphics.depth_stencil_state.stencil_reference_value;
 
-	impl->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
-	impl->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
-	impl->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
-	impl->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
+	std::copy_n(desc.graphics.blend_state.blend_constant, 4, impl->blend_constant);
 
 	// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
 	static_assert(alignof(pipeline_impl) >= 2);

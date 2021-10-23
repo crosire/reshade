@@ -2052,7 +2052,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					default:
 					case reshadefx::pass_blend_op::add: return api::blend_op::add;
 					case reshadefx::pass_blend_op::subtract: return api::blend_op::subtract;
-					case reshadefx::pass_blend_op::rev_subtract: return api::blend_op::rev_subtract;
+					case reshadefx::pass_blend_op::rev_subtract: return api::blend_op::reverse_subtract;
 					case reshadefx::pass_blend_op::min: return api::blend_op::min;
 					case reshadefx::pass_blend_op::max: return api::blend_op::max;
 					}
@@ -2062,14 +2062,14 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					case reshadefx::pass_blend_func::zero: return api::blend_factor::zero;
 					default:
 					case reshadefx::pass_blend_func::one: return api::blend_factor::one;
-					case reshadefx::pass_blend_func::src_color: return api::blend_factor::src_color;
-					case reshadefx::pass_blend_func::src_alpha: return api::blend_factor::src_alpha;
-					case reshadefx::pass_blend_func::inv_src_color: return api::blend_factor::inv_src_color;
-					case reshadefx::pass_blend_func::inv_src_alpha: return api::blend_factor::inv_src_alpha;
-					case reshadefx::pass_blend_func::dst_color: return api::blend_factor::dst_color;
-					case reshadefx::pass_blend_func::dst_alpha: return api::blend_factor::dst_alpha;
-					case reshadefx::pass_blend_func::inv_dst_color: return api::blend_factor::inv_dst_color;
-					case reshadefx::pass_blend_func::inv_dst_alpha: return api::blend_factor::inv_dst_alpha;
+					case reshadefx::pass_blend_func::src_color: return api::blend_factor::source_color;
+					case reshadefx::pass_blend_func::src_alpha: return api::blend_factor::source_alpha;
+					case reshadefx::pass_blend_func::inv_src_color: return api::blend_factor::one_minus_source_color;
+					case reshadefx::pass_blend_func::inv_src_alpha: return api::blend_factor::one_minus_source_alpha;
+					case reshadefx::pass_blend_func::dst_color: return api::blend_factor::dest_color;
+					case reshadefx::pass_blend_func::dst_alpha: return api::blend_factor::dest_alpha;
+					case reshadefx::pass_blend_func::inv_dst_color: return api::blend_factor::one_minus_dest_color;
+					case reshadefx::pass_blend_func::inv_dst_alpha: return api::blend_factor::one_minus_dest_alpha;
 					}
 				};
 
@@ -2077,11 +2077,11 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				for (int i = 0; i < 8; ++i)
 				{
 					blend_state.blend_enable[i] = pass_info.blend_enable;
-					blend_state.src_color_blend_factor[i] = convert_blend_func(pass_info.src_blend);
-					blend_state.dst_color_blend_factor[i] = convert_blend_func(pass_info.dest_blend);
+					blend_state.source_color_blend_factor[i] = convert_blend_func(pass_info.src_blend);
+					blend_state.dest_color_blend_factor[i] = convert_blend_func(pass_info.dest_blend);
 					blend_state.color_blend_op[i] = convert_blend_op(pass_info.blend_op);
-					blend_state.src_alpha_blend_factor[i] = convert_blend_func(pass_info.src_blend_alpha);
-					blend_state.dst_alpha_blend_factor[i] = convert_blend_func(pass_info.dest_blend_alpha);
+					blend_state.source_alpha_blend_factor[i] = convert_blend_func(pass_info.src_blend_alpha);
+					blend_state.dest_alpha_blend_factor[i] = convert_blend_func(pass_info.dest_blend_alpha);
 					blend_state.alpha_blend_op[i] = convert_blend_op(pass_info.blend_op_alpha);
 					blend_state.render_target_write_mask[i] = pass_info.color_write_mask;
 				}
@@ -2098,10 +2098,10 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					case reshadefx::pass_stencil_op::keep: return api::stencil_op::keep;
 					case reshadefx::pass_stencil_op::invert: return api::stencil_op::invert;
 					case reshadefx::pass_stencil_op::replace: return api::stencil_op::replace;
-					case reshadefx::pass_stencil_op::incr: return api::stencil_op::incr;
-					case reshadefx::pass_stencil_op::incr_sat: return api::stencil_op::incr_sat;
-					case reshadefx::pass_stencil_op::decr: return api::stencil_op::decr;
-					case reshadefx::pass_stencil_op::decr_sat: return api::stencil_op::decr_sat;
+					case reshadefx::pass_stencil_op::incr: return api::stencil_op::increment;
+					case reshadefx::pass_stencil_op::incr_sat: return api::stencil_op::increment_saturate;
+					case reshadefx::pass_stencil_op::decr: return api::stencil_op::decrement;
+					case reshadefx::pass_stencil_op::decr_sat: return api::stencil_op::decrement_saturate;
 					}
 				};
 				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {

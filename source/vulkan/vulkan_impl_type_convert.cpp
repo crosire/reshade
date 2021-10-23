@@ -1264,11 +1264,7 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 	{
 		const VkPipelineColorBlendStateCreateInfo &color_blend_state_info = *create_info.pColorBlendState;
 
-		desc.graphics.blend_state.blend_constant =
-			(static_cast<uint32_t>(color_blend_state_info.blendConstants[0] * 255)) |
-			(static_cast<uint32_t>(color_blend_state_info.blendConstants[1] * 255) << 4) |
-			(static_cast<uint32_t>(color_blend_state_info.blendConstants[2] * 255) << 8) |
-			(static_cast<uint32_t>(color_blend_state_info.blendConstants[3] * 255) << 12);
+		std::copy_n(color_blend_state_info.blendConstants, 4, desc.graphics.blend_state.blend_constant);
 
 		for (uint32_t a = 0; a < color_blend_state_info.attachmentCount; ++a)
 		{
@@ -1277,11 +1273,11 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 			desc.graphics.blend_state.blend_enable[a] = attachment.blendEnable;
 			desc.graphics.blend_state.logic_op_enable[a] = color_blend_state_info.logicOpEnable;
 			desc.graphics.blend_state.color_blend_op[a] = convert_blend_op(attachment.colorBlendOp);
-			desc.graphics.blend_state.src_color_blend_factor[a] = convert_blend_factor(attachment.srcColorBlendFactor);
-			desc.graphics.blend_state.dst_color_blend_factor[a] = convert_blend_factor(attachment.dstColorBlendFactor);
+			desc.graphics.blend_state.source_color_blend_factor[a] = convert_blend_factor(attachment.srcColorBlendFactor);
+			desc.graphics.blend_state.dest_color_blend_factor[a] = convert_blend_factor(attachment.dstColorBlendFactor);
 			desc.graphics.blend_state.alpha_blend_op[a] = convert_blend_op(attachment.alphaBlendOp);
-			desc.graphics.blend_state.src_alpha_blend_factor[a] = convert_blend_factor(attachment.srcAlphaBlendFactor);
-			desc.graphics.blend_state.dst_alpha_blend_factor[a] = convert_blend_factor(attachment.dstAlphaBlendFactor);
+			desc.graphics.blend_state.source_alpha_blend_factor[a] = convert_blend_factor(attachment.srcAlphaBlendFactor);
+			desc.graphics.blend_state.dest_alpha_blend_factor[a] = convert_blend_factor(attachment.dstAlphaBlendFactor);
 			desc.graphics.blend_state.logic_op[a] = convert_logic_op(color_blend_state_info.logicOp);
 			desc.graphics.blend_state.render_target_write_mask[a] = static_cast<uint8_t>(attachment.colorWriteMask);
 		}

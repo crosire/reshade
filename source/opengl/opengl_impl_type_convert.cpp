@@ -1467,7 +1467,7 @@ auto   reshade::opengl::convert_blend_op(GLenum value) -> api::blend_op
 	case GL_FUNC_SUBTRACT:
 		return api::blend_op::subtract;
 	case GL_FUNC_REVERSE_SUBTRACT:
-		return api::blend_op::rev_subtract;
+		return api::blend_op::reverse_subtract;
 	case GL_MIN:
 		return api::blend_op::min;
 	case GL_MAX:
@@ -1485,7 +1485,7 @@ GLenum reshade::opengl::convert_blend_op(api::blend_op value)
 		return GL_FUNC_ADD;
 	case api::blend_op::subtract:
 		return GL_FUNC_SUBTRACT;
-	case api::blend_op::rev_subtract:
+	case api::blend_op::reverse_subtract:
 		return GL_FUNC_REVERSE_SUBTRACT;
 	case api::blend_op::min:
 		return GL_MIN;
@@ -1505,39 +1505,39 @@ auto   reshade::opengl::convert_blend_factor(GLenum value) -> api::blend_factor
 	case GL_ONE:
 		return api::blend_factor::one;
 	case GL_SRC_COLOR:
-		return api::blend_factor::src_color;
+		return api::blend_factor::source_color;
 	case GL_ONE_MINUS_SRC_COLOR:
-		return api::blend_factor::inv_src_color;
+		return api::blend_factor::one_minus_source_color;
 	case GL_DST_COLOR:
-		return api::blend_factor::dst_color;
+		return api::blend_factor::dest_color;
 	case GL_ONE_MINUS_DST_COLOR:
-		return api::blend_factor::inv_dst_color;
+		return api::blend_factor::one_minus_dest_color;
 	case GL_SRC_ALPHA:
-		return api::blend_factor::src_alpha;
+		return api::blend_factor::source_alpha;
 	case GL_ONE_MINUS_SRC_ALPHA:
-		return api::blend_factor::inv_src_alpha;
+		return api::blend_factor::one_minus_source_alpha;
 	case GL_DST_ALPHA:
-		return api::blend_factor::dst_alpha;
+		return api::blend_factor::dest_alpha;
 	case GL_ONE_MINUS_DST_ALPHA:
-		return api::blend_factor::inv_dst_alpha;
+		return api::blend_factor::one_minus_dest_alpha;
 	case GL_CONSTANT_COLOR:
 		return api::blend_factor::constant_color;
 	case GL_ONE_MINUS_CONSTANT_COLOR:
-		return api::blend_factor::inv_constant_color;
+		return api::blend_factor::one_minus_constant_color;
 	case GL_CONSTANT_ALPHA:
 		return api::blend_factor::constant_alpha;
 	case GL_ONE_MINUS_CONSTANT_ALPHA:
-		return api::blend_factor::inv_constant_alpha;
+		return api::blend_factor::one_minus_constant_alpha;
 	case GL_SRC_ALPHA_SATURATE:
-		return api::blend_factor::src_alpha_sat;
+		return api::blend_factor::source_alpha_saturate;
 	case GL_SRC1_COLOR:
-		return api::blend_factor::src1_color;
+		return api::blend_factor::source1_color;
 	case GL_ONE_MINUS_SRC1_COLOR:
-		return api::blend_factor::inv_src1_color;
+		return api::blend_factor::one_minus_source1_color;
 	case GL_SRC1_ALPHA:
-		return api::blend_factor::src1_alpha;
+		return api::blend_factor::source1_alpha;
 	case GL_ONE_MINUS_SRC1_ALPHA:
-		return api::blend_factor::inv_src1_alpha;
+		return api::blend_factor::one_minus_source1_alpha;
 	}
 }
 GLenum reshade::opengl::convert_blend_factor(api::blend_factor value)
@@ -1551,39 +1551,39 @@ GLenum reshade::opengl::convert_blend_factor(api::blend_factor value)
 		return GL_ZERO;
 	case api::blend_factor::one:
 		return GL_ONE;
-	case api::blend_factor::src_color:
+	case api::blend_factor::source_color:
 		return GL_SRC_COLOR;
-	case api::blend_factor::inv_src_color:
+	case api::blend_factor::one_minus_source_color:
 		return GL_ONE_MINUS_SRC_COLOR;
-	case api::blend_factor::dst_color:
+	case api::blend_factor::dest_color:
 		return GL_DST_COLOR;
-	case api::blend_factor::inv_dst_color:
+	case api::blend_factor::one_minus_dest_color:
 		return GL_ONE_MINUS_DST_COLOR;
-	case api::blend_factor::src_alpha:
+	case api::blend_factor::source_alpha:
 		return GL_SRC_ALPHA;
-	case api::blend_factor::inv_src_alpha:
+	case api::blend_factor::one_minus_source_alpha:
 		return GL_ONE_MINUS_SRC_ALPHA;
-	case api::blend_factor::dst_alpha:
+	case api::blend_factor::dest_alpha:
 		return GL_DST_ALPHA;
-	case api::blend_factor::inv_dst_alpha:
+	case api::blend_factor::one_minus_dest_alpha:
 		return GL_ONE_MINUS_DST_ALPHA;
 	case api::blend_factor::constant_color:
 		return GL_CONSTANT_COLOR;
-	case api::blend_factor::inv_constant_color:
+	case api::blend_factor::one_minus_constant_color:
 		return GL_ONE_MINUS_CONSTANT_COLOR;
 	case api::blend_factor::constant_alpha:
 		return GL_CONSTANT_ALPHA;
-	case api::blend_factor::inv_constant_alpha:
+	case api::blend_factor::one_minus_constant_alpha:
 		return GL_ONE_MINUS_CONSTANT_ALPHA;
-	case api::blend_factor::src_alpha_sat:
+	case api::blend_factor::source_alpha_saturate:
 		return GL_SRC_ALPHA_SATURATE;
-	case api::blend_factor::src1_color:
+	case api::blend_factor::source1_color:
 		return GL_SRC1_COLOR;
-	case api::blend_factor::inv_src1_color:
+	case api::blend_factor::one_minus_source1_color:
 		return GL_ONE_MINUS_SRC1_COLOR;
-	case api::blend_factor::src1_alpha:
+	case api::blend_factor::source1_alpha:
 		return GL_SRC1_ALPHA;
-	case api::blend_factor::inv_src1_alpha:
+	case api::blend_factor::one_minus_source1_alpha:
 		return GL_ONE_MINUS_SRC1_ALPHA;
 	}
 }
@@ -1715,15 +1715,15 @@ auto   reshade::opengl::convert_stencil_op(GLenum value) -> api::stencil_op
 	case GL_REPLACE:
 		return api::stencil_op::replace;
 	case GL_INCR:
-		return api::stencil_op::incr_sat;
+		return api::stencil_op::increment_saturate;
 	case GL_DECR:
-		return api::stencil_op::decr_sat;
+		return api::stencil_op::decrement_saturate;
 	case GL_INVERT:
 		return api::stencil_op::invert;
 	case GL_INCR_WRAP:
-		return api::stencil_op::incr;
+		return api::stencil_op::increment;
 	case GL_DECR_WRAP:
-		return api::stencil_op::decr;
+		return api::stencil_op::decrement;
 	}
 }
 GLenum reshade::opengl::convert_stencil_op(api::stencil_op value)
@@ -1739,15 +1739,15 @@ GLenum reshade::opengl::convert_stencil_op(api::stencil_op value)
 		return GL_ZERO;
 	case api::stencil_op::replace:
 		return GL_REPLACE;
-	case api::stencil_op::incr_sat:
+	case api::stencil_op::increment_saturate:
 		return GL_INCR;
-	case api::stencil_op::decr_sat:
+	case api::stencil_op::decrement_saturate:
 		return GL_DECR;
 	case api::stencil_op::invert:
 		return GL_INVERT;
-	case api::stencil_op::incr:
+	case api::stencil_op::increment:
 		return GL_INCR_WRAP;
-	case api::stencil_op::decr:
+	case api::stencil_op::decrement:
 		return GL_DECR_WRAP;
 	}
 }

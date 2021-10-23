@@ -834,7 +834,7 @@ HOOK_EXPORT void APIENTRY glBlendFunc(GLenum sfactor, GLenum dfactor)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
-		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::src_color_blend_factor, reshade::api::dynamic_state::dst_color_blend_factor };
+		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::source_color_blend_factor, reshade::api::dynamic_state::dest_color_blend_factor };
 		const uint32_t values[2] = { static_cast<uint32_t>(reshade::opengl::convert_blend_factor(sfactor)), static_cast<uint32_t>(reshade::opengl::convert_blend_factor(dfactor)) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);

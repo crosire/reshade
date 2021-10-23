@@ -154,7 +154,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return _enabled_features.tessellationShader;
 	case api::device_caps::logic_op:
 		return _enabled_features.logicOp;
-	case api::device_caps::dual_src_blend:
+	case api::device_caps::dual_source_blend:
 		return _enabled_features.dualSrcBlend;
 	case api::device_caps::independent_blend:
 		return _enabled_features.independentBlend;
@@ -706,7 +706,7 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 
 		for (uint32_t i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
 		{
-			const api::input_layout_element &element = desc.graphics.input_layout[i];
+			const api::input_element &element = desc.graphics.input_layout[i];
 
 			VkVertexInputAttributeDescription &attribute = vertex_attributes.emplace_back();
 			attribute.location = element.location;
@@ -808,11 +808,11 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 		for (uint32_t i = 0; i < 8; ++i)
 		{
 			attachment_info[i].blendEnable = desc.graphics.blend_state.blend_enable[i];
-			attachment_info[i].srcColorBlendFactor = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
-			attachment_info[i].dstColorBlendFactor = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
+			attachment_info[i].srcColorBlendFactor = convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[i]);
+			attachment_info[i].dstColorBlendFactor = convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[i]);
 			attachment_info[i].colorBlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
-			attachment_info[i].srcAlphaBlendFactor = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
-			attachment_info[i].dstAlphaBlendFactor = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
+			attachment_info[i].srcAlphaBlendFactor = convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[i]);
+			attachment_info[i].dstAlphaBlendFactor = convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[i]);
 			attachment_info[i].alphaBlendOp = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
 			attachment_info[i].colorWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
 		}
@@ -828,10 +828,7 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 		color_blend_state_info.logicOp = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
 		color_blend_state_info.attachmentCount = num_color_attachments;
 		color_blend_state_info.pAttachments = attachment_info;
-		color_blend_state_info.blendConstants[0] = ((desc.graphics.blend_state.blend_constant) & 0xFF) / 255.0f;
-		color_blend_state_info.blendConstants[1] = ((desc.graphics.blend_state.blend_constant >> 4) & 0xFF) / 255.0f;
-		color_blend_state_info.blendConstants[2] = ((desc.graphics.blend_state.blend_constant >> 8) & 0xFF) / 255.0f;
-		color_blend_state_info.blendConstants[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
+		std::copy_n(desc.graphics.blend_state.blend_constant, 4, color_blend_state_info.blendConstants);
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateGraphicsPipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)

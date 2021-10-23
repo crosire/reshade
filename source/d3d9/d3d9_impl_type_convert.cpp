@@ -689,8 +689,9 @@ void reshade::d3d9::convert_pipeline_desc(const api::pipeline_desc &desc, std::v
 
 	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
 	{
-		auto &internal_element = internal_elements.emplace_back();
-		const api::input_layout_element &element = desc.graphics.input_layout[i];
+		const api::input_element &element = desc.graphics.input_layout[i];
+
+		D3DVERTEXELEMENT9 &internal_element = internal_elements.emplace_back();
 
 		assert(element.buffer_binding <= std::numeric_limits<WORD>::max());
 		internal_element.Stream = static_cast<WORD>(element.buffer_binding);
@@ -797,10 +798,14 @@ reshade::api::pipeline_desc reshade::d3d9::convert_pipeline_desc(const D3DVERTEX
 {
 	api::pipeline_desc desc = { api::pipeline_stage::input_assembler };
 
-	for (UINT i = 0; i < 16 && elements != nullptr && elements->Stream != 0xFF; ++i, ++elements)
+	if (elements == nullptr)
+		return desc;
+
+	for (UINT i = 0; i < 16 && elements[i].Stream != 0xFF; ++i)
 	{
-		const auto &internal_element = *elements;
-		api::input_layout_element &element = desc.graphics.input_layout[i];
+		api::input_element &element = desc.graphics.input_layout[i];
+
+		const D3DVERTEXELEMENT9 &internal_element = elements[i];
 
 		element.buffer_binding = internal_element.Stream;
 		element.offset = internal_element.Offset;
@@ -935,31 +940,31 @@ auto reshade::d3d9::convert_blend_factor(D3DBLEND value) -> api::blend_factor
 	case D3DBLEND_ONE:
 		return api::blend_factor::one;
 	case D3DBLEND_SRCCOLOR:
-		return api::blend_factor::src_color;
+		return api::blend_factor::source_color;
 	case D3DBLEND_INVSRCCOLOR:
-		return api::blend_factor::inv_src_color;
+		return api::blend_factor::one_minus_source_color;
 	case D3DBLEND_DESTCOLOR:
-		return api::blend_factor::dst_color;
+		return api::blend_factor::dest_color;
 	case D3DBLEND_INVDESTCOLOR:
-		return api::blend_factor::inv_dst_color;
+		return api::blend_factor::one_minus_dest_color;
 	case D3DBLEND_SRCALPHA:
-		return api::blend_factor::src_alpha;
+		return api::blend_factor::source_alpha;
 	case D3DBLEND_INVSRCALPHA:
-		return api::blend_factor::inv_src_alpha;
+		return api::blend_factor::one_minus_source_alpha;
 	case D3DBLEND_DESTALPHA:
-		return api::blend_factor::dst_alpha;
+		return api::blend_factor::dest_alpha;
 	case D3DBLEND_INVDESTALPHA:
-		return api::blend_factor::inv_dst_alpha;
+		return api::blend_factor::one_minus_dest_alpha;
 	case D3DBLEND_BLENDFACTOR:
 		return api::blend_factor::constant_color;
 	case D3DBLEND_INVBLENDFACTOR:
-		return api::blend_factor::inv_constant_color;
+		return api::blend_factor::one_minus_constant_color;
 	case D3DBLEND_SRCALPHASAT:
-		return api::blend_factor::src_alpha_sat;
+		return api::blend_factor::source_alpha_saturate;
 	case D3DBLEND_SRCCOLOR2:
-		return api::blend_factor::src1_color;
+		return api::blend_factor::source1_color;
 	case D3DBLEND_INVSRCCOLOR2:
-		return api::blend_factor::inv_src1_color;
+		return api::blend_factor::one_minus_source1_color;
 	}
 }
 auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
@@ -973,43 +978,43 @@ auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
 		return D3DBLEND_ZERO;
 	case api::blend_factor::one:
 		return D3DBLEND_ONE;
-	case api::blend_factor::src_color:
+	case api::blend_factor::source_color:
 		return D3DBLEND_SRCCOLOR;
-	case api::blend_factor::inv_src_color:
+	case api::blend_factor::one_minus_source_color:
 		return D3DBLEND_INVSRCCOLOR;
-	case api::blend_factor::dst_color:
+	case api::blend_factor::dest_color:
 		return D3DBLEND_DESTCOLOR;
-	case api::blend_factor::inv_dst_color:
+	case api::blend_factor::one_minus_dest_color:
 		return D3DBLEND_INVDESTCOLOR;
-	case api::blend_factor::src_alpha:
+	case api::blend_factor::source_alpha:
 		return D3DBLEND_SRCALPHA;
-	case api::blend_factor::inv_src_alpha:
+	case api::blend_factor::one_minus_source_alpha:
 		return D3DBLEND_INVSRCALPHA;
-	case api::blend_factor::dst_alpha:
+	case api::blend_factor::dest_alpha:
 		return D3DBLEND_DESTALPHA;
-	case api::blend_factor::inv_dst_alpha:
+	case api::blend_factor::one_minus_dest_alpha:
 		return D3DBLEND_INVDESTALPHA;
 	case api::blend_factor::constant_alpha:
 		assert(false);
 		[[fallthrough]];
 	case api::blend_factor::constant_color:
 		return D3DBLEND_BLENDFACTOR;
-	case api::blend_factor::inv_constant_alpha:
+	case api::blend_factor::one_minus_constant_alpha:
 		assert(false);
 		[[fallthrough]];
-	case api::blend_factor::inv_constant_color:
+	case api::blend_factor::one_minus_constant_color:
 		return D3DBLEND_INVBLENDFACTOR;
-	case api::blend_factor::src_alpha_sat:
+	case api::blend_factor::source_alpha_saturate:
 		return D3DBLEND_SRCALPHASAT;
-	case api::blend_factor::src1_alpha:
+	case api::blend_factor::source1_alpha:
 		assert(false);
 		[[fallthrough]];
-	case api::blend_factor::src1_color:
+	case api::blend_factor::source1_color:
 		return D3DBLEND_SRCCOLOR2;
-	case api::blend_factor::inv_src1_alpha:
+	case api::blend_factor::one_minus_source1_alpha:
 		assert(false);
 		[[fallthrough]];
-	case api::blend_factor::inv_src1_color:
+	case api::blend_factor::one_minus_source1_color:
 		return D3DBLEND_INVSRCCOLOR2;
 	}
 }

@@ -30,6 +30,7 @@ namespace reshade::d3d12
 	struct pipeline_graphics_impl
 	{
 		D3D12_PRIMITIVE_TOPOLOGY topology;
+		FLOAT blend_constant[4];
 	};
 
 	struct descriptor_set_layout_impl

@@ -674,7 +674,7 @@ void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, std::
 
 	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
 	{
-		const api::input_layout_element &element = desc.graphics.input_layout[i];
+		const api::input_element &element = desc.graphics.input_layout[i];
 
 		D3D10_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
 		internal_element.SemanticName = element.semantic;
@@ -690,11 +690,11 @@ void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, D3D10
 {
 	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::output_merger);
 	internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
-	internal_desc.SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
-	internal_desc.DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
+	internal_desc.SrcBlend = convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[0]);
+	internal_desc.DestBlend = convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[0]);
 	internal_desc.BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
-	internal_desc.SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
-	internal_desc.DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
+	internal_desc.SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[0]);
+	internal_desc.DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[0]);
 	internal_desc.BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
 
 	for (UINT i = 0; i < 8; ++i)
@@ -712,11 +712,11 @@ void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, D3D10
 	for (UINT i = 0; i < 8; ++i)
 	{
 		internal_desc.RenderTarget[i].BlendEnable = desc.graphics.blend_state.blend_enable[i];
-		internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
-		internal_desc.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
+		internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[i]);
+		internal_desc.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[i]);
 		internal_desc.RenderTarget[i].BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
-		internal_desc.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
-		internal_desc.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
+		internal_desc.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[i]);
+		internal_desc.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[i]);
 		internal_desc.RenderTarget[i].BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
 		internal_desc.RenderTarget[i].RenderTargetWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
 	}
@@ -780,11 +780,11 @@ reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_BL
 		for (UINT i = 0; i < 8; ++i)
 		{
 			desc.graphics.blend_state.blend_enable[i] = internal_desc->BlendEnable[i];
-			desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlend);
-			desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(internal_desc->DestBlend);
+			desc.graphics.blend_state.source_color_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlend);
+			desc.graphics.blend_state.dest_color_blend_factor[i] = convert_blend_factor(internal_desc->DestBlend);
 			desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(internal_desc->BlendOp);
-			desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlendAlpha);
-			desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(internal_desc->DestBlendAlpha);
+			desc.graphics.blend_state.source_alpha_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlendAlpha);
+			desc.graphics.blend_state.dest_alpha_blend_factor[i] = convert_blend_factor(internal_desc->DestBlendAlpha);
 			desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(internal_desc->BlendOpAlpha);
 			desc.graphics.blend_state.render_target_write_mask[i] = internal_desc->RenderTargetWriteMask[i];
 		}
@@ -794,11 +794,11 @@ reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_BL
 		// Default blend state (https://docs.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_blend_desc)
 		for (UINT i = 0; i < 8; ++i)
 		{
-			desc.graphics.blend_state.src_color_blend_factor[i] = api::blend_factor::one;
-			desc.graphics.blend_state.dst_color_blend_factor[i] = api::blend_factor::zero;
+			desc.graphics.blend_state.source_color_blend_factor[i] = api::blend_factor::one;
+			desc.graphics.blend_state.dest_color_blend_factor[i] = api::blend_factor::zero;
 			desc.graphics.blend_state.color_blend_op[i] = api::blend_op::add;
-			desc.graphics.blend_state.src_alpha_blend_factor[i] = api::blend_factor::one;
-			desc.graphics.blend_state.dst_alpha_blend_factor[i] = api::blend_factor::zero;
+			desc.graphics.blend_state.source_alpha_blend_factor[i] = api::blend_factor::one;
+			desc.graphics.blend_state.dest_alpha_blend_factor[i] = api::blend_factor::zero;
 			desc.graphics.blend_state.alpha_blend_op[i] = api::blend_op::add;
 			desc.graphics.blend_state.render_target_write_mask[i] = D3D10_COLOR_WRITE_ENABLE_ALL;
 		}
@@ -823,11 +823,11 @@ reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_BL
 			// Only convert blend state if blending is enabled (since some applications leave these uninitialized in this case)
 			if (target.BlendEnable)
 			{
-				desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
-				desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
+				desc.graphics.blend_state.source_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
+				desc.graphics.blend_state.dest_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
 				desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(target.BlendOp);
-				desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
-				desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
+				desc.graphics.blend_state.source_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
+				desc.graphics.blend_state.dest_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
 				desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(target.BlendOpAlpha);
 			}
 
@@ -839,11 +839,11 @@ reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_BL
 		// Default blend state (https://docs.microsoft.com/windows/win32/api/d3d10_1/ns-d3d10_1-d3d10_blend_desc1)
 		for (UINT i = 0; i < 8; ++i)
 		{
-			desc.graphics.blend_state.src_color_blend_factor[i] = api::blend_factor::one;
-			desc.graphics.blend_state.dst_color_blend_factor[i] = api::blend_factor::zero;
+			desc.graphics.blend_state.source_color_blend_factor[i] = api::blend_factor::one;
+			desc.graphics.blend_state.dest_color_blend_factor[i] = api::blend_factor::zero;
 			desc.graphics.blend_state.color_blend_op[i] = api::blend_op::add;
-			desc.graphics.blend_state.src_alpha_blend_factor[i] = api::blend_factor::one;
-			desc.graphics.blend_state.dst_alpha_blend_factor[i] = api::blend_factor::zero;
+			desc.graphics.blend_state.source_alpha_blend_factor[i] = api::blend_factor::one;
+			desc.graphics.blend_state.dest_alpha_blend_factor[i] = api::blend_factor::zero;
 			desc.graphics.blend_state.alpha_blend_op[i] = api::blend_op::add;
 			desc.graphics.blend_state.render_target_write_mask[i] = D3D10_COLOR_WRITE_ENABLE_ALL;
 		}
@@ -939,41 +939,41 @@ auto reshade::d3d10::convert_blend_factor(api::blend_factor value) -> D3D10_BLEN
 		return D3D10_BLEND_ZERO;
 	case api::blend_factor::one:
 		return D3D10_BLEND_ONE;
-	case api::blend_factor::src_color:
+	case api::blend_factor::source_color:
 		return D3D10_BLEND_SRC_COLOR;
-	case api::blend_factor::inv_src_color:
+	case api::blend_factor::one_minus_source_color:
 		return D3D10_BLEND_INV_SRC_COLOR;
-	case api::blend_factor::dst_color:
+	case api::blend_factor::dest_color:
 		return D3D10_BLEND_DEST_COLOR;
-	case api::blend_factor::inv_dst_color:
+	case api::blend_factor::one_minus_dest_color:
 		return D3D10_BLEND_INV_DEST_COLOR;
-	case api::blend_factor::src_alpha:
+	case api::blend_factor::source_alpha:
 		return D3D10_BLEND_SRC_ALPHA;
-	case api::blend_factor::inv_src_alpha:
+	case api::blend_factor::one_minus_source_alpha:
 		return D3D10_BLEND_INV_SRC_ALPHA;
-	case api::blend_factor::dst_alpha:
+	case api::blend_factor::dest_alpha:
 		return D3D10_BLEND_DEST_ALPHA;
-	case api::blend_factor::inv_dst_alpha:
+	case api::blend_factor::one_minus_dest_alpha:
 		return D3D10_BLEND_INV_DEST_ALPHA;
 	case api::blend_factor::constant_alpha:
 		assert(false);
 		[[fallthrough]];
 	case api::blend_factor::constant_color:
 		return D3D10_BLEND_BLEND_FACTOR;
-	case api::blend_factor::inv_constant_alpha:
+	case api::blend_factor::one_minus_constant_alpha:
 		assert(false);
 		[[fallthrough]];
-	case api::blend_factor::inv_constant_color:
+	case api::blend_factor::one_minus_constant_color:
 		return D3D10_BLEND_INV_BLEND_FACTOR;
-	case api::blend_factor::src_alpha_sat:
+	case api::blend_factor::source_alpha_saturate:
 		return D3D10_BLEND_SRC_ALPHA_SAT;
-	case api::blend_factor::src1_color:
+	case api::blend_factor::source1_color:
 		return D3D10_BLEND_SRC1_COLOR;
-	case api::blend_factor::inv_src1_color:
+	case api::blend_factor::one_minus_source1_color:
 		return D3D10_BLEND_INV_SRC1_COLOR;
-	case api::blend_factor::src1_alpha:
+	case api::blend_factor::source1_alpha:
 		return D3D10_BLEND_SRC1_ALPHA;
-	case api::blend_factor::inv_src1_alpha:
+	case api::blend_factor::one_minus_source1_alpha:
 		return D3D10_BLEND_INV_SRC1_ALPHA;
 	}
 }
@@ -989,35 +989,35 @@ auto reshade::d3d10::convert_blend_factor(D3D10_BLEND value) -> api::blend_facto
 	case D3D10_BLEND_ONE:
 		return api::blend_factor::one;
 	case D3D10_BLEND_SRC_COLOR:
-		return api::blend_factor::src_color;
+		return api::blend_factor::source_color;
 	case D3D10_BLEND_INV_SRC_COLOR:
-		return api::blend_factor::inv_src_color;
+		return api::blend_factor::one_minus_source_color;
 	case D3D10_BLEND_DEST_COLOR:
-		return api::blend_factor::dst_color;
+		return api::blend_factor::dest_color;
 	case D3D10_BLEND_INV_DEST_COLOR:
-		return api::blend_factor::inv_dst_color;
+		return api::blend_factor::one_minus_dest_color;
 	case D3D10_BLEND_SRC_ALPHA:
-		return api::blend_factor::src_alpha;
+		return api::blend_factor::source_alpha;
 	case D3D10_BLEND_INV_SRC_ALPHA:
-		return api::blend_factor::inv_src_alpha;
+		return api::blend_factor::one_minus_source_alpha;
 	case D3D10_BLEND_DEST_ALPHA:
-		return api::blend_factor::dst_alpha;
+		return api::blend_factor::dest_alpha;
 	case D3D10_BLEND_INV_DEST_ALPHA:
-		return api::blend_factor::inv_dst_alpha;
+		return api::blend_factor::one_minus_dest_alpha;
 	case D3D10_BLEND_BLEND_FACTOR:
 		return api::blend_factor::constant_color;
 	case D3D10_BLEND_INV_BLEND_FACTOR:
-		return api::blend_factor::inv_constant_color;
+		return api::blend_factor::one_minus_constant_color;
 	case D3D10_BLEND_SRC_ALPHA_SAT:
-		return api::blend_factor::src_alpha_sat;
+		return api::blend_factor::source_alpha_saturate;
 	case D3D10_BLEND_SRC1_COLOR:
-		return api::blend_factor::src1_color;
+		return api::blend_factor::source1_color;
 	case D3D10_BLEND_INV_SRC1_COLOR:
-		return api::blend_factor::inv_src1_color;
+		return api::blend_factor::one_minus_source1_color;
 	case D3D10_BLEND_SRC1_ALPHA:
-		return api::blend_factor::src1_alpha;
+		return api::blend_factor::source1_alpha;
 	case D3D10_BLEND_INV_SRC1_ALPHA:
-		return api::blend_factor::inv_src1_alpha;
+		return api::blend_factor::one_minus_source1_alpha;
 	}
 }
 auto reshade::d3d10::convert_fill_mode(api::fill_mode value) -> D3D10_FILL_MODE

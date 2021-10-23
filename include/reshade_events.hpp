@@ -230,7 +230,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource', 'ID3D11DeviceContext::UpdateSubresource' or 'gl(Named)BufferSubData'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource resource, uint64_t offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -239,7 +239,7 @@ namespace reshade
 		update_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource', 'ID3D11DeviceContext::UpdateSubresource' or 'gl(Compressed)Tex(ture)SubData(...).
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6])</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -371,7 +371,8 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state.
+		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_resource,
 		/// <summary>
@@ -380,7 +381,8 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state.
+		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_buffer_region,
 		/// <summary>
@@ -389,7 +391,8 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state.
+		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_buffer_to_texture,
 		/// <summary>
@@ -398,7 +401,8 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state.
+		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_texture_region,
 		/// <summary>
@@ -407,7 +411,8 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state.
+		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_texture_to_buffer,
 		/// <summary>
@@ -416,7 +421,8 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Source resource will be in the <see cref="resource_usage::resolve_source"/> state. Destination resource will be in the <see cref="resource_usage::resolve_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::resolve_source"/> state.
+		/// Destination resource will be in the <see cref="resource_usage::resolve_dest"/> state.
 		/// </remarks>
 		resolve_texture_region,
 
