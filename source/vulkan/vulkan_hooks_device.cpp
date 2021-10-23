@@ -406,6 +406,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
 	}
 	#pragma endregion
+	#pragma region VK_KHR_copy_commands2
+	INIT_DISPATCH_PTR(CmdCopyBuffer2KHR);
+	INIT_DISPATCH_PTR(CmdCopyImage2KHR);
+	INIT_DISPATCH_PTR(CmdBlitImage2KHR);
+	INIT_DISPATCH_PTR(CmdCopyBufferToImage2KHR);
+	INIT_DISPATCH_PTR(CmdCopyImageToBuffer2KHR);
+	INIT_DISPATCH_PTR(CmdResolveImage2KHR);
+	#pragma endregion
 	#pragma region VK_EXT_debug_utils
 	INIT_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
 	INIT_DISPATCH_PTR(QueueBeginDebugUtilsLabelEXT);

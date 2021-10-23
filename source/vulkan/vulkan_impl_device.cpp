@@ -161,7 +161,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::fill_mode_non_solid:
 		return _enabled_features.fillModeNonSolid;
 	case api::device_caps::conservative_rasterization:
-		// TODO: Enable when the 'VK_EXT_conservative_rasterization' extension is available
+		// TODO: Enable when the 'VK_EXT_conservative_rasterization' extension is enabled
 		return false;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 		return false;
