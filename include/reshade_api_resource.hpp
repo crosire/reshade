@@ -5,26 +5,22 @@
 
 #pragma once
 
-#ifndef RESHADE_DEFINE_HANDLE
-	#define RESHADE_DEFINE_HANDLE(name) \
-		typedef struct { uint64_t handle; } name; \
-		constexpr bool operator< (name lhs, name rhs) { return lhs.handle < rhs.handle; } \
-		constexpr bool operator!=(name lhs, name rhs) { return lhs.handle != rhs.handle; } \
-		constexpr bool operator!=(name lhs, uint64_t rhs) { return lhs.handle != rhs; } \
-		constexpr bool operator==(name lhs, name rhs) { return lhs.handle == rhs.handle; } \
-		constexpr bool operator==(name lhs, uint64_t rhs) { return lhs.handle == rhs; }
-#endif
+#define RESHADE_DEFINE_HANDLE(name) \
+	typedef struct { uint64_t handle; } name; \
+	constexpr bool operator< (name lhs, name rhs) { return lhs.handle < rhs.handle; } \
+	constexpr bool operator!=(name lhs, name rhs) { return lhs.handle != rhs.handle; } \
+	constexpr bool operator!=(name lhs, uint64_t rhs) { return lhs.handle != rhs; } \
+	constexpr bool operator==(name lhs, name rhs) { return lhs.handle == rhs.handle; } \
+	constexpr bool operator==(name lhs, uint64_t rhs) { return lhs.handle == rhs; }
 
-#ifndef RESHADE_DEFINE_ENUM_FLAG_OPERATORS
-	#define RESHADE_DEFINE_ENUM_FLAG_OPERATORS(type) \
-		constexpr type operator~(type a) { return static_cast<type>(~static_cast<uint32_t>(a)); } \
-		inline type &operator&=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) &= static_cast<uint32_t>(b)); } \
-		constexpr type operator&(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b)); } \
-		inline type &operator|=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) |= static_cast<uint32_t>(b)); } \
-		constexpr type operator|(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b)); } \
-		inline type &operator^=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) ^= static_cast<uint32_t>(b)); } \
-		constexpr type operator^(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) ^ static_cast<uint32_t>(b)); }
-#endif
+#define RESHADE_DEFINE_ENUM_FLAG_OPERATORS(type) \
+	constexpr type operator~(type a) { return static_cast<type>(~static_cast<uint32_t>(a)); } \
+	inline type &operator&=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) &= static_cast<uint32_t>(b)); } \
+	constexpr type operator&(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b)); } \
+	inline type &operator|=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) |= static_cast<uint32_t>(b)); } \
+	constexpr type operator|(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b)); } \
+	inline type &operator^=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) ^= static_cast<uint32_t>(b)); } \
+	constexpr type operator^(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) ^ static_cast<uint32_t>(b)); }
 
 #include "reshade_api_format.hpp"
 

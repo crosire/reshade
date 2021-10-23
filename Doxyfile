@@ -1,0 +1,31 @@
+PROJECT_NAME           = "ReShade"
+PROJECT_BRIEF          = "A generic post-processing injector for games and video software."
+PROJECT_LOGO           = ./res/main_icon_small.png
+
+INPUT                  = ./include ./REFERENCE.md
+EXCLUDE                = ./include/imgui_function_table.hpp
+FILE_PATTERNS          = *.c *.cpp *.h *.hpp *.inl
+EXCLUDE_SYMBOLS        = addon_event_traits
+USE_MDFILE_AS_MAINPAGE = ./REFERENCE.md
+
+OUTPUT_DIRECTORY       = ./build
+
+GENERATE_XML           = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+
+SHOW_USED_FILES        = YES
+SHOW_FILES             = YES
+SHOW_NAMESPACES        = YES
+
+# Parser configuration
+
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+
+# Preprocessor configuration
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+PREDEFINED             = __declspec(x)=
+SKIP_FUNCTION_MACROS   = YES

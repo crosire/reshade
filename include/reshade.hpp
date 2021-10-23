@@ -142,7 +142,7 @@ namespace reshade
 	/// Registers an overlay with ReShade.
 	/// <para>The callback function is then called whenever the ReShade overlay is visible and allows adding Dear ImGui widgets for user interaction.</para>
 	/// </summary>
-	/// <param name="title">A null-terminated title string, or <c>nullptr</c> to register a settings overlay for this add-on.</param>
+	/// <param name="title">A null-terminated title string, or <see langword="nullptr"/> to register a settings overlay for this add-on.</param>
 	/// <param name="callback">Pointer to the callback function.</param>
 	inline void register_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context))
 	{

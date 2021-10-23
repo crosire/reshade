@@ -596,7 +596,7 @@ namespace reshade { namespace api
 		/// </summary>
 		size_t code_size;
 		/// <summary>
-		/// Optional entry point name if the shader source <see cref="code"/> or binary contains multiple entry points. Can be <c>nullptr</c> if it does not.
+		/// Optional entry point name if the shader source <see cref="code"/> or binary contains multiple entry points. Can be <see langword="nullptr"/> if it does not.
 		/// </summary>
 		const char *entry_point;
 		/// <summary>

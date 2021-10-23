@@ -87,7 +87,7 @@ IDR_LICENSE_VMA         RCDATA                  "..\\deps\\vma\\LICENSE.txt"
 
 IDR_LICENSE_VULKAN      RCDATA                  "..\\deps\\vulkan\\LICENSE.txt"
 
-IDB_MAIN_ICON           RCDATA                  "main_icon.png"
+IDB_MAIN_ICON           RCDATA                  "main_icon_small.png"
 
 #endif
 

@@ -1345,7 +1345,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 	}
 	else
 	{
-		LOG(WARN) << "ID3D11Device1::CreateDeferredContext2" << " failed with error code " << hr << '.';
+		LOG(WARN) << "ID3D11Device2::CreateDeferredContext2" << " failed with error code " << hr << '.';
 	}
 
 	return hr;
@@ -1646,7 +1646,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 	}
 	else
 	{
-		LOG(WARN) << "ID3D11Device1::CreateDeferredContext3" << " failed with error code " << hr << '.';
+		LOG(WARN) << "ID3D11Device3::CreateDeferredContext3" << " failed with error code " << hr << '.';
 	}
 
 	return hr;
