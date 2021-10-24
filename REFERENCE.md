@@ -1,9 +1,9 @@
 ReShade API
 ===========
 
-The ReShade API is a toolset that lets you interact with the resources and rendering commands of the application ReShade is loaded into via events. It [abstracts](#abstraction) away differences between the various underlying graphics API ReShade supports (Direct3D 9/10/11/12, OpenGL and Vulkan) to make it possible to write add-ons that work across a wide range of applications, regardless of the graphics API they use.
+The ReShade API lets you interact with the resources and rendering commands of applications ReShade was loaded into. It [abstracts](#abstraction) away differences between the various graphics API ReShade supports (Direct3D 9/10/11/12, OpenGL and Vulkan), to make it possible to write add-ons that work across a wide range of applications, regardless of the graphics API they use.
 
-A ReShade add-on is simply a DLL that uses the header-only ReShade API to register events and do work in the callbacks. There are no further requirements, no functions need to be exported and no libraries need to be linked against. Simply add this include directory to your DLL project and include the `reshade.hpp` header to get started.
+A ReShade add-on is a DLL that uses the header-only ReShade API to register callbacks for events and do work in those callbacks after they were invoked by ReShade. There are no further requirements, no functions need to be exported and no libraries need to be linked against. Simply add the [include directory from the ReShade repository](https://github.com/crosire/reshade/tree/main/include) to your DLL project and include the `reshade.hpp` header to get started.
 
 Here is a very basic code example of an add-on that registers a callback that gets executed every time a new frame is presented to the screen:
 
@@ -27,11 +27,11 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
         // This registers a callback for the 'present' event, which occurs every time a new frame is presented to the screen.
         // The function signature has to match the type defined by 'reshade::addon_event_traits<reshade::addon_event::present>::decl'.
         // For more details check the inline documentation for each event in 'reshade_events.hpp'.
-        reshade::register_event<reshade::addon_event::present>(on_present);
+        reshade::register_event<reshade::addon_event::present>(&on_present);
         break;
     case DLL_PROCESS_DETACH:
         // This unregisters the event callback that was previously registered during process attachment.
-        reshade::unregister_event<reshade::addon_event::present>(on_present);
+        reshade::unregister_event<reshade::addon_event::present>(&on_present);
         // And finally unregister the add-on from ReShade (this will automatically clean up any events and overlays registered by this add-on as well).
         reshade::unregister_addon(hinstDLL);
         break;
@@ -40,7 +40,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 }
 ```
 
-For more complex examples, see the [examples directory in this repository](../examples).
+For more complex examples, see the [examples directory in the repository](https://github.com/crosire/reshade/tree/main/examples).
 
 ## Overlays
 
@@ -85,7 +85,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
         // It will be displayed as an additional window when the ReShade overlay is opened.
         // Its contents are defined by Dear ImGui commands issued in the specified callback function.
         reshade::register_overlay("Test", draw_debug_overlay);
-        // It is also possible to register a special settings overlay by passing "nullptr" instead of a title.
+        // It is also possible to register a special settings overlay by passing 'nullptr' instead of a title.
         // This is shown beneath the add-on information in the add-on list of the ReShade overlay and can be used to present settings to users.
         reshade::register_overlay(nullptr, draw_settings_overlay);
         break;
@@ -105,7 +105,7 @@ Detailed inline documentation for all classes and methods can be found inside th
 
 The base object everything else is created from is a `reshade::api::device`. This represents a logical rendering device that is typically mapped to a physical GPU (but may also be mapped to multiple GPUs). ReShade will call the `reshade::addon_event::init_device` event after the application created a device, which can e.g. be used to do some initialization work that only has to happen once. The `reshade::addon_event::destroy_device` event is called before this device is destroyed again, which can be used to perform clean up work.
 ```cpp
-// Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::init_device>(on_init_device)'.
+// Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::init_device>(&on_init_device)'.
 static void on_init_device(reshade::api::device *device)
 {
     // In case one wants to do something with the native graphics API object, rather than doing all work
@@ -134,10 +134,11 @@ static void on_init_device(reshade::api::device *device)
 }
 ```
 
-To execute rendering commands, an application has to record them into a `reshade::api::command_list` and then submit to a `reshade::api::command_queue`. In some graphics APIs there is only a single implicit command list and queue, but modern ones like Direct3D 12 and Vulkan allow the creation of multiple command lists and queues for more efficient multi-threaded rendering. ReShade will call the `reshade::addon_event::init_command_list` and `reshade::addon_event::init_command_queue` events after any such object was created by the application (including the implicit ones for older graphics APIs). Similarily, `reshade::addon_event::destroy_command_list` and `reshade::addon_event::destroy_command_queue` are called upon their destruction.\
+To execute rendering commands, an application has to record them into a `reshade::api::command_list` and then submit to a `reshade::api::command_queue`. In some graphics APIs there is only a single implicit command list and queue, but modern ones like Direct3D 12 and Vulkan allow the creation of multiple for more efficient multi-threaded rendering. ReShade will call the `reshade::addon_event::init_command_list` and `reshade::addon_event::init_command_queue` events after any such object was created by the application (including the implicit ones for older graphics APIs). Similarily, `reshade::addon_event::destroy_command_list` and `reshade::addon_event::destroy_command_queue` are called upon their destruction.
+
 ReShade will also pass the current command list object to every command event, like `reshade::addon_event::draw`, `reshade::addon_event::dispatch` and so on, which can be used to add additional commands to that command list or replace those of the application.
 ```cpp
-// Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::draw>(on_draw)'.
+// Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::draw>(&on_draw)'.
 static bool on_draw(reshade::api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
     // Clear the current render targets to red before every time a single triangle is drawn
@@ -147,7 +148,7 @@ static bool on_draw(reshade::api::command_list *cmd_list, uint32_t vertices, uin
         cmd_list->clear_attachments(reshade::api::attachment_type::color, clear_color, 0, 0);
     }
 
-    // Return 'true' to prevent this application command from actually being executed (e.g. because already having added a new command that should replace it via 'cmd_list->draw(...)' or similar).
+    // Return 'true' to prevent this application command from actually being executed (e.g. because already having added a new command via 'cmd_list->draw(...)' or similar that should replace it).
     // Return 'false' to leave it unaffected.
     return false;
 }
@@ -155,7 +156,7 @@ static bool on_draw(reshade::api::command_list *cmd_list, uint32_t vertices, uin
 
 Showing results on the screen is done through a `reshade::api::swapchain` object. This is a collection of back buffers that the application can render into, which will eventually be presented to the screen. There may be multiple swap chains, if for example the application is rendering to multiple windows, or to a screen and a VR headset. ReShade again will call the `reshade::addon_event::init_swapchain` event after such an object was created by the application (and `reshade::addon_event::destroy_swapchain` on destruction). In addition ReShade will call the `reshade::addon_event::create_swapchain` event before the swap chain is created, so an add-on may modify its description before that happens. For example, to force the resolution to a specific value, one can do the following:
 ```cpp
-// Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::create_swapchain>(on_create_swapchain)'.
+// Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::create_swapchain>(&on_create_swapchain)'.
 static bool on_create_swapchain(reshade::api::resource_desc &buffer_desc, void *hwnd)
 {
     // Change resolution to 1920x1080 if the application is trying to create a swap chain at 800x600.
@@ -174,5 +175,6 @@ static bool on_create_swapchain(reshade::api::resource_desc &buffer_desc, void *
 
 ReShade associates an independent post-processing effect runtime with every swap chain (can be retrieved by calling `reshade::api::swapchain::get_effect_runtime()`). This is the runtime one usually controls via the ReShade overlay, but it can also be controlled programatically via the ReShade API using the methods of the `reshade::api::effect_runtime` object.
 
-In contrast to the described basic API abstraction objects, any buffers, textures, pipelines, etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_...`) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_...()`).\
-Buffers and textures are referenced via `reshade::api::resource` handles. Depth-stencil, render target, shader resource or unordered access views to such resources are referenced via `reshade::api::resource_view` handles. Sampler state objects are referenced via `reshade::api::sampler` handles, (partial) pipeline state objects via `pipeline` handles and so on.
+In contrast to the described basic API abstraction objects, any buffers, textures, pipelines, etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_resource`, `reshade::addon_event::init_pipeline`, ...) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_resource()`, `reshade::api::device::create_pipeline()`, ...).
+
+Buffers and textures are referenced via `reshade::api::resource` handles. Depth-stencil, render target, shader resource or unordered access views to such resources are referenced via `reshade::api::resource_view` handles. Sampler state objects are referenced via `reshade::api::sampler` handles, (partial) pipeline state objects via `reshade::api::pipeline` handles and so on.
