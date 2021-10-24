@@ -17,7 +17,7 @@ namespace reshade
 	namespace internal
 	{
 		/// <summary>
-		/// Gets the handle to the ReShade module in the current process.
+		/// Gets the handle to the ReShade module.
 		/// </summary>
 		inline HMODULE &get_reshade_module_handle()
 		{
@@ -101,7 +101,7 @@ namespace reshade
 			return false;
 
 #if defined(IMGUI_VERSION_NUM)
-		// Check that the ReShade module was built with Dear ImGui support and supports the used Dear ImGui version
+		// Check that the ReShade module was built with Dear ImGui support and supports the used version
 		if (!internal::get_imgui_function_table())
 			return false;
 #endif
