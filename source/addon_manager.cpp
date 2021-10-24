@@ -221,8 +221,8 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterAddon(HMODULE module);
 extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback);
 extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback);
 
-extern "C" __declspec(dllexport) void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context));
-extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context));
+extern "C" __declspec(dllexport) void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
+extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
 
 bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 {
@@ -362,7 +362,7 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 }
 
 #if RESHADE_GUI
-void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context))
+void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
 	reshade::addon::info *const info = find_addon_from_address(callback);
 	if (info == nullptr)
@@ -380,7 +380,7 @@ void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::eff
 	LOG(DEBUG) << "Registered overlay with title \"" << title << "\" and callback " << callback << '.';
 #endif
 }
-void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context))
+void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
 	reshade::addon::info *const info = find_addon_from_address(callback);
 	if (info == nullptr)

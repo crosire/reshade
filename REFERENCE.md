@@ -45,19 +45,15 @@ For more complex examples, see the [examples directory in this repository](../ex
 ## Overlays
 
 It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.
-Overlays are created with the use of [Dear ImGui](https://github.com/ocornut/imgui/). Including the `reshade.hpp` header after `imgui.h` will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers, define the function table variable in one of your source code file and use Dear ImGui as usual (without actually having to build its source code files, only the header files are needed):
+Overlays are created with the use of [Dear ImGui](https://github.com/ocornut/imgui/). Including the `reshade.hpp` header after `imgui.h` will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
 
 ```cpp
 #include <imgui.h>
 #include <reshade.hpp>
 
-// Define this variable in exactly one of your source code files.
-// The function table is automatically populated in the call to 'reshade::register_addon()' and overwrites all Dear ImGui functions.
-imgui_function_table g_imgui_function_table = {};
-
 bool g_popup_window_visible = false;
 
-static void draw_debug_overlay(reshade::api::effect_runtime *runtime, void *imgui_context)
+static void draw_debug_overlay(reshade::api::effect_runtime *runtime)
 {
     ImGui::TextUnformatted("Some text");
 
@@ -72,7 +68,7 @@ static void draw_debug_overlay(reshade::api::effect_runtime *runtime, void *imgu
     }
 }
 
-static void draw_settings_overlay(reshade::api::effect_runtime *runtime, void *imgui_context)
+static void draw_settings_overlay(reshade::api::effect_runtime *runtime)
 {
     ImGui::Checkbox("Popup window is visible", &g_popup_window_visible);
 }

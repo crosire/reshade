@@ -15,8 +15,6 @@ static std::mutex s_mutex;
 
 #ifdef BUILTIN_ADDON
 #include "ini_file.hpp"
-#else
-imgui_function_table g_imgui_function_table;
 #endif
 
 using namespace reshade::api;
@@ -692,7 +690,7 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 	}
 }
 
-static void draw_settings_overlay(effect_runtime *runtime, void *)
+static void draw_settings_overlay(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
 	state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);

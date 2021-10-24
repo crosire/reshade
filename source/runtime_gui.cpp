@@ -841,7 +841,7 @@ void reshade::runtime::draw_gui()
 				for (const auto &widget : info.overlay_callbacks)
 				{
 					if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
-						widget.second(this, _imgui_context);
+						widget.second(this);
 					ImGui::End();
 				}
 			}
@@ -2186,7 +2186,7 @@ void reshade::runtime::draw_gui_addons()
 				ImGui::Separator();
 				ImGui::Spacing();
 
-				info.settings_overlay_callback(this, _imgui_context);
+				info.settings_overlay_callback(this);
 			}
 		}
 

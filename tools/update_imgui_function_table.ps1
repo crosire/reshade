@@ -37,7 +37,8 @@ $function_header = @"
 
 #include "imgui_function_table.hpp"
 
-extern imgui_function_table g_imgui_function_table;
+namespace
+	reshade { namespace internal { const imgui_function_table *get_imgui_function_table(); } }
 
 namespace ImGui
 {
@@ -120,7 +121,7 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 
 			$function_header += "`tinline " + $type + " " + $name + "(" + $args_decl + ", ...) { va_list args; va_start(args, " + $last_arg_name + "); "
 			if ($has_return) { $function_header += "return " }
-			$function_header += "g_imgui_function_table." + $internal_name + "(" + $args_call + ", args); "
+			$function_header += "reshade::internal::get_imgui_function_table()->" + $internal_name + "(" + $args_call + ", args); "
 			$function_header += "va_end(args); }`r`n"
 		}
 		else {
@@ -131,7 +132,7 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 
 			$function_header += "`tinline " + $type + " " + $name + "(" + $args_decl + ") { ";
 			if ($has_return) { $function_header += "return " }
-			$function_header += "g_imgui_function_table." + $internal_name + "(" + $args_call + "); "
+			$function_header += "reshade::internal::get_imgui_function_table()->" + $internal_name + "(" + $args_call + "); "
 			$function_header += "}`r`n"
 		}
 	}

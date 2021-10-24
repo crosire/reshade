@@ -99,8 +99,8 @@ namespace reshade::addon
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
 #if RESHADE_GUI
 		float settings_height = 0.0f;
-		void(*settings_overlay_callback)(api::effect_runtime *, void *) = nullptr;
-		std::vector<std::pair<std::string, void(*)(api::effect_runtime *, void *)>> overlay_callbacks;
+		void(*settings_overlay_callback)(api::effect_runtime *) = nullptr;
+		std::vector<std::pair<std::string, void(*)(api::effect_runtime *)>> overlay_callbacks;
 #endif
 	};
 

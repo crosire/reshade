@@ -11,8 +11,6 @@
 #include <unordered_set>
 #include <malloc.h>
 
-imgui_function_table g_imgui_function_table;
-
 using namespace reshade::api;
 
 struct set_data
@@ -313,7 +311,7 @@ static void on_present(command_queue *queue, swapchain *runtime)
 // See implementation in 'texturemod_dump.cpp'
 extern bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc);
 
-static void draw_overlay(effect_runtime *runtime, void *)
+static void draw_overlay(effect_runtime *runtime)
 {
 	assert(s_is_in_reshade_runtime);
 

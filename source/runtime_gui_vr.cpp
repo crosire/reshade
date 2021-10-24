@@ -288,7 +288,7 @@ void reshade::runtime::draw_gui_vr()
 			{
 				if (selected_overlay_index == overlay_index++)
 				{
-					widget.second(this, _imgui_context);
+					widget.second(this);
 					break;
 				}
 			}

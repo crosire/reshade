@@ -11,8 +11,6 @@
 #include <unordered_map>
 #include <cassert>
 
-imgui_function_table g_imgui_function_table;
-
 namespace
 {
 	bool s_do_capture = false;
@@ -789,7 +787,7 @@ static void on_present(reshade::api::command_queue *, reshade::api::swapchain *)
 	s_do_capture = false;
 }
 
-static void draw_overlay(reshade::api::effect_runtime *, void *)
+static void draw_overlay(reshade::api::effect_runtime *)
 {
 	if (!s_do_capture)
 	{
