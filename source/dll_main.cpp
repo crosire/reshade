@@ -71,7 +71,7 @@ std::filesystem::path get_base_path()
 		return result;
 
 	std::error_code ec;
-	if (std::filesystem::exists(reshade::global_config().path(), ec) || !std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
+	if (!std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
 	{
 		return g_reshade_dll_path.parent_path();
 	}
