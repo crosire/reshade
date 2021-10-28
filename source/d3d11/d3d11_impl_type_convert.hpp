@@ -60,6 +60,8 @@ namespace reshade::d3d11
 		std::vector<uint64_t> descriptors;
 	};
 
+	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
+
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
 

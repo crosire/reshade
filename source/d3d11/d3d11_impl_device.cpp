@@ -34,53 +34,11 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	load_addons();
 
 	invoke_addon_event<reshade::addon_event::init_device>(this);
-
-	const D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
-
-	// Create global pipeline layout that is used for all application descriptor events
-	api::descriptor_range push_descriptors = {};
-	push_descriptors.array_size = 1;
-	api::pipeline_layout_param layout_params[4] = {};
-
-	push_descriptors.type = api::descriptor_type::sampler;
-	push_descriptors.count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
-	push_descriptors.visibility = api::shader_stage::all;
-	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[0].descriptor_layout);
-	push_descriptors.type = api::descriptor_type::shader_resource_view;
-	push_descriptors.count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-	push_descriptors.visibility = api::shader_stage::all;
-	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[1].descriptor_layout);
-	push_descriptors.type = api::descriptor_type::constant_buffer;
-	push_descriptors.count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
-	push_descriptors.visibility = api::shader_stage::all;
-	layout_params[2].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[2].descriptor_layout);
-	push_descriptors.type = api::descriptor_type::unordered_access_view;
-	push_descriptors.count =
-		feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
-		feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
-		feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
-	push_descriptors.visibility = api::shader_stage::pixel | api::shader_stage::compute;
-	layout_params[3].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[3].descriptor_layout);
-
-	create_pipeline_layout(4, layout_params, &_global_pipeline_layout);
 #endif
 }
 reshade::d3d11::device_impl::~device_impl()
 {
 #if RESHADE_ADDON
-	const std::vector<api::pipeline_layout_param> &layout_params = reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params;
-
-	destroy_descriptor_set_layout(layout_params[0].descriptor_layout);
-	destroy_descriptor_set_layout(layout_params[1].descriptor_layout);
-	destroy_descriptor_set_layout(layout_params[2].descriptor_layout);
-	destroy_descriptor_set_layout(layout_params[3].descriptor_layout);
-
-	destroy_pipeline_layout(_global_pipeline_layout);
-
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
@@ -1064,16 +1022,35 @@ void reshade::d3d11::device_impl::get_pipeline_layout_desc(api::pipeline_layout 
 {
 	assert(layout.handle != 0 && count != nullptr);
 
-	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-	if (params != nullptr)
+	if (layout == global_pipeline_layout)
 	{
-		*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-		std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+		if (params != nullptr)
+		{
+			*count = std::min(*count, 4u);
+			for (uint32_t i = 0; i < *count; ++i)
+			{
+				params[i].type = api::pipeline_layout_param_type::push_descriptors;
+				params[i].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 + i };
+			}
+		}
+		else
+		{
+			*count = 4u;
+		}
 	}
 	else
 	{
-		*count = static_cast<uint32_t>(layout_impl->params.size());
+		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
+
+		if (params != nullptr)
+		{
+			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
+			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+		}
+		else
+		{
+			*count = static_cast<uint32_t>(layout_impl->params.size());
+		}
 	}
 }
 
@@ -1087,20 +1064,60 @@ void reshade::d3d11::device_impl::get_descriptor_set_layout_desc(api::descriptor
 {
 	assert(layout.handle != 0 && count != nullptr);
 
-	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-	if (ranges != nullptr)
+	if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
 	{
-		if (*count != 0)
+		if (ranges != nullptr && *count != 0)
 		{
-			*count = 1;
-			*ranges = layout_impl->range;
+			const D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
+
+			ranges[0].offset = 0;
+			ranges[0].binding = 0;
+			ranges[0].dx_register_index = 0;
+			ranges[0].dx_register_space = 0;
+
+			switch (layout.handle - 0xFFFFFFFFFFFFFFF0)
+			{
+			case 0:
+				ranges[0].count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::sampler;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			case 1:
+				ranges[0].count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::shader_resource_view;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			case 2:
+				ranges[0].count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::constant_buffer;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			case 3:
+				ranges[0].count =
+					feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+					feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
+					feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::unordered_access_view;
+				ranges[0].visibility = api::shader_stage::pixel | api::shader_stage::compute;
+				break;
+			}
 		}
 	}
 	else
 	{
-		*count = 1;
+		const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
+		if (ranges != nullptr && *count != 0)
+		{
+			ranges[0] = layout_impl->range;
+		}
 	}
+
+	*count = 1;
 }
 
 reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::resource resource) const

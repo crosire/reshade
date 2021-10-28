@@ -94,9 +94,6 @@ namespace reshade::d3d11
 
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
-	public:
-		api::pipeline_layout _global_pipeline_layout = { 0 };
-
 	private:
 		com_ptr<ID3D11VertexShader> _copy_vert_shader;
 		com_ptr<ID3D11PixelShader>  _copy_pixel_shader;

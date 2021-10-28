@@ -116,7 +116,7 @@ void D3D11DeviceContext::invoke_bind_samplers_event(reshade::api::shader_stage s
 	const auto descriptors = reinterpret_cast<const reshade::api::sampler *>(objects);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _device->_global_pipeline_layout, 0,
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, reshade::d3d11::global_pipeline_layout, 0,
 		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::sampler, descriptors));
 }
 void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11ShaderResourceView *const *objects)
@@ -135,7 +135,7 @@ void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::s
 	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _device->_global_pipeline_layout, 1,
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, reshade::d3d11::global_pipeline_layout, 1,
 		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::shader_resource_view, descriptors));
 }
 void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11UnorderedAccessView *const *objects)
@@ -154,7 +154,7 @@ void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::
 	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _device->_global_pipeline_layout, 3,
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, reshade::d3d11::global_pipeline_layout, 3,
 		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::unordered_access_view, descriptors));
 }
 void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11Buffer *const *objects, const UINT *first_constant, const UINT *constant_count)
@@ -173,7 +173,7 @@ void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader
 			constant_count != nullptr ? constant_count[i] * 16 : std::numeric_limits<uint64_t>::max() };
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _device->_global_pipeline_layout, 2,
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, reshade::d3d11::global_pipeline_layout, 2,
 		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::constant_buffer, descriptors));
 }
 #endif

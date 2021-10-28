@@ -1503,7 +1503,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 
 		// See global pipeline layout initialization in 'device_impl::on_after_reset' for corresponding layout indices
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			this, shader_stage, _global_pipeline_layout, shader_stage == reshade::api::shader_stage::vertex ? 0 : 1,
+			this, shader_stage, reshade::d3d9::global_pipeline_layout, shader_stage == reshade::api::shader_stage::vertex ? 0 : 1,
 			reshade::api::descriptor_set_update(Stage, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
 #endif
@@ -1781,7 +1781,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantF(UINT StartRe
 	{
 		// See global pipeline layout initialization in 'device_impl::on_after_reset' for corresponding layout indices
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::vertex, _global_pipeline_layout, 2, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::vertex, reshade::d3d9::global_pipeline_layout, 2, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1798,7 +1798,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantI(UINT StartRe
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::vertex, _global_pipeline_layout, 3, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::vertex, reshade::d3d9::global_pipeline_layout, 3, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1815,7 +1815,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantB(UINT StartRe
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::vertex, _global_pipeline_layout, 4, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::vertex, reshade::d3d9::global_pipeline_layout, 4, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1943,7 +1943,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantF(UINT StartReg
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::pixel, _global_pipeline_layout, 5, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::pixel, reshade::d3d9::global_pipeline_layout, 5, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1960,7 +1960,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantI(UINT StartReg
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::pixel, _global_pipeline_layout, 6, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::pixel, reshade::d3d9::global_pipeline_layout, 6, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1977,7 +1977,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantB(UINT StartReg
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::pixel, _global_pipeline_layout, 7, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::pixel, reshade::d3d9::global_pipeline_layout, 7, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 

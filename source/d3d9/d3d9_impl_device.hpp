@@ -149,7 +149,6 @@ namespace reshade::d3d9
 #endif
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
-		api::pipeline_layout _global_pipeline_layout = { 0 };
 
 		D3DCAPS9 _caps = {};
 		D3DDEVICE_CREATION_PARAMETERS _cp = {};

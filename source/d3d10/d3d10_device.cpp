@@ -242,7 +242,7 @@ void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, U
 	const auto descriptors = reinterpret_cast<const reshade::api::sampler *>(objects);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 0,
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, reshade::d3d10::global_pipeline_layout, 0,
 		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::sampler, descriptors));
 }
 void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects)
@@ -261,7 +261,7 @@ void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_s
 	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 1,
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, reshade::d3d10::global_pipeline_layout, 1,
 		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::shader_resource_view, descriptors));
 }
 void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects)
@@ -280,7 +280,7 @@ void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage 
 			std::numeric_limits<uint64_t>::max() };
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 2,
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, reshade::d3d10::global_pipeline_layout, 2,
 		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::constant_buffer, descriptors));
 }
 #endif

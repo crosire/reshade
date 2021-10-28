@@ -146,9 +146,6 @@ namespace reshade::d3d10
 		void finish_debug_event() final {}
 		void insert_debug_marker(const char *, const float[4]) final {}
 
-	protected:
-		api::pipeline_layout _global_pipeline_layout = { 0 };
-
 	private:
 		com_ptr<ID3D10VertexShader> _copy_vert_shader;
 		com_ptr<ID3D10PixelShader>  _copy_pixel_shader;

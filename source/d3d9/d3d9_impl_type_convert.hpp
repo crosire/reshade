@@ -51,6 +51,8 @@ namespace reshade::d3d9
 		std::vector<uint64_t> descriptors;
 	};
 
+	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
+
 	auto convert_format(api::format format, bool lockable = false) -> D3DFORMAT;
 	auto convert_format(D3DFORMAT d3d_format) -> api::format;
 

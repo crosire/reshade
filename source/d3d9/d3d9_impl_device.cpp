@@ -64,61 +64,9 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	swapchain->GetPresentParameters(&pp);
 
 	on_init(pp);
-
-#if RESHADE_ADDON
-	// Create global pipeline layout that is used for all application descriptor events
-	api::descriptor_range push_descriptors = {};
-	push_descriptors.array_size = 1;
-	api::pipeline_layout_param layout_params[8] = {};
-
-	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-	layout_params[2].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
-	layout_params[2].push_constants.visibility = api::shader_stage::vertex;
-	layout_params[3].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[3].push_constants.count = 16 * 4; // i#
-	layout_params[3].push_constants.visibility = api::shader_stage::vertex;
-	layout_params[4].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[4].push_constants.count = 16; // b#
-	layout_params[4].push_constants.visibility = api::shader_stage::vertex;
-
-	push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-	push_descriptors.count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
-	push_descriptors.visibility = api::shader_stage::vertex;
-	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[0].descriptor_layout);
-
-	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-	layout_params[5].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[5].push_constants.count = 224 * 4; // c#
-	layout_params[5].push_constants.visibility = api::shader_stage::pixel;
-	layout_params[6].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[6].push_constants.count = 16 * 4; // i#
-	layout_params[6].push_constants.visibility = api::shader_stage::pixel;
-	layout_params[7].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[7].push_constants.count = 16; // b#
-	layout_params[7].push_constants.visibility = api::shader_stage::pixel;
-
-	push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-	push_descriptors.count = _caps.MaxSimultaneousTextures; // s#
-	push_descriptors.visibility = api::shader_stage::pixel;
-	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[1].descriptor_layout);
-
-	create_pipeline_layout(8, layout_params, &_global_pipeline_layout);
-#endif
 }
 reshade::d3d9::device_impl::~device_impl()
 {
-#if RESHADE_ADDON
-	const std::vector<api::pipeline_layout_param> &layout_params = reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params;
-
-	destroy_descriptor_set_layout(layout_params[0].descriptor_layout);
-	destroy_descriptor_set_layout(layout_params[1].descriptor_layout);
-
-	destroy_pipeline_layout(_global_pipeline_layout);
-#endif
-
 	on_reset();
 
 #if RESHADE_ADDON
@@ -1479,16 +1427,105 @@ void reshade::d3d9::device_impl::get_pipeline_layout_desc(api::pipeline_layout l
 {
 	assert(layout.handle != 0 && count != nullptr);
 
-	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-	if (params != nullptr)
+	if (layout == global_pipeline_layout)
 	{
-		*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-		std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+		if (params != nullptr)
+		{
+			*count = std::min(*count, 8u);
+
+			if (*count > 0)
+			{
+				params[0].type = api::pipeline_layout_param_type::push_descriptors;
+				params[0].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 };
+			}
+			if (*count > 1)
+			{
+				params[1].type = api::pipeline_layout_param_type::push_descriptors;
+				params[1].descriptor_layout = { 0xFFFFFFFFFFFFFFF1 };
+			}
+
+			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
+			if (*count > 2)
+			{
+				params[2].type = api::pipeline_layout_param_type::push_constants;
+				params[2].push_constants.offset = 0;
+				params[2].push_constants.binding = 0;
+				params[2].push_constants.dx_register_index = 0;
+				params[2].push_constants.dx_register_space = 0;
+				params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
+				params[2].push_constants.visibility = api::shader_stage::vertex;
+			}
+			if (*count > 3)
+			{
+				params[3].type = api::pipeline_layout_param_type::push_constants;
+				params[3].push_constants.offset = 0;
+				params[3].push_constants.binding = 0;
+				params[3].push_constants.dx_register_index = 0;
+				params[3].push_constants.dx_register_space = 0;
+				params[3].push_constants.count = 16 * 4; // i#
+				params[3].push_constants.visibility = api::shader_stage::vertex;
+			}
+			if (*count > 4)
+			{
+				params[4].type = api::pipeline_layout_param_type::push_constants;
+				params[4].push_constants.offset = 0;
+				params[4].push_constants.binding = 0;
+				params[4].push_constants.dx_register_index = 0;
+				params[4].push_constants.dx_register_space = 0;
+				params[4].push_constants.count = 16; // b#
+				params[4].push_constants.visibility = api::shader_stage::vertex;
+			}
+
+			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+			if (*count > 5)
+			{
+				params[5].type = api::pipeline_layout_param_type::push_constants;
+				params[5].push_constants.offset = 0;
+				params[5].push_constants.binding = 0;
+				params[5].push_constants.dx_register_index = 0;
+				params[5].push_constants.dx_register_space = 0;
+				params[5].push_constants.count = 224 * 4; // c#
+				params[5].push_constants.visibility = api::shader_stage::pixel;
+			}
+			if (*count > 6)
+			{
+				params[6].type = api::pipeline_layout_param_type::push_constants;
+				params[6].push_constants.offset = 0;
+				params[6].push_constants.binding = 0;
+				params[6].push_constants.dx_register_index = 0;
+				params[6].push_constants.dx_register_space = 0;
+				params[6].push_constants.count = 16 * 4; // i#
+				params[6].push_constants.visibility = api::shader_stage::pixel;
+			}
+			if (*count > 7)
+			{
+				params[7].type = api::pipeline_layout_param_type::push_constants;
+				params[7].push_constants.offset = 0;
+				params[7].push_constants.binding = 0;
+				params[7].push_constants.dx_register_index = 0;
+				params[7].push_constants.dx_register_space = 0;
+				params[7].push_constants.count = 16; // b#
+				params[7].push_constants.visibility = api::shader_stage::pixel;
+			}
+		}
+		else
+		{
+			*count = 8u;
+		}
 	}
 	else
 	{
-		*count = static_cast<uint32_t>(layout_impl->params.size());
+		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
+
+		if (params != nullptr)
+		{
+			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
+			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+		}
+		else
+		{
+			*count = static_cast<uint32_t>(layout_impl->params.size());
+		}
 	}
 }
 
@@ -1502,20 +1539,43 @@ void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_
 {
 	assert(layout.handle != 0 && count != nullptr);
 
-	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-	if (ranges != nullptr)
+	if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
 	{
-		if (*count != 0)
+		if (ranges != nullptr && *count != 0)
 		{
-			*count = 1;
-			*ranges = layout_impl->range;
+			ranges[0].offset = 0;
+			ranges[0].binding = 0;
+			ranges[0].dx_register_index = 0;
+			ranges[0].dx_register_space = 0;
+
+			switch (layout.handle - 0xFFFFFFFFFFFFFFF0)
+			{
+			case 0:
+				ranges[0].count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::sampler_with_resource_view;
+				ranges[0].visibility = api::shader_stage::vertex;
+				break;
+			case 1:
+				ranges[0].count = _caps.MaxSimultaneousTextures; // s#
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::sampler_with_resource_view;
+				ranges[0].visibility = api::shader_stage::pixel;
+				break;
+			}
 		}
 	}
 	else
 	{
-		*count = 1;
+		const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
+		if (ranges != nullptr && *count != 0)
+		{
+			ranges[0] = layout_impl->range;
+		}
 	}
+
+	*count = 1;
 }
 
 reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource resource) const
