@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  reshade:
+    image: reshade
+    build:
+      context: .
+      dockerfile: ./Dockerfile
