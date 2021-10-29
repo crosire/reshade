@@ -247,26 +247,19 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 	{
 		if (char *product_name = nullptr;
 			VerQueryValueA(version_data.data(), "\\StringFileInfo\\040004b0\\ProductName", reinterpret_cast<LPVOID *>(&product_name), nullptr))
-		{
 			info.name = product_name;
-		}
+
 		if (char *company_name = nullptr;
 			VerQueryValueA(version_data.data(), "\\StringFileInfo\\040004b0\\CompanyName", reinterpret_cast<LPVOID *>(&company_name), nullptr))
-		{
 			info.author = company_name;
-		}
 
 		if (char *file_version = nullptr;
 			VerQueryValueA(version_data.data(), "\\StringFileInfo\\040004b0\\FileVersion", reinterpret_cast<LPVOID *>(&file_version), nullptr))
-		{
 			info.version = file_version;
-		}
 
 		if (char *file_description = nullptr;
 			VerQueryValueA(version_data.data(), "\\StringFileInfo\\040004b0\\FileDescription", reinterpret_cast<LPVOID *>(&file_description), nullptr))
-		{
 			info.description = file_description;
-		}
 	}
 
 	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(module, "NAME"));
@@ -278,6 +271,13 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	if (info.version.empty())
 		info.version = "1.0.0.0";
+
+	if (std::find_if(reshade::addon::loaded_info.begin(), reshade::addon::loaded_info.end(),
+		[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon::loaded_info.end())
+	{
+		// Prevent registration if another add-on with the same name already exists
+		return false;
+	}
 
 	if (std::vector<std::string> disabled_addons;
 		reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons) &&
