@@ -404,6 +404,8 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	// Release remaining references to this device
 	_implicit_swapchain->Release();
 
+	assert(_additional_swapchains.empty());
+
 	const auto orig = _orig;
 	const bool extended_interface = _extended_interface;
 #if RESHADE_VERBOSE_LOG
@@ -639,8 +641,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(texture, [this, texture]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 
 		// Register all surfaces of this texture too
@@ -714,8 +721,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(texture, [this, texture]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 
 		if ((desc.usage & (reshade::api::resource_usage::shader_resource)) != reshade::api::resource_usage::undefined)
@@ -769,8 +781,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(texture, [this, texture]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 
 		// Register all surfaces of this texture too
@@ -851,8 +868,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppVertexBuffer) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(resource, [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 #endif
 	}
@@ -899,8 +921,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(resource, [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 #endif
 	}
@@ -946,8 +973,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::render_target, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
@@ -996,8 +1028,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::depth_stencil, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
@@ -1171,8 +1208,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::render_target, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
@@ -2102,8 +2144,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::render_target, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
@@ -2156,8 +2203,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::render_target, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
@@ -2207,8 +2259,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::depth_stencil, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
 
+		InterlockedIncrement(&_ref);
+
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+
+			const ULONG ref = InterlockedDecrement(&_ref);
+			assert(ref != 0);
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
