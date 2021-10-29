@@ -84,7 +84,7 @@ reshade::log::message::~message()
 	s_message_mutex.unlock();
 }
 
-void reshade::log::open_log_file(const std::filesystem::path &path)
+bool reshade::log::open_log_file(const std::filesystem::path &path)
 {
 	// Close the previous file first
 	if (s_file_handle != INVALID_HANDLE_VALUE)
@@ -96,4 +96,6 @@ void reshade::log::open_log_file(const std::filesystem::path &path)
 
 	// Open the log file for writing (and flush on each write) and clear previous contents
 	s_file_handle = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, NULL);
+
+	return s_file_handle != INVALID_HANDLE_VALUE;
 }
