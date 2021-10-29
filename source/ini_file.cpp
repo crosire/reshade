@@ -60,6 +60,12 @@ void ini_file::load()
 			const std::string key = trim(line.substr(0, assign_index));
 			const std::string value = trim(line.substr(assign_index + 1));
 
+			if (value.empty())
+			{
+				_sections[section].insert({ key, {} });
+				continue;
+			}
+
 			// Append to key if it already exists
 			ini_file::value &elements = _sections[section][key];
 			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
@@ -84,7 +90,7 @@ void ini_file::load()
 							base++; // Skip second comma in a ",," escape sequence
 					}
 
-					base = offset = found + 1;
+					offset = base = found + 1;
 				}
 			}
 		}
