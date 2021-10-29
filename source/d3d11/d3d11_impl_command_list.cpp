@@ -53,8 +53,7 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 			(new_states[i] & (api::resource_usage::depth_stencil | api::resource_usage::render_target)) != api::resource_usage::undefined)
 			transitions_away_from_shader_resource_usage = true;
 		if ((old_states[i] & api::resource_usage::unordered_access) != api::resource_usage::undefined &&
-			(new_states[i] & api::resource_usage::unordered_access) == api::resource_usage::undefined &&
-			(new_states[i] & (api::resource_usage::depth_stencil | api::resource_usage::render_target)) != api::resource_usage::undefined)
+			(new_states[i] & api::resource_usage::unordered_access) == api::resource_usage::undefined)
 			transitions_away_from_unordered_access_usage = true;
 	}
 
