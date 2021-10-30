@@ -1075,6 +1075,31 @@ void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
 	vk.DestroyFramebuffer(_orig, (VkFramebuffer)handle.handle, nullptr);
 }
 
+reshade::api::resource_view reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
+{
+	assert(fbo.handle != 0);
+
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>((VkFramebuffer)fbo.handle);
+	assert(index <= data->attachments.size());
+
+	for (uint32_t i = 0; i < data->attachments.size(); ++i)
+	{
+		if (data->attachment_types[i] & static_cast<VkImageAspectFlags>(type))
+		{
+			if (index == 0)
+			{
+				return { (uint64_t)data->attachments[i] };
+			}
+			else
+			{
+				index -= 1;
+			}
+		}
+	}
+
+	return { 0 };
+}
+
 bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
 	std::vector<VkPushConstantRange> push_constant_ranges;
@@ -1133,6 +1158,23 @@ void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 	unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)handle.handle);
 
 	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
+}
+
+void reshade::vulkan::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+{
+	assert(count != nullptr);
+
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);
+
+	if (params != nullptr)
+	{
+		*count = std::min(*count, static_cast<uint32_t>(data->desc.size()));
+		std::memcpy(params, data->desc.data(), *count * sizeof(api::pipeline_layout_param));
+	}
+	else
+	{
+		*count = static_cast<uint32_t>(data->desc.size());
+	}
 }
 
 bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out_handle)
@@ -1198,6 +1240,23 @@ void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor
 	unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>((VkDescriptorSetLayout)handle.handle);
 
 	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
+}
+
+void reshade::vulkan::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
+{
+	assert(count != nullptr);
+
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>((VkDescriptorSetLayout)layout.handle);
+
+	if (ranges != nullptr)
+	{
+		*count = std::min(*count, static_cast<uint32_t>(data->desc.size()));
+		std::memcpy(ranges, data->desc.data(), *count * sizeof(api::descriptor_range));
+	}
+	else
+	{
+		*count = static_cast<uint32_t>(data->desc.size());
+	}
 }
 
 bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out_handle)
@@ -1291,6 +1350,14 @@ void reshade::vulkan::device_impl::destroy_descriptor_sets(uint32_t count, const
 		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)sets[i].handle);
 
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
+}
+
+void reshade::vulkan::device_impl::get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const
+{
+	const auto set_data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)set.handle);
+
+	*pool = { (uint64_t)set_data->pool };
+	*offset = static_cast<uint32_t>(set_data->offset);
 }
 
 bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access, void **out_data)
@@ -1588,73 +1655,6 @@ void reshade::vulkan::device_impl::wait_idle() const
 #ifndef NDEBUG
 	_wait_for_idle_happened = true;
 #endif
-}
-
-void reshade::vulkan::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
-{
-	assert(count != nullptr);
-
-	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);
-
-	if (params != nullptr)
-	{
-		*count = std::min(*count, static_cast<uint32_t>(data->desc.size()));
-		std::memcpy(params, data->desc.data(), *count * sizeof(api::pipeline_layout_param));
-	}
-	else
-	{
-		*count = static_cast<uint32_t>(data->desc.size());
-	}
-}
-
-void reshade::vulkan::device_impl::get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const
-{
-	const auto set_data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)set.handle);
-
-	*pool = { (uint64_t)set_data->pool };
-	*offset = static_cast<uint32_t>(set_data->offset);
-}
-
-void reshade::vulkan::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
-{
-	assert(count != nullptr);
-
-	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>((VkDescriptorSetLayout)layout.handle);
-
-	if (ranges != nullptr)
-	{
-		*count = std::min(*count, static_cast<uint32_t>(data->desc.size()));
-		std::memcpy(ranges, data->desc.data(), *count * sizeof(api::descriptor_range));
-	}
-	else
-	{
-		*count = static_cast<uint32_t>(data->desc.size());
-	}
-}
-
-reshade::api::resource_view reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
-{
-	assert(fbo.handle != 0);
-
-	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>((VkFramebuffer)fbo.handle);
-	assert(index <= data->attachments.size());
-
-	for (uint32_t i = 0; i < data->attachments.size(); ++i)
-	{
-		if (data->attachment_types[i] & static_cast<VkImageAspectFlags>(type))
-		{
-			if (index == 0)
-			{
-				return { (uint64_t)data->attachments[i] };
-			}
-			else
-			{
-				index -= 1;
-			}
-		}
-	}
-
-	return { 0 };
 }
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()

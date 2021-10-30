@@ -583,6 +583,33 @@ void reshade::d3d12::device_impl::destroy_framebuffer(api::framebuffer handle)
 	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 
+reshade::api::resource_view reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
+{
+	assert(fbo.handle != 0);
+
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
+	if (type == api::attachment_type::color)
+	{
+		if (index < fbo_impl->count)
+		{
+			if (fbo_impl->rtv_is_single_handle_to_range)
+				return { offset_descriptor_handle(*fbo_impl->rtv, index, D3D12_DESCRIPTOR_HEAP_TYPE_RTV).ptr };
+			else
+				return { fbo_impl->rtv[index].ptr };
+		}
+	}
+	else
+	{
+		if (fbo_impl->dsv.ptr != 0)
+		{
+			return { fbo_impl->dsv.ptr };
+		}
+	}
+
+	return { 0 };
+}
+
 bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
 	std::vector<D3D12_ROOT_PARAMETER> internal_params(param_count);
@@ -698,6 +725,16 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
+void reshade::d3d12::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	*count *= sizeof(api::pipeline_layout_param);
+	const HRESULT hr = reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(extra_data_guid, count, params);
+	*count /= sizeof(api::pipeline_layout_param);
+	assert(SUCCEEDED(hr));
+}
+
 bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)
 {
 	for (uint32_t i = 0; i < range_count; ++i)
@@ -718,6 +755,23 @@ bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t range_co
 void reshade::d3d12::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
+}
+
+void reshade::d3d12::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
+
+	if (ranges != nullptr)
+	{
+		*count = std::min(*count, static_cast<uint32_t>(layout_impl->ranges.size()));
+		std::memcpy(ranges, layout_impl->ranges.data(), *count * sizeof(api::descriptor_range));
+	}
+	else
+	{
+		*count = static_cast<uint32_t>(layout_impl->ranges.size());
+	}
 }
 
 bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
@@ -818,6 +872,11 @@ void reshade::d3d12::device_impl::destroy_descriptor_sets(uint32_t count, const 
 		_gpu_view_heap.free({ static_cast<SIZE_T>(sets[i].handle) }, total_count);
 		_gpu_sampler_heap.free({ static_cast<SIZE_T>(sets[i].handle) }, total_count);
 	}
+}
+
+void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const
+{
+	resolve_descriptor_handle(set, nullptr, pool, offset);
 }
 
 bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
@@ -1097,65 +1156,6 @@ void reshade::d3d12::device_impl::wait_idle() const
 {
 	for (command_queue_impl *const queue : _queues)
 		queue->wait_idle();
-}
-
-void reshade::d3d12::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
-{
-	assert(layout.handle != 0 && count != nullptr);
-
-	*count *= sizeof(api::pipeline_layout_param);
-	const HRESULT hr = reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(extra_data_guid, count, params);
-	*count /= sizeof(api::pipeline_layout_param);
-	assert(SUCCEEDED(hr));
-}
-
-void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const
-{
-	resolve_descriptor_handle(set, nullptr, pool, offset);
-}
-
-void reshade::d3d12::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
-{
-	assert(layout.handle != 0 && count != nullptr);
-
-	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
-
-	if (ranges != nullptr)
-	{
-		*count = std::min(*count, static_cast<uint32_t>(layout_impl->ranges.size()));
-		std::memcpy(ranges, layout_impl->ranges.data(), *count * sizeof(api::descriptor_range));
-	}
-	else
-	{
-		*count = static_cast<uint32_t>(layout_impl->ranges.size());
-	}
-}
-
-reshade::api::resource_view reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
-{
-	assert(fbo.handle != 0);
-
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	if (type == api::attachment_type::color)
-	{
-		if (index < fbo_impl->count)
-		{
-			if (fbo_impl->rtv_is_single_handle_to_range)
-				return { offset_descriptor_handle(*fbo_impl->rtv, index, D3D12_DESCRIPTOR_HEAP_TYPE_RTV).ptr };
-			else
-				return { fbo_impl->rtv[index].ptr };
-		}
-	}
-	else
-	{
-		if (fbo_impl->dsv.ptr != 0)
-		{
-			return { fbo_impl->dsv.ptr };
-		}
-	}
-
-	return { 0 };
 }
 
 void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)

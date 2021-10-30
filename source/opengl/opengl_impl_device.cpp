@@ -1358,6 +1358,94 @@ void reshade::opengl::device_impl::destroy_framebuffer(api::framebuffer handle)
 	glDeleteFramebuffers(1, &object);
 }
 
+reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
+{
+	assert(fbo.handle != 0);
+
+	const GLuint fbo_object = fbo.handle & 0xFFFFFFFF;
+
+	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
+	if (fbo_object == 0)
+	{
+		if (type == api::attachment_type::color)
+		{
+			return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+		}
+		if (_default_depth_format != GL_NONE)
+		{
+			return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+		}
+		else
+		{
+			return make_resource_view_handle(0, 0); // No default depth buffer exists
+		}
+	}
+
+	GLenum attachment = GL_NONE;
+	switch (type)
+	{
+	case api::attachment_type::color:
+		attachment = GL_COLOR_ATTACHMENT0 + index;
+		if (index >= (fbo.handle >> 40))
+		{
+			return make_resource_view_handle(0, 0);
+		}
+		break;
+	case api::attachment_type::depth:
+		attachment = GL_DEPTH_ATTACHMENT;
+		break;
+	case api::attachment_type::stencil:
+		attachment = GL_STENCIL_ATTACHMENT;
+		break;
+	default:
+		if (type == (api::attachment_type::depth | api::attachment_type::stencil))
+		{
+			attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+			break;
+		}
+		else
+		{
+			return make_resource_view_handle(0, 0);
+		}
+	}
+
+	GLenum target = GL_NONE, object = 0;
+	if (_supports_dsa)
+	{
+		glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
+
+		// Check if FBO does have this attachment
+		if (target != GL_NONE)
+		{
+			glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+
+			// Get actual texture target from the texture object
+			if (target == GL_TEXTURE)
+				glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+
+			return make_resource_view_handle(target, object);
+		}
+	}
+	else
+	{
+		GLint prev_object = 0;
+		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_object);
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
+
+		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
+
+		if (target != GL_NONE)
+		{
+			glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, prev_object);
+	}
+
+	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
+	return make_resource_view_handle(target, object);
+}
+
 bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
 	bool success = true;
@@ -1399,6 +1487,23 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
+}
+
+void reshade::opengl::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
+
+	if (params != nullptr)
+	{
+		*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
+		std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+	}
+	else
+	{
+		*count = static_cast<uint32_t>(layout_impl->params.size());
+	}
 }
 
 bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)
@@ -1453,6 +1558,26 @@ bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t range_c
 void reshade::opengl::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
+}
+
+void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
+	if (ranges != nullptr)
+	{
+		if (*count != 0)
+		{
+			*count = 1;
+			*ranges = layout_impl->range;
+		}
+	}
+	else
+	{
+		*count = 1;
+	}
 }
 
 bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
@@ -1538,6 +1663,12 @@ void reshade::opengl::device_impl::destroy_descriptor_sets(uint32_t count, const
 {
 	for (uint32_t i = 0; i < count; ++i)
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+}
+
+void reshade::opengl::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
+{
+	*pool = { 0 };
+	*offset = 0; // Not implemented
 }
 
 bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data)
@@ -1858,140 +1989,4 @@ bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool pool, 
 	}
 
 	return true;
-}
-
-void reshade::opengl::device_impl::wait_idle() const
-{
-	glFinish();
-}
-
-void reshade::opengl::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
-{
-	assert(layout.handle != 0 && count != nullptr);
-
-	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-	if (params != nullptr)
-	{
-		*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-		std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
-	}
-	else
-	{
-		*count = static_cast<uint32_t>(layout_impl->params.size());
-	}
-}
-
-void reshade::opengl::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
-{
-	*pool = { 0 };
-	*offset = 0; // Not implemented
-}
-
-void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
-{
-	assert(layout.handle != 0 && count != nullptr);
-
-	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-	if (ranges != nullptr)
-	{
-		if (*count != 0)
-		{
-			*count = 1;
-			*ranges = layout_impl->range;
-		}
-	}
-	else
-	{
-		*count = 1;
-	}
-}
-
-reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
-{
-	assert(fbo.handle != 0);
-
-	const GLuint fbo_object = fbo.handle & 0xFFFFFFFF;
-
-	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
-	if (fbo_object == 0)
-	{
-		if (type == api::attachment_type::color)
-		{
-			return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-		}
-		if (_default_depth_format != GL_NONE)
-		{
-			return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-		}
-		else
-		{
-			return make_resource_view_handle(0, 0); // No default depth buffer exists
-		}
-	}
-
-	GLenum attachment = GL_NONE;
-	switch (type)
-	{
-	case api::attachment_type::color:
-		attachment = GL_COLOR_ATTACHMENT0 + index;
-		if (index >= (fbo.handle >> 40))
-		{
-			return make_resource_view_handle(0, 0);
-		}
-		break;
-	case api::attachment_type::depth:
-		attachment = GL_DEPTH_ATTACHMENT;
-		break;
-	case api::attachment_type::stencil:
-		attachment = GL_STENCIL_ATTACHMENT;
-		break;
-	default:
-		if (type == (api::attachment_type::depth | api::attachment_type::stencil))
-		{
-			attachment = GL_DEPTH_STENCIL_ATTACHMENT;
-			break;
-		}
-		else
-		{
-			return make_resource_view_handle(0, 0);
-		}
-	}
-
-	GLenum target = GL_NONE, object = 0;
-	if (_supports_dsa)
-	{
-		glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
-
-		// Check if FBO does have this attachment
-		if (target != GL_NONE)
-		{
-			glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
-
-			// Get actual texture target from the texture object
-			if (target == GL_TEXTURE)
-				glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
-
-			return make_resource_view_handle(target, object);
-		}
-	}
-	else
-	{
-		GLint prev_object = 0;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_object);
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
-
-		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
-
-		if (target != GL_NONE)
-		{
-			glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
-		}
-
-		glBindFramebuffer(GL_FRAMEBUFFER, prev_object);
-	}
-
-	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
-	return make_resource_view_handle(target, object);
 }

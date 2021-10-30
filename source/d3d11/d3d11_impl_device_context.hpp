@@ -67,7 +67,7 @@ namespace reshade::d3d11
 		device_impl *const _device_impl;
 	};
 
-	class device_context_impl : public api::api_object_impl<ID3D11DeviceContext *, api::command_list, api::command_queue>
+	class device_context_impl : public api::api_object_impl<ID3D11DeviceContext *, api::command_queue, api::command_list>
 	{
 		friend class swapchain_impl;
 
@@ -137,6 +137,7 @@ namespace reshade::d3d11
 	private:
 		device_impl *const _device_impl;
 		com_ptr<ID3DUserDefinedAnnotation> _annotations;
+
 		UINT _push_constants_size = 0;
 		com_ptr<ID3D11Buffer> _push_constants;
 	};

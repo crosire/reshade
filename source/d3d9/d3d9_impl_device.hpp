@@ -53,17 +53,25 @@ namespace reshade::d3d9
 		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle) final;
 		void destroy_framebuffer(api::framebuffer handle) final;
 
+		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
+
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
+		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
+
 		bool create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out_handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
+
+		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
 
 		bool create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out_sets) final;
 		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+
+		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
 
 		bool map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data) final;
 		void unmap_buffer_region(api::resource resource) final;
@@ -78,14 +86,6 @@ namespace reshade::d3d9
 		bool get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void wait_idle() const final { /* no-op */ }
-
-		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
-
-		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
-
-		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
-
-		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
 		api::device *get_device() final { return this; }
 

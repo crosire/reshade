@@ -1080,6 +1080,32 @@ void reshade::d3d9::device_impl::destroy_framebuffer(api::framebuffer handle)
 	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 
+reshade::api::resource_view reshade::d3d9::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
+{
+	assert(fbo.handle != 0);
+
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
+	if (type == api::attachment_type::color)
+	{
+		if (index < _caps.NumSimultaneousRTs && fbo_impl->rtv[index] != nullptr)
+		{
+			const uint64_t set_srgb_bit = fbo_impl->srgb_write_enable;
+
+			return { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) | set_srgb_bit };
+		}
+	}
+	else
+	{
+		if (fbo_impl->dsv != nullptr)
+		{
+			return { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
+		}
+	}
+
+	return { 0 };
+}
+
 bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
 	bool success = true;
@@ -1120,6 +1146,112 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
+}
+
+void reshade::d3d9::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	if (layout == global_pipeline_layout)
+	{
+		if (params != nullptr)
+		{
+			*count = std::min(*count, 8u);
+
+			if (*count > 0)
+			{
+				params[0].type = api::pipeline_layout_param_type::push_descriptors;
+				params[0].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 };
+			}
+			if (*count > 1)
+			{
+				params[1].type = api::pipeline_layout_param_type::push_descriptors;
+				params[1].descriptor_layout = { 0xFFFFFFFFFFFFFFF1 };
+			}
+
+			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
+			if (*count > 2)
+			{
+				params[2].type = api::pipeline_layout_param_type::push_constants;
+				params[2].push_constants.offset = 0;
+				params[2].push_constants.binding = 0;
+				params[2].push_constants.dx_register_index = 0;
+				params[2].push_constants.dx_register_space = 0;
+				params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
+				params[2].push_constants.visibility = api::shader_stage::vertex;
+			}
+			if (*count > 3)
+			{
+				params[3].type = api::pipeline_layout_param_type::push_constants;
+				params[3].push_constants.offset = 0;
+				params[3].push_constants.binding = 0;
+				params[3].push_constants.dx_register_index = 0;
+				params[3].push_constants.dx_register_space = 0;
+				params[3].push_constants.count = 16 * 4; // i#
+				params[3].push_constants.visibility = api::shader_stage::vertex;
+			}
+			if (*count > 4)
+			{
+				params[4].type = api::pipeline_layout_param_type::push_constants;
+				params[4].push_constants.offset = 0;
+				params[4].push_constants.binding = 0;
+				params[4].push_constants.dx_register_index = 0;
+				params[4].push_constants.dx_register_space = 0;
+				params[4].push_constants.count = 16; // b#
+				params[4].push_constants.visibility = api::shader_stage::vertex;
+			}
+
+			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+			if (*count > 5)
+			{
+				params[5].type = api::pipeline_layout_param_type::push_constants;
+				params[5].push_constants.offset = 0;
+				params[5].push_constants.binding = 0;
+				params[5].push_constants.dx_register_index = 0;
+				params[5].push_constants.dx_register_space = 0;
+				params[5].push_constants.count = 224 * 4; // c#
+				params[5].push_constants.visibility = api::shader_stage::pixel;
+			}
+			if (*count > 6)
+			{
+				params[6].type = api::pipeline_layout_param_type::push_constants;
+				params[6].push_constants.offset = 0;
+				params[6].push_constants.binding = 0;
+				params[6].push_constants.dx_register_index = 0;
+				params[6].push_constants.dx_register_space = 0;
+				params[6].push_constants.count = 16 * 4; // i#
+				params[6].push_constants.visibility = api::shader_stage::pixel;
+			}
+			if (*count > 7)
+			{
+				params[7].type = api::pipeline_layout_param_type::push_constants;
+				params[7].push_constants.offset = 0;
+				params[7].push_constants.binding = 0;
+				params[7].push_constants.dx_register_index = 0;
+				params[7].push_constants.dx_register_space = 0;
+				params[7].push_constants.count = 16; // b#
+				params[7].push_constants.visibility = api::shader_stage::pixel;
+			}
+		}
+		else
+		{
+			*count = 8u;
+		}
+	}
+	else
+	{
+		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
+
+		if (params != nullptr)
+		{
+			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
+			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+		}
+		else
+		{
+			*count = static_cast<uint32_t>(layout_impl->params.size());
+		}
+	}
 }
 
 bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)
@@ -1174,6 +1306,49 @@ bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t range_cou
 void reshade::d3d9::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
+}
+
+void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
+	{
+		if (ranges != nullptr && *count != 0)
+		{
+			ranges[0].offset = 0;
+			ranges[0].binding = 0;
+			ranges[0].dx_register_index = 0;
+			ranges[0].dx_register_space = 0;
+
+			switch (layout.handle - 0xFFFFFFFFFFFFFFF0)
+			{
+			case 0:
+				ranges[0].count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::sampler_with_resource_view;
+				ranges[0].visibility = api::shader_stage::vertex;
+				break;
+			case 1:
+				ranges[0].count = _caps.MaxSimultaneousTextures; // s#
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::sampler_with_resource_view;
+				ranges[0].visibility = api::shader_stage::pixel;
+				break;
+			}
+		}
+	}
+	else
+	{
+		const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
+		if (ranges != nullptr && *count != 0)
+		{
+			ranges[0] = layout_impl->range;
+		}
+	}
+
+	*count = 1;
 }
 
 bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
@@ -1237,6 +1412,12 @@ void reshade::d3d9::device_impl::destroy_descriptor_sets(uint32_t count, const a
 {
 	for (uint32_t i = 0; i < count; ++i)
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+}
+
+void reshade::d3d9::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
+{
+	*pool = { 0 };
+	*offset = 0; // Not implemented
 }
 
 bool reshade::d3d9::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data)
@@ -1587,187 +1768,6 @@ bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool pool, ui
 	}
 
 	return true;
-}
-
-void reshade::d3d9::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
-{
-	assert(layout.handle != 0 && count != nullptr);
-
-	if (layout == global_pipeline_layout)
-	{
-		if (params != nullptr)
-		{
-			*count = std::min(*count, 8u);
-
-			if (*count > 0)
-			{
-				params[0].type = api::pipeline_layout_param_type::push_descriptors;
-				params[0].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 };
-			}
-			if (*count > 1)
-			{
-				params[1].type = api::pipeline_layout_param_type::push_descriptors;
-				params[1].descriptor_layout = { 0xFFFFFFFFFFFFFFF1 };
-			}
-
-			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-			if (*count > 2)
-			{
-				params[2].type = api::pipeline_layout_param_type::push_constants;
-				params[2].push_constants.offset = 0;
-				params[2].push_constants.binding = 0;
-				params[2].push_constants.dx_register_index = 0;
-				params[2].push_constants.dx_register_space = 0;
-				params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
-				params[2].push_constants.visibility = api::shader_stage::vertex;
-			}
-			if (*count > 3)
-			{
-				params[3].type = api::pipeline_layout_param_type::push_constants;
-				params[3].push_constants.offset = 0;
-				params[3].push_constants.binding = 0;
-				params[3].push_constants.dx_register_index = 0;
-				params[3].push_constants.dx_register_space = 0;
-				params[3].push_constants.count = 16 * 4; // i#
-				params[3].push_constants.visibility = api::shader_stage::vertex;
-			}
-			if (*count > 4)
-			{
-				params[4].type = api::pipeline_layout_param_type::push_constants;
-				params[4].push_constants.offset = 0;
-				params[4].push_constants.binding = 0;
-				params[4].push_constants.dx_register_index = 0;
-				params[4].push_constants.dx_register_space = 0;
-				params[4].push_constants.count = 16; // b#
-				params[4].push_constants.visibility = api::shader_stage::vertex;
-			}
-
-			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-			if (*count > 5)
-			{
-				params[5].type = api::pipeline_layout_param_type::push_constants;
-				params[5].push_constants.offset = 0;
-				params[5].push_constants.binding = 0;
-				params[5].push_constants.dx_register_index = 0;
-				params[5].push_constants.dx_register_space = 0;
-				params[5].push_constants.count = 224 * 4; // c#
-				params[5].push_constants.visibility = api::shader_stage::pixel;
-			}
-			if (*count > 6)
-			{
-				params[6].type = api::pipeline_layout_param_type::push_constants;
-				params[6].push_constants.offset = 0;
-				params[6].push_constants.binding = 0;
-				params[6].push_constants.dx_register_index = 0;
-				params[6].push_constants.dx_register_space = 0;
-				params[6].push_constants.count = 16 * 4; // i#
-				params[6].push_constants.visibility = api::shader_stage::pixel;
-			}
-			if (*count > 7)
-			{
-				params[7].type = api::pipeline_layout_param_type::push_constants;
-				params[7].push_constants.offset = 0;
-				params[7].push_constants.binding = 0;
-				params[7].push_constants.dx_register_index = 0;
-				params[7].push_constants.dx_register_space = 0;
-				params[7].push_constants.count = 16; // b#
-				params[7].push_constants.visibility = api::shader_stage::pixel;
-			}
-		}
-		else
-		{
-			*count = 8u;
-		}
-	}
-	else
-	{
-		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-		if (params != nullptr)
-		{
-			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
-		}
-		else
-		{
-			*count = static_cast<uint32_t>(layout_impl->params.size());
-		}
-	}
-}
-
-void reshade::d3d9::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
-{
-	*pool = { 0 };
-	*offset = 0; // Not implemented
-}
-
-void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
-{
-	assert(layout.handle != 0 && count != nullptr);
-
-	if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
-	{
-		if (ranges != nullptr && *count != 0)
-		{
-			ranges[0].offset = 0;
-			ranges[0].binding = 0;
-			ranges[0].dx_register_index = 0;
-			ranges[0].dx_register_space = 0;
-
-			switch (layout.handle - 0xFFFFFFFFFFFFFFF0)
-			{
-			case 0:
-				ranges[0].count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
-				ranges[0].array_size = 1;
-				ranges[0].type = api::descriptor_type::sampler_with_resource_view;
-				ranges[0].visibility = api::shader_stage::vertex;
-				break;
-			case 1:
-				ranges[0].count = _caps.MaxSimultaneousTextures; // s#
-				ranges[0].array_size = 1;
-				ranges[0].type = api::descriptor_type::sampler_with_resource_view;
-				ranges[0].visibility = api::shader_stage::pixel;
-				break;
-			}
-		}
-	}
-	else
-	{
-		const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-		if (ranges != nullptr && *count != 0)
-		{
-			ranges[0] = layout_impl->range;
-		}
-	}
-
-	*count = 1;
-}
-
-reshade::api::resource_view reshade::d3d9::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
-{
-	assert(fbo.handle != 0);
-
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	if (type == api::attachment_type::color)
-	{
-		if (index < _caps.NumSimultaneousRTs && fbo_impl->rtv[index] != nullptr)
-		{
-			const uint64_t set_srgb_bit = fbo_impl->srgb_write_enable;
-
-			return { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) | set_srgb_bit };
-		}
-	}
-	else
-	{
-		if (fbo_impl->dsv != nullptr)
-		{
-			return { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
-		}
-	}
-
-	return { 0 };
 }
 
 HRESULT reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle) const

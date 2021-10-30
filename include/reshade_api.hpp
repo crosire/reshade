@@ -350,6 +350,15 @@ namespace reshade { namespace api
 		virtual void destroy_framebuffer(framebuffer handle) = 0;
 
 		/// <summary>
+		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
+		/// </summary>
+		/// <param name="framebuffer">Framebuffer object to get the attachment resource view from.</param>
+		/// <param name="type">Type of the attachment to get.</param>
+		/// <param name="index">Index of the attachment of the specified <paramref name="type"/> to get.</param>
+		/// <returns>Handle of the attached resource view if the attachment of the specified <paramref name="type"/> and <paramref name="index"/> exists in the framebuffer, zero otherwise.</returns>
+		virtual resource_view get_framebuffer_attachment(framebuffer framebuffer, attachment_type type, uint32_t index) const = 0;
+
+		/// <summary>
 		/// Creates a new pipeline layout.
 		/// </summary>
 		/// <param name="param_count">Number of layout parameters.</param>
@@ -361,6 +370,17 @@ namespace reshade { namespace api
 		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
 		/// </summary>
 		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
+
+		/// <summary>
+		/// Gets the description of the specified pipeline <paramref name="layout"/>.
+		/// </summary>
+		/// <remarks>
+		/// Call this first with <paramref name="out_params"/> set to <see langword="nullptr"/> to get the size of the array in <paramref name="out_count"/>, then allocate the array and call this again with <paramref name="out_params"/> set to it.
+		/// </remarks>
+		/// <param name="layout">Pipeline layout to get the description from.</param>
+		/// <param name="out_count">Pointer to a variable that is set to the number of layout parameters in the <paramref name="layout"/>.</param>
+		/// <param name="out_params">Optional pointer to an array that is filled with the layout parameters in the <paramref name="layout"/>.</param>
+		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *out_count, pipeline_layout_param *out_params) const = 0;
 
 		/// <summary>
 		/// Creates a new descriptor set layout.
@@ -375,6 +395,17 @@ namespace reshade { namespace api
 		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
 		/// </summary>
 		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
+
+		/// <summary>
+		/// Gets the descriptor of the specified descriptor set <paramref name="layout"/>.
+		/// </summary>
+		/// <remarks>
+		/// Call this first with <paramref name="out_ranges"/> set to <see langword="nullptr"/> to get the size of the array in <paramref name="out_count"/>, then allocate the array and call this again with <paramref name="out_ranges"/> set to it.
+		/// </remarks>
+		/// <param name="layout">Pipeline layout to get the description from.</param>
+		/// <param name="out_count">Pointer to a variable that is set to the number of descriptor ranges in the <paramref name="layout"/>.</param>
+		/// <param name="out_ranges">Optional pointer to an array that is filled with the descriptor ranges in the <paramref name="layout"/>.</param>
+		virtual void get_descriptor_set_layout_desc(descriptor_set_layout layout, uint32_t *out_count, descriptor_range *out_ranges) const = 0;
 
 		/// <summary>
 		/// Creates a new query pool.
@@ -401,6 +432,14 @@ namespace reshade { namespace api
 		/// Frees one or more descriptor sets that were previously allocated via <see cref="create_descriptor_sets"/>.
 		/// </summary>
 		virtual void destroy_descriptor_sets(uint32_t count, const descriptor_set *sets) = 0;
+
+		/// <summary>
+		/// Gets the offset (in descriptors) of the specified descriptor <paramref name="set"/> in the underlying pool.
+		/// </summary>
+		/// <param name="set">Descriptor set to get the offset from.</param>
+		/// <param name="out_pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
+		/// <param name="out_offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
+		virtual void get_descriptor_pool_offset(descriptor_set set, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
 
 		/// <summary>
 		/// Maps the memory of a buffer resource into application address space.
@@ -477,43 +516,6 @@ namespace reshade { namespace api
 		/// Must not be called while another thread is recording to the immediate command list!
 		/// </remarks>
 		virtual void wait_idle() const = 0;
-
-		/// <summary>
-		/// Gets the description of the specified pipeline <paramref name="layout"/>.
-		/// </summary>
-		/// <remarks>
-		/// Call this first with <paramref name="out_params"/> set to <see langword="nullptr"/> to get the size of the array in <paramref name="out_count"/>, then allocate the array and call this again with <paramref name="out_params"/> set to it.
-		/// </remarks>
-		/// <param name="layout">Pipeline layout to get the description from.</param>
-		/// <param name="out_count">Pointer to a variable that is set to the number of layout parameters in the <paramref name="layout"/>.</param>
-		/// <param name="out_params">Optional pointer to an array that is filled with the layout parameters in the <paramref name="layout"/>.</param>
-		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *out_count, pipeline_layout_param *out_params) const = 0;
-		/// <summary>
-		/// Gets the offset (in descriptors) of the specified descriptor <paramref name="set"/> in the underlying pool.
-		/// </summary>
-		/// <param name="set">Descriptor set to get the offset from.</param>
-		/// <param name="out_pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
-		/// <param name="out_offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
-		virtual void get_descriptor_pool_offset(descriptor_set set, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
-		/// <summary>
-		/// Gets the descriptor of the specified descriptor set <paramref name="layout"/>.
-		/// </summary>
-		/// <remarks>
-		/// Call this first with <paramref name="out_ranges"/> set to <see langword="nullptr"/> to get the size of the array in <paramref name="out_count"/>, then allocate the array and call this again with <paramref name="out_ranges"/> set to it.
-		/// </remarks>
-		/// <param name="layout">Pipeline layout to get the description from.</param>
-		/// <param name="out_count">Pointer to a variable that is set to the number of descriptor ranges in the <paramref name="layout"/>.</param>
-		/// <param name="out_ranges">Optional pointer to an array that is filled with the descriptor ranges in the <paramref name="layout"/>.</param>
-		virtual void get_descriptor_set_layout_desc(descriptor_set_layout layout, uint32_t *out_count, descriptor_range *out_ranges) const = 0;
-
-		/// <summary>
-		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
-		/// </summary>
-		/// <param name="framebuffer">Framebuffer object to get the attachment resource view from.</param>
-		/// <param name="type">Type of the attachment to get.</param>
-		/// <param name="index">Index of the attachment of the specified <paramref name="type"/> to get.</param>
-		/// <returns>Handle of the attached resource view if the attachment of the specified <paramref name="type"/> and <paramref name="index"/> exists in the framebuffer, zero otherwise.</returns>
-		virtual resource_view get_framebuffer_attachment(framebuffer framebuffer, attachment_type type, uint32_t index) const = 0;
 	};
 
 	/// <summary>
@@ -1062,53 +1064,167 @@ namespace reshade { namespace api
 		virtual effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const = 0;
 
 		/// <summary>
-		/// Gets the offset of the specified uniform <paramref name="variable"/>.
-		/// </summary>
-		/// <param name="variable">Opaque handle to the uniform variable.</param>
-		/// <param name="out_offset">Pointer to a variable that is set to the offset (in bytes) of the variable from the start of the effect.</param>
-		virtual void get_uniform_binding(effect_uniform_variable variable, uint32_t *out_offset) const = 0;
-
-		/// <summary>
-		/// Gets the value from a named annotation attached to the specified uniform <paramref name="variable"/>.
-		/// </summary>
-		virtual void get_uniform_annotation(effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_uniform_annotation(effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_uniform_annotation(effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_uniform_annotation(effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
-		/// <summary>
-		/// Gets the value from a named annotation attached to the specified uniform <paramref name="variable"/> as a null-terminated string.
-		/// </summary>
-		virtual const char *get_uniform_annotation(effect_uniform_variable variable, const char *name) const = 0;
-
-		/// <summary>
 		/// Gets the name of a uniform <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
 		virtual const char *get_uniform_variable_name(effect_uniform_variable variable) const = 0;
 
 		/// <summary>
-		/// Gets the value of the specified uniform <paramref name="variable"/>.
+		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as boolean values.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
-		/// <param name="values">Pointer to an array of values that is filled with the values of this uniform variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
-		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
-		virtual void get_uniform_data(effect_uniform_variable variable, bool *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_uniform_data(effect_uniform_variable variable, float *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_uniform_data(effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_uniform_data(effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as floating-point values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as signed integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as unsigned integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from a string annotation attached to the specified uniform <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		virtual const char *get_uniform_annotation_string(effect_uniform_variable variable, const char *name) const = 0;
 
 		/// <summary>
-		/// Sets the value of the specified uniform <paramref name="variable"/>.
+		/// Gets the value of the specified uniform <paramref name="variable"/> as boolean values.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
-		/// <param name="values">Pointer to an array of values that are used to update this uniform variable.</param>
+		/// <param name="values">Pointer to an array of booleans that is filled with the values of this uniform variable.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
+		virtual void get_uniform_value(effect_uniform_variable variable, bool *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value of the specified uniform <paramref name="variable"/> as floating-point values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="values">Pointer to an array of floating-points that is filled with the values of this uniform variable.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
+		virtual void get_uniform_value(effect_uniform_variable variable, float *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value of the specified uniform <paramref name="variable"/> as signed integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="values">Pointer to an array of signed integers that is filled with the values of this uniform variable.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
+		virtual void get_uniform_value(effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value of the specified uniform <paramref name="variable"/> as unsigned integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of this uniform variable.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
+		virtual void get_uniform_value(effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+
+		/// <summary>
+		/// Sets the value of the specified uniform <paramref name="variable"/> as boolean values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="values">Pointer to an array of booleans that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		virtual void set_uniform_data(effect_uniform_variable variable, const bool *values, size_t count, size_t array_index = 0) = 0;
-		virtual void set_uniform_data(effect_uniform_variable variable, const float *values, size_t count, size_t array_index = 0) = 0;
-		virtual void set_uniform_data(effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index = 0) = 0;
-		virtual void set_uniform_data(effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
+		virtual void set_uniform_value(effect_uniform_variable variable, const bool *values, size_t count, size_t array_index = 0) = 0;
+		/// <summary>
+		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of boolean values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="x">Value of the first component in the vector that is used to update this uniform variable.</param>
+		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
+		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
+		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
+		inline  void set_uniform_value(effect_uniform_variable variable, bool x, bool y = bool(0), bool z = bool(0), bool w = bool(0)) {
+			const bool values[4] = { x, y, z, w };
+			set_uniform_value(variable, values, 4);
+		}
+		/// <summary>
+		/// Sets the value of the specified uniform <paramref name="variable"/> as floating-point values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="values">Pointer to an array of floating-points that are used to update this uniform variable.</param>
+		/// <param name="count">Number of values to write.</param>
+		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
+		virtual void set_uniform_value(effect_uniform_variable variable, const float *values, size_t count, size_t array_index = 0) = 0;
+		/// <summary>
+		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of floating-point values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="x">Value of the first component in the vector that is used to update this uniform variable.</param>
+		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
+		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
+		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
+		inline  void set_uniform_value(effect_uniform_variable variable, float x, float y = float(0), float z = float(0), float w = float(0)) {
+			const float values[4] = { x, y, z, w };
+			set_uniform_value(variable, values, 4);
+		}
+		/// <summary>
+		/// Sets the value of the specified uniform <paramref name="variable"/> as signed integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="values">Pointer to an array of signed integers that are used to update this uniform variable.</param>
+		/// <param name="count">Number of values to write.</param>
+		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
+		virtual void set_uniform_value(effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index = 0) = 0;
+		/// <summary>
+		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of signed integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="x">Value of the first component in the vector that is used to update this uniform variable.</param>
+		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
+		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
+		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
+		inline  void set_uniform_value(effect_uniform_variable variable, int32_t x, int32_t y = int32_t(0), int32_t z = int32_t(0), int32_t w = int32_t(0)) {
+			const int32_t values[4] = { x, y, z, w };
+			set_uniform_value(variable, values, 4);
+		}
+		/// <summary>
+		/// Sets the value of the specified uniform <paramref name="variable"/> as unsigned integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="values">Pointer to an array of unsigned integers that are used to update this uniform variable.</param>
+		/// <param name="count">Number of values to write.</param>
+		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
+		virtual void set_uniform_value(effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
+		/// <summary>
+		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of unsigned integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="x">Value of the first component in the vector that is used to update this uniform variable.</param>
+		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
+		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
+		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
+		inline  void set_uniform_value(effect_uniform_variable variable, uint32_t x, uint32_t y = uint32_t(0), uint32_t z = uint32_t(0), uint32_t w = uint32_t(0)) {
+			const uint32_t values[4] = { x, y, z, w };
+			set_uniform_value(variable, values, 4);
+		}
 
 		/// <summary>
 		/// Enumerates all texture variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
@@ -1139,39 +1255,53 @@ namespace reshade { namespace api
 		virtual effect_texture_variable find_texture_variable(const char *effect_name, const char *variable_name) const = 0;
 
 		/// <summary>
-		/// Gets the shader resource views that are bound to the specified texture <paramref name="variable"/>.
-		/// </summary>
-		/// <param name="variable">Opaque handle to the texture variable.</param>
-		/// <param name="out_srv">Pointer to a variable that is set to the shader resource view.</param>
-		/// <param name="out_srv_srgb">Pointer to a variable that is set to the sRGB shader resource view.</param>
-		virtual void get_texture_binding(effect_texture_variable variable, resource_view *out_srv, resource_view *out_srv_srgb = nullptr) const = 0;
-
-		/// <summary>
-		/// Gets the value from a named annotation attached to the specified texture <paramref name="variable"/>.
-		/// </summary>
-		virtual void get_texture_annotation(effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_texture_annotation(effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_texture_annotation(effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
-		virtual void get_texture_annotation(effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
-		/// <summary>
-		/// Gets the value from a named annotation attached to the specified texture <paramref name="variable"/> as a null-terminated string.
-		/// </summary>
-		virtual const char *get_texture_annotation(effect_texture_variable variable, const char *name) const = 0;
-
-		/// <summary>
 		/// Gets the name of a texture <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the texture variable.</param>
 		virtual const char *get_texture_variable_name(effect_texture_variable variable) const = 0;
 
 		/// <summary>
-		/// Gets the image data of the specified texture <paramref name="variable"/> in 32 bits-per-pixel RGBA format.
+		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as boolean values.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the texture variable.</param>
-		/// <param name="out_width">Pointer to a variable that is set to the width of the image data.</param>
-		/// <param name="out_height">Pointer to a variable that is set to the height of the image data.</param>
-		/// <param name="pixels">Optional pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
-		virtual void get_texture_data(effect_texture_variable variable, uint32_t *out_width, uint32_t *out_height, uint8_t *pixels) = 0;
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as floating-point values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the texture variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as signed integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the texture variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as unsigned integer values.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the texture variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from a string annotation attached to the specified texture <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the texture variable.</param>
+		/// <param name="name">Name of the annotation.</param>
+		virtual const char *get_texture_annotation_string(effect_texture_variable variable, const char *name) const = 0;
 
 		/// <summary>
 		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
@@ -1180,7 +1310,15 @@ namespace reshade { namespace api
 		/// <param name="width">Width of the image data.</param>
 		/// <param name="height">Height of the image data.</param>
 		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is read from.</param>
-		virtual void set_texture_data(effect_texture_variable variable, const uint32_t width, const uint32_t height, const uint8_t *pixels) = 0;
+		virtual void update_texture(effect_texture_variable variable, const uint32_t width, const uint32_t height, const uint8_t *pixels) = 0;
+
+		/// <summary>
+		/// Gets the shader resource view that is bound to the specified texture <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the texture variable.</param>
+		/// <param name="out_srv">Pointer to a variable that is set to the shader resource view.</param>
+		/// <param name="out_srv_srgb">Pointer to a variable that is set to the sRGB shader resource view.</param>
+		virtual void get_texture_binding(effect_texture_variable variable, resource_view *out_srv, resource_view *out_srv_srgb = nullptr) const = 0;
 
 		/// <summary>
 		/// Binds a new shader resource view to all texture variables that use the specified <paramref name="semantic"/>.

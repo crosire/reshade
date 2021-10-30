@@ -631,6 +631,30 @@ void reshade::d3d10::device_impl::destroy_framebuffer(api::framebuffer handle)
 	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 
+reshade::api::resource_view reshade::d3d10::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
+{
+	assert(fbo.handle != 0);
+
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
+	if (type == api::attachment_type::color)
+	{
+		if (index < fbo_impl->count)
+		{
+			return { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) };
+		}
+	}
+	else
+	{
+		if (fbo_impl->dsv != nullptr)
+		{
+			return { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
+		}
+	}
+
+	return { 0 };
+}
+
 bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
 	bool success = true;
@@ -672,6 +696,42 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t param_count, c
 void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
+}
+
+void reshade::d3d10::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	if (layout == global_pipeline_layout)
+	{
+		if (params != nullptr)
+		{
+			*count = std::min(*count, 3u);
+			for (uint32_t i = 0; i < *count; ++i)
+			{
+				params[i].type = api::pipeline_layout_param_type::push_descriptors;
+				params[i].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 + i };
+			}
+		}
+		else
+		{
+			*count = 3u;
+		}
+	}
+	else
+	{
+		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
+
+		if (params != nullptr)
+		{
+			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
+			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+		}
+		else
+		{
+			*count = static_cast<uint32_t>(layout_impl->params.size());
+		}
+	}
 }
 
 bool reshade::d3d10::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)
@@ -726,6 +786,55 @@ bool reshade::d3d10::device_impl::create_descriptor_set_layout(uint32_t range_co
 void reshade::d3d10::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
+}
+
+void reshade::d3d10::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
+	{
+		if (ranges != nullptr && *count != 0)
+		{
+			ranges[0].offset = 0;
+			ranges[0].binding = 0;
+			ranges[0].dx_register_index = 0;
+			ranges[0].dx_register_space = 0;
+
+			switch (layout.handle - 0xFFFFFFFFFFFFFFF0)
+			{
+			case 0:
+				ranges[0].count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::sampler;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			case 1:
+				ranges[0].count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::shader_resource_view;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			case 2:
+				ranges[0].count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::constant_buffer;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			}
+		}
+	}
+	else
+	{
+		const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
+		if (ranges != nullptr && *count != 0)
+		{
+			ranges[0] = layout_impl->range;
+		}
+	}
+
+	*count = 1;
 }
 
 bool reshade::d3d10::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
@@ -789,6 +898,12 @@ void reshade::d3d10::device_impl::destroy_descriptor_sets(uint32_t count, const 
 {
 	for (uint32_t i = 0; i < count; ++i)
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+}
+
+void reshade::d3d10::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
+{
+	*pool = { 0 };
+	*offset = 0; // Not implemented
 }
 
 bool reshade::d3d10::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
@@ -927,119 +1042,4 @@ bool reshade::d3d10::device_impl::get_query_pool_results(api::query_pool pool, u
 	}
 
 	return true;
-}
-
-void reshade::d3d10::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
-{
-	assert(layout.handle != 0 && count != nullptr);
-
-	if (layout == global_pipeline_layout)
-	{
-		if (params != nullptr)
-		{
-			*count = std::min(*count, 3u);
-			for (uint32_t i = 0; i < *count; ++i)
-			{
-				params[i].type = api::pipeline_layout_param_type::push_descriptors;
-				params[i].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 + i };
-			}
-		}
-		else
-		{
-			*count = 3u;
-		}
-	}
-	else
-	{
-		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-		if (params != nullptr)
-		{
-			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
-		}
-		else
-		{
-			*count = static_cast<uint32_t>(layout_impl->params.size());
-		}
-	}
-}
-
-void reshade::d3d10::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
-{
-	*pool = { 0 };
-	*offset = 0; // Not implemented
-}
-
-void reshade::d3d10::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
-{
-	assert(layout.handle != 0 && count != nullptr);
-
-	if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
-	{
-		if (ranges != nullptr && *count != 0)
-		{
-			ranges[0].offset = 0;
-			ranges[0].binding = 0;
-			ranges[0].dx_register_index = 0;
-			ranges[0].dx_register_space = 0;
-
-			switch (layout.handle - 0xFFFFFFFFFFFFFFF0)
-			{
-			case 0:
-				ranges[0].count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
-				ranges[0].array_size = 1;
-				ranges[0].type = api::descriptor_type::sampler;
-				ranges[0].visibility = api::shader_stage::all;
-				break;
-			case 1:
-				ranges[0].count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-				ranges[0].array_size = 1;
-				ranges[0].type = api::descriptor_type::shader_resource_view;
-				ranges[0].visibility = api::shader_stage::all;
-				break;
-			case 2:
-				ranges[0].count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
-				ranges[0].array_size = 1;
-				ranges[0].type = api::descriptor_type::constant_buffer;
-				ranges[0].visibility = api::shader_stage::all;
-				break;
-			}
-		}
-	}
-	else
-	{
-		const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-		if (ranges != nullptr && *count != 0)
-		{
-			ranges[0] = layout_impl->range;
-		}
-	}
-
-	*count = 1;
-}
-
-reshade::api::resource_view reshade::d3d10::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
-{
-	assert(fbo.handle != 0);
-
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	if (type == api::attachment_type::color)
-	{
-		if (index < fbo_impl->count)
-		{
-			return { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) };
-		}
-	}
-	else
-	{
-		if (fbo_impl->dsv != nullptr)
-		{
-			return { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
-		}
-	}
-
-	return { 0 };
 }
