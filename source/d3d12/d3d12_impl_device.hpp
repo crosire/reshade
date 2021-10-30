@@ -32,8 +32,15 @@ namespace reshade::d3d12
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle) final;
 		void destroy_resource(api::resource handle) final;
 
+		api::resource_desc get_resource_desc(api::resource resource) const final;
+		void set_resource_name(api::resource handle, const char *name) final;
+
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
+
+		api::resource get_resource_from_view(api::resource_view view) const final;
+		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
+		void set_resource_view_name(api::resource_view handle, const char *name) final;
 
 		bool create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle) final;
 		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
@@ -72,17 +79,11 @@ namespace reshade::d3d12
 
 		void wait_idle() const final;
 
-		void set_resource_name(api::resource resource, const char *name) final;
-
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
 
 		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
 
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
-
-		api::resource_desc get_resource_desc(api::resource resource) const final;
-
-		api::resource get_resource_from_view(api::resource_view view) const final;
 
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
@@ -110,10 +111,10 @@ namespace reshade::d3d12
 			return _views.find(handle.ptr) != _views.end();
 		}
 
-		inline void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource)
+		inline void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource, const api::resource_view_desc &desc)
 		{
 			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
-			_views.insert_or_assign(handle.ptr, resource);
+			_views.insert_or_assign(handle.ptr, std::make_pair(resource, desc));
 		}
 
 	private:
@@ -128,7 +129,7 @@ namespace reshade::d3d12
 		mutable std::shared_mutex _heap_mutex;
 		mutable std::shared_mutex _resource_mutex;
 		std::unordered_map<UINT64, UINT> _sets;
-		std::unordered_map<SIZE_T, ID3D12Resource *> _views;
+		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;
 #if RESHADE_ADDON
 		std::vector<ID3D12DescriptorHeap *> _descriptor_heaps;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;

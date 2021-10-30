@@ -656,7 +656,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 		return;
 	}
 
-	register_resource_view(DestDescriptor, pResource);
+	register_resource_view(DestDescriptor, pResource, desc);
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		this, resource, reshade::api::resource_usage::shader_resource, desc, reshade::api::resource_view { DestDescriptor.ptr });
 #endif
@@ -699,7 +699,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 		return;
 	}
 
-	register_resource_view(DestDescriptor, pResource);
+	register_resource_view(DestDescriptor, pResource, desc);
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		this, resource, reshade::api::resource_usage::unordered_access, desc, reshade::api::resource_view { DestDescriptor.ptr });
 #endif
@@ -722,7 +722,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 	_orig->CreateRenderTargetView(pResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	register_resource_view(DestDescriptor, pResource);
+	register_resource_view(DestDescriptor, pResource, desc);
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, desc, reshade::api::resource_view { DestDescriptor.ptr });
 #endif
@@ -745,7 +745,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	register_resource_view(DestDescriptor, pResource);
+	register_resource_view(DestDescriptor, pResource, desc);
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, desc, reshade::api::resource_view { DestDescriptor.ptr });
 #endif

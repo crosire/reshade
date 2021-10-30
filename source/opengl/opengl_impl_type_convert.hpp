@@ -110,7 +110,7 @@ namespace reshade::opengl
 
 	api::resource_view_type convert_resource_view_type(GLenum target);
 	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internal_format, GLintptr offset, GLsizeiptr size);
-	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
+	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint min_level, GLuint num_levels, GLuint min_layer, GLuint num_layers);
 
 	GLuint get_index_type_size(GLenum index_type);
 

@@ -429,6 +429,29 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	}
 }
 
+reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
+{
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
+		return convert_resource_desc(data->create_info);
+	else
+		return convert_resource_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER> *>(data)->create_info);
+}
+void reshade::vulkan::device_impl::set_resource_name(api::resource handle, const char *name)
+{
+	if (vk.SetDebugUtilsObjectNameEXT == nullptr)
+		return;
+
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
+
+	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE : VK_OBJECT_TYPE_BUFFER;
+	name_info.objectHandle = handle.handle;
+	name_info.pObjectName = name;
+
+	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
+}
+
 bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
 	if (resource.handle == 0)
@@ -521,6 +544,37 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view hand
 
 		vk.DestroyBufferView(_orig, (VkBufferView)handle.handle, nullptr);
 	}
+}
+
+reshade::api::resource reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view) const
+{
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
+		return { (uint64_t)data->create_info.image };
+	else
+		return { (uint64_t)reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info.buffer };
+}
+reshade::api::resource_view_desc reshade::vulkan::device_impl::get_resource_view_desc(api::resource_view view) const
+{
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
+		return convert_resource_view_desc(data->create_info);
+	else
+		return convert_resource_view_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info);
+}
+void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
+{
+	if (vk.SetDebugUtilsObjectNameEXT == nullptr)
+		return;
+
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)handle.handle);
+
+	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE_VIEW : VK_OBJECT_TYPE_BUFFER_VIEW;
+	name_info.objectHandle = handle.handle;
+	name_info.pObjectName = name;
+
+	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
 }
 
 bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map)
@@ -1536,21 +1590,6 @@ void reshade::vulkan::device_impl::wait_idle() const
 #endif
 }
 
-void reshade::vulkan::device_impl::set_resource_name(api::resource resource, const char *name)
-{
-	if (vk.SetDebugUtilsObjectNameEXT == nullptr)
-		return;
-
-	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
-
-	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE : VK_OBJECT_TYPE_BUFFER;
-	name_info.objectHandle = resource.handle;
-	name_info.pObjectName = name;
-
-	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
-}
-
 void reshade::vulkan::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(count != nullptr);
@@ -1591,24 +1630,6 @@ void reshade::vulkan::device_impl::get_descriptor_set_layout_desc(api::descripto
 	{
 		*count = static_cast<uint32_t>(data->desc.size());
 	}
-}
-
-reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
-{
-	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
-	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-		return convert_resource_desc(data->create_info);
-	else
-		return convert_resource_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER> *>(data)->create_info);
-}
-
-reshade::api::resource reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view) const
-{
-	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
-	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
-		return { (uint64_t)data->create_info.image };
-	else
-		return { (uint64_t)reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info.buffer };
 }
 
 reshade::api::resource_view reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const

@@ -293,6 +293,27 @@ void reshade::d3d12::device_impl::destroy_resource(api::resource handle)
 	reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
+reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource resource) const
+{
+	assert(resource.handle != 0);
+
+	// This will retrieve the heap properties for placed and comitted resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
+	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
+	D3D12_HEAP_PROPERTIES heap_props = {};
+	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
+
+	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
+}
+void reshade::d3d12::device_impl::set_resource_name(api::resource handle, const char *name)
+{
+	const size_t debug_name_len = strlen(name);
+	std::wstring debug_name_wide;
+	debug_name_wide.reserve(debug_name_len + 1);
+	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
+
+	reinterpret_cast<ID3D12Resource *>(handle.handle)->SetName(debug_name_wide.c_str());
+}
+
 bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
 	if (resource.handle == 0)
@@ -314,7 +335,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 
 			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
-			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle));
+			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = { descriptor_handle.ptr };
 			return true;
 		}
@@ -329,7 +350,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 
 			_orig->CreateRenderTargetView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
-			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle));
+			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = { descriptor_handle.ptr };
 			return true;
 		}
@@ -345,7 +366,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 
 			_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
-			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle));
+			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = { descriptor_handle.ptr };
 			return true;
 		}
@@ -360,7 +381,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 
 			_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &internal_desc, descriptor_handle);
 
-			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle));
+			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = { descriptor_handle.ptr };
 			return true;
 		}
@@ -381,6 +402,36 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 
 	for (UINT i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
 		_view_heaps[i].free(descriptor_handle);
+}
+
+reshade::api::resource reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view) const
+{
+	assert(view.handle != 0);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
+
+	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
+
+	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
+		return { reinterpret_cast<uintptr_t>(it->second.first) };
+	else
+		return assert(false), api::resource { 0 };
+}
+reshade::api::resource_view_desc reshade::d3d12::device_impl::get_resource_view_desc(api::resource_view view) const
+{
+	assert(view.handle != 0);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
+
+	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
+
+	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
+		return it->second.second;
+	else
+		return assert(false), api::resource_view_desc();
+}
+void reshade::d3d12::device_impl::set_resource_view_name(api::resource_view, const char *)
+{
 }
 
 bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
@@ -1048,16 +1099,6 @@ void reshade::d3d12::device_impl::wait_idle() const
 		queue->wait_idle();
 }
 
-void reshade::d3d12::device_impl::set_resource_name(api::resource resource, const char *name)
-{
-	const size_t debug_name_len = strlen(name);
-	std::wstring debug_name_wide;
-	debug_name_wide.reserve(debug_name_len + 1);
-	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
-
-	reinterpret_cast<ID3D12Resource *>(resource.handle)->SetName(debug_name_wide.c_str());
-}
-
 void reshade::d3d12::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
@@ -1088,32 +1129,6 @@ void reshade::d3d12::device_impl::get_descriptor_set_layout_desc(api::descriptor
 	{
 		*count = static_cast<uint32_t>(layout_impl->ranges.size());
 	}
-}
-
-reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource resource) const
-{
-	assert(resource.handle != 0);
-
-	// This will retrieve the heap properties for placed and comitted resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
-	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
-	D3D12_HEAP_PROPERTIES heap_props = {};
-	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
-
-	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
-}
-
-reshade::api::resource reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view) const
-{
-	assert(view.handle != 0);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
-
-	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
-
-	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
-		return { reinterpret_cast<uintptr_t>(it->second) };
-	else
-		return assert(false), api::resource { 0 };
 }
 
 reshade::api::resource_view reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
@@ -1179,7 +1194,7 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 	// Remove all views that referenced this resource
 	for (auto it = _views.begin(); it != _views.end();)
 	{
-		if (it->second == resource)
+		if (it->second.first == resource)
 			it = _views.erase(it);
 		else
 			++it;

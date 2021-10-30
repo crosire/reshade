@@ -1274,9 +1274,9 @@ reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLe
 	assert(convert_resource_view_type(target) == api::resource_view_type::buffer && size != 0);
 	return api::resource_view_desc(convert_format(internal_format), offset, size);
 }
-reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers)
+reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint min_level, GLuint num_levels, GLuint min_layer, GLuint num_layers)
 {
-	return api::resource_view_desc(convert_resource_view_type(target), convert_format(internal_format), minlevel, numlevels, minlayer, numlayers);
+	return api::resource_view_desc(convert_resource_view_type(target), convert_format(internal_format), min_level, num_levels, min_layer, num_layers);
 }
 
 GLuint reshade::opengl::get_index_type_size(GLenum index_type)

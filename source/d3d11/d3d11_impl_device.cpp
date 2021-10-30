@@ -251,6 +251,53 @@ void reshade::d3d11::device_impl::destroy_resource(api::resource handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
+reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::resource resource) const
+{
+	assert(resource.handle != 0);
+
+	const auto object = reinterpret_cast<ID3D11Resource *>(resource.handle);
+
+	D3D11_RESOURCE_DIMENSION dimension;
+	object->GetType(&dimension);
+	switch (dimension)
+	{
+		case D3D11_RESOURCE_DIMENSION_BUFFER:
+		{
+			D3D11_BUFFER_DESC internal_desc;
+			static_cast<ID3D11Buffer *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
+		{
+			D3D11_TEXTURE1D_DESC internal_desc;
+			static_cast<ID3D11Texture1D *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
+		{
+			D3D11_TEXTURE2D_DESC internal_desc;
+			static_cast<ID3D11Texture2D *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
+		{
+			D3D11_TEXTURE3D_DESC internal_desc;
+			static_cast<ID3D11Texture3D *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+	}
+
+	assert(false); // Not implemented
+	return api::resource_desc {};
+}
+void reshade::d3d11::device_impl::set_resource_name(api::resource handle, const char *name)
+{
+	assert(handle.handle != 0);
+
+	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
+	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+}
+
 bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
 	if (resource.handle == 0)
@@ -370,6 +417,80 @@ void reshade::d3d11::device_impl::destroy_resource_view(api::resource_view handl
 {
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
+reshade::api::resource reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view) const
+{
+	assert(view.handle != 0);
+
+	com_ptr<ID3D11Resource> resource;
+	reinterpret_cast<ID3D11View *>(view.handle)->GetResource(&resource);
+
+	return { reinterpret_cast<uintptr_t>(resource.get()) };
+}
+reshade::api::resource_view_desc reshade::d3d11::device_impl::get_resource_view_desc(api::resource_view view) const
+{
+	assert(view.handle != 0);
+
+	if (com_ptr<ID3D11RenderTargetView1> object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(view.handle)->QueryInterface(&object)))
+	{
+		D3D11_RENDER_TARGET_VIEW_DESC1 internal_desc;
+		object->GetDesc1(&internal_desc);
+		return convert_resource_view_desc(internal_desc);
+	}
+	if (com_ptr<ID3D11RenderTargetView> object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(view.handle)->QueryInterface(&object)))
+	{
+		D3D11_RENDER_TARGET_VIEW_DESC internal_desc;
+		object->GetDesc(&internal_desc);
+		return convert_resource_view_desc(internal_desc);
+	}
+	if (com_ptr<ID3D11DepthStencilView> object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(view.handle)->QueryInterface(&object)))
+	{
+		D3D11_DEPTH_STENCIL_VIEW_DESC internal_desc;
+		object->GetDesc(&internal_desc);
+		return convert_resource_view_desc(internal_desc);
+	}
+	if (com_ptr<ID3D11ShaderResourceView1> object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(view.handle)->QueryInterface(&object)))
+	{
+		D3D11_SHADER_RESOURCE_VIEW_DESC1 internal_desc;
+		object->GetDesc1(&internal_desc);
+		return convert_resource_view_desc(internal_desc);
+	}
+	if (com_ptr<ID3D11ShaderResourceView> object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(view.handle)->QueryInterface(&object)))
+	{
+		D3D11_SHADER_RESOURCE_VIEW_DESC internal_desc;
+		object->GetDesc(&internal_desc);
+		return convert_resource_view_desc(internal_desc);
+	}
+	if (com_ptr<ID3D11UnorderedAccessView1> object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(view.handle)->QueryInterface(&object)))
+	{
+		D3D11_UNORDERED_ACCESS_VIEW_DESC1 internal_desc;
+		object->GetDesc1(&internal_desc);
+		return convert_resource_view_desc(internal_desc);
+	}
+	if (com_ptr<ID3D11UnorderedAccessView> object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(view.handle)->QueryInterface(&object)))
+	{
+		D3D11_UNORDERED_ACCESS_VIEW_DESC internal_desc;
+		object->GetDesc(&internal_desc);
+		return convert_resource_view_desc(internal_desc);
+	}
+
+	assert(false); // Not implemented
+	return api::resource_view_desc();
+}
+void reshade::d3d11::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
+{
+	assert(handle.handle != 0);
+
+	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
+	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
 }
 
 bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
@@ -1010,14 +1131,6 @@ bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, u
 	return true;
 }
 
-void reshade::d3d11::device_impl::set_resource_name(api::resource resource, const char *name)
-{
-	assert(resource.handle != 0);
-
-	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
-	reinterpret_cast<ID3D11Resource *>(resource.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
-}
-
 void reshade::d3d11::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
@@ -1118,56 +1231,6 @@ void reshade::d3d11::device_impl::get_descriptor_set_layout_desc(api::descriptor
 	}
 
 	*count = 1;
-}
-
-reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::resource resource) const
-{
-	assert(resource.handle != 0);
-
-	const auto object = reinterpret_cast<ID3D11Resource *>(resource.handle);
-
-	D3D11_RESOURCE_DIMENSION dimension;
-	object->GetType(&dimension);
-	switch (dimension)
-	{
-		case D3D11_RESOURCE_DIMENSION_BUFFER:
-		{
-			D3D11_BUFFER_DESC internal_desc;
-			static_cast<ID3D11Buffer *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
-		{
-			D3D11_TEXTURE1D_DESC internal_desc;
-			static_cast<ID3D11Texture1D *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
-		{
-			D3D11_TEXTURE2D_DESC internal_desc;
-			static_cast<ID3D11Texture2D *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
-		{
-			D3D11_TEXTURE3D_DESC internal_desc;
-			static_cast<ID3D11Texture3D *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-	}
-
-	assert(false); // Not implemented
-	return api::resource_desc {};
-}
-
-reshade::api::resource reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view) const
-{
-	assert(view.handle != 0);
-
-	com_ptr<ID3D11Resource> resource;
-	reinterpret_cast<ID3D11View *>(view.handle)->GetResource(&resource);
-
-	return { reinterpret_cast<uintptr_t>(resource.get()) };
 }
 
 reshade::api::resource_view reshade::d3d11::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const

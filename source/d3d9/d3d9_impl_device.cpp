@@ -503,6 +503,59 @@ void reshade::d3d9::device_impl::destroy_resource(api::resource handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
+reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource resource) const
+{
+	assert(resource.handle != 0);
+
+	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
+
+	switch (object->GetType())
+	{
+		case D3DRTYPE_SURFACE:
+		{
+			D3DSURFACE_DESC internal_desc;
+			static_cast<IDirect3DSurface9 *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc, 1, _caps);
+		}
+		case D3DRTYPE_TEXTURE:
+		{
+			D3DSURFACE_DESC internal_desc;
+			static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
+			internal_desc.Type = D3DRTYPE_TEXTURE;
+			return convert_resource_desc(internal_desc, static_cast<IDirect3DTexture9 *>(object)->GetLevelCount(), _caps);
+		}
+		case D3DRTYPE_VOLUMETEXTURE:
+		{
+			D3DVOLUME_DESC internal_desc;
+			static_cast<IDirect3DVolumeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
+			internal_desc.Type = D3DRTYPE_VOLUMETEXTURE;
+			return convert_resource_desc(internal_desc, static_cast<IDirect3DVolumeTexture9 *>(object)->GetLevelCount());
+		}
+		case D3DRTYPE_CUBETEXTURE:
+		{
+			D3DSURFACE_DESC internal_desc;
+			static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
+			internal_desc.Type = D3DRTYPE_CUBETEXTURE;
+			return convert_resource_desc(internal_desc, static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount(), _caps);
+		}
+		case D3DRTYPE_VERTEXBUFFER:
+		{
+			D3DVERTEXBUFFER_DESC internal_desc;
+			static_cast<IDirect3DVertexBuffer9 *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3DRTYPE_INDEXBUFFER:
+		{
+			D3DINDEXBUFFER_DESC internal_desc;
+			static_cast<IDirect3DIndexBuffer9 *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+	}
+
+	assert(false); // Not implemented
+	return api::resource_desc {};
+}
+
 bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
 	if (resource.handle == 0)
@@ -514,12 +567,12 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
 	// Set the first bit in the handle to indicate whether this view is using a sRGB format
-	// This requires the resource pointers to be at least 2-byte aligned, to ensure the first bit is always unused otherwise
-	static_assert(alignof(IDirect3DResource9) >= 2);
-	const uint64_t set_srgb_bit =
+	const bool set_srgb_bit =
 		desc.format == api::format::r8g8b8a8_unorm_srgb || desc.format == api::format::r8g8b8x8_unorm_srgb ||
 		desc.format == api::format::b8g8r8a8_unorm_srgb || desc.format == api::format::b8g8r8x8_unorm_srgb ||
 		desc.format == api::format::bc1_unorm_srgb || desc.format == api::format::bc2_unorm_srgb || desc.format == api::format::bc3_unorm_srgb;
+	// This requires the resource pointers to be at least 2-byte aligned, to ensure the first bit is always unused otherwise
+	static_assert(alignof(IDirect3DResource9) >= 2);
 
 	switch (object->GetType())
 	{
@@ -541,7 +594,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out_handle = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(object) | (set_srgb_bit ? 1ull : 0) };
 					return true;
 				}
 			}
@@ -566,7 +619,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				if (com_ptr<IDirect3DSurface9> surface;
 					SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->GetSurfaceLevel(desc.texture.first_level, &surface)))
 				{
-					*out_handle = { reinterpret_cast<uintptr_t>(surface.release()) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(surface.release()) | (set_srgb_bit ? 1ull : 0) };
 					return true;
 				}
 			}
@@ -580,7 +633,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out_handle = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(object) | (set_srgb_bit ? 1ull : 0) };
 					return true;
 				}
 			}
@@ -604,7 +657,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				if (com_ptr<IDirect3DSurface9> surface;
 					SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(desc.texture.first_layer), desc.texture.first_level, &surface)))
 				{
-					*out_handle = { reinterpret_cast<uintptr_t>(surface.release()) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(surface.release()) | (set_srgb_bit ? 1ull : 0) };
 					return true;
 				}
 			}
@@ -620,7 +673,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out_handle = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(object) | (set_srgb_bit ? 1ull : 0) };
 					return true;
 				}
 			}
@@ -635,6 +688,119 @@ void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle
 {
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle & ~1ull)->Release();
+}
+
+reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view) const
+{
+	assert(view.handle != 0);
+
+	const auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle & ~1ull);
+
+	// Get container in case this is a surface resource
+	if (object->GetType() == D3DRTYPE_SURFACE)
+	{
+		const auto surface = reinterpret_cast<IDirect3DSurface9 *>(object);
+
+		if (com_ptr<IDirect3DResource9> resource;
+			SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
+		{
+			return { reinterpret_cast<uintptr_t>(resource.get()) };
+		}
+	}
+
+	// If unable to get container, just return the resource directly
+	return { reinterpret_cast<uintptr_t>(object) };
+}
+reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, uint32_t *subresource) const
+{
+	const auto object = reinterpret_cast<IDirect3DResource9 *>(get_resource_from_view(view).handle);
+	const auto view_surface = reinterpret_cast<IDirect3DSurface9 *>(view.handle & ~1ull);
+
+	switch (object->GetType())
+	{
+		case D3DRTYPE_TEXTURE:
+		{
+			const auto texture = static_cast<IDirect3DTexture9 *>(object);
+
+			for (DWORD level = 0, levels = texture->GetLevelCount(); level < levels; ++level)
+			{
+				com_ptr<IDirect3DSurface9> surface;
+				if (SUCCEEDED(texture->GetSurfaceLevel(level, &surface)) && surface == view_surface)
+				{
+					*subresource = level;
+					return { reinterpret_cast<uint64_t>(object) };
+				}
+			}
+			break;
+		}
+		case D3DRTYPE_CUBETEXTURE:
+		{
+			const auto texture = static_cast<IDirect3DCubeTexture9 *>(object);
+
+			for (DWORD level = 0, levels = texture->GetLevelCount(); level < levels; ++level)
+			{
+				for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
+				{
+					com_ptr<IDirect3DSurface9> surface;
+					if (SUCCEEDED(texture->GetCubeMapSurface(face, level, &surface)) && surface == view_surface)
+					{
+						*subresource = level + face * levels;
+						return { reinterpret_cast<uint64_t>(object) };
+					}
+				}
+			}
+			break;
+		}
+	}
+
+	*subresource = 0;
+	return { reinterpret_cast<uint64_t>(object) };
+}
+reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_desc(api::resource_view view) const
+{
+	assert(view.handle != 0);
+
+	const auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle & ~1ull);
+
+	// Check whether the first bit in the handle is set, indicating whether this view is using a sRGB format
+	const bool set_srgb_bit = (view.handle & 1ull) != 0;
+
+	switch (object->GetType())
+	{
+		case D3DRTYPE_SURFACE:
+		{
+			uint32_t subresource, level_count =
+				get_resource_desc(get_resource_from_view(view, &subresource)).texture.levels;
+
+			const auto surface = static_cast<IDirect3DSurface9 *>(object);
+
+			D3DSURFACE_DESC internal_desc;
+			surface->GetDesc(&internal_desc);
+
+			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), subresource % level_count, 1, subresource / level_count, 1);
+		}
+		case D3DRTYPE_TEXTURE:
+		{
+			const auto texture = static_cast<IDirect3DTexture9 *>(object);
+
+			D3DSURFACE_DESC internal_desc;
+			texture->GetLevelDesc(0, &internal_desc);
+
+			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, 0xFFFFFFFF, 0, 0xFFFFFFFF);
+		}
+		case D3DRTYPE_CUBETEXTURE:
+		{
+			const auto texture = static_cast<IDirect3DCubeTexture9 *>(object);
+
+			D3DSURFACE_DESC internal_desc;
+			texture->GetLevelDesc(0, &internal_desc);
+
+			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, 0xFFFFFFFF, 0, 0xFFFFFFFF);
+		}
+	}
+
+	assert(false); // Not implemented
+	return api::resource_view_desc();
 }
 
 bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t, const api::dynamic_state *, api::pipeline *out_handle)
@@ -1576,126 +1742,6 @@ void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_
 	}
 
 	*count = 1;
-}
-
-reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource resource) const
-{
-	assert(resource.handle != 0);
-
-	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
-
-	switch (object->GetType())
-	{
-		case D3DRTYPE_SURFACE:
-		{
-			D3DSURFACE_DESC internal_desc;
-			static_cast<IDirect3DSurface9 *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc, 1, _caps);
-		}
-		case D3DRTYPE_TEXTURE:
-		{
-			D3DSURFACE_DESC internal_desc;
-			static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
-			internal_desc.Type = D3DRTYPE_TEXTURE;
-			return convert_resource_desc(internal_desc, static_cast<IDirect3DTexture9 *>(object)->GetLevelCount(), _caps);
-		}
-		case D3DRTYPE_VOLUMETEXTURE:
-		{
-			D3DVOLUME_DESC internal_desc;
-			static_cast<IDirect3DVolumeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
-			internal_desc.Type = D3DRTYPE_VOLUMETEXTURE;
-			return convert_resource_desc(internal_desc, static_cast<IDirect3DVolumeTexture9 *>(object)->GetLevelCount());
-		}
-		case D3DRTYPE_CUBETEXTURE:
-		{
-			D3DSURFACE_DESC internal_desc;
-			static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
-			internal_desc.Type = D3DRTYPE_CUBETEXTURE;
-			return convert_resource_desc(internal_desc, static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount(), _caps);
-		}
-		case D3DRTYPE_VERTEXBUFFER:
-		{
-			D3DVERTEXBUFFER_DESC internal_desc;
-			static_cast<IDirect3DVertexBuffer9 *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3DRTYPE_INDEXBUFFER:
-		{
-			D3DINDEXBUFFER_DESC internal_desc;
-			static_cast<IDirect3DIndexBuffer9 *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-	}
-
-	assert(false); // Not implemented
-	return api::resource_desc {};
-}
-
-reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view) const
-{
-	assert(view.handle != 0);
-
-	const auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle & ~1ull);
-
-	// Get container in case this is a surface resource
-	if (object->GetType() == D3DRTYPE_SURFACE)
-	{
-		const auto surface = reinterpret_cast<IDirect3DSurface9 *>(object);
-
-		if (com_ptr<IDirect3DResource9> resource;
-			SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
-		{
-			return { reinterpret_cast<uintptr_t>(resource.get()) };
-		}
-	}
-
-	// If unable to get container, just return the resource directly
-	return { reinterpret_cast<uintptr_t>(object) };
-}
-reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, uint32_t *subresource) const
-{
-	const auto object = reinterpret_cast<IDirect3DResource9 *>(get_resource_from_view(view).handle);
-	const auto view_surface = reinterpret_cast<IDirect3DSurface9 *>(view.handle & ~1ull);
-
-	switch (object->GetType())
-	{
-		case D3DRTYPE_TEXTURE:
-		{
-			const auto texture = static_cast<IDirect3DTexture9 *>(object);
-
-			for (DWORD level = 0, levels = texture->GetLevelCount(); level < levels; ++level)
-			{
-				com_ptr<IDirect3DSurface9> surface;
-				if (SUCCEEDED(texture->GetSurfaceLevel(level, &surface)) && surface == view_surface)
-				{
-					*subresource = level;
-					return { reinterpret_cast<uint64_t>(object) };
-				}
-			}
-			break;
-		}
-		case D3DRTYPE_CUBETEXTURE:
-		{
-			const auto texture = static_cast<IDirect3DCubeTexture9 *>(object);
-
-			for (DWORD level = 0, levels = texture->GetLevelCount(); level < levels; ++level)
-			{
-				for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
-				{
-					com_ptr<IDirect3DSurface9> surface;
-					if (SUCCEEDED(texture->GetCubeMapSurface(face, level, &surface)) && surface == view_surface)
-					{
-						*subresource = level;
-						return { reinterpret_cast<uint64_t>(object) };
-					}
-				}
-			}
-			break;
-		}
-	}
-
-	*subresource = 0;
-	return { reinterpret_cast<uint64_t>(object) };
 }
 
 reshade::api::resource_view reshade::d3d9::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const

@@ -45,8 +45,15 @@ namespace reshade::opengl
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle) final;
 		void destroy_resource(api::resource handle) final;
 
+		api::resource_desc get_resource_desc(api::resource resource) const final;
+		void set_resource_name(api::resource handle, const char *name) final;
+
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
+
+		api::resource get_resource_from_view(api::resource_view view) const final;
+		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
+		void set_resource_view_name(api::resource_view handle, const char *name) final;
 
 		bool create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle) final;
 		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
@@ -85,17 +92,11 @@ namespace reshade::opengl
 
 		void wait_idle() const final;
 
-		void set_resource_name(api::resource resource, const char *name) final;
-
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
 
 		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
 
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
-
-		api::resource_desc get_resource_desc(api::resource resource) const final;
-
-		api::resource get_resource_from_view(api::resource_view view) const final;
 
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 

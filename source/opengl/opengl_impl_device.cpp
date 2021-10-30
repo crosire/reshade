@@ -573,6 +573,165 @@ void reshade::opengl::device_impl::destroy_resource(api::resource handle)
 	}
 }
 
+reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource resource) const
+{
+	const GLenum target = resource.handle >> 40;
+	const GLuint object = resource.handle & 0xFFFFFFFF;
+
+	switch (target)
+	{
+		case GL_BUFFER:
+		{
+			GLint size = 0;
+
+			if (_supports_dsa)
+			{
+				glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &size);
+			}
+			else
+			{
+				GLint prev_binding = 0;
+				glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_binding);
+				glBindBuffer(GL_COPY_READ_BUFFER, object);
+
+				glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
+
+				glBindBuffer(GL_COPY_READ_BUFFER, prev_binding);
+			}
+
+			return convert_resource_desc(target, size);
+		}
+		case GL_TEXTURE_BUFFER:
+		case GL_TEXTURE_1D:
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		case GL_TEXTURE_3D:
+		case GL_TEXTURE_CUBE_MAP:
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
+		case GL_TEXTURE_RECTANGLE:
+		{
+			GLint width = 0, height = 1, depth = 1, levels = 1, samples = 1, internal_format = GL_NONE;
+			GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+
+			if (_supports_dsa)
+			{
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_WIDTH, &width);
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_HEIGHT, &height);
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_DEPTH, &depth);
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_SAMPLES, &samples);
+
+				glGetTextureParameteriv(object, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+				if (levels == 0)
+				{
+					// If number of mipmap levels is not immutable, need to walk through the mipmap chain and check how many actually exist
+					glGetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &levels);
+					for (GLsizei level = 1, level_w = 0; level < levels; ++level)
+					{
+						// Check if this mipmap level does exist
+						glGetTextureLevelParameteriv(object, level, GL_TEXTURE_WIDTH, &level_w);
+						if (0 == level_w)
+						{
+							levels = level;
+							break;
+						}
+					}
+				}
+
+				glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+			}
+			else
+			{
+				GLint prev_binding = 0;
+				glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+				glBindTexture(target, object);
+
+				GLenum level_target = target;
+				if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+					level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
+
+				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_WIDTH, &width);
+				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_HEIGHT, &height);
+				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_DEPTH, &depth);
+				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_SAMPLES, &samples);
+
+				glGetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+				if (levels == 0)
+				{
+					glGetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &levels);
+					for (GLsizei level = 1, level_w = 0; level < levels; ++level)
+					{
+						glGetTexLevelParameteriv(level_target, level, GL_TEXTURE_WIDTH, &level_w);
+						if (0 == level_w)
+						{
+							levels = level;
+							break;
+						}
+					}
+				}
+
+				glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
+				glBindTexture(target, prev_binding);
+			}
+
+			if (0 == levels)
+				levels = 1;
+			if (0 == samples)
+				samples = 1;
+
+			return convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
+		}
+		case GL_RENDERBUFFER:
+		{
+			GLint width = 0, height = 1, samples = 1, internal_format = GL_NONE;
+
+			if (_supports_dsa)
+			{
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_WIDTH, &width);
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_HEIGHT, &height);
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_SAMPLES, &samples);
+			}
+			else
+			{
+				GLint prev_binding = 0;
+				glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
+				glBindRenderbuffer(GL_RENDERBUFFER, object);
+
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &width);
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_SAMPLES, &samples);
+
+				glBindRenderbuffer(GL_RENDERBUFFER, prev_binding);
+			}
+
+			if (0 == samples)
+				samples = 1;
+
+			return convert_resource_desc(target, 1, samples, internal_format, width, height);
+		}
+		case GL_FRAMEBUFFER_DEFAULT:
+		{
+			const GLenum internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
+
+			return convert_resource_desc(target, 1, 1, internal_format, _default_fbo_width, _default_fbo_height);
+		}
+	}
+
+	assert(false); // Not implemented
+	return api::resource_desc {};
+}
+void reshade::opengl::device_impl::set_resource_name(api::resource handle, const char *name)
+{
+	glObjectLabel((handle.handle >> 40) == GL_BUFFER ? GL_BUFFER : GL_TEXTURE, handle.handle & 0xFFFFFFFF, -1, name);
+}
+
 bool reshade::opengl::device_impl::create_resource_view(api::resource resource, api::resource_usage, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
 	if (resource.handle == 0)
@@ -723,8 +882,90 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 }
 void reshade::opengl::device_impl::destroy_resource_view(api::resource_view handle)
 {
-	if ((handle.handle & 0x100000000) == 0)
+	if (((handle.handle >> 32) & 0x1) == 0)
 		destroy_resource({ handle.handle });
+}
+
+reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
+{
+	assert(view.handle != 0);
+
+	// Remove extra bits from view
+	return { view.handle & 0xFFFFFF00FFFFFFFF };
+}
+reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view_desc(api::resource_view view) const
+{
+	assert(view.handle != 0);
+
+	const GLenum target = view.handle >> 40;
+	const GLuint object = view.handle & 0xFFFFFFFF;
+
+	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+		return api::resource_view_desc(get_resource_desc(get_resource_from_view(view)).texture.format, 0, 0xFFFFFFFF, target - GL_TEXTURE_CUBE_MAP_POSITIVE_X, 1);
+	if (((view.handle >> 32) & 0x1) != 0)
+		return api::resource_view_desc(get_resource_desc(get_resource_from_view(view)).texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF);
+
+	if (target != GL_TEXTURE_BUFFER)
+	{
+		GLint min_level = 0, min_layer = 0, num_levels = 0, num_layers = 0, internal_format = GL_NONE;
+
+		if (_supports_dsa)
+		{
+			glGetTextureParameteriv(object, GL_TEXTURE_VIEW_MIN_LEVEL, &min_level);
+			glGetTextureParameteriv(object, GL_TEXTURE_VIEW_MIN_LAYER, &min_layer);
+			glGetTextureParameteriv(object, GL_TEXTURE_VIEW_NUM_LEVELS, &num_levels);
+			glGetTextureParameteriv(object, GL_TEXTURE_VIEW_NUM_LAYERS, &num_layers);
+			glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+		}
+		else
+		{
+			GLint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+			glBindTexture(target, object);
+
+			glGetTexParameteriv(target, GL_TEXTURE_VIEW_MIN_LEVEL, &min_level);
+			glGetTexParameteriv(target, GL_TEXTURE_VIEW_MIN_LAYER, &min_layer);
+			glGetTexParameteriv(target, GL_TEXTURE_VIEW_NUM_LEVELS, &num_levels);
+			glGetTexParameteriv(target, GL_TEXTURE_VIEW_NUM_LAYERS, &num_layers);
+			glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+
+			glBindTexture(target, prev_binding);
+		}
+
+		return convert_resource_view_desc(target, internal_format, min_level, num_levels, min_layer, num_layers);
+	}
+	else
+	{
+		GLint offset = 0, size = 0, internal_format = GL_NONE;
+
+		if (_supports_dsa)
+		{
+			glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_OFFSET, &offset);
+			glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_SIZE, &size);
+			glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+		}
+		else
+		{
+			GLint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+			glBindTexture(target, object);
+
+			glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BUFFER_OFFSET, &offset);
+			glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BUFFER_SIZE, &size);
+			glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+
+			glBindTexture(target, prev_binding);
+		}
+
+		return convert_resource_view_desc(target, internal_format, offset, size);
+	}
+}
+void reshade::opengl::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
+{
+	if (((handle.handle >> 32) & 0x1) != 0)
+		return;
+
+	glObjectLabel(GL_TEXTURE, handle.handle & 0xFFFFFFFF, -1, name);
 }
 
 static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
@@ -1624,11 +1865,6 @@ void reshade::opengl::device_impl::wait_idle() const
 	glFinish();
 }
 
-void reshade::opengl::device_impl::set_resource_name(api::resource resource, const char *name)
-{
-	glObjectLabel((resource.handle >> 40) == GL_BUFFER ? GL_BUFFER : GL_TEXTURE, resource.handle & 0xFFFFFFFF, -1, name);
-}
-
 void reshade::opengl::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
@@ -1670,169 +1906,6 @@ void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descripto
 	{
 		*count = 1;
 	}
-}
-
-reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource resource) const
-{
-	const GLenum target = resource.handle >> 40;
-	const GLuint object = resource.handle & 0xFFFFFFFF;
-
-	switch (target)
-	{
-		case GL_BUFFER:
-		{
-			GLint size = 0;
-
-			if (_supports_dsa)
-			{
-				glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &size);
-			}
-			else
-			{
-				GLint prev_binding = 0;
-				glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_binding);
-				glBindBuffer(GL_COPY_READ_BUFFER, object);
-
-				glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
-
-				glBindBuffer(GL_COPY_READ_BUFFER, prev_binding);
-			}
-
-			return convert_resource_desc(target, size);
-		}
-		case GL_TEXTURE_BUFFER:
-		case GL_TEXTURE_1D:
-		case GL_TEXTURE_1D_ARRAY:
-		case GL_TEXTURE_2D:
-		case GL_TEXTURE_2D_ARRAY:
-		case GL_TEXTURE_2D_MULTISAMPLE:
-		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		case GL_TEXTURE_3D:
-		case GL_TEXTURE_CUBE_MAP:
-		case GL_TEXTURE_CUBE_MAP_ARRAY:
-		case GL_TEXTURE_RECTANGLE:
-		{
-			GLint width = 0, height = 1, depth = 1, levels = 1, samples = 1, internal_format = GL_NONE;
-			GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
-
-			if (_supports_dsa)
-			{
-				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_WIDTH, &width);
-				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_HEIGHT, &height);
-				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_DEPTH, &depth);
-				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_SAMPLES, &samples);
-
-				glGetTextureParameteriv(object, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
-				if (levels == 0)
-				{
-					// If number of mipmap levels is not immutable, need to walk through the mipmap chain and check how many actually exist
-					glGetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &levels);
-					for (GLsizei level = 1, level_w = 0; level < levels; ++level)
-					{
-						// Check if this mipmap level does exist
-						glGetTextureLevelParameteriv(object, level, GL_TEXTURE_WIDTH, &level_w);
-						if (0 == level_w)
-						{
-							levels = level;
-							break;
-						}
-					}
-				}
-
-				glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
-			}
-			else
-			{
-				GLint prev_binding = 0;
-				glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
-				glBindTexture(target, object);
-
-				GLenum level_target = target;
-				if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
-					level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
-
-				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_WIDTH, &width);
-				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_HEIGHT, &height);
-				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_DEPTH, &depth);
-				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-				glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_SAMPLES, &samples);
-
-				glGetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
-				if (levels == 0)
-				{
-					glGetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &levels);
-					for (GLsizei level = 1, level_w = 0; level < levels; ++level)
-					{
-						glGetTexLevelParameteriv(level_target, level, GL_TEXTURE_WIDTH, &level_w);
-						if (0 == level_w)
-						{
-							levels = level;
-							break;
-						}
-					}
-				}
-
-				glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
-
-				glBindTexture(target, prev_binding);
-			}
-
-			if (0 == levels)
-				levels = 1;
-			if (0 == samples)
-				samples = 1;
-
-			return convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
-		}
-		case GL_RENDERBUFFER:
-		{
-			GLint width = 0, height = 1, samples = 1, internal_format = GL_NONE;
-
-			if (_supports_dsa)
-			{
-				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_WIDTH, &width);
-				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_HEIGHT, &height);
-				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
-				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_SAMPLES, &samples);
-			}
-			else
-			{
-				GLint prev_binding = 0;
-				glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
-				glBindRenderbuffer(GL_RENDERBUFFER, object);
-
-				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &width);
-				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
-				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
-				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_SAMPLES, &samples);
-
-				glBindRenderbuffer(GL_RENDERBUFFER, prev_binding);
-			}
-
-			if (0 == samples)
-				samples = 1;
-
-			return convert_resource_desc(target, 1, samples, internal_format, width, height);
-		}
-		case GL_FRAMEBUFFER_DEFAULT:
-		{
-			const GLenum internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
-
-			return convert_resource_desc(target, 1, 1, internal_format, _default_fbo_width, _default_fbo_height);
-		}
-	}
-
-	assert(false); // Not implemented
-	return api::resource_desc {};
-}
-
-reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
-{
-	assert(view.handle != 0);
-
-	// Remove extra bits from view
-	return { view.handle & 0xFFFFFF00FFFFFFFF };
 }
 
 reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const

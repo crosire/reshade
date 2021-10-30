@@ -272,6 +272,17 @@ namespace reshade { namespace api
 		virtual void destroy_resource(resource handle) = 0;
 
 		/// <summary>
+		/// Gets the description of the specified <paramref name="resource"/>.
+		/// </summary>
+		virtual resource_desc get_resource_desc(resource resource) const = 0;
+		/// <summary>
+		/// Associates a name with a resource, for easier debugging in external tools.
+		/// </summary>
+		/// <param name="handle">Resource to associate a name with.</param>
+		/// <param name="name">A null-terminated name string.</param>
+		virtual void set_resource_name(resource handle, const char *name) = 0;
+
+		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/>.
 		/// </summary>
 		/// <param name="resource">Resource to create the view to.</param>
@@ -284,6 +295,21 @@ namespace reshade { namespace api
 		/// Instantly destroys a resource view that was previously created via <see cref="create_resource_view"/>.
 		/// </summary>
 		virtual void destroy_resource_view(resource_view handle) = 0;
+
+		/// <summary>
+		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
+		/// </summary>
+		virtual resource get_resource_from_view(resource_view view) const = 0;
+		/// <summary>
+		/// Gets the description of the specified resource <paramref name="view"/>.
+		/// </summary>
+		virtual resource_view_desc get_resource_view_desc(resource_view view) const = 0;
+		/// <summary>
+		/// Associates a name with a resource view, for easier debugging in external tools.
+		/// </summary>
+		/// <param name="handle">Resource view to associate a name with.</param>
+		/// <param name="name">A null-terminated name string.</param>
+		virtual void set_resource_view_name(resource_view handle, const char *name) = 0;
 
 		/// <summary>
 		/// Creates a new pipeline state object.
@@ -453,13 +479,6 @@ namespace reshade { namespace api
 		virtual void wait_idle() const = 0;
 
 		/// <summary>
-		/// Associates a name with a resource, for easier debugging in external tools.
-		/// </summary>
-		/// <param name="resource">Resource to associate a name with.</param>
-		/// <param name="name">A null-terminated name string.</param>
-		virtual void set_resource_name(resource resource, const char *name) = 0;
-
-		/// <summary>
 		/// Gets the description of the specified pipeline <paramref name="layout"/>.
 		/// </summary>
 		/// <remarks>
@@ -486,16 +505,6 @@ namespace reshade { namespace api
 		/// <param name="out_count">Pointer to a variable that is set to the number of descriptor ranges in the <paramref name="layout"/>.</param>
 		/// <param name="out_ranges">Optional pointer to an array that is filled with the descriptor ranges in the <paramref name="layout"/>.</param>
 		virtual void get_descriptor_set_layout_desc(descriptor_set_layout layout, uint32_t *out_count, descriptor_range *out_ranges) const = 0;
-
-		/// <summary>
-		/// Gets the description of the specified <paramref name="resource"/>.
-		/// </summary>
-		virtual resource_desc get_resource_desc(resource resource) const = 0;
-
-		/// <summary>
-		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
-		/// </summary>
-		virtual      resource get_resource_from_view(resource_view view) const = 0;
 
 		/// <summary>
 		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
