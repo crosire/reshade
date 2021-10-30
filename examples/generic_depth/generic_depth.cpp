@@ -421,7 +421,7 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
-static void on_begin_render_pass(command_list *cmd_list, render_pass, framebuffer fbo)
+static void on_begin_render_pass(command_list *cmd_list, render_pass, framebuffer fbo, uint32_t, const void *)
 {
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);

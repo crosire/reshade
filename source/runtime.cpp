@@ -236,17 +236,17 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 	// Create render passes and targets for the back buffer resources
 	{
-		api::render_pass_desc pass_desc = {};
-		pass_desc.depth_stencil_format = selected_stencil_format;
-		pass_desc.render_targets_format[0] = api::format_to_default_typed(_back_buffer_format, 0);
-		pass_desc.samples = 1;
-		api::render_pass_desc pass_desc_srgb = {};
-		pass_desc_srgb.depth_stencil_format = selected_stencil_format;
-		pass_desc_srgb.render_targets_format[0] = api::format_to_default_typed(_back_buffer_format, 1);
-		pass_desc_srgb.samples = 1;
+		const api::attachment_desc attachment_descs[2] = {
+			api::attachment_desc(api::attachment_type::color, 0, api::format_to_default_typed(_back_buffer_format, 0)),
+			api::attachment_desc(api::attachment_type::stencil, 0, selected_stencil_format),
+		};
+		const api::attachment_desc attachment_descs_srgb[2] = {
+			api::attachment_desc(api::attachment_type::color, 0, api::format_to_default_typed(_back_buffer_format, 1)),
+			api::attachment_desc(api::attachment_type::stencil, 0, selected_stencil_format),
+		};
 
-		if (!_device->create_render_pass(pass_desc, &_back_buffer_passes[0]) ||
-			!_device->create_render_pass(pass_desc_srgb, &_back_buffer_passes[1]))
+		if (!_device->create_render_pass(2, attachment_descs, &_back_buffer_passes[0]) ||
+			!_device->create_render_pass(2, attachment_descs_srgb, &_back_buffer_passes[1]))
 		{
 			LOG(ERROR) << "Failed to create back buffer render passes!";
 			goto exit_failure;
@@ -256,22 +256,16 @@ bool reshade::runtime::on_init(input::window_handle window)
 		{
 			const api::resource back_buffer_resource = get_back_buffer_resolved(i);
 
-			if (!_device->create_resource_view(back_buffer_resource, api::resource_usage::render_target, api::resource_view_desc(pass_desc.render_targets_format[0]), &_back_buffer_targets.emplace_back()) ||
-				!_device->create_resource_view(back_buffer_resource, api::resource_usage::render_target, api::resource_view_desc(pass_desc_srgb.render_targets_format[0]), &_back_buffer_targets.emplace_back()))
+			if (!_device->create_resource_view(back_buffer_resource, api::resource_usage::render_target, api::resource_view_desc(attachment_descs[0].format), &_back_buffer_targets.emplace_back()) ||
+				!_device->create_resource_view(back_buffer_resource, api::resource_usage::render_target, api::resource_view_desc(attachment_descs_srgb[0].format), &_back_buffer_targets.emplace_back()))
 			{
 				LOG(ERROR) << "Failed to create back buffer render targets!";
 				goto exit_failure;
 			}
 
-			api::framebuffer_desc fbo_desc = {};
-			fbo_desc.render_pass_template = _back_buffer_passes[0];
-			fbo_desc.depth_stencil = _effect_stencil_dsv;
-			fbo_desc.render_targets[0] = _back_buffer_targets[i * 2];
-			fbo_desc.width = _width;
-			fbo_desc.height = _height;
-			fbo_desc.layers = 1;
+			const api::resource_view attachment_views[2] = { _back_buffer_targets[i * 2], _effect_stencil_dsv };
 
-			if (!_device->create_framebuffer(fbo_desc, &_back_buffer_fbos.emplace_back()))
+			if (!_device->create_framebuffer(_back_buffer_passes[0], 2, attachment_views, &_back_buffer_fbos.emplace_back()))
 			{
 				LOG(ERROR) << "Failed to create back buffer framebuffer!";
 				goto exit_failure;
@@ -1987,21 +1981,9 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				}
 				else
 				{
-					api::framebuffer_desc fbo_desc = {};
-					fbo_desc.width = pass_info.viewport_width;
-					fbo_desc.height = pass_info.viewport_height;
-					fbo_desc.layers = 1;
-					api::render_pass_desc pass_desc = {};
-					pass_desc.samples = 1;
-
-					// Only need to attach stencil if stencil is actually used in this pass
-					if (pass_info.stencil_enable &&
-						pass_info.viewport_width == _width &&
-						pass_info.viewport_height == _height)
-					{
-						fbo_desc.depth_stencil = _effect_stencil_dsv;
-						pass_desc.depth_stencil_format = _device->get_resource_desc(_effect_stencil_tex).texture.format;
-					}
+					uint32_t attachment_count = 0;
+					api::resource_view attachment_views[9];
+					api::attachment_desc attachment_descs[9];
 
 					for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 					{
@@ -2016,11 +1998,22 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 						const api::resource_desc res_desc = _device->get_resource_desc(texture->resource);
 
-						fbo_desc.render_targets[k] = texture->rtv[pass_info.srgb_write_enable];
-						pass_desc.render_targets_format[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
+						attachment_views[attachment_count] = texture->rtv[pass_info.srgb_write_enable];
+						attachment_descs[attachment_count] = api::attachment_desc(api::attachment_type::color, k, api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable));
+						attachment_count++;
 					}
 
-					if (!_device->create_render_pass(pass_desc, &pass_data.pass))
+					// Only need to attach stencil if stencil is actually used in this pass
+					if (pass_info.stencil_enable &&
+						pass_info.viewport_width == _width &&
+						pass_info.viewport_height == _height)
+					{
+						attachment_views[attachment_count] = _effect_stencil_dsv;
+						attachment_descs[attachment_count] = api::attachment_desc(api::attachment_type::stencil, 0, _device->get_resource_desc(_effect_stencil_tex).texture.format);
+						attachment_count++;
+					}
+
+					if (!_device->create_render_pass(attachment_count, attachment_descs, &pass_data.pass))
 					{
 						effect.compiled = false;
 						_last_reload_successfull = false;
@@ -2029,10 +2022,9 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						return false;
 					}
 
-					fbo_desc.render_pass_template = pass_data.pass;
 					desc.graphics.render_pass_template = pass_data.pass;
 
-					if (!_device->create_framebuffer(fbo_desc, &pass_data.fbo))
+					if (!_device->create_framebuffer(pass_data.pass, attachment_count, attachment_views, &pass_data.fbo))
 					{
 						effect.compiled = false;
 						_last_reload_successfull = false;
@@ -3092,15 +3084,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				_device->destroy_framebuffer(fbo);
 			}
 
-			api::framebuffer_desc fbo_desc = {};
-			fbo_desc.render_pass_template = _back_buffer_passes[srgb];
-			fbo_desc.depth_stencil = _effect_stencil_dsv;
-			fbo_desc.render_targets[0] = srgb ? rtv_srgb : rtv;
-			fbo_desc.width = _width;
-			fbo_desc.height = _height;
-			fbo_desc.layers = 1;
+			const api::resource_view attachment_views[2] = { srgb ? rtv_srgb : rtv, _effect_stencil_dsv };
 
-			if (!_device->create_framebuffer(fbo_desc, &fbo))
+			if (!_device->create_framebuffer(_back_buffer_passes[srgb], 2, attachment_views, &fbo))
 			{
 				LOG(ERROR) << "Failed to create effect back buffer framebuffer!";
 				return;

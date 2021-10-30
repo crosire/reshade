@@ -1042,35 +1042,58 @@ void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d9::device_impl::create_render_pass(const api::render_pass_desc &, api::render_pass *out_handle)
+bool reshade::d3d9::device_impl::create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle)
 {
-	*out_handle = { 0 };
+	for (uint32_t a = 0; a < attachment_count; ++a)
+	{
+		if (attachments[a].index >= (attachments[a].type == api::attachment_type::color ? _caps.NumSimultaneousRTs : 1))
+		{
+			*out_handle = { 0 };
+			return false;
+		}
+	}
+
+	const auto impl = new render_pass_impl();
+	impl->attachments.assign(attachments, attachments + attachment_count);
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 void reshade::d3d9::device_impl::destroy_render_pass(api::render_pass handle)
 {
-	assert(handle.handle == 0);
+	delete reinterpret_cast<render_pass_impl *>(handle.handle);
 }
 
-bool reshade::d3d9::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle)
+bool reshade::d3d9::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
-	const auto impl = new framebuffer_impl();
-
-	for (DWORD i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
+	if (render_pass_template.handle == 0)
 	{
-		if (i >= _caps.NumSimultaneousRTs)
-		{
-			delete impl;
-
-			*out_handle = { 0 };
-			return false;
-		}
-
-		impl->rtv[i] = reinterpret_cast<IDirect3DSurface9 *>(desc.render_targets[i].handle & ~1ull);
-		impl->srgb_write_enable |= (desc.render_targets[i].handle & 1);
+		*out_handle = { 0 };
+		return false;
 	}
 
-	impl->dsv = reinterpret_cast<IDirect3DSurface9 *>(desc.depth_stencil.handle);
+	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
+
+	if (attachment_count > pass_impl->attachments.size())
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	const auto impl = new framebuffer_impl();
+
+	for (uint32_t a = 0; a < attachment_count; ++a)
+	{
+		if (pass_impl->attachments[a].type == api::attachment_type::color)
+		{
+			impl->rtv[pass_impl->attachments[a].index] = reinterpret_cast<IDirect3DSurface9 *>(attachments[a].handle & ~1ull);
+			impl->srgb_write_enable |= (attachments[a].handle & 1ull) != 0;
+		}
+		else
+		{
+			impl->dsv = reinterpret_cast<IDirect3DSurface9 *>(attachments[a].handle & ~1ull);
+		}
+	}
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
@@ -1090,9 +1113,9 @@ reshade::api::resource_view reshade::d3d9::device_impl::get_framebuffer_attachme
 	{
 		if (index < _caps.NumSimultaneousRTs && fbo_impl->rtv[index] != nullptr)
 		{
-			const uint64_t set_srgb_bit = fbo_impl->srgb_write_enable;
+			const bool set_srgb_bit = fbo_impl->srgb_write_enable;
 
-			return { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) | set_srgb_bit };
+			return { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) | (set_srgb_bit ? 1ull : 0) };
 		}
 	}
 	else

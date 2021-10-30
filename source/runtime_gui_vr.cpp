@@ -75,26 +75,20 @@ void reshade::runtime::init_gui_vr()
 		return;
 	}
 
-	api::render_pass_desc pass_desc = {};
-	pass_desc.depth_stencil_format = _device->get_resource_desc(_effect_stencil_tex).texture.format;
-	pass_desc.render_targets_format[0] = api::format::r8g8b8a8_unorm;
-	pass_desc.samples = 1;
+	const api::attachment_desc attachment_descs[2] = {
+		api::attachment_desc(api::attachment_type::color, 0, api::format::r8g8b8a8_unorm),
+		api::attachment_desc(api::attachment_type::stencil, 0, _device->get_resource_desc(_effect_stencil_tex).texture.format)
+	};
 
-	if (!_device->create_render_pass(pass_desc, &_vr_overlay_pass))
+	if (!_device->create_render_pass(2, attachment_descs, &_vr_overlay_pass))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render pass!";
 		return;
 	}
 
-	api::framebuffer_desc fbo_desc = {};
-	fbo_desc.render_pass_template = _vr_overlay_pass;
-	fbo_desc.depth_stencil = _effect_stencil_dsv;
-	fbo_desc.render_targets[0] = _vr_overlay_target;
-	fbo_desc.width = OVERLAY_WIDTH;
-	fbo_desc.height = OVERLAY_HEIGHT;
-	fbo_desc.layers = 1;
+	const api::resource_view attachment_views[2] = { _vr_overlay_target, _effect_stencil_dsv };
 
-	if (!_device->create_framebuffer(fbo_desc, &_vr_overlay_fbo))
+	if (!_device->create_framebuffer(_vr_overlay_pass, 2, attachment_views, &_vr_overlay_fbo))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay framebuffer!";
 		return;

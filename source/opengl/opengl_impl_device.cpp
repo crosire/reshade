@@ -166,7 +166,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 	create_pipeline_layout(6, layout_params, &_global_pipeline_layout);
 
 	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0));
+	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0), 0, nullptr);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
@@ -1250,21 +1250,47 @@ void reshade::opengl::device_impl::destroy_pipeline(api::pipeline handle)
 	delete impl;
 }
 
-bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_desc &, api::render_pass *out_handle)
+bool reshade::opengl::device_impl::create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle)
 {
-	*out_handle = { 0 };
+	const auto impl = new render_pass_impl();
+	impl->attachments.assign(attachments, attachments + attachment_count);
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 void reshade::opengl::device_impl::destroy_render_pass(api::render_pass handle)
 {
-	assert(handle.handle == 0);
+	delete reinterpret_cast<render_pass_impl *>(handle.handle);
 }
 
-bool reshade::opengl::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle)
+bool reshade::opengl::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
-	if ((desc.render_targets[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT && (
-		// Can only use both the color and depth-stencil attachments of the default framebuffer together, not bind them individually
-		(desc.depth_stencil.handle == 0 || (desc.depth_stencil.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)))
+	if (render_pass_template.handle == 0)
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
+
+	if (attachment_count > pass_impl->attachments.size())
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	// Can only use both the color and depth-stencil attachments of the default framebuffer together, not bind them individually
+	bool only_default_framebuffer = true;
+	for (uint32_t i = 0; i < attachment_count; ++i)
+	{
+		if ((attachments[i].handle >> 40) != GL_FRAMEBUFFER_DEFAULT)
+		{
+			only_default_framebuffer = false;
+			break;
+		}
+	}
+
+	if (only_default_framebuffer)
 	{
 		*out_handle = make_framebuffer_handle(0);
 		return true;
@@ -1280,9 +1306,30 @@ bool reshade::opengl::device_impl::create_framebuffer(const api::framebuffer_des
 	bool has_srgb_attachment = false;
 	uint32_t num_color_attachments = 0;
 
-	for (GLuint i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++num_color_attachments)
+	for (uint32_t i = 0; i < attachment_count; ++i)
 	{
-		switch (desc.render_targets[i].handle >> 40)
+		GLenum attachment_type = GL_NONE;
+		switch (pass_impl->attachments[i].type)
+		{
+		case api::attachment_type::color:
+			attachment_type = GL_COLOR_ATTACHMENT0 + pass_impl->attachments[i].index;
+			num_color_attachments = std::max(num_color_attachments, pass_impl->attachments[i].index + 1);
+			break;
+		case api::attachment_type::depth:
+			assert(pass_impl->attachments[i].index == 0);
+			attachment_type = GL_DEPTH_ATTACHMENT;
+			break;
+		case api::attachment_type::stencil:
+			assert(pass_impl->attachments[i].index == 0);
+			attachment_type = GL_STENCIL_ATTACHMENT;
+			break;
+		case api::attachment_type::depth_stencil:
+			assert(pass_impl->attachments[i].index == 0);
+			attachment_type = GL_DEPTH_STENCIL_ATTACHMENT;
+			break;
+		}
+
+		switch (attachments[i].handle >> 40)
 		{
 		case GL_TEXTURE_BUFFER:
 		case GL_TEXTURE_1D:
@@ -1292,10 +1339,10 @@ bool reshade::opengl::device_impl::create_framebuffer(const api::framebuffer_des
 		case GL_TEXTURE_2D_MULTISAMPLE:
 		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
 		case GL_TEXTURE_RECTANGLE:
-			glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, desc.render_targets[i].handle & 0xFFFFFFFF, 0);
+			glFramebufferTexture(GL_FRAMEBUFFER, attachment_type, attachments[i].handle & 0xFFFFFFFF, 0);
 			break;
 		case GL_RENDERBUFFER:
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, desc.render_targets[i].handle & 0xFFFFFFFF);
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment_type, GL_RENDERBUFFER, attachments[i].handle & 0xFFFFFFFF);
 			break;
 		default:
 			assert(false);
@@ -1305,34 +1352,8 @@ bool reshade::opengl::device_impl::create_framebuffer(const api::framebuffer_des
 			return false;
 		}
 
-		if (desc.render_targets[i].handle & 0x200000000)
+		if (attachments[i].handle & 0x200000000)
 			has_srgb_attachment = true;
-	}
-
-	if (desc.depth_stencil.handle != 0)
-	{
-		switch (desc.depth_stencil.handle >> 40)
-		{
-		case GL_TEXTURE_BUFFER:
-		case GL_TEXTURE_1D:
-		case GL_TEXTURE_1D_ARRAY:
-		case GL_TEXTURE_2D:
-		case GL_TEXTURE_2D_ARRAY:
-		case GL_TEXTURE_2D_MULTISAMPLE:
-		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		case GL_TEXTURE_RECTANGLE:
-			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, desc.depth_stencil.handle & 0xFFFFFFFF, 0);
-			break;
-		case GL_RENDERBUFFER:
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, desc.depth_stencil.handle & 0xFFFFFFFF);
-			break;
-		default:
-			assert(false);
-			glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
-			glDeleteFramebuffers(1, &fbo_object);
-			*out_handle = { 0 };
-			return false;
-		}
 	}
 
 	const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);

@@ -98,7 +98,7 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 	_freea(image_barriers);
 }
 
-void reshade::vulkan::command_list_impl::begin_render_pass(api::render_pass pass, api::framebuffer fbo)
+void reshade::vulkan::command_list_impl::begin_render_pass(api::render_pass pass, api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values)
 {
 	_has_commands = true;
 
@@ -108,6 +108,8 @@ void reshade::vulkan::command_list_impl::begin_render_pass(api::render_pass pass
 	begin_info.renderPass = (VkRenderPass)pass.handle;
 	begin_info.framebuffer = (VkFramebuffer)fbo.handle;
 	begin_info.renderArea.extent = _device_impl->get_user_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>(begin_info.framebuffer)->area;
+	begin_info.clearValueCount = clear_value_count;
+	begin_info.pClearValues = static_cast<const VkClearValue *>(clear_values);
 
 	vk.CmdBeginRenderPass(_orig, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 

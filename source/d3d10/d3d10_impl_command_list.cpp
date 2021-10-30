@@ -41,13 +41,43 @@ void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *,
 	}
 }
 
-void reshade::d3d10::device_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
+void reshade::d3d10::device_impl::begin_render_pass(api::render_pass pass, api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values)
 {
-	assert(fbo.handle != 0);
+	assert(pass.handle != 0 && fbo.handle != 0);
 
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->dsv);
+
+	if (clear_value_count == 0)
+		return;
+
+	for (const api::attachment_desc &attach : reinterpret_cast<const render_pass_impl *>(pass.handle)->attachments)
+	{
+		if (attach.type == api::attachment_type::color)
+		{
+			if (attach.color_or_depth_load_op == api::attachment_load_op::clear)
+			{
+				assert(clear_value_count != 0);
+
+				_orig->ClearRenderTargetView(fbo_impl->rtv[attach.index], static_cast<const float *>(clear_values));
+			}
+		}
+		else
+		{
+			if (const UINT clear_flags = ((attach.color_or_depth_load_op == api::attachment_load_op::clear) ? D3D10_CLEAR_DEPTH : 0) | ((attach.stencil_load_op == api::attachment_load_op::clear) ? D3D10_CLEAR_STENCIL : 0))
+			{
+				assert(clear_value_count != 0);
+
+				_orig->ClearDepthStencilView(fbo_impl->dsv, clear_flags,
+					static_cast<const float *>(clear_values)[0],
+					reinterpret_cast<const uint32_t &>(static_cast<const float *>(clear_values)[1]) & 0xFF);
+			}
+		}
+
+		clear_values = static_cast<const float *>(clear_values) + 4;
+		clear_value_count--;
+	}
 }
 void reshade::d3d10::device_impl::finish_render_pass()
 {

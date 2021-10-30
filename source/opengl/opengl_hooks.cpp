@@ -364,61 +364,39 @@ static void update_framebuffer_object(GLenum target, GLuint fbo)
 
 	reshade::invoke_addon_event<reshade::addon_event::destroy_framebuffer>(g_current_context, fbo_handle);
 
-	reshade::api::framebuffer_desc old_desc = {};
-	old_desc.width  = std::numeric_limits<uint32_t>::max();
-	old_desc.height = std::numeric_limits<uint32_t>::max();
-	old_desc.layers = std::numeric_limits<uint16_t>::max();
-
+	std::vector<reshade::api::resource_view> old_attachments(8 + 1);
 	for (uint32_t i = 0; i < 8; ++i)
-	{
-		old_desc.render_targets[i] = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::color, i);
-		if (old_desc.render_targets[i].handle == 0)
-			continue;
+		old_attachments[i] = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::color, i);
+	old_attachments[8] = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::depth, 0);
+	std::vector<reshade::api::resource_view> new_attachments = old_attachments;
 
-		const reshade::api::resource_desc res_desc = g_current_context->get_resource_desc(g_current_context->get_resource_from_view(old_desc.render_targets[i]));
-		old_desc.width  = std::min(old_desc.width,  res_desc.texture.width);
-		old_desc.height = std::min(old_desc.height, res_desc.texture.width);
-		old_desc.layers = std::min(old_desc.layers, res_desc.texture.depth_or_layers);
-	}
-
-	old_desc.depth_stencil = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::depth, 0);
-	if (old_desc.depth_stencil.handle != 0)
-	{
-		const reshade::api::resource_desc res_desc = g_current_context->get_resource_desc(g_current_context->get_resource_from_view(old_desc.depth_stencil));
-		old_desc.width  = std::min(old_desc.width,  res_desc.texture.width);
-		old_desc.height = std::min(old_desc.height, res_desc.texture.width);
-		old_desc.layers = std::min(old_desc.layers, res_desc.texture.depth_or_layers);
-	}
-
-	reshade::api::framebuffer_desc new_desc = old_desc;
-
-	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(g_current_context, new_desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(g_current_context, reshade::api::render_pass { 0 }, static_cast<uint32_t>(new_attachments.size()), new_attachments.data()))
 	{
 		// Update depth-stencil attachment
 		{
-			if (new_desc.depth_stencil != old_desc.depth_stencil)
+			if (new_attachments[8] != old_attachments[8])
 			{
-				if ((new_desc.depth_stencil.handle >> 40) == GL_RENDERBUFFER)
-					gl3wNamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, new_desc.depth_stencil.handle & 0xFFFFFFFF);
+				if ((new_attachments[8].handle >> 40) == GL_RENDERBUFFER)
+					gl3wNamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, new_attachments[8].handle & 0xFFFFFFFF);
 				else
-					gl3wNamedFramebufferTexture(fbo, GL_DEPTH_STENCIL_ATTACHMENT, new_desc.depth_stencil.handle & 0xFFFFFFFF, 0);
+					gl3wNamedFramebufferTexture(fbo, GL_DEPTH_STENCIL_ATTACHMENT, new_attachments[8].handle & 0xFFFFFFFF, 0);
 			}
 		}
 
 		// Update render target attachments
 		for (uint32_t i = 0; i < 8; ++i)
 		{
-			if (new_desc.render_targets[i] != old_desc.render_targets[i])
+			if (new_attachments[i] != new_attachments[i])
 			{
-				if ((new_desc.render_targets[i].handle >> 40) == GL_RENDERBUFFER)
-					gl3wNamedFramebufferRenderbuffer(fbo, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, new_desc.render_targets[i].handle & 0xFFFFFFFF);
+				if ((new_attachments[i].handle >> 40) == GL_RENDERBUFFER)
+					gl3wNamedFramebufferRenderbuffer(fbo, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, new_attachments[i].handle & 0xFFFFFFFF);
 				else
-					gl3wNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0 + i, new_desc.render_targets[i].handle & 0xFFFFFFFF, 0);
+					gl3wNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0 + i, new_attachments[i].handle & 0xFFFFFFFF, 0);
 			}
 		}
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::init_framebuffer>(g_current_context, new_desc, fbo_handle);
+	reshade::invoke_addon_event<reshade::addon_event::init_framebuffer>(g_current_context, reshade::api::render_pass { 0 }, static_cast<uint32_t>(new_attachments.size()), new_attachments.data(), fbo_handle);
 }
 
 static void update_current_primitive_topology(GLenum mode, GLenum type)
@@ -2291,7 +2269,7 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 
 			g_current_context->_current_fbo = framebuffer;
 
-			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer));
+			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer), 0, nullptr);
 		}
 	}
 #endif
@@ -4012,7 +3990,7 @@ void APIENTRY glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 
 			g_current_context->_current_fbo = framebuffer;
 
-			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer));
+			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer), 0, nullptr);
 		}
 	}
 #endif

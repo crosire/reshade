@@ -328,10 +328,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Creates a new render pass.
 		/// </summary>
-		/// <param name="desc">Description of the render pass to create.</param>
+		/// <param name="attachment_count">Number of attachments to add to the render pass.</param>
+		/// <param name="attachments">Pointer to an array of attachments to add to the render pass.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created render pass.</param>
 		/// <returns><see langword="true"/> if the render pass was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_render_pass(const render_pass_desc &desc, render_pass *out_handle) = 0;
+		virtual bool create_render_pass(uint32_t attachment_count, const attachment_desc *attachments, render_pass *out_handle) = 0;
 		/// <summary>
 		/// Instantly destroys a render pass that was previously created via <see cref="create_render_pass"/>.
 		/// </summary>
@@ -340,10 +341,12 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Creates a new framebuffer.
 		/// </summary>
-		/// <param name="desc">Description of the framebuffer to create.</param>
+		/// <param name="render_pass_template">Render pass to use as template to figure out where to bind attachments.</param>
+		/// <param name="attachment_count">Number of resource views to bind to the framebuffer.</param>
+		/// <param name="attachments">Pointer to an array of resource views to bind to the framebuffer.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created framebuffer.</param>
 		/// <returns><see langword="true"/> if the framebuffer was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_framebuffer(const framebuffer_desc &desc, framebuffer *out_handle) = 0;
+		virtual bool create_framebuffer(render_pass render_pass_template, uint32_t attachment_count, const resource_view *attachments, framebuffer *out_handle) = 0;
 		/// <summary>
 		/// Instantly destroys a framebuffer that was previously created via <see cref="create_framebuffer"/>.
 		/// </summary>
@@ -352,7 +355,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
 		/// </summary>
-		/// <param name="framebuffer">Framebuffer object to get the attachment resource view from.</param>
+		/// <param name="framebuffer">Framebuffer object to get the resource view from.</param>
 		/// <param name="type">Type of the attachment to get.</param>
 		/// <param name="index">Index of the attachment of the specified <paramref name="type"/> to get.</param>
 		/// <returns>Handle of the attached resource view if the attachment of the specified <paramref name="type"/> and <paramref name="index"/> exists in the framebuffer, zero otherwise.</returns>
@@ -560,7 +563,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Begins a render pass by binding its render targets and depth-stencil buffer.
 		/// </summary>
-		virtual void begin_render_pass(render_pass pass, framebuffer framebuffer) = 0;
+		/// <param name="pass">Render pass to begin.</param>
+		/// <param name="framebuffer">Framebuffer to bind.</param>
+		/// <param name="clear_value_count">Number of clear values, or zero if there are no attachments with the <see cref="attachment_load_op::clear"/> operation in the render pass.</param>
+		/// <param name="clear_values">Pointer to an array of clear values, with four 32-bit elements for each attachment in the framebuffer.</param>
+		virtual void begin_render_pass(render_pass pass, framebuffer framebuffer, uint32_t clear_value_count = 0, const void *clear_values = nullptr) = 0;
 		/// <summary>
 		/// Ends a render pass.
 		/// This must be preceeded by a call to <see cref="begin_render_pass"/>.

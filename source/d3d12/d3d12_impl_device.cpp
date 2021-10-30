@@ -543,19 +543,34 @@ void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d12::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out_handle)
+bool reshade::d3d12::device_impl::create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle)
 {
-	const auto impl = new render_pass_impl();
-
-	for (UINT i = 0; i < 8 && desc.render_targets_format[i] != api::format::unknown; ++i, ++impl->count)
+	for (uint32_t a = 0; a < attachment_count; ++a)
 	{
-		impl->rtv_format[i] = convert_format(desc.render_targets_format[i]);
+		if (attachments[a].index >= (attachments[a].type == api::attachment_type::color ? D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT : 1u))
+		{
+			*out_handle = { 0 };
+			return false;
+		}
 	}
 
-	impl->dsv_format = convert_format(desc.depth_stencil_format);
+	const auto impl = new render_pass_impl();
+	impl->attachments.assign(attachments, attachments + attachment_count);
 
-	impl->sample_desc.Count = desc.samples;
-	impl->sample_desc.Quality = 0;
+	for (uint32_t a = 0; a < attachment_count; ++a)
+	{
+		if (attachments[a].type == api::attachment_type::color)
+		{
+			impl->rtv_format[attachments[a].index] = convert_format(attachments[a].format);
+			impl->count = std::max(impl->count, attachments[a].index + 1);
+		}
+		else
+		{
+			impl->dsv_format = convert_format(attachments[a].format);
+		}
+
+		impl->sample_desc.Count = attachments[a].samples;
+	}
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
@@ -565,15 +580,37 @@ void reshade::d3d12::device_impl::destroy_render_pass(api::render_pass handle)
 	delete reinterpret_cast<render_pass_impl *>(handle.handle);
 }
 
-bool reshade::d3d12::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle)
+bool reshade::d3d12::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
+	if (render_pass_template.handle == 0)
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
+
+	if (attachment_count > pass_impl->attachments.size())
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
 	const auto impl = new framebuffer_impl();
-
-	for (UINT i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++impl->count)
-		impl->rtv[i] = { static_cast<SIZE_T>(desc.render_targets[i].handle) };
-
-	impl->dsv = { static_cast<SIZE_T>(desc.depth_stencil.handle) };
 	impl->rtv_is_single_handle_to_range = FALSE;
+
+	for (uint32_t a = 0; a < attachment_count; ++a)
+	{
+		if (pass_impl->attachments[a].type == api::attachment_type::color)
+		{
+			impl->rtv[pass_impl->attachments[a].index] = { static_cast<SIZE_T>(attachments[a].handle) };
+			impl->count = std::max(impl->count, pass_impl->attachments[a].index + 1);
+		}
+		else
+		{
+			impl->dsv = { static_cast<SIZE_T>(attachments[a].handle) };
+		}
+	}
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;

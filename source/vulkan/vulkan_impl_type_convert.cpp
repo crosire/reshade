@@ -1593,3 +1593,72 @@ auto reshade::vulkan::convert_descriptor_type(VkDescriptorType value) -> api::de
 		return static_cast<api::descriptor_type>(value);
 	}
 }
+auto reshade::vulkan::convert_attachment_type(api::attachment_type value) -> VkImageAspectFlags
+{
+	VkImageAspectFlags flags = 0;
+	if ((value & api::attachment_type::color) == api::attachment_type::color)
+		flags |= VK_IMAGE_ASPECT_COLOR_BIT;
+	if ((value & api::attachment_type::depth) == api::attachment_type::depth)
+		flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
+	if ((value & api::attachment_type::stencil) == api::attachment_type::stencil)
+		flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
+	return flags;
+}
+auto reshade::vulkan::convert_attachment_load_op(api::attachment_load_op value) -> VkAttachmentLoadOp
+{
+	switch (value)
+	{
+	case api::attachment_load_op::load:
+		return VK_ATTACHMENT_LOAD_OP_LOAD;
+	case api::attachment_load_op::clear:
+		return VK_ATTACHMENT_LOAD_OP_CLEAR;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case api::attachment_load_op::discard:
+	case api::attachment_load_op::dont_care:
+		return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	}
+}
+auto reshade::vulkan::convert_attachment_load_op(VkAttachmentLoadOp value) -> api::attachment_load_op
+{
+	switch (value)
+	{
+	case VK_ATTACHMENT_LOAD_OP_LOAD:
+		return api::attachment_load_op::load;
+	case VK_ATTACHMENT_LOAD_OP_CLEAR:
+		return api::attachment_load_op::clear;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case VK_ATTACHMENT_LOAD_OP_DONT_CARE:
+		return api::attachment_load_op::dont_care;
+	}
+}
+auto reshade::vulkan::convert_attachment_store_op(api::attachment_store_op value) -> VkAttachmentStoreOp
+{
+	switch (value)
+	{
+	case api::attachment_store_op::store:
+		return VK_ATTACHMENT_STORE_OP_STORE;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case api::attachment_store_op::discard:
+	case api::attachment_store_op::dont_care:
+		return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	}
+}
+auto reshade::vulkan::convert_attachment_store_op(VkAttachmentStoreOp value) -> api::attachment_store_op
+{
+	switch (value)
+	{
+	case VK_ATTACHMENT_STORE_OP_STORE:
+		return api::attachment_store_op::store;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case VK_ATTACHMENT_STORE_OP_DONT_CARE:
+		return api::attachment_store_op::dont_care;
+	}
+}

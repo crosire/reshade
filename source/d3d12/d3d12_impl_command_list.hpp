@@ -22,7 +22,7 @@ namespace reshade::d3d12
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer) final;
+		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer, uint32_t clear_value_count, const void *clear_values) final;
 		void finish_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 

@@ -17,6 +17,7 @@ namespace reshade::d3d12
 		DXGI_FORMAT rtv_format[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		DXGI_FORMAT dsv_format;
 		DXGI_SAMPLE_DESC sample_desc;
+		std::vector<api::attachment_desc> attachments;
 	};
 
 	struct framebuffer_impl

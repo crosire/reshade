@@ -202,6 +202,39 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
 
 	/// <summary>
+	/// The framebuffer attachment types that can be cleared by <see cref="command_list::clear_attachments"/>.
+	/// </summary>
+	enum class attachment_type
+	{
+		color = 0x1,
+		depth = 0x2,
+		stencil = 0x4,
+		depth_stencil = depth | stencil
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(attachment_type);
+
+	/// <summary>
+	/// Specifies how contents of an attachment are treated at the start of a render pass.
+	/// </summary>
+	enum class attachment_load_op : uint32_t
+	{
+		load,
+		clear,
+		discard,
+		dont_care
+	};
+
+	/// <summary>
+	/// Specifies how contents of an attachment are treated after finishing a render pass.
+	/// </summary>
+	enum class attachment_store_op : uint32_t
+	{
+		store,
+		discard,
+		dont_care
+	};
+
+	/// <summary>
 	/// The available query types.
 	/// </summary>
 	enum class query_type
@@ -211,17 +244,6 @@ namespace reshade { namespace api
 		timestamp = 2,
 		pipeline_statistics = 3
 	};
-
-	/// <summary>
-	/// The framebuffer attachment types that can be cleared by <see cref="command_list::clear_attachments"/>.
-	/// </summary>
-	enum class attachment_type
-	{
-		color = 0x1,
-		depth = 0x2,
-		stencil = 0x4
-	};
-	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(attachment_type);
 
 	/// <summary>
 	/// The available descriptor types.
@@ -841,56 +863,47 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Describes a render pass.
+	/// Describes a render pass attachment.
 	/// </summary>
-	struct render_pass_desc
+	struct attachment_desc
 	{
-		/// <summary>
-		/// Format of the depth-stencil buffer, or <see cref="format::unknown"/> if it is unused.
-		/// </summary>
-		format depth_stencil_format;
-		/// <summary>
-		/// Format of the render targets, or <see cref="format::unknown"/> if one is unused.
-		/// </summary>
-		format render_targets_format[8];
+		attachment_desc() :
+			type(attachment_type::color), index(0), format(format::unknown), samples(1), color_or_depth_load_op(attachment_load_op::load), color_or_depth_store_op(attachment_store_op::store), stencil_load_op(attachment_load_op::load), stencil_store_op(attachment_store_op::store) {}
+		attachment_desc(attachment_type type, uint32_t index, format format, uint16_t samples = 1) :
+			type(type), index(index), format(format), samples(samples), color_or_depth_load_op(attachment_load_op::load), color_or_depth_store_op(attachment_store_op::store), stencil_load_op(attachment_load_op::load), stencil_store_op(attachment_store_op::store) {}
 
 		/// <summary>
-		/// Number of samples per pixel of the render targets.
+		/// Type of the attachment.
+		/// </summary>
+		attachment_type type;
+		/// <summary>
+		/// Index of the attachment of the specified type.
+		/// </summary>
+		uint32_t index;
+		/// <summary>
+		/// Format of the resource view that will be used at this attachment.
+		/// </summary>
+		format format;
+		/// <summary>
+		/// Number of samples per pixel of the resource that will be used at this attachment.
 		/// </summary>
 		uint16_t samples;
-	};
-
-	/// <summary>
-	/// Describes a framebuffer object.
-	/// </summary>
-	struct framebuffer_desc
-	{
 		/// <summary>
-		/// A render pass that describes the format of the render target and depth-stencil views.
+		/// Specifies how the contents of this attachment are treated at the start of the render pass.
 		/// </summary>
-		render_pass render_pass_template;
-
+		attachment_load_op color_or_depth_load_op;
 		/// <summary>
-		/// Depth-stencil view to attach to this framebuffer object.
+		/// Specifies how the contents of this attachment are treated after finishing the render pass.
 		/// </summary>
-		resource_view depth_stencil;
+		attachment_store_op color_or_depth_store_op;
 		/// <summary>
-		/// Render target views to attach to this framebuffer object.
+		/// Specifies how the stencil contents of this depth-stencil attachment are treated at the start of the render pass.
 		/// </summary>
-		resource_view render_targets[8];
-
+		attachment_load_op stencil_load_op;
 		/// <summary>
-		/// Width of the framebuffer.
+		/// Specifies how the stencil contents of this depth-stencil attachment are treated after finishing the render pass.
 		/// </summary>
-		uint32_t width;
-		/// <summary>
-		/// Height of the framebuffer.
-		/// </summary>
-		uint32_t height;
-		/// <summary>
-		/// Number of array layers of the framebuffer.
-		/// </summary>
-		uint16_t layers;
+		attachment_store_op stencil_store_op;
 	};
 
 	/// <summary>

@@ -28,6 +28,11 @@ namespace reshade::d3d10
 		FLOAT blend_constant[4];
 	};
 
+	struct render_pass_impl
+	{
+		std::vector<api::attachment_desc> attachments;
+	};
+
 	struct pipeline_layout_impl
 	{
 		std::vector<UINT> shader_registers;

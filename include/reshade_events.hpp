@@ -1417,12 +1417,12 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_render_pass, void, api::device *device, const api::render_pass_desc &desc, api::render_pass pass);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_render_pass, bool, api::device *device, api::render_pass_desc &desc);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_render_pass, void, api::device *device, uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass pass);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_render_pass, bool, api::device *device, uint32_t attachment_count, api::attachment_desc *attachments);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_render_pass, void, api::device *device, api::render_pass pass);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_framebuffer, void, api::device *device, const api::framebuffer_desc &desc, api::framebuffer fbo);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_framebuffer, bool, api::device *device, api::framebuffer_desc &desc);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_framebuffer, void, api::device *device, api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer fbo);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_framebuffer, bool, api::device *device, api::render_pass render_pass_template, uint32_t attachment_count, api::resource_view *attachments);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_framebuffer, void, api::device *device, api::framebuffer fbo);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::map_buffer_region, void, api::device *device, api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **data);
@@ -1437,7 +1437,7 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_render_pass, void, api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_render_pass, void, api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::finish_render_pass, void, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_render_targets_and_depth_stencil, void, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
 

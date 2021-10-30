@@ -50,18 +50,52 @@ static void convert_cube_uv_to_vec(D3DCUBEMAP_FACES face, float u, float v, floa
 	}
 }
 
-void reshade::d3d9::device_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
+void reshade::d3d9::device_impl::begin_render_pass(api::render_pass pass, api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values)
 {
-	assert(fbo.handle != 0);
+	assert(pass.handle != 0 && fbo.handle != 0);
 
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
 		_orig->SetRenderTarget(i, fbo_impl->rtv[i]);
 
+	_orig->SetDepthStencilSurface(fbo_impl->dsv);
+
 	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, fbo_impl->srgb_write_enable);
 
-	_orig->SetDepthStencilSurface(fbo_impl->dsv);
+	if (clear_value_count == 0)
+		return;
+
+	for (const api::attachment_desc &attach : reinterpret_cast<const render_pass_impl *>(pass.handle)->attachments)
+	{
+		if (attach.type == api::attachment_type::color)
+		{
+			if (attach.color_or_depth_load_op == api::attachment_load_op::clear)
+			{
+				assert(clear_value_count != 0);
+
+				_orig->ColorFill(fbo_impl->rtv[attach.index], nullptr, D3DCOLOR_COLORVALUE(
+					static_cast<const float *>(clear_values)[0],
+					static_cast<const float *>(clear_values)[1],
+					static_cast<const float *>(clear_values)[2],
+					static_cast<const float *>(clear_values)[3]));
+			}
+		}
+		else
+		{
+			if (const DWORD clear_flags = ((attach.color_or_depth_load_op == api::attachment_load_op::clear) ? D3DCLEAR_ZBUFFER : 0) | ((attach.stencil_load_op == api::attachment_load_op::clear) ? D3DCLEAR_STENCIL : 0))
+			{
+				assert(clear_value_count != 0);
+
+				_orig->Clear(0, nullptr, clear_flags, 0,
+					static_cast<const float *>(clear_values)[0],
+					reinterpret_cast<const uint32_t &>(static_cast<const float *>(clear_values)[1]));
+			}
+		}
+
+		clear_values = static_cast<const float *>(clear_values) + 4;
+		clear_value_count--;
+	}
 }
 void reshade::d3d9::device_impl::finish_render_pass()
 {

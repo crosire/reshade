@@ -1672,46 +1672,17 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_FRAMEBUFFER> data;
 	data.area.width = pCreateInfo->width;
 	data.area.height = pCreateInfo->height;
-	data.attachments.resize(pCreateInfo->attachmentCount);
+	data.attachments.assign(pCreateInfo->pAttachments, pCreateInfo->pAttachments + pCreateInfo->attachmentCount);
 	data.attachment_types.resize(pCreateInfo->attachmentCount);
 	for (uint32_t a = 0; a < pCreateInfo->attachmentCount; ++a)
-	{
-		data.attachments[a] = pCreateInfo->pAttachments[a];
 		data.attachment_types[a] = pass_attachments[a].format_flags;
-	}
-
-	reshade::api::framebuffer_desc desc = {};
-	desc.render_pass_template = { (uint64_t)pCreateInfo->renderPass };
-	for (uint32_t a = 0, k = 0; a < data.attachments.size(); ++a)
-	{
-		if (data.attachment_types[a] & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
-			desc.depth_stencil = { (uint64_t)data.attachments[a] };
-		else if (data.attachment_types[a] & (VK_IMAGE_ASPECT_COLOR_BIT) && k < 8)
-			desc.render_targets[k++] = { (uint64_t)data.attachments[a] };
-	}
-
-	desc.width = pCreateInfo->width;
-	desc.height = pCreateInfo->height;
-	desc.layers = static_cast<uint16_t>(pCreateInfo->layers);
 
 	VkFramebufferCreateInfo create_info;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(device_impl, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(device_impl, reshade::api::render_pass { (uint64_t)pCreateInfo->renderPass }, pCreateInfo->attachmentCount, reinterpret_cast<reshade::api::resource_view *>(data.attachments.data())))
 	{
-		for (uint32_t a = 0, k = 0; a < data.attachments.size(); ++a)
-		{
-			if (data.attachment_types[a] & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
-				data.attachments[a] = (VkImageView)desc.depth_stencil.handle;
-			else if (data.attachment_types[a] & (VK_IMAGE_ASPECT_COLOR_BIT) && k < 8)
-				data.attachments[a] = (VkImageView)desc.render_targets[k++].handle;
-		}
-
 		create_info = *pCreateInfo;
-		create_info.renderPass = (VkRenderPass)desc.render_pass_template.handle;
 		create_info.pAttachments = data.attachments.data();
-		create_info.width = desc.width;
-		create_info.height = desc.height;
-		create_info.layers = desc.layers;
 		pCreateInfo = &create_info;
 	}
 #endif
@@ -1728,7 +1699,8 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 #if RESHADE_ADDON
 	device_impl->register_object<VK_OBJECT_TYPE_FRAMEBUFFER>(*pFramebuffer, std::move(data));
 
-	reshade::invoke_addon_event<reshade::addon_event::init_framebuffer>(device_impl, desc, reshade::api::framebuffer { (uint64_t)*pFramebuffer });
+	reshade::invoke_addon_event<reshade::addon_event::init_framebuffer>(
+		device_impl, reshade::api::render_pass { (uint64_t)pCreateInfo->renderPass }, pCreateInfo->attachmentCount, reinterpret_cast<const reshade::api::resource_view *>(data.attachments.data()), reshade::api::framebuffer { (uint64_t)*pFramebuffer });
 #endif
 
 	return result;
@@ -1755,29 +1727,54 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
 #if RESHADE_ADDON
-	std::vector<VkAttachmentDescription> attachments;
+	std::vector<reshade::api::attachment_desc> attachments(pCreateInfo->attachmentCount);
 
-	reshade::api::render_pass_desc desc = {};
-	for (uint32_t i = 0; i < pCreateInfo->attachmentCount && i < 8; ++i)
+	for (uint32_t a = 0; a < pCreateInfo->attachmentCount; ++a)
 	{
-		desc.samples = static_cast<uint16_t>(pCreateInfo->pAttachments[i].samples);
-		desc.render_targets_format[i] = reshade::vulkan::convert_format(pCreateInfo->pAttachments[i].format);
+		if (pCreateInfo->pSubpasses[0].pDepthStencilAttachment != nullptr &&
+			pCreateInfo->pSubpasses[0].pDepthStencilAttachment->attachment == a)
+		{
+			attachments[a].type = reshade::api::attachment_type::depth | reshade::api::attachment_type::stencil;
+		}
+		else
+		{
+			for (uint32_t ca = 0; ca < pCreateInfo->pSubpasses[0].colorAttachmentCount; ++ca)
+			{
+				if (pCreateInfo->pSubpasses[0].pColorAttachments[ca].attachment == a)
+				{
+					attachments[a].type = reshade::api::attachment_type::color;
+					attachments[a].index = ca;
+					break;
+				}
+			}
+		}
+
+		attachments[a].format = reshade::vulkan::convert_format(pCreateInfo->pAttachments[a].format);
+		attachments[a].samples = static_cast<uint16_t>(pCreateInfo->pAttachments[a].samples);
+		attachments[a].color_or_depth_load_op = reshade::vulkan::convert_attachment_load_op(pCreateInfo->pAttachments[a].loadOp);
+		attachments[a].color_or_depth_store_op = reshade::vulkan::convert_attachment_store_op(pCreateInfo->pAttachments[a].storeOp);
+		attachments[a].stencil_load_op = reshade::vulkan::convert_attachment_load_op(pCreateInfo->pAttachments[a].stencilLoadOp);
+		attachments[a].stencil_store_op = reshade::vulkan::convert_attachment_store_op(pCreateInfo->pAttachments[a].stencilStoreOp);
 	}
 
+	std::vector<VkAttachmentDescription> internal_attachments;
 	VkRenderPassCreateInfo create_info;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_render_pass>(device_impl, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_render_pass>(device_impl, pCreateInfo->attachmentCount, attachments.data()))
 	{
-		attachments.resize(pCreateInfo->attachmentCount);
+		internal_attachments.assign(pCreateInfo->pAttachments, pCreateInfo->pAttachments + pCreateInfo->attachmentCount);
 		for (uint32_t a = 0; a < pCreateInfo->attachmentCount; ++a)
 		{
-			attachments[a] = pCreateInfo->pAttachments[a];
-			attachments[a].format = reshade::vulkan::convert_format(desc.render_targets_format[a]);
-			attachments[a].samples = static_cast<VkSampleCountFlagBits>(desc.samples);
+			internal_attachments[a].format = reshade::vulkan::convert_format(attachments[a].format);
+			internal_attachments[a].samples = static_cast<VkSampleCountFlagBits>(attachments[a].samples);
+			internal_attachments[a].loadOp = reshade::vulkan::convert_attachment_load_op(attachments[a].color_or_depth_load_op);
+			internal_attachments[a].storeOp = reshade::vulkan::convert_attachment_store_op(attachments[a].color_or_depth_store_op);
+			internal_attachments[a].stencilLoadOp = reshade::vulkan::convert_attachment_load_op(attachments[a].stencil_load_op);
+			internal_attachments[a].stencilStoreOp = reshade::vulkan::convert_attachment_store_op(attachments[a].stencil_store_op);
 		}
 
 		create_info = *pCreateInfo;
-		create_info.pAttachments = attachments.data();
+		create_info.pAttachments = internal_attachments.data();
 		pCreateInfo = &create_info;
 	}
 #endif
@@ -1811,7 +1808,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 
 	device_impl->register_object<VK_OBJECT_TYPE_RENDER_PASS>(*pRenderPass, std::move(data));
 
-	reshade::invoke_addon_event<reshade::addon_event::init_render_pass>(device_impl, desc, reshade::api::render_pass { (uint64_t)*pRenderPass });
+	reshade::invoke_addon_event<reshade::addon_event::init_render_pass>(device_impl, pCreateInfo->attachmentCount, attachments.data(), reshade::api::render_pass { (uint64_t)*pRenderPass });
 #endif
 
 	return result;
@@ -1824,29 +1821,54 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
 #if RESHADE_ADDON
-	std::vector<VkAttachmentDescription2> attachments;
+	std::vector<reshade::api::attachment_desc> attachments(pCreateInfo->attachmentCount);
 
-	reshade::api::render_pass_desc desc = {};
-	for (uint32_t i = 0; i < pCreateInfo->attachmentCount && i < 8; ++i)
+	for (uint32_t a = 0; a < pCreateInfo->attachmentCount && a < 8; ++a)
 	{
-		desc.samples = static_cast<uint16_t>(pCreateInfo->pAttachments[i].samples);
-		desc.render_targets_format[i] = reshade::vulkan::convert_format(pCreateInfo->pAttachments[i].format);
+		if (pCreateInfo->pSubpasses[0].pDepthStencilAttachment != nullptr &&
+			pCreateInfo->pSubpasses[0].pDepthStencilAttachment->attachment == a)
+		{
+			attachments[a].type = reshade::api::attachment_type::depth | reshade::api::attachment_type::stencil;
+		}
+		else
+		{
+			for (uint32_t ca = 0; ca < pCreateInfo->pSubpasses[0].colorAttachmentCount; ++ca)
+			{
+				if (pCreateInfo->pSubpasses[0].pColorAttachments[ca].attachment == a)
+				{
+					attachments[a].type = reshade::api::attachment_type::color;
+					attachments[a].index = ca;
+					break;
+				}
+			}
+		}
+
+		attachments[a].format = reshade::vulkan::convert_format(pCreateInfo->pAttachments[a].format);
+		attachments[a].samples = static_cast<uint16_t>(pCreateInfo->pAttachments[a].samples);
+		attachments[a].color_or_depth_load_op = reshade::vulkan::convert_attachment_load_op(pCreateInfo->pAttachments[a].loadOp);
+		attachments[a].color_or_depth_store_op = reshade::vulkan::convert_attachment_store_op(pCreateInfo->pAttachments[a].storeOp);
+		attachments[a].stencil_load_op = reshade::vulkan::convert_attachment_load_op(pCreateInfo->pAttachments[a].stencilLoadOp);
+		attachments[a].stencil_store_op = reshade::vulkan::convert_attachment_store_op(pCreateInfo->pAttachments[a].stencilStoreOp);
 	}
 
+	std::vector<VkAttachmentDescription2> internal_attachments;
 	VkRenderPassCreateInfo2 create_info;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_render_pass>(device_impl, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_render_pass>(device_impl, pCreateInfo->attachmentCount, attachments.data()))
 	{
-		attachments.resize(pCreateInfo->attachmentCount);
+		internal_attachments.assign(pCreateInfo->pAttachments, pCreateInfo->pAttachments + pCreateInfo->attachmentCount);
 		for (uint32_t a = 0; a < pCreateInfo->attachmentCount; ++a)
 		{
-			attachments[a] = pCreateInfo->pAttachments[a];
-			attachments[a].format = reshade::vulkan::convert_format(desc.render_targets_format[a]);
-			attachments[a].samples = static_cast<VkSampleCountFlagBits>(desc.samples);
+			internal_attachments[a].format = reshade::vulkan::convert_format(attachments[a].format);
+			internal_attachments[a].samples = static_cast<VkSampleCountFlagBits>(attachments[a].samples);
+			internal_attachments[a].loadOp = reshade::vulkan::convert_attachment_load_op(attachments[a].color_or_depth_load_op);
+			internal_attachments[a].storeOp = reshade::vulkan::convert_attachment_store_op(attachments[a].color_or_depth_store_op);
+			internal_attachments[a].stencilLoadOp = reshade::vulkan::convert_attachment_load_op(attachments[a].stencil_load_op);
+			internal_attachments[a].stencilStoreOp = reshade::vulkan::convert_attachment_store_op(attachments[a].stencil_store_op);
 		}
 
 		create_info = *pCreateInfo;
-		create_info.pAttachments = attachments.data();
+		create_info.pAttachments = internal_attachments.data();
 		pCreateInfo = &create_info;
 	}
 #endif
@@ -1880,7 +1902,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 
 	device_impl->register_object<VK_OBJECT_TYPE_RENDER_PASS>(*pRenderPass, std::move(data));
 
-	reshade::invoke_addon_event<reshade::addon_event::init_render_pass>(device_impl, desc, reshade::api::render_pass { (uint64_t)*pRenderPass });
+	reshade::invoke_addon_event<reshade::addon_event::init_render_pass>(device_impl, pCreateInfo->attachmentCount, attachments.data(), reshade::api::render_pass { (uint64_t)*pRenderPass });
 #endif
 
 	return result;

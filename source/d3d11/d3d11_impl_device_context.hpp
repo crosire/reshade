@@ -19,7 +19,7 @@ namespace reshade::d3d11
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { assert(false); }
 
-		void begin_render_pass(api::render_pass, api::framebuffer) final { assert(false); }
+		void begin_render_pass(api::render_pass, api::framebuffer, uint32_t, const void *) final { assert(false); }
 		void finish_render_pass() final { assert(false); }
 		void bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view) final { assert(false); }
 
@@ -85,7 +85,7 @@ namespace reshade::d3d11
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer) final;
+		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer, uint32_t clear_value_count, const void *clear_values) final;
 		void finish_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 

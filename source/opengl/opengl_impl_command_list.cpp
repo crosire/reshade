@@ -110,7 +110,7 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 	}
 }
 
-void reshade::opengl::device_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
+void reshade::opengl::device_impl::begin_render_pass(api::render_pass pass, api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values)
 {
 	const GLuint fbo_object = fbo.handle & 0xFFFFFFFF;
 	const GLuint num_color_attachments = static_cast<uint32_t>(fbo.handle >> 40);
@@ -132,6 +132,36 @@ void reshade::opengl::device_impl::begin_render_pass(api::render_pass, api::fram
 	}
 
 	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, (fbo.handle & 0x200000000) != 0);
+
+	if (clear_value_count == 0)
+		return;
+
+	assert(pass.handle != 0);
+
+	for (const api::attachment_desc &attach : reinterpret_cast<const render_pass_impl *>(pass.handle)->attachments)
+	{
+		if (attach.type == api::attachment_type::color)
+		{
+			if (attach.color_or_depth_load_op == api::attachment_load_op::clear)
+			{
+				glClearBufferfv(GL_COLOR, attach.index, static_cast<const float *>(clear_values));
+			}
+		}
+		else
+		{
+			if (attach.color_or_depth_load_op == api::attachment_load_op::clear)
+			{
+				glClearBufferfv(GL_DEPTH, 0, &static_cast<const float *>(clear_values)[0]);
+			}
+			if (attach.stencil_load_op == api::attachment_load_op::clear)
+			{
+				glClearBufferuiv(GL_STENCIL, 0, reinterpret_cast<const uint32_t *>(&static_cast<const float *>(clear_values)[1]));
+			}
+		}
+
+		clear_values = static_cast<const float *>(clear_values) + 4;
+		clear_value_count--;
+	}
 }
 void reshade::opengl::device_impl::finish_render_pass()
 {

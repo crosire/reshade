@@ -47,10 +47,10 @@ namespace reshade::d3d9
 		bool create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		void destroy_pipeline(api::pipeline handle) final;
 
-		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out_handle) final;
+		bool create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle) final;
 		void destroy_render_pass(api::render_pass handle) final;
 
-		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle) final;
+		bool create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle) final;
 		void destroy_framebuffer(api::framebuffer handle) final;
 
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
@@ -95,7 +95,7 @@ namespace reshade::d3d9
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
-		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer) final;
+		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer, uint32_t clear_value_count, const void *clear_values) final;
 		void finish_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 

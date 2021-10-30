@@ -1183,7 +1183,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 #if RESHADE_ADDON
 	cmd_impl->_current_fbo = pRenderPassBegin->framebuffer;
 
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, reshade::api::render_pass { (uint64_t)pRenderPassBegin->renderPass }, reshade::api::framebuffer { (uint64_t)pRenderPassBegin->framebuffer });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, reshade::api::render_pass { (uint64_t)pRenderPassBegin->renderPass }, reshade::api::framebuffer { (uint64_t)pRenderPassBegin->framebuffer }, pRenderPassBegin->clearValueCount, pRenderPassBegin->pClearValues);
 #endif
 }
 void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)

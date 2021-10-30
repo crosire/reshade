@@ -65,6 +65,11 @@ namespace reshade::opengl
 		GLuint patch_vertices;
 	};
 
+	struct render_pass_impl
+	{
+		std::vector<api::attachment_desc> attachments;
+	};
+
 	struct pipeline_layout_impl
 	{
 		std::vector<GLuint> bindings;
