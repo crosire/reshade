@@ -90,7 +90,7 @@ namespace reshade
 		/// <summary>
 		/// Gets the name of a uniform <paramref name="variable"/>.
 		/// </summary>
-		auto get_uniform_name(api::effect_uniform_variable variable) const -> const char * final;
+		const char *get_uniform_variable_name(api::effect_uniform_variable variable) const final;
 
 		/// <summary>
 		/// Gets the constant buffer and offset of the specified uniform <paramref name="variable"/>.
@@ -156,7 +156,7 @@ namespace reshade
 		/// <summary>
 		/// Gets the name of a texture <paramref name="variable"/>.
 		/// </summary>
-		auto get_texture_name(api::effect_texture_variable variable) const -> const char * final;
+		const char *get_texture_variable_name(api::effect_texture_variable variable) const final;
 
 		/// <summary>
 		/// Gets the shader resource views that are bound to the specified texture <paramref name="variable"/>.

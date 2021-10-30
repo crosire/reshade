@@ -3521,7 +3521,7 @@ reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable(co
 	return { 0 };
 }
 
-auto reshade::runtime::get_uniform_name(api::effect_uniform_variable variable) const -> const char *
+auto reshade::runtime::get_uniform_variable_name(api::effect_uniform_variable variable) const -> const char *
 {
 	if (variable == 0)
 		return nullptr;
@@ -3836,7 +3836,7 @@ reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(co
 	return { 0 };
 }
 
-auto reshade::runtime::get_texture_name(api::effect_texture_variable variable) const -> const char *
+auto reshade::runtime::get_texture_variable_name(api::effect_texture_variable variable) const -> const char *
 {
 	if (variable == 0)
 		return nullptr;

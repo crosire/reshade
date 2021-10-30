@@ -152,6 +152,15 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// An opaque handle to a uniform variable in an effect.
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(effect_uniform_variable);
+	/// <summary>
+	/// An opaque handle to a texture variable in an effect.
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(effect_texture_variable);
+
+	/// <summary>
 	/// The base class for objects provided by the ReShade API.
 	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
@@ -172,13 +181,13 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Gets the underlying native object for this API object.
-		/// <para>
+		/// </summary>
+		/// <remarks>
 		/// For <see cref="device"/> this will be be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device' or 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.<br/>
 		/// For <see cref="command_list"/> this will be a pointer to a 'ID3D11DeviceContext' (when recording), 'ID3D11CommandList' (when executing) or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.<br/>
 		/// For <see cref="command_queue"/> this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.<br/>
 		/// For <see cref="effect_runtime"/> this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
-		/// </para>
-		/// </summary>
+		/// </remarks>
 		virtual uint64_t get_native_object() const = 0;
 
 		/// <summary>
@@ -227,11 +236,11 @@ namespace reshade { namespace api
 		virtual device_api get_api() const = 0;
 
 		/// <summary>
-		/// Checks whether the device supports the specfied <paramref name="capability"/>.
+		/// Checks whether the device supports the specified <paramref name="capability"/>.
 		/// </summary>
 		virtual bool check_capability(device_caps capability) const = 0;
 		/// <summary>
-		/// Checks whether the specified <paramref name="format"/> supports the specified <paramref name="usage"/>.
+		/// Checks whether the specified texture <paramref name="format"/> supports the specified <paramref name="usage"/>.
 		/// </summary>
 		virtual bool check_format_support(format format, resource_usage usage) const = 0;
 
@@ -554,6 +563,9 @@ namespace reshade { namespace api
 		/// <remarks>
 		/// This is not supported (and will do nothing) in Vulkan.
 		/// </remarks>
+		/// <param name="count">Number of render target views to bind.</param>
+		/// <param name="rtvs">Pointer to an array of render target views to bind.</param>
+		/// <param name="dsv">Depth-stencil view to bind, or zero to bind none.</param>
 		virtual void bind_render_targets_and_depth_stencil(uint32_t count, const resource_view *rtvs, resource_view dsv = { 0 }) = 0;
 
 		/// <summary>
@@ -969,24 +981,10 @@ namespace reshade { namespace api
 		virtual uint32_t get_current_back_buffer_index() const = 0;
 
 		/// <summary>
-		/// Gets the description of the back buffer resources.
-		/// </summary>
-		inline  resource_desc get_desc() const { return const_cast<swapchain *>(this)->get_device()->get_resource_desc(const_cast<swapchain *>(this)->get_back_buffer(0)); }
-
-		/// <summary>
 		/// Gets the effect runtime associated with this swap chain.
 		/// </summary>
 		inline  class effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
 	};
-
-	/// <summary>
-	/// An opaque handle to a uniform variable in an effect.
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(effect_uniform_variable);
-	/// <summary>
-	/// An opaque handle to a texture variable in an effect.
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(effect_texture_variable);
 
 	/// <summary>
 	/// A ReShade effect runtime, used to control effects.
@@ -1046,16 +1044,13 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Finds a specific uniform variable in the loaded effects and returns a handle to it.
 		/// </summary>
+		/// <remarks>
+		/// The returned handle is only valid until effects are next reloaded again.
+		/// </remarks>
 		/// <param name="effect_name">File name of the effect file the variable is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
 		/// <param name="variable_name">Name of the uniform variable declaration to find.</param>
 		/// <returns>Opaque handle to the uniform variable, or zero in case it was not found.</returns>
 		virtual effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const = 0;
-
-		/// <summary>
-		/// Gets the name of a uniform <paramref name="variable"/>.
-		/// </summary>
-		/// <param name="variable">Opaque handle to the uniform variable.</param>
-		virtual const char *get_uniform_name(effect_uniform_variable variable) const = 0;
 
 		/// <summary>
 		/// Gets the offset of the specified uniform <paramref name="variable"/>.
@@ -1075,6 +1070,12 @@ namespace reshade { namespace api
 		/// Gets the value from a named annotation attached to the specified uniform <paramref name="variable"/> as a null-terminated string.
 		/// </summary>
 		virtual const char *get_uniform_annotation(effect_uniform_variable variable, const char *name) const = 0;
+
+		/// <summary>
+		/// Gets the name of a uniform <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		virtual const char *get_uniform_variable_name(effect_uniform_variable variable) const = 0;
 
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/>.
@@ -1120,16 +1121,13 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Finds a specific texture variable in the loaded effects and returns a handle to it.
 		/// </summary>
+		/// <remarks>
+		/// The returned handle is only valid until effects are next reloaded again.
+		/// </remarks>
 		/// <param name="effect_name">File name of the effect file the variable is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
 		/// <param name="variable_name">Name of the texture variable declaration to find.</param>
 		/// <returns>Opaque handle to the texture variable, or zero in case it was not found.</returns>
 		virtual effect_texture_variable find_texture_variable(const char *effect_name, const char *variable_name) const = 0;
-
-		/// <summary>
-		/// Gets the name of a texture <paramref name="variable"/>.
-		/// </summary>
-		/// <param name="variable">Opaque handle to the texture variable.</param>
-		virtual const char *get_texture_name(effect_texture_variable variable) const = 0;
 
 		/// <summary>
 		/// Gets the shader resource views that are bound to the specified texture <paramref name="variable"/>.
@@ -1150,6 +1148,12 @@ namespace reshade { namespace api
 		/// Gets the value from a named annotation attached to the specified texture <paramref name="variable"/> as a null-terminated string.
 		/// </summary>
 		virtual const char *get_texture_annotation(effect_texture_variable variable, const char *name) const = 0;
+
+		/// <summary>
+		/// Gets the name of a texture <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the texture variable.</param>
+		virtual const char *get_texture_variable_name(effect_texture_variable variable) const = 0;
 
 		/// <summary>
 		/// Gets the image data of the specified texture <paramref name="variable"/> in 32 bits-per-pixel RGBA format.
