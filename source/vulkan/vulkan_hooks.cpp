@@ -56,6 +56,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(DestroyDescriptorPool);
 	HOOK_PROC(ResetDescriptorPool);
 	HOOK_PROC(AllocateDescriptorSets);
+	HOOK_PROC(FreeDescriptorSets);
 	HOOK_PROC(UpdateDescriptorSets);
 	HOOK_PROC(CreateFramebuffer);
 	HOOK_PROC(DestroyFramebuffer);

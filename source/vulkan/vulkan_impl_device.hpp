@@ -123,6 +123,10 @@ namespace reshade::vulkan
 			delete reinterpret_cast<object_data<type> *>(private_data);
 			_dispatch_table.SetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, 0);
 		}
+		void unregister_object(VkObjectType type, uint64_t object)
+		{
+			_dispatch_table.SetPrivateDataEXT(_orig, type, object, _private_data_slot, 0);
+		}
 
 		template <VkObjectType type>
 		__forceinline object_data<type> *get_user_data_for_object(typename object_data<type>::Handle object) const

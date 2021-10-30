@@ -1547,11 +1547,11 @@ VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptor
 		data->offset = pool_data->next_offset;
 		pool_data->next_offset += layout_data->num_descriptors;
 
-		if (pool_data->next_set > pool_data->max_sets)
+		if (pool_data->next_set >= pool_data->max_sets)
 		{
 			pool_data->next_set = 0;
 		}
-		if (pool_data->next_offset > pool_data->max_descriptors)
+		if (pool_data->next_offset >= pool_data->max_descriptors)
 		{
 			// Out of pool memory, simply wrap around
 			data->offset = 0;
@@ -1559,6 +1559,31 @@ VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptor
 		}
 
 		device_impl->register_object(VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)pDescriptorSets[i], data);
+	}
+#endif
+
+	return result;
+}
+VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSet *pDescriptorSets)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(FreeDescriptorSets, device_impl);
+
+	assert(pDescriptorSets != nullptr);
+
+	const VkResult result = trampoline(device, descriptorPool, descriptorSetCount, pDescriptorSets);
+	if (result < VK_SUCCESS)
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkFreeDescriptorSets" << " failed with error code " << result << '.';
+#endif
+		return result;
+	}
+
+#if RESHADE_ADDON
+	for (uint32_t i = 0; i < descriptorSetCount; ++i)
+	{
+		device_impl->unregister_object(VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)pDescriptorSets[i]);
 	}
 #endif
 
