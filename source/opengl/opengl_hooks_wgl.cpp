@@ -864,7 +864,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		GetClientRect(hwnd, &rect);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(runtime);
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(runtime);
 #endif
 
 		uint32_t runtime_width = 0, runtime_height = 0;
@@ -1233,9 +1233,6 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawRangeElementsBaseVertex);
 		HOOK_PROC(glDrawElementsInstancedBaseVertex);
 		HOOK_PROC(glMultiDrawElementsBaseVertex);
-#endif
-#ifdef GL_VERSION_3_3
-		HOOK_PROC(glDeleteSamplers);
 #endif
 #ifdef GL_VERSION_4_0
 		HOOK_PROC(glDrawArraysIndirect);

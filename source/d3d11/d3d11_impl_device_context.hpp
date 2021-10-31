@@ -20,7 +20,7 @@ namespace reshade::d3d11
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { assert(false); }
 
 		void begin_render_pass(api::render_pass, api::framebuffer, uint32_t, const void *) final { assert(false); }
-		void finish_render_pass() final { assert(false); }
+		void end_render_pass() final { assert(false); }
 		void bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view) final { assert(false); }
 
 		void bind_pipeline(api::pipeline_stage, api::pipeline) final { assert(false); }
@@ -56,11 +56,11 @@ namespace reshade::d3d11
 		void generate_mipmaps(api::resource_view) final { assert(false); }
 
 		void begin_query(api::query_pool, api::query_type, uint32_t) final { assert(false); }
-		void finish_query(api::query_pool, api::query_type, uint32_t) final { assert(false); }
+		void end_query(api::query_pool, api::query_type, uint32_t) final { assert(false); }
 		void copy_query_pool_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t) final { assert(false); }
 
 		void begin_debug_event(const char *, const float[4]) final { assert(false); }
-		void finish_debug_event() final { assert(false); }
+		void end_debug_event() final { assert(false); }
 		void insert_debug_marker(const char *, const float[4]) final { assert(false); }
 
 	private:
@@ -86,7 +86,7 @@ namespace reshade::d3d11
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
 		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer, uint32_t clear_value_count, const void *clear_values) final;
-		void finish_render_pass() final;
+		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
@@ -127,11 +127,11 @@ namespace reshade::d3d11
 		void generate_mipmaps(api::resource_view srv) final;
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
+		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
-		void finish_debug_event() final;
+		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	private:

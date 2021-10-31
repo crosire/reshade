@@ -351,22 +351,6 @@ static void on_destroy_pipeline(reshade::api::device *device, reshade::api::pipe
 	assert(s_pipelines.find(handle.handle) != s_pipelines.end());
 	s_pipelines.erase(handle.handle);
 }
-static void on_init_render_pass(reshade::api::device *device, const reshade::api::render_pass_desc &desc, reshade::api::render_pass handle)
-{
-
-}
-static void on_destroy_render_pass(reshade::api::device *device, reshade::api::render_pass handle)
-{
-
-}
-static void on_init_framebuffer(reshade::api::device *device, const reshade::api::framebuffer_desc &desc, reshade::api::framebuffer handle)
-{
-
-}
-static void on_destroy_framebuffer(reshade::api::device *device, reshade::api::framebuffer handle)
-{
-
-}
 
 static void on_barrier(reshade::api::command_list *, uint32_t num_resources, const reshade::api::resource *resources, const reshade::api::resource_usage *old_states, const reshade::api::resource_usage *new_states)
 {
@@ -382,20 +366,20 @@ static void on_barrier(reshade::api::command_list *, uint32_t num_resources, con
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
 
-static void on_begin_render_pass(reshade::api::command_list *, reshade::api::render_pass pass, reshade::api::framebuffer fbo)
+static void on_begin_render_pass(reshade::api::command_list *, reshade::api::render_pass pass, reshade::api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values)
 {
 	if (!s_do_capture)
 		return;
 
-	std::stringstream s; s << "begin_render_pass(" << (void *)pass.handle << ", " << (void *)fbo.handle << ")";
+	std::stringstream s; s << "begin_render_pass(" << (void *)pass.handle << ", " << (void *)fbo.handle << ", " << clear_value_count << ", " << clear_values << ")";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
-static void on_finish_render_pass(reshade::api::command_list *)
+static void on_end_render_pass(reshade::api::command_list *)
 {
 	if (!s_do_capture)
 		return;
 
-	std::stringstream s; s << "finish_render_pass()";
+	std::stringstream s; s << "end_render_pass()";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
 static void on_bind_render_targets_and_depth_stencil(reshade::api::command_list *, uint32_t count, const reshade::api::resource_view *rtvs, reshade::api::resource_view dsv)
@@ -824,14 +808,10 @@ void register_addon_api_trace()
 	reshade::register_event<reshade::addon_event::destroy_resource_view>(on_destroy_resource_view);
 	reshade::register_event<reshade::addon_event::init_pipeline>(on_init_pipeline);
 	reshade::register_event<reshade::addon_event::destroy_pipeline>(on_destroy_pipeline);
-	reshade::register_event<reshade::addon_event::init_render_pass>(on_init_render_pass);
-	reshade::register_event<reshade::addon_event::destroy_render_pass>(on_destroy_render_pass);
-	reshade::register_event<reshade::addon_event::init_framebuffer>(on_init_framebuffer);
-	reshade::register_event<reshade::addon_event::destroy_framebuffer>(on_destroy_framebuffer);
 
 	reshade::register_event<reshade::addon_event::barrier>(on_barrier);
 	reshade::register_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
-	reshade::register_event<reshade::addon_event::finish_render_pass>(on_finish_render_pass);
+	reshade::register_event<reshade::addon_event::end_render_pass>(on_end_render_pass);
 	reshade::register_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_render_targets_and_depth_stencil);
 	reshade::register_event<reshade::addon_event::bind_pipeline>(on_bind_pipeline);
 	reshade::register_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);
@@ -876,14 +856,10 @@ void unregister_addon_api_trace()
 	reshade::unregister_event<reshade::addon_event::destroy_resource_view>(on_destroy_resource_view);
 	reshade::unregister_event<reshade::addon_event::init_pipeline>(on_init_pipeline);
 	reshade::unregister_event<reshade::addon_event::destroy_pipeline>(on_destroy_pipeline);
-	reshade::unregister_event<reshade::addon_event::init_render_pass>(on_init_render_pass);
-	reshade::unregister_event<reshade::addon_event::destroy_render_pass>(on_destroy_render_pass);
-	reshade::unregister_event<reshade::addon_event::init_framebuffer>(on_init_framebuffer);
-	reshade::unregister_event<reshade::addon_event::destroy_framebuffer>(on_destroy_framebuffer);
 
 	reshade::unregister_event<reshade::addon_event::barrier>(on_barrier);
 	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
-	reshade::unregister_event<reshade::addon_event::finish_render_pass>(on_finish_render_pass);
+	reshade::unregister_event<reshade::addon_event::end_render_pass>(on_end_render_pass);
 	reshade::unregister_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_render_targets_and_depth_stencil);
 	reshade::unregister_event<reshade::addon_event::bind_pipeline>(on_bind_pipeline);
 	reshade::unregister_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);

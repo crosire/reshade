@@ -121,50 +121,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
-	GLint max_image_units = 0;
-	glGetIntegerv(GL_MAX_IMAGE_UNITS, &max_image_units);
-	GLint max_texture_units = 0;
-	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_texture_units);
-	GLint max_uniform_buffer_bindings = 0;
-	glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &max_uniform_buffer_bindings);
-	GLint max_shader_storage_buffer_bindings = 0;
-	glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, &max_shader_storage_buffer_bindings);
-
-	// Create global pipeline layout that is used for all application descriptor events
-	api::descriptor_range push_descriptors = {};
-	push_descriptors.array_size = 1;
-	api::pipeline_layout_param layout_params[6] = {};
-
-	layout_params[4].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[4].push_constants.count = std::numeric_limits<uint32_t>::max();
-	layout_params[4].push_constants.visibility = api::shader_stage::all;
-	layout_params[5].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[5].push_constants.count = std::numeric_limits<uint32_t>::max();
-	layout_params[5].push_constants.visibility = api::shader_stage::all;
-
-	push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-	push_descriptors.count = max_texture_units;
-	push_descriptors.visibility = api::shader_stage::all;
-	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[0].descriptor_layout);
-	push_descriptors.type = api::descriptor_type::unordered_access_view;
-	push_descriptors.count = max_image_units;
-	push_descriptors.visibility = api::shader_stage::all;
-	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[1].descriptor_layout);
-	push_descriptors.type = api::descriptor_type::constant_buffer;
-	push_descriptors.count = max_uniform_buffer_bindings;
-	push_descriptors.visibility = api::shader_stage::all;
-	layout_params[2].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[2].descriptor_layout);
-	push_descriptors.type = api::descriptor_type::shader_storage_buffer;
-	push_descriptors.count = max_shader_storage_buffer_bindings;
-	push_descriptors.visibility = api::shader_stage::all;
-	layout_params[3].type = api::pipeline_layout_param_type::push_descriptors;
-	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[3].descriptor_layout);
-
-	create_pipeline_layout(6, layout_params, &_global_pipeline_layout);
-
 	// Communicate default state to add-ons
 	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0), 0, nullptr);
 #endif
@@ -172,16 +128,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 reshade::opengl::device_impl::~device_impl()
 {
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::finish_render_pass>(this);
-
-	const std::vector<api::pipeline_layout_param> &layout_params = reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params;
-
-	destroy_descriptor_set_layout(layout_params[0].descriptor_layout);
-	destroy_descriptor_set_layout(layout_params[1].descriptor_layout);
-	destroy_descriptor_set_layout(layout_params[2].descriptor_layout);
-	destroy_descriptor_set_layout(layout_params[3].descriptor_layout);
-
-	destroy_pipeline_layout(_global_pipeline_layout);
+	invoke_addon_event<addon_event::end_render_pass>(this);
 
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_command_list>(this);
@@ -1469,24 +1416,33 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 
 bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
-	bool success = true;
-
 	const auto impl = new pipeline_layout_impl();
 	impl->params.assign(params, params + param_count);
 	impl->bindings.resize(param_count);
 
-	for (uint32_t i = 0; i < param_count && success; ++i)
+	bool success = true;
+
+	for (uint32_t i = 0; i < param_count; ++i)
 	{
 		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
 			const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(params[i].descriptor_layout.handle);
+
+			if (set_layout_impl == nullptr)
+			{
+				success = false;
+				break;
+			}
 
 			impl->bindings[i] = set_layout_impl->range.binding;
 		}
 		else
 		{
 			if (params[i].push_constants.offset != 0)
+			{
 				success = false;
+				break;
+			}
 
 			impl->bindings[i] = params[i].push_constants.binding;
 		}
@@ -1507,23 +1463,66 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 }
 void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
+	assert(handle != global_pipeline_layout);
+
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-void reshade::opengl::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+void reshade::opengl::device_impl::get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 
-	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-	if (params != nullptr)
+	if (layout == global_pipeline_layout)
 	{
-		*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-		std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+		*count = std::min(*count, 6u);
+
+		if (*count > 0)
+		{
+			params[0].type = api::pipeline_layout_param_type::push_descriptors;
+			params[0].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 };
+		}
+		if (*count > 1)
+		{
+			params[1].type = api::pipeline_layout_param_type::push_descriptors;
+			params[1].descriptor_layout = { 0xFFFFFFFFFFFFFFF1 };
+		}
+		if (*count > 2)
+		{
+			params[2].type = api::pipeline_layout_param_type::push_descriptors;
+			params[2].descriptor_layout = { 0xFFFFFFFFFFFFFFF2 };
+		}
+		if (*count > 3)
+		{
+			params[3].type = api::pipeline_layout_param_type::push_descriptors;
+			params[3].descriptor_layout = { 0xFFFFFFFFFFFFFFF3 };
+		}
+
+		if (*count > 4)
+		{
+			params[4].type = api::pipeline_layout_param_type::push_constants;
+			params[4].push_constants.count = std::numeric_limits<uint32_t>::max();
+			params[4].push_constants.visibility = api::shader_stage::all;
+		}
+		if (*count > 5)
+		{
+			params[5].type = api::pipeline_layout_param_type::push_constants;
+			params[5].push_constants.count = std::numeric_limits<uint32_t>::max();
+			params[5].push_constants.visibility = api::shader_stage::all;
+		}
 	}
 	else
 	{
-		*count = static_cast<uint32_t>(layout_impl->params.size());
+		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
+
+		if (params != nullptr)
+		{
+			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
+			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+		}
+		else
+		{
+			*count = static_cast<uint32_t>(layout_impl->params.size());
+		}
 	}
 }
 
@@ -1581,24 +1580,56 @@ void reshade::opengl::device_impl::destroy_descriptor_set_layout(api::descriptor
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
-void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
+void reshade::opengl::device_impl::get_descriptor_set_layout_ranges(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 
-	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-	if (ranges != nullptr)
+	if (ranges != nullptr && *count != 0)
 	{
-		if (*count != 0)
+		if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
 		{
-			*count = 1;
-			*ranges = layout_impl->range;
+			ranges[0].offset = 0;
+			ranges[0].binding = 0;
+			ranges[0].dx_register_index = 0;
+			ranges[0].dx_register_space = 0;
+
+			switch (layout.handle - 0xFFFFFFFFFFFFFFF0)
+			{
+			case 0:
+				glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&ranges[0].count));
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::sampler_with_resource_view;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			case 1:
+				glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&ranges[0].count));
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::unordered_access_view;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			case 2:
+				glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&ranges[0].count));
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::constant_buffer;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			case 3:
+				glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&ranges[0].count));
+				ranges[0].array_size = 1;
+				ranges[0].type = api::descriptor_type::shader_storage_buffer;
+				ranges[0].visibility = api::shader_stage::all;
+				break;
+			}
+		}
+		else
+		{
+			const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
+			ranges[0] = layout_impl->range;
 		}
 	}
-	else
-	{
-		*count = 1;
-	}
+
+	*count = 1;
 }
 
 bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
@@ -1650,7 +1681,12 @@ bool reshade::opengl::device_impl::create_descriptor_sets(uint32_t count, const 
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
-		assert(set_layout_impl != nullptr);
+
+		if (set_layout_impl == nullptr)
+		{
+			out_sets[i] = { 0 };
+			continue;
+		}
 
 		const auto impl = new descriptor_set_impl();
 		impl->type = set_layout_impl->range.type;
@@ -1961,7 +1997,9 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const 
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+
+		assert(set_impl != nullptr);
 
 		const api::descriptor_set_update &update = updates[i];
 
@@ -1975,13 +2013,13 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const 
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			std::memcpy(&impl->descriptors[update.binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
+			std::memcpy(&set_impl->descriptors[update.binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			std::memcpy(&impl->descriptors[update.binding * 2], update.descriptors, update.count * sizeof(uint64_t) * 2);
+			std::memcpy(&set_impl->descriptors[update.binding * 2], update.descriptors, update.count * sizeof(uint64_t) * 2);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&impl->descriptors[update.binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
+			std::memcpy(&set_impl->descriptors[update.binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
 		default:
 			assert(false);

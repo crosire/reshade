@@ -97,7 +97,7 @@ void reshade::d3d9::device_impl::begin_render_pass(api::render_pass pass, api::f
 		clear_value_count--;
 	}
 }
-void reshade::d3d9::device_impl::finish_render_pass()
+void reshade::d3d9::device_impl::end_render_pass()
 {
 }
 void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
@@ -198,10 +198,10 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 	assert(update.set.handle == 0);
 
 	uint32_t first = update.offset, count = update.count;
-	if (layout.handle != 0)
+	if (layout.handle != 0 && layout != global_pipeline_layout)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
-	// Set for each individual shader stage (pixel stage first, since vertex stage modifies the the binding offset)
+	// Set for each individual shader stage (pixel stage first, since vertex stage modifies the binding offset)
 	constexpr api::shader_stage stages_to_iterate[] = { api::shader_stage::pixel, api::shader_stage::vertex };
 	for (api::shader_stage stage : stages_to_iterate)
 	{
@@ -708,7 +708,7 @@ void reshade::d3d9::device_impl::clear_attachments(api::attachment_type clear_fl
 }
 void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
 {
-	assert(dsv.handle != 0 && rect_count == 0);
+	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_backup_state.capture();
 
@@ -750,7 +750,7 @@ void reshade::d3d9::device_impl::begin_query(api::query_pool pool, api::query_ty
 
 	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Issue(D3DISSUE_BEGIN);
 }
-void reshade::d3d9::device_impl::finish_query(api::query_pool pool, api::query_type, uint32_t index)
+void reshade::d3d9::device_impl::end_query(api::query_pool pool, api::query_type, uint32_t index)
 {
 	assert(pool.handle != 0);
 
@@ -770,7 +770,7 @@ void reshade::d3d9::device_impl::begin_debug_event(const char *label, const floa
 
 	D3DPERF_BeginEvent(color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, label_wide.c_str());
 }
-void reshade::d3d9::device_impl::finish_debug_event()
+void reshade::d3d9::device_impl::end_debug_event()
 {
 	D3DPERF_EndEvent();
 }

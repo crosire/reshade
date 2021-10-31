@@ -66,7 +66,7 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
 	{
-		// Some effects rely on there being an alpha channel available, so create custom back buffer in case that is not the case
+		// Some effects rely on there being an alpha channel available, so create custom back buffer if that is not the case
 		switch (_back_buffer_format)
 		{
 		case api::format::r8g8b8x8_unorm:

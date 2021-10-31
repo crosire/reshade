@@ -112,7 +112,7 @@ namespace reshade
 		/// <item><description>IDXGIFactory2::CreateSwapChain(...)</description></item>
 		/// <item><description>IDXGISwapChain::ResizeBuffers</description></item>
 		/// <item><description>IDXGISwapChain3::ResizeBuffers1</description></item>
-		/// <item><description>glMakeCurrent</description></item>
+		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
@@ -127,7 +127,6 @@ namespace reshade
 		/// <item><description>IDirect3D9Device::CreateAdditionalSwapChain</description></item>
 		/// <item><description>IDXGIFactory::CreateSwapChain</description></item>
 		/// <item><description>IDXGIFactory2::CreateSwapChain(...)</description></item>
-		/// <item><description>glMakeCurrent</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::resource_desc &amp;buffer_desc, void *hwnd)</c></para>
@@ -143,6 +142,7 @@ namespace reshade
 		/// <item><description>IDirect3DDevice9::Release (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3DSwapChain9::Release</description></item>
 		/// <item><description>IDXGISwapChain::Release</description></item>
+		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkDestroySwapchainKHR</description></item>
 		/// </list>
 		/// In addition, called when swap chain is reset, before:
@@ -178,6 +178,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, const api::sampler_desc &amp;desc, api::sampler sampler)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// Is not called in D3D9 (since samplers are loose state there) or OpenGL.
+		/// </remarks>
 		init_sampler,
 
 		/// <summary>
@@ -192,7 +195,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the sampler description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Is not called in D3D9 (since samplers are loose state there).
+		/// Is not called in D3D9 (since samplers are loose state there) or OpenGL.
 		/// </remarks>
 		create_sampler,
 
@@ -207,7 +210,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::device *device, api::sampler sampler)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// Is not called in D3D12 (since samplers are descriptor handles instead of objects there).
+		/// Is not called in D3D9 (since samplers are loose state there), D3D12 (since samplers are descriptor handles instead of objects there) or OpenGL.
 		/// </remarks>
 		destroy_sampler,
 
@@ -470,7 +473,7 @@ namespace reshade
 		/// <item><description>vkCreateComputePipelines</description></item>
 		/// <item><description>vkCreateGraphicsPipelines</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_desc &amp;desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states, api::pipeline pipeline)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_desc &amp;desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline pipeline)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// May be called multiple times with the same pipeline handle (whenever the pipeline is updated or its reference count is incremented).
@@ -512,7 +515,7 @@ namespace reshade
 		/// <item><description>vkCreateComputePipelines</description></item>
 		/// <item><description>vkCreateGraphicsPipelines</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -555,7 +558,7 @@ namespace reshade
 		/// <list type="bullet">
 		/// <item><description>vkCreateRenderPass</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, const api::render_pass_desc &amp;desc, api::render_pass pass)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass pass)</c></para>
 		/// </summary>
 		init_render_pass,
 
@@ -564,7 +567,7 @@ namespace reshade
 		/// <list type="bullet">
 		/// <item><description>vkCreateRenderPass</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, api::render_pass_desc &amp;desc)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t attachment_count, api::attachment_desc *attachments)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the render pass description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -593,7 +596,7 @@ namespace reshade
 		/// <item><description>glNamedFramebufferRenderbuffer</description></item>
 		/// <item><description>vkCreateFramebuffer</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, const api::framebuffer_desc &amp;desc, api::framebuffer fbo)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer fbo)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// May be called multiple times with the same framebuffer handle (whenever the framebuffer object is updated).
@@ -613,7 +616,7 @@ namespace reshade
 		/// <item><description>glNamedFramebufferRenderbuffer</description></item>
 		/// <item><description>vkCreateFramebuffer</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, api::framebuffer_desc &amp;desc)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::render_pass render_pass_template, uint32_t attachment_count, api::resource_view *attachments)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the framebuffer description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -643,7 +646,7 @@ namespace reshade
 		/// <item><description>glMapNamedBuffer</description></item>
 		/// <item><description>glMapNamedBufferRange</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, resource resource, uint64_t offset, uint64_t size, map_access access, void **data)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **data)</c></para>
 		/// </summary>
 		map_buffer_region,
 
@@ -658,7 +661,7 @@ namespace reshade
 		/// <item><description>glUnmapBuffer</description></item>
 		/// <item><description>glUnmapNamedBuffer</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, resource resource)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource)</c></para>
 		/// </summary>
 		unmap_buffer_region,
 
@@ -673,7 +676,7 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::Map</description></item>
 		/// <item><description>ID3D12Resource::Map</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, resource resource, uint32_t subresource, const int32_t box[6], map_access access, subresource_data *data)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *data)</c></para>
 		/// </summary>
 		map_texture_region,
 
@@ -688,7 +691,7 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::Unmap</description></item>
 		/// <item><description>ID3D12Resource::Unmap</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, resource resource, uint32_t subresource)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint32_t subresource)</c></para>
 		/// </summary>
 		unmap_texture_region,
 
@@ -742,7 +745,7 @@ namespace reshade
 		/// <item><description>ID3D12Device::CopyDescriptorsSimple</description></item>
 		/// <item><description>vkUpdateDescriptorSets</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t count, const api::descriptor_set_updates *updates)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t count, const api::descriptor_set_update *updates)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -778,7 +781,7 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
-		finish_render_pass,
+		end_render_pass,
 
 		/// <summary>
 		/// Called after:
@@ -941,15 +944,19 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::CSSetConstantBuffers</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootConstantBufferView</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootConstantBufferView</description></item>
-		/// <item><description>glBindBuffer</description></item>
-		/// <item><description>glBindBuffers</description></item>
+		/// <item><description>glBindBufferBase</description></item>
+		/// <item><description>glBindBufferRange</description></item>
+		/// <item><description>glBindBuffersBase</description></item>
+		/// <item><description>glBindBuffersRange</description></item>
 		/// <item><description>glBindTexture</description></item>
-		/// <item><description>glBindTextureUnit</description></item>
 		/// <item><description>glBindImageTexture</description></item>
 		/// <item><description>glBindTextures</description></item>
+		/// <item><description>glBindImageTextures</description></item>
+		/// <item><description>glBindTextureUnit</description></item>
+		/// <item><description>glBindMultiTextureEXT</description></item>
 		/// <item><description>vkCmdPushDescriptorSetKHR</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::write_descriptor_set &amp;update)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &amp;update)</c></para>
 		/// </summary>
 		push_descriptors,
 
@@ -1343,9 +1350,10 @@ namespace reshade
 		/// <item><description>IDirect3DSwapChain9::Present</description></item>
 		/// <item><description>IDXGISwapChain::Present</description></item>
 		/// <item><description>IDXGISwapChain3::Present1</description></item>
-		/// <item><description>D3D12CommandQueueDownlevel::Present</description></item>
+		/// <item><description>ID3D12CommandQueueDownlevel::Present</description></item>
 		/// <item><description>wglSwapBuffers</description></item>
 		/// <item><description>vkQueuePresentKHR</description></item>
+		/// <item><description>IVRCompositor::Submit</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain)</c></para>
 		/// </summary>
@@ -1438,7 +1446,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_render_pass, void, api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::finish_render_pass, void, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::end_render_pass, void, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_render_targets_and_depth_stencil, void, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_pipeline, void, api::command_list *cmd_list, api::pipeline_stage type, api::pipeline pipeline);

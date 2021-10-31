@@ -3144,7 +3144,7 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 			_device->get_query_pool_results(effect.query_pool, tech.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
 			tech.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 
-		cmd_list->finish_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2);
+		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2);
 	}
 #endif
 
@@ -3293,7 +3293,7 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 			// Draw primitives
 			cmd_list->draw(pass_info.num_vertices, 1, 0, 0);
 
-			cmd_list->finish_render_pass();
+			cmd_list->end_render_pass();
 
 			// Transition resource state back to shader access
 			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_new.data(), state_old.data());
@@ -3304,17 +3304,17 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 			cmd_list->generate_mipmaps(modified_texture);
 
 #ifndef NDEBUG
-		cmd_list->finish_debug_event();
+		cmd_list->end_debug_event();
 #endif
 	}
 
 #ifndef NDEBUG
-	cmd_list->finish_debug_event();
+	cmd_list->end_debug_event();
 #endif
 
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)
-		cmd_list->finish_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
+		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
 #endif
 }
 

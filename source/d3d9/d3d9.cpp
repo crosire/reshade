@@ -10,12 +10,9 @@
 #include "ini_file.hpp"
 #include "hook_manager.hpp"
 
-// These are defined in d3d9.h, but we want to use them as function names below
+// These are defined in d3d9.h, but are used as function names below
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
-
-// Set during D3D9 device creation, to avoid hooking internal D3D11 devices created on Windows 10
-extern thread_local bool g_in_dxgi_runtime;
 
 void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index)
 {
@@ -72,13 +69,9 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	buffer_desc.texture.depth_or_layers = 1;
 	buffer_desc.texture.levels = 1;
 	buffer_desc.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
+	buffer_desc.texture.samples = pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES ? static_cast<uint16_t>(pp.MultiSampleType) : 1;
 	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
 	buffer_desc.usage = reshade::api::resource_usage::render_target;
-
-	if (pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
-		buffer_desc.texture.samples = static_cast<uint16_t>(pp.MultiSampleType);
-	else
-		buffer_desc.texture.samples = 1;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, pp.hDeviceWindow))
 	{
@@ -179,6 +172,9 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, bool use_softw
 
 // Needs to be set before entering the D3D9 runtime, to avoid hooking internal D3D device creation (e.g. when PIX is attached)
 thread_local bool g_in_d3d9_runtime = false;
+
+// Also needs to be set during D3D9 device creation, to avoid hooking internal D3D11 devices created on Windows 10
+extern thread_local bool g_in_dxgi_runtime;
 
 HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
 {

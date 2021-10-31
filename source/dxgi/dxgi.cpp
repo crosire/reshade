@@ -102,8 +102,6 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 		buffer_desc.usage |= reshade::api::resource_usage::shader_resource;
 	if (desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
 		buffer_desc.usage |= reshade::api::resource_usage::render_target;
-	if (desc.BufferUsage & DXGI_USAGE_SHARED)
-		buffer_desc.flags |= reshade::api::resource_flags::shared;
 	if (desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
 		buffer_desc.usage |= reshade::api::resource_usage::unordered_access;
 
@@ -118,8 +116,6 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 			desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
 		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != reshade::api::resource_usage::undefined)
 			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((buffer_desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared)
-			desc.BufferUsage |= DXGI_USAGE_SHARED;
 		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != reshade::api::resource_usage::undefined)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 	}

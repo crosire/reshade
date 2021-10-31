@@ -58,12 +58,12 @@ namespace reshade::d3d9
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
+		void get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
 
 		bool create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out_handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 
-		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
+		void get_descriptor_set_layout_ranges(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
@@ -96,7 +96,7 @@ namespace reshade::d3d9
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
 		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer, uint32_t clear_value_count, const void *clear_values) final;
-		void finish_render_pass() final;
+		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
@@ -132,11 +132,11 @@ namespace reshade::d3d9
 		void generate_mipmaps(api::resource_view srv) final;
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
+		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
-		void finish_debug_event() final;
+		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:
@@ -144,10 +144,6 @@ namespace reshade::d3d9
 		void on_reset();
 
 		HRESULT create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr) const;
-
-#if RESHADE_ADDON
-		api::sampler get_current_sampler_state(DWORD slot);
-#endif
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
 
@@ -160,6 +156,5 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DStateBlock9> _copy_state;
 		com_ptr<IDirect3DVertexBuffer9> _default_input_stream;
 		com_ptr<IDirect3DVertexDeclaration9> _default_input_layout;
-		std::vector<std::pair<DWORD[12], api::sampler>> _cached_sampler_states;
 	};
 }

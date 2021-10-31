@@ -119,7 +119,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(api::render_pass pass,
 		clear_value_count--;
 	}
 }
-void reshade::d3d12::command_list_impl::finish_render_pass()
+void reshade::d3d12::command_list_impl::end_render_pass()
 {
 	_current_fbo->count = 0;
 	_current_fbo->dsv.ptr = 0;
@@ -734,7 +734,7 @@ void reshade::d3d12::command_list_impl::begin_query(api::query_pool pool, api::q
 
 	_orig->BeginQuery(reinterpret_cast<ID3D12QueryHeap *>(pool.handle), convert_query_type(type), index);
 }
-void reshade::d3d12::command_list_impl::finish_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::d3d12::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	_has_commands = true;
 
@@ -773,7 +773,7 @@ void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, con
 	_orig->BeginEvent(2, pix3blob, sizeof(pix3blob));
 #endif
 }
-void reshade::d3d12::command_list_impl::finish_debug_event()
+void reshade::d3d12::command_list_impl::end_debug_event()
 {
 	_orig->EndEvent();
 }

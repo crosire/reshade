@@ -117,8 +117,6 @@ extern "C" void APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint *framebuff
 extern "C" void APIENTRY glDeleteProgram(GLuint program);
 #undef glDeleteRenderbuffers
 extern "C" void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers);
-#undef glDeleteSamplers
-extern "C" void APIENTRY glDeleteSamplers(GLsizei n, const GLuint *samplers);
 #undef glDeleteTextures
 extern "C" void APIENTRY glDeleteTextures(GLsizei n, const GLuint *textures);
 #undef glDepthFunc

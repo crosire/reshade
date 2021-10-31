@@ -119,7 +119,7 @@ void reshade::d3d11::device_context_impl::begin_render_pass(api::render_pass pas
 		clear_value_count--;
 	}
 }
-void reshade::d3d11::device_context_impl::finish_render_pass()
+void reshade::d3d11::device_context_impl::end_render_pass()
 {
 	// Reset render targets
 	_orig->OMSetRenderTargets(0, nullptr, nullptr);
@@ -401,7 +401,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 		_orig->Unmap(push_constants, 0);
 	}
 
-	const UINT push_constants_slot = layout.handle != 0 ?
+	const UINT push_constants_slot = (layout.handle != 0 && layout != global_pipeline_layout) ?
 		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param] : 0;
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
@@ -422,7 +422,7 @@ void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage sta
 	assert(update.set.handle == 0);
 
 	uint32_t first = update.offset;
-	if (layout.handle != 0)
+	if (layout.handle != 0 && layout != global_pipeline_layout)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
 	switch (update.type)
@@ -535,7 +535,7 @@ void reshade::d3d11::device_context_impl::copy_buffer_region(api::resource src, 
 	{
 		D3D11_BUFFER_DESC desc;
 		reinterpret_cast<ID3D11Buffer *>(src.handle)->GetDesc(&desc);
-		size  = desc.ByteWidth;
+		size = desc.ByteWidth;
 	}
 
 	assert(src_offset <= std::numeric_limits<UINT>::max() && dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
@@ -578,7 +578,7 @@ void reshade::d3d11::device_context_impl::resolve_texture_region(api::resource s
 
 void reshade::d3d11::device_context_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
 {
-	assert(rect_count == 0);
+	assert(rect_count == 0); // Clearing rectangles is not supported
 
 	com_ptr<ID3D11DepthStencilView> dsv;
 	com_ptr<ID3D11RenderTargetView> rtv[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
@@ -592,25 +592,25 @@ void reshade::d3d11::device_context_impl::clear_attachments(api::attachment_type
 }
 void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
 {
-	assert(dsv.handle != 0 && rect_count == 0);
+	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_orig->ClearDepthStencilView(reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
 void reshade::d3d11::device_context_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *)
 {
-	assert(rtv.handle != 0 && rect_count == 0);
+	assert(rtv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_orig->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView *>(rtv.handle), color);
 }
 void reshade::d3d11::device_context_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const int32_t *)
 {
-	assert(uav.handle != 0 && rect_count == 0);
+	assert(uav.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_orig->ClearUnorderedAccessViewUint(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
 }
 void reshade::d3d11::device_context_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const int32_t *)
 {
-	assert(uav.handle != 0 && rect_count == 0);
+	assert(uav.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_orig->ClearUnorderedAccessViewFloat(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
 }
@@ -628,7 +628,7 @@ void reshade::d3d11::device_context_impl::begin_query(api::query_pool pool, api:
 
 	_orig->Begin(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index].get());
 }
-void reshade::d3d11::device_context_impl::finish_query(api::query_pool pool, api::query_type, uint32_t index)
+void reshade::d3d11::device_context_impl::end_query(api::query_pool pool, api::query_type, uint32_t index)
 {
 	assert(pool.handle != 0);
 
@@ -651,7 +651,7 @@ void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, c
 
 	_annotations->BeginEvent(label_wide.c_str());
 }
-void reshade::d3d11::device_context_impl::finish_debug_event()
+void reshade::d3d11::device_context_impl::end_debug_event()
 {
 	if (_annotations == nullptr)
 		return;

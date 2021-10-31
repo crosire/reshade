@@ -93,6 +93,8 @@ namespace reshade::opengl
 		std::vector<uint64_t> descriptors;
 	};
 
+	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
+
 	auto convert_format(api::format format, GLint swizzle_mask[4] = nullptr) -> GLenum;
 	auto convert_format(GLenum internal_format, const GLint swizzle_mask[4] = nullptr) -> api::format;
 	auto convert_format(GLenum format, GLenum type) -> api::format;

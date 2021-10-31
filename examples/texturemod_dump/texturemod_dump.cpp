@@ -489,7 +489,7 @@ static inline bool filter_texture(device *device, const resource_desc &desc, con
 	if (desc.texture.height <= 8 || (desc.texture.width == 128 && desc.texture.height == 32))
 		return false; // Filter out small textures, which are commonly just lookup tables that are not interesting to save
 
-	if (desc.texture.format == format::r8_unorm || desc.texture.format == format::l8_unorm)
+	if (desc.texture.format == format::r8_unorm || desc.texture.format == format::a8_unorm || desc.texture.format == format::l8_unorm)
 		return false; // Filter out single component textures, since they are commonly used for video processing
 
 	return true;

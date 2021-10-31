@@ -224,9 +224,9 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 	assert((&descriptor_data) != nullptr);
 
 	uint32_t param_count = 0;
-	device->get_pipeline_layout_desc(layout, &param_count, nullptr);
+	device->get_pipeline_layout_params(layout, &param_count, nullptr);
 	const auto params = static_cast<pipeline_layout_param *>(_malloca(param_count * sizeof(pipeline_layout_param)));
-	device->get_pipeline_layout_desc(layout, &param_count, params);
+	device->get_pipeline_layout_params(layout, &param_count, params);
 	assert(first + count <= param_count);
 
 	for (uint32_t i = 0; i < count; ++i)
@@ -234,9 +234,9 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 		assert(params[first + i].type == pipeline_layout_param_type::descriptor_set);
 	
 		uint32_t range_count = 0;
-		device->get_descriptor_set_layout_desc(params[first + i].descriptor_layout, &range_count, nullptr);
+		device->get_descriptor_set_layout_ranges(params[first + i].descriptor_layout, &range_count, nullptr);
 		std::vector<descriptor_range> ranges(range_count);
-		device->get_descriptor_set_layout_desc(params[first + i].descriptor_layout, &range_count, ranges.data());
+		device->get_descriptor_set_layout_ranges(params[first + i].descriptor_layout, &range_count, ranges.data());
 
 		uint32_t base_offset = 0;
 		descriptor_pool pool = { 0 };

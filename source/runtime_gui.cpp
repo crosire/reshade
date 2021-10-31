@@ -3552,7 +3552,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		vtx_offset += draw_list->VtxBuffer.Size;
 	}
 
-	cmd_list->finish_render_pass();
+	cmd_list->end_render_pass();
 }
 void reshade::runtime::destroy_imgui_resources()
 {

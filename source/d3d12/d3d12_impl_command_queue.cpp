@@ -96,7 +96,7 @@ void reshade::d3d12::command_queue_impl::begin_debug_event(const char *label, co
 	_orig->BeginEvent(2, pix3blob, sizeof(pix3blob));
 #endif
 }
-void reshade::d3d12::command_queue_impl::finish_debug_event()
+void reshade::d3d12::command_queue_impl::end_debug_event()
 {
 	_orig->EndEvent();
 }

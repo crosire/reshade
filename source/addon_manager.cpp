@@ -157,7 +157,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(update_descriptor_sets);
 		CASE(barrier);
 		CASE(begin_render_pass);
-		CASE(finish_render_pass);
+		CASE(end_render_pass);
 		CASE(bind_render_targets_and_depth_stencil);
 		CASE(bind_pipeline);
 		CASE(bind_pipeline_states);
@@ -190,6 +190,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(present);
 		CASE(reshade_begin_effects);
 		CASE(reshade_finish_effects);
+		CASE(reshade_reloaded_effects);
 	}
 #undef  CASE
 	return "unknown";

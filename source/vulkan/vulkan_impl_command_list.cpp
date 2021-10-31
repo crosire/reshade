@@ -115,7 +115,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(api::render_pass pass
 
 	_current_fbo = begin_info.framebuffer;
 }
-void reshade::vulkan::command_list_impl::finish_render_pass()
+void reshade::vulkan::command_list_impl::end_render_pass()
 {
 	vk.CmdEndRenderPass(_orig);
 
@@ -837,7 +837,7 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::
 	vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
 	vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
 }
-void reshade::vulkan::command_list_impl::finish_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	_has_commands = true;
 
@@ -881,7 +881,7 @@ void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, co
 
 	vk.CmdBeginDebugUtilsLabelEXT(_orig, &label_info);
 }
-void reshade::vulkan::command_list_impl::finish_debug_event()
+void reshade::vulkan::command_list_impl::end_debug_event()
 {
 	if (vk.CmdEndDebugUtilsLabelEXT == nullptr)
 		return;

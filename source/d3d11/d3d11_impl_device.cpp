@@ -612,12 +612,12 @@ bool reshade::d3d11::device_impl::create_vertex_shader(const api::pipeline_desc 
 {
 	static_assert(alignof(ID3D11VertexShader) >= 2);
 
+	assert(desc.graphics.vertex_shader.entry_point == nullptr);
+	assert(desc.graphics.vertex_shader.spec_constants == 0);
+
 	if (com_ptr<ID3D11VertexShader> object;
 		SUCCEEDED(_orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, nullptr, &object)))
 	{
-		assert(desc.graphics.vertex_shader.entry_point == nullptr);
-		assert(desc.graphics.vertex_shader.spec_constants == 0);
-
 		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
@@ -631,12 +631,12 @@ bool reshade::d3d11::device_impl::create_hull_shader(const api::pipeline_desc &d
 {
 	static_assert(alignof(ID3D11HullShader) >= 2);
 
+	assert(desc.graphics.hull_shader.entry_point == nullptr);
+	assert(desc.graphics.hull_shader.spec_constants == 0);
+
 	if (com_ptr<ID3D11HullShader> object;
 		SUCCEEDED(_orig->CreateHullShader(desc.graphics.hull_shader.code, desc.graphics.hull_shader.code_size, nullptr, &object)))
 	{
-		assert(desc.graphics.hull_shader.entry_point == nullptr);
-		assert(desc.graphics.hull_shader.spec_constants == 0);
-
 		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
@@ -650,12 +650,12 @@ bool reshade::d3d11::device_impl::create_domain_shader(const api::pipeline_desc 
 {
 	static_assert(alignof(ID3D11DomainShader) >= 2);
 
+	assert(desc.graphics.domain_shader.entry_point == nullptr);
+	assert(desc.graphics.domain_shader.spec_constants == 0);
+
 	if (com_ptr<ID3D11DomainShader> object;
 		SUCCEEDED(_orig->CreateDomainShader(desc.graphics.domain_shader.code, desc.graphics.domain_shader.code_size, nullptr, &object)))
 	{
-		assert(desc.graphics.domain_shader.entry_point == nullptr);
-		assert(desc.graphics.domain_shader.spec_constants == 0);
-
 		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
@@ -669,12 +669,12 @@ bool reshade::d3d11::device_impl::create_geometry_shader(const api::pipeline_des
 {
 	static_assert(alignof(ID3D11GeometryShader) >= 2);
 
+	assert(desc.graphics.geometry_shader.entry_point == nullptr);
+	assert(desc.graphics.geometry_shader.spec_constants == 0);
+
 	if (com_ptr<ID3D11GeometryShader> object;
 		SUCCEEDED(_orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, nullptr, &object)))
 	{
-		assert(desc.graphics.geometry_shader.entry_point == nullptr);
-		assert(desc.graphics.geometry_shader.spec_constants == 0);
-
 		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
@@ -688,12 +688,12 @@ bool reshade::d3d11::device_impl::create_pixel_shader(const api::pipeline_desc &
 {
 	static_assert(alignof(ID3D11PixelShader) >= 2);
 
+	assert(desc.graphics.pixel_shader.entry_point == nullptr);
+	assert(desc.graphics.pixel_shader.spec_constants == 0);
+
 	if (com_ptr<ID3D11PixelShader> object;
 		SUCCEEDED(_orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, nullptr, &object)))
 	{
-		assert(desc.graphics.pixel_shader.entry_point == nullptr);
-		assert(desc.graphics.pixel_shader.spec_constants == 0);
-
 		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
@@ -707,12 +707,12 @@ bool reshade::d3d11::device_impl::create_compute_shader(const api::pipeline_desc
 {
 	static_assert(alignof(ID3D11ComputeShader) >= 2);
 
+	assert(desc.compute.shader.entry_point == nullptr);
+	assert(desc.compute.shader.spec_constants == 0);
+
 	if (com_ptr<ID3D11ComputeShader> object;
 		SUCCEEDED(_orig->CreateComputeShader(desc.compute.shader.code, desc.compute.shader.code_size, nullptr, &object)))
 	{
-		assert(desc.compute.shader.entry_point == nullptr);
-		assert(desc.compute.shader.spec_constants == 0);
-
 		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
@@ -839,15 +839,9 @@ void reshade::d3d11::device_impl::destroy_render_pass(api::render_pass handle)
 
 bool reshade::d3d11::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
-	if (render_pass_template.handle == 0)
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-
 	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
 
-	if (attachment_count > pass_impl->attachments.size())
+	if (pass_impl == nullptr || attachment_count > pass_impl->attachments.size())
 	{
 		*out_handle = { 0 };
 		return false;
@@ -902,24 +896,33 @@ reshade::api::resource_view reshade::d3d11::device_impl::get_framebuffer_attachm
 
 bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
-	bool success = true;
-
 	const auto impl = new pipeline_layout_impl();
 	impl->params.assign(params, params + param_count);
 	impl->shader_registers.resize(param_count);
 
-	for (uint32_t i = 0; i < param_count && success; ++i)
+	bool success = true;
+
+	for (uint32_t i = 0; i < param_count; ++i)
 	{
 		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
 			const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(params[i].descriptor_layout.handle);
+
+			if (set_layout_impl == nullptr)
+			{
+				success = false;
+				break;
+			}
 
 			impl->shader_registers[i] = set_layout_impl->range.dx_register_index;
 		}
 		else
 		{
 			if (params[i].push_constants.dx_register_space != 0)
+			{
 				success = false;
+				break;
+			}
 
 			impl->shader_registers[i] = params[i].push_constants.dx_register_index;
 		}
@@ -940,10 +943,12 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t param_count, c
 }
 void reshade::d3d11::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
+	assert(handle != global_pipeline_layout);
+
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-void reshade::d3d11::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+void reshade::d3d11::device_impl::get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 
@@ -1033,13 +1038,13 @@ void reshade::d3d11::device_impl::destroy_descriptor_set_layout(api::descriptor_
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
-void reshade::d3d11::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
+void reshade::d3d11::device_impl::get_descriptor_set_layout_ranges(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 
-	if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
+	if (ranges != nullptr && *count != 0)
 	{
-		if (ranges != nullptr && *count != 0)
+		if (layout.handle >= 0xFFFFFFFFFFFFFFF0)
 		{
 			const D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
 
@@ -1079,13 +1084,10 @@ void reshade::d3d11::device_impl::get_descriptor_set_layout_desc(api::descriptor
 				break;
 			}
 		}
-	}
-	else
-	{
-		const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-		if (ranges != nullptr && *count != 0)
+		else
 		{
+			const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
 			ranges[0] = layout_impl->range;
 		}
 	}
@@ -1101,7 +1103,7 @@ bool reshade::d3d11::device_impl::create_query_pool(api::query_type type, uint32
 	D3D11_QUERY_DESC internal_desc = {};
 	internal_desc.Query = convert_query_type(type);
 
-	for (UINT i = 0; i < size; ++i)
+	for (uint32_t i = 0; i < size; ++i)
 	{
 		if (FAILED(_orig->CreateQuery(&internal_desc, &impl->queries[i])))
 		{
@@ -1125,7 +1127,12 @@ bool reshade::d3d11::device_impl::create_descriptor_sets(uint32_t count, const a
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
-		assert(set_layout_impl != nullptr);
+
+		if (set_layout_impl == nullptr)
+		{
+			out_sets[i] = { 0 };
+			continue;
+		}
 
 		const auto impl = new descriptor_set_impl();
 		impl->type = set_layout_impl->range.type;
@@ -1173,8 +1180,8 @@ bool reshade::d3d11::device_impl::map_buffer_region(api::resource resource, uint
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
-	if (D3D11_MAPPED_SUBRESOURCE mapped_ptr;
-		SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access), 0, &mapped_ptr)))
+	D3D11_MAPPED_SUBRESOURCE mapped_ptr;
+	if (SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access), 0, &mapped_ptr)))
 	{
 		*out_data = static_cast<uint8_t *>(mapped_ptr.pData) + offset;
 		return true;
@@ -1250,7 +1257,9 @@ void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t count, const a
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+
+		assert(set_impl != nullptr);
 
 		const api::descriptor_set_update &update = updates[i];
 
@@ -1261,10 +1270,10 @@ void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t count, const a
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			std::memcpy(&impl->descriptors[update.offset * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
+			std::memcpy(&set_impl->descriptors[update.offset * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&impl->descriptors[update.offset * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
+			std::memcpy(&set_impl->descriptors[update.offset * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
 		default:
 			assert(false);

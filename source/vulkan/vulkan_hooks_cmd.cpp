@@ -1198,7 +1198,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 
 	cmd_impl->_current_fbo = VK_NULL_HANDLE;
 
-	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(cmd_impl);
+	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 #endif
 }
 

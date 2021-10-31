@@ -582,15 +582,9 @@ void reshade::d3d12::device_impl::destroy_render_pass(api::render_pass handle)
 
 bool reshade::d3d12::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
-	if (render_pass_template.handle == 0)
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-
 	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
 
-	if (attachment_count > pass_impl->attachments.size())
+	if (pass_impl == nullptr || attachment_count > pass_impl->attachments.size())
 	{
 		*out_handle = { 0 };
 		return false;
@@ -762,7 +756,7 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-void reshade::d3d12::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+void reshade::d3d12::device_impl::get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 
@@ -794,7 +788,7 @@ void reshade::d3d12::device_impl::destroy_descriptor_set_layout(api::descriptor_
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
-void reshade::d3d12::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
+void reshade::d3d12::device_impl::get_descriptor_set_layout_ranges(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 
@@ -861,9 +855,8 @@ bool reshade::d3d12::device_impl::create_descriptor_sets(uint32_t count, const a
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
-		assert(set_layout_impl != nullptr);
 
-		if (set_layout_impl->ranges.empty())
+		if (set_layout_impl == nullptr || set_layout_impl->ranges.empty())
 		{
 			out_sets[i] = { 0 };
 			continue;

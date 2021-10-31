@@ -24,7 +24,7 @@ namespace reshade::d3d12
 		void wait_idle() const final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
-		void finish_debug_event() final;
+		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	private:

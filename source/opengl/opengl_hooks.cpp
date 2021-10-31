@@ -7,6 +7,7 @@
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
+#include <malloc.h>
 
 struct DrawArraysIndirectCommand
 {
@@ -1056,16 +1057,17 @@ HOOK_EXPORT void APIENTRY glBindTexture(GLenum target, GLuint texture)
 		gl3wGetIntegerv(GL_ACTIVE_TEXTURE, &texunit);
 		texunit -= GL_TEXTURE0;
 
-		GLint sampler_binding = 0;
-		glGetIntegeri_v(GL_SAMPLER_BINDING, texunit, &sampler_binding);
-
-		const reshade::api::sampler_with_resource_view descriptor_data = {
-			reshade::api::sampler { static_cast<uint64_t>(sampler_binding) },
+		// Could technically get current sampler via "GL_SAMPLER_BINDING", but that only works if sampler objects are used and bound before the texture, which is not necessarily the case
+		reshade::api::sampler_with_resource_view descriptor_data = {
+			reshade::api::sampler { 0 },
 			reshade::opengl::make_resource_view_handle(target, texture)
 		};
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, 0,
 			reshade::api::descriptor_set_update(static_cast<GLuint>(texunit), 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
 #endif
@@ -1492,18 +1494,18 @@ void APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>()))
 	{
 		const reshade::api::resource resource = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
-		const uint64_t offset = 0;
-		const uint32_t stride = 0;
+		const uint64_t offset_64 = 0;
+		const uint32_t stride_32 = 0;
 
 		switch (target)
 		{
 		case GL_ELEMENT_ARRAY_BUFFER:
 			g_current_context->_current_ibo = buffer;
 			// The index format is provided to 'glDrawElements' and is unknown at this point, so call with index size set to zero
-			reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_context, resource, offset, 0);
+			reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_context, resource, offset_64, 0);
 			return;
 		case GL_ARRAY_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context, 0, 1, &resource, &offset, &stride);
+			reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context, 0, 1, &resource, &offset_64, &stride_32);
 			return;
 		}
 	}
@@ -1713,7 +1715,8 @@ void APIENTRY glUniform1f(GLint location, GLfloat v0)
 	{
 		const GLfloat v[1] = { v0 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 4, location, 1, reinterpret_cast<const uint32_t *>(v));
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 1, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1727,7 +1730,7 @@ void APIENTRY glUniform2f(GLint location, GLfloat v0, GLfloat v1)
 	{
 		const GLfloat v[2] = { v0, v1 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 4, location, 2, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 2, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1741,7 +1744,7 @@ void APIENTRY glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2)
 	{
 		const GLfloat v[3] = { v0, v1, v2 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 4, location, 3, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 3, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1755,7 +1758,7 @@ void APIENTRY glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GL
 	{
 		const GLfloat v[4] = { v0, v1, v2, v3 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 4, location, 4, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 4, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1769,7 +1772,7 @@ void APIENTRY glUniform1i(GLint location, GLint v0)
 	{
 		const GLint v[1] = { v0 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 1, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1783,7 +1786,7 @@ void APIENTRY glUniform2i(GLint location, GLint v0, GLint v1)
 	{
 		const GLint v[2] = { v0, v1 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 2, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 2, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1797,7 +1800,7 @@ void APIENTRY glUniform3i(GLint location, GLint v0, GLint v1, GLint v2)
 	{
 		const GLint v[3] = { v0, v1, v2 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 3, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 3, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1811,7 +1814,7 @@ void APIENTRY glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3
 	{
 		const GLint v[4] = { v0, v1, v2, v3 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 4, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 4, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1825,7 +1828,7 @@ void APIENTRY glUniform1fv(GLint location, GLsizei count, const GLfloat *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 4, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1838,7 +1841,7 @@ void APIENTRY glUniform2fv(GLint location, GLsizei count, const GLfloat *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 4, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1851,7 +1854,7 @@ void APIENTRY glUniform3fv(GLint location, GLsizei count, const GLfloat *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 4, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1864,7 +1867,7 @@ void APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 4, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1877,7 +1880,7 @@ void APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1890,7 +1893,7 @@ void APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1903,7 +1906,7 @@ void APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1916,7 +1919,7 @@ void APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -2220,7 +2223,10 @@ void APIENTRY glBindBufferBase(GLenum target, GLuint index, GLuint buffer)
 		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 3;
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param,
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, layout_param,
 			reshade::api::descriptor_set_update(index, 1, type, &descriptor_data));
 	}
 #endif
@@ -2245,7 +2251,10 @@ void APIENTRY glBindBufferRange(GLenum target, GLuint index, GLuint buffer, GLin
 		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 3;
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param,
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, layout_param,
 			reshade::api::descriptor_set_update(index, 1, type, &descriptor_data));
 	}
 #endif
@@ -2260,12 +2269,12 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 	if (g_current_context && (
 		target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) && (
 			reshade::has_addon_event<reshade::addon_event::begin_render_pass>() ||
-			reshade::has_addon_event<reshade::addon_event::finish_render_pass>()) &&
+			reshade::has_addon_event<reshade::addon_event::end_render_pass>()) &&
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
 	{
 		if (framebuffer != g_current_context->_current_fbo)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(g_current_context);
+			reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(g_current_context);
 
 			g_current_context->_current_fbo = framebuffer;
 
@@ -2288,31 +2297,42 @@ void APIENTRY glBindVertexArray(GLuint array)
 		GLint count = 0, vbo = 0, ibo = 0;
 		gl3wGetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &count);
 
-		std::vector<reshade::api::resource> buffer_handles(count);
-		std::vector<uint64_t> offsets(count);
-		std::vector<uint32_t> strides(count);
+		const auto buffer_handles = static_cast<reshade::api::resource *>(_malloca(count * sizeof(reshade::api::resource)));
+		const auto offsets_64 = static_cast<uint64_t *>(_malloca(count * sizeof(uint64_t)));
+		const auto strides_32 = static_cast<uint32_t *>(_malloca(count * sizeof(uint32_t)));
 
 		for (GLsizei i = 0; i < count; ++i)
 		{
+			offsets_64[i] = 0;
+			strides_32[i] = 0;
+
 			glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, &vbo);
 
 			if (vbo != 0)
 			{
 				buffer_handles[i] = reshade::opengl::make_resource_handle(GL_BUFFER, vbo);
 
-				glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_STRIDE, reinterpret_cast<GLint *>(&strides[i]));
-				glGetVertexAttribPointerv(i, GL_VERTEX_ATTRIB_ARRAY_POINTER, reinterpret_cast<GLvoid **>(&offsets[i]));
+				glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_STRIDE, reinterpret_cast<GLint *>(&strides_32[i]));
+				glGetVertexAttribPointerv(i, GL_VERTEX_ATTRIB_ARRAY_POINTER, reinterpret_cast<GLvoid **>(&offsets_64[i]));
+			}
+			else
+			{
+				buffer_handles[i] = { 0 };
 			}
 		}
 
 		gl3wGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &ibo);
 
 		g_current_context->_current_ibo = ibo;
-		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_context,
-			ibo != 0 ? reshade::opengl::make_resource_handle(GL_BUFFER, ibo) : reshade::api::resource { 0 }, 0, 0);
+		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(
+			g_current_context, ibo != 0 ? reshade::opengl::make_resource_handle(GL_BUFFER, ibo) : reshade::api::resource { 0 }, 0, 0);
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context,
-			0, count, buffer_handles.data(), offsets.data(), strides.data());
+		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
+			g_current_context, 0, count, buffer_handles, offsets_64, strides_32);
+
+		_freea(strides_32);
+		_freea(offsets_64);
+		_freea(buffer_handles);
 	}
 #endif
 }
@@ -2327,7 +2347,8 @@ void APIENTRY glUniform1ui(GLint location, GLuint v0)
 	{
 		const GLuint v[1] = { v0 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 1, v);
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1, v);
 	}
 #endif
 }
@@ -2341,7 +2362,7 @@ void APIENTRY glUniform2ui(GLint location, GLuint v0, GLuint v1)
 	{
 		const GLuint v[2] = { v0, v1 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 2, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 2, v);
 	}
 #endif
 }
@@ -2355,7 +2376,7 @@ void APIENTRY glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2)
 	{
 		const GLuint v[3] = { v0, v1, v2 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 3, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 3, v);
 	}
 #endif
 }
@@ -2369,7 +2390,7 @@ void APIENTRY glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLui
 	{
 		const GLuint v[4] = { v0, v1, v2, v3 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 4, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 4, v);
 	}
 #endif
 }
@@ -2383,7 +2404,7 @@ void APIENTRY glUniform1uiv(GLint location, GLsizei count, const GLuint *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 1 * count, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1 * count, v);
 	}
 #endif
 }
@@ -2396,7 +2417,7 @@ void APIENTRY glUniform2uiv(GLint location, GLsizei count, const GLuint *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 2 * count, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 2 * count, v);
 	}
 #endif
 }
@@ -2409,7 +2430,7 @@ void APIENTRY glUniform3uiv(GLint location, GLsizei count, const GLuint *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 3 * count, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 3 * count, v);
 	}
 #endif
 }
@@ -2422,7 +2443,7 @@ void APIENTRY glUniform4uiv(GLint location, GLsizei count, const GLuint *v)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 4 * count, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 4 * count, v);
 	}
 #endif
 }
@@ -2613,23 +2634,6 @@ void APIENTRY glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, G
 }
 #endif
 
-#ifdef GL_VERSION_3_3
-void APIENTRY glDeleteSamplers(GLsizei n, const GLuint *samplers)
-{
-#if RESHADE_ADDON
-	if (g_current_context)
-	{
-		for (GLsizei i = 0; i < n; ++i)
-			if (samplers[i] != 0)
-				reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(g_current_context, reshade::api::sampler { samplers[i] });
-	}
-#endif
-
-	static const auto trampoline = reshade::hooks::call(glDeleteSamplers);
-	trampoline(n, samplers);
-}
-#endif
-
 #ifdef GL_VERSION_4_0
 void APIENTRY glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 {
@@ -2698,7 +2702,8 @@ void APIENTRY glScissorArrayv(GLuint first, GLsizei count, const GLint *v)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
-		std::vector<int32_t> rect_data(count * 4);
+		const auto rect_data = static_cast<int32_t *>(_malloca(count * 4 * sizeof(int32_t)));
+
 		for (GLsizei i = 0, k = 0; i < count; ++i, k += 4)
 		{
 			rect_data[k + 0] = v[k + 0];
@@ -2707,7 +2712,9 @@ void APIENTRY glScissorArrayv(GLuint first, GLsizei count, const GLint *v)
 			rect_data[k + 3] = v[k + 2] + v[k + 4];
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, first, count, rect_data.data());
+		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, first, count, rect_data);
+
+		_freea(rect_data);
 	}
 #endif
 }
@@ -2751,7 +2758,8 @@ void APIENTRY glViewportArrayv(GLuint first, GLsizei count, const GLfloat *v)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_viewports>())
 	{
-		std::vector<float> viewport_data(count * 6);
+		const auto viewport_data = static_cast<float *>(_malloca(count * 6 * sizeof(float)));
+
 		for (GLsizei i = 0, k = 0; i < count; ++i, k += 6, v += 4)
 		{
 			viewport_data[k + 0] = v[0];
@@ -2762,7 +2770,9 @@ void APIENTRY glViewportArrayv(GLuint first, GLsizei count, const GLfloat *v)
 			viewport_data[k + 5] = 1.0f;
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, first, count, viewport_data.data());
+		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, first, count, viewport_data);
+
+		_freea(viewport_data);
 	}
 #endif
 }
@@ -2888,7 +2898,10 @@ void APIENTRY glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboo
 		const reshade::api::resource_view descriptor_data = reshade::opengl::make_resource_view_handle(target, texture);
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 1,
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, 1,
 			reshade::api::descriptor_set_update(unit, 1, reshade::api::descriptor_type::unordered_access_view, &descriptor_data));
 	}
 #endif
@@ -3227,7 +3240,7 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 		target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
-		std::vector<reshade::api::buffer_range> descriptor_data(count);
+		const auto descriptor_data = static_cast<reshade::api::buffer_range *>(_malloca(count * sizeof(reshade::api::buffer_range)));
 
 		if (buffers != nullptr)
 		{
@@ -3238,13 +3251,22 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 				descriptor_data[i].size = std::numeric_limits<uint64_t>::max();
 			}
 		}
+		else
+		{
+			std::memset(descriptor_data, 0, count * sizeof(reshade::api::buffer_range));
+		}
 
 		const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
 		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 3;
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param,
-			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), type, descriptor_data.data()));
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, layout_param,
+			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), type, descriptor_data));
+
+		_freea(descriptor_data);
 	}
 #endif
 }
@@ -3258,7 +3280,7 @@ void APIENTRY glBindBuffersRange(GLenum target, GLuint first, GLsizei count, con
 		target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
-		std::vector<reshade::api::buffer_range> descriptor_data(count);
+		const auto descriptor_data = static_cast<reshade::api::buffer_range *>(_malloca(count * sizeof(reshade::api::buffer_range)));
 
 		if (buffers != nullptr)
 		{
@@ -3271,13 +3293,22 @@ void APIENTRY glBindBuffersRange(GLenum target, GLuint first, GLsizei count, con
 				descriptor_data[i].size = static_cast<uint64_t>(sizes[i]);
 			}
 		}
+		else
+		{
+			std::memset(descriptor_data, 0, count * sizeof(reshade::api::buffer_range));
+		}
 
 		const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
 		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 3;
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param,
-			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), type, descriptor_data.data()));
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, layout_param,
+			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), type, descriptor_data));
+
+		_freea(descriptor_data);
 	}
 #endif
 }
@@ -3291,7 +3322,7 @@ void APIENTRY glBindTextures(GLuint first, GLsizei count, const GLuint *textures
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
-		std::vector<reshade::api::sampler_with_resource_view> descriptor_data(count);
+		const auto descriptor_data = static_cast<reshade::api::sampler_with_resource_view *>(_malloca(count * sizeof(reshade::api::sampler_with_resource_view)));
 
 		if (textures != nullptr)
 		{
@@ -3301,17 +3332,23 @@ void APIENTRY glBindTextures(GLuint first, GLsizei count, const GLuint *textures
 				if (gl3wGetTextureParameteriv != nullptr)
 					gl3wGetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
 
-				GLint sampler_binding = 0;
-				glGetIntegeri_v(GL_SAMPLER_BINDING, first + i, &sampler_binding);
-
 				descriptor_data[i].view = reshade::opengl::make_resource_view_handle(target, textures[i]);
-				descriptor_data[i].sampler = { static_cast<uint64_t>(sampler_binding) };
+				descriptor_data[i].sampler = { 0 };
 			}
+		}
+		else
+		{
+			std::memset(descriptor_data, 0, count * sizeof(reshade::api::sampler_with_resource_view));
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
-			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), reshade::api::descriptor_type::sampler_with_resource_view, descriptor_data.data()));
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, 0,
+			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), reshade::api::descriptor_type::sampler_with_resource_view, descriptor_data));
+
+		_freea(descriptor_data);
 	}
 #endif
 }
@@ -3325,7 +3362,7 @@ void APIENTRY glBindImageTextures(GLuint first, GLsizei count, const GLuint *tex
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
-		std::vector<reshade::api::resource_view> descriptor_data(count);
+		const auto descriptor_data = static_cast<reshade::api::resource_view *>(_malloca(count * sizeof(reshade::api::resource_view)));
 
 		if (textures != nullptr)
 		{
@@ -3338,10 +3375,19 @@ void APIENTRY glBindImageTextures(GLuint first, GLsizei count, const GLuint *tex
 				descriptor_data[i] = reshade::opengl::make_resource_view_handle(target, textures[i]);
 			}
 		}
+		else
+		{
+			std::memset(descriptor_data, 0, count * sizeof(reshade::api::resource_view));
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 1,
-			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), reshade::api::descriptor_type::unordered_access_view, descriptor_data.data()));
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, 1,
+			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), reshade::api::descriptor_type::unordered_access_view, descriptor_data));
+
+		_freea(descriptor_data);
 	}
 #endif
 }
@@ -3355,8 +3401,8 @@ void APIENTRY glBindVertexBuffers(GLuint first, GLsizei count, const GLuint *buf
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 	{
-		std::vector<reshade::api::resource> buffer_handles(count);
-		std::vector<uint64_t> offsets_64(count);
+		const auto buffer_handles = static_cast<reshade::api::resource *>(_malloca(count * sizeof(reshade::api::resource)));
+		const auto offsets_64 = static_cast<uint64_t *>(_malloca(count * sizeof(uint64_t)));
 
 		if (buffers != nullptr)
 		{
@@ -3368,8 +3414,17 @@ void APIENTRY glBindVertexBuffers(GLuint first, GLsizei count, const GLuint *buf
 				offsets_64[i] = offsets[i];
 			}
 		}
+		else
+		{
+			std::memset(buffer_handles, 0, count * sizeof(reshade::api::resource));
+			std::memset(offsets_64, 0, count * sizeof(uint64_t));
+		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context, first, count, buffer_handles.data(), offsets_64.data(), reinterpret_cast<const uint32_t *>(strides));
+		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
+			g_current_context, first, count, buffer_handles, offsets_64, reinterpret_cast<const uint32_t *>(strides));
+
+		_freea(offsets_64);
+		_freea(buffer_handles);
 	}
 #endif
 }
@@ -3956,16 +4011,16 @@ void APIENTRY glBindTextureUnit(GLuint unit, GLuint texture)
 		GLint target = GL_TEXTURE;
 		gl3wGetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
 
-		GLint sampler_binding = 0;
-		glGetIntegeri_v(GL_SAMPLER_BINDING, unit, &sampler_binding);
-
-		const reshade::api::sampler_with_resource_view descriptor_data = {
-			reshade::api::sampler { static_cast<uint64_t>(sampler_binding) },
+		reshade::api::sampler_with_resource_view descriptor_data = {
+			reshade::api::sampler { 0 },
 			reshade::opengl::make_resource_view_handle(target, texture)
 		};
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, 0,
 			reshade::api::descriptor_set_update(unit, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
 #endif
@@ -3981,12 +4036,12 @@ void APIENTRY glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 	if (g_current_context && (
 		target == 0x8D40 /* GL_FRAMEBUFFER_EXT */ || target == 0x8CA9 /* GL_DRAW_FRAMEBUFFER_EXT */) && (
 		reshade::has_addon_event<reshade::addon_event::begin_render_pass>() ||
-		reshade::has_addon_event<reshade::addon_event::finish_render_pass>()) &&
+		reshade::has_addon_event<reshade::addon_event::end_render_pass>()) &&
 		glCheckFramebufferStatus(target) == 0x8CD5 /* GL_FRAMEBUFFER_COMPLETE_EXT */)
 	{
 		if (framebuffer != g_current_context->_current_fbo)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(g_current_context);
+			reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(g_current_context);
 
 			g_current_context->_current_fbo = framebuffer;
 
@@ -4005,18 +4060,19 @@ void APIENTRY glBindMultiTextureEXT(GLenum texunit, GLenum target, GLuint textur
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
+		assert(texunit >= GL_TEXTURE0);
 		texunit -= GL_TEXTURE0;
 
-		GLint sampler_binding = 0;
-		glGetIntegeri_v(GL_SAMPLER_BINDING, texunit, &sampler_binding);
-
-		const reshade::api::sampler_with_resource_view descriptor_data = {
-			reshade::api::sampler { static_cast<uint64_t>(sampler_binding) },
+		reshade::api::sampler_with_resource_view descriptor_data = {
+			reshade::api::sampler { 0 },
 			reshade::opengl::make_resource_view_handle(target, texture)
 		};
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
+			g_current_context,
+			reshade::api::shader_stage::all,
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			reshade::opengl::global_pipeline_layout, 0,
 			reshade::api::descriptor_set_update(texunit, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
 #endif

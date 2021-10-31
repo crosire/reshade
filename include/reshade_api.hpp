@@ -383,7 +383,7 @@ namespace reshade { namespace api
 		/// <param name="layout">Pipeline layout to get the description from.</param>
 		/// <param name="out_count">Pointer to a variable that is set to the number of layout parameters in the <paramref name="layout"/>.</param>
 		/// <param name="out_params">Optional pointer to an array that is filled with the layout parameters in the <paramref name="layout"/>.</param>
-		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *out_count, pipeline_layout_param *out_params) const = 0;
+		virtual void get_pipeline_layout_params(pipeline_layout layout, uint32_t *out_count, pipeline_layout_param *out_params) const = 0;
 
 		/// <summary>
 		/// Creates a new descriptor set layout.
@@ -408,7 +408,7 @@ namespace reshade { namespace api
 		/// <param name="layout">Pipeline layout to get the description from.</param>
 		/// <param name="out_count">Pointer to a variable that is set to the number of descriptor ranges in the <paramref name="layout"/>.</param>
 		/// <param name="out_ranges">Optional pointer to an array that is filled with the descriptor ranges in the <paramref name="layout"/>.</param>
-		virtual void get_descriptor_set_layout_desc(descriptor_set_layout layout, uint32_t *out_count, descriptor_range *out_ranges) const = 0;
+		virtual void get_descriptor_set_layout_ranges(descriptor_set_layout layout, uint32_t *out_count, descriptor_range *out_ranges) const = 0;
 
 		/// <summary>
 		/// Creates a new query pool.
@@ -573,10 +573,10 @@ namespace reshade { namespace api
 		/// This must be preceeded by a call to <see cref="begin_render_pass"/>.
 		/// Render passes cannot be nested.
 		/// </summary>
-		virtual void finish_render_pass() = 0;
+		virtual void end_render_pass() = 0;
 		/// <summary>
 		/// Binds individual render target and depth-stencil resource views.
-		/// This must not be called between <see cref="begin_render_pass"/> and <see cref="finish_render_pass"/>.
+		/// This must not be called between <see cref="begin_render_pass"/> and <see cref="end_render_pass"/>.
 		/// </summary>
 		/// <remarks>
 		/// This is not supported (and will do nothing) in Vulkan.
@@ -810,7 +810,7 @@ namespace reshade { namespace api
 		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], format format) = 0;
 
 		/// <summary>
-		/// Clears all attachments of the current render pass. Can only be called between <see cref="begin_render_pass"/> and <see cref="finish_render_pass"/>.
+		/// Clears all attachments of the current render pass. Can only be called between <see cref="begin_render_pass"/> and <see cref="end_render_pass"/>.
 		/// </summary>
 		/// <param name="clear_flags">Combination of flags to identify which attachment types to clear.</param>
 		/// <param name="color">Value to clear render targets with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::color"/>.</param>
@@ -890,7 +890,7 @@ namespace reshade { namespace api
 		/// <param name="pool">Query pool that will manage the results of the query.</param>
 		/// <param name="type">Type of the query end.</param>
 		/// <param name="index">Index of the query in the pool.</param>
-		virtual void finish_query(query_pool pool, query_type type, uint32_t index) = 0;
+		virtual void end_query(query_pool pool, query_type type, uint32_t index) = 0;
 		/// <summary>
 		/// Copy the results of queries in a query pool to a buffer resource.
 		/// </summary>
@@ -915,7 +915,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Closes the current debug event region (the last one opened with <see cref="begin_debug_event"/>).
 		/// </summary>
-		virtual void finish_debug_event() = 0;
+		virtual void end_debug_event() = 0;
 		/// <summary>
 		/// Inserts a debug marker into the command list.
 		/// </summary>
@@ -963,7 +963,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Closes the current debug event region (the last one opened with <see cref="begin_debug_event"/>).
 		/// </summary>
-		virtual void finish_debug_event() = 0;
+		virtual void end_debug_event() = 0;
 		/// <summary>
 		/// Inserts a debug marker into the command queue.
 		/// </summary>
