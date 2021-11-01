@@ -983,7 +983,7 @@ HOOK_EXPORT void APIENTRY glDeleteTextures(GLsizei n, const GLuint *textures)
 {
 #if RESHADE_ADDON
 	for (GLsizei i = 0; i < n; ++i)
-		if (textures[i] != 0)
+		if (glIsTexture(textures[i]))
 			destroy_resource_or_view(GL_TEXTURE, textures[i]);
 #endif
 
@@ -1405,7 +1405,7 @@ void APIENTRY glDeleteBuffers(GLsizei n, const GLuint *buffers)
 {
 #if RESHADE_ADDON
 	for (GLsizei i = 0; i < n; ++i)
-		if (buffers[i] != 0)
+		if (glIsBuffer(buffers[i]))
 			destroy_resource_or_view(GL_BUFFER, buffers[i]);
 #endif
 
@@ -1974,12 +1974,9 @@ void APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint *framebuffers)
 void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
 {
 #if RESHADE_ADDON
-	if (g_current_context)
-	{
-		for (GLsizei i = 0; i < n; ++i)
-			if (renderbuffers[i] != 0)
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_RENDERBUFFER, renderbuffers[i]));
-	}
+	for (GLsizei i = 0; i < n; ++i)
+		if (glIsRenderbuffer(renderbuffers[i]))
+			destroy_resource_or_view(GL_RENDERBUFFER, renderbuffers[i]);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDeleteRenderbuffers);
