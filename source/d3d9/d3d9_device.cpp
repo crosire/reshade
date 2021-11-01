@@ -98,6 +98,62 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_UnlockRect(IDirect3DSurface9 *pSurfa
 	return reshade::hooks::call(IDirect3DSurface9_UnlockRect, vtable_from_instance(pSurface) + 14)(pSurface);
 }
 
+#undef IDirect3DVolume9_LockBox
+#undef IDirect3DVolume9_UnlockBox
+
+HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVolume, D3DLOCKED_BOX *pLockedVolume, const D3DBOX *pBox, DWORD Flags)
+{
+	const HRESULT hr = reshade::hooks::call(IDirect3DVolume9_LockBox, vtable_from_instance(pVolume) + 9)(pVolume, pLockedVolume, pBox, Flags);
+	if (SUCCEEDED(hr) &&
+		reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+	{
+		assert(pLockedVolume != nullptr);
+
+		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVolume))
+		{
+			uint32_t subresource;
+			const reshade::api::resource resource = device_proxy->get_resource_from_view({ reinterpret_cast<uintptr_t>(pVolume) }, &subresource);
+
+			reshade::api::subresource_data data;
+			data.data = pLockedVolume->pBits;
+			data.row_pitch = pLockedVolume->RowPitch;
+			data.slice_pitch = pLockedVolume->SlicePitch;
+
+			reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
+				device_proxy,
+				resource,
+				subresource,
+				reinterpret_cast<const int32_t *>(pBox),
+				reshade::d3d9::convert_access_flags(Flags),
+				&data);
+
+			pLockedVolume->pBits = data.data;
+			pLockedVolume->RowPitch = data.row_pitch;
+			pLockedVolume->SlicePitch = data.slice_pitch;
+		}
+	}
+
+	return hr;
+}
+HRESULT STDMETHODCALLTYPE IDirect3DVolume9_UnlockBox(IDirect3DVolume9 *pVolume)
+{
+	if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+	{
+		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVolume))
+		{
+			uint32_t subresource;
+			const reshade::api::resource resource = device_proxy->get_resource_from_view({ reinterpret_cast<uintptr_t>(pVolume) }, &subresource);
+
+			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
+				device_proxy,
+				resource,
+				subresource);
+		}
+	}
+
+	return reshade::hooks::call(IDirect3DVolume9_UnlockBox, vtable_from_instance(pVolume) + 10)(pVolume);
+}
+
 #undef IDirect3DTexture9_LockRect
 #undef IDirect3DTexture9_UnlockRect
 
@@ -634,6 +690,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 #if RESHADE_ADDON
 		IDirect3DTexture9 *const texture = *ppTexture;
 
+		Levels = texture->GetLevelCount();
+
 		const auto device_proxy = this;
 		texture->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -641,6 +699,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 			reshade::hooks::install("IDirect3DTexture9::LockRect", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DTexture9_LockRect));
 		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
 			reshade::hooks::install("IDirect3DTexture9::UnlockRect", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DTexture9_UnlockRect));
+
+		// Hook surfaces explicitly here, since some applications lock textures via its individual surfaces and they use a different vtable than standalone surfaces
+		for (UINT level = 0; level < Levels; ++level)
+		{
+			com_ptr<IDirect3DSurface9> surface;
+			if (SUCCEEDED(texture->GetSurfaceLevel(level, &surface)))
+			{
+				surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+
+				if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+					reshade::hooks::install("IDirect3DSurface9::LockRect", vtable_from_instance(surface.get()), 13, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_LockRect));
+				if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+					reshade::hooks::install("IDirect3DSurface9::UnlockRect", vtable_from_instance(surface.get()), 14, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_UnlockRect));
+			}
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
@@ -658,7 +731,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		if (const reshade::api::resource_usage view_usage = desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil);
 			view_usage != reshade::api::resource_usage::undefined)
 		{
-			Levels = texture->GetLevelCount();
 			for (UINT level = 0; level < Levels; ++level)
 			{
 				com_ptr<IDirect3DSurface9> surface;
@@ -725,6 +797,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 #if RESHADE_ADDON
 		IDirect3DVolumeTexture9 *const texture = *ppVolumeTexture;
 
+		Levels = texture->GetLevelCount();
+
 		const auto device_proxy = this;
 		texture->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -732,6 +806,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 			reshade::hooks::install("IDirect3DVolumeTexture9::LockBox", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DVolumeTexture9_LockBox));
 		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
 			reshade::hooks::install("IDirect3DVolumeTexture9::UnlockBox", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DVolumeTexture9_UnlockBox));
+
+		for (UINT level = 0; level < Levels; ++level)
+		{
+			com_ptr<IDirect3DVolume9> volume;
+			if (SUCCEEDED(texture->GetVolumeLevel(level, &volume)))
+			{
+				volume->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+
+				if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+					reshade::hooks::install("IDirect3DVolume9::LockBox", vtable_from_instance(volume.get()), 9, reinterpret_cast<reshade::hook::address>(IDirect3DVolume9_LockBox));
+				if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+					reshade::hooks::install("IDirect3DVolume9::UnlockBox", vtable_from_instance(volume.get()), 10, reinterpret_cast<reshade::hook::address>(IDirect3DVolume9_UnlockBox));
+			}
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
@@ -791,6 +879,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 #if RESHADE_ADDON
 		IDirect3DCubeTexture9 *const texture = *ppCubeTexture;
 
+		Levels = texture->GetLevelCount();
+
 		const auto device_proxy = this;
 		texture->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -798,6 +888,24 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 			reshade::hooks::install("IDirect3DCubeTexture9::LockRect", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DCubeTexture9_LockRect));
 		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
 			reshade::hooks::install("IDirect3DCubeTexture9::UnlockRect", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DCubeTexture9_UnlockRect));
+
+		// Hook surfaces explicitly here, since some applications lock textures via its individual surfaces and they use a different vtable than standalone surfaces
+		for (UINT level = 0; level < Levels; ++level)
+		{
+			for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
+			{
+				com_ptr<IDirect3DSurface9> surface;
+				if (SUCCEEDED(texture->GetCubeMapSurface(face, level, &surface)))
+				{
+					surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+
+					if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+						reshade::hooks::install("IDirect3DSurface9::LockRect", vtable_from_instance(surface.get()), 13, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_LockRect));
+					if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+						reshade::hooks::install("IDirect3DSurface9::UnlockRect", vtable_from_instance(surface.get()), 14, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_UnlockRect));
+				}
+			}
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
@@ -815,7 +923,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		if (const reshade::api::resource_usage view_usage = desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil);
 			view_usage != reshade::api::resource_usage::undefined)
 		{
-			Levels = texture->GetLevelCount();
 			for (UINT level = 0; level < Levels; ++level)
 			{
 				for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))

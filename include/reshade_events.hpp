@@ -668,10 +668,11 @@ namespace reshade
 		/// <summary>
 		/// Called after:
 		/// <list type="bullet">
-		/// <item><description>IDirect3DTexture9::LockRect</description></item>
-		/// <item><description>IDirect3DCubeTexture9::LockRect</description></item>
-		/// <item><description>IDirect3DVolumeTexture9::LockBox</description></item>
 		/// <item><description>IDirect3DSurface9::LockRect</description></item>
+		/// <item><description>IDirect3DVolume9::LockBox</description></item>
+		/// <item><description>IDirect3DTexture9::LockRect</description></item>
+		/// <item><description>IDirect3DVolumeTexture9::LockBox</description></item>
+		/// <item><description>IDirect3DCubeTexture9::LockRect</description></item>
 		/// <item><description>ID3D10Resource::Map</description></item>
 		/// <item><description>ID3D11DeviceContext::Map</description></item>
 		/// <item><description>ID3D12Resource::Map</description></item>
@@ -683,10 +684,11 @@ namespace reshade
 		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
-		/// <item><description>IDirect3DTexture9::UnlockRect</description></item>
-		/// <item><description>IDirect3DCubeTexture9::UnlockRect</description></item>
-		/// <item><description>IDirect3DVolumeTexture9::UnlockBox</description></item>
 		/// <item><description>IDirect3DSurface9::UnlockRect</description></item>
+		/// <item><description>IDirect3DVolume9::UnlockBox</description></item>
+		/// <item><description>IDirect3DTexture9::UnlockRect</description></item>
+		/// <item><description>IDirect3DVolumeTexture9::UnlockBox</description></item>
+		/// <item><description>IDirect3DCubeTexture9::UnlockRect</description></item>
 		/// <item><description>ID3D10Resource::Unmap</description></item>
 		/// <item><description>ID3D11DeviceContext::Unmap</description></item>
 		/// <item><description>ID3D12Resource::Unmap</description></item>

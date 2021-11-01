@@ -633,6 +633,23 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 			}
 			break;
 		}
+		case D3DRTYPE_VOLUMETEXTURE:
+		{
+			if (usage_type == api::resource_usage::shader_resource && desc.texture.first_level == 0 && desc.texture.first_layer == 0)
+			{
+				D3DVOLUME_DESC internal_desc;
+				static_cast<IDirect3DVolumeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
+				if (!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
+					break;
+
+				object->AddRef();
+				{
+					*out_handle = { reinterpret_cast<uintptr_t>(object) | (set_srgb_bit ? 1ull : 0) };
+					return true;
+				}
+			}
+			break;
+		}
 		case D3DRTYPE_CUBETEXTURE:
 		{
 			if (usage_type == api::resource_usage::depth_stencil || usage_type == api::resource_usage::render_target)
@@ -686,13 +703,23 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 {
 	assert(view.handle != 0);
 
-	const auto object = reinterpret_cast<IDirect3DSurface9 *>(view.handle & ~1ull);
+	const auto object = reinterpret_cast<IUnknown *>(view.handle & ~1ull);
 
 	// Get container in case this is a surface resource
-	if (object->GetType() == D3DRTYPE_SURFACE)
+	if (com_ptr<IDirect3DSurface9> surface;
+		SUCCEEDED(object->QueryInterface(&surface)))
 	{
 		if (com_ptr<IDirect3DResource9> resource;
-			SUCCEEDED(object->GetContainer(IID_PPV_ARGS(&resource))))
+			SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
+		{
+			return { reinterpret_cast<uintptr_t>(resource.get()) };
+		}
+	}
+	else if (com_ptr<IDirect3DVolume9> volume;
+		SUCCEEDED(object->QueryInterface(&volume)))
+	{
+		if (com_ptr<IDirect3DResource9> resource;
+			SUCCEEDED(volume->GetContainer(IID_PPV_ARGS(&resource))))
 		{
 			return { reinterpret_cast<uintptr_t>(resource.get()) };
 		}
@@ -705,7 +732,7 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 {
 	*subresource = 0;
 
-	const auto object = reinterpret_cast<IDirect3DSurface9 *>(view.handle & ~1ull);
+	const auto object = reinterpret_cast<IUnknown *>(view.handle & ~1ull);
 
 	const auto resource = reinterpret_cast<IDirect3DResource9 *>(get_resource_from_view(view).handle);
 
@@ -716,7 +743,20 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 			for (DWORD level = 0, levels = static_cast<IDirect3DTexture9 *>(resource)->GetLevelCount(); level < levels; ++level)
 			{
 				com_ptr<IDirect3DSurface9> surface;
-				if (SUCCEEDED(static_cast<IDirect3DTexture9 *>(resource)->GetSurfaceLevel(level, &surface)) && surface == object)
+				if (SUCCEEDED(static_cast<IDirect3DTexture9 *>(resource)->GetSurfaceLevel(level, &surface)) && surface.get() == object)
+				{
+					*subresource = level;
+					break;
+				}
+			}
+			break;
+		}
+		case D3DRTYPE_VOLUMETEXTURE:
+		{
+			for (DWORD level = 0, levels = static_cast<IDirect3DVolumeTexture9 *>(resource)->GetLevelCount(); level < levels; ++level)
+			{
+				com_ptr<IDirect3DVolume9> volume;
+				if (SUCCEEDED(static_cast<IDirect3DVolumeTexture9 *>(resource)->GetVolumeLevel(level, &volume)) && volume.get() == object)
 				{
 					*subresource = level;
 					break;
@@ -731,7 +771,7 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 				for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
 				{
 					com_ptr<IDirect3DSurface9> surface;
-					if (SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(resource)->GetCubeMapSurface(face, level, &surface)) && surface == object)
+					if (SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(resource)->GetCubeMapSurface(face, level, &surface)) && surface.get() == object)
 					{
 						*subresource = level + face * levels;
 						break;
@@ -748,6 +788,7 @@ reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_d
 {
 	assert(view.handle != 0);
 
+	// This does not work if the handle points to a 'IDirect3DVolume9' object (since that doesn't inherit from 'IDirect3DResource9')
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle & ~1ull);
 
 	// Check whether the first bit in the handle is set, indicating whether this view is using a sRGB format
@@ -769,6 +810,13 @@ reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_d
 		{
 			D3DSURFACE_DESC internal_desc;
 			static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
+
+			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, 0xFFFFFFFF, 0, 0xFFFFFFFF);
+		}
+		case D3DRTYPE_VOLUMETEXTURE:
+		{
+			D3DVOLUME_DESC internal_desc;
+			static_cast<IDirect3DVolumeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 
 			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, 0xFFFFFFFF, 0, 0xFFFFFFFF);
 		}
