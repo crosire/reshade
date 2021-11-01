@@ -40,6 +40,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 }
 ```
 
+After building an add-on DLL, change its file extension from `.dll` to `.addon` and put it into the same directory as ReShade. It will be picked up and loaded automatically on the next launch of the application.
+
 For more complex examples, see the [examples directory in the repository](https://github.com/crosire/reshade/tree/main/examples).
 
 ## Overlays
@@ -96,6 +98,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
     return TRUE;
 }
 ```
+
+Do not call `ImGui::Begin` and `ImGui::End` in the callback to create the overlay window itself, ReShade already does this for you before and after calling the callback function.
+You can however call `ImGui::Begin` and `ImGui::End` with a different title to open additional popup windows (this is not recommended though, since those are difficult to navigate in VR).
 
 ## Abstraction
 
