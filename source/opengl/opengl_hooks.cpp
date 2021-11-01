@@ -1046,11 +1046,16 @@ HOOK_EXPORT void APIENTRY glCopyTexSubImage2D(GLenum target, GLint level, GLint 
 
 HOOK_EXPORT void APIENTRY glBindTexture(GLenum target, GLuint texture)
 {
+#if RESHADE_ADDON
+	// Only interested in existing textures that are were bound to the render pipeline
+	const bool exists = glIsTexture(texture);
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glBindTexture);
 	trampoline(target, texture);
 
 #if RESHADE_ADDON
-	if (g_current_context &&
+	if (g_current_context && exists &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
 		GLint texunit = GL_TEXTURE0;
@@ -1485,11 +1490,16 @@ void APIENTRY glUnmapBuffer(GLenum target)
 
 void APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 {
+#if RESHADE_ADDON
+	// Only interested in existing buffers that are were bound to the render pipeline
+	const bool exists = glIsBuffer(buffer);
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glBindBuffer);
 	trampoline(target, buffer);
 
 #if RESHADE_ADDON
-	if (g_current_context && (
+	if (g_current_context && exists && (
 		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>() ||
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>()))
 	{
@@ -2268,8 +2278,8 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 #if RESHADE_ADDON
 	if (g_current_context && (
 		target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) && (
-			reshade::has_addon_event<reshade::addon_event::begin_render_pass>() ||
-			reshade::has_addon_event<reshade::addon_event::end_render_pass>()) &&
+		reshade::has_addon_event<reshade::addon_event::begin_render_pass>() || reshade::has_addon_event<reshade::addon_event::end_render_pass>()) &&
+		// Only interested in existing framebuffers that are were bound to the render pipeline
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
 	{
 		if (framebuffer != g_current_context->_current_fbo)
@@ -2286,11 +2296,16 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 
 void APIENTRY glBindVertexArray(GLuint array)
 {
+#if RESHADE_ADDON
+	// Only interested in existing vertex arrays that are were bound to the render pipeline
+	const bool exists = glIsVertexArray(array);
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glBindVertexArray);
 	trampoline(array);
 
 #if RESHADE_ADDON
-	if (g_current_context && (
+	if (g_current_context && exists && (
 		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>() ||
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>()))
 	{
@@ -4035,8 +4050,8 @@ void APIENTRY glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 #if RESHADE_ADDON
 	if (g_current_context && (
 		target == 0x8D40 /* GL_FRAMEBUFFER_EXT */ || target == 0x8CA9 /* GL_DRAW_FRAMEBUFFER_EXT */) && (
-		reshade::has_addon_event<reshade::addon_event::begin_render_pass>() ||
-		reshade::has_addon_event<reshade::addon_event::end_render_pass>()) &&
+		reshade::has_addon_event<reshade::addon_event::begin_render_pass>() || reshade::has_addon_event<reshade::addon_event::end_render_pass>()) &&
+		// Only interested in existing framebuffers that are were bound to the render pipeline
 		glCheckFramebufferStatus(target) == 0x8CD5 /* GL_FRAMEBUFFER_COMPLETE_EXT */)
 	{
 		if (framebuffer != g_current_context->_current_fbo)
