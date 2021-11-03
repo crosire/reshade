@@ -3619,7 +3619,7 @@ void reshade::runtime::enumerate_uniform_variables(const char *effect_name, void
 
 	for (const effect &effect : _effects)
 	{
-		if (effect_name != nullptr && effect.source_file.stem() != effect_name)
+		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
 			continue;
 
 		for (const uniform &variable : effect.uniforms)
@@ -3637,7 +3637,7 @@ reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable(co
 
 	for (const effect &effect : _effects)
 	{
-		if (effect_name != nullptr && effect.source_file.stem() != effect_name)
+		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
 			continue;
 
 		for (const uniform &variable : effect.uniforms)
@@ -3937,7 +3937,7 @@ void reshade::runtime::enumerate_texture_variables(const char *effect_name, void
 
 	for (const texture &variable : _textures)
 	{
-		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.stem() != effect_name))
+		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.filename() != effect_name))
 			continue;
 
 		callback(this, { reinterpret_cast<uintptr_t>(&variable) }, user_data);
@@ -3951,7 +3951,7 @@ reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(co
 
 	for (const texture &variable : _textures)
 	{
-		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.stem() != effect_name))
+		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.filename() != effect_name))
 			continue;
 
 		if (variable.unique_name == variable_name)
@@ -4129,4 +4129,101 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	}
 
 	_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
+}
+
+void reshade::runtime::enumerate_techniques(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_technique technique, void *user_data), void *user_data)
+{
+	if (is_loading())
+		return;
+
+	for (const technique &technique : _techniques)
+	{
+		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
+			continue;
+
+		callback(this, { reinterpret_cast<uintptr_t>(&technique) }, user_data);
+	}
+}
+
+reshade::api::effect_technique reshade::runtime::find_technique(const char *effect_name, const char *technique_name)
+{
+	if (is_loading())
+		return { 0 };
+
+	for (const technique &technique : _techniques)
+	{
+		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
+			continue;
+
+		if (technique.name == technique_name)
+			return { reinterpret_cast<uintptr_t>(&technique) };
+	}
+
+	return { 0 };
+}
+
+const char *reshade::runtime::get_technique_name(api::effect_technique technique) const
+{
+	if (technique == 0)
+		return nullptr;
+
+	return reinterpret_cast<const reshade::technique *>(technique.handle)->name.c_str();
+}
+
+void reshade::runtime::get_technique_annotation_value(api::effect_technique technique, const char *name, bool *values, size_t count, size_t array_index) const
+{
+	if (technique == 0)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_uint(name, array_index + i) != 0;
+}
+void reshade::runtime::get_technique_annotation_value(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index) const
+{
+	if (technique == 0)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_float(name, array_index + i);
+}
+void reshade::runtime::get_technique_annotation_value(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index) const
+{
+	if (technique == 0)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_int(name, array_index + i);
+}
+void reshade::runtime::get_technique_annotation_value(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index) const
+{
+	if (technique == 0)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_uint(name, array_index + i);
+}
+const char *reshade::runtime::get_technique_annotation_string(api::effect_technique technique, const char *name) const
+{
+	if (technique == 0)
+		return nullptr;
+
+	return reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_string(name).data();
+}
+
+bool reshade::runtime::get_technique_enabled(api::effect_technique technique) const
+{
+	if (technique == 0)
+		return false;
+
+	return reinterpret_cast<const reshade::technique *>(technique.handle)->enabled;
+}
+void reshade::runtime::set_technique_enabled(api::effect_technique technique, bool enabled)
+{
+	if (technique == 0)
+		return;
+
+	if (enabled)
+		enable_technique(*reinterpret_cast<reshade::technique *>(technique.handle));
+	else
+		disable_technique(*reinterpret_cast<reshade::technique *>(technique.handle));
 }

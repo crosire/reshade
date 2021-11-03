@@ -181,6 +181,39 @@ namespace reshade
 		/// </summary>
 		void update_texture_bindings(const char *semantic, api::resource_view srv, api::resource_view srv_srgb) final;
 
+		/// <summary>
+		/// Enumerates all techniques of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
+		/// </summary>
+		void enumerate_techniques(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_technique technique, void *user_data), void *user_data) final;
+
+		/// <summary>
+		/// Finds a specific technique in the loaded effects and returns a handle to it.
+		/// </summary>
+		api::effect_technique find_technique(const char *effect_name, const char *technique_name) final;
+
+		/// <summary>
+		/// Gets the name of a <paramref name="technique"/>.
+		/// </summary>
+		const char *get_technique_name(api::effect_technique technique) const final;
+
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified <paramref name="technique"/>.
+		/// </summary>
+		void get_technique_annotation_value(api::effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
+		void get_technique_annotation_value(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const final;
+		void get_technique_annotation_value(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
+		void get_technique_annotation_value(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
+		const char *get_technique_annotation_string(api::effect_technique technique, const char *name) const final;
+
+		/// <summary>
+		/// Gets the status of a <paramref name="technique"/>.
+		/// </summary>
+		bool get_technique_enabled(api::effect_technique technique) const final;
+		/// <summary>
+		/// Enables or disable the specified <paramref name="technique"/>.
+		/// </summary>
+		void set_technique_enabled(api::effect_technique technique, bool enabled) final;
+
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();

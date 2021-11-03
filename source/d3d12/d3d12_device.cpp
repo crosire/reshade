@@ -631,14 +631,13 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 		update.descriptors = &buffer_range;
 
 		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
-		return;
 	}
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = pDesc != nullptr ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
+	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview)
@@ -681,7 +680,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource *pResource, ID3D12Resource *pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = pDesc != nullptr ? *pDesc : D3D12_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_UAV_DIMENSION_UNKNOWN };
+	D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_UAV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createunorderedaccessview)
@@ -724,7 +723,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pResource, const D3D12_RENDER_TARGET_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	D3D12_RENDER_TARGET_VIEW_DESC internal_desc = pDesc != nullptr ? *pDesc : D3D12_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_RTV_DIMENSION_UNKNOWN };
+	D3D12_RENDER_TARGET_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_RTV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createrendertargetview)
@@ -747,7 +746,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	D3D12_DEPTH_STENCIL_VIEW_DESC internal_desc = pDesc != nullptr ? *pDesc : D3D12_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_DSV_DIMENSION_UNKNOWN };
+	D3D12_DEPTH_STENCIL_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_DSV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createdepthstencilview)
@@ -918,6 +917,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
+
 	const reshade::api::resource_usage initial_state = (InitialResourceState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
@@ -977,6 +977,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_desc.Properties, heap_desc.Flags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
+
 	const reshade::api::resource_usage initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
@@ -1029,6 +1030,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
+
 	const reshade::api::resource_usage initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
@@ -1231,6 +1233,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
+
 	const reshade::api::resource_usage initial_state = (InitialResourceState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
@@ -1290,6 +1293,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
+
 	const reshade::api::resource_usage initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))

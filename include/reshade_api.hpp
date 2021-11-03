@@ -159,6 +159,10 @@ namespace reshade { namespace api
 	/// An opaque handle to a texture variable in an effect.
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(effect_texture_variable);
+	/// <summary>
+	/// An opaque handle to a technique in an effect.
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(effect_technique);
 
 	/// <summary>
 	/// The base class for objects provided by the ReShade API.
@@ -1337,5 +1341,94 @@ namespace reshade { namespace api
 		/// <param name="srv">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <c>false</c>.</param>
 		/// <param name="srv_srgb">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <c>true</c>, or zero in which case the view from <paramref name="srv"/> is used.</param>
 		virtual void update_texture_bindings(const char *semantic, resource_view srv, resource_view srv_srgb = { 0 }) = 0;
+
+		/// <summary>
+		/// Enumerates all techniques of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
+		/// </summary>
+		/// <param name="effect_name">File name of the effect file to enumerate techniques from, or <see langword="nullptr"/> to enumerate those of all loaded effects.</param>
+		/// <param name="callback">Function to call for every technique.</param>
+		/// <param name="user_data">Optional pointer passed to the callback function.</param>
+		virtual void enumerate_techniques(const char *effect_name, void(*callback)(effect_runtime *runtime, effect_technique technique, void *user_data), void *user_data) = 0;
+		/// <summary>
+		/// Enumerates all techniques of loaded effects and calls the specified callback function with a handle for each one.
+		/// </summary>
+		/// <param name="effect_name">File name of the effect file to enumerate techniques from, or <see langword="nullptr"/> to enumerate those of all loaded effects.</param>
+		/// <param name="lambda">Function to call for every technique.</param>
+		template <typename F>
+		inline  void enumerate_techniques(const char *effect_name, F lambda) {
+			enumerate_techniques(effect_name, [](effect_runtime *runtime, effect_technique technique, void *user_data) { static_cast<F *>(user_data)->operator()(runtime, technique); }, &lambda);
+		}
+
+		/// <summary>
+		/// Finds a specific technique in the loaded effects and returns a handle to it.
+		/// </summary>
+		/// <remarks>
+		/// The returned handle is only valid until effects are next reloaded again.
+		/// </remarks>
+		/// <param name="effect_name">File name of the effect file the technique is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
+		/// <param name="variable_name">Name of the technique to find.</param>
+		/// <returns>Opaque handle to the technique, or zero in case it was not found.</returns>
+		virtual effect_technique find_technique(const char *effect_name, const char *technique_name) = 0;
+
+		/// <summary>
+		/// Gets the name of a <paramref name="technique"/>.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		virtual const char *get_technique_name(effect_technique technique) const = 0;
+
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as boolean values.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_technique_annotation_value(effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as floating-point values.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_technique_annotation_value(effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as signed integer values.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_technique_annotation_value(effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as unsigned integer values.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <param name="name">Name of the annotation.</param>
+		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
+		/// <param name="count">Number of values to read.</param>
+		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		virtual void get_technique_annotation_value(effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+		/// <summary>
+		/// Gets the value from a string annotation attached to the specified <paramref name="technique"/>.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <param name="name">Name of the annotation.</param>
+		virtual const char *get_technique_annotation_string(effect_technique technique, const char *name) const = 0;
+
+		/// <summary>
+		/// Gets the status of a <paramref name="technique"/>.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		virtual bool get_technique_enabled(effect_technique technique) const = 0;
+		/// <summary>
+		/// Enables or disable the specified <paramref name="technique"/>.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <param name="enabled"><see langword="true"/> to enable the technique, or <see langword="false"/> to disable it.</param>
+		virtual void set_technique_enabled(effect_technique technique, bool enabled) = 0;
 	};
 } }
