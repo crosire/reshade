@@ -82,12 +82,25 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 	}
 }
 
-bool dump_texture(const resource_desc &desc, const subresource_data &data)
+bool dump_texture(const resource_desc &desc, const subresource_data &data, const std::filesystem::path &file_prefix)
 {
 	uint8_t *data_p = static_cast<uint8_t *>(data.data);
 	std::vector<uint8_t> rgba_pixel_data(desc.texture.width * desc.texture.height * 4);
 
-	const uint32_t hash = compute_crc32(static_cast<const uint8_t *>(data.data), format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
+#if 0
+	// Correct hash calculation using entire resource data
+	const uint32_t hash = compute_crc32(
+		static_cast<const uint8_t *>(data.data),
+		format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
+#else
+	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
+	const uint32_t hash = ~compute_crc32(
+		static_cast<const uint8_t *>(data.data),
+		desc.texture.height * (
+			(desc.texture.format >= format::bc1_typeless && desc.texture.format <= format::bc1_unorm_srgb) || (desc.texture.format >= format::bc4_typeless && desc.texture.format <= format::bc4_snorm) ? (desc.texture.width * 4) / 8 :
+			(desc.texture.format >= format::bc2_typeless && desc.texture.format <= format::bc2_unorm_srgb) || (desc.texture.format >= format::bc3_typeless && desc.texture.format <= format::bc3_unorm_srgb) || (desc.texture.format >= format::bc5_typeless && desc.texture.format <= format::bc7_unorm_srgb) ? desc.texture.width :
+			format_row_pitch(desc.texture.format, desc.texture.width)));
+#endif
 
 	const uint32_t block_count_x = (desc.texture.width + 3) / 4;
 	const uint32_t block_count_y = (desc.texture.height + 3) / 4;
@@ -374,17 +387,16 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	}
 
 	char hash_string[11];
-	sprintf_s(hash_string, "0x%08x", hash);
+	sprintf_s(hash_string, "0x%08X", hash);
 
-	std::filesystem::path dump_path;
-	dump_path /= L"texture_";
+	std::filesystem::path dump_path = file_prefix;
 	dump_path += hash_string;
 	dump_path += L".bmp";
 
 	return stbi_write_bmp(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;
 }
 
-bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
+bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc, const std::filesystem::path &file_prefix)
 {
 	device *const device = queue->get_device();
 
@@ -450,7 +462,7 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 
 	if (mapped_data.data != nullptr)
 	{
-		dump_texture(desc, mapped_data);
+		dump_texture(desc, mapped_data, file_prefix);
 
 		if (desc.heap == memory_heap::gpu_only &&
 			device->check_capability(device_caps::copy_buffer_to_texture))

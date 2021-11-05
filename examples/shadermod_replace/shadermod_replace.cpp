@@ -10,7 +10,7 @@
 
 using namespace reshade::api;
 
-static bool replace_shader_code(device_api device_type, pipeline_stage, shader_desc &desc)
+static bool replace_shader_code(device_api device_type, pipeline_stage, shader_desc &desc, const std::filesystem::path &file_prefix = L"shader_")
 {
 	uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
 
@@ -22,10 +22,9 @@ static bool replace_shader_code(device_api device_type, pipeline_stage, shader_d
 		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
 
 	char hash_string[11];
-	sprintf_s(hash_string, "0x%08x", shader_hash);
+	sprintf_s(hash_string, "0x%08X", shader_hash);
 
-	std::filesystem::path replace_path;
-	replace_path /= L"shader_";
+	std::filesystem::path replace_path = file_prefix;
 	replace_path += hash_string;
 	replace_path += extension;
 

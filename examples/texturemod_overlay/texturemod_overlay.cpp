@@ -8,6 +8,7 @@
 #include "descriptor_set_tracking.hpp"
 #include <mutex>
 #include <algorithm>
+#include <filesystem>
 #include <unordered_set>
 
 using namespace reshade::api;
@@ -301,7 +302,16 @@ static void on_present(command_queue *queue, swapchain *runtime)
 }
 
 // See implementation in 'dump_texture.cpp'
-extern bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc);
+extern bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc, const std::filesystem::path &file_prefix);
+
+static bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
+{
+	// Prepend executable file name to image files
+	WCHAR file_prefix[MAX_PATH] = {};
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
+	return dump_texture(queue, tex, desc, std::wstring(file_prefix) + L'_');
+}
 
 static void draw_overlay(effect_runtime *runtime)
 {

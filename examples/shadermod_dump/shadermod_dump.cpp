@@ -10,7 +10,7 @@
 
 using namespace reshade::api;
 
-static void dump_shader_code(device_api device_type, pipeline_stage, const shader_desc &desc)
+static void dump_shader_code(device_api device_type, pipeline_stage, const shader_desc &desc, const std::filesystem::path &file_prefix = L"shader_")
 {
 	uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
 
@@ -22,10 +22,9 @@ static void dump_shader_code(device_api device_type, pipeline_stage, const shade
 		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
 
 	char hash_string[11];
-	sprintf_s(hash_string, "0x%08x", shader_hash);
+	sprintf_s(hash_string, "0x%08X", shader_hash);
 
-	std::filesystem::path dump_path;
-	dump_path /= L"shader_";
+	std::filesystem::path dump_path = file_prefix;
 	dump_path += hash_string;
 	dump_path += extension;
 
