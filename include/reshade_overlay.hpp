@@ -7,6 +7,8 @@
 
 #if defined(IMGUI_VERSION)
 
+#define ImTextureID reshade::api::resource_view
+
 #include "imgui_function_table.hpp"
 
 namespace
