@@ -1349,12 +1349,15 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		}
 	}
 
+	const bool has_srgb_attachment = ((fbo.handle >> 32) & 0x2) == 0x2;
+	const uint32_t num_color_attachments = (fbo.handle >> 40);
+
 	GLenum attachment = GL_NONE;
 	switch (type)
 	{
 	case api::attachment_type::color:
 		attachment = GL_COLOR_ATTACHMENT0 + index;
-		if (index >= (fbo.handle >> 40))
+		if (index >= num_color_attachments)
 		{
 			return make_resource_view_handle(0, 0);
 		}
@@ -1390,8 +1393,6 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 			// Get actual texture target from the texture object
 			if (target == GL_TEXTURE)
 				glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
-
-			return make_resource_view_handle(target, object);
 		}
 	}
 	else
@@ -1411,7 +1412,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 	}
 
 	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
-	return make_resource_view_handle(target, object);
+	return make_resource_view_handle(target, object, 0x1 | (type == api::attachment_type::color && has_srgb_attachment ? 0x2 : 0));
 }
 
 bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
