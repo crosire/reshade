@@ -120,12 +120,6 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		return false;
 	}
 
-	if (!_backup_state.init_state_block())
-	{
-		LOG(ERROR) << "Failed to create backup state block!";
-		return false;
-	}
-
 	// Create input layout for vertex buffer which holds vertex indices
 	{
 		const UINT max_vertices = 100; // TODO: Make this configurable or automatically resize when encountering larger draw calls
@@ -211,15 +205,12 @@ void reshade::d3d9::device_impl::on_reset()
 	if (_copy_state == nullptr)
 		return;
 
-	// Release backup state before invoking device destroy event, since it may still hold references to resources and releasing it may therefore invoke resource destroy events
-	_backup_state.release_state_block();
-
 #if RESHADE_ADDON
 	// Force add-ons to release all resources associated with this device before performing reset
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_command_list>(this);
 
-	// Release reference to the auto depth-stencil
+	// Release reference to the potentially replaced auto depth-stencil resource
 	_orig->SetDepthStencilSurface(nullptr);
 
 	invoke_addon_event<addon_event::destroy_device>(this);

@@ -88,13 +88,6 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		_backbuffer_resolved = _backbuffer;
 	}
 
-	// Create state block object
-	if (!_app_state.init_state_block())
-	{
-		LOG(ERROR) << "Failed to create application state block!";
-		return false;
-	}
-
 	return runtime::on_init(pp.hDeviceWindow);
 }
 void reshade::d3d9::swapchain_impl::on_reset()
@@ -107,8 +100,6 @@ void reshade::d3d9::swapchain_impl::on_reset()
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
-
-	_app_state.release_state_block();
 
 	_backbuffer.reset();
 	_backbuffer_resolved.reset();

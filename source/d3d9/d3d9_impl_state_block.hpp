@@ -16,9 +16,6 @@ namespace reshade::d3d9
 		explicit state_block(IDirect3DDevice9 *device);
 		~state_block();
 
-		bool init_state_block();
-		void release_state_block();
-
 		void capture();
 		void apply_and_release();
 
