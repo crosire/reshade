@@ -12,6 +12,9 @@ using namespace reshade::api;
 
 static bool replace_shader_code(device_api device_type, pipeline_stage, shader_desc &desc, const std::filesystem::path &file_prefix = L"shader_")
 {
+	if (desc.code_size == 0)
+		return false;
+
 	uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
 
 	const wchar_t *extension = L".cso";
@@ -52,19 +55,19 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, co
 	const device_api device_type = device->get_api();
 
 	// Go through all shader stages that are in this pipeline and potentially replace the associated shader code
-	if ((desc.type & pipeline_stage::vertex_shader) == pipeline_stage::vertex_shader)
+	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::vertex_shader) == pipeline_stage::vertex_shader)
 		if (replace_shader_code(device_type, pipeline_stage::vertex_shader, desc.graphics.vertex_shader))
 			replaced_stages |= shader_stage::vertex; // Keep track of which shader stages were replaced, so that the memory allocated for that can be freed again
-	if ((desc.type & pipeline_stage::hull_shader) == pipeline_stage::hull_shader)
+	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::hull_shader) == pipeline_stage::hull_shader)
 		if (replace_shader_code(device_type, pipeline_stage::hull_shader, desc.graphics.hull_shader))
 			replaced_stages |= shader_stage::hull;
-	if ((desc.type & pipeline_stage::domain_shader) == pipeline_stage::domain_shader)
+	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::domain_shader) == pipeline_stage::domain_shader)
 		if (replace_shader_code(device_type, pipeline_stage::domain_shader, desc.graphics.domain_shader))
 			replaced_stages |= shader_stage::domain;
-	if ((desc.type & pipeline_stage::geometry_shader) == pipeline_stage::geometry_shader)
+	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::geometry_shader) == pipeline_stage::geometry_shader)
 		if (replace_shader_code(device_type, pipeline_stage::geometry_shader, desc.graphics.geometry_shader))
 			replaced_stages |= shader_stage::geometry;
-	if ((desc.type & pipeline_stage::pixel_shader) == pipeline_stage::pixel_shader)
+	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::pixel_shader) == pipeline_stage::pixel_shader)
 		if (replace_shader_code(device_type, pipeline_stage::pixel_shader, desc.graphics.pixel_shader))
 			replaced_stages |= shader_stage::pixel;
 	if ((desc.type & pipeline_stage::compute_shader) == pipeline_stage::compute_shader)
