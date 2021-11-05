@@ -177,21 +177,22 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 			}
 		}
 
+		const auto resource_view_handle = api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
 		// In case surface was replaced with a texture resource
-		const api::resource auto_depth_stencil_resource = get_resource_from_view(api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		const api::resource resource_handle = get_resource_from_view(resource_view_handle);
 
-		invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, auto_depth_stencil_resource);
-		invoke_addon_event<addon_event::init_resource_view>(this, auto_depth_stencil_resource, api::resource_usage::depth_stencil, api::resource_view_desc(desc.texture.format), api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, resource_handle);
+		invoke_addon_event<addon_event::init_resource_view>(this, resource_handle, api::resource_usage::depth_stencil, api::resource_view_desc(desc.texture.format), resource_view_handle);
 
-		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(auto_depth_stencil_resource.handle), [this, auto_depth_stencil_resource]() {
-			invoke_addon_event<addon_event::destroy_resource>(this, auto_depth_stencil_resource);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource_handle.handle), [this, resource_handle]() {
+			invoke_addon_event<addon_event::destroy_resource>(this, resource_handle);
 		});
-		register_destruction_callback_d3d9(auto_depth_stencil.get(), [this, resource_view = auto_depth_stencil.get()]() {
-			invoke_addon_event<addon_event::destroy_resource_view>(this, api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
-		}, reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) == auto_depth_stencil_resource.handle ? 1 : 0);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource_view_handle.handle), [this, resource_view_handle]() {
+			invoke_addon_event<addon_event::destroy_resource_view>(this, resource_view_handle);
+		}, resource_view_handle.handle == resource_handle.handle ? 1 : 0);
 
 		// Communicate default state to add-ons
-		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, resource_view_handle);
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);
@@ -314,6 +315,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 	{
 		case api::resource_type::buffer:
 		{
+			// Direct3D 9 only supports separate vertex and index buffers
 			switch (desc.usage & (api::resource_usage::vertex_buffer | api::resource_usage::index_buffer | api::resource_usage::constant_buffer))
 			{
 				case api::resource_usage::index_buffer:
@@ -360,7 +362,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 		case api::resource_type::texture_2d:
 		{
 			// Array or multisample textures are not supported in Direct3D 9
-			if (desc.texture.depth_or_layers != 1 || desc.texture.samples != 1)
+			if ((desc.texture.depth_or_layers != 1 && (desc.flags & api::resource_flags::cube_compatible) != api::resource_flags::cube_compatible) || desc.texture.samples != 1)
 				break;
 
 			UINT levels = 0;
@@ -702,26 +704,24 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 	{
 		if (com_ptr<IDirect3DResource9> resource;
 			SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
-		{
 			return { reinterpret_cast<uintptr_t>(resource.get()) };
-		}
 	}
 	else if (com_ptr<IDirect3DVolume9> volume;
 		SUCCEEDED(object->QueryInterface(&volume)))
 	{
 		if (com_ptr<IDirect3DResource9> resource;
 			SUCCEEDED(volume->GetContainer(IID_PPV_ARGS(&resource))))
-		{
 			return { reinterpret_cast<uintptr_t>(resource.get()) };
-		}
 	}
 
 	// If unable to get container, just return the resource directly
 	return { reinterpret_cast<uintptr_t>(object) };
 }
-reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, uint32_t *subresource) const
+reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, uint32_t *out_subresource, uint32_t *out_levels) const
 {
-	*subresource = 0;
+	*out_subresource = 0;
+	if (out_levels != nullptr)
+		*out_levels = 1;
 
 	const auto object = reinterpret_cast<IUnknown *>(view.handle & ~1ull);
 
@@ -736,7 +736,9 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 				com_ptr<IDirect3DSurface9> surface;
 				if (SUCCEEDED(static_cast<IDirect3DTexture9 *>(resource)->GetSurfaceLevel(level, &surface)) && surface.get() == object)
 				{
-					*subresource = level;
+					*out_subresource = level;
+					if (out_levels != nullptr)
+						*out_levels = levels;
 					break;
 				}
 			}
@@ -749,7 +751,9 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 				com_ptr<IDirect3DVolume9> volume;
 				if (SUCCEEDED(static_cast<IDirect3DVolumeTexture9 *>(resource)->GetVolumeLevel(level, &volume)) && volume.get() == object)
 				{
-					*subresource = level;
+					*out_subresource = level;
+					if (out_levels != nullptr)
+						*out_levels = levels;
 					break;
 				}
 			}
@@ -764,7 +768,9 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 					com_ptr<IDirect3DSurface9> surface;
 					if (SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(resource)->GetCubeMapSurface(face, level, &surface)) && surface.get() == object)
 					{
-						*subresource = level + face * levels;
+						*out_subresource = level + face * levels;
+						if (out_levels != nullptr)
+							*out_levels = levels;
 						break;
 					}
 				}
@@ -789,13 +795,13 @@ reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_d
 	{
 		case D3DRTYPE_SURFACE:
 		{
-			uint32_t subresource, level_count =
-				get_resource_desc(get_resource_from_view(view, &subresource)).texture.levels;
+			uint32_t subresource, levels;
+			get_resource_from_view(view, &subresource, &levels);
 
 			D3DSURFACE_DESC internal_desc;
 			static_cast<IDirect3DSurface9 *>(object)->GetDesc(&internal_desc);
 
-			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), subresource % level_count, 1, subresource / level_count, 1);
+			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), subresource % levels, 1, subresource / levels, 1);
 		}
 		case D3DRTYPE_TEXTURE:
 		{

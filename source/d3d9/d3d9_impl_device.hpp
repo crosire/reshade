@@ -36,7 +36,7 @@ namespace reshade::d3d9
 		void destroy_resource_view(api::resource_view handle) final;
 
 		api::resource get_resource_from_view(api::resource_view view) const final;
-		api::resource get_resource_from_view(api::resource_view view, uint32_t *subresource) const;
+		api::resource get_resource_from_view(api::resource_view view, uint32_t *out_subresource, uint32_t *out_levels = nullptr) const;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
 		void set_resource_view_name(api::resource_view, const char *) final {}
 
