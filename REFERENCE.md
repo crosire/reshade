@@ -30,9 +30,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
         reshade::register_event<reshade::addon_event::present>(&on_present);
         break;
     case DLL_PROCESS_DETACH:
-        // This unregisters the event callback that was previously registered during process attachment.
+        // Optionally unregister the event callback that was previously registered during process attachment again.
         reshade::unregister_event<reshade::addon_event::present>(&on_present);
-        // And finally unregister the add-on from ReShade (this will automatically clean up any events and overlays registered by this add-on as well).
+        // And finally unregister the add-on from ReShade (this will automatically unregister any events and overlays registered by this add-on).
         reshade::unregister_addon(hinstDLL);
         break;
     }

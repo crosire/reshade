@@ -168,6 +168,7 @@ namespace reshadefx
 	{
 		uint32_t id = 0;
 		uint32_t binding = 0;
+		std::string name;
 		std::string semantic;
 		std::string unique_name;
 		std::vector<annotation> annotations;
@@ -187,6 +188,7 @@ namespace reshadefx
 		uint32_t id = 0;
 		uint32_t binding = 0;
 		uint32_t texture_binding = 0;
+		std::string name;
 		std::string unique_name;
 		std::string texture_name;
 		std::vector<annotation> annotations;
@@ -207,6 +209,7 @@ namespace reshadefx
 	{
 		uint32_t id = 0;
 		uint32_t binding = 0;
+		std::string name;
 		std::string unique_name;
 		std::string texture_name;
 	};

@@ -1408,6 +1408,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	{
 		assert(global);
 
+		texture_info.name = name;
 		// Add namespace scope to avoid name clashes
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
@@ -1427,6 +1428,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (sampler_info.srgb && texture_info.format != texture_format::rgba8)
 			return error(location, 4582, '\'' + name + "': texture does not support sRGB sampling (only textures with RGBA8 format do)"), false;
 
+		sampler_info.name = name;
 		// Add namespace scope to avoid name clashes
 		sampler_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
@@ -1441,6 +1443,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (storage_info.texture_name.empty())
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
 
+		storage_info.name = name;
 		// Add namespace scope to avoid name clashes
 		storage_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(storage_info.unique_name.begin(), storage_info.unique_name.end(), ':', '_');

@@ -380,7 +380,7 @@ namespace reshade { namespace api
 		/// The returned handle is only valid until effects are next reloaded again.
 		/// </remarks>
 		/// <param name="effect_name">File name of the effect file the technique is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
-		/// <param name="variable_name">Name of the technique to find.</param>
+		/// <param name="technique_name">Name of the technique to find.</param>
 		/// <returns>Opaque handle to the technique, or zero in case it was not found.</returns>
 		virtual effect_technique find_technique(const char *effect_name, const char *technique_name) = 0;
 

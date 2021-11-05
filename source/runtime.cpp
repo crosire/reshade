@@ -3954,7 +3954,7 @@ reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(co
 		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.filename() != effect_name))
 			continue;
 
-		if (variable.unique_name == variable_name)
+		if (variable.name == variable_name)
 			return { reinterpret_cast<uintptr_t>(&variable) };
 	}
 
@@ -3966,7 +3966,7 @@ const char *reshade::runtime::get_texture_variable_name(api::effect_texture_vari
 	if (variable == 0)
 		return nullptr;
 
-	return reinterpret_cast<const texture *>(variable.handle)->unique_name.c_str();
+	return reinterpret_cast<const texture *>(variable.handle)->name.c_str();
 }
 
 void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index) const
