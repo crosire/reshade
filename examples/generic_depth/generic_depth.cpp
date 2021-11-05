@@ -886,7 +886,7 @@ void unregister_addon_depth()
 	reshade::unregister_event<reshade::addon_event::reshade_reloaded_effects>(update_effect_runtime);
 }
 
-#ifdef _WINDLL
+#ifndef BUILTIN_ADDON
 
 extern "C" __declspec(dllexport) const char *NAME = "Generic Depth";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Automatic depth buffer detection that works in the majority of games.";

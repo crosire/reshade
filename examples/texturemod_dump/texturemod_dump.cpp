@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include <imgui.h> // Include here as well, so that 'register_addon' initializes the Dear ImGui function table
 #include <reshade.hpp>
 #include "crc32_hash.hpp"
@@ -598,8 +600,6 @@ void unregister_addon_texmod_dump()
 	reshade::unregister_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }
 
-#ifdef _WINDLL
-
 extern void register_addon_texmod_overlay(); // See implementation in 'texturemod_overlay.cpp'
 extern void unregister_addon_texmod_overlay();
 
@@ -625,5 +625,3 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 	return TRUE;
 }
-
-#endif

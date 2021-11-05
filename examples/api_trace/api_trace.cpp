@@ -890,8 +890,6 @@ void unregister_addon_api_trace()
 	reshade::unregister_event<reshade::addon_event::present>(on_present);
 }
 
-#ifdef _WINDLL
-
 extern "C" __declspec(dllexport) const char *NAME = "API Trace";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that logs all graphics API calls to an overlay window.";
 
@@ -912,5 +910,3 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 	return TRUE;
 }
-
-#endif

@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#define STB_IMAGE_IMPLEMENTATION
+
 #include <reshade.hpp>
 #include "crc32_hash.hpp"
 #include <fstream>
@@ -212,8 +214,6 @@ void unregister_addon_texmod_replace()
 	reshade::unregister_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }
 
-#ifdef _WINDLL
-
 extern "C" __declspec(dllexport) const char *NAME = "TextureMod Replace";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that replaces textures the application creates with image files loaded from disk.";
 
@@ -234,5 +234,3 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 	return TRUE;
 }
-
-#endif

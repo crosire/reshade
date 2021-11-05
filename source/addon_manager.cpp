@@ -11,6 +11,11 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
+#ifndef RESHADE_TEST_APPLICATION
+extern void register_addon_depth();
+extern void unregister_addon_depth();
+#endif
+
 extern HMODULE g_module_handle;
 
 extern std::filesystem::path get_module_path(HMODULE module);
@@ -19,12 +24,6 @@ bool reshade::addon::enabled = true;
 std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 static unsigned long s_reference_count = 0;
-
-#ifndef RESHADE_TEST_APPLICATION
-#pragma comment(lib, "GenericDepth.lib")
-extern void register_addon_depth();
-extern void unregister_addon_depth();
-#endif
 
 void reshade::load_addons()
 {

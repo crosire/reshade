@@ -54,17 +54,6 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, co
 	return false;
 }
 
-void register_addon_shadermod_dump()
-{
-	reshade::register_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
-}
-void unregister_addon_shadermod_dump()
-{
-	reshade::unregister_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
-}
-
-#ifdef _WINDLL
-
 extern "C" __declspec(dllexport) const char *NAME = "ShaderMod Dump";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that dumps all shaders used by the application to disk.";
 
@@ -75,15 +64,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_ATTACH:
 		if (!reshade::register_addon(hModule))
 			return FALSE;
-		register_addon_shadermod_dump();
+		reshade::register_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
 		break;
 	case DLL_PROCESS_DETACH:
-		unregister_addon_shadermod_dump();
+		reshade::unregister_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
 		reshade::unregister_addon(hModule);
 		break;
 	}
 
 	return TRUE;
 }
-
-#endif

@@ -402,6 +402,11 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="examples\generic_depth\generic_depth.cpp">
+      <!-- Force include "reshade.hpp" before anything else when creating built-in add-on, so that no Dear ImGui functions are created. -->
+      <ForcedIncludeFiles>reshade.hpp;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PreprocessorDefinitions>BUILTIN_ADDON;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="source\addon.cpp" />
     <ClCompile Include="source\addon_manager.cpp" />
     <ClCompile Include="source\d2d1\d2d1.cpp" />

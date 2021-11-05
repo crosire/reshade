@@ -97,19 +97,6 @@ static void on_after_create_pipeline(device *device, const pipeline_desc &desc, 
 	replaced_stages = static_cast<shader_stage>(0);
 }
 
-void register_addon_shadermod_replace()
-{
-	reshade::register_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
-	reshade::register_event<reshade::addon_event::init_pipeline>(on_after_create_pipeline);
-}
-void unregister_addon_shadermod_replace()
-{
-	reshade::unregister_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
-	reshade::unregister_event<reshade::addon_event::init_pipeline>(on_after_create_pipeline);
-}
-
-#ifdef _WINDLL
-
 extern "C" __declspec(dllexport) const char *NAME = "ShaderMod Replace";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that replaces shaders the application creates with binaries loaded from disk.";
 
@@ -120,15 +107,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_ATTACH:
 		if (!reshade::register_addon(hModule))
 			return FALSE;
-		register_addon_shadermod_replace();
+		reshade::register_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
+		reshade::register_event<reshade::addon_event::init_pipeline>(on_after_create_pipeline);
 		break;
 	case DLL_PROCESS_DETACH:
-		unregister_addon_shadermod_replace();
+		reshade::unregister_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
+		reshade::unregister_event<reshade::addon_event::init_pipeline>(on_after_create_pipeline);
 		reshade::unregister_addon(hModule);
 		break;
 	}
 
 	return TRUE;
 }
-
-#endif
