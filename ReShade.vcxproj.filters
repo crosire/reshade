@@ -344,6 +344,9 @@
     <ClInclude Include="include\reshade_api.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
+    <ClInclude Include="include\reshade_api_device.hpp">
+      <Filter>core\api</Filter>
+    </ClInclude>
     <ClInclude Include="include\reshade_api_format.hpp">
       <Filter>core\api</Filter>
     </ClInclude>

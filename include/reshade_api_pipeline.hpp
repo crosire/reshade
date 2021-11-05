@@ -621,6 +621,7 @@ namespace reshade { namespace api
 		/// Optional entry point name if the shader source <see cref="code"/> or binary contains multiple entry points. Can be <see langword="nullptr"/> if it does not.
 		/// </summary>
 		const char *entry_point;
+
 		/// <summary>
 		/// Number of entries in the <see cref="spec_constant_ids"/> and <see cref="spec_constant_values"/> arrays.
 		/// This is meaningful only when the shader binary is a SPIR-V module and is ignored otherwise.
