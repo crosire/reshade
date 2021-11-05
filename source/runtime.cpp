@@ -3097,7 +3097,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	const api::resource rtv_resource = _device->get_resource_from_view(rtv);
 
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list);
+	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 
 	// Render all enabled techniques
@@ -3129,7 +3129,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	}
 
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list);
+	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 }
 void reshade::runtime::render_technique(api::command_list *cmd_list, technique &tech, api::resource back_buffer_resource, const api::framebuffer back_buffer_fbos[2])
