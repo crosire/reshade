@@ -78,6 +78,36 @@ namespace reshade
 		void get_screenshot_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
 
 		/// <summary>
+		/// Gets the current status of the specified key.
+		/// </summary>
+		bool is_key_down(uint32_t keycode) const final;
+		/// <summary>
+		/// Gets whether the specified key was pressed this frame.
+		/// </summary>
+		bool is_key_pressed(uint32_t keycode) const final;
+		/// <summary>
+		/// Gets whether the specified key was released this frame.
+		/// </summary>
+		bool is_key_released(uint32_t keycode) const final;
+		/// <summary>
+		/// Gets the current status of the specified mouse button.
+		/// </summary>
+		bool is_mouse_button_down(uint32_t button) const final;
+		/// <summary>
+		/// Gets whether the specified mouse button was pressed this frame.
+		/// </summary>
+		bool is_mouse_button_pressed(uint32_t button) const final;
+		/// <summary>
+		/// Gets whether the specified mouse button was released this frame.
+		/// </summary>
+		bool is_mouse_button_released(uint32_t button) const final;
+
+		/// <summary>
+		/// Gets the current absolute position of the mouse cursor in screen coordinates.
+		/// </summary>
+		void get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const final;
+
+		/// <summary>
 		/// Enumerates all uniform variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
 		/// </summary>
 		void enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data) final;

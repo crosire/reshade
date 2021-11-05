@@ -3612,6 +3612,41 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 	}
 }
 
+bool reshade::runtime::is_key_down(uint32_t keycode) const
+{
+	return _input != nullptr && _input->is_key_down(keycode);
+}
+bool reshade::runtime::is_key_pressed(uint32_t keycode) const
+{
+	return _input != nullptr && _input->is_key_pressed(keycode);
+}
+bool reshade::runtime::is_key_released(uint32_t keycode) const
+{
+	return _input != nullptr && _input->is_key_released(keycode);
+}
+bool reshade::runtime::is_mouse_button_down(uint32_t button) const
+{
+	return _input != nullptr && _input->is_mouse_button_down(button);
+}
+bool reshade::runtime::is_mouse_button_pressed(uint32_t button) const
+{
+	return _input != nullptr && _input->is_mouse_button_pressed(button);
+}
+bool reshade::runtime::is_mouse_button_released(uint32_t button) const
+{
+	return _input != nullptr && _input->is_mouse_button_released(button);
+}
+
+void reshade::runtime::get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const
+{
+	if (out_x != nullptr)
+		*out_x = (_input != nullptr) ? _input->mouse_position_x() : 0;
+	if (out_y != nullptr)
+		*out_y = (_input != nullptr) ? _input->mouse_position_y() : 0;
+	if (out_wheel_delta != nullptr)
+		*out_wheel_delta = (_input != nullptr) ? _input->mouse_wheel_delta() : 0;
+}
+
 void reshade::runtime::enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data)
 {
 	if (is_loading())

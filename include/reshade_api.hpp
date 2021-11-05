@@ -61,6 +61,51 @@ namespace reshade { namespace api
 		virtual void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const = 0;
 
 		/// <summary>
+		/// Gets the current status of the specified key.
+		/// </summary>
+		/// <param name="keycode">The virtual key code to check.</param>
+		/// <returns><see langword="true"/> if the key is currently pressed down, <see langword="false"/> otherwise.</returns>
+		virtual bool is_key_down(uint32_t keycode) const = 0;
+		/// <summary>
+		/// Gets whether the specified key was pressed this frame.
+		/// </summary>
+		/// <param name="keycode">The virtual key code to check.</param>
+		/// <returns><see langword="true"/> if the key was pressed this frame, <see langword="false"/> otherwise.</returns>
+		virtual bool is_key_pressed(uint32_t keycode) const = 0;
+		/// <summary>
+		/// Gets whether the specified key was released this frame.
+		/// </summary>
+		/// <param name="keycode">The virtual key code to check.</param>
+		/// <returns><see langword="true"/> if the key was released this frame, <see langword="false"/> otherwise.</returns>
+		virtual bool is_key_released(uint32_t keycode) const = 0;
+		/// <summary>
+		/// Gets the current status of the specified mouse button.
+		/// </summary>
+		/// <param name="button">The mouse button index to check (0 = left, 1 = middle, 2 = right).</param>
+		/// <returns><see langword="true"/> if the mouse button is currently pressed down, <see langword="false"/> otherwise.</returns>
+		virtual bool is_mouse_button_down(uint32_t button) const = 0;
+		/// <summary>
+		/// Gets whether the specified mouse button was pressed this frame.
+		/// </summary>
+		/// <param name="button">The mouse button index to check (0 = left, 1 = middle, 2 = right).</param>
+		/// <returns><see langword="true"/> if the mouse button was pressed this frame, <see langword="false"/> otherwise.</returns>
+		virtual bool is_mouse_button_pressed(uint32_t button) const = 0;
+		/// <summary>
+		/// Gets whether the specified mouse button was released this frame.
+		/// </summary>
+		/// <param name="button">The mouse button index to check (0 = left, 1 = middle, 2 = right).</param>
+		/// <returns><see langword="true"/> if the mouse button was released this frame, <see langword="false"/> otherwise.</returns>
+		virtual bool is_mouse_button_released(uint32_t button) const = 0;
+
+		/// <summary>
+		/// Gets the current absolute position of the mouse cursor in screen coordinates.
+		/// </summary>
+		/// <param name="out_x">Pointer to a variable that is set to the X coordinate of the current cursor position.</param>
+		/// <param name="out_Y">Pointer to a variable that is set to the Y coordinate of the current cursor position.</param>
+		/// <param name="out_wheel_delta">Optional pointer to a variable that is set to the mouse wheel delta since the last frame.</param>
+		virtual void get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta = nullptr) const = 0;
+
+		/// <summary>
 		/// Enumerates all uniform variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
 		/// </summary>
 		/// <param name="effect_name">File name of the effect file to enumerate uniform variables from, or <see langword="nullptr"/> to enumerate those of all loaded effects.</param>
