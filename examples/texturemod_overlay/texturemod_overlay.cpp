@@ -300,7 +300,7 @@ static void on_present(command_queue *queue, swapchain *runtime)
 	s_is_in_reshade_runtime = true;
 }
 
-// See implementation in 'texturemod_dump.cpp'
+// See implementation in 'dump_texture.cpp'
 extern bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc);
 
 static void draw_overlay(effect_runtime *runtime)
@@ -391,8 +391,6 @@ extern void unregister_addon_descriptor_set_tracking();
 
 void register_addon_texmod_overlay()
 {
-	register_addon_descriptor_set_tracking();
-
 	reshade::register_overlay("TexMod", draw_overlay);
 
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
@@ -412,8 +410,6 @@ void register_addon_texmod_overlay()
 }
 void unregister_addon_texmod_overlay()
 {
-	unregister_addon_descriptor_set_tracking();
-
 	reshade::unregister_overlay("TexMod", draw_overlay);
 
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
@@ -430,4 +426,27 @@ void unregister_addon_texmod_overlay()
 
 	reshade::unregister_event<reshade::addon_event::execute_command_list>(on_execute);
 	reshade::unregister_event<reshade::addon_event::present>(on_present);
+}
+
+extern "C" __declspec(dllexport) const char *NAME = "TextureMod Overlay";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that shows an overlay to inspect the textures used by the application.";
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
+{
+	switch (fdwReason)
+	{
+	case DLL_PROCESS_ATTACH:
+		if (!reshade::register_addon(hModule))
+			return FALSE;
+		register_addon_texmod_overlay();
+		register_addon_descriptor_set_tracking();
+		break;
+	case DLL_PROCESS_DETACH:
+		unregister_addon_texmod_overlay();
+		unregister_addon_descriptor_set_tracking();
+		reshade::unregister_addon(hModule);
+		break;
+	}
+
+	return TRUE;
 }

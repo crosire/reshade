@@ -24,7 +24,7 @@
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformVersion Condition="'$(VisualStudioVersion)'=='16.0'">10.0</WindowsTargetPlatformVersion>
-    <ProjectName>TextureModDump</ProjectName>
+    <ProjectName>TextureMod Dump</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -44,7 +44,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\deps\ImGui.props" />
     <Import Project="..\..\deps\stb.props" />
   </ImportGroup>
   <PropertyGroup>
@@ -123,13 +122,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="descriptor_set_tracking.cpp" />
+    <ClCompile Include="dump_texture.cpp" />
     <ClCompile Include="texturemod_dump.cpp" />
-    <ClCompile Include="texturemod_overlay.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crc32_hash.hpp" />
-    <ClInclude Include="descriptor_set_tracking.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

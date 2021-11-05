@@ -3,19 +3,21 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.1705
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ApiTrace", "examples\api_trace\ApiTraceAddon.vcxproj", "{5F86B6C7-D5F9-4EF1-AD3E-AE465CDB5CB7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Api Trace", "examples\api_trace\ApiTraceAddon.vcxproj", "{5F86B6C7-D5F9-4EF1-AD3E-AE465CDB5CB7}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GenericDepth", "examples\generic_depth\GenericDepthAddon.vcxproj", "{3BDC6D1C-086F-4B99-BE68-86146FC74D35}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Generic Depth", "examples\generic_depth\GenericDepthAddon.vcxproj", "{3BDC6D1C-086F-4B99-BE68-86146FC74D35}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShaderModDump", "examples\shadermod_dump\ShaderModDumpAddon.vcxproj", "{F1541A1E-CE3E-4D1B-87B7-F6E0D5C68B73}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShaderMod Dump", "examples\shadermod_dump\ShaderModDumpAddon.vcxproj", "{F1541A1E-CE3E-4D1B-87B7-F6E0D5C68B73}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShaderModReplace", "examples\shadermod_replace\ShaderModReplaceAddon.vcxproj", "{D80FD73E-5195-462A-B963-9A1CE30E2944}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShaderMod Replace", "examples\shadermod_replace\ShaderModReplaceAddon.vcxproj", "{D80FD73E-5195-462A-B963-9A1CE30E2944}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureModDump", "examples\texturemod_dump\TextureModDumpAddon.vcxproj", "{FBE035F6-A729-465C-9EB8-1F94DFC4A8B6}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureMod Dump", "examples\texturemod_dump\TextureModDumpAddon.vcxproj", "{FBE035F6-A729-465C-9EB8-1F94DFC4A8B6}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureModReplace", "examples\texturemod_replace\TextureModReplaceAddon.vcxproj", "{CF5F2DF4-4C59-4B66-8A0E-BC0D92792AF6}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureMod Overlay", "examples\texturemod_overlay\TextureModOverlayAddon.vcxproj", "{48D1B609-9FCF-423C-9157-C2FFB806A81E}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VideoCapture", "examples\video_capture\VideoCaptureAddon.vcxproj", "{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureMod Replace", "examples\texturemod_replace\TextureModReplaceAddon.vcxproj", "{CF5F2DF4-4C59-4B66-8A0E-BC0D92792AF6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Video Capture", "examples\video_capture\VideoCaptureAddon.vcxproj", "{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -65,6 +67,14 @@ Global
 		{FBE035F6-A729-465C-9EB8-1F94DFC4A8B6}.Release|x64.Build.0 = Release|x64
 		{FBE035F6-A729-465C-9EB8-1F94DFC4A8B6}.Release|x86.ActiveCfg = Release|Win32
 		{FBE035F6-A729-465C-9EB8-1F94DFC4A8B6}.Release|x86.Build.0 = Release|Win32
+		{48D1B609-9FCF-423C-9157-C2FFB806A81E}.Debug|x64.ActiveCfg = Debug|x64
+		{48D1B609-9FCF-423C-9157-C2FFB806A81E}.Debug|x64.Build.0 = Debug|x64
+		{48D1B609-9FCF-423C-9157-C2FFB806A81E}.Debug|x86.ActiveCfg = Debug|Win32
+		{48D1B609-9FCF-423C-9157-C2FFB806A81E}.Debug|x86.Build.0 = Debug|Win32
+		{48D1B609-9FCF-423C-9157-C2FFB806A81E}.Release|x64.ActiveCfg = Release|x64
+		{48D1B609-9FCF-423C-9157-C2FFB806A81E}.Release|x64.Build.0 = Release|x64
+		{48D1B609-9FCF-423C-9157-C2FFB806A81E}.Release|x86.ActiveCfg = Release|Win32
+		{48D1B609-9FCF-423C-9157-C2FFB806A81E}.Release|x86.Build.0 = Release|Win32
 		{CF5F2DF4-4C59-4B66-8A0E-BC0D92792AF6}.Debug|x64.ActiveCfg = Debug|x64
 		{CF5F2DF4-4C59-4B66-8A0E-BC0D92792AF6}.Debug|x64.Build.0 = Debug|x64
 		{CF5F2DF4-4C59-4B66-8A0E-BC0D92792AF6}.Debug|x86.ActiveCfg = Debug|Win32
@@ -74,10 +84,8 @@ Global
 		{CF5F2DF4-4C59-4B66-8A0E-BC0D92792AF6}.Release|x86.ActiveCfg = Release|Win32
 		{CF5F2DF4-4C59-4B66-8A0E-BC0D92792AF6}.Release|x86.Build.0 = Release|Win32
 		{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}.Debug|x64.ActiveCfg = Debug|x64
-		{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}.Debug|x64.Build.0 = Debug|x64
 		{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}.Debug|x86.ActiveCfg = Debug|x64
 		{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}.Release|x64.ActiveCfg = Release|x64
-		{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}.Release|x64.Build.0 = Release|x64
 		{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
