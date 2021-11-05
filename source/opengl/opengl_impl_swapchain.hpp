@@ -32,7 +32,7 @@ namespace reshade::opengl
 		void on_reset();
 
 		void on_present(bool default_fbo = true);
-		bool on_vr_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo);
+		bool on_vr_submit(uint32_t eye, GLenum source_target, GLuint source_object, const float bounds[4], GLuint *target_rbo);
 
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 

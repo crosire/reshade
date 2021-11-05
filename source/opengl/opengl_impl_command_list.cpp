@@ -131,7 +131,7 @@ void reshade::opengl::device_impl::begin_render_pass(api::render_pass pass, api:
 		glDrawBuffers(num_color_attachments, draw_buffers);
 	}
 
-	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, (fbo.handle & 0x200000000) != 0);
+	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, ((fbo.handle >> 32) & 0x2) != 0);
 
 	if (clear_value_count == 0)
 		return;
@@ -720,7 +720,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
 
 	const api::resource_desc dst_desc = get_resource_desc(dst);
-	const GLuint dst_target = dst.handle >> 40;
+	const GLenum dst_target = dst.handle >> 40;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
 	if (src_target != GL_FRAMEBUFFER_DEFAULT && dst_target != GL_FRAMEBUFFER_DEFAULT &&

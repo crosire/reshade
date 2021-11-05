@@ -236,9 +236,8 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::EVREye eye, GLuint object,
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_vr_submit(
 		static_cast<uint32_t>(eye),
+		(flags & vr::Submit_GlRenderBuffer) != 0 ? GL_RENDERBUFFER : ((flags & vr::Submit_GlArrayTexture) != 0 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D),
 		object,
-		(flags & vr::Submit_GlRenderBuffer) != 0,
-		(flags & vr::Submit_GlArrayTexture) != 0,
 		reinterpret_cast<const float *>(bounds),
 		&target_rbo))
 	{

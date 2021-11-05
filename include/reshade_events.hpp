@@ -112,6 +112,7 @@ namespace reshade
 		/// <item><description>IDXGIFactory2::CreateSwapChain(...)</description></item>
 		/// <item><description>IDXGISwapChain::ResizeBuffers</description></item>
 		/// <item><description>IDXGISwapChain3::ResizeBuffers1</description></item>
+		/// <item><description>wglMakeCurrent</description></item>
 		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
 		/// </list>
@@ -142,6 +143,7 @@ namespace reshade
 		/// <item><description>IDirect3DDevice9::Release (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3DSwapChain9::Release</description></item>
 		/// <item><description>IDXGISwapChain::Release</description></item>
+		/// <item><description>wglDeleteContext</description></item>
 		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkDestroySwapchainKHR</description></item>
 		/// </list>

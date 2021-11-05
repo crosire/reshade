@@ -1299,7 +1299,7 @@ bool reshade::opengl::device_impl::create_framebuffer(api::render_pass render_pa
 			return false;
 		}
 
-		if (attachments[i].handle & 0x200000000)
+		if ((attachments[i].handle >> 32) & 0x2)
 			has_srgb_attachment = true;
 	}
 
@@ -1349,7 +1349,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		}
 	}
 
-	const bool has_srgb_attachment = ((fbo.handle >> 32) & 0x2) == 0x2;
+	const bool has_srgb_attachment = ((fbo.handle >> 32) & 0x2) != 0;
 	const uint32_t num_color_attachments = (fbo.handle >> 40);
 
 	GLenum attachment = GL_NONE;
