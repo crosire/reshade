@@ -1146,7 +1146,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		vk.CreatePipelineLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
 		object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
-		data.desc.assign(params, params + param_count);
+		data.params.assign(params, params + param_count);
 		data.num_sets = create_info.setLayoutCount;
 
 		register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(object, std::move(data));
@@ -1167,27 +1167,17 @@ void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
 }
 
-void reshade::vulkan::device_impl::get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+reshade::api::pipeline_layout_param reshade::vulkan::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t index) const
 {
-	assert(count != nullptr);
-
 	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);
 
-	if (params != nullptr)
-	{
-		*count = std::min(*count, static_cast<uint32_t>(data->desc.size()));
-		std::memcpy(params, data->desc.data(), *count * sizeof(api::pipeline_layout_param));
-	}
-	else
-	{
-		*count = static_cast<uint32_t>(data->desc.size());
-	}
+	return index < data->params.size() ? data->params[index] : api::pipeline_layout_param {};
 }
 
 bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out_handle)
 {
 	object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
-	data.desc.assign(ranges, ranges + range_count);
+	data.ranges.assign(ranges, ranges + range_count);
 	data.binding_to_offset.reserve(range_count);
 
 	std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
@@ -1257,12 +1247,12 @@ void reshade::vulkan::device_impl::get_descriptor_set_layout_ranges(api::descrip
 
 	if (ranges != nullptr)
 	{
-		*count = std::min(*count, static_cast<uint32_t>(data->desc.size()));
-		std::memcpy(ranges, data->desc.data(), *count * sizeof(api::descriptor_range));
+		*count = std::min(*count, static_cast<uint32_t>(data->ranges.size()));
+		std::memcpy(ranges, data->ranges.data(), *count * sizeof(api::descriptor_range));
 	}
 	else
 	{
-		*count = static_cast<uint32_t>(data->desc.size());
+		*count = static_cast<uint32_t>(data->ranges.size());
 	}
 }
 

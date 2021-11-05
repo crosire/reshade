@@ -29,14 +29,6 @@ namespace reshade::vulkan
 	};
 
 	template <>
-	struct object_data<VK_OBJECT_TYPE_IMAGE_VIEW>
-	{
-		using Handle = VkImageView;
-
-		VkImageViewCreateInfo create_info;
-	};
-
-	template <>
 	struct object_data<VK_OBJECT_TYPE_BUFFER>
 	{
 		using Handle = VkBuffer;
@@ -48,6 +40,14 @@ namespace reshade::vulkan
 		VkBufferCreateInfo create_info;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
 		uint64_t memory_offset = 0;
+	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_IMAGE_VIEW>
+	{
+		using Handle = VkImageView;
+
+		VkImageViewCreateInfo create_info;
 	};
 
 	template <>
@@ -64,26 +64,6 @@ namespace reshade::vulkan
 		using Handle = VkShaderModule;
 
 		std::vector<uint8_t> spirv;
-	};
-
-	template <>
-	struct object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT>
-	{
-		using Handle = VkPipelineLayout;
-
-		std::vector<api::pipeline_layout_param> desc;
-		uint32_t num_sets;
-	};
-
-	template <>
-	struct object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>
-	{
-		using Handle = VkDescriptorSetLayout;
-
-		uint32_t num_descriptors;
-		std::vector<api::descriptor_range> desc;
-		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
-		bool push_descriptors;
 	};
 
 	template <>
@@ -110,6 +90,26 @@ namespace reshade::vulkan
 		VkExtent2D area;
 		std::vector<VkImageView> attachments;
 		std::vector<VkImageAspectFlags> attachment_types;
+	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT>
+	{
+		using Handle = VkPipelineLayout;
+
+		std::vector<api::pipeline_layout_param> params;
+		uint32_t num_sets;
+	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>
+	{
+		using Handle = VkDescriptorSetLayout;
+
+		uint32_t num_descriptors;
+		std::vector<api::descriptor_range> ranges;
+		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
+		bool push_descriptors;
 	};
 
 	template <>

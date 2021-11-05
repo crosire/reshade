@@ -279,6 +279,7 @@ namespace reshade { namespace api
 		/// Gets the description of the specified <paramref name="resource"/>.
 		/// </summary>
 		virtual resource_desc get_resource_desc(resource resource) const = 0;
+
 		/// <summary>
 		/// Associates a name with a resource, for easier debugging in external tools.
 		/// </summary>
@@ -308,6 +309,7 @@ namespace reshade { namespace api
 		/// Gets the description of the specified resource <paramref name="view"/>.
 		/// </summary>
 		virtual resource_view_desc get_resource_view_desc(resource_view view) const = 0;
+
 		/// <summary>
 		/// Associates a name with a resource view, for easier debugging in external tools.
 		/// </summary>
@@ -379,15 +381,11 @@ namespace reshade { namespace api
 		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
 
 		/// <summary>
-		/// Gets the description of the specified pipeline <paramref name="layout"/>.
+		/// Gets a layout parameter from the specified pipeline <paramref name="layout"/>.
 		/// </summary>
-		/// <remarks>
-		/// Call this first with <paramref name="out_params"/> set to <see langword="nullptr"/> to get the size of the array in <paramref name="out_count"/>, then allocate the array and call this again with <paramref name="out_params"/> set to it.
-		/// </remarks>
-		/// <param name="layout">Pipeline layout to get the description from.</param>
-		/// <param name="out_count">Pointer to a variable that is set to the number of layout parameters in the <paramref name="layout"/>.</param>
-		/// <param name="out_params">Optional pointer to an array that is filled with the layout parameters in the <paramref name="layout"/>.</param>
-		virtual void get_pipeline_layout_params(pipeline_layout layout, uint32_t *out_count, pipeline_layout_param *out_params) const = 0;
+		/// <param name="layout">Pipeline layout to get the layout parameter from.</param>
+		/// <param name="index">Index of the layout parameter to get.</param>
+		virtual pipeline_layout_param get_pipeline_layout_param(pipeline_layout layout, uint32_t index) const = 0;
 
 		/// <summary>
 		/// Creates a new descriptor set layout.

@@ -737,40 +737,33 @@ void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-void reshade::d3d10::device_impl::get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+reshade::api::pipeline_layout_param reshade::d3d10::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t index) const
 {
-	assert(layout.handle != 0 && count != nullptr);
+	assert(layout.handle != 0);
+
+	api::pipeline_layout_param param = {};
 
 	if (layout == global_pipeline_layout)
 	{
-		if (params != nullptr)
+		if (index < 3)
 		{
-			*count = std::min(*count, 3u);
-			for (uint32_t i = 0; i < *count; ++i)
-			{
-				params[i].type = api::pipeline_layout_param_type::push_descriptors;
-				params[i].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 + i };
-			}
+			param.type = api::pipeline_layout_param_type::push_descriptors;
+			param.descriptor_layout = { 0xFFFFFFFFFFFFFFF0 + index };
 		}
 		else
 		{
-			*count = 3u;
+			assert(false);
 		}
 	}
 	else
 	{
 		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
-		if (params != nullptr)
-		{
-			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
-		}
-		else
-		{
-			*count = static_cast<uint32_t>(layout_impl->params.size());
-		}
+		if (index < layout_impl->params.size())
+			param = layout_impl->params[index];
 	}
+
+	return param;
 }
 
 bool reshade::d3d10::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)

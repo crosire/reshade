@@ -1203,110 +1203,73 @@ void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout ha
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-void reshade::d3d9::device_impl::get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+reshade::api::pipeline_layout_param reshade::d3d9::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t index) const
 {
-	assert(layout.handle != 0 && count != nullptr);
+	assert(layout.handle != 0);
+
+	api::pipeline_layout_param param = {};
 
 	if (layout == global_pipeline_layout)
 	{
-		if (params != nullptr)
+		switch (index)
 		{
-			*count = std::min(*count, 8u);
+		case 0:
+			param.type = api::pipeline_layout_param_type::push_descriptors;
+			param.descriptor_layout = { 0xFFFFFFFFFFFFFFF0 };
+			break;
+		case 1:
+			param.type = api::pipeline_layout_param_type::push_descriptors;
+			param.descriptor_layout = { 0xFFFFFFFFFFFFFFF1 };
+			break;
 
-			if (*count > 0)
-			{
-				params[0].type = api::pipeline_layout_param_type::push_descriptors;
-				params[0].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 };
-			}
-			if (*count > 1)
-			{
-				params[1].type = api::pipeline_layout_param_type::push_descriptors;
-				params[1].descriptor_layout = { 0xFFFFFFFFFFFFFFF1 };
-			}
+		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
+		case 2:
+			param.type = api::pipeline_layout_param_type::push_constants;
+			param.push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
+			param.push_constants.visibility = api::shader_stage::vertex;
+			break;
+		case 3:
+			param.type = api::pipeline_layout_param_type::push_constants;
+			param.push_constants.count = 16 * 4; // i#
+			param.push_constants.visibility = api::shader_stage::vertex;
+			break;
+		case 4:
+			param.type = api::pipeline_layout_param_type::push_constants;
+			param.push_constants.count = 16; // b#
+			param.push_constants.visibility = api::shader_stage::vertex;
+			break;
 
-			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-			if (*count > 2)
-			{
-				params[2].type = api::pipeline_layout_param_type::push_constants;
-				params[2].push_constants.offset = 0;
-				params[2].push_constants.binding = 0;
-				params[2].push_constants.dx_register_index = 0;
-				params[2].push_constants.dx_register_space = 0;
-				params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
-				params[2].push_constants.visibility = api::shader_stage::vertex;
-			}
-			if (*count > 3)
-			{
-				params[3].type = api::pipeline_layout_param_type::push_constants;
-				params[3].push_constants.offset = 0;
-				params[3].push_constants.binding = 0;
-				params[3].push_constants.dx_register_index = 0;
-				params[3].push_constants.dx_register_space = 0;
-				params[3].push_constants.count = 16 * 4; // i#
-				params[3].push_constants.visibility = api::shader_stage::vertex;
-			}
-			if (*count > 4)
-			{
-				params[4].type = api::pipeline_layout_param_type::push_constants;
-				params[4].push_constants.offset = 0;
-				params[4].push_constants.binding = 0;
-				params[4].push_constants.dx_register_index = 0;
-				params[4].push_constants.dx_register_space = 0;
-				params[4].push_constants.count = 16; // b#
-				params[4].push_constants.visibility = api::shader_stage::vertex;
-			}
+		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+		case 5:
+			param.type = api::pipeline_layout_param_type::push_constants;
+			param.push_constants.count = 224 * 4; // c#
+			param.push_constants.visibility = api::shader_stage::pixel;
+			break;
+		case 6:
+			param.type = api::pipeline_layout_param_type::push_constants;
+			param.push_constants.count = 16 * 4; // i#
+			param.push_constants.visibility = api::shader_stage::pixel;
+			break;
+		case 7:
+			param.type = api::pipeline_layout_param_type::push_constants;
+			param.push_constants.count = 16; // b#
+			param.push_constants.visibility = api::shader_stage::pixel;
+			break;
 
-			// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-			if (*count > 5)
-			{
-				params[5].type = api::pipeline_layout_param_type::push_constants;
-				params[5].push_constants.offset = 0;
-				params[5].push_constants.binding = 0;
-				params[5].push_constants.dx_register_index = 0;
-				params[5].push_constants.dx_register_space = 0;
-				params[5].push_constants.count = 224 * 4; // c#
-				params[5].push_constants.visibility = api::shader_stage::pixel;
-			}
-			if (*count > 6)
-			{
-				params[6].type = api::pipeline_layout_param_type::push_constants;
-				params[6].push_constants.offset = 0;
-				params[6].push_constants.binding = 0;
-				params[6].push_constants.dx_register_index = 0;
-				params[6].push_constants.dx_register_space = 0;
-				params[6].push_constants.count = 16 * 4; // i#
-				params[6].push_constants.visibility = api::shader_stage::pixel;
-			}
-			if (*count > 7)
-			{
-				params[7].type = api::pipeline_layout_param_type::push_constants;
-				params[7].push_constants.offset = 0;
-				params[7].push_constants.binding = 0;
-				params[7].push_constants.dx_register_index = 0;
-				params[7].push_constants.dx_register_space = 0;
-				params[7].push_constants.count = 16; // b#
-				params[7].push_constants.visibility = api::shader_stage::pixel;
-			}
-		}
-		else
-		{
-			*count = 8u;
+		default:
+			assert(false);
+			break;
 		}
 	}
 	else
 	{
 		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
-		if (params != nullptr)
-		{
-			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
-		}
-		else
-		{
-			*count = static_cast<uint32_t>(layout_impl->params.size());
-		}
+		if (index < layout_impl->params.size())
+			param = layout_impl->params[index];
 	}
+
+	return param;
 }
 
 bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)

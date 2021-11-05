@@ -1071,7 +1071,7 @@ HOOK_EXPORT void APIENTRY glBindTexture(GLenum target, GLuint texture)
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, 0,
 			reshade::api::descriptor_set_update(static_cast<GLuint>(texunit), 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
@@ -1725,7 +1725,7 @@ void APIENTRY glUniform1f(GLint location, GLfloat v0)
 	{
 		const GLfloat v[1] = { v0 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 1, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
@@ -2232,7 +2232,7 @@ void APIENTRY glBindBufferBase(GLenum target, GLuint index, GLuint buffer)
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, layout_param,
 			reshade::api::descriptor_set_update(index, 1, type, &descriptor_data));
 	}
@@ -2260,7 +2260,7 @@ void APIENTRY glBindBufferRange(GLenum target, GLuint index, GLuint buffer, GLin
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, layout_param,
 			reshade::api::descriptor_set_update(index, 1, type, &descriptor_data));
 	}
@@ -2359,7 +2359,7 @@ void APIENTRY glUniform1ui(GLint location, GLuint v0)
 	{
 		const GLuint v[1] = { v0 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1, v);
 	}
 #endif
@@ -2912,7 +2912,7 @@ void APIENTRY glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboo
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, 1,
 			reshade::api::descriptor_set_update(unit, 1, reshade::api::descriptor_type::unordered_access_view, &descriptor_data));
 	}
@@ -3274,7 +3274,7 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, layout_param,
 			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), type, descriptor_data));
 
@@ -3316,7 +3316,7 @@ void APIENTRY glBindBuffersRange(GLenum target, GLuint first, GLsizei count, con
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, layout_param,
 			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), type, descriptor_data));
 
@@ -3356,7 +3356,7 @@ void APIENTRY glBindTextures(GLuint first, GLsizei count, const GLuint *textures
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, 0,
 			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), reshade::api::descriptor_type::sampler_with_resource_view, descriptor_data));
 
@@ -3395,7 +3395,7 @@ void APIENTRY glBindImageTextures(GLuint first, GLsizei count, const GLuint *tex
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, 1,
 			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), reshade::api::descriptor_type::unordered_access_view, descriptor_data));
 
@@ -4031,7 +4031,7 @@ void APIENTRY glBindTextureUnit(GLuint unit, GLuint texture)
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, 0,
 			reshade::api::descriptor_set_update(unit, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
@@ -4083,7 +4083,7 @@ void APIENTRY glBindMultiTextureEXT(GLenum texunit, GLenum target, GLuint textur
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_current_context,
 			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::opengl::global_pipeline_layout, 0,
 			reshade::api::descriptor_set_update(texunit, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}

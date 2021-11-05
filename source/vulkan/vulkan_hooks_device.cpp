@@ -1293,25 +1293,25 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	const uint32_t total_desc_count = set_desc_count + pCreateInfo->pushConstantRangeCount;
 
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
-	data.desc.resize(total_desc_count);
+	data.params.resize(total_desc_count);
 	data.num_sets = pCreateInfo->setLayoutCount;
 
 	for (uint32_t i = 0; i < set_desc_count; ++i)
 	{
 		const bool push_descriptors = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pCreateInfo->pSetLayouts[i])->push_descriptors;
 
-		data.desc[i].type = push_descriptors ? reshade::api::pipeline_layout_param_type::push_descriptors : reshade::api::pipeline_layout_param_type::descriptor_set;
-		data.desc[i].descriptor_layout = { (uint64_t)pCreateInfo->pSetLayouts[i] };
+		data.params[i].type = push_descriptors ? reshade::api::pipeline_layout_param_type::push_descriptors : reshade::api::pipeline_layout_param_type::descriptor_set;
+		data.params[i].descriptor_layout = { (uint64_t)pCreateInfo->pSetLayouts[i] };
 	}
 
 	for (uint32_t i = set_desc_count; i < total_desc_count; ++i)
 	{
 		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i];
 
-		data.desc[i].type = reshade::api::pipeline_layout_param_type::push_constants;
-		data.desc[i].push_constants.offset = push_constant_range.offset;
-		data.desc[i].push_constants.count = push_constant_range.size;
-		data.desc[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
+		data.params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
+		data.params[i].push_constants.offset = push_constant_range.offset;
+		data.params[i].push_constants.count = push_constant_range.size;
+		data.params[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
 	}
 
 	device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout, std::move(data));
@@ -1394,7 +1394,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
-	data.desc.resize(pCreateInfo->bindingCount);
+	data.ranges.resize(pCreateInfo->bindingCount);
 	data.num_descriptors = 0;
 	data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
 
@@ -1413,13 +1413,13 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 				descriptor_counts_per_binding.resize(binding.binding + 1);
 			descriptor_counts_per_binding[binding.binding] = binding.descriptorCount;
 
-			data.desc[i].binding = binding.binding;
-			data.desc[i].dx_register_index = 0;
-			data.desc[i].dx_register_space = 0;
-			data.desc[i].count = binding.descriptorCount;
-			data.desc[i].array_size = binding.descriptorCount;
-			data.desc[i].type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
-			data.desc[i].visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
+			data.ranges[i].binding = binding.binding;
+			data.ranges[i].dx_register_index = 0;
+			data.ranges[i].dx_register_space = 0;
+			data.ranges[i].count = binding.descriptorCount;
+			data.ranges[i].array_size = binding.descriptorCount;
+			data.ranges[i].type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
+			data.ranges[i].visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
 
 			data.num_descriptors += binding.descriptorCount;
 		}
@@ -1431,11 +1431,11 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 
 		for (uint32_t i = 0, offset = 0; i < pCreateInfo->bindingCount; ++i)
 		{
-			const uint32_t binding = data.desc[i].binding;
+			const uint32_t binding = data.ranges[i].binding;
 			if (binding != 0)
 			{
 				offset = descriptor_counts_per_binding[binding - 1];
-				data.desc[i].offset = offset;
+				data.ranges[i].offset = offset;
 			}
 
 			data.binding_to_offset[binding] = offset;

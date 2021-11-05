@@ -856,7 +856,7 @@ namespace reshade { namespace api
 			/// </summary>
 			constant_range push_constants;
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::push_descriptors"/> or <see cref="pipeline_layout_param_type::descriptor_set"/>.
 			/// </summary>
 			descriptor_set_layout descriptor_layout;
 		};

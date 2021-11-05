@@ -8,6 +8,7 @@
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
+#include <malloc.h>
 
 const GUID reshade::d3d12::extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
 
@@ -756,14 +757,21 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-void reshade::d3d12::device_impl::get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+reshade::api::pipeline_layout_param reshade::d3d12::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t index) const
 {
-	assert(layout.handle != 0 && count != nullptr);
+	assert(layout.handle != 0);
 
-	*count *= sizeof(api::pipeline_layout_param);
-	const HRESULT hr = reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(extra_data_guid, count, params);
-	*count /= sizeof(api::pipeline_layout_param);
-	assert(SUCCEEDED(hr));
+	const auto signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+
+	api::pipeline_layout_param param = {};
+
+	UINT private_size = (index + 1) * sizeof(api::pipeline_layout_param);
+	const auto data = static_cast<api::pipeline_layout_param *>(_malloca(private_size));
+	if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &private_size, data)))
+		param = data[index];
+	_freea(data);
+
+	return param;
 }
 
 bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)

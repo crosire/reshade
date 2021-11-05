@@ -9,7 +9,6 @@
 #include <mutex>
 #include <algorithm>
 #include <unordered_set>
-#include <malloc.h>
 
 using namespace reshade::api;
 
@@ -223,20 +222,15 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 	auto &descriptor_data = device->get_private_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
 	assert((&descriptor_data) != nullptr);
 
-	uint32_t param_count = 0;
-	device->get_pipeline_layout_params(layout, &param_count, nullptr);
-	const auto params = static_cast<pipeline_layout_param *>(_malloca(param_count * sizeof(pipeline_layout_param)));
-	device->get_pipeline_layout_params(layout, &param_count, params);
-	assert(first + count <= param_count);
-
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		assert(params[first + i].type == pipeline_layout_param_type::descriptor_set);
+		const pipeline_layout_param param = device->get_pipeline_layout_param(layout, first + i);
+		assert(param.type == pipeline_layout_param_type::descriptor_set);
 	
 		uint32_t range_count = 0;
-		device->get_descriptor_set_layout_ranges(params[first + i].descriptor_layout, &range_count, nullptr);
+		device->get_descriptor_set_layout_ranges(param.descriptor_layout, &range_count, nullptr);
 		std::vector<descriptor_range> ranges(range_count);
-		device->get_descriptor_set_layout_ranges(params[first + i].descriptor_layout, &range_count, ranges.data());
+		device->get_descriptor_set_layout_ranges(param.descriptor_layout, &range_count, ranges.data());
 
 		uint32_t base_offset = 0;
 		descriptor_pool pool = { 0 };
@@ -259,8 +253,6 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 			}
 		}
 	}
-
-	_freea(params);
 }
 
 static void on_execute(command_queue *, command_list *cmd_list)

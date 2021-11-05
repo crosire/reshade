@@ -326,7 +326,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		assert(update.binding == 0 && update.array_offset == 0);
 
 		const VkPipelineLayout pipeline_layout = (VkPipelineLayout)layout.handle;
-		const VkDescriptorSetLayout set_layout = (VkDescriptorSetLayout)_device_impl->get_user_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipeline_layout)->desc[layout_param].descriptor_layout.handle;
+		const VkDescriptorSetLayout set_layout = (VkDescriptorSetLayout)_device_impl->get_user_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipeline_layout)->params[layout_param].descriptor_layout.handle;
 
 		VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _device_impl->_transient_descriptor_pool[_device_impl->_transient_index % 4];

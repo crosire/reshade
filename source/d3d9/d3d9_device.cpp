@@ -1756,7 +1756,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			this,
 			shader_stage,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::d3d9::global_pipeline_layout, shader_stage == reshade::api::shader_stage::vertex ? 0 : 1,
 			reshade::api::descriptor_set_update(Stage, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
@@ -2041,7 +2041,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantF(UINT StartRe
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			this,
 			reshade::api::shader_stage::vertex,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::d3d9::global_pipeline_layout, 2,
 			StartRegister,
 			Vector4fCount,
@@ -2064,7 +2064,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantI(UINT StartRe
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			this,
 			reshade::api::shader_stage::vertex,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::d3d9::global_pipeline_layout, 3,
 			StartRegister,
 			Vector4iCount,
@@ -2087,7 +2087,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantB(UINT StartRe
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			this,
 			reshade::api::shader_stage::vertex,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::d3d9::global_pipeline_layout, 4,
 			StartRegister,
 			BoolCount,
@@ -2224,7 +2224,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantF(UINT StartReg
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			this,
 			reshade::api::shader_stage::pixel,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::d3d9::global_pipeline_layout, 5,
 			StartRegister,
 			Vector4fCount,
@@ -2247,7 +2247,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantI(UINT StartReg
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			this,
 			reshade::api::shader_stage::pixel,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::d3d9::global_pipeline_layout, 6,
 			StartRegister,
 			Vector4iCount,
@@ -2270,7 +2270,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantB(UINT StartReg
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			this,
 			reshade::api::shader_stage::pixel,
-			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_params'
+			// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 			reshade::d3d9::global_pipeline_layout, 7,
 			StartRegister,
 			BoolCount,

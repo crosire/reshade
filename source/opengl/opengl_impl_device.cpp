@@ -1469,62 +1469,58 @@ void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-void reshade::opengl::device_impl::get_pipeline_layout_params(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+reshade::api::pipeline_layout_param reshade::opengl::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t index) const
 {
-	assert(layout.handle != 0 && count != nullptr);
+	assert(layout.handle != 0);
+
+	api::pipeline_layout_param param = {};
 
 	if (layout == global_pipeline_layout)
 	{
-		*count = std::min(*count, 6u);
+		switch (index)
+		{
+		case 0:
+			param.type = api::pipeline_layout_param_type::push_descriptors;
+			param.descriptor_layout = { 0xFFFFFFFFFFFFFFF0 };
+			break;
+		case 1:
+			param.type = api::pipeline_layout_param_type::push_descriptors;
+			param.descriptor_layout = { 0xFFFFFFFFFFFFFFF1 };
+			break;
+		case 2:
+			param.type = api::pipeline_layout_param_type::push_descriptors;
+			param.descriptor_layout = { 0xFFFFFFFFFFFFFFF2 };
+			break;
+		case 3:
+			param.type = api::pipeline_layout_param_type::push_descriptors;
+			param.descriptor_layout = { 0xFFFFFFFFFFFFFFF3 };
+			break;
 
-		if (*count > 0)
-		{
-			params[0].type = api::pipeline_layout_param_type::push_descriptors;
-			params[0].descriptor_layout = { 0xFFFFFFFFFFFFFFF0 };
-		}
-		if (*count > 1)
-		{
-			params[1].type = api::pipeline_layout_param_type::push_descriptors;
-			params[1].descriptor_layout = { 0xFFFFFFFFFFFFFFF1 };
-		}
-		if (*count > 2)
-		{
-			params[2].type = api::pipeline_layout_param_type::push_descriptors;
-			params[2].descriptor_layout = { 0xFFFFFFFFFFFFFFF2 };
-		}
-		if (*count > 3)
-		{
-			params[3].type = api::pipeline_layout_param_type::push_descriptors;
-			params[3].descriptor_layout = { 0xFFFFFFFFFFFFFFF3 };
-		}
+		case 4:
+			param.type = api::pipeline_layout_param_type::push_constants;
+			param.push_constants.count = std::numeric_limits<uint32_t>::max();
+			param.push_constants.visibility = api::shader_stage::all;
+			break;
+		case 5:
+			param.type = api::pipeline_layout_param_type::push_constants;
+			param.push_constants.count = std::numeric_limits<uint32_t>::max();
+			param.push_constants.visibility = api::shader_stage::all;
+			break;
 
-		if (*count > 4)
-		{
-			params[4].type = api::pipeline_layout_param_type::push_constants;
-			params[4].push_constants.count = std::numeric_limits<uint32_t>::max();
-			params[4].push_constants.visibility = api::shader_stage::all;
-		}
-		if (*count > 5)
-		{
-			params[5].type = api::pipeline_layout_param_type::push_constants;
-			params[5].push_constants.count = std::numeric_limits<uint32_t>::max();
-			params[5].push_constants.visibility = api::shader_stage::all;
+		default:
+			assert(false);
+			break;
 		}
 	}
 	else
 	{
 		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
-		if (params != nullptr)
-		{
-			*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
-			std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
-		}
-		else
-		{
-			*count = static_cast<uint32_t>(layout_impl->params.size());
-		}
+		if (index < layout_impl->params.size())
+			param = layout_impl->params[index];
 	}
+
+	return param;
 }
 
 bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)
