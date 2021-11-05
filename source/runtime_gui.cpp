@@ -3428,7 +3428,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
-		_device->wait_idle(); // Be safe and ensure nothing still uses this buffer
+		_graphics_queue->wait_idle(); // Be safe and ensure nothing still uses this buffer
 
 		if (_imgui_indices[buffer_index] != 0)
 			_device->destroy_resource(_imgui_indices[buffer_index]);
@@ -3445,7 +3445,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	}
 	if (_imgui_num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
-		_device->wait_idle();
+		_graphics_queue->wait_idle();
 
 		if (_imgui_vertices[buffer_index] != 0)
 			_device->destroy_resource(_imgui_vertices[buffer_index]);

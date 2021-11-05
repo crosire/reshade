@@ -970,9 +970,6 @@ namespace reshade { namespace api
 		/// Waits for all issued GPU operations on this queue to finish before returning.
 		/// This can be used to ensure that e.g. resources are no longer in use on the GPU before destroying them.
 		/// </summary>
-		/// <remarks>
-		/// Must not be called while another thread is recording to the immediate command list!
-		/// </remarks>
 		virtual void wait_idle() const = 0;
 
 		/// <summary>

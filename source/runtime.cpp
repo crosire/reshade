@@ -2276,7 +2276,7 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 	assert(effect_index < _effects.size());
 
 	// Make sure no effect resources are currently in use
-	_device->wait_idle();
+	_graphics_queue->wait_idle();
 
 	for (technique &tech : _techniques)
 	{
@@ -3080,7 +3080,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		{
 			if (std::find(_back_buffer_fbos.begin(), _back_buffer_fbos.end(), fbo) == _back_buffer_fbos.end())
 			{
-				_device->wait_idle();
+				_graphics_queue->wait_idle();
 				_device->destroy_framebuffer(fbo);
 			}
 
@@ -4088,7 +4088,7 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	}
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
-	_device->wait_idle();
+	_graphics_queue->wait_idle();
 
 	// Update texture bindings
 	size_t num_bindings = 0;
