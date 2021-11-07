@@ -3967,12 +3967,14 @@ void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, co
 
 void reshade::runtime::enumerate_texture_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), void *user_data)
 {
-	if (is_loading())
+	if (is_loading() || !_reload_create_queue.empty())
 		return;
 
 	for (const texture &variable : _textures)
 	{
-		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.filename() != effect_name))
+		if (effect_name != nullptr &&
+			std::find_if(variable.shared.begin(), variable.shared.end(),
+				[this, effect_name](size_t effect_index) { return _effects[effect_index].source_file.filename() == effect_name; }) == variable.shared.end())
 			continue;
 
 		callback(this, { reinterpret_cast<uintptr_t>(&variable) }, user_data);
@@ -3981,15 +3983,17 @@ void reshade::runtime::enumerate_texture_variables(const char *effect_name, void
 
 reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(const char *effect_name, const char *variable_name) const
 {
-	if (is_loading())
+	if (is_loading() || !_reload_create_queue.empty())
 		return { 0 };
 
 	for (const texture &variable : _textures)
 	{
-		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.filename() != effect_name))
+		if (effect_name != nullptr &&
+			std::find_if(variable.shared.begin(), variable.shared.end(),
+				[this, effect_name](size_t effect_index) { return _effects[effect_index].source_file.filename() == effect_name; }) == variable.shared.end())
 			continue;
 
-		if (variable.name == variable_name)
+		if (variable.name == variable_name || variable.unique_name == variable_name)
 			return { reinterpret_cast<uintptr_t>(&variable) };
 	}
 
@@ -4048,7 +4052,9 @@ void reshade::runtime::update_texture(api::effect_texture_variable handle, const
 {
 	if (handle == 0)
 		return;
-	auto &variable = *reinterpret_cast<texture *>(handle.handle);
+	const auto &variable = *reinterpret_cast<texture *>(handle.handle);
+	if (variable.resource == 0)
+		return;
 
 	std::vector<uint8_t> resized(variable.width * variable.height * 4);
 	// Need to potentially resize image data to the texture dimensions
