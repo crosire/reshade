@@ -42,7 +42,9 @@
 		GLenum __e = glGetError(); \
 		if (__e != GL_NO_ERROR) { \
 			char __m[1024]; \
-			sprintf_s(__m, "OpenGL error %x in %s at line %d: %s", __e, __FILE__, __LINE__, #call); \
+			GLsizei __m_offset = sprintf_s(__m, "OpenGL error %x in %s(%d): %s\n\n", __e, __FILE__, __LINE__, #call), __m_length = 0; \
+			while (glGetDebugMessageLog(1, sizeof(__m) - __m_offset, nullptr, nullptr, nullptr, nullptr, &__m_length, __m + __m_offset)); \
+			__m[__m_offset + __m_length] = '\0'; \
 			MessageBoxA(nullptr, __m, 0, MB_ICONERROR); \
 		} \
 	}
@@ -468,10 +470,6 @@
 #define glGetCompressedTextureImage(...)                   GLCHECK(gl3wProcs.gl.GetCompressedTextureImage(__VA_ARGS__))
 #undef glGetCompressedTextureSubImage
 #define glGetCompressedTextureSubImage(...)                GLCHECK(gl3wProcs.gl.GetCompressedTextureSubImage(__VA_ARGS__))
-#undef glGetDebugMessageLog
-#define glGetDebugMessageLog(...)                          GLCHECK(gl3wProcs.gl.GetDebugMessageLog(__VA_ARGS__))
-#undef glGetDebugMessageLogARB
-#define glGetDebugMessageLogARB(...)                       GLCHECK(gl3wProcs.gl.GetDebugMessageLogARB(__VA_ARGS__))
 #undef glGetDoublei_v
 #define glGetDoublei_v(...)                                GLCHECK(gl3wProcs.gl.GetDoublei_v(__VA_ARGS__))
 #undef glGetDoublev
