@@ -458,14 +458,14 @@ std::string reshade::input::key_name(const unsigned int key[4])
 
 static inline bool is_blocking_mouse_input()
 {
-	const auto predicate = [](auto input_window) {
+	const auto predicate = [](const auto &input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_mouse_input();
 	};
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 }
 static inline bool is_blocking_keyboard_input()
 {
-	const auto predicate = [](auto input_window) {
+	const auto predicate = [](const auto &input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_keyboard_input();
 	};
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
