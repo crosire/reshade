@@ -55,6 +55,12 @@ namespace ReShade.Setup.Utilities
 		{
 			get
 			{
+				// Only enable Aero Glass on Windows 7
+				if (Environment.OSVersion.Version.Major != 6 || Environment.OSVersion.Version.Minor != 1)
+				{
+					return false;
+				}
+
 				DwmIsCompositionEnabled(out bool enabled);
 				return enabled;
 			}
