@@ -10,19 +10,12 @@
     </Grid>
     <Border x:Name="ApiGroup" DockPanel.Dock="Bottom" Height="30" Margin="5,0,5,5" Padding="5" Visibility="Collapsed" Background="{x:Static SystemColors.WindowBrush}" BorderBrush="#FF707070" CornerRadius="3" BorderThickness="1">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <RadioButton x:Name="ApiD3D9" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" Content="Direct3D _9" />
-        <RadioButton x:Name="ApiDXGI" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" Content="Direct3D _10/11/12" />
-        <RadioButton x:Name="ApiOpenGL" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" Content="_OpenGL" />
-        <RadioButton x:Name="ApiVulkan" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" Content="_Vulkan" />
-        <CheckBox x:Name="ApiVulkanGlobal" Visibility="Visible" Content="Enable ReShade in Vulkan globally (affects all Vulkan games)" Checked="OnApiVulkanGlobalChecked" Unchecked="OnApiVulkanGlobalChecked" />
+        <RadioButton x:Name="ApiD3D9" Margin="8,0,0,0" Click="OnApiChecked" Content="Direct3D _9" />
+        <RadioButton x:Name="ApiDXGI" Margin="8,0,0,0" Click="OnApiChecked" Content="Direct3D _10/11/12" />
+        <RadioButton x:Name="ApiOpenGL" Margin="8,0,0,0" Click="OnApiChecked" Content="_OpenGL" />
+        <RadioButton x:Name="ApiVulkan" Margin="8,0,0,0" Click="OnApiChecked" Content="_Vulkan" />
       </StackPanel>
     </Border>
-    <Button x:Name="ApiVulkanGlobalButton" DockPanel.Dock="Bottom" Height="30" Margin="5,0,5,5" Padding="5" Click="OnApiVulkanGlobalChecked">
-      <StackPanel Orientation="Horizontal">
-        <Image Source="{x:Static utils:AeroGlass.UacShieldIcon}" Stretch="None" />
-        <TextBlock Padding="2,0,0,0" Text="Enable/disable ReShade in Vulkan globally (affects all Vulkan games)" />
-      </StackPanel>
-    </Button>
     <Button x:Name="SetupButton" DockPanel.Dock="Top" Margin="5" AllowDrop="True" Click="OnSetupButtonClick" Drop="OnSetupButtonDragDrop" IsDefault="True">
       <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto">
         <Grid.RowDefinitions>

@@ -31,7 +31,7 @@ namespace ReShade.Setup
 		string targetPath = null;
 		string targetName = null;
 		string modulePath = null;
-		string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade");
+		string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReShade");
 
 		ZipArchive zip;
 		IniFile packagesIni;
@@ -81,14 +81,6 @@ namespace ReShade.Setup
 				MessageBox.Show("This setup archive is corrupted! Please download from https://reshade.me again.");
 				Environment.Exit(1);
 				return;
-			}
-
-			ApiVulkanGlobal.IsChecked = IsVulkanLayerEnabled(Registry.LocalMachine);
-
-			if (isElevated)
-			{
-				ApiGroup.Visibility = Visibility.Visible;
-				ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
 			}
 		}
 
@@ -184,75 +176,6 @@ namespace ReShade.Setup
 			iniFile.SaveFile();
 		}
 
-		bool EnableVulkanLayer(RegistryKey hive)
-		{
-			try
-			{
-				if (Directory.Exists(commonPath))
-				{
-					Directory.Delete(commonPath, true);
-				}
-
-				Directory.CreateDirectory(commonPath);
-				zip.ExtractToDirectory(commonPath);
-
-				if (Environment.Is64BitOperatingSystem)
-				{
-					using (RegistryKey key = hive.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
-					{
-						key.SetValue(Path.Combine(commonPath, "ReShade64.json"), 0, RegistryValueKind.DWord);
-					}
-				}
-
-				using (RegistryKey key = hive.CreateSubKey(Environment.Is64BitOperatingSystem ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
-				{
-					key.SetValue(Path.Combine(commonPath, "ReShade32.json"), 0, RegistryValueKind.DWord);
-				}
-
-				return true;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-		bool DisableVulkanLayer(RegistryKey hive)
-		{
-			try
-			{
-				if (Directory.Exists(commonPath))
-				{
-					Directory.Delete(commonPath, true);
-				}
-
-				if (Environment.Is64BitOperatingSystem)
-				{
-					using (RegistryKey key = hive.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
-					{
-						key.DeleteValue(Path.Combine(commonPath, "ReShade64.json"));
-					}
-				}
-
-				using (RegistryKey key = hive.CreateSubKey(Environment.Is64BitOperatingSystem ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
-				{
-					key.DeleteValue(Path.Combine(commonPath, "ReShade32.json"));
-				}
-
-				return true;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-		bool IsVulkanLayerEnabled(RegistryKey hive)
-		{
-			using (RegistryKey key = hive.OpenSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
-			{
-				return key?.GetValue(Path.Combine(commonPath, Environment.Is64BitOperatingSystem ? "ReShade64.json" : "ReShade32.json")) != null;
-			}
-		}
-
 		void UpdateStatus(string title, string message, string description = null)
 		{
 			Title = title;
@@ -338,8 +261,7 @@ namespace ReShade.Setup
 		{
 			ApiGroup.IsEnabled = true;
 			SetupButton.IsEnabled = false;
-			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
-			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
+			ApiGroup.Visibility = Visibility.Visible;
 
 			var info = FileVersionInfo.GetVersionInfo(targetPath);
 			targetName = info.FileDescription;
@@ -402,8 +324,7 @@ namespace ReShade.Setup
 		{
 			ApiGroup.IsEnabled = false;
 			SetupButton.IsEnabled = false;
-			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
-			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
+			ApiGroup.Visibility = Visibility.Visible;
 
 			UpdateStatus("Working on " + targetName + " ...", "Installing ReShade ...");
 
@@ -462,6 +383,24 @@ namespace ReShade.Setup
 					return;
 				}
 			}
+			else
+			{
+				modulePath = Path.Combine(commonPath, is64Bit ? "ReShade64" : "ReShade32", is64Bit ? "ReShade64.dll" : "ReShade32.dll");
+
+				var overrideMetaLayerManifest = new JsonFile(Path.Combine(commonPath, is64Bit ? "ReShade64_override.json" : "ReShade32_override.json"));
+
+				if (overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys) && appKeys.Contains(targetPath))
+				{
+					ApiGroup.Visibility = Visibility.Collapsed;
+					InstallButtons.Visibility = Visibility.Visible;
+
+					Message.Text = "Existing ReShade installation found. How do you want to proceed?";
+
+					// Do not hide exit button when asking about existing installation, so user can abort installation
+					AeroGlass.HideSystemMenu(this, false);
+					return;
+				}
+			}
 
 			if (!isHeadless)
 			{
@@ -495,28 +434,95 @@ namespace ReShade.Setup
 			string basePath = Path.GetDirectoryName(configPath);
 			Directory.SetCurrentDirectory(basePath);
 
-			if (ApiVulkan.IsChecked != true)
+			string parentPath = Path.GetDirectoryName(modulePath);
+
+			try
+			{
+				if (!Directory.Exists(parentPath))
+				{
+					Directory.CreateDirectory(parentPath);
+				}
+
+				var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
+				if (module == null)
+				{
+					throw new FileFormatException("Expected ReShade archive to contain ReShade DLLs");
+				}
+
+				module.ExtractToFile(modulePath, true);
+			}
+			catch (Exception ex)
+			{
+				UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ".", ex.Message);
+				return;
+			}
+
+			if (ApiVulkan.IsChecked == true)
 			{
 				try
 				{
-					var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
-					if (module == null)
+					var manifest = zip.GetEntry(is64Bit ? "ReShade64.json" : "ReShade32.json");
+					if (manifest == null)
 					{
-						throw new FileFormatException("Expected ReShade archive to contain ReShade DLLs");
+						throw new FileFormatException("Expected ReShade archive to contain Vulkan layer manifest");
 					}
 
-					using (Stream input = module.Open())
-					using (FileStream output = File.Create(modulePath))
-					{
-						input.CopyTo(output);
-					}
+					manifest.ExtractToFile(Path.ChangeExtension(modulePath, ".json"), true);
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ".", ex.Message);
+					UpdateStatusAndFinish(false, "Failed to install Vulkan layer manifest.", ex.Message);
 					return;
 				}
 
+				string overrideMetaLayerPath = Path.Combine(commonPath, is64Bit ? "ReShade64_override.json" : "ReShade32_override.json");
+
+				if (!File.Exists(overrideMetaLayerPath))
+				{
+					try
+					{
+						var manifest = zip.GetEntry(Path.GetFileName(overrideMetaLayerPath));
+						if (manifest == null)
+						{
+							throw new FileFormatException("Expected ReShade archive to contain Vulkan meta layer manifest");
+						}
+
+						manifest.ExtractToFile(overrideMetaLayerPath, true);
+
+						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(Environment.Is64BitOperatingSystem && !is64Bit ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
+						{
+							key.SetValue(overrideMetaLayerPath, 0, RegistryValueKind.DWord);
+						}
+					}
+					catch (Exception ex)
+					{
+						UpdateStatusAndFinish(false, "Failed to install Vulkan meta layer manifest.", ex.Message);
+						return;
+					}
+				}
+
+				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
+
+				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);
+				if (!appKeys.Contains(targetPath))
+				{
+					appKeys.Add(targetPath);
+
+					overrideMetaLayerManifest.SetValue("layer.app_keys", appKeys);
+				}
+
+				overrideMetaLayerManifest.GetValue("layer.override_paths", out List<string> overridePaths);
+				if (!overridePaths.Contains(parentPath))
+				{
+					overridePaths.Add(parentPath);
+
+					overrideMetaLayerManifest.SetValue("layer.override_paths", overridePaths);
+				}
+
+				overrideMetaLayerManifest.SaveFile();
+			}
+			else
+			{
 				// Create a default log file for troubleshooting
 				File.WriteAllText(Path.ChangeExtension(modulePath, ".log"), @"
 If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
@@ -740,8 +746,7 @@ In that event here are some steps you can try to resolve this:
 		{
 			ApiGroup.IsEnabled = false;
 			SetupButton.IsEnabled = false;
-			ApiGroup.Visibility = ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Visible;
-			ApiVulkanGlobal.Visibility = ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
+			ApiGroup.Visibility = Visibility.Visible;
 
 			var package = packages.Dequeue();
 			var downloadPath = Path.GetTempFileName();
@@ -874,32 +879,7 @@ In that event here are some steps you can try to resolve this:
 		}
 		void InstallationStep6()
 		{
-			string description = null;
-			if (ApiVulkan.IsChecked.Value)
-			{
-				description = "You need to keep this setup tool open for ReShade to work in Vulkan games!\nAlternatively check the option below:";
-
-				ApiGroup.IsEnabled = true;
-				ApiD3D9.Visibility = ApiDXGI.Visibility = ApiOpenGL.Visibility = ApiVulkan.Visibility = Visibility.Collapsed;
-				ApiVulkanGlobal.Visibility = Visibility.Visible;
-
-				if (isElevated)
-				{
-					ApiGroup.Visibility = Visibility.Visible;
-					ApiVulkanGlobalButton.Visibility = Visibility.Collapsed;
-				}
-				else
-				{
-					ApiGroup.Visibility = Visibility.Collapsed;
-					ApiVulkanGlobalButton.Visibility = Visibility.Visible;
-				}
-			}
-			else
-			{
-				description = "You may now close this setup tool or click this button to edit additional settings.\nTo uninstall ReShade, launch this tool and select the game again. An option to uninstall will pop up then.";
-			}
-
-			UpdateStatusAndFinish(true, "Edit ReShade settings", description);
+			UpdateStatusAndFinish(true, "Edit ReShade settings", "You may now close this setup tool or click this button to edit additional settings.\nTo uninstall ReShade, launch this tool and select the game again. An option to uninstall will pop up then.");
 
 			SetupButton.IsEnabled = true;
 		}
@@ -985,82 +965,14 @@ In that event here are some steps you can try to resolve this:
 				}
 				return;
 			}
-
-			if (!ApiVulkanGlobal.IsChecked.Value)
-			{
-				// Enable Vulkan layer while the setup tool is running
-				EnableVulkanLayer(Registry.CurrentUser);
-			}
-			else
-			{
-				// Update existing Vulkan layer with the included version
-				EnableVulkanLayer(Registry.LocalMachine);
-			}
 		}
 		void OnWindowClosed(object sender, EventArgs e)
 		{
-			if (!ApiVulkanGlobal.IsChecked.Value)
-			{
-				// Disable Vulkan layer again when the setup tool is being closed
-				DisableVulkanLayer(Registry.CurrentUser);
-			}
 		}
 
 		void OnApiChecked(object sender, RoutedEventArgs e)
 		{
 			InstallationStep2();
-		}
-		void OnApiVulkanGlobalChecked(object sender, RoutedEventArgs e)
-		{
-			if (sender is System.Windows.Controls.Button button)
-			{
-				RestartWithElevatedPrivileges();
-				return;
-			}
-
-			var checkbox = sender as System.Windows.Controls.CheckBox;
-			if (checkbox.IsChecked == IsVulkanLayerEnabled(Registry.LocalMachine))
-			{
-				return;
-			}
-
-			// Should have elevated privileges at this point
-			if (!isElevated)
-			{
-				// Reset check box to previous value if unable to get elevated privileges
-				checkbox.IsChecked = !checkbox.IsChecked;
-				return;
-			}
-
-			// Switch between installing to HKLM and HKCU based on check box value
-			if (checkbox.IsChecked.Value)
-			{
-				if (MessageBox.Show(
-					"Are you sure you want to enable ReShade in Vulkan globally?\n\n" +
-					"This will enable ReShade in ALL applications that make use of Vulkan for rendering! " +
-					"So if you later see ReShade in an application even though you did not explicitly install it there, this is why.\n" +
-					"You can disable this behavior again by running this setup tool and unchecking the checkbox you just clicked.", "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
-				{
-					checkbox.IsChecked = false;
-					return;
-				}
-
-				DisableVulkanLayer(Registry.CurrentUser);
-				if (!EnableVulkanLayer(Registry.LocalMachine))
-				{
-					UpdateStatusAndFinish(false, "Failed to install global Vulkan layer.");
-					checkbox.IsChecked = !checkbox.IsChecked;
-				}
-			}
-			else
-			{
-				DisableVulkanLayer(Registry.LocalMachine);
-				if (!EnableVulkanLayer(Registry.CurrentUser))
-				{
-					UpdateStatusAndFinish(false, "Failed to install user local Vulkan layer.");
-					checkbox.IsChecked = !checkbox.IsChecked;
-				}
-			}
 		}
 
 		void OnUpdateClick(object sender, RoutedEventArgs e)
@@ -1072,11 +984,49 @@ In that event here are some steps you can try to resolve this:
 			ApiGroup.Visibility = Visibility.Visible;
 			InstallButtons.Visibility = Visibility.Collapsed;
 
+			if (ApiVulkan.IsChecked == true)
+			{
+				string overrideMetaLayerPath = Path.Combine(commonPath, is64Bit ? "ReShade64_override.json" : "ReShade32_override.json");
+
+				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
+
+				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);
+				appKeys.Remove(targetPath);
+				overrideMetaLayerManifest.SetValue("layer.app_keys", appKeys);
+
+				if (appKeys.Count == 0)
+				{
+					try
+					{
+						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(Environment.Is64BitOperatingSystem && !is64Bit ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
+						{
+							key.DeleteValue(overrideMetaLayerPath);
+						}
+
+						File.Delete(overrideMetaLayerPath);
+					}
+					catch (Exception ex)
+					{
+						UpdateStatusAndFinish(false, "Failed to delete Vulkan meta layer manifest.", ex.Message);
+					}
+				}
+				else
+				{
+					overrideMetaLayerManifest.SaveFile();
+					return;
+				}
+			}
+
 			try
 			{
 				string basePath = Path.GetDirectoryName(configPath);
 
 				File.Delete(modulePath);
+
+				if (ApiVulkan.IsChecked == true && File.Exists(Path.ChangeExtension(modulePath, ".json")))
+				{
+					File.Delete(Path.ChangeExtension(modulePath, ".json"));
+				}
 
 				if (File.Exists(configPath))
 				{
