@@ -460,17 +460,21 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::d3d12::pipeline_graphics_impl extra_data;
-		extra_data.topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+		if (com_ptr<ID3D12PipelineState> object;
+			SUCCEEDED(static_cast<IUnknown *>(*ppPipelineState)->QueryInterface(&object)))
+		{
+			reshade::d3d12::pipeline_graphics_impl extra_data;
+			extra_data.topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 
-		static_cast<ID3D12Object *>(*ppPipelineState)->SetPrivateData(reshade::d3d12::extra_data_guid, sizeof(extra_data), &extra_data);
+			object->SetPrivateData(reshade::d3d12::extra_data_guid, sizeof(extra_data), &extra_data);
 
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
-			this, desc, 3, states, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppPipelineState) });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
+				this, desc, 3, states, reshade::api::pipeline { reinterpret_cast<uintptr_t>(object.get()) });
 
-		register_destruction_callback(static_cast<ID3D12Object *>(*ppPipelineState), [this, object = *ppPipelineState]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(object) });
-		});
+			register_destruction_callback(object.get(), [this, object = object.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(object) });
+			});
+		}
 #endif
 	}
 	else
@@ -504,12 +508,16 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
-			this, desc, 0, nullptr, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppPipelineState) });
+		if (com_ptr<ID3D12PipelineState> object;
+			SUCCEEDED(static_cast<IUnknown *>(*ppPipelineState)->QueryInterface(&object)))
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
+				this, desc, 0, nullptr, reshade::api::pipeline { reinterpret_cast<uintptr_t>(object.get()) });
 
-		register_destruction_callback(static_cast<ID3D12Object *>(*ppPipelineState), [this, object = *ppPipelineState]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(object) });
-		});
+			register_destruction_callback(object.get(), [this, object = object.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(object) });
+			});
+		}
 #endif
 	}
 	else
@@ -562,7 +570,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		register_descriptor_heap(static_cast<ID3D12DescriptorHeap *>(*ppvHeap));
+		if (com_ptr<ID3D12DescriptorHeap> heap;
+			SUCCEEDED(static_cast<IUnknown *>(*ppvHeap)->QueryInterface(&heap)))
+		{
+			register_descriptor_heap(heap.get());
+		}
 	}
 #endif
 
@@ -583,21 +595,23 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		const auto root_signature = static_cast<ID3D12RootSignature *>(*ppvRootSignature);
-
-		std::vector<reshade::api::pipeline_layout_param> layout_desc;
-
-		// Parse DXBC root signature, convert it and call descriptor set and pipeline layout events
-		if (parse_and_convert_root_signature(static_cast<const uint32_t *>(pBlobWithRootSignature), blobLengthInBytes, this, layout_desc))
+		if (com_ptr<ID3D12RootSignature> root_signature;
+			SUCCEEDED(static_cast<IUnknown *>(*ppvRootSignature)->QueryInterface(&root_signature)))
 		{
-			root_signature->SetPrivateData(reshade::d3d12::extra_data_guid, static_cast<UINT>(layout_desc.size() * sizeof(reshade::api::pipeline_layout_param)), layout_desc.data());
+			std::vector<reshade::api::pipeline_layout_param> layout_desc;
 
-			register_destruction_callback(root_signature, [this, layout_desc]() {
-				// Free all memory that was allocated in 'parse_and_convert_root_signature'
-				for (const reshade::api::pipeline_layout_param &param : layout_desc)
-					if (param.type != reshade::api::pipeline_layout_param_type::push_descriptors)
-						destroy_descriptor_set_layout(param.descriptor_layout);
-			});
+			// Parse DXBC root signature, convert it and call descriptor set and pipeline layout events
+			if (parse_and_convert_root_signature(static_cast<const uint32_t *>(pBlobWithRootSignature), blobLengthInBytes, this, layout_desc))
+			{
+				root_signature->SetPrivateData(reshade::d3d12::extra_data_guid, static_cast<UINT>(layout_desc.size() * sizeof(reshade::api::pipeline_layout_param)), layout_desc.data());
+
+				register_destruction_callback(root_signature.get(), [this, layout_desc]() {
+					// Free all memory that was allocated in 'parse_and_convert_root_signature'
+					for (const reshade::api::pipeline_layout_param &param : layout_desc)
+						if (param.type != reshade::api::pipeline_layout_param_type::push_descriptors)
+							destroy_descriptor_set_layout(param.descriptor_layout);
+				});
+			}
 		}
 #endif
 	}
@@ -932,23 +946,25 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+		if (com_ptr<ID3D12Resource> resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppvResource)->QueryInterface(&resource)))
+		{
+			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
+				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+				reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource.get()), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
+			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
+				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+				reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource.get()), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
 
-		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-			reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-			reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
-		if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-			reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-			reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
+			register_resource(resource.get());
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+				this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource.get()) });
 
-		register_resource(resource);
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-
-		register_destruction_callback(resource, [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-			unregister_resource(resource);
-		});
+			register_destruction_callback(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+				unregister_resource(resource);
+			});
+		}
 #endif
 	}
 	else
@@ -991,23 +1007,25 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+		if (com_ptr<ID3D12Resource> resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppvResource)->QueryInterface(&resource)))
+		{
+			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
+				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+				reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource.get()), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
+			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
+				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+				reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource.get()), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
 
-		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-			reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-			reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
-		if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-			reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-			reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
+			register_resource(resource.get());
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+				this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource.get()) });
 
-		register_resource(resource);
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-
-		register_destruction_callback(resource, [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-			unregister_resource(resource);
-		});
+			register_destruction_callback(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+				unregister_resource(resource);
+			});
+		}
 #endif
 	}
 	else
@@ -1044,16 +1062,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+		if (com_ptr<ID3D12Resource> resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppvResource)->QueryInterface(&resource)))
+		{
+			register_resource(resource.get());
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+				this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource.get()) });
 
-		register_resource(resource);
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-
-		register_destruction_callback(resource, [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-			unregister_resource(resource);
-		});
+			register_destruction_callback(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+				unregister_resource(resource);
+			});
+		}
 #endif
 	}
 	else
@@ -1074,12 +1094,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID 
 	const HRESULT hr = _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
-		if (riid == __uuidof(ID3D12Resource) ||
-			riid == __uuidof(ID3D12Resource1))
-		{
-			const auto resource = static_cast<ID3D12Resource *>(*ppvObj);
+		assert(ppvObj != nullptr);
 
+#if RESHADE_ADDON
+		if (com_ptr<ID3D12Resource> resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppvObj)->QueryInterface(&resource)))
+		{
 			D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
 			D3D12_HEAP_PROPERTIES heap_props = {};
 			resource->GetHeapProperties(&heap_props, &heap_flags);
@@ -1087,10 +1107,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID 
 
 			const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(resource->GetDesc(), heap_props, heap_flags);
 
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+			register_resource(resource.get());
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource.get()) });
 
-			register_destruction_callback(resource, [this, resource]() {
+			register_destruction_callback(resource.get(), [this, resource = resource.get()]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 				unregister_resource(resource);
 			});
@@ -1249,23 +1269,25 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+		if (com_ptr<ID3D12Resource> resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppvResource)->QueryInterface(&resource)))
+		{
+			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
+				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+				reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource.get()), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
+			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
+				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+				reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource.get()), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
 
-		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-			reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-			reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
-		if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-			reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-			reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
+			register_resource(resource.get());
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+				this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource.get()) });
 
-		register_resource(resource);
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-
-		register_destruction_callback(resource, [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-			unregister_resource(resource);
-		});
+			register_destruction_callback(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+				unregister_resource(resource);
+			});
+		}
 #endif
 	}
 	else
@@ -1308,16 +1330,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+		if (com_ptr<ID3D12Resource> resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppvResource)->QueryInterface(&resource)))
+		{
+			register_resource(resource.get());
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+				this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource.get()) });
 
-		register_resource(resource);
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-
-		register_destruction_callback(resource, [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-			unregister_resource(resource);
-		});
+			register_destruction_callback(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+				unregister_resource(resource);
+			});
+		}
 #endif
 	}
 	else

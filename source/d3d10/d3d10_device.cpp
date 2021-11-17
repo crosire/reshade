@@ -1623,47 +1623,60 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 	const HRESULT hr = _orig->OpenSharedResource(hResource, ReturnedInterface, ppResource);
 	if (SUCCEEDED(hr))
 	{
+		assert(ppResource != nullptr);
+
 #if RESHADE_ADDON
-		const auto resource = static_cast<ID3D10Resource *>(*ppResource);
+		// The returned interface IID may be 'IDXGIResource', which is a different pointer than 'ID3D10Resource', so need to query it first
+		com_ptr<ID3D10Resource> resource;
 		reshade::api::resource_desc desc;
 
-		if (com_ptr<ID3D10Buffer> resource_impl;
-			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		if (com_ptr<ID3D10Buffer> buffer_resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppResource)->QueryInterface(&buffer_resource)))
 		{
 			D3D10_BUFFER_DESC internal_desc;
-			resource_impl->GetDesc(&internal_desc);
+			buffer_resource->GetDesc(&internal_desc);
 			desc = reshade::d3d10::convert_resource_desc(internal_desc);
+			resource = std::move(reinterpret_cast<com_ptr<ID3D10Resource> &>(buffer_resource));
 		}
-		if (com_ptr<ID3D10Texture1D> resource_impl;
-			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		else
+		if (com_ptr<ID3D10Texture1D> texture1d_resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppResource)->QueryInterface(&texture1d_resource)))
 		{
 			D3D10_TEXTURE1D_DESC internal_desc;
-			resource_impl->GetDesc(&internal_desc);
+			texture1d_resource->GetDesc(&internal_desc);
 			desc = reshade::d3d10::convert_resource_desc(internal_desc);
+			resource = std::move(reinterpret_cast<com_ptr<ID3D10Resource> &>(texture1d_resource));
 		}
-		if (com_ptr<ID3D10Texture2D> resource_impl;
-			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		else
+		if (com_ptr<ID3D10Texture2D> texture2d_resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppResource)->QueryInterface(&texture2d_resource)))
 		{
 			D3D10_TEXTURE2D_DESC internal_desc;
-			resource_impl->GetDesc(&internal_desc);
+			texture2d_resource->GetDesc(&internal_desc);
 			desc = reshade::d3d10::convert_resource_desc(internal_desc);
+			resource = std::move(reinterpret_cast<com_ptr<ID3D10Resource> &>(texture2d_resource));
 		}
-		if (com_ptr<ID3D10Texture3D> resource_impl;
-			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		else
+		if (com_ptr<ID3D10Texture3D> texture3d_resource;
+			SUCCEEDED(static_cast<IUnknown *>(*ppResource)->QueryInterface(&texture3d_resource)))
 		{
 			D3D10_TEXTURE3D_DESC internal_desc;
-			resource_impl->GetDesc(&internal_desc);
+			texture3d_resource->GetDesc(&internal_desc);
 			desc = reshade::d3d10::convert_resource_desc(internal_desc);
+			resource = std::move(reinterpret_cast<com_ptr<ID3D10Resource> &>(texture3d_resource));
 		}
 
-		assert((desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared);
+		if (resource != nullptr)
+		{
+			assert((desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared);
 
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+				this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource.get()) });
 
-		register_destruction_callback(resource, [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-		});
+			register_destruction_callback(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+			});
+		}
 #endif
 	}
 	else

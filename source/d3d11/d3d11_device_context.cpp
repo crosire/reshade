@@ -1368,6 +1368,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const
 				reinterpret_cast<const int32_t *>(pRect)))
 			return;
 	}
+	else
 	if (com_ptr<ID3D11DepthStencilView> dsv;
 		SUCCEEDED(pView->QueryInterface(&dsv)))
 	{
@@ -1382,6 +1383,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const
 				reinterpret_cast<const int32_t *>(pRect)))
 			return;
 	}
+	else
 	if (com_ptr<ID3D11UnorderedAccessView> uav;
 		SUCCEEDED(pView->QueryInterface(&uav)))
 	{
