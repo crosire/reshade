@@ -391,6 +391,12 @@ namespace ReShade.Setup
 		}
 		void InstallStep1()
 		{
+			string targetPathUnrealEngine = Path.Combine(Path.GetDirectoryName(targetPath), Path.GetFileNameWithoutExtension(targetPath), "Binaries", "Win64", Path.GetFileNameWithoutExtension(targetPath) + "-Win64-Shipping" + Path.GetExtension(targetPath));
+			if (File.Exists(targetPathUnrealEngine))
+			{
+				targetPath = targetPathUnrealEngine;
+			}
+
 			var info = FileVersionInfo.GetVersionInfo(targetPath);
 			targetName = info.FileDescription;
 			if (targetName is null || targetName.Trim().Length == 0)
