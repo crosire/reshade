@@ -536,25 +536,28 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 
 #if RESHADE_ADDON
-	assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
-
-	if (!reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
-		!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
-		return;
+	if (NumRTVs != D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL &&
+		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
+	{
+		assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
 #ifndef WIN64
-	reshade::api::resource_view rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	for (UINT i = 0; i < NumRTVs; ++i)
-		rtvs[i] = reshade::api::resource_view { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+		reshade::api::resource_view rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		for (UINT i = 0; i < NumRTVs; ++i)
+			rtvs[i] = reshade::api::resource_view { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
 #else
-	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view));
-	const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(ppRenderTargetViews);
+		static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view));
+		const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(ppRenderTargetViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(
-		this, NumRTVs, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) });
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(
+			this, NumRTVs, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) });
+	}
 
-	invoke_bind_unordered_access_views_event(reshade::api::shader_stage::pixel, UAVStartSlot, NumUAVs, ppUnorderedAccessViews);
+	if (NumUAVs != D3D11_KEEP_UNORDERED_ACCESS_VIEWS)
+	{
+		invoke_bind_unordered_access_views_event(reshade::api::shader_stage::pixel, UAVStartSlot, NumUAVs, ppUnorderedAccessViews);
+	}
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
