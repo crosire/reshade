@@ -1,5 +1,5 @@
 ﻿/*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * Copyright (C) 2021 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 
@@ -12,10 +12,9 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Navigation;
 
-namespace ReShade.Setup.Dialogs
+namespace ReShade.Setup.Pages
 {
 	public class EffectPackage : INotifyPropertyChanged
 	{
@@ -29,6 +28,7 @@ namespace ReShade.Setup.Dialogs
 		public string RepositoryUrl { get; set; }
 
 		public event PropertyChangedEventHandler PropertyChanged;
+
 		internal void NotifyPropertyChanged(string propertyName)
 		{
 			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -51,9 +51,9 @@ namespace ReShade.Setup.Dialogs
 		}
 	}
 
-	public partial class SelectPackagesDialog : Window
+	public partial class SelectPackagesPage : Page
 	{
-		public SelectPackagesDialog(Utilities.IniFile packagesIni)
+		public SelectPackagesPage(Utilities.IniFile packagesIni)
 		{
 			InitializeComponent();
 			DataContext = this;
@@ -80,7 +80,7 @@ namespace ReShade.Setup.Dialogs
 		public IEnumerable<EffectPackage> EnabledItems => Items.Where(x => x.Enabled != false);
 		public ObservableCollection<EffectPackage> Items { get; } = new ObservableCollection<EffectPackage>();
 
-		void OnCheck(object sender, RoutedEventArgs e)
+		private void OnCheckAllClick(object sender, RoutedEventArgs e)
 		{
 			if (Items.Count == 0)
 			{
@@ -108,16 +108,7 @@ namespace ReShade.Setup.Dialogs
 			}
 		}
 
-		void OnCancel(object sender, RoutedEventArgs e)
-		{
-			DialogResult = false;
-		}
-		void OnConfirm(object sender, RoutedEventArgs e)
-		{
-			DialogResult = true;
-		}
-
-		void OnAddPackage(object sender, RoutedEventArgs e)
+		private void OnAddPackageButtonClick(object sender, RoutedEventArgs e)
 		{
 			string url = PathBox.Text;
 			if (!url.StartsWith("http") || !url.EndsWith(".zip"))
@@ -137,13 +128,16 @@ namespace ReShade.Setup.Dialogs
 				RepositoryUrl = url
 			});
 		}
-		void OnTextBoxGotFocus(object sender, RoutedEventArgs e)
+
+		private void OnTextBoxGotFocus(object sender, RoutedEventArgs e)
 		{
-			var tb = (TextBox)sender;
-			tb.Dispatcher.BeginInvoke(new Action(() => tb.SelectAll()));
+			if (sender is TextBox tb)
+			{
+				tb.Dispatcher.BeginInvoke(new Action(tb.SelectAll));
+			}
 		}
 
-		void OnHyperlinkRequestNavigate(object sender, RequestNavigateEventArgs e)
+		private void OnHyperlinkRequestNavigate(object sender, RequestNavigateEventArgs e)
 		{
 			try
 			{

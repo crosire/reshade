@@ -1,0 +1,17 @@
+﻿<Page x:Class="ReShade.Setup.Pages.SelectUninstallPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      mc:Ignorable="d" 
+      d:DesignWidth="510" d:DesignHeight="638"
+      Width="Auto" Height="Auto">
+  <DockPanel>
+    <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select the operation to perform:" />
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="An existing ReShade installation was found. Choose whether it should be updated to the version from this setup tool, or uninstalled." />
+    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
+      <Button x:Name="UpdateButton" Width="250" Height="35" Margin="5" Content="_Update" IsDefault="True" />
+      <Button x:Name="UninstallButton" Width="250" Height="35" Margin="5" Content="Un_install" />
+    </StackPanel>
+  </DockPanel>
+</Page>

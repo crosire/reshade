@@ -64,33 +64,54 @@
     <Compile Include="Utilities\IniFile.cs" />
     <Compile Include="Utilities\JsonFile.cs" />
     <Compile Include="Utilities\PEInfo.cs" />
-    <Page Include="Windows\SelectApp.xaml">
+    <Page Include="Pages\SelectApiPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Windows\SelectApp.xaml.cs">
-      <DependentUpon>SelectApp.xaml</DependentUpon>
+    <Compile Include="Pages\SelectApiPage.xaml.cs">
+      <DependentUpon>SelectApiPage.xaml</DependentUpon>
     </Compile>
-    <Page Include="Windows\SelectEffects.xaml">
+    <Page Include="Pages\SelectAppPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Windows\SelectEffects.xaml.cs">
-      <DependentUpon>SelectEffects.xaml</DependentUpon>
+    <Compile Include="Pages\SelectAppPage.xaml.cs">
+      <DependentUpon>SelectAppPage.xaml</DependentUpon>
     </Compile>
-    <Page Include="Windows\SelectPackages.xaml">
+    <Page Include="Pages\SelectEffectsPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Windows\SelectPackages.xaml.cs">
-      <DependentUpon>SelectPackages.xaml</DependentUpon>
+    <Compile Include="Pages\SelectEffectsPage.xaml.cs">
+      <DependentUpon>SelectEffectsPage.xaml</DependentUpon>
     </Compile>
-    <Page Include="Windows\Settings.xaml">
+    <Page Include="Pages\SelectPackagesPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Windows\Settings.xaml.cs">
-      <DependentUpon>Settings.xaml</DependentUpon>
+    <Compile Include="Pages\SelectPackagesPage.xaml.cs">
+      <DependentUpon>SelectPackagesPage.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Pages\SelectUninstallPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Pages\SelectUninstallPage.xaml.cs">
+      <DependentUpon>SelectUninstallPage.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Pages\SettingsDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Pages\SettingsDialog.xaml.cs">
+      <DependentUpon>SettingsDialog.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Pages\StatusPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Pages\StatusPage.xaml.cs">
+      <DependentUpon>StatusPage.xaml</DependentUpon>
     </Compile>
     <Page Include="MainWindow.xaml">
       <SubType>Designer</SubType>
@@ -120,8 +141,8 @@
     <None Include="ReShade64_override.json" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Condition="Exists('Config\Compatibility.ini')" Include="Config\Compatibility.ini" />
-    <EmbeddedResource Condition="Exists('Config\EffectPackages.ini')" Include="Config\EffectPackages.ini" />
+    <EmbeddedResource Condition="Exists('Compatibility.ini')" Include="Compatibility.ini" />
+    <EmbeddedResource Condition="Exists('EffectPackages.ini')" Include="EffectPackages.ini" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />

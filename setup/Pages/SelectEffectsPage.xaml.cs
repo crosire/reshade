@@ -1,5 +1,5 @@
 ﻿/*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * Copyright (C) 2021 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 
@@ -12,7 +12,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace ReShade.Setup.Dialogs
+namespace ReShade.Setup.Pages
 {
 	public class EffectFile : INotifyPropertyChanged
 	{
@@ -21,15 +21,19 @@ namespace ReShade.Setup.Dialogs
 		public string FilePath { get; set; }
 
 		public event PropertyChangedEventHandler PropertyChanged;
+
 		internal void NotifyPropertyChanged(string propertyName)
 		{
 			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 		}
 	}
 
-	public partial class SelectEffectsDialog : Window
+	public partial class SelectEffectsPage : Page
 	{
-		public SelectEffectsDialog(string packageName, IEnumerable<string> files)
+		public IEnumerable<EffectFile> EnabledItems => Items.Where(x => x.Enabled);
+		public ObservableCollection<EffectFile> Items { get; } = new ObservableCollection<EffectFile>();
+
+		public SelectEffectsPage(string packageName, IEnumerable<string> files)
 		{
 			InitializeComponent();
 			DataContext = this;
@@ -68,10 +72,7 @@ namespace ReShade.Setup.Dialogs
 			}
 		}
 
-		public IEnumerable<EffectFile> EnabledItems => Items.Where(x => x.Enabled);
-		public ObservableCollection<EffectFile> Items { get; } = new ObservableCollection<EffectFile>();
-
-		void OnCheck(object sender, RoutedEventArgs e)
+		private void OnCheckAllClick(object sender, RoutedEventArgs e)
 		{
 			if (Items.Count == 0)
 			{
@@ -94,19 +95,14 @@ namespace ReShade.Setup.Dialogs
 			}
 		}
 
-		void OnConfirm(object sender, RoutedEventArgs e)
-		{
-			DialogResult = true;
-		}
-
-		void OnCheckBoxMouseEnter(object sender, MouseEventArgs e)
+		private void OnCheckBoxMouseEnter(object sender, MouseEventArgs e)
 		{
 			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)
 			{
 				checkbox.IsChecked = !checkbox.IsChecked;
 			}
 		}
-		void OnCheckBoxMouseCapture(object sender, MouseEventArgs e)
+		private void OnCheckBoxMouseCapture(object sender, MouseEventArgs e)
 		{
 			if (e.LeftButton == MouseButtonState.Pressed && sender is CheckBox checkbox)
 			{
