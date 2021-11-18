@@ -95,7 +95,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 
 	auto device = *ppDevice;
 	// Query for the DXGI device and immediate device context since we need to reference them in the hooked device
-	IDXGIDevice1 *dxgi_device = nullptr;
+	com_ptr<IDXGIDevice1> dxgi_device;
 	hr = device->QueryInterface(&dxgi_device);
 	assert(SUCCEEDED(hr));
 
@@ -117,7 +117,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 		device->GetImmediateContext(&device_context);
 
 		// Change device to proxy for swap chain creation below
-		device = device_proxy = new D3D11Device(dxgi_device, device);
+		device = device_proxy = new D3D11Device(dxgi_device.get(), device);
 		device_proxy->_immediate_context = new D3D11DeviceContext(device_proxy, device_context);
 	}
 
@@ -149,7 +149,8 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(INFO) << "Returning ID3D11Device0 object " << device_proxy << " and IDXGIDevice1 object " << device_proxy->_dxgi_device << '.';
+			LOG(INFO) << "Returning " << "ID3D11Device0" << " object " << static_cast<ID3D11Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
+				"IDXGIDevice1" << " object " << static_cast<IDXGIDevice1 *>(device_proxy) << " (" << static_cast<DXGIDevice *>(device_proxy)->_orig << ").";
 #endif
 			*ppDevice = device_proxy;
 		}

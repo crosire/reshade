@@ -5,14 +5,12 @@
 
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
-#include "dxgi/dxgi_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
 
-D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original) :
-	device_impl(original),
-	_dxgi_device(new DXGIDevice(dxgi_device, this))
+D3D11Device::D3D11Device(IDXGIDevice1 *original_dxgi_device, ID3D11Device *original) :
+	DXGIDevice(original_dxgi_device), device_impl(original)
 {
 	assert(_orig != nullptr);
 
@@ -23,10 +21,6 @@ D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original) :
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 {
-	if (riid == __uuidof(this))
-		// IUnknown is handled by DXGIDevice
-		return true;
-
 	static const IID iid_lookup[] = {
 		__uuidof(ID3D11Device),
 		__uuidof(ID3D11Device1),
@@ -47,7 +41,7 @@ bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded ID3D11Device" << _interface_version << " object " << this << " to ID3D11Device" << version << '.';
+			LOG(DEBUG) << "Upgraded ID3D11Device" << _interface_version << " object " << static_cast<ID3D11Device *>(this) << " to ID3D11Device" << version << '.';
 #endif
 			_orig->Release();
 			_orig = static_cast<ID3D11Device *>(new_interface);
@@ -65,19 +59,26 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (check_and_upgrade_interface(riid))
+	if (riid == __uuidof(this))
 	{
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
 	}
 
+	if (check_and_upgrade_interface(riid))
+	{
+		AddRef();
+		*ppvObj = static_cast<ID3D11Device *>(this);
+		return S_OK;
+	}
+
 	// Note: Objects must have an identity, so use DXGIDevice for IID_IUnknown
 	// See https://docs.microsoft.com/windows/desktop/com/rules-for-implementing-queryinterface
-	if (_dxgi_device->check_and_upgrade_interface(riid))
+	if (DXGIDevice::check_and_upgrade_interface(riid))
 	{
-		_dxgi_device->AddRef();
-		*ppvObj = _dxgi_device;
+		AddRef();
+		*ppvObj = static_cast<IDXGIDevice1 *>(this);
 		return S_OK;
 	}
 
@@ -87,9 +88,6 @@ ULONG   STDMETHODCALLTYPE D3D11Device::AddRef()
 {
 	_orig->AddRef();
 
-	// Add references to DXGI device object that is coupled with this D3D11 device object
-	_dxgi_device->AddRef();
-
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D11Device::Release()
@@ -97,10 +95,8 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
 	{
-		// Release references to DXGI device object that is coupled with this D3D11 device object
-		_dxgi_device->Release();
-
-		return _orig->Release(), ref;
+		_orig->Release();
+		return ref;
 	}
 
 	// Release the reference that was added by 'GetImmediateContext' in 'D3D11CreateDeviceAndSwapChain'
@@ -109,19 +105,17 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 	delete _immediate_context;
 
 	const auto orig = _orig;
-	const auto dxgi_device = _dxgi_device;
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "ID3D11Device" << interface_version << " object " << this << " (" << orig << ").";
+	LOG(DEBUG) << "Destroying " << "ID3D11Device" << interface_version << " object " << static_cast<ID3D11Device *>(this) << " (" << orig << ") and " <<
+		"IDXGIDevice" << DXGIDevice::_interface_version << " object " << static_cast<IDXGIDevice1 *>(this) << " (" << DXGIDevice::_orig << ").";
 #endif
 	delete this;
-
-	dxgi_device->Release();
 
 	// Note: At this point the immediate context should have been deleted by the release above (so do not access it)
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for " << "ID3D11Device" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+		LOG(WARN) << "Reference count for " << "ID3D11Device" << interface_version << " object " << static_cast<ID3D11Device *>(this) << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	return 0;
 }
 

@@ -6,12 +6,11 @@
 #include "dll_log.hpp"
 #include "dxgi_device.hpp"
 
-DXGIDevice::DXGIDevice(IDXGIDevice1 *original, IUnknown *direct3d_device) :
+DXGIDevice::DXGIDevice(IDXGIDevice1 *original) :
 	_orig(original),
-	_interface_version(1),
-	_direct3d_device(direct3d_device)
+	_interface_version(1)
 {
-	assert(_orig != nullptr && _direct3d_device != nullptr);
+	assert(_orig != nullptr);
 }
 
 bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
@@ -53,59 +52,6 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 	return false;
 }
 
-HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
-{
-	if (ppvObj == nullptr)
-		return E_POINTER;
-
-	if (check_and_upgrade_interface(riid))
-	{
-		AddRef();
-		*ppvObj = this;
-		return S_OK;
-	}
-
-	return _direct3d_device->QueryInterface(riid, ppvObj);
-}
-ULONG   STDMETHODCALLTYPE DXGIDevice::AddRef()
-{
-	_orig->AddRef();
-	return InterlockedIncrement(&_ref);
-}
-ULONG   STDMETHODCALLTYPE DXGIDevice::Release()
-{
-	const ULONG ref = InterlockedDecrement(&_ref);
-	if (ref != 0)
-	{
-		_orig->Release();
-		return ref;
-	}
-
-	const auto orig = _orig;
-	const auto interface_version = _interface_version;
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "IDXGIDevice" << interface_version << " object " << this << " (" << orig << ").";
-#endif
-	delete this;
-
-	const ULONG ref_orig = orig->Release();
-	if (ref_orig > 1) // Verify internal reference count against one instead of zero because D3D device still holds a reference
-		LOG(WARN) << "Reference count for " << "IDXGIDevice" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << (ref_orig - 1) << ").";
-	return 0;
-}
-
-HRESULT STDMETHODCALLTYPE DXGIDevice::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
-{
-	return _orig->SetPrivateData(Name, DataSize, pData);
-}
-HRESULT STDMETHODCALLTYPE DXGIDevice::SetPrivateDataInterface(REFGUID Name, const IUnknown *pUnknown)
-{
-	return _orig->SetPrivateDataInterface(Name, pUnknown);
-}
-HRESULT STDMETHODCALLTYPE DXGIDevice::GetPrivateData(REFGUID Name, UINT *pDataSize, void *pData)
-{
-	return _orig->GetPrivateData(Name, pDataSize, pData);
-}
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetParent(REFIID riid, void **ppParent)
 {
 	return _orig->GetParent(riid, ppParent);

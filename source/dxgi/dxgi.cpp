@@ -202,6 +202,8 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != reshade::api::resource_usage::undefined)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 	}
+#else
+	UNREFERENCED_PARAMETER(hwnd);
 #endif
 
 	if (reshade::global_config().get("APP", "ForceWindowed"))

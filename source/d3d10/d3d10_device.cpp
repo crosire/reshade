@@ -4,7 +4,6 @@
  */
 
 #include "d3d10_device.hpp"
-#include "dxgi/dxgi_device.hpp"
 #include "d3d10_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
@@ -120,9 +119,8 @@ HRESULT STDMETHODCALLTYPE ID3D10Texture3D_Unmap(ID3D10Texture3D *pResource, UINT
 }
 #endif
 
-D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
-	device_impl(original),
-	_dxgi_device(new DXGIDevice(dxgi_device, this))
+D3D10Device::D3D10Device(IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original) :
+	DXGIDevice(original_dxgi_device), device_impl(original)
 {
 	assert(_orig != nullptr);
 
@@ -133,9 +131,7 @@ D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 
 bool D3D10Device::check_and_upgrade_interface(REFIID riid)
 {
-	if (riid == __uuidof(this) ||
-		// IUnknown is handled by DXGIDevice
-		riid == __uuidof(ID3D10Device) ||
+	if (riid == __uuidof(ID3D10Device) ||
 		riid == __uuidof(ID3D10Device1))
 		return true;
 
@@ -281,19 +277,26 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 	if (ppvObj == nullptr)
 		return E_POINTER;
 
-	if (check_and_upgrade_interface(riid))
+	if (riid == __uuidof(this))
 	{
 		AddRef();
 		*ppvObj = this;
 		return S_OK;
 	}
 
+	if (check_and_upgrade_interface(riid))
+	{
+		AddRef();
+		*ppvObj = static_cast<ID3D10Device *>(this);
+		return S_OK;
+	}
+
 	// Note: Objects must have an identity, so use DXGIDevice for IID_IUnknown
 	// See https://docs.microsoft.com/windows/desktop/com/rules-for-implementing-queryinterface
-	if (_dxgi_device->check_and_upgrade_interface(riid))
+	if (DXGIDevice::check_and_upgrade_interface(riid))
 	{
-		_dxgi_device->AddRef();
-		*ppvObj = _dxgi_device;
+		AddRef();
+		*ppvObj = static_cast<IDXGIDevice1 *>(this);
 		return S_OK;
 	}
 
@@ -303,9 +306,6 @@ ULONG   STDMETHODCALLTYPE D3D10Device::AddRef()
 {
 	_orig->AddRef();
 
-	// Add references to DXGI device object that is coupled with this D3D10 device object
-	_dxgi_device->AddRef();
-
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D10Device::Release()
@@ -313,24 +313,20 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
 	{
-		// Release references to DXGI device object that is coupled with this D3D10 device object
-		_dxgi_device->Release();
-
-		return _orig->Release(), ref;
+		_orig->Release();
+		return ref;
 	}
 
 	const auto orig = _orig;
-	const auto dxgi_device = _dxgi_device;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << this << " (" << orig << ").";
+	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") and " <<
+		"IDXGIDevice" << DXGIDevice::_interface_version << " object " << static_cast<IDXGIDevice1 *>(this) << " (" << DXGIDevice::_orig << ").";
 #endif
 	delete this;
 
-	dxgi_device->Release();
-
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for " << "ID3D10Device1" << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+		LOG(WARN) << "Reference count for " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	return 0;
 }
 

@@ -22,7 +22,7 @@ thread_local bool g_in_dxgi_runtime = false;
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	_orig(original),
 	_interface_version(0),
-	_direct3d_device(device),
+	_direct3d_device(static_cast<ID3D10Device *>(device)),
 	_direct3d_command_queue(nullptr),
 	_direct3d_version(10),
 	_impl(new reshade::d3d10::swapchain_impl(device, original))
@@ -34,7 +34,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 	_orig(original),
 	_interface_version(1),
-	_direct3d_device(device),
+	_direct3d_device(static_cast<ID3D10Device *>(device)),
 	_direct3d_command_queue(nullptr),
 	_direct3d_version(10),
 	_impl(new reshade::d3d10::swapchain_impl(device, original))
@@ -45,7 +45,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_orig(original),
 	_interface_version(0),
-	_direct3d_device(device),
+	_direct3d_device(static_cast<ID3D11Device *>(device)),
 	_direct3d_command_queue(nullptr),
 	_direct3d_version(11),
 	_impl(new reshade::d3d11::swapchain_impl(device, device->_immediate_context, original))
@@ -56,7 +56,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_orig(original),
 	_interface_version(1),
-	_direct3d_device(device),
+	_direct3d_device(static_cast<ID3D11Device *>(device)),
 	_direct3d_command_queue(nullptr),
 	_direct3d_version(11),
 	_impl(new reshade::d3d11::swapchain_impl(device, device->_immediate_context, original))
@@ -67,7 +67,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original) :
 	_orig(original),
 	_interface_version(3),
-	_direct3d_device(command_queue->_device), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
+	_direct3d_device(static_cast<ID3D12Device *>(command_queue->_device)), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
 	_direct3d_command_queue(command_queue),
 	_direct3d_version(12),
 	_impl(new reshade::d3d12::swapchain_impl(command_queue->_device, command_queue, original))
@@ -127,13 +127,13 @@ void DXGISwapChain::runtime_present(UINT flags)
 	{
 	case 10:
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D10Device *>(_direct3d_device), _impl);
+		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)), _impl);
 #endif
 		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_present();
 		break;
 	case 11:
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D11Device *>(_direct3d_device)->_immediate_context, _impl);
+		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context, _impl);
 #endif
 		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_present();
 		break;
@@ -163,13 +163,13 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 			switch (_direct3d_version)
 			{
 			case 10:
-				reason = static_cast<D3D10Device *>(_direct3d_device)->GetDeviceRemovedReason();
+				reason = static_cast<ID3D10Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
 			case 11:
-				reason = static_cast<D3D11Device *>(_direct3d_device)->GetDeviceRemovedReason();
+				reason = static_cast<ID3D11Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
 			case 12:
-				reason = static_cast<D3D12Device *>(_direct3d_device)->GetDeviceRemovedReason();
+				reason = static_cast<ID3D12Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
 			}
 

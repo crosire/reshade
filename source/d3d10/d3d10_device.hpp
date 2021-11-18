@@ -5,13 +5,12 @@
 
 #pragma once
 
+#include "dxgi/dxgi_device.hpp"
 #include "d3d10_impl_device.hpp"
 
-struct DXGIDevice;
-
-struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final : ID3D10Device1, public reshade::d3d10::device_impl
+struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final : DXGIDevice, ID3D10Device1, public reshade::d3d10::device_impl
 {
-	D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original);
+	D3D10Device(IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original);
 
 	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -134,6 +133,7 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final :
 	void invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects);
 #endif
 
+	using device_impl::_orig;
+
 	LONG _ref = 1;
-	DXGIDevice *const _dxgi_device;
 };
