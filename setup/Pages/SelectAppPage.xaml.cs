@@ -294,6 +294,11 @@ namespace ReShade.Setup.Pages
 			UpdateThread.Start();
 		}
 
+		public void Cancel()
+		{
+			UpdateThread.Abort();
+		}
+
 		private void OnBrowseClick(object sender, RoutedEventArgs e)
 		{
 			SuspendUpdateThread = true;

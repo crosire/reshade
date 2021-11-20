@@ -1168,6 +1168,8 @@ In that event here are some steps you can try to resolve this:
 
 			if (CurrentPage.Content is SelectAppPage page0)
 			{
+				page0.Cancel();
+
 				targetPath = page0.FileName;
 
 				Task.Run(InstallStep0);
@@ -1230,6 +1232,11 @@ In that event here are some steps you can try to resolve this:
 
 		void OnCancelButtonClick(object sender, RoutedEventArgs e)
 		{
+			if (CurrentPage.Content is SelectAppPage page0)
+			{
+				page0.Cancel();
+			}
+
 			if (CurrentPage.Content is SelectPackagesPage page2)
 			{
 				Task.Run(InstallStep7);
