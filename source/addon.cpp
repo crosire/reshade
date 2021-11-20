@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && RESHADE_ADDON_LOAD
 
 #include "addon.hpp"
 #include "dll_log.hpp"
