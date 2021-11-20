@@ -37,6 +37,92 @@ static inline void convert_rect_to_box(const POINT *point, LONG width, LONG heig
 	box[5] = 1;
 }
 
+Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
+	device_impl(original),
+	_extended_interface(0),
+	_use_software_rendering(use_software_rendering)
+{
+	assert(_orig != nullptr);
+}
+Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
+	device_impl(original),
+	_extended_interface(1),
+	_use_software_rendering(use_software_rendering)
+{
+	assert(_orig != nullptr);
+}
+
+bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
+{
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(IDirect3DDevice9))
+		return true;
+	if (riid != __uuidof(IDirect3DDevice9Ex))
+		return false;
+
+	if (!_extended_interface)
+	{
+		IDirect3DDevice9Ex *new_interface = nullptr;
+		if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&new_interface))))
+			return false;
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Upgraded IDirect3DDevice9 object " << this << " to IDirect3DDevice9Ex.";
+#endif
+		_orig->Release();
+		_orig = new_interface;
+		_extended_interface = true;
+	}
+
+	return true;
+}
+
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **ppvObj)
+{
+	if (ppvObj == nullptr)
+		return E_POINTER;
+
+	if (check_and_upgrade_interface(riid))
+	{
+		AddRef();
+		*ppvObj = this;
+		return S_OK;
+	}
+
+	return _orig->QueryInterface(riid, ppvObj);
+}
+ULONG   STDMETHODCALLTYPE Direct3DDevice9::AddRef()
+{
+	_orig->AddRef();
+	return InterlockedIncrement(&_ref);
+}
+ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
+{
+	const ULONG ref = InterlockedDecrement(&_ref);
+	if (ref != 0)
+	{
+		_orig->Release();
+		return ref;
+	}
+
+	// Release remaining references to this device
+	_implicit_swapchain->Release();
+
+	assert(_additional_swapchains.empty());
+
+	const auto orig = _orig;
+	const bool extended_interface = _extended_interface;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Destroying " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ").";
+#endif
+	delete this;
+
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+	return 0;
+}
+
 #if RESHADE_ADDON
 #include "hook_manager.hpp"
 
@@ -329,7 +415,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Lock(IDirect3DVertexBuffer9 *pV
 				device_proxy,
 				reshade::api::resource { reinterpret_cast<uintptr_t>(pVertexBuffer) },
 				OffsetToLock,
-				SizeToLock != 0 ? SizeToLock : std::numeric_limits<uint64_t>::max(),
+				SizeToLock != 0 ? SizeToLock : UINT64_MAX,
 				reshade::d3d9::convert_access_flags(Flags),
 				ppbData);
 		}
@@ -369,7 +455,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Lock(IDirect3DIndexBuffer9 *pInd
 				device_proxy,
 				reshade::api::resource { reinterpret_cast<uintptr_t>(pIndexBuffer) },
 				OffsetToLock,
-				SizeToLock != 0 ? SizeToLock : std::numeric_limits<uint64_t>::max(),
+				SizeToLock != 0 ? SizeToLock : UINT64_MAX,
 				reshade::d3d9::convert_access_flags(Flags),
 				ppbData);
 		}
@@ -392,92 +478,6 @@ HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Unlock(IDirect3DIndexBuffer9 *pI
 	return reshade::hooks::call(IDirect3DIndexBuffer9_Unlock, vtable_from_instance(pIndexBuffer) + 12)(pIndexBuffer);
 }
 #endif
-
-Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
-	device_impl(original),
-	_extended_interface(0),
-	_use_software_rendering(use_software_rendering)
-{
-	assert(_orig != nullptr);
-}
-Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
-	device_impl(original),
-	_extended_interface(1),
-	_use_software_rendering(use_software_rendering)
-{
-	assert(_orig != nullptr);
-}
-
-bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
-{
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(IDirect3DDevice9))
-		return true;
-	if (riid != __uuidof(IDirect3DDevice9Ex))
-		return false;
-
-	if (!_extended_interface)
-	{
-		IDirect3DDevice9Ex *new_interface = nullptr;
-		if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&new_interface))))
-			return false;
-#if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Upgraded IDirect3DDevice9 object " << this << " to IDirect3DDevice9Ex.";
-#endif
-		_orig->Release();
-		_orig = new_interface;
-		_extended_interface = true;
-	}
-
-	return true;
-}
-
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **ppvObj)
-{
-	if (ppvObj == nullptr)
-		return E_POINTER;
-
-	if (check_and_upgrade_interface(riid))
-	{
-		AddRef();
-		*ppvObj = this;
-		return S_OK;
-	}
-
-	return _orig->QueryInterface(riid, ppvObj);
-}
-ULONG   STDMETHODCALLTYPE Direct3DDevice9::AddRef()
-{
-	_orig->AddRef();
-	return InterlockedIncrement(&_ref);
-}
-ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
-{
-	const ULONG ref = InterlockedDecrement(&_ref);
-	if (ref != 0)
-	{
-		_orig->Release();
-		return ref;
-	}
-
-	// Release remaining references to this device
-	_implicit_swapchain->Release();
-
-	assert(_additional_swapchains.empty());
-
-	const auto orig = _orig;
-	const bool extended_interface = _extended_interface;
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ").";
-#endif
-	delete this;
-
-	const ULONG ref_orig = orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
-	return 0;
-}
 
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::TestCooperativeLevel()
 {
@@ -556,7 +556,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	*ppSwapChain = swapchain_proxy;
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDirect3DSwapChain9 object " << swapchain_proxy << '.';
+	LOG(INFO) << "Returning IDirect3DSwapChain9 object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
 #endif
 	return D3D_OK;
 }
@@ -757,7 +757,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 				this,
 				reshade::api::resource { reinterpret_cast<uintptr_t>(texture) },
 				reshade::api::resource_usage::shader_resource,
-				reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF),
+				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
 
 			register_destruction_callback_d3d9(texture, [this, texture]() {
@@ -839,7 +839,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 				this,
 				reshade::api::resource { reinterpret_cast<uintptr_t>(texture) },
 				reshade::api::resource_usage::shader_resource,
-				reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF),
+				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
 
 			register_destruction_callback_d3d9(texture, [this, texture]() {
@@ -952,7 +952,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 				this,
 				reshade::api::resource { reinterpret_cast<uintptr_t>(texture) },
 				reshade::api::resource_usage::shader_resource,
-				reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF),
+				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
 
 			register_destruction_callback_d3d9(texture, [this, texture]() {
@@ -1621,46 +1621,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 	if (SUCCEEDED(hr) &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
-		static_assert(sizeof(State) == sizeof(reshade::api::dynamic_state));
-		static_assert(
-			(DWORD)reshade::api::dynamic_state::depth_enable                == D3DRS_ZENABLE &&
-			(DWORD)reshade::api::dynamic_state::fill_mode                   == D3DRS_FILLMODE &&
-			(DWORD)reshade::api::dynamic_state::depth_write_mask            == D3DRS_ZWRITEENABLE &&
-			(DWORD)reshade::api::dynamic_state::alpha_test_enable           == D3DRS_ALPHATESTENABLE &&
-			(DWORD)reshade::api::dynamic_state::source_color_blend_factor   == D3DRS_SRCBLEND &&
-			(DWORD)reshade::api::dynamic_state::dest_color_blend_factor     == D3DRS_DESTBLEND &&
-			(DWORD)reshade::api::dynamic_state::cull_mode                   == D3DRS_CULLMODE &&
-			(DWORD)reshade::api::dynamic_state::depth_func                  == D3DRS_ZFUNC &&
-			(DWORD)reshade::api::dynamic_state::alpha_reference_value       == D3DRS_ALPHAREF &&
-			(DWORD)reshade::api::dynamic_state::alpha_func                  == D3DRS_ALPHAFUNC &&
-			(DWORD)reshade::api::dynamic_state::blend_enable                == D3DRS_ALPHABLENDENABLE &&
-			(DWORD)reshade::api::dynamic_state::stencil_enable              == D3DRS_STENCILENABLE &&
-			(DWORD)reshade::api::dynamic_state::front_stencil_fail_op       == D3DRS_STENCILFAIL &&
-			(DWORD)reshade::api::dynamic_state::front_stencil_depth_fail_op == D3DRS_STENCILZFAIL &&
-			(DWORD)reshade::api::dynamic_state::front_stencil_pass_op       == D3DRS_STENCILPASS &&
-			(DWORD)reshade::api::dynamic_state::front_stencil_func          == D3DRS_STENCILFUNC &&
-			(DWORD)reshade::api::dynamic_state::stencil_reference_value     == D3DRS_STENCILREF &&
-			(DWORD)reshade::api::dynamic_state::stencil_read_mask           == D3DRS_STENCILMASK &&
-			(DWORD)reshade::api::dynamic_state::stencil_write_mask          == D3DRS_STENCILWRITEMASK &&
-			(DWORD)reshade::api::dynamic_state::depth_clip_enable           == D3DRS_CLIPPING &&
-			(DWORD)reshade::api::dynamic_state::multisample_enable          == D3DRS_MULTISAMPLEANTIALIAS &&
-			(DWORD)reshade::api::dynamic_state::sample_mask                 == D3DRS_MULTISAMPLEMASK &&
-			(DWORD)reshade::api::dynamic_state::render_target_write_mask    == D3DRS_COLORWRITEENABLE &&
-			(DWORD)reshade::api::dynamic_state::color_blend_op              == D3DRS_BLENDOP &&
-			(DWORD)reshade::api::dynamic_state::scissor_enable              == D3DRS_SCISSORTESTENABLE &&
-			(DWORD)reshade::api::dynamic_state::depth_bias_slope_scaled     == D3DRS_SLOPESCALEDEPTHBIAS &&
-			(DWORD)reshade::api::dynamic_state::antialiased_line_enable     == D3DRS_ANTIALIASEDLINEENABLE &&
-			(DWORD)reshade::api::dynamic_state::back_stencil_fail_op        == D3DRS_CCW_STENCILFAIL &&
-			(DWORD)reshade::api::dynamic_state::back_stencil_depth_fail_op  == D3DRS_CCW_STENCILZFAIL &&
-			(DWORD)reshade::api::dynamic_state::back_stencil_pass_op        == D3DRS_CCW_STENCILPASS &&
-			(DWORD)reshade::api::dynamic_state::back_stencil_func           == D3DRS_CCW_STENCILFUNC &&
-			(DWORD)reshade::api::dynamic_state::blend_constant              == D3DRS_BLENDFACTOR &&
-			(DWORD)reshade::api::dynamic_state::srgb_write_enable           == D3DRS_SRGBWRITEENABLE &&
-			(DWORD)reshade::api::dynamic_state::depth_bias                  == D3DRS_DEPTHBIAS &&
-			(DWORD)reshade::api::dynamic_state::source_alpha_blend_factor   == D3DRS_SRCBLENDALPHA &&
-			(DWORD)reshade::api::dynamic_state::dest_alpha_blend_factor     == D3DRS_DESTBLENDALPHA &&
-			(DWORD)reshade::api::dynamic_state::alpha_blend_op              == D3DRS_BLENDOPALPHA);
-
 		switch (State)
 		{
 		case D3DRS_BLENDOP:
@@ -1695,11 +1655,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 			break;
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
-			this,
-			1,
-			reinterpret_cast<const reshade::api::dynamic_state *>(&State),
-			reinterpret_cast<const uint32_t *>(&Value));
+		const reshade::api::dynamic_state state = reshade::d3d9::convert_dynamic_state(State);
+		const uint32_t value = Value;
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 	}
 #endif
 
@@ -1839,16 +1797,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 	{
 		_current_prim_type = PrimitiveType;
 
-		static_assert(
-			(DWORD)reshade::api::primitive_topology::point_list     == D3DPT_POINTLIST &&
-			(DWORD)reshade::api::primitive_topology::line_list      == D3DPT_LINELIST &&
-			(DWORD)reshade::api::primitive_topology::line_strip     == D3DPT_LINESTRIP &&
-			(DWORD)reshade::api::primitive_topology::triangle_list  == D3DPT_TRIANGLELIST &&
-			(DWORD)reshade::api::primitive_topology::triangle_strip == D3DPT_TRIANGLESTRIP &&
-			(DWORD)reshade::api::primitive_topology::triangle_fan   == D3DPT_TRIANGLEFAN);
-
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
+		const uint32_t value = static_cast<uint32_t>(reshade::d3d9::convert_primitive_topology(PrimitiveType));
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, reshade::d3d9::calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartVertex, 0))
@@ -1865,7 +1816,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE
 		_current_prim_type = PrimitiveType;
 
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
+		const uint32_t value = static_cast<uint32_t>(reshade::d3d9::convert_primitive_topology(PrimitiveType));
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, reshade::d3d9::calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartIndex, BaseVertexIndex, 0))
@@ -1882,7 +1834,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 		_current_prim_type = PrimitiveType;
 
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
+		const uint32_t value = static_cast<uint32_t>(reshade::d3d9::convert_primitive_topology(PrimitiveType));
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, reshade::d3d9::calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0))
@@ -1899,7 +1852,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 		_current_prim_type = PrimitiveType;
 
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
+		const uint32_t value = static_cast<uint32_t>(reshade::d3d9::convert_primitive_topology(PrimitiveType));
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, reshade::d3d9::calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0, 0))

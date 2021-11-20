@@ -375,7 +375,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		for (uint32_t i = 0; i < update.count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::buffer_range *>(update.descriptors)[i];
-			if (descriptor.size == std::numeric_limits<uint64_t>::max())
+			if (descriptor.size == UINT64_MAX)
 			{
 				assert(descriptor.offset == 0);
 				glBindBufferBase(GL_UNIFORM_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF);
@@ -391,7 +391,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		for (uint32_t i = 0; i < update.count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::buffer_range *>(update.descriptors)[i];
-			if (descriptor.size == std::numeric_limits<uint64_t>::max())
+			if (descriptor.size == UINT64_MAX)
 			{
 				assert(descriptor.offset == 0);
 				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF);
@@ -483,6 +483,7 @@ void reshade::opengl::device_impl::draw_or_dispatch_indirect(api::indirect_comma
 		for (GLuint i = 0; i < draw_count; ++i)
 		{
 			assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+
 			glDispatchComputeIndirect(static_cast<GLintptr>(offset + static_cast<uint64_t>(i) * stride));
 		}
 		break;
@@ -495,7 +496,7 @@ void reshade::opengl::device_impl::copy_resource(api::resource src, api::resourc
 
 	if (desc.type == api::resource_type::buffer)
 	{
-		copy_buffer_region(src, 0, dst, 0, std::numeric_limits<uint64_t>::max());
+		copy_buffer_region(src, 0, dst, 0, UINT64_MAX);
 	}
 	else
 	{
@@ -518,11 +519,11 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
 	assert(src_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) &&
-		   dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == std::numeric_limits<uint64_t>::max() || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
+		   dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == UINT64_MAX || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
 
 	if (_supports_dsa)
 	{
-		if (size == std::numeric_limits<uint64_t>::max())
+		if (size == UINT64_MAX)
 		{
 			GLint max_size = 0;
 			glGetNamedBufferParameteriv(src_object, GL_BUFFER_SIZE, &max_size);
@@ -541,7 +542,7 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 		glBindBuffer(GL_COPY_READ_BUFFER, src_object);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, dst_object);
 
-		if (size == std::numeric_limits<uint64_t>::max())
+		if (size == UINT64_MAX)
 		{
 			GLint max_size = 0;
 			glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);

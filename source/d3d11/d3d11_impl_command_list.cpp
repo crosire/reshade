@@ -195,7 +195,7 @@ void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, c
 		switch (states[i])
 		{
 		case api::dynamic_state::primitive_topology:
-			_orig->IASetPrimitiveTopology(static_cast<D3D11_PRIMITIVE_TOPOLOGY>(values[i]));
+			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		default:
 			assert(false);
@@ -316,7 +316,7 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 		assert(buffer_ranges[i].offset <= std::numeric_limits<UINT>::max() && (buffer_ranges[i].offset % (16 * 16)) == 0);
 		first_constant[i] = static_cast<UINT>(buffer_ranges[i].offset / 16);
 
-		if (buffer_ranges[i].size != std::numeric_limits<uint64_t>::max())
+		if (buffer_ranges[i].size != UINT64_MAX)
 		{
 			whole_range = false;
 			assert(buffer_ranges[i].size <= std::numeric_limits<UINT>::max() && (buffer_ranges[i].size % (16 * 16)) == 0);
@@ -531,11 +531,11 @@ void reshade::d3d11::device_context_impl::copy_buffer_region(api::resource src, 
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (size == std::numeric_limits<uint64_t>::max())
+	if (size == UINT64_MAX)
 	{
 		D3D11_BUFFER_DESC desc;
 		reinterpret_cast<ID3D11Buffer *>(src.handle)->GetDesc(&desc);
-		size = desc.ByteWidth;
+		size  = desc.ByteWidth;
 	}
 
 	assert(src_offset <= std::numeric_limits<UINT>::max() && dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());

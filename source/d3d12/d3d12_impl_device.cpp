@@ -523,7 +523,7 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 		SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
 	{
 		pipeline_graphics_impl extra_data;
-		extra_data.topology = static_cast<D3D12_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
+		extra_data.topology = convert_primitive_topology(desc.graphics.topology);
 
 		std::copy_n(desc.graphics.blend_state.blend_constant, 4, extra_data.blend_constant);
 
@@ -1129,7 +1129,7 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const a
 
 				D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
 				view_desc.BufferLocation = buffer_resource->GetGPUVirtualAddress() + buffer_range.offset;
-				view_desc.SizeInBytes = static_cast<UINT>(buffer_range.size == std::numeric_limits<uint64_t>::max() ? buffer_resource->GetDesc().Width : buffer_range.size);
+				view_desc.SizeInBytes = (buffer_range.size == UINT64_MAX) ? static_cast<UINT>(buffer_resource->GetDesc().Width) : static_cast<UINT>(buffer_range.size);
 
 				_orig->CreateConstantBufferView(&view_desc, dst_range_start);
 			}

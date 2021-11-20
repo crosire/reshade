@@ -1367,7 +1367,7 @@ bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uin
 	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle);
 	if (data->allocation != VMA_NULL)
 	{
-		assert(size == std::numeric_limits<uint64_t>::max() || size <= data->allocation->GetSize());
+		assert(size == UINT64_MAX || size <= data->allocation->GetSize());
 
 		if (vmaMapMemory(_alloc, data->allocation, out_data) == VK_SUCCESS)
 		{

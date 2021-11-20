@@ -438,7 +438,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="resource">Buffer resource to map to host memory.</param>
 		/// <param name="offset">Offset (in bytes) into the buffer resource to start mapping.</param>
-		/// <param name="size">Number of bytes to map. Set to -1 (0xFFFFFFFFFFFFFFFF) to indicate that the entire buffer should be mapped.</param>
+		/// <param name="size">Number of bytes to map. Set to -1 (UINT64_MAX) to indicate that the entire buffer should be mapped.</param>
 		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
 		/// <param name="out_data">Pointer to a variable that is set to a pointer to the memory of the buffer resource.</param>
 		/// <returns><see langword="true"/> if the memory of the buffer resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="out_data"/> is set to <see langword="nullptr"/>).</returns>
@@ -520,38 +520,6 @@ namespace reshade { namespace api
 		/// Gets the parent device for this object.
 		/// </summary>
 		virtual device *get_device() = 0;
-	};
-
-	/// <summary>
-	/// A swap chain, used to present images to the screen.
-	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
-	/// </summary>
-	class __declspec(novtable) swapchain : public device_object
-	{
-	public:
-		/// <summary>
-		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
-		/// </summary>
-		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
-		virtual resource get_back_buffer(uint32_t index) = 0;
-		/// <summary>
-		/// Gets the number of back buffer resources in this swap chain.
-		/// </summary>
-		virtual uint32_t get_back_buffer_count() const = 0;
-
-		/// <summary>
-		/// Gets the current back buffer resource.
-		/// </summary>
-		inline  resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
-		/// <summary>
-		/// Gets the index of the back buffer resource that can currently be rendered into.
-		/// </summary>
-		virtual uint32_t get_current_back_buffer_index() const = 0;
-
-		/// <summary>
-		/// Gets the effect runtime associated with this swap chain.
-		/// </summary>
-		inline  class effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
 	};
 
 	/// <summary>
@@ -988,5 +956,37 @@ namespace reshade { namespace api
 		/// <param name="label">Null-terminated string containing the label of the debug marker.</param>
 		/// <param name="color">Optional RGBA color value associated with the debug marker.</param>
 		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+	};
+
+	/// <summary>
+	/// A swap chain, used to present images to the screen.
+	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
+	/// </summary>
+	class __declspec(novtable) swapchain : public device_object
+	{
+	public:
+		/// <summary>
+		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
+		/// </summary>
+		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
+		virtual resource get_back_buffer(uint32_t index) = 0;
+		/// <summary>
+		/// Gets the number of back buffer resources in this swap chain.
+		/// </summary>
+		virtual uint32_t get_back_buffer_count() const = 0;
+
+		/// <summary>
+		/// Gets the current back buffer resource.
+		/// </summary>
+		inline  resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
+		/// <summary>
+		/// Gets the index of the back buffer resource that can currently be rendered into.
+		/// </summary>
+		virtual uint32_t get_current_back_buffer_index() const = 0;
+
+		/// <summary>
+		/// Gets the effect runtime associated with this swap chain.
+		/// </summary>
+		inline  class effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
 	};
 } }

@@ -442,7 +442,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_region(api::resource src, u
 {
 	_has_commands = true;
 
-	if (size == std::numeric_limits<uint64_t>::max())
+	if (size == UINT64_MAX)
 		size  = _device_impl->get_user_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)src.handle)->create_info.size;
 
 	VkBufferCopy region;

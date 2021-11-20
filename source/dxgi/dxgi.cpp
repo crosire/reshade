@@ -231,19 +231,22 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 
 UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 {
-	if (com_ptr<D3D10Device> device_d3d10; SUCCEEDED(device->QueryInterface(&device_d3d10)))
+	if (com_ptr<D3D10Device> device_d3d10;
+		SUCCEEDED(device->QueryInterface(&device_d3d10)))
 	{
 		device = device_d3d10->_orig; // Set device pointer back to original object so that the swap chain creation functions work as expected
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d10));
 		return 10;
 	}
-	if (com_ptr<D3D11Device> device_d3d11; SUCCEEDED(device->QueryInterface(&device_d3d11)))
+	if (com_ptr<D3D11Device> device_d3d11;
+		SUCCEEDED(device->QueryInterface(&device_d3d11)))
 	{
 		device = device_d3d11->_orig;
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d11));
 		return 11;
 	}
-	if (com_ptr<D3D12CommandQueue> command_queue_d3d12; SUCCEEDED(device->QueryInterface(&command_queue_d3d12)))
+	if (com_ptr<D3D12CommandQueue> command_queue_d3d12;
+		SUCCEEDED(device->QueryInterface(&command_queue_d3d12)))
 	{
 		device = command_queue_d3d12->_orig;
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(command_queue_d3d12));
@@ -300,7 +303,7 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 		reshade::global_config().get("APP", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
 
 #if RESHADE_VERBOSE_LOG
-		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << '.';
+		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
 #endif
 		swapchain = swapchain_proxy;
 	}

@@ -8,7 +8,211 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
 
+D3D10Device::D3D10Device(IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original) :
+	DXGIDevice(original_dxgi_device), device_impl(original)
+{
+	assert(_orig != nullptr);
+
+	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available
+	D3D10Device *const device_proxy = this;
+	_orig->SetPrivateData(__uuidof(D3D10Device), sizeof(device_proxy), &device_proxy);
+}
+
+bool D3D10Device::check_and_upgrade_interface(REFIID riid)
+{
+	if (riid == __uuidof(ID3D10Device) ||
+		riid == __uuidof(ID3D10Device1))
+		return true;
+
+	return false;
+}
+
+HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj)
+{
+	if (ppvObj == nullptr)
+		return E_POINTER;
+
+	if (riid == __uuidof(this))
+	{
+		AddRef();
+		*ppvObj = this;
+		return S_OK;
+	}
+
+	if (check_and_upgrade_interface(riid))
+	{
+		AddRef();
+		*ppvObj = static_cast<ID3D10Device *>(this);
+		return S_OK;
+	}
+
+	// Note: Objects must have an identity, so use DXGIDevice for IID_IUnknown
+	// See https://docs.microsoft.com/windows/desktop/com/rules-for-implementing-queryinterface
+	if (DXGIDevice::check_and_upgrade_interface(riid))
+	{
+		AddRef();
+		*ppvObj = static_cast<IDXGIDevice1 *>(this);
+		return S_OK;
+	}
+
+	return _orig->QueryInterface(riid, ppvObj);
+}
+ULONG   STDMETHODCALLTYPE D3D10Device::AddRef()
+{
+	_orig->AddRef();
+
+	return InterlockedIncrement(&_ref);
+}
+ULONG   STDMETHODCALLTYPE D3D10Device::Release()
+{
+	const ULONG ref = InterlockedDecrement(&_ref);
+	if (ref != 0)
+	{
+		_orig->Release();
+		return ref;
+	}
+
+	const auto orig = _orig;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") and " <<
+		"IDXGIDevice" << DXGIDevice::_interface_version << " object " << static_cast<IDXGIDevice1 *>(this) << " (" << DXGIDevice::_orig << ").";
+#endif
+	delete this;
+
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+	return 0;
+}
+
 #if RESHADE_ADDON
+void D3D10Device::invoke_map_buffer_region_event(ID3D10Buffer *resource, D3D10_MAP map_type, void **data)
+{
+	com_ptr<ID3D10Device> device;
+	resource->GetDevice(&device);
+
+	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	if (device_proxy == nullptr)
+		return;
+
+	reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
+		device_proxy,
+		reshade::api::resource { reinterpret_cast<uintptr_t>(resource) },
+		0,
+		UINT64_MAX,
+		reshade::d3d10::convert_access_flags(map_type),
+		data);
+}
+void D3D10Device::invoke_unmap_buffer_region_event(ID3D10Buffer *resource)
+{
+	com_ptr<ID3D10Device> device;
+	resource->GetDevice(&device);
+
+	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	if (device_proxy == nullptr)
+		return;
+
+	reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(
+		device_proxy,
+		reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+}
+void D3D10Device::invoke_map_texture_region_event(ID3D10Resource *resource, UINT subresource, D3D10_MAP map_type, reshade::api::subresource_data *data)
+{
+	com_ptr<ID3D10Device> device;
+	resource->GetDevice(&device);
+
+	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	if (device_proxy == nullptr)
+		return;
+
+	reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
+		device_proxy,
+		reshade::api::resource { reinterpret_cast<uintptr_t>(resource) },
+		subresource,
+		nullptr,
+		reshade::d3d10::convert_access_flags(map_type),
+		data);
+}
+void D3D10Device::invoke_unmap_texture_region_event(ID3D10Resource *resource, UINT subresource)
+{
+	com_ptr<ID3D10Device> device;
+	resource->GetDevice(&device);
+
+	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	if (device_proxy == nullptr)
+		return;
+
+	reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
+		device_proxy,
+		reshade::api::resource { reinterpret_cast<uintptr_t>(resource) },
+		subresource);
+}
+
+void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10SamplerState *const *objects)
+{
+	assert(count <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
+
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		return;
+
+#ifndef WIN64
+	reshade::api::sampler descriptors[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		descriptors[i] = { reinterpret_cast<uintptr_t>(objects[i]) };
+#else
+	static_assert(sizeof(*objects) == sizeof(reshade::api::sampler));
+	const auto descriptors = reinterpret_cast<const reshade::api::sampler *>(objects);
+#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+		this,
+		stage,
+		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
+		reshade::d3d10::global_pipeline_layout, 0,
+		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::sampler, descriptors));
+}
+void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects)
+{
+	assert(count <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
+
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		return;
+
+#ifndef WIN64
+	reshade::api::resource_view descriptors[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		descriptors[i] = { reinterpret_cast<uintptr_t>(objects[i]) };
+#else
+	static_assert(sizeof(*objects) == sizeof(reshade::api::resource_view));
+	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
+#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+		this,
+		stage,
+		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
+		reshade::d3d10::global_pipeline_layout, 1,
+		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::shader_resource_view, descriptors));
+}
+void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects)
+{
+	assert(count <= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
+
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		return;
+
+	reshade::api::buffer_range descriptors[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		descriptors[i] = { reshade::api::resource { reinterpret_cast<uintptr_t>(objects[i]) }, 0, UINT64_MAX };
+
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+		this,
+		stage,
+		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
+		reshade::d3d10::global_pipeline_layout, 2,
+		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::constant_buffer, descriptors));
+}
+
 #include "hook_manager.hpp"
 
 HRESULT STDMETHODCALLTYPE ID3D10Buffer_Map(ID3D10Buffer *pResource, D3D10_MAP MapType, UINT MapFlags, void **ppData)
@@ -118,217 +322,6 @@ HRESULT STDMETHODCALLTYPE ID3D10Texture3D_Unmap(ID3D10Texture3D *pResource, UINT
 	return reshade::hooks::call(ID3D10Texture3D_Unmap, vtable_from_instance(pResource) + 11)(pResource, Subresource);
 }
 #endif
-
-D3D10Device::D3D10Device(IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original) :
-	DXGIDevice(original_dxgi_device), device_impl(original)
-{
-	assert(_orig != nullptr);
-
-	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available
-	D3D10Device *const device_proxy = this;
-	_orig->SetPrivateData(__uuidof(D3D10Device), sizeof(device_proxy), &device_proxy);
-}
-
-bool D3D10Device::check_and_upgrade_interface(REFIID riid)
-{
-	if (riid == __uuidof(ID3D10Device) ||
-		riid == __uuidof(ID3D10Device1))
-		return true;
-
-	return false;
-}
-
-#if RESHADE_ADDON
-void D3D10Device::invoke_map_buffer_region_event(ID3D10Buffer *resource, D3D10_MAP map_type, void **data)
-{
-	com_ptr<ID3D10Device> device;
-	resource->GetDevice(&device);
-
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
-	if (device_proxy == nullptr)
-		return;
-
-	reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-		device_proxy,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(resource) },
-		0,
-		std::numeric_limits<uint64_t>::max(),
-		reshade::d3d10::convert_access_flags(map_type),
-		data);
-}
-void D3D10Device::invoke_unmap_buffer_region_event(ID3D10Buffer *resource)
-{
-	com_ptr<ID3D10Device> device;
-	resource->GetDevice(&device);
-
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
-	if (device_proxy == nullptr)
-		return;
-
-	reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(
-		device_proxy,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-}
-void D3D10Device::invoke_map_texture_region_event(ID3D10Resource *resource, UINT subresource, D3D10_MAP map_type, reshade::api::subresource_data *data)
-{
-	com_ptr<ID3D10Device> device;
-	resource->GetDevice(&device);
-
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
-	if (device_proxy == nullptr)
-		return;
-
-	reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
-		device_proxy,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(resource) },
-		subresource,
-		nullptr,
-		reshade::d3d10::convert_access_flags(map_type),
-		data);
-}
-void D3D10Device::invoke_unmap_texture_region_event(ID3D10Resource *resource, UINT subresource)
-{
-	com_ptr<ID3D10Device> device;
-	resource->GetDevice(&device);
-
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
-	if (device_proxy == nullptr)
-		return;
-
-	reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
-		device_proxy,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(resource) },
-		subresource);
-}
-
-void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10SamplerState *const *objects)
-{
-	assert(count <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
-
-	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
-		return;
-
-#ifndef WIN64
-	reshade::api::sampler descriptors[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
-		descriptors[i] = { reinterpret_cast<uintptr_t>(objects[i]) };
-#else
-	static_assert(sizeof(*objects) == sizeof(reshade::api::sampler));
-	const auto descriptors = reinterpret_cast<const reshade::api::sampler *>(objects);
-#endif
-
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-		this,
-		stage,
-		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
-		reshade::d3d10::global_pipeline_layout, 0,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::sampler, descriptors));
-}
-void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects)
-{
-	assert(count <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
-
-	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
-		return;
-
-#ifndef WIN64
-	reshade::api::resource_view descriptors[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
-		descriptors[i] = { reinterpret_cast<uintptr_t>(objects[i]) };
-#else
-	static_assert(sizeof(*objects) == sizeof(reshade::api::resource_view));
-	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
-#endif
-
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-		this,
-		stage,
-		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
-		reshade::d3d10::global_pipeline_layout, 1,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::shader_resource_view, descriptors));
-}
-void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects)
-{
-	assert(count <= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
-
-	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
-		return;
-
-	reshade::api::buffer_range descriptors[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
-	{
-		descriptors[i] = {
-			reshade::api::resource { reinterpret_cast<uintptr_t>(objects[i]) },
-			0,
-			std::numeric_limits<uint64_t>::max() };
-	}
-
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-		this,
-		stage,
-		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
-		reshade::d3d10::global_pipeline_layout, 2,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::constant_buffer, descriptors));
-}
-#endif
-
-HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj)
-{
-	if (ppvObj == nullptr)
-		return E_POINTER;
-
-	if (riid == __uuidof(this))
-	{
-		AddRef();
-		*ppvObj = this;
-		return S_OK;
-	}
-
-	if (check_and_upgrade_interface(riid))
-	{
-		AddRef();
-		*ppvObj = static_cast<ID3D10Device *>(this);
-		return S_OK;
-	}
-
-	// Note: Objects must have an identity, so use DXGIDevice for IID_IUnknown
-	// See https://docs.microsoft.com/windows/desktop/com/rules-for-implementing-queryinterface
-	if (DXGIDevice::check_and_upgrade_interface(riid))
-	{
-		AddRef();
-		*ppvObj = static_cast<IDXGIDevice1 *>(this);
-		return S_OK;
-	}
-
-	return _orig->QueryInterface(riid, ppvObj);
-}
-ULONG   STDMETHODCALLTYPE D3D10Device::AddRef()
-{
-	_orig->AddRef();
-
-	return InterlockedIncrement(&_ref);
-}
-ULONG   STDMETHODCALLTYPE D3D10Device::Release()
-{
-	const ULONG ref = InterlockedDecrement(&_ref);
-	if (ref != 0)
-	{
-		_orig->Release();
-		return ref;
-	}
-
-	const auto orig = _orig;
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") and " <<
-		"IDXGIDevice" << DXGIDevice::_interface_version << " object " << static_cast<IDXGIDevice1 *>(this) << " (" << DXGIDevice::_orig << ").";
-#endif
-	delete this;
-
-	const ULONG ref_orig = orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") is inconsistent (" << ref_orig << ").";
-	return 0;
-}
 
 void    STDMETHODCALLTYPE D3D10Device::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
 {
@@ -469,19 +462,9 @@ void    STDMETHODCALLTYPE D3D10Device::IASetPrimitiveTopology(D3D10_PRIMITIVE_TO
 	_orig->IASetPrimitiveTopology(Topology);
 
 #if RESHADE_ADDON
-	static_assert(
-		(DWORD)reshade::api::primitive_topology::point_list         == D3D10_PRIMITIVE_TOPOLOGY_POINTLIST &&
-		(DWORD)reshade::api::primitive_topology::line_list          == D3D10_PRIMITIVE_TOPOLOGY_LINELIST &&
-		(DWORD)reshade::api::primitive_topology::line_strip         == D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP &&
-		(DWORD)reshade::api::primitive_topology::triangle_list      == D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST &&
-		(DWORD)reshade::api::primitive_topology::triangle_strip     == D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP &&
-		(DWORD)reshade::api::primitive_topology::line_list_adj      == D3D10_PRIMITIVE_TOPOLOGY_LINELIST_ADJ &&
-		(DWORD)reshade::api::primitive_topology::line_strip_adj     == D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ &&
-		(DWORD)reshade::api::primitive_topology::triangle_list_adj  == D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ &&
-		(DWORD)reshade::api::primitive_topology::triangle_strip_adj == D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ);
-
 	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::primitive_topology };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, states, reinterpret_cast<const uint32_t *>(&Topology));
+	const uint32_t values[1] = { static_cast<uint32_t>(reshade::d3d10::convert_primitive_topology(Topology)) };
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews)
@@ -642,7 +625,7 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 					pSrcBox != nullptr ? pSrcBox->left : 0,
 					reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) },
 					DstX,
-					pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : std::numeric_limits<uint64_t>::max()))
+					pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : UINT64_MAX))
 				return;
 		}
 		else

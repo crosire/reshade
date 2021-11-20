@@ -962,9 +962,9 @@ namespace reshade { namespace api
 	struct buffer_range
 	{
 		buffer_range() :
-			buffer(), offset(0), size(0xFFFFFFFFFFFFFFFFllu) {}
+			buffer(), offset(0), size(UINT64_MAX) {}
 		buffer_range(resource buffer) :
-			buffer(buffer), offset(0), size(0xFFFFFFFFFFFFFFFFllu) {}
+			buffer(buffer), offset(0), size(UINT64_MAX) {}
 		buffer_range(resource buffer, uint64_t offset, uint64_t size) :
 			buffer(buffer), offset(offset), size(size) {}
 
@@ -978,7 +978,7 @@ namespace reshade { namespace api
 		uint64_t offset;
 		/// <summary>
 		/// Number of elements this range covers in the buffer resource (in bytes).
-		/// Set to -1 (0xFFFFFFFFFFFFFFFF) to indicate that the whole buffer should be used.
+		/// Set to -1 (UINT64_MAX) to indicate that the whole buffer should be used.
 		/// </summary>
 		uint64_t size;
 	};

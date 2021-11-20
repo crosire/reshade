@@ -2872,7 +2872,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 					case reshadefx::type::t_bool:
 					{
 						bool data;
-						get_uniform_value(variable, &data, 1);
+						get_uniform_value(variable, &data);
 						set_uniform_value(variable, !data);
 						break;
 					}
@@ -2974,7 +2974,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 							mode == "toggle" || variable.annotation_as_int("toggle"))
 						{
 							bool current_value = false;
-							get_uniform_value(variable, &current_value, 1);
+							get_uniform_value(variable, &current_value);
 							if (_input->is_key_pressed(keycode))
 								set_uniform_value(variable, !current_value);
 						}
@@ -3013,7 +3013,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 							mode == "toggle" || variable.annotation_as_int("toggle"))
 						{
 							bool current_value = false;
-							get_uniform_value(variable, &current_value, 1);
+							get_uniform_value(variable, &current_value);
 							if (_input->is_mouse_button_pressed(keycode))
 								set_uniform_value(variable, !current_value);
 						}
@@ -3162,7 +3162,7 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 	}
 	else if (_renderer_id == 0x9000)
 	{
-		cmd_list->push_constants(api::shader_stage::all, effect.layout, 0, 0, static_cast<uint32_t>(effect.uniform_data_storage.size() / sizeof(uint32_t)), reinterpret_cast<const uint32_t *>(effect.uniform_data_storage.data()));
+		cmd_list->push_constants(api::shader_stage::all, effect.layout, 0, 0, static_cast<uint32_t>(effect.uniform_data_storage.size() / sizeof(uint32_t)), effect.uniform_data_storage.data());
 	}
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);

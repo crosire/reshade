@@ -94,7 +94,11 @@ namespace reshade::d3d9
 	auto convert_compare_op(api::compare_op value) -> D3DCMPFUNC;
 	auto convert_stencil_op(D3DSTENCILOP value) -> api::stencil_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3DSTENCILOP;
+	auto convert_primitive_topology(D3DPRIMITIVETYPE value) -> api::primitive_topology;
+	auto convert_primitive_topology(api::primitive_topology value) -> D3DPRIMITIVETYPE;
 	auto convert_query_type(api::query_type value) -> D3DQUERYTYPE;
+	auto convert_dynamic_state(D3DRENDERSTATETYPE value) -> api::dynamic_state;
+	auto convert_dynamic_state(api::dynamic_state value) -> D3DRENDERSTATETYPE;
 
 	UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count);
 	UINT calc_prim_from_vertex_count(D3DPRIMITIVETYPE type, UINT count);

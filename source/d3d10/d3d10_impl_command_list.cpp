@@ -146,7 +146,7 @@ void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api
 		switch (states[i])
 		{
 		case api::dynamic_state::primitive_topology:
-			_orig->IASetPrimitiveTopology(static_cast<D3D10_PRIMITIVE_TOPOLOGY>(values[i]));
+			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		default:
 			assert(false);
@@ -244,7 +244,7 @@ void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stages
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		buffer_ptrs[i] = reinterpret_cast<ID3D10Buffer *>(buffer_ranges[i].buffer.handle);
-		assert(buffer_ranges[i].offset == 0 && buffer_ranges[i].size == std::numeric_limits<uint64_t>::max());
+		assert(buffer_ranges[i].offset == 0 && buffer_ranges[i].size == UINT64_MAX);
 	}
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
@@ -397,11 +397,11 @@ void reshade::d3d10::device_impl::copy_buffer_region(api::resource src, uint64_t
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (size == std::numeric_limits<uint64_t>::max())
+	if (size == UINT64_MAX)
 	{
 		D3D10_BUFFER_DESC desc;
 		reinterpret_cast<ID3D10Buffer *>(src.handle)->GetDesc(&desc);
-		size = desc.ByteWidth;
+		size  = desc.ByteWidth;
 	}
 
 	assert(src_offset <= std::numeric_limits<UINT>::max() && dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());

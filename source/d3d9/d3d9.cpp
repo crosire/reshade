@@ -166,7 +166,7 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, bool use_softw
 #endif
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDirect3DDevice9" << (device_proxy->_extended_interface ? "Ex" : "") << " object " << device << '.';
+	LOG(INFO) << "Returning IDirect3DDevice9" << (device_proxy->_extended_interface ? "Ex" : "") << " object " << device_proxy << " (" << device_proxy->_orig << ").";
 #endif
 }
 

@@ -450,7 +450,7 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 	impl->rasterizer_state = std::move(rasterizer_state);
 	impl->depth_stencil_state = std::move(depth_stencil_state);
 
-	impl->topology = static_cast<D3D10_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
+	impl->topology = convert_primitive_topology(desc.graphics.topology);
 	impl->sample_mask = desc.graphics.sample_mask;
 	impl->stencil_reference_value = desc.graphics.depth_stencil_state.stencil_reference_value;
 

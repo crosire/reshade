@@ -28,7 +28,7 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 	if (device_proxy->check_and_upgrade_interface(riid))
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(INFO) << "Returning ID3D12Device" << device_proxy->_interface_version << " object " << device_proxy << '.';
+		LOG(INFO) << "Returning ID3D12Device" << device_proxy->_interface_version << " object " << device_proxy << " (" << device_proxy->_orig << ").";
 #endif
 		*ppDevice = device_proxy;
 	}

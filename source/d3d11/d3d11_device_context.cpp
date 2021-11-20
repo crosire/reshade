@@ -156,12 +156,10 @@ void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader
 
 	reshade::api::buffer_range descriptors[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 	for (UINT i = 0; i < count; ++i)
-	{
 		descriptors[i] = {
 			reshade::api::resource { reinterpret_cast<uintptr_t>(objects[i]) },
 			first_constant != nullptr ? first_constant[i] * 16 : 0,
-			constant_count != nullptr ? constant_count[i] * 16 : std::numeric_limits<uint64_t>::max() };
-	}
+			constant_count != nullptr ? constant_count[i] * 16 : UINT64_MAX };
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
@@ -313,7 +311,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UIN
 				_device,
 				reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) },
 				0,
-				std::numeric_limits<uint64_t>::max(),
+				UINT64_MAX,
 				reshade::d3d11::convert_access_flags(MapType),
 				// See https://docs.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-map#null-pointers-for-pmappedresource
 				pMappedResource != nullptr ? &pMappedResource->pData : nullptr);
@@ -449,19 +447,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetPrimitiveTopology(D3D11_PRIMI
 	_orig->IASetPrimitiveTopology(Topology);
 
 #if RESHADE_ADDON
-	static_assert(
-		(DWORD)reshade::api::primitive_topology::point_list         == D3D11_PRIMITIVE_TOPOLOGY_POINTLIST &&
-		(DWORD)reshade::api::primitive_topology::line_list          == D3D11_PRIMITIVE_TOPOLOGY_LINELIST &&
-		(DWORD)reshade::api::primitive_topology::line_strip         == D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP &&
-		(DWORD)reshade::api::primitive_topology::triangle_list      == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST &&
-		(DWORD)reshade::api::primitive_topology::triangle_strip     == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP &&
-		(DWORD)reshade::api::primitive_topology::line_list_adj      == D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ &&
-		(DWORD)reshade::api::primitive_topology::line_strip_adj     == D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ &&
-		(DWORD)reshade::api::primitive_topology::triangle_list_adj  == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ &&
-		(DWORD)reshade::api::primitive_topology::triangle_strip_adj == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ);
-
 	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::primitive_topology };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, states, reinterpret_cast<const uint32_t *>(&Topology));
+	const uint32_t values[1] = { static_cast<uint32_t>(reshade::d3d11::convert_primitive_topology(Topology)) };
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
@@ -681,7 +669,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resour
 					pSrcBox != nullptr ? pSrcBox->left : 0,
 					reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) },
 					DstX,
-					pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : std::numeric_limits<uint64_t>::max()))
+					pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : UINT64_MAX))
 				return;
 		}
 		else

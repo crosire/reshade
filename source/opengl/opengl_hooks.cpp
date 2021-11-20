@@ -102,7 +102,7 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 
 	// Register all possible views of this texture too
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		g_current_context, resource, usage_type, reshade::api::resource_view_desc(reshade::opengl::convert_resource_view_type(base_target), desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF), reshade::opengl::make_resource_view_handle(base_target, object));
+		g_current_context, resource, usage_type, reshade::api::resource_view_desc(reshade::opengl::convert_resource_view_type(base_target), desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX), reshade::opengl::make_resource_view_handle(base_target, object));
 
 	if (base_target == GL_TEXTURE_CUBE_MAP)
 	{
@@ -111,7 +111,7 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 			const GLenum face_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 
 			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-				g_current_context, resource, usage_type, reshade::api::resource_view_desc(reshade::opengl::convert_resource_view_type(face_target), desc.texture.format, 0, 0xFFFFFFFF, face, 1), reshade::opengl::make_resource_view_handle(face_target, object));
+				g_current_context, resource, usage_type, reshade::api::resource_view_desc(reshade::opengl::convert_resource_view_type(face_target), desc.texture.format, 0, UINT32_MAX, face, 1), reshade::opengl::make_resource_view_handle(face_target, object));
 		}
 	}
 }
@@ -1471,7 +1471,12 @@ auto APIENTRY glMapBuffer(GLenum target, GLenum access) -> void *
 		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), 0, std::numeric_limits<uint64_t>::max(), reshade::opengl::convert_access_flags(access), &result);
+			g_current_context,
+			reshade::opengl::make_resource_handle(GL_BUFFER, object),
+			0,
+			UINT64_MAX,
+			reshade::opengl::convert_access_flags(access),
+			&result);
 	}
 #endif
 
@@ -1486,7 +1491,9 @@ void APIENTRY glUnmapBuffer(GLenum target)
 		GLint object = 0;
 		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
-		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object));
+		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(
+			g_current_context,
+			reshade::opengl::make_resource_handle(GL_BUFFER, object));
 	}
 #endif
 
@@ -1955,7 +1962,12 @@ auto APIENTRY glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length
 		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), offset, length, reshade::opengl::convert_access_flags(access), &result);
+			g_current_context,
+			reshade::opengl::make_resource_handle(GL_BUFFER, object),
+			offset,
+			length,
+			reshade::opengl::convert_access_flags(access),
+			&result);
 	}
 #endif
 
@@ -2229,7 +2241,7 @@ void APIENTRY glBindBufferBase(GLenum target, GLuint index, GLuint buffer)
 		const reshade::api::buffer_range descriptor_data = {
 			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
 			0,
-			std::numeric_limits<uint64_t>::max()
+			UINT64_MAX
 		};
 
 		const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
@@ -2991,9 +3003,9 @@ void APIENTRY glTextureView(GLuint texture, GLenum target, GLuint origtexture, G
 			minlayer = desc.texture.first_layer;
 			numlayers = desc.texture.layer_count;
 
-			if (desc.texture.level_count == 0xFFFFFFFF)
+			if (desc.texture.level_count == UINT32_MAX)
 				numlevels = g_current_context->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.levels;
-			if (desc.texture.layer_count == 0xFFFFFFFF)
+			if (desc.texture.layer_count == UINT32_MAX)
 				numlayers = g_current_context->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.depth_or_layers;
 		}
 
@@ -3287,7 +3299,7 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 			{
 				descriptor_data[i].buffer = reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]);
 				descriptor_data[i].offset = 0;
-				descriptor_data[i].size = std::numeric_limits<uint64_t>::max();
+				descriptor_data[i].size = UINT64_MAX;
 			}
 		}
 		else
@@ -3810,7 +3822,12 @@ auto APIENTRY glMapNamedBuffer(GLuint buffer, GLenum access) -> void *
 		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), 0, std::numeric_limits<uint64_t>::max(), reshade::opengl::convert_access_flags(access), &result);
+			g_current_context,
+			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
+			0,
+			UINT64_MAX,
+			reshade::opengl::convert_access_flags(access),
+			&result);
 	}
 #endif
 
@@ -3826,7 +3843,12 @@ auto APIENTRY glMapNamedBufferRange(GLuint buffer, GLintptr offset, GLsizeiptr l
 		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), offset, length, reshade::opengl::convert_access_flags(access), &result);
+			g_current_context,
+			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
+			offset,
+			length,
+			reshade::opengl::convert_access_flags(access),
+			&result);
 	}
 #endif
 
@@ -3838,7 +3860,9 @@ void APIENTRY glUnmapNamedBuffer(GLuint buffer)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
 	{
-		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer));
+		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(
+			g_current_context,
+			reshade::opengl::make_resource_handle(GL_BUFFER, buffer));
 	}
 #endif
 

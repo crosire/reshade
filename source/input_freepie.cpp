@@ -39,7 +39,7 @@ public:
 
 	operator T &()
 	{
-		return *reinterpret_cast<T *>(mapped);
+		return *static_cast<T *>(mapped);
 	}
 
 	operator bool() const

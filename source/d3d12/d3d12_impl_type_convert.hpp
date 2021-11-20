@@ -84,6 +84,8 @@ namespace reshade::d3d12
 	auto convert_compare_op(D3D12_COMPARISON_FUNC value) -> api::compare_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3D12_STENCIL_OP;
 	auto convert_stencil_op(D3D12_STENCIL_OP value) -> api::stencil_op;
+	auto convert_primitive_topology(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY;
+	auto convert_primitive_topology(D3D12_PRIMITIVE_TOPOLOGY value) -> api::primitive_topology;
 	auto convert_primitive_topology_type(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY_TYPE;
 	auto convert_primitive_topology_type(D3D12_PRIMITIVE_TOPOLOGY_TYPE value) -> api::primitive_topology;
 

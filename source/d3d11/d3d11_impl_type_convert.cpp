@@ -551,8 +551,8 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.TextureCubeArray.MostDetailedMip = desc.texture.first_level;
 		internal_desc.TextureCubeArray.MipLevels = desc.texture.level_count;
 		internal_desc.TextureCubeArray.First2DArrayFace = desc.texture.first_layer;
-		if (desc.texture.layer_count == 0xFFFFFFFF)
-			internal_desc.TextureCubeArray.NumCubes = 0xFFFFFFFF;
+		if (desc.texture.layer_count == UINT32_MAX)
+			internal_desc.TextureCubeArray.NumCubes = UINT_MAX;
 		else
 			internal_desc.TextureCubeArray.NumCubes = desc.texture.layer_count / 6;
 		break;
@@ -824,8 +824,8 @@ reshade::api::resource_view_desc reshade::d3d11::convert_resource_view_desc(cons
 		desc.texture.first_level = internal_desc.TextureCubeArray.MostDetailedMip;
 		desc.texture.level_count = internal_desc.TextureCubeArray.MipLevels;
 		desc.texture.first_layer = internal_desc.TextureCubeArray.First2DArrayFace;
-		if (internal_desc.TextureCubeArray.NumCubes == 0xFFFFFFFF)
-			desc.texture.layer_count = 0xFFFFFFFF;
+		if (internal_desc.TextureCubeArray.NumCubes == UINT_MAX)
+			desc.texture.layer_count = UINT32_MAX;
 		else
 			desc.texture.layer_count = internal_desc.TextureCubeArray.NumCubes * 6;
 		break;
@@ -1475,6 +1475,25 @@ auto reshade::d3d11::convert_stencil_op(D3D11_STENCIL_OP value) -> api::stencil_
 {
 	return static_cast<api::stencil_op>(static_cast<uint32_t>(value) - 1);
 }
+auto reshade::d3d11::convert_primitive_topology(api::primitive_topology value) -> D3D11_PRIMITIVE_TOPOLOGY
+{
+	static_assert(
+		(DWORD)reshade::api::primitive_topology::point_list == D3D11_PRIMITIVE_TOPOLOGY_POINTLIST &&
+		(DWORD)reshade::api::primitive_topology::line_list == D3D11_PRIMITIVE_TOPOLOGY_LINELIST &&
+		(DWORD)reshade::api::primitive_topology::line_strip == D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP &&
+		(DWORD)reshade::api::primitive_topology::triangle_list == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST &&
+		(DWORD)reshade::api::primitive_topology::triangle_strip == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP &&
+		(DWORD)reshade::api::primitive_topology::line_list_adj == D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ &&
+		(DWORD)reshade::api::primitive_topology::line_strip_adj == D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ &&
+		(DWORD)reshade::api::primitive_topology::triangle_list_adj == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ &&
+		(DWORD)reshade::api::primitive_topology::triangle_strip_adj == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ);
+
+	return static_cast<D3D11_PRIMITIVE_TOPOLOGY>(value);
+}
+auto reshade::d3d11::convert_primitive_topology(D3D11_PRIMITIVE_TOPOLOGY value) -> api::primitive_topology
+{
+	return static_cast<api::primitive_topology>(value);
+}
 auto reshade::d3d11::convert_query_type(api::query_type value) -> D3D11_QUERY
 {
 	switch (value)
@@ -1489,6 +1508,6 @@ auto reshade::d3d11::convert_query_type(api::query_type value) -> D3D11_QUERY
 		return D3D11_QUERY_PIPELINE_STATISTICS;
 	default:
 		assert(false);
-		return static_cast<D3D11_QUERY>(0xFFFFFFFF);
+		return static_cast<D3D11_QUERY>(UINT_MAX);
 	}
 }

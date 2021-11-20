@@ -569,7 +569,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 		case D3DRTYPE_SURFACE:
 		{
 			assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
-			assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == 0xFFFFFFFF));
+			assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == UINT32_MAX));
 
 			if (usage_type == api::resource_usage::depth_stencil || usage_type == api::resource_usage::render_target)
 			{
@@ -592,7 +592,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 		case D3DRTYPE_TEXTURE:
 		{
 			assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
-			assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == 0xFFFFFFFF));
+			assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == UINT32_MAX));
 
 			if (usage_type == api::resource_usage::depth_stencil || usage_type == api::resource_usage::render_target)
 			{
@@ -808,21 +808,21 @@ reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_d
 			D3DSURFACE_DESC internal_desc;
 			static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 
-			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, 0xFFFFFFFF, 0, 0xFFFFFFFF);
+			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, UINT32_MAX, 0, UINT32_MAX);
 		}
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
 			D3DVOLUME_DESC internal_desc;
 			static_cast<IDirect3DVolumeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 
-			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, 0xFFFFFFFF, 0, 0xFFFFFFFF);
+			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, UINT32_MAX, 0, UINT32_MAX);
 		}
 		case D3DRTYPE_CUBETEXTURE:
 		{
 			D3DSURFACE_DESC internal_desc;
 			static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 
-			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, 0xFFFFFFFF, 0, 0xFFFFFFFF);
+			return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), set_srgb_bit), 0, UINT32_MAX, 0, UINT32_MAX);
 		}
 	}
 
@@ -989,7 +989,7 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		SUCCEEDED(_orig->EndStateBlock(&state_block)))
 	{
 		const auto impl = new pipeline_impl();
-		impl->prim_type = static_cast<D3DPRIMITIVETYPE>(desc.graphics.topology);
+		impl->prim_type = convert_primitive_topology(desc.graphics.topology);
 		impl->state_block = std::move(state_block);
 
 		// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
@@ -1446,7 +1446,7 @@ bool reshade::d3d9::device_impl::map_buffer_region(api::resource resource, uint6
 		return false;
 
 	assert(resource.handle != 0);
-	assert(offset <= std::numeric_limits<UINT>::max() && (size == std::numeric_limits<uint64_t>::max() || size <= std::numeric_limits<UINT>::max()));
+	assert(offset <= std::numeric_limits<UINT>::max() && (size == UINT64_MAX || size <= std::numeric_limits<UINT>::max()));
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
@@ -1455,12 +1455,12 @@ bool reshade::d3d9::device_impl::map_buffer_region(api::resource resource, uint6
 		case D3DRTYPE_VERTEXBUFFER:
 		{
 			return SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(
-				static_cast<UINT>(offset), size != std::numeric_limits<uint64_t>::max() ? static_cast<UINT>(size) : 0, out_data, convert_access_flags(access)));
+				static_cast<UINT>(offset), size != UINT64_MAX ? static_cast<UINT>(size) : 0, out_data, convert_access_flags(access)));
 		}
 		case D3DRTYPE_INDEXBUFFER:
 		{
 			return SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(
-				static_cast<UINT>(offset), size != std::numeric_limits<uint64_t>::max() ? static_cast<UINT>(size) : 0, out_data, convert_access_flags(access)));
+				static_cast<UINT>(offset), size != UINT64_MAX ? static_cast<UINT>(size) : 0, out_data, convert_access_flags(access)));
 		}
 	}
 

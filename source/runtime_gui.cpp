@@ -2515,7 +2515,7 @@ void reshade::runtime::draw_variable_editor()
 			case reshadefx::type::t_bool:
 			{
 				bool data;
-				get_uniform_value(variable, &data, 1);
+				get_uniform_value(variable, &data);
 
 				if (ui_type == "combo")
 					modified = imgui::combo_with_buttons(label.data(), data);
@@ -2523,7 +2523,7 @@ void reshade::runtime::draw_variable_editor()
 					modified = ImGui::Checkbox(label.data(), &data);
 
 				if (modified)
-					set_uniform_value(variable, &data, 1);
+					set_uniform_value(variable, &data);
 				break;
 			}
 			case reshadefx::type::t_int:
@@ -3462,7 +3462,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	}
 
 	if (ImDrawIdx *idx_dst;
-		_device->map_buffer_region(_imgui_indices[buffer_index], 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_only, reinterpret_cast<void **>(&idx_dst)))
+		_device->map_buffer_region(_imgui_indices[buffer_index], 0, UINT64_MAX, api::map_access::write_only, reinterpret_cast<void **>(&idx_dst)))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -3474,7 +3474,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		_device->unmap_buffer_region(_imgui_indices[buffer_index]);
 	}
 	if (ImDrawVert *vtx_dst;
-		_device->map_buffer_region(_imgui_vertices[buffer_index], 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_only, reinterpret_cast<void **>(&vtx_dst)))
+		_device->map_buffer_region(_imgui_vertices[buffer_index], 0, UINT64_MAX, api::map_access::write_only, reinterpret_cast<void **>(&vtx_dst)))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{

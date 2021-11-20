@@ -1054,6 +1054,22 @@ auto reshade::d3d9::convert_stencil_op(api::stencil_op value) -> D3DSTENCILOP
 {
 	return static_cast<D3DSTENCILOP>(static_cast<uint32_t>(value) + 1);
 }
+auto reshade::d3d9::convert_primitive_topology(D3DPRIMITIVETYPE value) -> api::primitive_topology
+{
+	return static_cast<api::primitive_topology>(value);
+}
+auto reshade::d3d9::convert_primitive_topology(api::primitive_topology value) -> D3DPRIMITIVETYPE
+{
+	static_assert(
+		(DWORD)reshade::api::primitive_topology::point_list     == D3DPT_POINTLIST &&
+		(DWORD)reshade::api::primitive_topology::line_list      == D3DPT_LINELIST &&
+		(DWORD)reshade::api::primitive_topology::line_strip     == D3DPT_LINESTRIP &&
+		(DWORD)reshade::api::primitive_topology::triangle_list  == D3DPT_TRIANGLELIST &&
+		(DWORD)reshade::api::primitive_topology::triangle_strip == D3DPT_TRIANGLESTRIP &&
+		(DWORD)reshade::api::primitive_topology::triangle_fan   == D3DPT_TRIANGLEFAN);
+
+	return static_cast<D3DPRIMITIVETYPE>(value);
+}
 auto reshade::d3d9::convert_query_type(api::query_type value) -> D3DQUERYTYPE
 {
 	switch (value)
@@ -1067,6 +1083,53 @@ auto reshade::d3d9::convert_query_type(api::query_type value) -> D3DQUERYTYPE
 		assert(false);
 		return static_cast<D3DQUERYTYPE>(0xFFFFFFFF);
 	}
+}
+auto reshade::d3d9::convert_dynamic_state(D3DRENDERSTATETYPE value) -> api::dynamic_state
+{
+	return static_cast<api::dynamic_state>(value);
+}
+auto reshade::d3d9::convert_dynamic_state(api::dynamic_state value) -> D3DRENDERSTATETYPE
+{
+	static_assert(
+		(DWORD)reshade::api::dynamic_state::depth_enable                == D3DRS_ZENABLE &&
+		(DWORD)reshade::api::dynamic_state::fill_mode                   == D3DRS_FILLMODE &&
+		(DWORD)reshade::api::dynamic_state::depth_write_mask            == D3DRS_ZWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::alpha_test_enable           == D3DRS_ALPHATESTENABLE &&
+		(DWORD)reshade::api::dynamic_state::source_color_blend_factor   == D3DRS_SRCBLEND &&
+		(DWORD)reshade::api::dynamic_state::dest_color_blend_factor     == D3DRS_DESTBLEND &&
+		(DWORD)reshade::api::dynamic_state::cull_mode                   == D3DRS_CULLMODE &&
+		(DWORD)reshade::api::dynamic_state::depth_func                  == D3DRS_ZFUNC &&
+		(DWORD)reshade::api::dynamic_state::alpha_reference_value       == D3DRS_ALPHAREF &&
+		(DWORD)reshade::api::dynamic_state::alpha_func                  == D3DRS_ALPHAFUNC &&
+		(DWORD)reshade::api::dynamic_state::blend_enable                == D3DRS_ALPHABLENDENABLE &&
+		(DWORD)reshade::api::dynamic_state::stencil_enable              == D3DRS_STENCILENABLE &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_fail_op       == D3DRS_STENCILFAIL &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_depth_fail_op == D3DRS_STENCILZFAIL &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_pass_op       == D3DRS_STENCILPASS &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_func          == D3DRS_STENCILFUNC &&
+		(DWORD)reshade::api::dynamic_state::stencil_reference_value     == D3DRS_STENCILREF &&
+		(DWORD)reshade::api::dynamic_state::stencil_read_mask           == D3DRS_STENCILMASK &&
+		(DWORD)reshade::api::dynamic_state::stencil_write_mask          == D3DRS_STENCILWRITEMASK &&
+		(DWORD)reshade::api::dynamic_state::depth_clip_enable           == D3DRS_CLIPPING &&
+		(DWORD)reshade::api::dynamic_state::multisample_enable          == D3DRS_MULTISAMPLEANTIALIAS &&
+		(DWORD)reshade::api::dynamic_state::sample_mask                 == D3DRS_MULTISAMPLEMASK &&
+		(DWORD)reshade::api::dynamic_state::render_target_write_mask    == D3DRS_COLORWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::color_blend_op              == D3DRS_BLENDOP &&
+		(DWORD)reshade::api::dynamic_state::scissor_enable              == D3DRS_SCISSORTESTENABLE &&
+		(DWORD)reshade::api::dynamic_state::depth_bias_slope_scaled     == D3DRS_SLOPESCALEDEPTHBIAS &&
+		(DWORD)reshade::api::dynamic_state::antialiased_line_enable     == D3DRS_ANTIALIASEDLINEENABLE &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_fail_op        == D3DRS_CCW_STENCILFAIL &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_depth_fail_op  == D3DRS_CCW_STENCILZFAIL &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_pass_op        == D3DRS_CCW_STENCILPASS &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_func           == D3DRS_CCW_STENCILFUNC &&
+		(DWORD)reshade::api::dynamic_state::blend_constant              == D3DRS_BLENDFACTOR &&
+		(DWORD)reshade::api::dynamic_state::srgb_write_enable           == D3DRS_SRGBWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::depth_bias                  == D3DRS_DEPTHBIAS &&
+		(DWORD)reshade::api::dynamic_state::source_alpha_blend_factor   == D3DRS_SRCBLENDALPHA &&
+		(DWORD)reshade::api::dynamic_state::dest_alpha_blend_factor     == D3DRS_DESTBLENDALPHA &&
+		(DWORD)reshade::api::dynamic_state::alpha_blend_op              == D3DRS_BLENDOPALPHA);
+
+	return static_cast<D3DRENDERSTATETYPE>(value);
 }
 
 UINT reshade::d3d9::calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count)

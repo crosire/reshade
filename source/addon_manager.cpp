@@ -11,10 +11,8 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
-#ifndef RESHADE_TEST_APPLICATION
 extern void register_addon_depth();
 extern void unregister_addon_depth();
-#endif
 
 extern HMODULE g_module_handle;
 
@@ -115,7 +113,6 @@ void reshade::load_addons()
 	if (s_reference_count++ != 0)
 		return;
 
-#ifndef RESHADE_TEST_APPLICATION
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Loading built-in add-ons ...";
 #endif
@@ -137,7 +134,6 @@ void reshade::load_addons()
 			register_addon_depth();
 		}
 	}
-#endif
 
 #if RESHADE_ADDON_LOAD
 	// Get directory from where to load add-ons from
@@ -185,13 +181,11 @@ void reshade::unload_addons()
 	}
 #endif
 
-#ifndef RESHADE_TEST_APPLICATION
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Unloading built-in add-ons ...";
 #endif
 
 	unregister_addon_depth();
-#endif
 
 	addon::loaded_info.clear();
 }
