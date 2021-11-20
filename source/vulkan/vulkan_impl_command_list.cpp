@@ -66,8 +66,8 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 			transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
 			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
-			transition.oldLayout = convert_usage_to_image_layout(old_states[i]);
-			transition.newLayout = convert_usage_to_image_layout(new_states[i]);
+			transition.oldLayout = convert_usage_to_image_layout(old_states[i], true);
+			transition.newLayout = convert_usage_to_image_layout(new_states[i], false);
 			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.image = (VkImage)resources[i].handle;

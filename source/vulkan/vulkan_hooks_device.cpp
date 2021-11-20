@@ -827,6 +827,13 @@ VkResult VKAPI_CALL vkBindBufferMemory(VkDevice device, VkBuffer buffer, VkDevic
 	const auto buffer_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_BUFFER>(buffer);
 	buffer_data->memory = memory;
 	buffer_data->memory_offset = memoryOffset;
+
+	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+		device_impl,
+		reshade::vulkan::convert_resource_desc(buffer_data->create_info),
+		nullptr,
+		reshade::api::resource_usage::undefined,
+		reshade::api::resource { (uint64_t)buffer });
 #endif
 
 	return result;
@@ -851,6 +858,13 @@ VkResult VKAPI_CALL vkBindBufferMemory2(VkDevice device, uint32_t bindInfoCount,
 		const auto buffer_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_BUFFER>(pBindInfos[i].buffer);
 		buffer_data->memory = pBindInfos[i].memory;
 		buffer_data->memory_offset = pBindInfos[i].memoryOffset;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			device_impl,
+			reshade::vulkan::convert_resource_desc(buffer_data->create_info),
+			nullptr,
+			reshade::api::resource_usage::undefined,
+			reshade::api::resource { (uint64_t)pBindInfos[i].buffer });
 	}
 #endif
 
@@ -877,6 +891,13 @@ VkResult VKAPI_CALL vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMe
 	const auto image_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(image);
 	image_data->memory = memory;
 	image_data->memory_offset = memoryOffset;
+
+	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+		device_impl,
+		reshade::vulkan::convert_resource_desc(image_data->create_info),
+		nullptr,
+		image_data->create_info.initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined,
+		reshade::api::resource { (uint64_t)image });
 #endif
 
 	return result;
@@ -903,6 +924,13 @@ VkResult VKAPI_CALL vkBindImageMemory2(VkDevice device, uint32_t bindInfoCount, 
 		const auto image_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(pBindInfos[i].image);
 		image_data->memory = pBindInfos[i].memory;
 		image_data->memory_offset = pBindInfos[i].memoryOffset;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			device_impl,
+			reshade::vulkan::convert_resource_desc(image_data->create_info),
+			nullptr,
+			image_data->create_info.initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined,
+			reshade::api::resource { (uint64_t)pBindInfos[i].image });
 	}
 #endif
 
@@ -943,9 +971,6 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	data.create_info = create_info;
 
 	device_impl->register_object<VK_OBJECT_TYPE_BUFFER>(*pBuffer, std::move(data));
-
-	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-		device_impl, desc, nullptr, reshade::api::resource_usage::undefined, reshade::api::resource { (uint64_t)*pBuffer });
 #endif
 
 	return result;
@@ -1051,9 +1076,6 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	data.create_info = create_info;
 
 	device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(*pImage, std::move(data));
-
-	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-		device_impl, desc, nullptr, pCreateInfo->initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined, reshade::api::resource { (uint64_t)*pImage });
 #endif
 
 	return result;

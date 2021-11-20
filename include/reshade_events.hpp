@@ -271,8 +271,10 @@ namespace reshade
 		/// <item><description>glRenderbufferStorageMultisample</description></item>
 		/// <item><description>glNamedRenderbufferStorage</description></item>
 		/// <item><description>glNamedRenderbufferStorageMultisample</description></item>
-		/// <item><description>vkCreateBuffer</description></item>
-		/// <item><description>vkCreateImage</description></item>
+		/// <item><description>vkBindBufferMemory</description></item>
+		/// <item><description>vkBindBufferMemory2</description></item>
+		/// <item><description>vkBindImageMemory</description></item>
+		/// <item><description>vkBindImageMemory2</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource resource)</c></para>
 		/// </summary>

@@ -448,8 +448,11 @@ auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAc
 		result |= VK_ACCESS_UNIFORM_READ_BIT;
 	return result;
 }
-auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout
+auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state, bool src_stage) -> VkImageLayout
 {
+	if (src_stage && state == api::resource_usage::cpu_access)
+		return VK_IMAGE_LAYOUT_PREINITIALIZED;
+
 	switch (state)
 	{
 	case api::resource_usage::undefined:

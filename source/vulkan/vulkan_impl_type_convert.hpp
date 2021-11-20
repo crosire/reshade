@@ -145,7 +145,7 @@ namespace reshade::vulkan
 	void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, api::resource_usage &usage);
 
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
-	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
+	auto convert_usage_to_image_layout(api::resource_usage state, bool src_stage) -> VkImageLayout;
 	auto convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features) -> VkPipelineStageFlags;
 
 	void convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags);
