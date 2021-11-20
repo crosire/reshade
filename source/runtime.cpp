@@ -3266,19 +3266,19 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 			if (pass_data.texture_set != 0)
 				cmd_list->bind_descriptor_set(api::shader_stage::all_graphics, effect.layout, sampler_with_resource_view ? 1 : 2, pass_data.texture_set);
 
-			const float viewport[6] = {
+			const api::viewport viewport = {
 				0.0f, 0.0f,
 				static_cast<float>(pass_info.viewport_width),
 				static_cast<float>(pass_info.viewport_height),
 				0.0f, 1.0f
 			};
-			cmd_list->bind_viewports(0, 1, viewport);
-			const int32_t scissor_rect[4] = {
+			cmd_list->bind_viewports(0, 1, &viewport);
+			const api::rect scissor_rect = {
 				0, 0,
 				static_cast<int32_t>(pass_info.viewport_width),
 				static_cast<int32_t>(pass_info.viewport_height)
 			};
-			cmd_list->bind_scissor_rects(0, 1, scissor_rect);
+			cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
 
 			if (_renderer_id == 0x9000)
 			{

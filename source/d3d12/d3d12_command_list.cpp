@@ -9,6 +9,8 @@
 #include "dll_log.hpp"
 #include <malloc.h>
 
+using reshade::d3d12::to_handle;
+
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	command_list_impl(device, original),
 	_device(device)
@@ -155,7 +157,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 				type = reshade::api::pipeline_stage::all_graphics;
 
 			// Only invoke event if there actually is an initial state to bind, otherwise expect things were already handled by the 'reset_command_list' event above
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInitialState) });
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, to_handle(pInitialState));
 		}
 	}
 #endif
@@ -195,13 +197,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::Dispatch(UINT ThreadGroupCountX
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyBufferRegion(ID3D12Resource *pDstBuffer, UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset, UINT64 NumBytes)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(
-			this,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcBuffer) },
-			SrcOffset,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstBuffer) },
-			DstOffset,
-			NumBytes))
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(this, to_handle(pSrcBuffer), SrcOffset, to_handle(pDstBuffer), DstOffset, NumBytes))
 		return;
 #endif
 	_orig->CopyBufferRegion(pDstBuffer, DstOffset, pSrcBuffer, SrcOffset, NumBytes);
@@ -213,15 +209,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 		reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>() ||
 		reshade::has_addon_event<reshade::addon_event::copy_texture_to_buffer>())
 	{
-		int32_t dst_box[6] = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), static_cast<int32_t>(DstZ) };
+		reshade::api::subresource_box dst_box = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), static_cast<int32_t>(DstZ) };
 
 		if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
 		{
 			if (pSrcBox != nullptr)
 			{
-				dst_box[3] = dst_box[0] + pSrcBox->right - pSrcBox->left;
-				dst_box[4] = dst_box[1] + pSrcBox->bottom - pSrcBox->top;
-				dst_box[5] = dst_box[2] + pSrcBox->back - pSrcBox->front;
+				dst_box.right = dst_box.left + pSrcBox->right - pSrcBox->left;
+				dst_box.bottom = dst_box.top + pSrcBox->bottom - pSrcBox->top;
+				dst_box.back = dst_box.front + pSrcBox->back - pSrcBox->front;
 			}
 			else
 			{
@@ -231,12 +227,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
 					this,
-					reshade::api::resource { reinterpret_cast<uintptr_t>(pSrc->pResource) },
+					to_handle(pSrc->pResource),
 					pSrc->SubresourceIndex,
-					reinterpret_cast<const int32_t *>(pSrcBox),
-					reshade::api::resource { reinterpret_cast<uintptr_t>(pDst->pResource) },
+					reinterpret_cast<const reshade::api::subresource_box *>(pSrcBox),
+					to_handle(pDst->pResource),
 					pDst->SubresourceIndex,
-					DstX != 0 || DstY != 0 || DstZ != 0 ? dst_box : nullptr,
+					DstX != 0 || DstY != 0 || DstZ != 0 ? &dst_box : nullptr,
 					reshade::api::filter_mode::min_mag_mip_point))
 				return;
 		}
@@ -244,26 +240,26 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 		{
 			if (pSrcBox != nullptr)
 			{
-				dst_box[3] = dst_box[0] + pSrcBox->right - pSrcBox->left;
-				dst_box[4] = dst_box[1] + pSrcBox->bottom - pSrcBox->top;
-				dst_box[5] = dst_box[2] + pSrcBox->back - pSrcBox->front;
+				dst_box.right = dst_box.left + pSrcBox->right - pSrcBox->left;
+				dst_box.bottom = dst_box.top + pSrcBox->bottom - pSrcBox->top;
+				dst_box.back = dst_box.front + pSrcBox->back - pSrcBox->front;
 			}
 			else
 			{
-				dst_box[3] = dst_box[0] + pSrc->PlacedFootprint.Footprint.Width;
-				dst_box[4] = dst_box[1] + pSrc->PlacedFootprint.Footprint.Height;
-				dst_box[5] = dst_box[2] + pSrc->PlacedFootprint.Footprint.Depth;
+				dst_box.right = dst_box.left + pSrc->PlacedFootprint.Footprint.Width;
+				dst_box.bottom = dst_box.top + pSrc->PlacedFootprint.Footprint.Height;
+				dst_box.back = dst_box.front + pSrc->PlacedFootprint.Footprint.Depth;
 			}
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(
 					this,
-					reshade::api::resource { reinterpret_cast<uintptr_t>(pSrc->pResource) },
+					to_handle(pSrc->pResource),
 					pSrc->PlacedFootprint.Offset,
 					pSrc->PlacedFootprint.Footprint.Width,
 					pSrc->PlacedFootprint.Footprint.Height,
-					reshade::api::resource { reinterpret_cast<uintptr_t>(pDst->pResource) },
+					to_handle(pDst->pResource),
 					pDst->SubresourceIndex,
-					dst_box))
+					&dst_box))
 				return;
 		}
 		else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT)
@@ -273,9 +269,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_to_buffer>(
 					this,
-					reshade::api::resource { reinterpret_cast<uintptr_t>(pSrc->pResource) },
-					pSrc->SubresourceIndex, reinterpret_cast<const int32_t *>(pSrcBox),
-					reshade::api::resource { reinterpret_cast<uintptr_t>(pDst->pResource) },
+					to_handle(pSrc->pResource),
+					pSrc->SubresourceIndex, reinterpret_cast<const reshade::api::subresource_box *>(pSrcBox),
+					to_handle(pDst->pResource),
 					pDst->PlacedFootprint.Offset,
 					pDst->PlacedFootprint.Footprint.Width,
 					pDst->PlacedFootprint.Footprint.Height))
@@ -289,7 +285,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyResource(ID3D12Resource *pDstResource, ID3D12Resource *pSrcResource)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcResource) }, reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }))
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, to_handle(pSrcResource), to_handle(pDstResource)))
 		return;
 #endif
 	_orig->CopyResource(pDstResource, pSrcResource);
@@ -303,10 +299,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresource(ID3D12Resour
 #if RESHADE_ADDON
 	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 			this,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcResource) },
+			to_handle(pSrcResource),
 			SrcSubresource,
 			nullptr,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) },
+			to_handle(pDstResource),
 			DstSubresource,
 			nullptr,
 			reshade::d3d12::convert_format(Format)))
@@ -329,9 +325,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetViewports(UINT NumViewport
 	_orig->RSSetViewports(NumViewports, pViewports);
 
 #if RESHADE_ADDON
-	static_assert(sizeof(D3D12_VIEWPORT) == (sizeof(float) * 6));
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(this, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
+	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(this, 0, NumViewports, reinterpret_cast<const reshade::api::viewport *>(pViewports));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetScissorRects(UINT NumRects, const D3D12_RECT *pRects)
@@ -339,7 +333,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetScissorRects(UINT NumRects
 	_orig->RSSetScissorRects(NumRects, pRects);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, NumRects, reinterpret_cast<const int32_t *>(pRects));
+	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetBlendFactor(const FLOAT BlendFactor[4])
@@ -384,7 +378,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 			type = reshade::api::pipeline_stage::all_graphics;
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pPipelineState) });
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, to_handle(pPipelineState));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)
@@ -404,17 +398,17 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 		switch (pBarriers[i].Type)
 		{
 		case D3D12_RESOURCE_BARRIER_TYPE_TRANSITION:
-			resources[i] = { reinterpret_cast<uintptr_t>(pBarriers[i].Transition.pResource) };
+			resources[i] = to_handle(pBarriers[i].Transition.pResource);
 			old_state[i] = static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateBefore);
 			new_state[i] = static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateAfter);
 			break;
 		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
-			resources[i] = { reinterpret_cast<uintptr_t>(pBarriers[i].Aliasing.pResourceAfter != nullptr ? pBarriers[i].Aliasing.pResourceAfter : pBarriers[i].Aliasing.pResourceBefore) };
+			resources[i] = to_handle(pBarriers[i].Aliasing.pResourceAfter != nullptr ? pBarriers[i].Aliasing.pResourceAfter : pBarriers[i].Aliasing.pResourceBefore);
 			old_state[i] = reshade::api::resource_usage::general;
 			new_state[i] = reshade::api::resource_usage::general;
 			break;
 		case D3D12_RESOURCE_BARRIER_TYPE_UAV:
-			resources[i] = { reinterpret_cast<uintptr_t>(pBarriers[i].UAV.pResource) };
+			resources[i] = to_handle(pBarriers[i].UAV.pResource);
 			old_state[i] = reshade::api::resource_usage::unordered_access;
 			new_state[i] = reshade::api::resource_usage::unordered_access;
 			break;
@@ -471,10 +465,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::shader_stage::all_compute,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
+		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
-		1,
-		&set);
+		1, &set);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
@@ -486,10 +479,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::shader_stage::all_graphics,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		to_handle(_current_root_signature[0]),
 		RootParameterIndex,
-		1,
-		&set);
+		1, &set);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)
@@ -500,11 +492,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UIN
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::all_compute,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
+		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
-		1,
-		&SrcData);
+		1, &SrcData);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)
@@ -515,11 +506,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstant(UI
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::all_graphics,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		to_handle(_current_root_signature[0]),
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
-		1,
-		&SrcData);
+		1, &SrcData);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstants(UINT RootParameterIndex, UINT Num32BitValuesToSet, const void *pSrcData, UINT DestOffsetIn32BitValues)
@@ -530,11 +520,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstants(UI
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::all_compute,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
+		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
-		Num32BitValuesToSet,
-		static_cast<const uint32_t *>(pSrcData));
+		Num32BitValuesToSet, static_cast<const uint32_t *>(pSrcData));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstants(UINT RootParameterIndex, UINT Num32BitValuesToSet, const void *pSrcData, UINT DestOffsetIn32BitValues)
@@ -545,11 +534,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstants(U
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::all_graphics,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		to_handle(_current_root_signature[0]),
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
-		Num32BitValuesToSet,
-		static_cast<const uint32_t *>(pSrcData));
+		Num32BitValuesToSet, static_cast<const uint32_t *>(pSrcData));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -568,7 +556,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		reshade::api::shader_stage::all_compute,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
+		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		reshade::api::descriptor_set_update(0, 1, reshade::api::descriptor_type::constant_buffer, &buffer_range));
 #endif
@@ -589,7 +577,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		reshade::api::shader_stage::all_graphics,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		to_handle(_current_root_signature[0]),
 		RootParameterIndex,
 		reshade::api::descriptor_set_update(0, 1, reshade::api::descriptor_type::constant_buffer, &buffer_range));
 #endif
@@ -670,7 +658,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 
 	reshade::api::resource_view rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
-		rtvs[i] = reshade::api::resource_view { RTsSingleHandleToDescriptorRange ? _device->offset_descriptor_handle(*pRenderTargetDescriptors, i, D3D12_DESCRIPTOR_HEAP_TYPE_RTV).ptr : pRenderTargetDescriptors[i].ptr };
+		rtvs[i] = to_handle(RTsSingleHandleToDescriptorRange ? _device->offset_descriptor_handle(*pRenderTargetDescriptors, i, D3D12_DESCRIPTOR_HEAP_TYPE_RTV) : pRenderTargetDescriptors[i]);
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRenderTargetDescriptors, rtvs, reshade::api::resource_view { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 });
 #endif
@@ -682,14 +670,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU
 		(UINT)reshade::api::attachment_type::depth   == (D3D12_CLEAR_FLAG_DEPTH << 1) &&
 		(UINT)reshade::api::attachment_type::stencil == (D3D12_CLEAR_FLAG_STENCIL << 1));
 
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
-			this,
-			reshade::api::resource_view { DepthStencilView.ptr },
-			static_cast<reshade::api::attachment_type>(ClearFlags << 1),
-			Depth,
-			Stencil,
-			NumRects,
-			reinterpret_cast<const int32_t *>(pRects)))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(DepthStencilView), static_cast<reshade::api::attachment_type>(ClearFlags << 1), Depth, Stencil, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
 		return;
 #endif
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
@@ -697,12 +678,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView, const FLOAT ColorRGBA[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
-			this,
-			reshade::api::resource_view { RenderTargetView.ptr },
-			ColorRGBA,
-			NumRects,
-			reinterpret_cast<const int32_t *>(pRects)))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(this, to_handle(RenderTargetView), ColorRGBA, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
 		return;
 #endif
 	_orig->ClearRenderTargetView(RenderTargetView, ColorRGBA, NumRects, pRects);
@@ -710,12 +686,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const UINT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_uint>(
-			this,
-			reshade::api::resource_view { ViewCPUHandle.ptr },
-			Values,
-			NumRects,
-			reinterpret_cast<const int32_t *>(pRects)))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_uint>(this, to_handle(ViewCPUHandle), Values, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
 		return;
 #endif
 	_orig->ClearUnorderedAccessViewUint(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
@@ -723,12 +694,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const FLOAT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_float>(
-			this,
-			reshade::api::resource_view { ViewCPUHandle.ptr },
-			Values,
-			NumRects,
-			reinterpret_cast<const int32_t *>(pRects)))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_float>(this, to_handle(ViewCPUHandle), Values, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
 		return;
 #endif
 	_orig->ClearUnorderedAccessViewFloat(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
@@ -768,7 +734,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndEvent()
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteIndirect(ID3D12CommandSignature *pCommandSignature, UINT MaxCommandCount, ID3D12Resource *pArgumentBuffer, UINT64 ArgumentBufferOffset, ID3D12Resource *pCountBuffer, UINT64 CountBufferOffset)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, reshade::api::indirect_command::unknown, reshade::api::resource { reinterpret_cast<uintptr_t>(pArgumentBuffer) }, ArgumentBufferOffset, MaxCommandCount, 0))
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, reshade::api::indirect_command::unknown, to_handle(pArgumentBuffer), ArgumentBufferOffset, MaxCommandCount, 0))
 		return;
 #endif
 	_orig->ExecuteIndirect(pCommandSignature, MaxCommandCount, pArgumentBuffer, ArgumentBufferOffset, pCountBuffer, CountBufferOffset);
@@ -799,25 +765,25 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresourceRegion(ID3D12
 #if RESHADE_ADDON
 	if (reshade::has_addon_event<reshade::addon_event::resolve_texture_region>())
 	{
-		int32_t src_box[6];
+		reshade::api::subresource_box src_box;
 		if (pSrcRect != nullptr)
 		{
-			src_box[0] = pSrcRect->left;
-			src_box[1] = pSrcRect->top;
-			src_box[2] = 0;
-			src_box[3] = pSrcRect->right;
-			src_box[4] = pSrcRect->bottom;
-			src_box[5] = 1;
+			src_box.left = pSrcRect->left;
+			src_box.top = pSrcRect->top;
+			src_box.front = 0;
+			src_box.right = pSrcRect->right;
+			src_box.bottom = pSrcRect->bottom;
+			src_box.back = 1;
 		}
 
 		const int32_t dst_offset[3] = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), 0 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 				this,
-				reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcResource) },
+				to_handle(pSrcResource),
 				SrcSubresource,
-				pSrcRect != nullptr ? src_box : nullptr,
-				reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) },
+				pSrcRect != nullptr ? &src_box : nullptr,
+				to_handle(pDstResource),
 				DstSubresource,
 				DstX != 0 || DstY != 0 ? dst_offset : nullptr,
 				reshade::d3d12::convert_format(Format)))
@@ -858,7 +824,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 		if (pRenderTargets[i].BeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
 		{
 			// Cannot be skipped
-			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(this, reshade::api::resource_view { pRenderTargets[i].cpuDescriptor.ptr }, pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color, 0, nullptr);
+			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(this, to_handle(pRenderTargets[i].cpuDescriptor), pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color, 0, nullptr);
 
 			clear_value_count = NumRenderTargets;
 			std::memcpy(static_cast<float *>(clear_values) + i * 4, pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color, 4 * sizeof(float));
@@ -891,7 +857,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 			pDepthStencil->StencilBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
 		{
 			// Cannot be skipped
-			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view { pDepthStencil->cpuDescriptor.ptr }, clear_flags, clear_value.Depth, clear_value.Stencil, 0, nullptr);
+			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(pDepthStencil->cpuDescriptor), clear_flags, clear_value.Depth, clear_value.Stencil, 0, nullptr);
 		}
 	}
 #endif

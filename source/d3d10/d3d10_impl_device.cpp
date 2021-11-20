@@ -130,7 +130,7 @@ bool reshade::d3d10::device_impl::create_sampler(const api::sampler_desc &desc, 
 	if (com_ptr<ID3D10SamplerState> object;
 		SUCCEEDED(_orig->CreateSamplerState(&internal_desc, &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -147,8 +147,6 @@ void reshade::d3d10::device_impl::destroy_sampler(api::sampler handle)
 
 bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle)
 {
-	static_assert(sizeof(api::subresource_data) == sizeof(D3D10_SUBRESOURCE_DATA));
-
 	switch (desc.type)
 	{
 		case api::resource_type::buffer:
@@ -159,7 +157,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Buffer> object;
 				SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = to_handle(object.release());
 				return true;
 			}
 			break;
@@ -172,7 +170,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture1D> object;
 				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = to_handle(object.release());
 				return true;
 			}
 			break;
@@ -185,7 +183,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture2D> object;
 				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = to_handle(object.release());
 				return true;
 			}
 			break;
@@ -198,7 +196,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture3D> object;
 				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = to_handle(object.release());
 				return true;
 			}
 			break;
@@ -279,7 +277,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			if (com_ptr<ID3D10DepthStencilView> object;
 				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = to_handle(object.release());
 				return true;
 			}
 			break;
@@ -292,7 +290,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			if (com_ptr<ID3D10RenderTargetView> object;
 				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = to_handle(object.release());
 				return true;
 			}
 			break;
@@ -305,7 +303,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			if (com_ptr<ID3D10ShaderResourceView1> object;
 				SUCCEEDED(_orig->CreateShaderResourceView1(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = to_handle(object.release());
 				return true;
 			}
 			break;
@@ -328,7 +326,7 @@ reshade::api::resource reshade::d3d10::device_impl::get_resource_from_view(api::
 	com_ptr<ID3D10Resource> resource;
 	reinterpret_cast<ID3D10View *>(view.handle)->GetResource(&resource);
 
-	return { reinterpret_cast<uintptr_t>(resource.get()) };
+	return to_handle(resource.get());
 }
 reshade::api::resource_view_desc reshade::d3d10::device_impl::get_resource_view_desc(api::resource_view view) const
 {
@@ -473,7 +471,7 @@ bool reshade::d3d10::device_impl::create_input_layout(const api::pipeline_desc &
 		internal_elements.empty() || // Empty input layout is valid, but generates a warning, so just return success and a zero handle
 		SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -492,7 +490,7 @@ bool reshade::d3d10::device_impl::create_vertex_shader(const api::pipeline_desc 
 	if (com_ptr<ID3D10VertexShader> object;
 		SUCCEEDED(_orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -511,7 +509,7 @@ bool reshade::d3d10::device_impl::create_geometry_shader(const api::pipeline_des
 	if (com_ptr<ID3D10GeometryShader> object;
 		SUCCEEDED(_orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -530,7 +528,7 @@ bool reshade::d3d10::device_impl::create_pixel_shader(const api::pipeline_desc &
 	if (com_ptr<ID3D10PixelShader> object;
 		SUCCEEDED(_orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -549,7 +547,7 @@ bool reshade::d3d10::device_impl::create_blend_state(const api::pipeline_desc &d
 	if (com_ptr<ID3D10BlendState1> object;
 		SUCCEEDED(_orig->CreateBlendState1(&internal_desc, &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -568,7 +566,7 @@ bool reshade::d3d10::device_impl::create_rasterizer_state(const api::pipeline_de
 	if (com_ptr<ID3D10RasterizerState> object;
 		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -587,7 +585,7 @@ bool reshade::d3d10::device_impl::create_depth_stencil_state(const api::pipeline
 	if (com_ptr<ID3D10DepthStencilState> object;
 		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -963,7 +961,7 @@ void reshade::d3d10::device_impl::unmap_buffer_region(api::resource resource)
 
 	reinterpret_cast<ID3D10Buffer *>(resource.handle)->Unmap();
 }
-bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
+bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
 {
 	if (out_data == nullptr)
 		return false;
@@ -1030,7 +1028,7 @@ void reshade::d3d10::device_impl::update_buffer_region(const void *data, api::re
 
 	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(resource.handle), 0, offset != 0 ? &box : nullptr, data, static_cast<UINT>(size), 0);
 }
-void reshade::d3d10::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
+void reshade::d3d10::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource.handle != 0);
 

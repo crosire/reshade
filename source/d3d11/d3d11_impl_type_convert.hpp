@@ -9,6 +9,11 @@
 
 namespace reshade::d3d11
 {
+	static_assert(sizeof(D3D11_BOX) == sizeof(api::subresource_box));
+	static_assert(sizeof(D3D11_RECT) == sizeof(api::rect));
+	static_assert(sizeof(D3D11_VIEWPORT) == sizeof(api::viewport));
+	static_assert(sizeof(D3D11_SUBRESOURCE_DATA) == sizeof(api::subresource_data));
+
 	struct pipeline_impl
 	{
 		void apply(ID3D11DeviceContext *ctx) const;
@@ -136,4 +141,18 @@ namespace reshade::d3d11
 	auto convert_primitive_topology(api::primitive_topology value)-> D3D11_PRIMITIVE_TOPOLOGY;
 	auto convert_primitive_topology(D3D11_PRIMITIVE_TOPOLOGY value)-> api::primitive_topology;
 	auto convert_query_type(api::query_type value) -> D3D11_QUERY;
+
+	inline auto to_handle(ID3D11SamplerState *ptr) { return api::sampler { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11Resource *ptr) { return api::resource { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11View *ptr) { return api::resource_view { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11InputLayout *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11VertexShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11HullShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11DomainShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11GeometryShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11PixelShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11ComputeShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11BlendState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11RasterizerState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11DepthStencilState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 }

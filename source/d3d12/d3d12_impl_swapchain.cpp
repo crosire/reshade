@@ -47,11 +47,11 @@ reshade::d3d12::swapchain_impl::~swapchain_impl()
 
 reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer(uint32_t index)
 {
-	return { reinterpret_cast<uintptr_t>(_backbuffers[index].get()) };
+	return to_handle(_backbuffers[index].get());
 }
 reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer_resolved(uint32_t index)
 {
-	return { reinterpret_cast<uintptr_t>(_backbuffers[index].get()) };
+	return to_handle(_backbuffers[index].get());
 }
 
 uint32_t reshade::d3d12::swapchain_impl::get_back_buffer_count() const

@@ -9,17 +9,19 @@
 #include "com_utils.hpp"
 #include <algorithm>
 
-inline void convert_box_to_rect(const int32_t box[6], RECT *rect)
+inline const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &rect)
 {
 	if (box == nullptr)
-		return;
+		return nullptr;
 
-	rect->left = box[0];
-	rect->top = box[1];
-	assert(box[2] == 0);
-	rect->right = box[3];
-	rect->bottom = box[4];
-	assert(box[5] == 1);
+	rect.left = box->left;
+	rect.top = box->top;
+	assert(box->front == 0);
+	rect.right = box->right;
+	rect.bottom = box->bottom;
+	assert(box->back == 1);
+
+	return &rect;
 }
 
 static inline bool convert_format_internal(reshade::api::format format, D3DFORMAT &internal_format)
@@ -159,7 +161,7 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		pp.EnableAutoDepthStencil &&
 		SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
 	{
-		auto desc = get_resource_desc({ reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		auto desc = get_resource_desc(to_handle(static_cast<IDirect3DResource9 *>(auto_depth_stencil.get())));
 
 		if (invoke_addon_event<addon_event::create_resource>(this, desc, nullptr, api::resource_usage::depth_stencil))
 		{
@@ -177,22 +179,21 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 			}
 		}
 
-		const auto resource_view_handle = api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
 		// In case surface was replaced with a texture resource
-		const api::resource resource_handle = get_resource_from_view(resource_view_handle);
+		const api::resource resource = get_resource_from_view(to_handle(auto_depth_stencil.get()));
 
-		invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, resource_handle);
-		invoke_addon_event<addon_event::init_resource_view>(this, resource_handle, api::resource_usage::depth_stencil, api::resource_view_desc(desc.texture.format), resource_view_handle);
+		invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, resource);
+		invoke_addon_event<addon_event::init_resource_view>(this, resource, api::resource_usage::depth_stencil, api::resource_view_desc(desc.texture.format), to_handle(auto_depth_stencil.get()));
 
-		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource_handle.handle), [this, resource_handle]() {
-			invoke_addon_event<addon_event::destroy_resource>(this, resource_handle);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			invoke_addon_event<addon_event::destroy_resource>(this, resource);
 		});
-		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource_view_handle.handle), [this, resource_view_handle]() {
-			invoke_addon_event<addon_event::destroy_resource_view>(this, resource_view_handle);
-		}, resource_view_handle.handle == resource_handle.handle ? 1 : 0);
+		register_destruction_callback_d3d9(auto_depth_stencil.get(), [this, resource_view = auto_depth_stencil.get()]() {
+			invoke_addon_event<addon_event::destroy_resource_view>(this, to_handle(resource_view));
+		}, to_handle(auto_depth_stencil.get()).handle == resource.handle ? 1 : 0);
 
 		// Communicate default state to add-ons
-		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, resource_view_handle);
+		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, to_handle(auto_depth_stencil.get()));
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);
@@ -327,7 +328,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					if (com_ptr<IDirect3DIndexBuffer9> object;
 						SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
 					{
-						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+						*out_handle = to_handle(object.release());
 
 						if (initial_data != nullptr)
 						{
@@ -345,7 +346,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					if (com_ptr<IDirect3DVertexBuffer9> object;
 						SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.FVF, internal_desc.Pool, &object, nullptr)))
 					{
-						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+						*out_handle = to_handle(object.release());
 
 						if (initial_data != nullptr)
 						{
@@ -377,7 +378,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				if (com_ptr<IDirect3DTexture9> object;
 					SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
 				{
-					*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+					*out_handle = to_handle(object.release());
 
 					if (initial_data != nullptr)
 					{
@@ -394,7 +395,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				if (com_ptr<IDirect3DCubeTexture9> object;
 					SUCCEEDED(_orig->CreateCubeTexture(internal_desc.Width, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
 				{
-					*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+					*out_handle = to_handle(object.release());
 
 					if (initial_data != nullptr)
 					{
@@ -422,7 +423,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			if (com_ptr<IDirect3DVolumeTexture9> object;
 				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
 			{
-				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = to_handle(object.release());
 
 				if (initial_data != nullptr)
 				{
@@ -704,18 +705,18 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 	{
 		if (com_ptr<IDirect3DResource9> resource;
 			SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
-			return { reinterpret_cast<uintptr_t>(resource.get()) };
+			return to_handle(resource.get());
 	}
 	else if (com_ptr<IDirect3DVolume9> volume;
 		SUCCEEDED(object->QueryInterface(&volume)))
 	{
 		if (com_ptr<IDirect3DResource9> resource;
 			SUCCEEDED(volume->GetContainer(IID_PPV_ARGS(&resource))))
-			return { reinterpret_cast<uintptr_t>(resource.get()) };
+			return to_handle(resource.get());
 	}
 
 	// If unable to get container, just return the resource directly
-	return { reinterpret_cast<uintptr_t>(object) };
+	return to_handle(static_cast<IDirect3DResource9 *>(object));
 }
 reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, uint32_t *out_subresource, uint32_t *out_levels) const
 {
@@ -779,7 +780,7 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 		}
 	}
 
-	return { reinterpret_cast<uint64_t>(resource) };
+	return to_handle(resource);
 }
 reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_desc(api::resource_view view) const
 {
@@ -1015,7 +1016,7 @@ bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &d
 		internal_elements.size() == 1 || // Avoid vertex declaration creation if the input layout is empty (it always contains at least a single 'D3DDECL_END' element)
 		SUCCEEDED(_orig->CreateVertexDeclaration(internal_elements.data(), &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -1033,7 +1034,7 @@ bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &
 	if (com_ptr<IDirect3DVertexShader9> object;
 		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -1051,7 +1052,7 @@ bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &d
 	if (com_ptr<IDirect3DPixelShader9> object;
 		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), &object)))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 		return true;
 	}
 	else
@@ -1489,7 +1490,7 @@ void reshade::d3d9::device_impl::unmap_buffer_region(api::resource resource)
 
 	assert(false); // Not implemented
 }
-bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
+bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
 {
 	if (out_data == nullptr)
 		return false;
@@ -1509,10 +1510,8 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 			assert(subresource == 0);
 
 			RECT rect;
-			convert_box_to_rect(box, &rect);
-
 			D3DLOCKED_RECT locked_rect;
-			if (SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked_rect, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
+			if (SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
 			{
 				out_data->data = locked_rect.pBits;
 				out_data->row_pitch = locked_rect.Pitch;
@@ -1523,10 +1522,8 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 		case D3DRTYPE_TEXTURE:
 		{
 			RECT rect;
-			convert_box_to_rect(box, &rect);
-
 			D3DLOCKED_RECT locked_rect;
-			if (SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked_rect, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
+			if (SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
 			{
 				out_data->data = locked_rect.pBits;
 				out_data->row_pitch = locked_rect.Pitch;
@@ -1551,10 +1548,8 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 			const UINT levels = static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount();
 
 			RECT rect;
-			convert_box_to_rect(box, &rect);
-
 			D3DLOCKED_RECT locked_rect;
-			if (SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, box != nullptr ? &rect : nullptr, convert_access_flags(access))))
+			if (SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
 			{
 				out_data->data = locked_rect.pBits;
 				out_data->row_pitch = locked_rect.Pitch;
@@ -1637,7 +1632,7 @@ void reshade::d3d9::device_impl::update_buffer_region(const void *data, api::res
 
 	assert(false); // Not implemented
 }
-void reshade::d3d9::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
+void reshade::d3d9::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource.handle != 0);
 
@@ -1652,8 +1647,8 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			if (FAILED(static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(subresource, &desc)))
 				return;
 
-			const UINT width = (box != nullptr) ? box[3] - box[0] : desc.Width;
-			const UINT height = (box != nullptr) ? box[4] - box[1] : desc.Height;
+			const UINT width = (box != nullptr) ? box->right - box->left : desc.Width;
+			const UINT height = (box != nullptr) ? box->bottom - box->top : desc.Height;
 			const bool use_systemmem_texture = static_cast<IDirect3DTexture9 *>(object)->GetLevelCount() == 1 && box == nullptr;
 
 			com_ptr<IDirect3DTexture9> intermediate;
@@ -1722,14 +1717,13 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			else
 			{
 				RECT dst_rect;
-				convert_box_to_rect(box, &dst_rect);
 
 				com_ptr<IDirect3DSurface9> src_surface;
 				intermediate->GetSurfaceLevel(0, &src_surface);
 				com_ptr<IDirect3DSurface9> dst_surface;
 				static_cast<IDirect3DTexture9 *>(object)->GetSurfaceLevel(subresource, &dst_surface);
 
-				_orig->StretchRect(src_surface.get(), nullptr, dst_surface.get(), box != nullptr ? &dst_rect : nullptr, D3DTEXF_NONE);
+				_orig->StretchRect(src_surface.get(), nullptr, dst_surface.get(), convert_box_to_rect(box, dst_rect), D3DTEXF_NONE);
 			}
 			return;
 		}

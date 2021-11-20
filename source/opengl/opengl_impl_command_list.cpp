@@ -258,22 +258,19 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 		}
 	}
 }
-void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
-	for (uint32_t i = 0, k = 0; i < count; ++i, k += 6)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		glViewportIndexedf(first + i, viewports[k], viewports[k + 1], viewports[k + 2], viewports[k + 3]);
+		glViewportIndexedf(first + i, viewports[i].x, viewports[i].y, viewports[i].width, viewports[i].height);
+		glDepthRangeIndexed(first + i, static_cast<GLdouble>(viewports[i].min_depth), static_cast<GLdouble>(viewports[i].max_depth));
 	}
 }
-void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
-	for (uint32_t i = 0, k = 0; i < count; ++i, k += 4)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		glScissorIndexed(first + i,
-			rects[k + 0],
-			rects[k + 1],
-			rects[k + 2] - rects[k + 0],
-			rects[k + 3] - rects[k + 1]);
+		glScissorIndexed(first + i, rects[i].left, rects[i].top, rects[i].right - rects[i].left, rects[i].bottom - rects[i].top);
 	}
 }
 
@@ -555,7 +552,7 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_write_buf);
 	}
 }
-void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
 	const GLenum dst_target = dst.handle >> 40;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
@@ -630,12 +627,12 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 		GLuint xoffset, yoffset, zoffset, width, height, depth = 1;
 		if (dst_box != nullptr)
 		{
-			xoffset = dst_box[0];
-			yoffset = dst_box[1];
-			zoffset = dst_box[2];
-			width   = dst_box[3] - dst_box[0];
-			height  = dst_box[4] - dst_box[1];
-			depth   = dst_box[5] - dst_box[2];
+			xoffset = dst_box->left;
+			yoffset = dst_box->top;
+			zoffset = dst_box->front;
+			width   = dst_box->right - dst_box->left;
+			height  = dst_box->bottom - dst_box->top;
+			depth   = dst_box->back - dst_box->front;
 		}
 		else
 		{
@@ -712,7 +709,7 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, prev_unpack_skip_slices);
 	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, prev_unpack_slice_height);
 }
-void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_mode filter)
+void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode filter)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -726,35 +723,43 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 
 	if (src_target != GL_FRAMEBUFFER_DEFAULT && dst_target != GL_FRAMEBUFFER_DEFAULT &&
 		(src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-			(src_box[3] - src_box[0]) == (dst_box[3] - dst_box[0]) &&
-			(src_box[4] - src_box[1]) == (dst_box[4] - dst_box[1]) &&
-			(src_box[5] - src_box[2]) == (dst_box[5] - dst_box[2])))
+			(src_box->right - src_box->left) == (dst_box->right - dst_box->left) &&
+			(src_box->bottom - src_box->top) == (dst_box->bottom - dst_box->top) &&
+			(src_box->back - src_box->front) == (dst_box->back - dst_box->front)))
 	{
-		int32_t size[3];
+		GLint src_region[6] = {};
 		if (src_box != nullptr)
 		{
-			size[0] = src_box[3] - src_box[0];
-			size[1] = src_box[4] - src_box[1];
-			size[2] = src_box[5] - src_box[2];
+			std::copy_n(&src_box->left, 3, src_region);
+
+			src_region[3] = src_box->right - src_box->left;
+			src_region[4] = src_box->bottom - src_box->top;
+			src_region[5] = src_box->back - src_box->front;
 		}
 		else
 		{
-			size[0] = std::max(1u, src_desc.texture.width >> (src_subresource % src_desc.texture.levels));
-			size[1] = std::max(1u, src_desc.texture.height >> (src_subresource % src_desc.texture.levels));
-			size[2] = (src_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(src_desc.texture.depth_or_layers) >> (src_subresource % src_desc.texture.levels)) : 1u);
+			src_region[3] = std::max(1u, src_desc.texture.width >> (src_subresource % src_desc.texture.levels));
+			src_region[4] = std::max(1u, src_desc.texture.height >> (src_subresource % src_desc.texture.levels));
+			src_region[5] = (src_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(src_desc.texture.depth_or_layers) >> (src_subresource % src_desc.texture.levels)) : 1u);
+		}
+
+		GLint dst_region[3] = {};
+		if (dst_box != nullptr)
+		{
+			std::copy_n(&dst_box->left, 3, dst_region);
 		}
 
 		glCopyImageSubData(
-			src_object, src_target, src_subresource % src_desc.texture.levels, src_box != nullptr ? src_box[0] : 0, src_box != nullptr ? src_box[1] : 0, (src_box != nullptr ? src_box[2] : 0) + (src_subresource / src_desc.texture.levels),
-			dst_object, dst_target, dst_subresource % dst_desc.texture.levels, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, (dst_box != nullptr ? dst_box[2] : 0) + (dst_subresource / src_desc.texture.levels),
-			size[0], size[1], size[2]);
+			src_object, src_target, src_subresource % src_desc.texture.levels, src_region[0], src_region[1], src_region[2] + (src_subresource / src_desc.texture.levels),
+			dst_object, dst_target, dst_subresource % dst_desc.texture.levels, dst_region[0], dst_region[1], dst_region[2] + (dst_subresource / src_desc.texture.levels),
+			src_region[3], src_region[4], src_region[5]);
 	}
 	else
 	{
 		GLint src_region[6] = {};
 		if (src_box != nullptr)
 		{
-			std::copy_n(src_box, 6, src_region);
+			std::copy_n(&src_box->left, 6, src_region);
 		}
 		else
 		{
@@ -766,7 +771,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		GLint dst_region[6] = {};
 		if (dst_box != nullptr)
 		{
-			std::copy_n(dst_box, 6, dst_region);
+			std::copy_n(&dst_box->left, 6, dst_region);
 		}
 		else
 		{
@@ -871,7 +876,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
 	}
 }
-void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	const GLenum src_target = src.handle >> 40;
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
@@ -913,12 +918,12 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	GLuint xoffset, yoffset, zoffset, width, height, depth = 1;
 	if (src_box != nullptr)
 	{
-		xoffset = src_box[0];
-		yoffset = src_box[1];
-		zoffset = src_box[2];
-		width   = src_box[3] - src_box[0];
-		height  = src_box[4] - src_box[1];
-		depth   = src_box[5] - src_box[2];
+		xoffset = src_box->left;
+		yoffset = src_box->top;
+		zoffset = src_box->front;
+		width   = src_box->right - src_box->left;
+		height  = src_box->bottom - src_box->top;
+		depth   = src_box->back - src_box->front;
 	}
 	else
 	{
@@ -1056,30 +1061,30 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	glPixelStorei(GL_PACK_SKIP_IMAGES, prev_pack_skip_slices);
 	glPixelStorei(GL_PACK_IMAGE_HEIGHT, prev_pack_slice_height);
 }
-void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
+void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
 {
-	int32_t dst_box[6] = {};
+	api::subresource_box dst_box = {};
 	if (dst_offset != nullptr)
-		std::copy_n(dst_offset, 3, dst_box);
+		std::copy_n(dst_offset, 3, &dst_box.left);
 
 	if (src_box != nullptr)
 	{
-		dst_box[3] = dst_box[0] + src_box[3] - src_box[0];
-		dst_box[4] = dst_box[1] + src_box[4] - src_box[1];
-		dst_box[5] = dst_box[2] + src_box[5] - src_box[2];
+		dst_box.right = dst_box.left + src_box->right - src_box->left;
+		dst_box.bottom = dst_box.top + src_box->bottom - src_box->top;
+		dst_box.back = dst_box.front + src_box->back - src_box->front;
 	}
 	else
 	{
 		const api::resource_desc desc = get_resource_desc(dst);
-		dst_box[3] = dst_box[0] + std::max(1u, desc.texture.width >> (dst_subresource % desc.texture.levels));
-		dst_box[4] = dst_box[1] + std::max(1u, desc.texture.height >> (dst_subresource % desc.texture.levels));
-		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (dst_subresource % desc.texture.levels)) : 1u);
+		dst_box.right = dst_box.left + std::max(1u, desc.texture.width >> (dst_subresource % desc.texture.levels));
+		dst_box.bottom = dst_box.top + std::max(1u, desc.texture.height >> (dst_subresource % desc.texture.levels));
+		dst_box.back = dst_box.front + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (dst_subresource % desc.texture.levels)) : 1u);
 	}
 
-	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_mode::min_mag_mip_point);
+	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, &dst_box, api::filter_mode::min_mag_mip_point);
 }
 
-void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
+void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const api::rect *)
 {
 	assert(rect_count == 0);
 
@@ -1105,19 +1110,19 @@ void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_
 	glClearDepth(prev_depth);
 	glClearStencil(prev_stencil);
 }
-void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view, api::attachment_type, float, uint8_t, uint32_t, const int32_t *)
+void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view, api::attachment_type, float, uint8_t, uint32_t, const api::rect *)
 {
 	assert(false);
 }
-void reshade::opengl::device_impl::clear_render_target_view(api::resource_view, const float[4], uint32_t, const int32_t *)
+void reshade::opengl::device_impl::clear_render_target_view(api::resource_view, const float[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }
-void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *)
+void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }
-void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *)
+void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }

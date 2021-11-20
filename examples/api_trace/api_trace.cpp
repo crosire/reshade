@@ -421,7 +421,7 @@ static void on_bind_pipeline_states(reshade::api::command_list *, uint32_t count
 		s << "bind_pipeline_state(" << to_string(states[i]) << ", " << values[i] << ")" << std::endl;
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
-static void on_bind_viewports(reshade::api::command_list *, uint32_t first, uint32_t count, const float *viewports)
+static void on_bind_viewports(reshade::api::command_list *, uint32_t first, uint32_t count, const reshade::api::viewport *viewports)
 {
 	if (!s_do_capture)
 		return;
@@ -429,7 +429,7 @@ static void on_bind_viewports(reshade::api::command_list *, uint32_t first, uint
 	std::stringstream s; s << "bind_viewports(" << first << ", " << count << ")";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
-static void on_bind_scissor_rects(reshade::api::command_list *, uint32_t first, uint32_t count, const int32_t *rects)
+static void on_bind_scissor_rects(reshade::api::command_list *, uint32_t first, uint32_t count, const reshade::api::rect *rects)
 {
 	if (!s_do_capture)
 		return;
@@ -608,7 +608,7 @@ static bool on_copy_buffer_region(reshade::api::command_list *, reshade::api::re
 
 	return false;
 }
-static bool on_copy_buffer_to_texture(reshade::api::command_list *, reshade::api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, reshade::api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+static bool on_copy_buffer_to_texture(reshade::api::command_list *, reshade::api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, reshade::api::resource dst, uint32_t dst_subresource, const reshade::api::subresource_box *)
 {
 	if (!s_do_capture)
 		return false;
@@ -624,7 +624,7 @@ static bool on_copy_buffer_to_texture(reshade::api::command_list *, reshade::api
 
 	return false;
 }
-static bool on_copy_texture_region(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const int32_t src_box[6], reshade::api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], reshade::api::filter_mode filter)
+static bool on_copy_texture_region(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const reshade::api::subresource_box *, reshade::api::resource dst, uint32_t dst_subresource, const reshade::api::subresource_box *, reshade::api::filter_mode filter)
 {
 	if (!s_do_capture)
 		return false;
@@ -640,7 +640,7 @@ static bool on_copy_texture_region(reshade::api::command_list *, reshade::api::r
 
 	return false;
 }
-static bool on_copy_texture_to_buffer(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const int32_t src_box[6], reshade::api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+static bool on_copy_texture_to_buffer(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const reshade::api::subresource_box *, reshade::api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	if (!s_do_capture)
 		return false;
@@ -656,7 +656,7 @@ static bool on_copy_texture_to_buffer(reshade::api::command_list *, reshade::api
 
 	return false;
 }
-static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const int32_t src_box[6], reshade::api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], reshade::api::format format)
+static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const reshade::api::subresource_box *, reshade::api::resource dst, uint32_t dst_subresource, const int32_t[3], reshade::api::format format)
 {
 	if (!s_do_capture)
 		return false;
@@ -667,13 +667,13 @@ static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api
 		assert(s_resources.find(dst.handle) != s_resources.end());
 	}
 
-	std::stringstream s; s << "resolve_texture_region(" << (void *)src.handle << ", " << src_subresource << ", " << (void *)dst.handle << ", " << dst_subresource << ", " << dst_offset << ", " << (uint32_t)format << ")";
+	std::stringstream s; s << "resolve_texture_region(" << (void *)src.handle << ", " << src_subresource << ", " << (void *)dst.handle << ", " << dst_subresource << ", " << (uint32_t)format << ")";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 
 	return false;
 }
 
-static bool on_clear_attachments(reshade::api::command_list *, reshade::api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t, const int32_t *)
+static bool on_clear_attachments(reshade::api::command_list *, reshade::api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t, const reshade::api::rect *)
 {
 	if (!s_do_capture)
 		return false;
@@ -683,7 +683,7 @@ static bool on_clear_attachments(reshade::api::command_list *, reshade::api::att
 
 	return false;
 }
-static bool on_clear_depth_stencil_view(reshade::api::command_list *, reshade::api::resource_view dsv, reshade::api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t, const int32_t *)
+static bool on_clear_depth_stencil_view(reshade::api::command_list *, reshade::api::resource_view dsv, reshade::api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t, const reshade::api::rect *)
 {
 	if (!s_do_capture)
 		return false;
@@ -698,7 +698,7 @@ static bool on_clear_depth_stencil_view(reshade::api::command_list *, reshade::a
 
 	return false;
 }
-static bool on_clear_render_target_view(reshade::api::command_list *, reshade::api::resource_view rtv, const float color[4], uint32_t, const int32_t *)
+static bool on_clear_render_target_view(reshade::api::command_list *, reshade::api::resource_view rtv, const float color[4], uint32_t, const reshade::api::rect *)
 {
 	if (!s_do_capture)
 		return false;
@@ -713,7 +713,7 @@ static bool on_clear_render_target_view(reshade::api::command_list *, reshade::a
 
 	return false;
 }
-static bool on_clear_unordered_access_view_uint(reshade::api::command_list *, reshade::api::resource_view uav, const uint32_t values[4], uint32_t, const int32_t *)
+static bool on_clear_unordered_access_view_uint(reshade::api::command_list *, reshade::api::resource_view uav, const uint32_t values[4], uint32_t, const reshade::api::rect *)
 {
 	if (!s_do_capture)
 		return false;
@@ -728,7 +728,7 @@ static bool on_clear_unordered_access_view_uint(reshade::api::command_list *, re
 
 	return false;
 }
-static bool on_clear_unordered_access_view_float(reshade::api::command_list *, reshade::api::resource_view uav, const float values[4], uint32_t, const int32_t *)
+static bool on_clear_unordered_access_view_float(reshade::api::command_list *, reshade::api::resource_view uav, const float values[4], uint32_t, const reshade::api::rect *)
 {
 	if (!s_do_capture)
 		return false;

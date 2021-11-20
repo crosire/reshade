@@ -9,6 +9,9 @@
 
 namespace reshade::d3d9
 {
+	static_assert(sizeof(D3DBOX) == sizeof(api::subresource_box));
+	static_assert(sizeof(D3DRECT) == sizeof(api::rect));
+
 	struct sampler_impl
 	{
 		DWORD state[12];
@@ -102,4 +105,11 @@ namespace reshade::d3d9
 
 	UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count);
 	UINT calc_prim_from_vertex_count(D3DPRIMITIVETYPE type, UINT count);
+
+	inline auto to_handle(IDirect3DResource9 *ptr) { return api::resource { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(IDirect3DVolume9 *ptr) { return api::resource_view { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(IDirect3DSurface9 *ptr) { return api::resource_view { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(IDirect3DVertexDeclaration9 *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(IDirect3DVertexShader9 *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(IDirect3DPixelShader9 *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 }

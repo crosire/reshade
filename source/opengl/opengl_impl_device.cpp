@@ -1805,7 +1805,7 @@ void reshade::opengl::device_impl::unmap_buffer_region(api::resource resource)
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
 	}
 }
-bool reshade::opengl::device_impl::map_texture_region(api::resource, uint32_t, const int32_t[6], api::map_access, api::subresource_data *out_data)
+bool reshade::opengl::device_impl::map_texture_region(api::resource, uint32_t, const api::subresource_box *, api::map_access, api::subresource_data *out_data)
 {
 	if (out_data != nullptr)
 	{
@@ -1843,7 +1843,7 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_binding);
 	}
 }
-void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
+void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource.handle != 0);
 
@@ -1911,12 +1911,12 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	GLuint xoffset, yoffset, zoffset, width, height, depth;
 	if (box != nullptr)
 	{
-		xoffset = box[0];
-		yoffset = box[1];
-		zoffset = box[2];
-		width   = box[3] - box[0];
-		height  = box[4] - box[1];
-		depth   = box[5] - box[2];
+		xoffset = box->left;
+		yoffset = box->top;
+		zoffset = box->front;
+		width   = box->right - box->left;
+		height  = box->bottom - box->top;
+		depth   = box->back - box->front;
 	}
 	else
 	{

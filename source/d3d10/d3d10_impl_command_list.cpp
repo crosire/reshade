@@ -154,7 +154,7 @@ void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api
 		}
 	}
 }
-void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
 	if (first != 0)
 		return;
@@ -166,19 +166,19 @@ void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count,
 	}
 
 	D3D10_VIEWPORT viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-	for (uint32_t i = 0, k = 0; i < count; ++i, k += 6)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		viewport_data[i].TopLeftX = static_cast<INT>(viewports[k + 0]);
-		viewport_data[i].TopLeftY = static_cast<INT>(viewports[k + 1]);
-		viewport_data[i].Width = static_cast<UINT>(viewports[k + 2]);
-		viewport_data[i].Height = static_cast<UINT>(viewports[k + 3]);
-		viewport_data[i].MinDepth = viewports[k + 4];
-		viewport_data[i].MaxDepth = viewports[k + 5];
+		viewport_data[i].TopLeftX = static_cast<INT>(viewports[i].x);
+		viewport_data[i].TopLeftY = static_cast<INT>(viewports[i].y);
+		viewport_data[i].Width = static_cast<UINT>(viewports[i].width);
+		viewport_data[i].Height = static_cast<UINT>(viewports[i].height);
+		viewport_data[i].MinDepth = viewports[i].min_depth;
+		viewport_data[i].MaxDepth = viewports[i].max_depth;
 	}
 
 	_orig->RSSetViewports(count, viewport_data);
 }
-void reshade::d3d10::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::d3d10::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	if (first != 0)
 		return;
@@ -412,27 +412,27 @@ void reshade::d3d10::device_impl::copy_buffer_region(api::resource src, uint64_t
 		reinterpret_cast<ID3D10Resource *>(dst.handle), 0, static_cast<UINT>(dst_offset), 0, 0,
 		reinterpret_cast<ID3D10Resource *>(src.handle), 0, &src_box);
 }
-void reshade::d3d10::device_impl::copy_buffer_to_texture(api::resource, uint64_t, uint32_t, uint32_t, api::resource, uint32_t, const int32_t[6])
+void reshade::d3d10::device_impl::copy_buffer_to_texture(api::resource, uint64_t, uint32_t, uint32_t, api::resource, uint32_t, const api::subresource_box *)
 {
 	assert(false);
 }
-void reshade::d3d10::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_mode)
+void reshade::d3d10::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-		(dst_box[3] - dst_box[0]) == (src_box[3] - src_box[0]) && // Blit between different region dimensions is not supported
-		(dst_box[4] - dst_box[1]) == (src_box[4] - src_box[1]) &&
-		(dst_box[5] - dst_box[2]) == (src_box[5] - src_box[2])));
+		(dst_box->right - dst_box->left) == (src_box->right - src_box->left) && // Blit between different region dimensions is not supported
+		(dst_box->bottom - dst_box->top) == (src_box->bottom - src_box->top) &&
+		(dst_box->back - dst_box->front) == (src_box->back - src_box->front)));
 
 	_orig->CopySubresourceRegion(
-		reinterpret_cast<ID3D10Resource *>(dst.handle), src_subresource, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, dst_box != nullptr ? dst_box[2] : 0,
+		reinterpret_cast<ID3D10Resource *>(dst.handle), src_subresource, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
 		reinterpret_cast<ID3D10Resource *>(src.handle), dst_subresource, reinterpret_cast<const D3D10_BOX *>(src_box));
 }
-void reshade::d3d10::device_impl::copy_texture_to_buffer(api::resource, uint32_t, const int32_t[6], api::resource, uint64_t, uint32_t, uint32_t)
+void reshade::d3d10::device_impl::copy_texture_to_buffer(api::resource, uint32_t, const api::subresource_box *, api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
 }
-void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)
+void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 	assert(src_box == nullptr && dst_offset == nullptr);
@@ -442,7 +442,7 @@ void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint
 		reinterpret_cast<ID3D10Resource *>(src.handle), src_subresource, convert_format(format));
 }
 
-void reshade::d3d10::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
+void reshade::d3d10::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const api::rect *)
 {
 	assert(rect_count == 0); // Clearing rectangles is not supported
 
@@ -456,23 +456,23 @@ void reshade::d3d10::device_impl::clear_attachments(api::attachment_type clear_f
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0 && dsv != nullptr)
 		_orig->ClearDepthStencilView(dsv.get(), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
-void reshade::d3d10::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
+void reshade::d3d10::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const api::rect *)
 {
 	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_orig->ClearDepthStencilView(reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
-void reshade::d3d10::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *)
+void reshade::d3d10::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {
 	assert(rtv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_orig->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtv.handle), color);
 }
-void reshade::d3d10::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *)
+void reshade::d3d10::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }
-void reshade::d3d10::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *)
+void reshade::d3d10::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }

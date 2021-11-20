@@ -385,6 +385,19 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// Used to specify a region inside a subresource.
+	/// </summary>
+	struct subresource_box
+	{
+		int32_t left;
+		int32_t top;
+		int32_t front;
+		int32_t right;
+		int32_t bottom;
+		int32_t back;
+	};
+
+	/// <summary>
 	/// Used to specify data for initializing a subresource or access existing subresource data.
 	/// </summary>
 	struct subresource_data

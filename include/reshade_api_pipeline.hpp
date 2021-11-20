@@ -390,6 +390,30 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(descriptor_pool);
 
 	/// <summary>
+	/// Describes a rectangle.
+	/// </summary>
+	struct rect
+	{
+		int32_t left;
+		int32_t top;
+		int32_t right;
+		int32_t bottom;
+	};
+
+	/// <summary>
+	/// Describes a render viewport.
+	/// </summary>
+	struct viewport
+	{
+		float x;
+		float y;
+		float width;
+		float height;
+		float min_depth;
+		float max_depth;
+	};
+
+	/// <summary>
 	/// Describes a single element in the vertex layout for the input-assembler stage.
 	/// </summary>
 	struct input_element

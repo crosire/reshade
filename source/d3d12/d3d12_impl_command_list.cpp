@@ -189,14 +189,14 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 		}
 	}
 }
-void reshade::d3d12::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::d3d12::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
 	if (first != 0)
 		return;
 
 	_orig->RSSetViewports(count, reinterpret_cast<const D3D12_VIEWPORT *>(viewports));
 }
-void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	if (first != 0)
 		return;
@@ -445,7 +445,7 @@ void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, ui
 
 	_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(src.handle), src_offset, size);
 }
-void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
 	_has_commands = true;
 
@@ -456,9 +456,9 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 	D3D12_BOX src_box = {};
 	if (dst_box != nullptr)
 	{
-		src_box.right = src_box.left + (dst_box[3] - dst_box[0]);
-		src_box.bottom = src_box.top + (dst_box[4] - dst_box[1]);
-		src_box.back = src_box.front + (dst_box[5] - dst_box[2]);
+		src_box.right = src_box.left + (dst_box->right - dst_box->left);
+		src_box.bottom = src_box.top + (dst_box->bottom - dst_box->top);
+		src_box.back = src_box.front + (dst_box->back - dst_box->front);
 	}
 	else
 	{
@@ -483,18 +483,18 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 	dst_copy_location.SubresourceIndex = dst_subresource;
 
 	_orig->CopyTextureRegion(
-		&dst_copy_location, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, dst_box != nullptr ? dst_box[2] : 0,
+		&dst_copy_location, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
 		&src_copy_location, &src_box);
 }
-void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_mode)
+void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode)
 {
 	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-		(dst_box[3] - dst_box[0]) == (src_box[3] - src_box[0]) && // Blit between different region dimensions is not supported
-		(dst_box[4] - dst_box[1]) == (src_box[4] - src_box[1]) &&
-		(dst_box[5] - dst_box[2]) == (src_box[5] - src_box[2])));
+		(dst_box->right - dst_box->left) == (src_box->right - src_box->left) && // Blit between different region dimensions is not supported
+		(dst_box->bottom - dst_box->top) == (src_box->bottom - src_box->top) &&
+		(dst_box->back - dst_box->front) == (src_box->back - src_box->front)));
 
 	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
 	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
@@ -507,10 +507,10 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 	dst_copy_location.SubresourceIndex = dst_subresource;
 
 	_orig->CopyTextureRegion(
-		&dst_copy_location, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, dst_box != nullptr ? dst_box[2] : 0,
+		&dst_copy_location, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
-void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	_has_commands = true;
 
@@ -537,7 +537,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 		&dst_copy_location, 0, 0, 0,
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
-void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)
+void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)
 {
 	_has_commands = true;
 
@@ -554,10 +554,10 @@ void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src
 		com_ptr<ID3D12GraphicsCommandList1> cmd_list1;
 		if (SUCCEEDED(_orig->QueryInterface(&cmd_list1)))
 		{
-			assert(src_box == nullptr || (src_box[2] == 0 && src_box[5] == 1));
+			assert(src_box == nullptr || (src_box->front == 0 && src_box->back == 1));
 			assert(dst_offset == nullptr || dst_offset[2] == 0);
 
-			D3D12_RECT src_rect = (src_box != nullptr) ? D3D12_RECT { src_box[0], src_box[1], src_box[3], src_box[4] } : D3D12_RECT {};
+			D3D12_RECT src_rect = (src_box != nullptr) ? D3D12_RECT { src_box->left, src_box->top, src_box->right, src_box->bottom } : D3D12_RECT {};
 
 			cmd_list1->ResolveSubresourceRegion(
 				reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource, dst_offset != nullptr ? dst_offset[0] : 0, dst_offset != nullptr ? dst_offset[1] : 0,
@@ -570,7 +570,7 @@ void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src
 	}
 }
 
-void reshade::d3d12::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
@@ -580,7 +580,7 @@ void reshade::d3d12::command_list_impl::clear_attachments(api::attachment_type c
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0)
 		_orig->ClearDepthStencilView(_current_fbo->dsv, static_cast<D3D12_CLEAR_FLAGS>(static_cast<UINT>(clear_flags) >> 1), depth, stencil, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
-void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
@@ -588,7 +588,7 @@ void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_v
 
 	_orig->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
-void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
@@ -596,7 +596,7 @@ void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_v
 
 	_orig->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtv.handle) }, color, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
-void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
@@ -620,7 +620,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
 }
-void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 

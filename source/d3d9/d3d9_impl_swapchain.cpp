@@ -40,13 +40,13 @@ reshade::api::resource reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t i
 {
 	assert(index == 0);
 
-	return { reinterpret_cast<uintptr_t>(_backbuffer.get()) };
+	return to_handle(static_cast<IDirect3DResource9 *>(_backbuffer.get()));
 }
 reshade::api::resource reshade::d3d9::swapchain_impl::get_back_buffer_resolved(uint32_t index)
 {
 	assert(index == 0);
 
-	return { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
+	return to_handle(static_cast<IDirect3DResource9 *>(_backbuffer_resolved.get()));
 }
 
 bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)

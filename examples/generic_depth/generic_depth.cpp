@@ -23,7 +23,7 @@ struct draw_stats
 {
 	uint32_t vertices = 0;
 	uint32_t drawcalls = 0;
-	float last_viewport[6] = {};
+	viewport last_viewport = {};
 };
 struct clear_stats : public draw_stats
 {
@@ -54,8 +54,8 @@ struct state_tracking
 	draw_stats best_copy_stats;
 	bool first_empty_stats = true;
 	bool has_indirect_drawcalls = false;
+	viewport current_viewport = {};
 	resource current_depth_stencil = { 0 };
-	float current_viewport[6] = {};
 	std::unordered_map<resource, depth_stencil_info, depth_stencil_hash> counters_per_used_depth_stencil;
 
 	state_tracking()
@@ -208,7 +208,7 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 
 	// Skip clears when last viewport only affected a subset of the depth-stencil
 	if (const resource_desc desc = cmd_list->get_device()->get_resource_desc(depth_stencil);
-		!device_state.check_aspect_ratio(counters.current_stats.last_viewport[2], counters.current_stats.last_viewport[3], desc.texture.width, desc.texture.height))
+		!device_state.check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, desc.texture.width, desc.texture.height))
 	{
 		counters.current_stats = { 0, 0 };
 		return;
@@ -389,7 +389,7 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices * instances;
 	counters.current_stats.drawcalls += 1;
-	std::memcpy(counters.current_stats.last_viewport, state.current_viewport, 6 * sizeof(float));
+	counters.current_stats.last_viewport = state.current_viewport;
 
 	return false;
 }
@@ -413,13 +413,13 @@ static bool on_draw_indirect(command_list *cmd_list, indirect_command type, reso
 	return false;
 }
 
-static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
+static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t count, const viewport *viewport)
 {
 	if (first != 0 || count == 0)
 		return; // Only interested in the main viewport
 
 	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
-	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
+	state.current_viewport = viewport[0];
 }
 static void on_begin_render_pass(command_list *cmd_list, render_pass, framebuffer fbo, uint32_t, const void *)
 {
@@ -452,7 +452,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 	state.current_depth_stencil = depth_stencil;
 }
-static bool on_clear_depth_stencil_attachment(command_list *cmd_list, attachment_type flags, const float[4], float, uint8_t, uint32_t, const int32_t *)
+static bool on_clear_depth_stencil_attachment(command_list *cmd_list, attachment_type flags, const float[4], float, uint8_t, uint32_t, const rect *)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
@@ -470,7 +470,7 @@ static bool on_clear_depth_stencil_attachment(command_list *cmd_list, attachment
 
 	return false;
 }
-static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, attachment_type flags, float, uint8_t, uint32_t, const int32_t *)
+static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, attachment_type flags, float, uint8_t, uint32_t, const rect *)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);

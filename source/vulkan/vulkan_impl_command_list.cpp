@@ -199,21 +199,16 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		}
 	}
 }
-void reshade::vulkan::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::vulkan::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
 #if 0
 	_device_impl->vk.CmdSetViewport(_orig, first, count, reinterpret_cast<const VkViewport *>(viewports));
 #else
 	assert(count <= 16);
 	VkViewport new_viewports[16];
-	for (uint32_t i = 0, k = 0; i < count; ++i, k += 6)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		new_viewports[i].x = viewports[k + 0];
-		new_viewports[i].y = viewports[k + 1];
-		new_viewports[i].width = viewports[k + 2];
-		new_viewports[i].height = viewports[k + 3];
-		new_viewports[i].minDepth = viewports[k + 4];
-		new_viewports[i].maxDepth = viewports[k + 5];
+		std::memcpy(&new_viewports[i], &viewports[i], sizeof(VkViewport));
 
 		// Flip viewport vertically
 		new_viewports[i].y += new_viewports[i].height;
@@ -223,15 +218,15 @@ void reshade::vulkan::command_list_impl::bind_viewports(uint32_t first, uint32_t
 	vk.CmdSetViewport(_orig, first, count, new_viewports);
 #endif
 }
-void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	const auto rect_data = static_cast<VkRect2D *>(_malloca(count * sizeof(VkRect2D)));
-	for (uint32_t i = 0, k = 0; i < count; ++i, k += 4)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		rect_data[i].offset.x = rects[k + 0];
-		rect_data[i].offset.y = rects[k + 1];
-		rect_data[i].extent.width = rects[k + 2] - rects[k + 0];
-		rect_data[i].extent.height = rects[k + 3] - rects[k + 1];
+		rect_data[i].offset.x = rects[i].left;
+		rect_data[i].offset.y = rects[i].top;
+		rect_data[i].extent.width = rects[i].right - rects[i].left;
+		rect_data[i].extent.height = rects[i].bottom - rects[i].top;
 	}
 
 	vk.CmdSetScissor(_orig, first, count, rect_data);
@@ -452,7 +447,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_region(api::resource src, u
 
 	vk.CmdCopyBuffer(_orig, (VkBuffer)src.handle, (VkBuffer)dst.handle, 1, &region);
 }
-void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
 	_has_commands = true;
 
@@ -466,14 +461,16 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 	convert_subresource(dst_subresource, dst_data->create_info, region.imageSubresource);
 	if (dst_box != nullptr)
 	{
-		std::copy_n(dst_box, 3, &region.imageOffset.x);
-		region.imageExtent.width  = dst_box[3] - dst_box[0];
-		region.imageExtent.height = dst_box[4] - dst_box[1];
-		region.imageExtent.depth  = dst_box[5] - dst_box[2];
+		std::copy_n(&dst_box->left, 3, &region.imageOffset.x);
+
+		region.imageExtent.width  = dst_box->right - dst_box->left;
+		region.imageExtent.height = dst_box->bottom - dst_box->top;
+		region.imageExtent.depth  = dst_box->back - dst_box->front;
 	}
 	else
 	{
 		region.imageOffset = { 0, 0, 0 };
+
 		region.imageExtent.width  = std::max(1u, dst_data->create_info.extent.width  >> region.imageSubresource.mipLevel);
 		region.imageExtent.height = std::max(1u, dst_data->create_info.extent.height >> region.imageSubresource.mipLevel);
 		region.imageExtent.depth  = std::max(1u, dst_data->create_info.extent.depth  >> region.imageSubresource.mipLevel);
@@ -481,7 +478,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 
 	vk.CmdCopyBufferToImage(_orig, (VkBuffer)src.handle, (VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
-void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_mode filter)
+void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode filter)
 {
 	_has_commands = true;
 
@@ -489,29 +486,29 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 	const auto dst_data = _device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
 	if ((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-		(src_box[3] - src_box[0]) == (dst_box[3] - dst_box[0]) &&
-		(src_box[4] - src_box[1]) == (dst_box[4] - dst_box[1]) &&
-		(src_box[5] - src_box[2]) == (dst_box[5] - dst_box[2])))
+		(src_box->right - src_box->left) == (dst_box->right - dst_box->left) &&
+		(src_box->bottom - src_box->top) == (dst_box->bottom - dst_box->top) &&
+		(src_box->back - src_box->front) == (dst_box->back - dst_box->front)))
 	{
 		VkImageCopy region;
 
 		convert_subresource(src_subresource, src_data->create_info, region.srcSubresource);
 		if (src_box != nullptr)
-			std::copy_n(src_box, 3, &region.srcOffset.x);
+			std::copy_n(&src_box->left, 3, &region.srcOffset.x);
 		else
 			region.srcOffset = { 0, 0, 0 };
 
 		convert_subresource(dst_subresource, dst_data->create_info, region.dstSubresource);
 		if (dst_box != nullptr)
-			std::copy_n(dst_box, 3, &region.dstOffset.x);
+			std::copy_n(&dst_box->left, 3, &region.dstOffset.x);
 		else
 			region.dstOffset = { 0, 0, 0 };
 
 		if (src_box != nullptr)
 		{
-			region.extent.width  = src_box[3] - src_box[0];
-			region.extent.height = src_box[4] - src_box[1];
-			region.extent.depth  = src_box[5] - src_box[2];
+			region.extent.width  = src_box->right - src_box->left;
+			region.extent.height = src_box->bottom - src_box->top;
+			region.extent.depth  = src_box->back - src_box->front;
 		}
 		else
 		{
@@ -532,7 +529,7 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 		convert_subresource(src_subresource, src_data->create_info, region.srcSubresource);
 		if (src_box != nullptr)
 		{
-			std::copy_n(src_box, 6, &region.srcOffsets[0].x);
+			std::copy_n(&src_box->left, 6, &region.srcOffsets[0].x);
 		}
 		else
 		{
@@ -546,7 +543,7 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 		convert_subresource(dst_subresource, dst_data->create_info, region.dstSubresource);
 		if (dst_box != nullptr)
 		{
-			std::copy_n(dst_box, 6, &region.dstOffsets[0].x);
+			std::copy_n(&dst_box->left, 6, &region.dstOffsets[0].x);
 		}
 		else
 		{
@@ -564,7 +561,7 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 			filter == api::filter_mode::min_mag_mip_linear || filter == api::filter_mode::min_mag_linear_mip_point ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
 	}
 }
-void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	_has_commands = true;
 
@@ -578,14 +575,16 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 	convert_subresource(src_subresource, src_data->create_info, region.imageSubresource);
 	if (src_box != nullptr)
 	{
-		std::copy_n(src_box, 3, &region.imageOffset.x);
-		region.imageExtent.width  = src_box[3] - src_box[0];
-		region.imageExtent.height = src_box[4] - src_box[1];
-		region.imageExtent.depth  = src_box[5] - src_box[2];
+		std::copy_n(&src_box->left, 3, &region.imageOffset.x);
+
+		region.imageExtent.width  = src_box->right - src_box->left;
+		region.imageExtent.height = src_box->bottom - src_box->top;
+		region.imageExtent.depth  = src_box->back - src_box->front;
 	}
 	else
 	{
 		region.imageOffset = { 0, 0, 0 };
+
 		region.imageExtent.width  = std::max(1u, src_data->create_info.extent.width  >> region.imageSubresource.mipLevel);
 		region.imageExtent.height = std::max(1u, src_data->create_info.extent.height >> region.imageSubresource.mipLevel);
 		region.imageExtent.depth  = std::max(1u, src_data->create_info.extent.depth  >> region.imageSubresource.mipLevel);
@@ -593,7 +592,7 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 
 	vk.CmdCopyImageToBuffer(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, (VkBuffer)dst.handle, 1, &region);
 }
-void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
+void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
 {
 	_has_commands = true;
 
@@ -604,7 +603,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 
 	convert_subresource(src_subresource, src_data->create_info, region.srcSubresource);
 	if (src_box != nullptr)
-		std::copy_n(src_box, 3, &region.srcOffset.x);
+		std::copy_n(&src_box->left, 3, &region.srcOffset.x);
 	else
 		region.srcOffset = { 0, 0, 0 };
 
@@ -616,9 +615,9 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 
 	if (src_box != nullptr)
 	{
-		region.extent.width  = src_box[3] - src_box[0];
-		region.extent.height = src_box[4] - src_box[1];
-		region.extent.depth  = src_box[5] - src_box[2];
+		region.extent.width  = src_box->right - src_box->left;
+		region.extent.height = src_box->bottom - src_box->top;
+		region.extent.depth  = src_box->back - src_box->front;
 	}
 	else
 	{
@@ -633,7 +632,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		1, &region);
 }
 
-void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)
+void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
@@ -681,12 +680,12 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 	else
 	{
 		const auto clear_rects = static_cast<VkClearRect *>(_malloca(rect_count * sizeof(VkClearRect)));
-		for (uint32_t i = 0, k = 0; i < rect_count; ++i, k += 4)
+		for (uint32_t i = 0; i < rect_count; ++i)
 		{
-			clear_rects[i].rect.offset.x = rects[k + 0];
-			clear_rects[i].rect.offset.y = rects[k + 1];
-			clear_rects[i].rect.extent.width = rects[k + 2] - rects[k + 0];
-			clear_rects[i].rect.extent.height = rects[k + 3] - rects[k + 1];
+			clear_rects[i].rect.offset.x = rects[i].left;
+			clear_rects[i].rect.offset.y = rects[i].top;
+			clear_rects[i].rect.extent.width = rects[i].right - rects[i].left;
+			clear_rects[i].rect.extent.height = rects[i].bottom - rects[i].top;
 			clear_rects[i].baseArrayLayer = 0;
 			clear_rects[i].layerCount = 1;
 		}
@@ -696,7 +695,7 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 		_freea(clear_rects);
 	}
 }
-void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const api::rect *)
 {
 	_has_commands = true;
 
@@ -721,7 +720,7 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_
 	std::swap(transition.oldLayout, transition.newLayout);
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
-void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {
 	_has_commands = true;
 
@@ -747,7 +746,7 @@ void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_
 	std::swap(transition.oldLayout, transition.newLayout);
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
-void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const api::rect *)
 {
 	_has_commands = true;
 
@@ -760,7 +759,7 @@ void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::r
 
 	vk.CmdClearColorImage(_orig, uav_data->create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &uav_data->create_info.subresourceRange);
 }
-void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const api::rect *)
 {
 	_has_commands = true;
 

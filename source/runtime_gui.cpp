@@ -3494,8 +3494,8 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	cmd_list->bind_index_buffer(_imgui_indices[buffer_index], 0, sizeof(ImDrawIdx));
 	cmd_list->bind_vertex_buffer(0, _imgui_vertices[buffer_index], 0, sizeof(ImDrawVert));
 
-	const float viewport[6] = { 0, 0, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
-	cmd_list->bind_viewports(0, 1, viewport);
+	const api::viewport viewport = { 0, 0, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
+	cmd_list->bind_viewports(0, 1, &viewport);
 
 	// Setup orthographic projection matrix
 	const bool flip_y = (_renderer_id & 0x10000) != 0 && !_is_vr;
@@ -3525,14 +3525,14 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 			assert(cmd.TextureId != 0);
 			assert(cmd.UserCallback == nullptr);
 
-			int32_t scissor_rect[4] = {
+			const api::rect scissor_rect = {
 				static_cast<int32_t>(cmd.ClipRect.x - draw_data->DisplayPos.x),
 				static_cast<int32_t>(cmd.ClipRect.y - draw_data->DisplayPos.y),
 				static_cast<int32_t>(cmd.ClipRect.z - draw_data->DisplayPos.x),
 				static_cast<int32_t>(cmd.ClipRect.w - draw_data->DisplayPos.y)
 			};
 
-			cmd_list->bind_scissor_rects(0, 1, scissor_rect);
+			cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
 
 			const api::resource_view srv = { (uint64_t)cmd.TextureId };
 			if (has_combined_sampler_and_view)

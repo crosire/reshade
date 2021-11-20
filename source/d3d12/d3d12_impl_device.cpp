@@ -242,7 +242,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	{
 		register_resource(object.get());
 
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = to_handle(object.release());
 
 		if (initial_data != nullptr)
 		{
@@ -337,7 +337,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
-			*out_handle = { descriptor_handle.ptr };
+			*out_handle = to_handle(descriptor_handle);
 			return true;
 		}
 		case api::resource_usage::render_target:
@@ -352,7 +352,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			_orig->CreateRenderTargetView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
-			*out_handle = { descriptor_handle.ptr };
+			*out_handle = to_handle(descriptor_handle);
 			return true;
 		}
 		case api::resource_usage::shader_resource:
@@ -368,7 +368,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
-			*out_handle = { descriptor_handle.ptr };
+			*out_handle = to_handle(descriptor_handle);
 			return true;
 		}
 		case api::resource_usage::unordered_access:
@@ -383,7 +383,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &internal_desc, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
-			*out_handle = { descriptor_handle.ptr };
+			*out_handle = to_handle(descriptor_handle);
 			return true;
 		}
 	}
@@ -414,7 +414,7 @@ reshade::api::resource reshade::d3d12::device_impl::get_resource_from_view(api::
 	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
 
 	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
-		return { reinterpret_cast<uintptr_t>(it->second.first) };
+		return to_handle(it->second.first);
 	else
 		return assert(false), api::resource { 0 };
 }
@@ -468,7 +468,7 @@ bool reshade::d3d12::device_impl::create_compute_pipeline(const api::pipeline_de
 	if (com_ptr<ID3D12PipelineState> pipeline;
 		SUCCEEDED(_orig->CreateComputePipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
 	{
-		*out_handle = { reinterpret_cast<uintptr_t>(pipeline.release()) };
+		*out_handle = to_handle(pipeline.release());
 		return true;
 	}
 	else
@@ -529,7 +529,7 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 
 		pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
 
-		*out_handle = { reinterpret_cast<uintptr_t>(pipeline.release()) };
+		*out_handle = to_handle(pipeline.release());
 		return true;
 	}
 	else
@@ -742,7 +742,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	{
 		signature->SetPrivateData(extra_data_guid, param_count * sizeof(api::pipeline_layout_param), params);
 
-		*out_handle = { reinterpret_cast<uintptr_t>(signature.release()) };
+		*out_handle = to_handle(signature.release());
 		return true;
 	}
 	else
@@ -943,7 +943,7 @@ void reshade::d3d12::device_impl::unmap_buffer_region(api::resource resource)
 
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(0, nullptr);
 }
-bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
+bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
 {
 	if (out_data == nullptr)
 		return false;
@@ -1025,7 +1025,7 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 		}
 	}
 }
-void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
+void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource.handle != 0);
 
@@ -1036,9 +1036,9 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	UINT num_slices = desc.DepthOrArraySize;
 	if (box != nullptr)
 	{
-		width = box[3] - box[0];
-		num_rows = box[4] - box[1];
-		num_slices = box[5] - box[2];
+		width = box->right - box->left;
+		num_rows = box->bottom - box->top;
+		num_slices = box->back - box->front;
 	}
 
 	auto row_pitch = api::format_row_pitch(convert_format(desc.Format), width);
@@ -1280,7 +1280,7 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 			continue;
 
 		*out_offset = address_offset;
-		*out_resource = { reinterpret_cast<uintptr_t>(buffer_info.first) };
+		*out_resource = to_handle(buffer_info.first);
 		return true;
 	}
 #endif

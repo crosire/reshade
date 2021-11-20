@@ -26,7 +26,7 @@ static bool dump_texture(const resource_desc &desc, const subresource_data &data
 // - Via a copy operation from a buffer in host memory to the texture (common in D3D12 and Vulkan): See 'on_copy_buffer_to_texture' implementation below
 // - Via mapping and writing to texture that is accessible in host memory (common in D3D9): See 'on_map_texture' and 'on_unmap_texture' implementation below
 
-static inline bool filter_texture(device *device, const resource_desc &desc, const int32_t box[6])
+static inline bool filter_texture(device *device, const resource_desc &desc, const subresource_box *box)
 {
 	if (desc.type != resource_type::texture_2d || (desc.usage & resource_usage::shader_resource) == resource_usage::undefined || (desc.heap != memory_heap::gpu_only && desc.heap != memory_heap::unknown) || (desc.flags & resource_flags::dynamic) == resource_flags::dynamic)
 		return false; // Ignore resources that are not static 2D textures that can be used as shader input
@@ -35,9 +35,9 @@ static inline bool filter_texture(device *device, const resource_desc &desc, con
 		return false; // Ignore resources that can be used as render targets (except in OpenGL, since all textures have the render target usage flag there)
 
 	if (box != nullptr && (
-		static_cast<uint32_t>(box[3] - box[0]) != desc.texture.width ||
-		static_cast<uint32_t>(box[4] - box[1]) != desc.texture.height ||
-		static_cast<uint32_t>(box[5] - box[2]) != desc.texture.depth_or_layers))
+		static_cast<uint32_t>(box->right - box->left) != desc.texture.width ||
+		static_cast<uint32_t>(box->bottom - box->top) != desc.texture.height ||
+		static_cast<uint32_t>(box->back - box->front) != desc.texture.depth_or_layers))
 		return false; // Ignore updates that do not update the entire texture
 
 	if (desc.texture.samples != 1)
@@ -59,7 +59,7 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 
 	dump_texture(desc, *initial_data);
 }
-static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const subresource_box *dst_box)
 {
 	if (dst_subresource != 0)
 		return false; // Ignore updates to mipmap levels other than the base level
@@ -73,7 +73,7 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 	return false;
 }
 
-static bool on_copy_buffer_to_texture(command_list *cmd_list, resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+static bool on_copy_buffer_to_texture(command_list *cmd_list, resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource dst, uint32_t dst_subresource, const subresource_box *dst_box)
 {
 	if (dst_subresource != 0)
 		return false; // Ignore copies to mipmap levels other than the base level
@@ -115,7 +115,7 @@ static thread_local struct {
 	subresource_data data;
 } s_current_mapping;
 
-static void on_map_texture(device *device, resource resource, uint32_t subresource, const int32_t box[6], map_access access, subresource_data *data)
+static void on_map_texture(device *device, resource resource, uint32_t subresource, const subresource_box *box, map_access access, subresource_data *data)
 {
 	if (subresource != 0 || access == map_access::read_only || data == nullptr)
 		return;

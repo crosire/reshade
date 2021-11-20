@@ -9,6 +9,10 @@
 
 namespace reshade::d3d12
 {
+	static_assert(sizeof(D3D12_BOX) == sizeof(api::subresource_box));
+	static_assert(sizeof(D3D12_RECT) == sizeof(api::rect));
+	static_assert(sizeof(D3D12_VIEWPORT) == sizeof(api::viewport));
+
 	extern const GUID extra_data_guid;
 
 	struct render_pass_impl
@@ -98,4 +102,9 @@ namespace reshade::d3d12
 	auto convert_descriptor_type_to_heap_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_HEAP_TYPE;
 
 	auto convert_shader_visibility(D3D12_SHADER_VISIBILITY visibility) -> api::shader_stage;
+
+	inline auto to_handle(ID3D12Resource *ptr) { return api::resource { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) { return api::resource_view { static_cast<uint64_t>(handle.ptr) }; }
+	inline auto to_handle(ID3D12PipelineState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D12RootSignature *ptr) { return api::pipeline_layout { reinterpret_cast<uintptr_t>(ptr) }; }
 }

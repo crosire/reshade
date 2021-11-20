@@ -271,7 +271,7 @@ namespace reshade { namespace api
 		/// Associates a name with a resource, for easier debugging in external tools.
 		/// </summary>
 		/// <param name="handle">Resource to associate a name with.</param>
-		/// <param name="name">A null-terminated name string.</param>
+		/// <param name="name">Null-terminated name string.</param>
 		virtual void set_resource_name(resource handle, const char *name) = 0;
 
 		/// <summary>
@@ -301,7 +301,7 @@ namespace reshade { namespace api
 		/// Associates a name with a resource view, for easier debugging in external tools.
 		/// </summary>
 		/// <param name="handle">Resource view to associate a name with.</param>
-		/// <param name="name">A null-terminated name string.</param>
+		/// <param name="name">Null-terminated name string.</param>
 		virtual void set_resource_view_name(resource_view handle, const char *name) = 0;
 
 		/// <summary>
@@ -439,7 +439,7 @@ namespace reshade { namespace api
 		/// <param name="resource">Buffer resource to map to host memory.</param>
 		/// <param name="offset">Offset (in bytes) into the buffer resource to start mapping.</param>
 		/// <param name="size">Number of bytes to map. Set to -1 (UINT64_MAX) to indicate that the entire buffer should be mapped.</param>
-		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
+		/// <param name="access">Hint on how the returned data pointer will be accessed.</param>
 		/// <param name="out_data">Pointer to a variable that is set to a pointer to the memory of the buffer resource.</param>
 		/// <returns><see langword="true"/> if the memory of the buffer resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="out_data"/> is set to <see langword="nullptr"/>).</returns>
 		virtual bool map_buffer_region(resource resource, uint64_t offset, uint64_t size, map_access access, void **out_data) = 0;
@@ -453,11 +453,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="resource">Texture resource to map to host memory.</param>
 		/// <param name="subresource">Index of the subresource to map (<c>level + (layer * levels)</c>).</param>
-		/// <param name="box">An optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to map, in the format <c>{ left, top, front, right, bottom, back }</c>.</param>
-		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
+		/// <param name="box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to map.</param>
+		/// <param name="access">Hint on how the returned data pointer will be accessed.</param>
 		/// <param name="out_data">Pointer to a variable that is set to a pointer to the memory of the texture resource and optionally the row and slice pitch of that data (depending on the resource type).</param>
 		/// <returns><see langword="true"/> if the memory of the texture resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="out_data"/> is set to <see langword="nullptr"/>).</returns>
-		virtual bool map_texture_region(resource resource, uint32_t subresource, const int32_t box[6], map_access access, subresource_data *out_data) = 0;
+		virtual bool map_texture_region(resource resource, uint32_t subresource, const subresource_box *box, map_access access, subresource_data *out_data) = 0;
 		/// <summary>
 		/// Unmaps a previously mapped texture resource.
 		/// </summary>
@@ -479,8 +479,8 @@ namespace reshade { namespace api
 		/// <param name="data">Pointer to the data to upload.</param>
 		/// <param name="resource">Texture resource to upload to.</param>
 		/// <param name="subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
-		/// <param name="box">An optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format <c>{ left, top, front, right, bottom, back }</c>.</param>
-		virtual void update_texture_region(const subresource_data &data, resource resource, uint32_t subresource, const int32_t box[6] = nullptr) = 0;
+		/// <param name="box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to.</param>
+		virtual void update_texture_region(const subresource_data &data, resource resource, uint32_t subresource, const subresource_box *box = nullptr) = 0;
 
 		/// <summary>
 		/// Updates the contents of descriptor sets with the specified descriptors.
@@ -601,15 +601,15 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="first">Index of the first viewport to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
 		/// <param name="count">Number of viewports to bind. In D3D9 this has to be 1.</param>
-		/// <param name="viewports">Pointer to an array of viewports in the format <c>{ x 0, y 0, width 0, height 0, min depth 0, max depth 0, x 1, y 1, width 1, height 1, ... }</c>.</param>
-		virtual void bind_viewports(uint32_t first, uint32_t count, const float *viewports) = 0;
+		/// <param name="viewports">Pointer to an array of viewports.</param>
+		virtual void bind_viewports(uint32_t first, uint32_t count, const viewport *viewports) = 0;
 		/// <summary>
 		/// Binds an array of scissor rectangles to the rasterizer stage.
 		/// </summary>
 		/// <param name="first">Index of the first scissor rectangle to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
 		/// <param name="count">Number of scissor rectangles to bind. In D3D9 this has to be 1.</param>
-		/// <param name="rects">Pointer to an array of scissor rectangles in the format <c>{ left 0, top 0, right 0, bottom 0, left 1, top 1, right 1, ... }</c>.</param>
-		virtual void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) = 0;
+		/// <param name="rects">Pointer to an array of scissor rectangles.</param>
+		virtual void bind_scissor_rects(uint32_t first, uint32_t count, const rect *rects) = 0;
 
 		/// <summary>
 		/// Directly updates constant values in the specified shader pipeline stages.
@@ -679,16 +679,16 @@ namespace reshade { namespace api
 		/// <param name="vertex_count">Number of vertices to draw.</param>
 		/// <param name="instance_count">Number of instances to draw. In D3D9 this has to be 1.</param>
 		/// <param name="first_vertex">Index of the first vertex.</param>
-		/// <param name="first_instance">A value added to each index before reading per-instance data from a vertex buffer. In D3D9 this has to be 0.</param>
+		/// <param name="first_instance">Value added to each index before reading per-instance data from a vertex buffer. In D3D9 this has to be 0.</param>
 		virtual void draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) = 0;
 		/// <summary>
 		/// Draws indexed primitives.
 		/// </summary>
 		/// <param name="index_count">Number of indices read from the index buffer for each instance.</param>
 		/// <param name="instance_count">Number of instances to draw. In D3D9 this has to be 1.</param>
-		/// <param name="first_index">The location of the first index read from the index buffer.</param>
-		/// <param name="vertex_offset">A value added to each index before reading per-vertex data from a vertex buffer.</param>
-		/// <param name="first_instance">A value added to each index before reading per-instance data from a vertex buffer. In D3D9 this has to be 0.</param>
+		/// <param name="first_index">Location of the first index read from the index buffer.</param>
+		/// <param name="vertex_offset">Value added to each index before reading per-vertex data from a vertex buffer.</param>
+		/// <param name="first_instance">Value added to each index before reading per-instance data from a vertex buffer. In D3D9 this has to be 0.</param>
 		virtual void draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) = 0;
 		/// <summary>
 		/// Performs a compute shader dispatch.
@@ -750,8 +750,8 @@ namespace reshade { namespace api
 		/// <param name="slice_height">Number of rows from one slice to the next (in the buffer) or zero if data is tightly packed.</param>
 		/// <param name="dest">Texture resource to copy to.</param>
 		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/>ination texture to copy to.</param>
-		/// <param name="dest_box">A 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="dest"/>ination texture to copy to, in the format <c>{ left, top, front, right, bottom, back }</c>.</param>
-		virtual void copy_buffer_to_texture(resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, resource dest, uint32_t dest_subresource, const int32_t dest_box[6] = nullptr) = 0;
+		/// <param name="dest_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="dest"/>ination texture to copy to.</param>
+		virtual void copy_buffer_to_texture(resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, resource dest, uint32_t dest_subresource, const subresource_box *dest_box = nullptr) = 0;
 		/// <summary>
 		/// Copies or blits a texture region from the <paramref name="source"/> texture to the <paramref name="dest"/>ination texture.
 		/// </summary>
@@ -761,12 +761,12 @@ namespace reshade { namespace api
 		/// </remarks>
 		/// <param name="source">Texture resource to copy from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to copy from.</param>
-		/// <param name="source_box">A 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to blit from, in the format <c>{ left, top, front, right, bottom, back }</c>.</param>
+		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to blit from.</param>
 		/// <param name="dest">Texture resource to copy to.</param>
 		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/>ination texture to copy to.</param>
-		/// <param name="dest_box">A 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="dest"/>ination texture to blit to, in the format <c>{ left, top, front, right, bottom, back }</c>.</param>
+		/// <param name="dest_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="dest"/>ination texture to blit to.</param>
 		/// <param name="filter">Filter to apply when copy requires scaling.</param>
-		virtual void copy_texture_region(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint32_t dest_subresource, const int32_t dest_box[6], filter_mode filter = filter_mode::min_mag_mip_point) = 0;
+		virtual void copy_texture_region(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint32_t dest_subresource, const subresource_box *dest_box, filter_mode filter = filter_mode::min_mag_mip_point) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="dest"/>ination buffer.
 		/// </summary>
@@ -776,12 +776,12 @@ namespace reshade { namespace api
 		/// </remarks>
 		/// <param name="source">Texture resource to copy from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to copy from.</param>
-		/// <param name="source_box">A 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to copy from, in the format <c>{ left, top, front, right, bottom, back }</c>.</param>
+		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to copy from.</param>
 		/// <param name="dest">Buffer resource to copy to.</param>
 		/// <param name="dest_offset">Offset (in bytes) into the <paramref name="dest"/>ination buffer to start copying to.</param>
 		/// <param name="row_length">Number of pixels from one row to the next (in the buffer), or zero if data is tightly packed.</param>
 		/// <param name="slice_height">Number of rows from one slice to the next (in the buffer), or zero if data is tightly packed.</param>
-		virtual void copy_texture_to_buffer(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint64_t dest_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
+		virtual void copy_texture_to_buffer(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint64_t dest_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
 		/// <summary>
 		/// Copies a region from the multisampled <paramref name="source"/> texture to the non-multisampled <paramref name="dest"/>ination texture.
 		/// </summary>
@@ -791,12 +791,12 @@ namespace reshade { namespace api
 		/// </remarks>
 		/// <param name="source">Texture resource to resolve from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to resolve from.</param>
-		/// <param name="source_box">A 2D rectangle (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve, in the format <c>{ left, top, front, right, bottom, back }</c>. In D3D10 and D3D11 this has to be <see langword="nullptr"/>.</param>
+		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve. In D3D10 and D3D11 this has to be <see langword="nullptr"/>.</param>
 		/// <param name="dest">Texture resource to resolve to.</param>
 		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/>ination texture to resolve to.</param>
-		/// <param name="dest_offset">Offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to, in the format <c>{ left, top, front }</c>. In D3D10 and D3D11 this has to be <see langword="nullptr"/>.</param>
+		/// <param name="dest_offset">Optional 3D offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to. In D3D10 and D3D11 this has to be <see langword="nullptr"/>.</param>
 		/// <param name="format">Format of the resource data.</param>
-		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], format format) = 0;
+		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], format format) = 0;
 
 		/// <summary>
 		/// Clears all attachments of the current render pass. Can only be called between <see cref="begin_render_pass"/> and <see cref="end_render_pass"/>.
@@ -806,8 +806,8 @@ namespace reshade { namespace api
 		/// <param name="depth">Value to clear the depth buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::depth"/>.</param>
 		/// <param name="stencil">Value to clear the stencil buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::stencil"/>.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the attachment resources, or zero to clear the whole resources.</param>
-		/// <param name="rects">Pointer to an array of rectangles, in the format <c>{ left, top, right, bottom }</c>.</param>
-		virtual void clear_attachments(attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
+		/// <param name="rects">Pointer to an array of rectangles.</param>
+		virtual void clear_attachments(attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.
 		/// </summary>
@@ -819,8 +819,8 @@ namespace reshade { namespace api
 		/// <param name="depth">Value to clear the depth buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::depth"/>.</param>
 		/// <param name="stencil">Value to clear the stencil buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::stencil"/>.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the depth-stencil resource, or zero to clear the whole resource.</param>
-		/// <param name="rects">Pointer to an array of rectangles, in the format <c>{ left, top, right, bottom }</c>.</param>
-		virtual void clear_depth_stencil_view(resource_view dsv, attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
+		/// <param name="rects">Pointer to an array of rectangles.</param>
+		virtual void clear_depth_stencil_view(resource_view dsv, attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the render target view.
 		/// </summary>
@@ -830,8 +830,8 @@ namespace reshade { namespace api
 		/// <param name="rtv">Resource view handle of the render target.</param>
 		/// <param name="color">Value to clear the resource with.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the render target resource, or zero to clear the whole resource.</param>
-		/// <param name="rects">Pointer to an array of rectangles, in the format <c>{ left, top, right, bottom }</c>.</param>
-		virtual void clear_render_target_view(resource_view rtv, const float color[4], uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
+		/// <param name="rects">Pointer to an array of rectangles.</param>
+		virtual void clear_render_target_view(resource_view rtv, const float color[4], uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the unordered access view.
 		/// </summary>
@@ -841,8 +841,8 @@ namespace reshade { namespace api
 		/// <param name="uav">Resource view handle of the unordered access view.</param>
 		/// <param name="values">Value to clear the resource with.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the unordered access resource, or zero to clear the whole resource.</param>
-		/// <param name="rects">Pointer to an array of rectangles, in the format <c>{ left, top, right, bottom }</c>.</param>
-		virtual void clear_unordered_access_view_uint(resource_view uav, const uint32_t values[4], uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
+		/// <param name="rects">Pointer to an array of rectangles.</param>
+		virtual void clear_unordered_access_view_uint(resource_view uav, const uint32_t values[4], uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the unordered access view.
 		/// </summary>
@@ -852,8 +852,8 @@ namespace reshade { namespace api
 		/// <param name="uav">Resource view handle of the unordered access view.</param>
 		/// <param name="values">Value to clear the resource with.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the unordered access resource, or zero to clear the whole resource.</param>
-		/// <param name="rects">Pointer to an array of rectangles, in the format <c>{ left, top, right, bottom }</c>.</param>
-		virtual void clear_unordered_access_view_float(resource_view uav, const   float values[4], uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
+		/// <param name="rects">Pointer to an array of rectangles.</param>
+		virtual void clear_unordered_access_view_float(resource_view uav, const   float values[4], uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 
 		/// <summary>
 		/// Generates the lower mipmap levels for the specified shader resource view.
@@ -863,7 +863,7 @@ namespace reshade { namespace api
 		/// This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_set"/> or <see cref="push_descriptors"/>.
 		/// The resource the shader resource view points to has to be in the <see cref="resource_usage::shader_resource"/> state and has to have been created with the <see cref="resource_flags::generate_mipmaps"/> flag.
 		/// </remarks>
-		/// <param name="srv">The shader resource view to update.</param>
+		/// <param name="srv">Shader resource view to update.</param>
 		virtual void generate_mipmaps(resource_view srv) = 0;
 
 		/// <summary>

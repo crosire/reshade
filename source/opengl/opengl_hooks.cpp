@@ -298,12 +298,12 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 			reshade::opengl::make_framebuffer_handle(dst_fbo), reshade::api::attachment_type::color, dst_object - GL_COLOR_ATTACHMENT0));
 	}
 
-	const int32_t src_box[6] = { x, y, z, x + width, y + height, z + depth };
-	const int32_t dst_box[6] = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
+	const reshade::api::subresource_box src_box = { x, y, z, x + width, y + height, z + depth };
+	const reshade::api::subresource_box dst_box = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
 
-	const reshade::api::filter_mode filter_mode = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear;
+	const reshade::api::filter_mode filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear;
 
-	return reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, src_level, src_box, dst, dst_level, dst_box, filter_mode);
+	return reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, src_level, &src_box, dst, dst_level, &dst_box, filter_type);
 }
 static bool update_buffer_region(GLenum target, GLuint object, GLintptr offset, GLsizeiptr size, const void *data)
 {
@@ -352,10 +352,10 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * g_current_context->get_resource_desc(dst).texture.levels;
 	}
 
-	const int32_t dst_box[6] = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
+	const reshade::api::subresource_box dst_box = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
 
 	std::vector<uint8_t> temp_data;
-	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth), dst, subresource, dst_box);
+	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth), dst, subresource, &dst_box);
 }
 
 static void update_framebuffer_object(GLenum target, GLuint fbo)
@@ -950,9 +950,9 @@ HOOK_EXPORT void APIENTRY glScissor(GLint x, GLint y, GLsizei width, GLsizei hei
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
-		const int32_t rect_data[4] = { x, y, x + width, y + height };
+		const reshade::api::rect rect_data = { x, y, x + width, y + height };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, 0, 1, rect_data);
+		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, 0, 1, &rect_data);
 	}
 #endif
 }
@@ -966,14 +966,14 @@ HOOK_EXPORT void APIENTRY glViewport(GLint x, GLint y, GLsizei width, GLsizei he
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_viewports>())
 	{
-		const float viewport_data[4] = {
+		const reshade::api::viewport viewport_data = {
 			static_cast<float>(x),
 			static_cast<float>(y),
 			static_cast<float>(width),
 			static_cast<float>(height)
 		};
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, 0, 1, viewport_data);
+		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, 0, 1, &viewport_data);
 	}
 #endif
 }
@@ -2185,19 +2185,19 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 			reshade::api::resource dst = g_current_context->get_resource_from_view(
 				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(dst_fbo), type, 0));
 
-			const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
-			const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
+			const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
+			const reshade::api::subresource_box dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
 
 			if (g_current_context->get_resource_desc(src).texture.samples <= 1)
 			{
 				const reshade::api::filter_mode filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear;
 
-				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, filter_type))
+				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, &src_box, dst, 0, &dst_box, filter_type))
 					mask ^= flag;
 			}
 			else if ((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0))
 			{
-				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, reshade::api::format::unknown))
+				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, &src_box, dst, 0, reinterpret_cast<const int32_t *>(&dst_box), reshade::api::format::unknown))
 					mask ^= flag;
 			}
 		}
@@ -2729,14 +2729,14 @@ void APIENTRY glScissorArrayv(GLuint first, GLsizei count, const GLint *v)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
-		const auto rect_data = static_cast<int32_t *>(_malloca(count * 4 * sizeof(int32_t)));
+		const auto rect_data = static_cast<reshade::api::rect *>(_malloca(count * sizeof(reshade::api::rect)));
 
-		for (GLsizei i = 0, k = 0; i < count; ++i, k += 4)
+		for (GLsizei i = 0; i < count; ++i, v += 4)
 		{
-			rect_data[k + 0] = v[k + 0];
-			rect_data[k + 1] = v[k + 2];
-			rect_data[k + 2] = v[k + 0] + v[k + 3];
-			rect_data[k + 3] = v[k + 2] + v[k + 4];
+			rect_data[i].left = v[0];
+			rect_data[i].top = v[1];
+			rect_data[i].right = v[0] + v[2];
+			rect_data[i].bottom = v[1] + v[3];
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, first, count, rect_data);
@@ -2754,9 +2754,9 @@ void APIENTRY glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei w
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
-		const int32_t rect_data[4] = { left, bottom, left + width, bottom + height };
+		const reshade::api::rect rect_data = { left, bottom, left + width, bottom + height };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, index, 1, rect_data);
+		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, index, 1, &rect_data);
 	}
 #endif
 }
@@ -2769,9 +2769,9 @@ void APIENTRY glScissorIndexedv(GLuint index, const GLint *v)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
-		const int32_t rect_data[4] = { v[0], v[1], v[0] + v[2], v[1] + v[3] };
+		const reshade::api::rect rect_data = { v[0], v[1], v[0] + v[2], v[1] + v[3] };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, index, 1, rect_data);
+		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, index, 1, &rect_data);
 	}
 #endif
 }
@@ -2785,16 +2785,16 @@ void APIENTRY glViewportArrayv(GLuint first, GLsizei count, const GLfloat *v)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_viewports>())
 	{
-		const auto viewport_data = static_cast<float *>(_malloca(count * 6 * sizeof(float)));
+		const auto viewport_data = static_cast<reshade::api::viewport *>(_malloca(count * sizeof(reshade::api::viewport)));
 
-		for (GLsizei i = 0, k = 0; i < count; ++i, k += 6, v += 4)
+		for (GLsizei i = 0; i < count; ++i, v += 4)
 		{
-			viewport_data[k + 0] = v[0];
-			viewport_data[k + 1] = v[1];
-			viewport_data[k + 2] = v[2];
-			viewport_data[k + 3] = v[3];
-			viewport_data[k + 4] = 0.0f; // This is set via 'glDepthRange', so just assume defaults here for now
-			viewport_data[k + 5] = 1.0f;
+			viewport_data[i].x = v[0];
+			viewport_data[i].y = v[1];
+			viewport_data[i].width = v[2];
+			viewport_data[i].height = v[3];
+			viewport_data[i].min_depth = 0.0f; // This is set via 'glDepthRange', so just assume defaults here for now
+			viewport_data[i].max_depth = 1.0f;
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, first, count, viewport_data);
@@ -2812,9 +2812,9 @@ void APIENTRY glViewportIndexedf(GLuint index, GLfloat x, GLfloat y, GLfloat w, 
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_viewports>())
 	{
-		const float viewport_data[4] = { x, y, w, h };
+		const reshade::api::viewport viewport_data = { x, y, w, h, 0.0f, 1.0f };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, 0, 1, viewport_data);
+		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, index, 1, &viewport_data);
 	}
 #endif
 }
@@ -2826,7 +2826,9 @@ void APIENTRY glViewportIndexedfv(GLuint index, const GLfloat *v)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, 0, 1, v);
+		const reshade::api::viewport viewport_data = { v[0], v[1], v[2], v[3], 0.0f, 1.0f };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, index, 1, &viewport_data);
 	}
 #endif
 }
@@ -4026,19 +4028,19 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 			reshade::api::resource dst = g_current_context->get_resource_from_view(
 				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(drawFramebuffer), type, 0));
 
-			const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
-			const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
+			const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
+			const reshade::api::subresource_box dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
 
 			if (g_current_context->get_resource_desc(src).texture.samples <= 1)
 			{
 				const reshade::api::filter_mode filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear;
 
-				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, filter_type))
+				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, &src_box, dst, 0, &dst_box, filter_type))
 					mask ^= flag;
 			}
 			else if ((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0))
 			{
-				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, reshade::api::format::unknown))
+				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, &src_box, dst, 0, reinterpret_cast<const int32_t *>(&dst_box), reshade::api::format::unknown))
 					mask ^= flag;
 			}
 		}

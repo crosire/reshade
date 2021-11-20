@@ -1396,7 +1396,7 @@ void reshade::vulkan::device_impl::unmap_buffer_region(api::resource resource)
 		vk.UnmapMemory(_orig, data->memory);
 	}
 }
-bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access, api::subresource_data *out_data)
+bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access, api::subresource_data *out_data)
 {
 	if (out_data == nullptr)
 		return false;
@@ -1473,7 +1473,7 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 		}
 	}
 }
-void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
+void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	const auto resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
@@ -1482,9 +1482,9 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 
 	if (box != nullptr)
 	{
-		extent.width  = box[3] - box[0];
-		extent.height = box[4] - box[1];
-		extent.depth  = box[5] - box[2];
+		extent.width  = box->right - box->left;
+		extent.height = box->bottom - box->top;
+		extent.depth  = box->back - box->front;
 	}
 
 	const auto row_pitch = api::format_row_pitch(convert_format(resource_data->create_info.format), extent.width);
