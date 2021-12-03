@@ -77,10 +77,10 @@ namespace reshade::d3d9
 	void convert_resource_desc(const api::resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps);
 	void convert_resource_desc(const api::resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc);
 	void convert_resource_desc(const api::resource_desc &desc, D3DVERTEXBUFFER_DESC &internal_desc);
-	api::resource_desc convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels = 1);
-	api::resource_desc convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps);
-	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc);
-	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc);
+	api::resource_desc convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels = 1, bool shared_handle = false);
+	api::resource_desc convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps, bool shared_handle = false);
+	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc, bool shared_handle = false);
+	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc, bool shared_handle = false);
 
 	void convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3DVERTEXELEMENT9> &elements);
 	api::pipeline_desc convert_pipeline_desc(const D3DVERTEXELEMENT9 *elements);

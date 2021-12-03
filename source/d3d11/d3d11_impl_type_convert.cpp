@@ -138,6 +138,11 @@ static void convert_resource_flags_to_misc_flags(reshade::api::resource_flags fl
 	if ((flags & api::resource_flags::shared) == api::resource_flags::shared && (misc_flags & (D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX | D3D11_RESOURCE_MISC_SHARED_NTHANDLE)) == 0)
 		misc_flags |= D3D11_RESOURCE_MISC_SHARED;
 
+	if ((flags & api::resource_flags::shared_nt_handle) == api::resource_flags::shared_nt_handle)
+		misc_flags |= D3D11_RESOURCE_MISC_SHARED_NTHANDLE;
+	else
+		misc_flags &= ~D3D11_RESOURCE_MISC_SHARED_NTHANDLE;
+
 	if ((flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
 		misc_flags |= D3D11_RESOURCE_MISC_TEXTURECUBE;
 	else
@@ -159,6 +164,8 @@ static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::
 
 	if ((misc_flags & (D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX | D3D11_RESOURCE_MISC_SHARED_NTHANDLE)) != 0)
 		flags |= api::resource_flags::shared;
+	if ((misc_flags & (D3D11_RESOURCE_MISC_SHARED_NTHANDLE)))
+		flags |= api::resource_flags::shared_nt_handle;
 	if ((misc_flags & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0)
 		flags |= api::resource_flags::cube_compatible;
 	if ((misc_flags & D3D11_RESOURCE_MISC_GENERATE_MIPS) != 0)

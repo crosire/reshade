@@ -92,6 +92,10 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::sampler_anisotropic:
 		return true;
 	case api::device_caps::sampler_with_resource_view:
+		return false;
+	case api::device_caps::shared_resource:
+		return true;
+	case api::device_caps::shared_resource_nt_handle:
 	default:
 		return false;
 	}
@@ -145,8 +149,44 @@ void reshade::d3d10::device_impl::destroy_sampler(api::sampler handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle)
+static bool get_shared_resource(ID3D10Resource *object, HANDLE *shared_handle)
 {
+	com_ptr<IDXGIResource> object_dxgi;
+	return SUCCEEDED(object->QueryInterface(&object_dxgi)) && SUCCEEDED(object_dxgi->GetSharedHandle(shared_handle));
+}
+static bool open_shared_resource(HANDLE shared_handle, ID3D10Device *device, REFIID iid, void **out_object)
+{
+	return SUCCEEDED(device->OpenSharedResource(shared_handle, iid, out_object));
+}
+
+bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE *shared_handle)
+{
+	*out_handle = { 0 };
+
+	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	if (is_shared)
+	{
+		// NT handles are not supported
+		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) == reshade::api::resource_flags::shared_nt_handle)
+			return false;
+
+		if (*shared_handle != nullptr)
+		{
+			assert(initial_data == nullptr);
+
+			if (com_ptr<ID3D10Resource> object;
+				open_shared_resource(*shared_handle, _orig, IID_PPV_ARGS(&object)))
+			{
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+	}
+
 	switch (desc.type)
 	{
 		case api::resource_type::buffer:
@@ -157,6 +197,9 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Buffer> object;
 				SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
+				if (is_shared && !get_shared_resource(object.get(), shared_handle))
+					break;
+
 				*out_handle = to_handle(object.release());
 				return true;
 			}
@@ -170,6 +213,9 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture1D> object;
 				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
+				if (is_shared && !get_shared_resource(object.get(), shared_handle))
+					break;
+
 				*out_handle = to_handle(object.release());
 				return true;
 			}
@@ -183,6 +229,9 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture2D> object;
 				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
+				if (is_shared && !get_shared_resource(object.get(), shared_handle))
+					break;
+
 				*out_handle = to_handle(object.release());
 				return true;
 			}
@@ -196,6 +245,9 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture3D> object;
 				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
+				if (is_shared && !get_shared_resource(object.get(), shared_handle))
+					break;
+
 				*out_handle = to_handle(object.release());
 				return true;
 			}
@@ -203,7 +255,6 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 		}
 	}
 
-	*out_handle = { 0 };
 	return false;
 }
 void reshade::d3d10::device_impl::destroy_resource(api::resource handle)
@@ -261,11 +312,10 @@ void reshade::d3d10::device_impl::set_resource_name(api::resource handle, const 
 
 bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (resource.handle == 0)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	switch (usage_type)
 	{
@@ -310,7 +360,6 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 		}
 	}
 
-	*out_handle = { 0 };
 	return false;
 }
 void reshade::d3d10::device_impl::destroy_resource_view(api::resource_view handle)
@@ -374,14 +423,11 @@ void reshade::d3d10::device_impl::set_resource_view_name(api::resource_view hand
 
 bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
+	*out_handle = { 0 };
+
 	for (uint32_t i = 0; i < dynamic_state_count; ++i)
-	{
 		if (dynamic_states[i] != api::dynamic_state::primitive_topology)
-		{
-			*out_handle = { 0 };
 			return false;
-		}
-	}
 
 	switch (desc.type)
 	{
@@ -402,28 +448,24 @@ bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc
 	case api::pipeline_stage::output_merger:
 		return create_blend_state(desc, out_handle);
 	default:
-		*out_handle = { 0 };
 		return false;
 	}
 }
 bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (desc.graphics.hull_shader.code_size != 0 ||
 		desc.graphics.domain_shader.code_size != 0 ||
 		desc.graphics.rasterizer_state.conservative_rasterization ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
 		desc.graphics.topology == api::primitive_topology::triangle_fan)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 #define create_state_object(name, type, condition) \
 	api::pipeline name##_handle = { 0 }; \
-	if (condition && !create_##name(desc, &name##_handle)) { \
-		*out_handle = { 0 }; \
+	if (condition && !create_##name(desc, &name##_handle)) \
 		return false; \
-	} \
 	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
 
 	create_state_object(vertex_shader, ID3D10VertexShader, desc.graphics.vertex_shader.code_size != 0);
@@ -604,14 +646,11 @@ void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline handle)
 
 bool reshade::d3d10::device_impl::create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle)
 {
+	*out_handle = { 0 };
+
 	for (uint32_t a = 0; a < attachment_count; ++a)
-	{
 		if (attachments[a].index >= (attachments[a].type == api::attachment_type::color ? D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT : 1u))
-		{
-			*out_handle = { 0 };
 			return false;
-		}
-	}
 
 	const auto impl = new render_pass_impl();
 	impl->attachments.assign(attachments, attachments + attachment_count);
@@ -626,13 +665,12 @@ void reshade::d3d10::device_impl::destroy_render_pass(api::render_pass handle)
 
 bool reshade::d3d10::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
+	*out_handle = { 0 };
+
 	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
 
 	if (pass_impl == nullptr || attachment_count > pass_impl->attachments.size())
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	const auto impl = new framebuffer_impl();
 

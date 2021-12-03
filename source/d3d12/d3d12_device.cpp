@@ -1090,9 +1090,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID 
 			D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
 			D3D12_HEAP_PROPERTIES heap_props = {};
 			resource->GetHeapProperties(&heap_props, &heap_flags);
-			assert((heap_flags & D3D12_HEAP_FLAG_SHARED) != 0);
 
 			const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(resource->GetDesc(), heap_props, heap_flags);
+
+			assert((desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared);
 
 			register_resource(resource);
 			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource));

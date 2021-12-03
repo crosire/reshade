@@ -516,7 +516,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 		}
 	}
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels, bool shared_handle)
 {
 	assert(internal_desc.Type == D3DRTYPE_VOLUME || internal_desc.Type == D3DRTYPE_VOLUMETEXTURE);
 
@@ -535,9 +535,12 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME
 	if (internal_desc.Type == D3DRTYPE_VOLUMETEXTURE)
 		desc.usage |= api::resource_usage::shader_resource;
 
+	if (shared_handle)
+		desc.flags |= api::resource_flags::shared;
+
 	return desc;
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps, bool shared_handle)
 {
 	assert(internal_desc.Type == D3DRTYPE_SURFACE || internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE);
 
@@ -634,6 +637,9 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 		desc.usage |= api::resource_usage::copy_source | api::resource_usage::copy_dest;
 	}
 
+	if (shared_handle)
+		desc.flags |= api::resource_flags::shared;
+
 	if (internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.flags |= api::resource_flags::cube_compatible;
 	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
@@ -643,7 +649,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 
 	return desc;
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc, bool shared_handle)
 {
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
@@ -654,6 +660,9 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXB
 		convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	desc.usage = api::resource_usage::index_buffer;
 
+	if (shared_handle)
+		desc.flags |= api::resource_flags::shared;
+
 	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
 	{
 		desc.heap = api::memory_heap::cpu_to_gpu;
@@ -662,7 +671,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXB
 
 	return desc;
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc, bool shared_handle)
 {
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
@@ -672,6 +681,9 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 	else
 		convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	desc.usage = api::resource_usage::vertex_buffer;
+
+	if (shared_handle)
+		desc.flags |= api::resource_flags::shared;
 
 	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
 	{

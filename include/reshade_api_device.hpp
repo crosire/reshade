@@ -149,6 +149,16 @@ namespace reshade { namespace api
 		/// If this feature is not present, <see cref="descriptor_type::sampler_with_resource_view"/> must not be used.
 		/// </summary>
 		sampler_with_resource_view,
+		/// <summary>
+		/// Specifies whether resource sharing is supported.
+		/// If this feature is not present, <see cref="resource_flags::shared"/> must not be used.
+		/// </summary>
+		shared_resource,
+		/// <summary>
+		/// Specifies whether resource sharing with NT handles is supported.
+		/// If this feature is not present, <see cref="resource_flags::shared_nt_handle"/> must not be used.
+		/// </summary>
+		shared_resource_nt_handle,
 	};
 
 	/// <summary>
@@ -254,8 +264,9 @@ namespace reshade { namespace api
 		/// <param name="initial_data">Optional data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers). Can be <see langword="nullptr"/> to indicate no initial data to upload.</param>
 		/// <param name="initial_state">Initial state of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created resource.</param>
+		/// <param name="shared_handle">Optional pointer to a variable of type <c>HANDLE</c> used when <see cref="resource_desc::flags"/> contains <see cref="resource_flags::shared"/>. When that variable is a <see langword="nullptr"/>, it is set to the exported shared handle of the created resource. When that variable is a valid handle, the resource is imported from that shared handle.</param>
 		/// <returns><see langword="true"/> if the resource was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out_handle) = 0;
+		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out_handle, void **shared_handle = nullptr) = 0;
 		/// <summary>
 		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
 		/// Make sure the resource is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!

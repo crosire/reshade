@@ -995,6 +995,18 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 	if (create_info.mipLevels > 1 && (create_info.usage & (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
 		desc.flags |= api::resource_flags::generate_mipmaps;
 
+	const auto external_memory_info = find_in_structure_chain<VkExternalMemoryImageCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO);
+	if (external_memory_info != nullptr)
+	{
+		if (external_memory_info->handleTypes != 0)
+		{
+			desc.flags |= api::resource_flags::shared;
+
+			if (external_memory_info->handleTypes & (VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT))
+				desc.flags |= api::resource_flags::shared_nt_handle;
+		}
+	}
+
 	return desc;
 }
 reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
@@ -1003,6 +1015,19 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBuffe
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = create_info.size;
 	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
+
+	const auto external_memory_info = find_in_structure_chain<VkExternalMemoryBufferCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO);
+	if (external_memory_info != nullptr)
+	{
+		if (external_memory_info->handleTypes != 0)
+		{
+			desc.flags |= api::resource_flags::shared;
+
+			if (external_memory_info->handleTypes & (VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT | VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT))
+				desc.flags |= api::resource_flags::shared_nt_handle;
+		}
+	}
+
 	return desc;
 }
 

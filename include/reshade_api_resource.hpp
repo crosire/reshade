@@ -90,11 +90,12 @@ namespace reshade { namespace api
 	enum class resource_flags : uint32_t
 	{
 		none = 0,
-		shared = (1 << 0),
+		shared = (1 << 9),
+		shared_nt_handle = (1 << 11),
 		dynamic = (1 << 1),
-		sparse_binding = (1 << 2),
-		cube_compatible = (1 << 3),
-		generate_mipmaps = (1 << 4)
+		sparse_binding = (1 << 18),
+		cube_compatible = (1 << 2),
+		generate_mipmaps = (1 << 0)
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_flags);
 

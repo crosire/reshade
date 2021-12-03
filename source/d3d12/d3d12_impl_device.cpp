@@ -10,6 +10,8 @@
 #include "dll_resources.hpp"
 #include <malloc.h>
 
+extern bool is_windows7();
+
 const GUID reshade::d3d12::extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
 
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
@@ -152,6 +154,10 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::sampler_anisotropic:
 		return true;
 	case api::device_caps::sampler_with_resource_view:
+		return false;
+	case api::device_caps::shared_resource:
+	case api::device_caps::shared_resource_nt_handle:
+		return !is_windows7();
 	default:
 		return false;
 	}
@@ -184,12 +190,11 @@ bool reshade::d3d12::device_impl::check_format_support(api::format format, api::
 
 bool reshade::d3d12::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out_handle)
 {
+	*out_handle = { 0 };
+
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
 	if (!_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER].allocate(descriptor_handle))
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	D3D12_SAMPLER_DESC internal_desc = {};
 	convert_sampler_desc(desc, internal_desc);
@@ -207,9 +212,35 @@ void reshade::d3d12::device_impl::destroy_sampler(api::sampler handle)
 	_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER].free({ static_cast<SIZE_T>(handle.handle) });
 }
 
-bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle)
+bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle, HANDLE *shared_handle)
 {
-	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::cpu_access);
+	*out_handle = { 0 };
+
+	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::general || initial_state == api::resource_usage::cpu_access);
+
+	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	if (is_shared)
+	{
+		// Only NT handles are supported
+		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) != reshade::api::resource_flags::shared_nt_handle)
+			return false;
+
+		if (*shared_handle != nullptr)
+		{
+			assert(initial_data == nullptr);
+
+			if (com_ptr<ID3D12Resource> object;
+				SUCCEEDED(_orig->OpenSharedHandle(*shared_handle, IID_PPV_ARGS(&object))))
+			{
+				*out_handle = to_handle(object.get());
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+	}
 
 	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
 	D3D12_RESOURCE_DESC internal_desc = {};
@@ -237,9 +268,12 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 	if (com_ptr<ID3D12Resource> object;
 		SUCCEEDED(desc.heap == api::memory_heap::unknown ?
-		_orig->CreateReservedResource(&internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
-		_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
+			_orig->CreateReservedResource(&internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
+			_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
 	{
+		if (is_shared && FAILED(_orig->CreateSharedHandle(object.get(), nullptr, GENERIC_ALL, nullptr, shared_handle)))
+			return false;
+
 		register_resource(object.get());
 
 		*out_handle = to_handle(object.release());
@@ -280,7 +314,6 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	}
 	else
 	{
-		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -317,11 +350,10 @@ void reshade::d3d12::device_impl::set_resource_name(api::resource handle, const 
 
 bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (resource.handle == 0)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	switch (usage_type)
 	{
@@ -388,7 +420,6 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 		}
 	}
 
-	*out_handle = { 0 };
 	return false;
 }
 void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handle)
@@ -437,16 +468,13 @@ void reshade::d3d12::device_impl::set_resource_view_name(api::resource_view, con
 
 bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
+	*out_handle = { 0 };
+
 	for (uint32_t i = 0; i < dynamic_state_count; ++i)
-	{
 		if (dynamic_states[i] != api::dynamic_state::stencil_reference_value &&
 			dynamic_states[i] != api::dynamic_state::blend_constant &&
 			dynamic_states[i] != api::dynamic_state::primitive_topology)
-		{
-			*out_handle = { 0 };
 			return false;
-		}
-	}
 
 	switch (desc.type)
 	{
@@ -456,7 +484,6 @@ bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc
 	case api::pipeline_stage::all_graphics:
 		return create_graphics_pipeline(desc, out_handle);
 	default:
-		*out_handle = { 0 };
 		return false;
 	}
 }

@@ -220,6 +220,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 		extended_dynamic_state_ext = add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
+		add_extension(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, false);
+		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -445,6 +447,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(CmdSetStencilTestEnableEXT);
 		INIT_DISPATCH_PTR(CmdSetStencilOpEXT);
 	}
+	#pragma endregion
+	#pragma region VK_KHR_external_memory_win32
+	INIT_DISPATCH_PTR(GetMemoryWin32HandleKHR);
+	INIT_DISPATCH_PTR(GetMemoryWin32HandlePropertiesKHR);
 	#pragma endregion
 
 	// Initialize per-device data

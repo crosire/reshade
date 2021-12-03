@@ -24,10 +24,10 @@ namespace reshade::vulkan
 #ifndef WIN64
 		uint32_t padding;
 #endif
-		VkImageCreateInfo create_info;
-		VkImageView default_view = VK_NULL_HANDLE;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
 		uint64_t memory_offset = 0;
+		VkImageCreateInfo create_info;
+		VkImageView default_view = VK_NULL_HANDLE;
 	};
 
 	template <>
@@ -39,9 +39,9 @@ namespace reshade::vulkan
 #ifndef WIN64
 		uint32_t padding;
 #endif
-		VkBufferCreateInfo create_info;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
 		uint64_t memory_offset = 0;
+		VkBufferCreateInfo create_info;
 	};
 
 	template <>

@@ -200,6 +200,9 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return value > 1;
 	case api::device_caps::sampler_with_resource_view:
 		return true;
+	case api::device_caps::shared_resource:
+	case api::device_caps::shared_resource_nt_handle:
+		// TODO: Implement using 'GL_EXT_memory_object' and 'GL_EXT_memory_object_win32' extensions
 	default:
 		return false;
 	}
@@ -333,8 +336,10 @@ void reshade::opengl::device_impl::destroy_sampler(api::sampler handle)
 	glDeleteSamplers(1, &object);
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE *shared_handle)
 {
+	*out_handle = { 0 };
+
 	GLenum target = GL_NONE;
 	switch (desc.type)
 	{
@@ -372,9 +377,30 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		target = GL_TEXTURE_3D;
 		break;
 	default:
-		*out_handle = { 0 };
 		return false;
 	}
+
+#if 0
+	GLenum shared_handle_type = GL_NONE;
+	if ((desc.flags & api::resource_flags::shared) == api::resource_flags::shared)
+	{
+		// Only import is supported
+		if (shared_handle == nullptr || *shared_handle == nullptr)
+			return false;
+
+		assert(initial_data == nullptr);
+
+		if ((desc.flags & api::resource_flags::shared_nt_handle) == api::resource_flags::shared_nt_handle)
+			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_EXT;
+		else
+			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT;
+	}
+#else
+	UNREFERENCED_PARAMETER(shared_handle);
+
+	if ((desc.flags & api::resource_flags::shared) == api::resource_flags::shared)
+		return false;
+#endif
 
 	GLuint object = 0;
 	GLuint prev_binding = 0;
@@ -388,10 +414,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	if (desc.type == api::resource_type::buffer)
 	{
 		if (desc.buffer.size == 0)
-		{
-			*out_handle = { 0 };
 			return false;
-		}
 
 		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
@@ -404,7 +427,23 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			usage_flags |= GL_DYNAMIC_STORAGE_BIT;
 
 		assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		glBufferStorage(target, static_cast<GLsizeiptr>(desc.buffer.size), nullptr, usage_flags);
+
+#if 0
+		if (shared_handle_type != GL_NONE)
+		{
+			GLuint mem = 0;
+			glCreateMemoryObjectsEXT(1, &mem);
+			glImportMemoryWin32HandleEXT(mem, desc.buffer.size, shared_handle_type, *shared_handle);
+
+			glBufferStorageMemEXT(target, static_cast<GLsizeiptr>(desc.buffer.size), mem, 0);
+
+			glDeleteMemoryObjectsEXT(1, &mem);
+		}
+		else
+#endif
+		{
+			glBufferStorage(target, static_cast<GLsizeiptr>(desc.buffer.size), nullptr, usage_flags);
+		}
 
 		status = glGetError();
 
@@ -421,8 +460,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		if (status != GL_NO_ERROR)
 		{
 			glDeleteBuffers(1, &object);
-
-			*out_handle = { 0 };
 			return false;
 		}
 	}
@@ -432,37 +469,73 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		const GLenum internal_format = convert_format(desc.texture.format, swizzle_mask);
 		if (desc.texture.width == 0 || internal_format == GL_NONE)
-		{
-			*out_handle = { 0 };
 			return false;
-		}
 
 		glGenTextures(1, &object);
 		glBindTexture(target, object);
 
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
-		switch (target)
+
+#if 0
+		if (shared_handle_type != GL_NONE)
 		{
-		case GL_TEXTURE_1D:
-			glTexStorage1D(target, desc.texture.levels, internal_format, desc.texture.width);
-			break;
-		case GL_TEXTURE_1D_ARRAY:
-			glTexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, depth_or_layers);
-			break;
-		case GL_TEXTURE_CUBE_MAP:
-			assert(depth_or_layers == 6);
-			[[fallthrough]];
-		case GL_TEXTURE_2D:
-			glTexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height);
-			break;
-		case GL_TEXTURE_CUBE_MAP_ARRAY:
-			assert((depth_or_layers % 6) == 0);
-			depth_or_layers /= 6;
-			[[fallthrough]];
-		case GL_TEXTURE_2D_ARRAY:
-		case GL_TEXTURE_3D:
-			glTexStorage3D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers);
-			break;
+			GLuint mem = 0;
+			glCreateMemoryObjectsEXT(1, &mem);
+
+			GLuint64 import_size = // TODO: Mipmap levels
+				api::format_slice_pitch(desc.texture.format,
+					api::format_row_pitch(desc.texture.format, desc.texture.width), desc.texture.height) * desc.texture.depth_or_layers;
+
+			glImportMemoryWin32HandleEXT(mem, import_size, shared_handle_type, *shared_handle);
+
+			switch (target)
+			{
+			case GL_TEXTURE_CUBE_MAP:
+				assert(depth_or_layers == 6);
+				[[fallthrough]];
+			case GL_TEXTURE_1D:
+			case GL_TEXTURE_1D_ARRAY:
+			case GL_TEXTURE_2D:
+				glTexStorageMem2DEXT(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, mem, 0);
+				break;
+			case GL_TEXTURE_CUBE_MAP_ARRAY:
+				assert((depth_or_layers % 6) == 0);
+				depth_or_layers /= 6;
+				[[fallthrough]];
+			case GL_TEXTURE_2D_ARRAY:
+			case GL_TEXTURE_3D:
+				glTexStorageMem3DEXT(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, mem, 0);
+				break;
+			}
+
+			glDeleteMemoryObjectsEXT(1, &mem);
+		}
+		else
+#endif
+		{
+			switch (target)
+			{
+			case GL_TEXTURE_1D:
+				glTexStorage1D(target, desc.texture.levels, internal_format, desc.texture.width);
+				break;
+			case GL_TEXTURE_1D_ARRAY:
+				glTexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, depth_or_layers);
+				break;
+			case GL_TEXTURE_CUBE_MAP:
+				assert(depth_or_layers == 6);
+				[[fallthrough]];
+			case GL_TEXTURE_2D:
+				glTexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height);
+				break;
+			case GL_TEXTURE_CUBE_MAP_ARRAY:
+				assert((depth_or_layers % 6) == 0);
+				depth_or_layers /= 6;
+				[[fallthrough]];
+			case GL_TEXTURE_2D_ARRAY:
+			case GL_TEXTURE_3D:
+				glTexStorage3D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers);
+				break;
+			}
 		}
 
 		status = glGetError();
@@ -480,8 +553,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		if (status != GL_NO_ERROR)
 		{
 			glDeleteTextures(1, &object);
-
-			*out_handle = { 0 };
 			return false;
 		}
 	}
@@ -689,11 +760,10 @@ void reshade::opengl::device_impl::set_resource_name(api::resource handle, const
 
 bool reshade::opengl::device_impl::create_resource_view(api::resource resource, api::resource_usage, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (resource.handle == 0)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	const bool is_srgb_format =
 		desc.format != api::format_to_default_typed(desc.format, 0) &&
@@ -740,7 +810,6 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		target = GL_TEXTURE_CUBE_MAP_ARRAY;
 		break;
 	default:
-		*out_handle = { 0 };
 		return false;
 	}
 
@@ -764,10 +833,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 
 	const GLenum internal_format = convert_format(desc.format, texture_swizzle);
 	if (internal_format == GL_NONE)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	if (target == resource_target &&
 		desc.texture.first_level == 0 && desc.texture.first_layer == 0 && internal_format == resource_format)
@@ -827,8 +893,6 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	if (status != GL_NO_ERROR)
 	{
 		glDeleteTextures(1, &object);
-
-		*out_handle = { 0 };
 		return false;
 	}
 
@@ -978,8 +1042,6 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t, const api::dynamic_state *, api::pipeline *out_handle)
 {
-	*out_handle = { 0 };
-
 	switch (desc.type)
 	{
 	case api::pipeline_stage::all_graphics:
@@ -997,11 +1059,14 @@ bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &des
 	case api::pipeline_stage::compute_shader:
 		return create_compute_pipeline(desc, out_handle);
 	default:
+		*out_handle = { 0 };
 		return false;
 	}
 }
 bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	*out_handle = { 0 };
+
 	GLuint cs;
 	const GLuint program = glCreateProgram();
 
@@ -1033,8 +1098,6 @@ bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_d
 		}
 
 		glDeleteProgram(program);
-
-		*out_handle = { 0 };
 		return false;
 	}
 
@@ -1046,11 +1109,10 @@ bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_d
 }
 bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (desc.graphics.rasterizer_state.conservative_rasterization)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	GLuint vs, hs, ds, gs, ps;
 	const GLuint program = glCreateProgram();
@@ -1103,8 +1165,6 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 		LOG(ERROR) << "Failed to link GLSL program: " << log.data();
 
 		glDeleteProgram(program);
-
-		*out_handle = { 0 };
 		return false;
 	}
 
@@ -1220,19 +1280,15 @@ void reshade::opengl::device_impl::destroy_render_pass(api::render_pass handle)
 
 bool reshade::opengl::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (render_pass_template.handle == 0)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
 
 	if (attachment_count > pass_impl->attachments.size())
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	// Can only use both the color and depth-stencil attachments of the default framebuffer together, not bind them individually
 	bool only_default_framebuffer = true;
@@ -1303,7 +1359,6 @@ bool reshade::opengl::device_impl::create_framebuffer(api::render_pass render_pa
 			assert(false);
 			glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
 			glDeleteFramebuffers(1, &fbo_object);
-			*out_handle = { 0 };
 			return false;
 		}
 
@@ -1323,8 +1378,6 @@ bool reshade::opengl::device_impl::create_framebuffer(api::render_pass render_pa
 	else
 	{
 		glDeleteFramebuffers(1, &fbo_object);
-
-		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -1639,11 +1692,10 @@ void reshade::opengl::device_impl::get_descriptor_set_layout_ranges(api::descrip
 
 bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (type == api::query_type::pipeline_statistics)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	const auto impl = new query_pool_impl();
 	impl->queries.resize(size);

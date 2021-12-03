@@ -258,7 +258,9 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 		return false;
 	case api::device_caps::sampler_anisotropic:
 	case api::device_caps::sampler_with_resource_view:
+	case api::device_caps::shared_resource:
 		return true;
+	case api::device_caps::shared_resource_nt_handle:
 	default:
 		return false;
 	}
@@ -310,8 +312,18 @@ void reshade::d3d9::device_impl::destroy_sampler(api::sampler handle)
 	delete reinterpret_cast<sampler_impl *>(handle.handle);
 }
 
-bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle)
+bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE *shared_handle)
 {
+	*out_handle = { 0 };
+
+	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	if (is_shared)
+	{
+		// NT handles are not supported
+		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) == reshade::api::resource_flags::shared_nt_handle)
+			return false;
+	}
+
 	switch (desc.type)
 	{
 		case api::resource_type::buffer:
@@ -326,7 +338,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					internal_desc.Format = D3DFMT_INDEX16; // TODO: The index format of the index buffer is hardcoded here, which is rather unfortunate ...
 
 					if (com_ptr<IDirect3DIndexBuffer9> object;
-						SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+						SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, shared_handle)))
 					{
 						*out_handle = to_handle(object.release());
 
@@ -344,7 +356,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					convert_resource_desc(desc, internal_desc);
 
 					if (com_ptr<IDirect3DVertexBuffer9> object;
-						SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.FVF, internal_desc.Pool, &object, nullptr)))
+						SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.FVF, internal_desc.Pool, &object, shared_handle)))
 					{
 						*out_handle = to_handle(object.release());
 
@@ -376,7 +388,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			if ((desc.flags & api::resource_flags::cube_compatible) != api::resource_flags::cube_compatible)
 			{
 				if (com_ptr<IDirect3DTexture9> object;
-					SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+					SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, shared_handle)))
 				{
 					*out_handle = to_handle(object.release());
 
@@ -393,7 +405,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				assert(internal_desc.Width == internal_desc.Height);
 
 				if (com_ptr<IDirect3DCubeTexture9> object;
-					SUCCEEDED(_orig->CreateCubeTexture(internal_desc.Width, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+					SUCCEEDED(_orig->CreateCubeTexture(internal_desc.Width, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, shared_handle)))
 				{
 					*out_handle = to_handle(object.release());
 
@@ -421,7 +433,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				break;
 
 			if (com_ptr<IDirect3DVolumeTexture9> object;
-				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, shared_handle)))
 			{
 				*out_handle = to_handle(object.release());
 
@@ -453,9 +465,9 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					assert(internal_desc.Usage == D3DUSAGE_DEPTHSTENCIL);
 
 					if (com_ptr<IDirect3DSurface9> object;
-						((desc.usage & api::resource_usage::shader_resource) != api::resource_usage::undefined) ?
-						SUCCEEDED(create_surface_replacement(internal_desc, &object, nullptr)) :
-						SUCCEEDED(_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
+						SUCCEEDED((desc.usage & api::resource_usage::shader_resource) != api::resource_usage::undefined ?
+							create_surface_replacement(internal_desc, &object, shared_handle) :
+							_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, shared_handle)))
 					{
 						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 						return true;
@@ -469,9 +481,9 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					assert(internal_desc.Usage == D3DUSAGE_RENDERTARGET);
 
 					if (com_ptr<IDirect3DSurface9> object;
-						((desc.usage & api::resource_usage::shader_resource) != api::resource_usage::undefined) ?
-						SUCCEEDED(create_surface_replacement(internal_desc, &object, nullptr)) :
-						SUCCEEDED(_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
+						SUCCEEDED((desc.usage & api::resource_usage::shader_resource) != api::resource_usage::undefined ?
+							create_surface_replacement(internal_desc, &object, shared_handle) :
+							_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, shared_handle)))
 					{
 						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 						return true;
@@ -483,7 +495,6 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 		}
 	}
 
-	*out_handle = { 0 };
 	return false;
 }
 void reshade::d3d9::device_impl::destroy_resource(api::resource handle)
@@ -547,11 +558,10 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 
 bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (resource.handle == 0)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
@@ -684,7 +694,6 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 		}
 	}
 
-	*out_handle = { 0 };
 	return false;
 }
 void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle)
@@ -850,6 +859,8 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 }
 bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	*out_handle = { 0 };
+
 	// Check for unsupported states
 	if (desc.graphics.hull_shader.code_size != 0 ||
 		desc.graphics.domain_shader.code_size != 0 ||
@@ -859,17 +870,12 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		desc.graphics.blend_state.logic_op_enable[0] ||
 		desc.graphics.topology > api::primitive_topology::triangle_fan ||
 		desc.graphics.viewport_count > 1)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 #define create_state_object(name, type, condition) \
 	api::pipeline name##_handle = { 0 }; \
-	if (condition && !create_##name(desc, &name##_handle)) { \
-		*out_handle = { 0 }; \
+	if (condition && !create_##name(desc, &name##_handle)) \
 		return false; \
-	} \
 	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
 
 	create_state_object(vertex_shader, IDirect3DVertexShader9, desc.graphics.vertex_shader.code_size != 0);
@@ -879,10 +885,7 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 #undef create_state_object
 
 	if (FAILED(_orig->BeginStateBlock()))
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	_orig->SetVertexShader(vertex_shader.get());
 	_orig->SetPixelShader(pixel_shader.get());
@@ -1001,7 +1004,6 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 	}
 	else
 	{
-		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -1071,14 +1073,11 @@ void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline handle)
 
 bool reshade::d3d9::device_impl::create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle)
 {
+	*out_handle = { 0 };
+
 	for (uint32_t a = 0; a < attachment_count; ++a)
-	{
 		if (attachments[a].index >= (attachments[a].type == api::attachment_type::color ? _caps.NumSimultaneousRTs : 1))
-		{
-			*out_handle = { 0 };
 			return false;
-		}
-	}
 
 	const auto impl = new render_pass_impl();
 	impl->attachments.assign(attachments, attachments + attachment_count);
@@ -1093,13 +1092,12 @@ void reshade::d3d9::device_impl::destroy_render_pass(api::render_pass handle)
 
 bool reshade::d3d9::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
+	*out_handle = { 0 };
+
 	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
 
 	if (pass_impl == nullptr || attachment_count > pass_impl->attachments.size())
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	const auto impl = new framebuffer_impl();
 

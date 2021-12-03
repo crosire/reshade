@@ -28,7 +28,7 @@ namespace reshade::d3d11
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out_handle) final;
 		void destroy_sampler(api::sampler handle) final;
 
-		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle) final;
+		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle, HANDLE *shared_handle = nullptr) final;
 		void destroy_resource(api::resource handle) final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;

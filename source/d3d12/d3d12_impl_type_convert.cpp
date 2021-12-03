@@ -249,7 +249,7 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	}
 
 	if ((heap_flags & D3D12_HEAP_FLAG_SHARED) != 0)
-		desc.flags |= api::resource_flags::shared;
+		desc.flags |= api::resource_flags::shared | api::resource_flags::shared_nt_handle;
 
 	return desc;
 }

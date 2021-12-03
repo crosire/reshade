@@ -187,6 +187,9 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return _enabled_features.samplerAnisotropy;
 	case api::device_caps::sampler_with_resource_view:
 		return true;
+	case api::device_caps::shared_resource:
+	case api::device_caps::shared_resource_nt_handle:
+		return false; // TODO
 	default:
 		return false;
 	}
@@ -256,9 +259,11 @@ void reshade::vulkan::device_impl::destroy_sampler(api::sampler handle)
 	vk.DestroySampler(_orig, (VkSampler)handle.handle, nullptr);
 }
 
-bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle, HANDLE *shared_handle)
 {
-	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::cpu_access);
+	*out_handle = { 0 };
+
+	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::general || initial_state == api::resource_usage::cpu_access);
 
 	VmaAllocation allocation = VMA_NULL;
 	VmaAllocationCreateInfo alloc_info = {};
@@ -281,6 +286,42 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 		break;
 	}
 
+	VkExternalMemoryHandleTypeFlagBits handle_type = {};
+	union
+	{
+		VkExportMemoryAllocateInfo export_info;
+		VkImportMemoryWin32HandleInfoKHR import_info;
+	} import_export_info;
+
+	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	if (is_shared)
+	{
+		if (shared_handle == nullptr)
+			return false;
+
+		if ((desc.flags & api::resource_flags::shared_nt_handle) == api::resource_flags::shared_nt_handle)
+			handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+		else
+			handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+
+		if (*shared_handle != nullptr)
+		{
+			assert(initial_data == nullptr);
+
+			import_export_info.import_info = { VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR };
+			import_export_info.import_info.handleType = handle_type;
+			import_export_info.import_info.handle = *shared_handle;
+		}
+		else
+		{
+			if (vk.GetMemoryWin32HandleKHR == nullptr)
+				return false;
+
+			import_export_info.export_info = { VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO };
+			import_export_info.export_info.handleTypes = handle_type;
+		}
+	}
+
 	switch (desc.type)
 	{
 		case api::resource_type::buffer:
@@ -292,19 +333,61 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			if (create_info.usage == 0 || initial_data != nullptr)
 				create_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
+			VkExternalMemoryBufferCreateInfo external_memory_info;
+			if (is_shared)
+			{
+				external_memory_info = { VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO };
+				external_memory_info.handleTypes = handle_type;
+				create_info.pNext = &external_memory_info;
+			}
+
 			if (VkBuffer object = VK_NULL_HANDLE;
-				(desc.heap == api::memory_heap::unknown ?
-				 vk.CreateBuffer(_orig, &create_info, nullptr, &object) :
-				 vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
+				(desc.heap == api::memory_heap::unknown || is_shared ?
+					 vk.CreateBuffer(_orig, &create_info, nullptr, &object) :
+					 vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
 				object_data<VK_OBJECT_TYPE_BUFFER> data;
 				data.allocation = allocation;
 				data.create_info = create_info;
 
-				VmaAllocationInfo allocation_info;
-				vmaGetAllocationInfo(_alloc, allocation, &allocation_info);
-				data.memory = allocation_info.deviceMemory;
-				data.memory_offset = allocation_info.offset;
+				if (is_shared)
+				{
+					VkMemoryRequirements reqs = {};
+					vk.GetBufferMemoryRequirements(_orig, object, &reqs);
+
+					VkMemoryAllocateInfo mem_alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &import_export_info };
+					mem_alloc_info.allocationSize = reqs.size;
+					vmaFindMemoryTypeIndex(_alloc, reqs.memoryTypeBits, &alloc_info, &mem_alloc_info.memoryTypeIndex);
+
+					if (vk.AllocateMemory(_orig, &mem_alloc_info, nullptr, &data.memory) != VK_SUCCESS)
+					{
+						vk.DestroyBuffer(_orig, object, nullptr);
+						break;
+					}
+
+					vk.BindBufferMemory(_orig, object, data.memory, data.memory_offset);
+
+					if (*shared_handle == nullptr)
+					{
+						VkMemoryGetWin32HandleInfoKHR handle_info { VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR };
+						handle_info.memory = data.memory;
+						handle_info.handleType = handle_type;
+
+						if (vk.GetMemoryWin32HandleKHR(_orig, &handle_info, shared_handle) != VK_SUCCESS)
+						{
+							vk.DestroyBuffer(_orig, object, nullptr);
+							vk.FreeMemory(_orig, data.memory, nullptr);
+							break;
+						}
+					}
+				}
+				else if (allocation != VMA_NULL)
+				{
+					VmaAllocationInfo allocation_info;
+					vmaGetAllocationInfo(_alloc, allocation, &allocation_info);
+					data.memory = allocation_info.deviceMemory;
+					data.memory_offset = allocation_info.offset;
+				}
 
 				register_object<VK_OBJECT_TYPE_BUFFER>(object, std::move(data));
 
@@ -332,19 +415,61 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			if (desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only)
 				create_info.tiling = VK_IMAGE_TILING_LINEAR;
 
+			VkExternalMemoryImageCreateInfo external_memory_info;
+			if (is_shared)
+			{
+				external_memory_info = { VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO };
+				external_memory_info.handleTypes = handle_type;
+				create_info.pNext = &external_memory_info;
+			}
+
 			if (VkImage object = VK_NULL_HANDLE;
-				(desc.heap == api::memory_heap::unknown ?
-				 vk.CreateImage(_orig, &create_info, nullptr, &object) :
-				 vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
+				(desc.heap == api::memory_heap::unknown || is_shared ?
+					 vk.CreateImage(_orig, &create_info, nullptr, &object) :
+					 vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
 				object_data<VK_OBJECT_TYPE_IMAGE> data;
 				data.allocation = allocation;
 				data.create_info = create_info;
 
-				VmaAllocationInfo allocation_info;
-				vmaGetAllocationInfo(_alloc, allocation, &allocation_info);
-				data.memory = allocation_info.deviceMemory;
-				data.memory_offset = allocation_info.offset;
+				if (is_shared)
+				{
+					VkMemoryRequirements reqs = {};
+					vk.GetImageMemoryRequirements(_orig, object, &reqs);
+
+					VkMemoryAllocateInfo mem_alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &import_export_info };
+					mem_alloc_info.allocationSize = reqs.size;
+					vmaFindMemoryTypeIndex(_alloc, reqs.memoryTypeBits, &alloc_info, &mem_alloc_info.memoryTypeIndex);
+
+					if (vk.AllocateMemory(_orig, &mem_alloc_info, nullptr, &data.memory) != VK_SUCCESS)
+					{
+						vk.DestroyImage(_orig, object, nullptr);
+						break;
+					}
+
+					vk.BindImageMemory(_orig, object, data.memory, data.memory_offset);
+
+					if (*shared_handle == nullptr)
+					{
+						VkMemoryGetWin32HandleInfoKHR handle_info { VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR };
+						handle_info.memory = data.memory;
+						handle_info.handleType = handle_type;
+
+						if (vk.GetMemoryWin32HandleKHR(_orig, &handle_info, shared_handle) != VK_SUCCESS)
+						{
+							vk.DestroyImage(_orig, object, nullptr);
+							vk.FreeMemory(_orig, data.memory, nullptr);
+							break;
+						}
+					}
+				}
+				else if (allocation != VMA_NULL)
+				{
+					VmaAllocationInfo allocation_info;
+					vmaGetAllocationInfo(_alloc, allocation, &allocation_info);
+					data.memory = allocation_info.deviceMemory;
+					data.memory_offset = allocation_info.offset;
+				}
 
 				register_object<VK_OBJECT_TYPE_IMAGE>(object, std::move(data));
 
@@ -392,7 +517,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 		}
 	}
 
-	*out_handle = { 0 };
 	return false;
 }
 void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
@@ -412,9 +536,16 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 		unregister_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
 
 		if (allocation == VMA_NULL)
+		{
 			vk.DestroyImage(_orig, (VkImage)handle.handle, nullptr);
+
+			if (data->memory != VK_NULL_HANDLE)
+				vk.FreeMemory(_orig, data->memory, nullptr);
+		}
 		else
+		{
 			vmaDestroyImage(_alloc, (VkImage)handle.handle, allocation);
+		}
 	}
 	else
 	{
@@ -423,9 +554,16 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 		unregister_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)handle.handle);
 
 		if (allocation == VMA_NULL)
+		{
 			vk.DestroyBuffer(_orig, (VkBuffer)handle.handle, nullptr);
+
+			if (data->memory != VK_NULL_HANDLE)
+				vk.FreeMemory(_orig, data->memory, nullptr);
+		}
 		else
+		{
 			vmaDestroyBuffer(_alloc, (VkBuffer)handle.handle, allocation);
+		}
 	}
 }
 
@@ -454,11 +592,10 @@ void reshade::vulkan::device_impl::set_resource_name(api::resource handle, const
 
 bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (resource.handle == 0)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	const auto resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 	if (resource_data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
@@ -520,7 +657,6 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		}
 	}
 
-	*out_handle = { 0 };
 	return false;
 }
 void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view handle)
@@ -616,6 +752,8 @@ bool reshade::vulkan::device_impl::create_pipeline(const api::pipeline_desc &des
 }
 bool reshade::vulkan::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
+	*out_handle = { 0 };
+
 	VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 	create_info.layout = (VkPipelineLayout)desc.layout.handle;
 
@@ -640,16 +778,14 @@ bool reshade::vulkan::device_impl::create_compute_pipeline(const api::pipeline_d
 exit_failure:
 	vk.DestroyShaderModule(_orig, create_info.stage.module, nullptr);
 
-	*out_handle = { 0 };
 	return false;
 }
 bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (desc.graphics.render_pass_template.handle == 0)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 	create_info.layout = (VkPipelineLayout)desc.layout.handle;
@@ -910,7 +1046,6 @@ exit_failure:
 	for (uint32_t stage_index = 0; stage_index < create_info.stageCount; ++stage_index)
 		vk.DestroyShaderModule(_orig, create_info.pStages[stage_index].module, nullptr);
 
-	*out_handle = { 0 };
 	return false;
 }
 void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline handle)
@@ -920,6 +1055,8 @@ void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline handle)
 
 bool reshade::vulkan::device_impl::create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle)
 {
+	*out_handle = { 0 };
+
 	object_data<VK_OBJECT_TYPE_RENDER_PASS> data;
 	data.samples = VK_SAMPLE_COUNT_1_BIT;
 	data.attachments.reserve(8 + 1);
@@ -957,10 +1094,7 @@ bool reshade::vulkan::device_impl::create_render_pass(uint32_t attachment_count,
 		else
 		{
 			if (attachments[a].index > 0)
-			{
-				*out_handle = { 0 };
 				return false;
-			}
 
 			VkAttachmentReference &ref = depth_stencil_attachment;
 			ref.attachment = a;
@@ -1006,7 +1140,6 @@ bool reshade::vulkan::device_impl::create_render_pass(uint32_t attachment_count,
 	}
 	else
 	{
-		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -1019,18 +1152,14 @@ void reshade::vulkan::device_impl::destroy_render_pass(api::render_pass handle)
 
 bool reshade::vulkan::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
 {
+	*out_handle = { 0 };
+
 	if (render_pass_template.handle == 0)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	const auto &pass_attachments = get_user_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>((VkRenderPass)render_pass_template.handle)->attachments;
 	if (pass_attachments.empty() || attachment_count > pass_attachments.size())
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	object_data<VK_OBJECT_TYPE_FRAMEBUFFER> data;
 	data.attachments.resize(attachment_count);
@@ -1071,7 +1200,6 @@ bool reshade::vulkan::device_impl::create_framebuffer(api::render_pass render_pa
 	}
 	else
 	{
-		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -1109,6 +1237,8 @@ reshade::api::resource_view reshade::vulkan::device_impl::get_framebuffer_attach
 
 bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
+	*out_handle = { 0 };
+
 	std::vector<VkPushConstantRange> push_constant_ranges;
 	std::vector<VkDescriptorSetLayout> set_layouts;
 	set_layouts.reserve(param_count);
@@ -1131,10 +1261,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 	}
 
 	if (i < param_count)
-	{
-		*out_handle = { 0 };
 		return false;
-	}
 
 	VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	create_info.setLayoutCount = static_cast<uint32_t>(set_layouts.size());
@@ -1156,7 +1283,6 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 	}
 	else
 	{
-		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -1176,6 +1302,8 @@ reshade::api::pipeline_layout_param reshade::vulkan::device_impl::get_pipeline_l
 
 bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out_handle)
 {
+	*out_handle = { 0 };
+
 	object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
 	data.ranges.assign(ranges, ranges + range_count);
 	data.binding_to_offset.reserve(range_count);
@@ -1228,7 +1356,6 @@ bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t range_c
 	}
 	else
 	{
-		*out_handle = { 0 };
 		return false;
 	}
 }
