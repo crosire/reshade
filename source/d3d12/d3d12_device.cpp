@@ -415,15 +415,21 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 #endif
 
 	const HRESULT hr = _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		if (riid == __uuidof(ID3D12DescriptorHeap))
 		{
-			register_descriptor_heap(static_cast<ID3D12DescriptorHeap *>(*ppvHeap));
+			const auto heap = static_cast<ID3D12DescriptorHeap *>(*ppvHeap);
+
+			register_descriptor_heap(heap);
+
+			register_destruction_callback(heap, [this, heap]() {
+				unregister_descriptor_heap(heap);
+			});
 		}
-	}
 #endif
+	}
 
 	return hr;
 }
