@@ -7,11 +7,16 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "hook_manager.hpp"
 
+extern thread_local bool g_in_dxgi_runtime;
+
 HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid, void **ppDevice)
 {
 	LOG(INFO) << "Redirecting " << "D3D12CreateDevice" << '(' << "pAdapter = " << pAdapter << ", MinimumFeatureLevel = " << std::hex << MinimumFeatureLevel << std::dec << ", riid = " << riid << ", ppDevice = " << ppDevice << ')' << " ...";
 
+	// NVIDIA Ansel creates a D3D11 device internally, so to avoid hooking that, set the flag that forces 'D3D11CreateDevice' to return early
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(D3D12CreateDevice)(pAdapter, MinimumFeatureLevel, riid, ppDevice);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "D3D12CreateDevice" << " failed with error code " << hr << '.';
