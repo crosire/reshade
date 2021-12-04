@@ -129,7 +129,7 @@ namespace reshade
 		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		const char *get_uniform_annotation_string(api::effect_uniform_variable variable, const char *name) const final;
+		bool get_uniform_annotation_string(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/>.
@@ -194,7 +194,7 @@ namespace reshade
 		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		const char *get_texture_annotation_string(api::effect_texture_variable variable, const char *name) const final;
+		bool get_texture_annotation_string(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
 		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
@@ -233,7 +233,7 @@ namespace reshade
 		void get_technique_annotation_value(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		void get_technique_annotation_value(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		void get_technique_annotation_value(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		const char *get_technique_annotation_string(api::effect_technique technique, const char *name) const final;
+		bool get_technique_annotation_string(api::effect_technique technique, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
 		/// Gets the status of a <paramref name="technique"/>.
@@ -243,6 +243,15 @@ namespace reshade
 		/// Enables or disable the specified <paramref name="technique"/>.
 		/// </summary>
 		void set_technique_enabled(api::effect_technique technique, bool enabled) final;
+
+		/// <summary>
+		/// Gets the value of global preprocessor definition.
+		/// </summary>
+		bool get_preprocessor_definition(const char *name, char *value, size_t *length) const final;
+		/// <summary>
+		/// Defines a global preprocessor definition to the specified <paramref name="value"/>.
+		/// </summary>
+		void set_preprocessor_definition(const char *name, const char *value) final;
 
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);

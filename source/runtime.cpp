@@ -3728,12 +3728,20 @@ void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_uint(name, array_index + i);
 }
-const char *reshade::runtime::get_uniform_annotation_string(api::effect_uniform_variable variable, const char *name) const
+bool reshade::runtime::get_uniform_annotation_string(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const
 {
 	if (variable == 0)
 		return nullptr;
 
-	return reinterpret_cast<const uniform *>(variable.handle)->annotation_as_string(name).data();
+	const std::string_view annotation = reinterpret_cast<const reshade::uniform *>(variable.handle)->annotation_as_string(name);
+	if (annotation.empty())
+		return false;
+
+	if (value != nullptr && *length != 0)
+		value[annotation.copy(value, *length - 1)] = '\0';
+
+	*length = annotation.size();
+	return true;
 }
 
 static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
@@ -4040,12 +4048,20 @@ void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_uint(name, array_index + i);
 }
-const char *reshade::runtime::get_texture_annotation_string(api::effect_texture_variable variable, const char *name) const
+bool reshade::runtime::get_texture_annotation_string(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const
 {
-	if (variable == 0)
+	if (variable == 0 || length == nullptr)
 		return nullptr;
 
-	return reinterpret_cast<const texture *>(variable.handle)->annotation_as_string(name).data();
+	const std::string_view annotation = reinterpret_cast<const reshade::texture *>(variable.handle)->annotation_as_string(name);
+	if (annotation.empty())
+		return false;
+
+	if (value != nullptr && *length != 0)
+		value[annotation.copy(value, *length - 1)] = '\0';
+
+	*length = annotation.size();
+	return true;
 }
 
 void reshade::runtime::update_texture(api::effect_texture_variable handle, const uint32_t width, const uint32_t height, const uint8_t *pixels)
@@ -4243,12 +4259,20 @@ void reshade::runtime::get_technique_annotation_value(api::effect_technique tech
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_uint(name, array_index + i);
 }
-const char *reshade::runtime::get_technique_annotation_string(api::effect_technique technique, const char *name) const
+bool reshade::runtime::get_technique_annotation_string(api::effect_technique technique, const char *name, char *value, size_t *length) const
 {
-	if (technique == 0)
-		return nullptr;
+	if (technique == 0 || length == nullptr)
+		return false;
 
-	return reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_string(name).data();
+	const std::string_view annotation = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_string(name);
+	if (annotation.empty())
+		return false;
+
+	if (value != nullptr && *length != 0)
+		value[annotation.copy(value, *length - 1)] = '\0';
+
+	*length = annotation.size();
+	return true;
 }
 
 bool reshade::runtime::get_technique_enabled(api::effect_technique technique) const
@@ -4267,4 +4291,80 @@ void reshade::runtime::set_technique_enabled(api::effect_technique technique, bo
 		enable_technique(*reinterpret_cast<reshade::technique *>(technique.handle));
 	else
 		disable_technique(*reinterpret_cast<reshade::technique *>(technique.handle));
+}
+
+void reshade::runtime::set_preprocessor_definition(const char *name, const char *value)
+{
+	if (name == nullptr)
+		return;
+
+	auto preset_it = _preset_preprocessor_definitions.begin();
+	for (; preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
+	{
+		char current_name[128] = "";
+		const size_t equals_index = preset_it->find('=');
+		preset_it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+
+		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+			break;
+	}
+
+	if (value == nullptr || value[0] == '\0') // An empty value removes the definition
+	{
+		if (preset_it != _preset_preprocessor_definitions.end())
+		{
+			_preset_preprocessor_definitions.erase(preset_it);
+		}
+	}
+	else
+	{
+		if (preset_it != _preset_preprocessor_definitions.end())
+		{
+			*preset_it = std::string(name) + '=' + value;
+		}
+		else
+		{
+			_preset_preprocessor_definitions.push_back(std::string(name) + '=' + value);
+		}
+	}
+
+	reload_effects();
+}
+bool reshade::runtime::get_preprocessor_definition(const char *name, char *value, size_t *length) const
+{
+	if (name == nullptr || length == nullptr)
+		return false;
+
+	for (auto it = _preset_preprocessor_definitions.begin(); it != _preset_preprocessor_definitions.end(); ++it)
+	{
+		char current_name[128] = "";
+		const size_t equals_index = it->find('=');
+		it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+
+		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+		{
+			if (value != nullptr && *length != 0)
+				value[it->copy(value, *length - 1, equals_index + 1)] = '\0';
+
+			*length = it->size() - (equals_index + 1);
+			return true;
+		}
+	}
+	for (auto it = _global_preprocessor_definitions.begin(); it != _global_preprocessor_definitions.end(); ++it)
+	{
+		char current_name[128] = "";
+		const size_t equals_index = it->find('=');
+		it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+
+		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+		{
+			if (value != nullptr && *length != 0)
+				value[it->copy(value, *length - 1, equals_index + 1)] = '\0';
+
+			*length = it->size() - (equals_index + 1);
+			return true;
+		}
+	}
+
+	return false;
 }

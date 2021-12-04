@@ -869,6 +869,13 @@ namespace reshade { namespace api
 	/// </summary>
 	struct pipeline_layout_param
 	{
+		pipeline_layout_param() :
+			type(pipeline_layout_param_type::push_constants), push_constants() {}
+		pipeline_layout_param(const constant_range &push_constants) :
+			type(pipeline_layout_param_type::push_constants), push_constants(push_constants) {}
+		pipeline_layout_param(descriptor_set_layout descriptor_layout) :
+			type(pipeline_layout_param_type::descriptor_set), descriptor_layout(descriptor_layout) {}
+
 		/// <summary>
 		/// Type of the parameter.
 		/// </summary>
