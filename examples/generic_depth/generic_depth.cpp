@@ -13,10 +13,6 @@
 static bool s_disable_intz = false;
 static std::mutex s_mutex;
 
-#ifdef BUILTIN_ADDON
-#include "ini_file.hpp"
-#endif
-
 using namespace reshade::api;
 
 struct draw_stats
@@ -260,13 +256,10 @@ static void on_init_device(device *device)
 {
 	state_tracking_context &device_state = device->create_private_data<state_tracking_context>(state_tracking_context::GUID);
 
-#ifdef BUILTIN_ADDON
-	const ini_file &config = reshade::global_config();
-	config.get("DEPTH", "DisableINTZ", s_disable_intz);
-	config.get("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
-	config.get("DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
-	config.get("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
-#endif
+	reshade::get_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
+	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
+	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
+	reshade::get_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
 
 	if (device_state.force_clear_index == std::numeric_limits<uint32_t>::max())
 		device_state.force_clear_index  = 0;
@@ -806,15 +799,10 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 		update_effect_runtime(runtime);
 
-#ifdef BUILTIN_ADDON
-		ini_file &config = reshade::global_config();
-		config.set("DEPTH", "DisableINTZ", s_disable_intz);
-		config.set("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
-		config.set("DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
-		config.set("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
-
-		config.save();
-#endif
+		reshade::set_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
+		reshade::set_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
+		reshade::set_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
+		reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
 	}
 }
 

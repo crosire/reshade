@@ -44,6 +44,8 @@ namespace reshade
 		/// </summary>
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
 
+		inline std::filesystem::path get_config_path() const { return _config_path; }
+
 		/// <summary>
 		/// Gets a boolean indicating whether effects are being loaded.
 		/// </summary>
