@@ -1140,27 +1140,43 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	glPixelStorei(GL_PACK_SKIP_IMAGES, prev_pack_skip_slices);
 	glPixelStorei(GL_PACK_IMAGE_HEIGHT, prev_pack_slice_height);
 }
-void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
+void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::rect *src_rect, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, api::format)
 {
-	api::subresource_box dst_box = {};
-	if (dst_offset != nullptr)
-		std::copy_n(dst_offset, 3, &dst_box.left);
+	api::subresource_box src_box;
+	src_box.front = 0;
+	src_box.back = 1;
+	api::subresource_box dst_box;
+	dst_box.front = 0;
+	dst_box.back = 1;
 
-	if (src_box != nullptr)
+	if (src_rect != nullptr)
 	{
-		dst_box.right = dst_box.left + src_box->right - src_box->left;
-		dst_box.bottom = dst_box.top + src_box->bottom - src_box->top;
-		dst_box.back = dst_box.front + src_box->back - src_box->front;
+		src_box.left = src_rect->left;
+		src_box.top = src_rect->top;
+		src_box.right = src_rect->right;
+		src_box.bottom = src_rect->bottom;
+
+		dst_box.left = dst_x;
+		dst_box.top = dst_y;
+		dst_box.right = dst_x + src_box.right - src_box.left;
+		dst_box.bottom = dst_y + src_box.bottom - src_box.top;
 	}
 	else
 	{
 		const api::resource_desc desc = get_resource_desc(dst);
-		dst_box.right = dst_box.left + std::max(1u, desc.texture.width >> (dst_subresource % desc.texture.levels));
-		dst_box.bottom = dst_box.top + std::max(1u, desc.texture.height >> (dst_subresource % desc.texture.levels));
-		dst_box.back = dst_box.front + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (dst_subresource % desc.texture.levels)) : 1u);
+
+		src_box.left = 0;
+		src_box.top = 0;
+		src_box.right = std::max(1u, desc.texture.width >> dst_subresource);
+		src_box.bottom = std::max(1u, desc.texture.height >> dst_subresource);
+
+		dst_box.left = dst_x;
+		dst_box.top = dst_y;
+		dst_box.right = dst_x + src_box.right;
+		dst_box.bottom = dst_y + src_box.bottom;
 	}
 
-	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, &dst_box, api::filter_mode::min_mag_mip_point);
+	copy_texture_region(src, src_subresource, &src_box, dst, dst_subresource, &dst_box, api::filter_mode::min_mag_mip_point);
 }
 
 void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)

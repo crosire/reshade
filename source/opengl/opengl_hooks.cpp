@@ -2087,19 +2087,20 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 			reshade::api::resource src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, flag, 0));
 			reshade::api::resource dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, flag, 0));
 
-			const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
-			const reshade::api::subresource_box dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
-
 			if (g_current_context->get_resource_desc(src).texture.samples <= 1)
 			{
-				const reshade::api::filter_mode filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear;
+				const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 }, dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
 
-				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, &src_box, dst, 0, &dst_box, filter_type))
+				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, &src_box, dst, 0, &dst_box, (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear))
 					mask ^= flag;
 			}
-			else if ((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0))
+			else
 			{
-				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, &src_box, dst, 0, reinterpret_cast<const int32_t *>(&dst_box), reshade::api::format::unknown))
+				assert((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0));
+
+				const reshade::api::rect src_rect = { srcX0, srcY0, srcX1, srcY1 };
+
+				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, &src_rect, dst, 0, dstX0, dstY0, reshade::api::format::unknown))
 					mask ^= flag;
 			}
 		}
@@ -3901,19 +3902,20 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 			reshade::api::resource src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(readFramebuffer, flag, 0));
 			reshade::api::resource dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(drawFramebuffer, flag, 0));
 
-			const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
-			const reshade::api::subresource_box dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
-
 			if (g_current_context->get_resource_desc(src).texture.samples <= 1)
 			{
-				const reshade::api::filter_mode filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear;
+				const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 }, dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
 
-				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, &src_box, dst, 0, &dst_box, filter_type))
+				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, &src_box, dst, 0, &dst_box, (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear))
 					mask ^= flag;
 			}
-			else if ((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0))
+			else
 			{
-				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, &src_box, dst, 0, reinterpret_cast<const int32_t *>(&dst_box), reshade::api::format::unknown))
+				assert((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0));
+
+				const reshade::api::rect src_rect = { srcX0, srcY0, srcX1, srcY1 };
+
+				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, &src_rect, dst, 0, dstX0, dstY0, reshade::api::format::unknown))
 					mask ^= flag;
 			}
 		}

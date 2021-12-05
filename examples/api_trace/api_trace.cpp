@@ -493,7 +493,7 @@ static void on_bind_vertex_buffers(reshade::api::command_list *, uint32_t first,
 
 	std::stringstream s;
 	for (uint32_t i = 0; i < count; ++i)
-		s << "bind_vertex_buffer(" << (first + i) << ", " << (void *)buffers[i].handle << ", " << (offsets != nullptr ? offsets[i] : 0) << ", " << (strides != nullptr ? strides[i] : 0) << ")";
+		s << "bind_vertex_buffer(" << (first + i) << ", " << (void *)buffers[i].handle << ", " << (offsets != nullptr ? offsets[i] : 0) << ", " << (strides != nullptr ? strides[i] : 0) << ")" << std::endl;
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
 
@@ -634,7 +634,7 @@ static bool on_copy_texture_to_buffer(reshade::api::command_list *, reshade::api
 
 	return false;
 }
-static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const reshade::api::subresource_box *, reshade::api::resource dst, uint32_t dst_subresource, const int32_t[3], reshade::api::format format)
+static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const reshade::api::rect *, reshade::api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, reshade::api::format format)
 {
 	if (!s_do_capture)
 		return false;

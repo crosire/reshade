@@ -147,7 +147,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 	if (SUCCEEDED(hr) &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
 	{
-		reshade::api::pipeline_stage type = reshade::api::pipeline_stage::all;
+		reshade::api::pipeline_stage type = static_cast<reshade::api::pipeline_stage>(0);
 		if (pInitialState != nullptr)
 		{
 			if (UINT extra_data_size = 0;
@@ -205,13 +205,18 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyBufferRegion(ID3D12Resource
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_TEXTURE_COPY_LOCATION *pDst, UINT DstX, UINT DstY, UINT DstZ, const D3D12_TEXTURE_COPY_LOCATION *pSrc, const D3D12_BOX *pSrcBox)
 {
 #if RESHADE_ADDON
-	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>() ||
-		reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>() ||
-		reshade::has_addon_event<reshade::addon_event::copy_texture_to_buffer>())
+	assert(pSrc != nullptr && pDst != nullptr);
+
+	if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
 	{
-		if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
+		bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
+		reshade::api::subresource_box dst_box;
+
+		if (use_dst_box)
 		{
-			reshade::api::subresource_box dst_box = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), static_cast<int32_t>(DstZ) };
+			dst_box.left = static_cast<int32_t>(DstX);
+			dst_box.top = static_cast<int32_t>(DstY);
+			dst_box.front = static_cast<int32_t>(DstZ);
 
 			if (pSrcBox != nullptr)
 			{
@@ -221,64 +226,67 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 			}
 			else
 			{
+				use_dst_box = false;
 				// TODO: Destination box size is not implemented (would have to get it from the resource)
 				assert(DstX == 0 && DstY == 0 && DstZ == 0);
 			}
-
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
-					this,
-					to_handle(pSrc->pResource),
-					pSrc->SubresourceIndex,
-					reinterpret_cast<const reshade::api::subresource_box *>(pSrcBox),
-					to_handle(pDst->pResource),
-					pDst->SubresourceIndex,
-					DstX != 0 || DstY != 0 || DstZ != 0 ? &dst_box : nullptr,
-					reshade::api::filter_mode::min_mag_mip_point))
-				return;
 		}
-		else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
+
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
+				this,
+				to_handle(pSrc->pResource),
+				pSrc->SubresourceIndex,
+				reinterpret_cast<const reshade::api::subresource_box *>(pSrcBox),
+				to_handle(pDst->pResource),
+				pDst->SubresourceIndex,
+				use_dst_box ? &dst_box : nullptr,
+				reshade::api::filter_mode::min_mag_mip_point))
+			return;
+	}
+	else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
+	{
+		reshade::api::subresource_box dst_box;
+		dst_box.left = static_cast<int32_t>(DstX);
+		dst_box.top = static_cast<int32_t>(DstY);
+		dst_box.front = static_cast<int32_t>(DstZ);
+
+		if (pSrcBox != nullptr)
 		{
-			reshade::api::subresource_box dst_box = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), static_cast<int32_t>(DstZ) };
-
-			if (pSrcBox != nullptr)
-			{
-				dst_box.right = dst_box.left + pSrcBox->right - pSrcBox->left;
-				dst_box.bottom = dst_box.top + pSrcBox->bottom - pSrcBox->top;
-				dst_box.back = dst_box.front + pSrcBox->back - pSrcBox->front;
-			}
-			else
-			{
-				dst_box.right = dst_box.left + pSrc->PlacedFootprint.Footprint.Width;
-				dst_box.bottom = dst_box.top + pSrc->PlacedFootprint.Footprint.Height;
-				dst_box.back = dst_box.front + pSrc->PlacedFootprint.Footprint.Depth;
-			}
-
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(
-					this,
-					to_handle(pSrc->pResource),
-					pSrc->PlacedFootprint.Offset,
-					pSrc->PlacedFootprint.Footprint.Width,
-					pSrc->PlacedFootprint.Footprint.Height,
-					to_handle(pDst->pResource),
-					pDst->SubresourceIndex,
-					&dst_box))
-				return;
+			dst_box.right = dst_box.left + pSrcBox->right - pSrcBox->left;
+			dst_box.bottom = dst_box.top + pSrcBox->bottom - pSrcBox->top;
+			dst_box.back = dst_box.front + pSrcBox->back - pSrcBox->front;
 		}
-		else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT)
+		else
 		{
-			// TODO: Destination box size is not implemented (would have to get it from the resource)
-			assert(DstX == 0 && DstY == 0 && DstZ == 0);
-
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_to_buffer>(
-					this,
-					to_handle(pSrc->pResource),
-					pSrc->SubresourceIndex, reinterpret_cast<const reshade::api::subresource_box *>(pSrcBox),
-					to_handle(pDst->pResource),
-					pDst->PlacedFootprint.Offset,
-					pDst->PlacedFootprint.Footprint.Width,
-					pDst->PlacedFootprint.Footprint.Height))
-				return;
+			dst_box.right = dst_box.left + pSrc->PlacedFootprint.Footprint.Width;
+			dst_box.bottom = dst_box.top + pSrc->PlacedFootprint.Footprint.Height;
+			dst_box.back = dst_box.front + pSrc->PlacedFootprint.Footprint.Depth;
 		}
+
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(
+				this,
+				to_handle(pSrc->pResource),
+				pSrc->PlacedFootprint.Offset,
+				pSrc->PlacedFootprint.Footprint.Width,
+				pSrc->PlacedFootprint.Footprint.Height,
+				to_handle(pDst->pResource),
+				pDst->SubresourceIndex,
+				&dst_box))
+			return;
+	}
+	else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT)
+	{
+		assert(DstX == 0 && DstY == 0 && DstZ == 0);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_to_buffer>(
+				this,
+				to_handle(pSrc->pResource),
+				pSrc->SubresourceIndex, reinterpret_cast<const reshade::api::subresource_box *>(pSrcBox),
+				to_handle(pDst->pResource),
+				pDst->PlacedFootprint.Offset,
+				pDst->PlacedFootprint.Footprint.Width,
+				pDst->PlacedFootprint.Footprint.Height))
+			return;
 	}
 #endif
 
@@ -299,7 +307,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTiles(ID3D12Resource *pTile
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresource(ID3D12Resource *pDstResource, UINT DstSubresource, ID3D12Resource *pSrcResource, UINT SrcSubresource, DXGI_FORMAT Format)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, nullptr, to_handle(pDstResource), DstSubresource, nullptr, reshade::d3d12::convert_format(Format)))
+	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, nullptr, to_handle(pDstResource), DstSubresource, 0, 0, reshade::d3d12::convert_format(Format)))
 		return;
 #endif
 	_orig->ResolveSubresource(pDstResource, DstSubresource, pSrcResource, SrcSubresource, Format);
@@ -361,7 +369,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 	if (!reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
 		return;
 
-	reshade::api::pipeline_stage type = reshade::api::pipeline_stage::all;
+	reshade::api::pipeline_stage type = static_cast<reshade::api::pipeline_stage>(0);
 	if (pPipelineState != nullptr)
 	{
 		// Check if the extra data exists in the pipeline, which is only added for graphics pipelines
@@ -751,32 +759,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetSamplePositions(UINT NumSamp
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresourceRegion(ID3D12Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, ID3D12Resource *pSrcResource, UINT SrcSubresource, D3D12_RECT *pSrcRect, DXGI_FORMAT Format, D3D12_RESOLVE_MODE ResolveMode)
 {
 #if RESHADE_ADDON
-	if (reshade::has_addon_event<reshade::addon_event::resolve_texture_region>())
-	{
-		reshade::api::subresource_box src_box;
-		if (pSrcRect != nullptr)
-		{
-			src_box.left = pSrcRect->left;
-			src_box.top = pSrcRect->top;
-			src_box.front = 0;
-			src_box.right = pSrcRect->right;
-			src_box.bottom = pSrcRect->bottom;
-			src_box.back = 1;
-		}
-
-		const int32_t dst_offset[3] = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), 0 };
-
-		if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
-				this,
-				to_handle(pSrcResource),
-				SrcSubresource,
-				pSrcRect != nullptr ? &src_box : nullptr,
-				to_handle(pDstResource),
-				DstSubresource,
-				DstX != 0 || DstY != 0 ? dst_offset : nullptr,
-				reshade::d3d12::convert_format(Format)))
-			return;
-	}
+	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, reinterpret_cast<const reshade::api::rect *>(pSrcRect), to_handle(pDstResource), DstSubresource, DstX, DstY, reshade::d3d12::convert_format(Format)))
+		return;
 #endif
 
 	assert(_interface_version >= 1);

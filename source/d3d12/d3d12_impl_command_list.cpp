@@ -566,36 +566,26 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 		&dst_copy_location, 0, 0, 0,
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
-void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)
+void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::rect *src_rect, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, api::format format)
 {
 	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (src_box == nullptr && dst_offset == nullptr)
+	com_ptr<ID3D12GraphicsCommandList1> cmd_list1;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list1)))
 	{
-		_orig->ResolveSubresource(
-			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource,
-			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, convert_format(format));
+		cmd_list1->ResolveSubresourceRegion(
+			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource, dst_x, dst_y,
+			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, reinterpret_cast<D3D12_RECT *>(const_cast<api::rect *>(src_rect)), convert_format(format), D3D12_RESOLVE_MODE_MIN);
 	}
 	else
 	{
-		com_ptr<ID3D12GraphicsCommandList1> cmd_list1;
-		if (SUCCEEDED(_orig->QueryInterface(&cmd_list1)))
-		{
-			assert(src_box == nullptr || (src_box->front == 0 && src_box->back == 1));
-			assert(dst_offset == nullptr || dst_offset[2] == 0);
+		assert(src_rect == nullptr && dst_x == 0 && dst_y == 0);
 
-			D3D12_RECT src_rect = (src_box != nullptr) ? D3D12_RECT { src_box->left, src_box->top, src_box->right, src_box->bottom } : D3D12_RECT {};
-
-			cmd_list1->ResolveSubresourceRegion(
-				reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource, dst_offset != nullptr ? dst_offset[0] : 0, dst_offset != nullptr ? dst_offset[1] : 0,
-				reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, &src_rect, convert_format(format), D3D12_RESOLVE_MODE_MIN);
-		}
-		else
-		{
-			assert(false);
-		}
+		_orig->ResolveSubresource(
+			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource,
+			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, convert_format(format));
 	}
 }
 

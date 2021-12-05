@@ -138,8 +138,7 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 static HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface, D3DLOCKED_RECT *pLockedRect, const RECT *pRect, DWORD Flags)
 {
 	const HRESULT hr = reshade::hooks::call(IDirect3DSurface9_LockRect, vtable_from_instance(pSurface) + 13)(pSurface, pLockedRect, pRect, Flags);
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+	if (SUCCEEDED(hr))
 	{
 		assert(pLockedRect != nullptr);
 
@@ -169,17 +168,14 @@ static HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *p
 }
 static HRESULT STDMETHODCALLTYPE IDirect3DSurface9_UnlockRect(IDirect3DSurface9 *pSurface)
 {
-	if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pSurface))
 	{
-		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pSurface))
-		{
-			uint32_t subresource;
+		uint32_t subresource;
 
-			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
-				device_proxy,
-				device_proxy->get_resource_from_view(to_handle(pSurface), &subresource),
-				subresource);
-		}
+		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
+			device_proxy,
+			device_proxy->get_resource_from_view(to_handle(pSurface), &subresource),
+			subresource);
 	}
 
 	return reshade::hooks::call(IDirect3DSurface9_UnlockRect, vtable_from_instance(pSurface) + 14)(pSurface);
@@ -191,8 +187,7 @@ static HRESULT STDMETHODCALLTYPE IDirect3DSurface9_UnlockRect(IDirect3DSurface9 
 static HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVolume, D3DLOCKED_BOX *pLockedVolume, const D3DBOX *pBox, DWORD Flags)
 {
 	const HRESULT hr = reshade::hooks::call(IDirect3DVolume9_LockBox, vtable_from_instance(pVolume) + 9)(pVolume, pLockedVolume, pBox, Flags);
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+	if (SUCCEEDED(hr))
 	{
 		assert(pLockedVolume != nullptr);
 
@@ -222,17 +217,14 @@ static HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVol
 }
 static HRESULT STDMETHODCALLTYPE IDirect3DVolume9_UnlockBox(IDirect3DVolume9 *pVolume)
 {
-	if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVolume))
 	{
-		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVolume))
-		{
-			uint32_t subresource;
+		uint32_t subresource;
 
-			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
-				device_proxy,
-				device_proxy->get_resource_from_view(to_handle(pVolume), &subresource),
-				subresource);
-		}
+		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
+			device_proxy,
+			device_proxy->get_resource_from_view(to_handle(pVolume), &subresource),
+			subresource);
 	}
 
 	return reshade::hooks::call(IDirect3DVolume9_UnlockBox, vtable_from_instance(pVolume) + 10)(pVolume);
@@ -244,8 +236,7 @@ static HRESULT STDMETHODCALLTYPE IDirect3DVolume9_UnlockBox(IDirect3DVolume9 *pV
 static HRESULT STDMETHODCALLTYPE IDirect3DTexture9_LockRect(IDirect3DTexture9 *pTexture, UINT Level, D3DLOCKED_RECT *pLockedRect, const RECT *pRect, DWORD Flags)
 {
 	const HRESULT hr = reshade::hooks::call(IDirect3DTexture9_LockRect, vtable_from_instance(pTexture) + 19)(pTexture, Level, pLockedRect, pRect, Flags);
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+	if (SUCCEEDED(hr))
 	{
 		assert(pLockedRect != nullptr);
 
@@ -274,12 +265,9 @@ static HRESULT STDMETHODCALLTYPE IDirect3DTexture9_LockRect(IDirect3DTexture9 *p
 }
 static HRESULT STDMETHODCALLTYPE IDirect3DTexture9_UnlockRect(IDirect3DTexture9 *pTexture, UINT Level)
 {
-	if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pTexture))
 	{
-		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pTexture))
-		{
-			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), Level);
-		}
+		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), Level);
 	}
 
 	return reshade::hooks::call(IDirect3DTexture9_UnlockRect, vtable_from_instance(pTexture) + 20)(pTexture, Level);
@@ -291,8 +279,7 @@ static HRESULT STDMETHODCALLTYPE IDirect3DTexture9_UnlockRect(IDirect3DTexture9 
 static HRESULT STDMETHODCALLTYPE IDirect3DVolumeTexture9_LockBox(IDirect3DVolumeTexture9 *pTexture, UINT Level, D3DLOCKED_BOX *pLockedVolume, const D3DBOX *pBox, DWORD Flags)
 {
 	const HRESULT hr = reshade::hooks::call(IDirect3DVolumeTexture9_LockBox, vtable_from_instance(pTexture) + 19)(pTexture, Level, pLockedVolume, pBox, Flags);
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+	if (SUCCEEDED(hr))
 	{
 		assert(pLockedVolume != nullptr);
 
@@ -321,12 +308,9 @@ static HRESULT STDMETHODCALLTYPE IDirect3DVolumeTexture9_LockBox(IDirect3DVolume
 }
 static HRESULT STDMETHODCALLTYPE IDirect3DVolumeTexture9_UnlockBox(IDirect3DVolumeTexture9 *pTexture, UINT Level)
 {
-	if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pTexture))
 	{
-		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pTexture))
-		{
-			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), Level);
-		}
+		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), Level);
 	}
 
 	return reshade::hooks::call(IDirect3DVolumeTexture9_UnlockBox, vtable_from_instance(pTexture) + 20)(pTexture, Level);
@@ -338,8 +322,7 @@ static HRESULT STDMETHODCALLTYPE IDirect3DVolumeTexture9_UnlockBox(IDirect3DVolu
 static HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_LockRect(IDirect3DCubeTexture9 *pTexture, D3DCUBEMAP_FACES FaceType, UINT Level, D3DLOCKED_RECT *pLockedRect, const RECT *pRect, DWORD Flags)
 {
 	const HRESULT hr = reshade::hooks::call(IDirect3DCubeTexture9_LockRect, vtable_from_instance(pTexture) + 19)(pTexture, FaceType, Level, pLockedRect, pRect, Flags);
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+	if (SUCCEEDED(hr))
 	{
 		assert(pLockedRect != nullptr);
 
@@ -369,14 +352,11 @@ static HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_LockRect(IDirect3DCubeTex
 }
 static HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_UnlockRect(IDirect3DCubeTexture9 *pTexture, D3DCUBEMAP_FACES FaceType, UINT Level)
 {
-	if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pTexture))
 	{
-		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pTexture))
-		{
-			const uint32_t subresource = Level + static_cast<uint32_t>(FaceType) * pTexture->GetLevelCount();
+		const uint32_t subresource = Level + static_cast<uint32_t>(FaceType) * pTexture->GetLevelCount();
 
-			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), subresource);
-		}
+		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), subresource);
 	}
 
 	return reshade::hooks::call(IDirect3DCubeTexture9_UnlockRect, vtable_from_instance(pTexture) + 20)(pTexture, FaceType, Level);
@@ -388,8 +368,7 @@ static HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_UnlockRect(IDirect3DCubeT
 static HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Lock(IDirect3DVertexBuffer9 *pVertexBuffer, UINT OffsetToLock, UINT SizeToLock, void **ppbData, DWORD Flags)
 {
 	const HRESULT hr = reshade::hooks::call(IDirect3DVertexBuffer9_Lock, vtable_from_instance(pVertexBuffer) + 11)(pVertexBuffer, OffsetToLock, SizeToLock, ppbData, Flags);
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
+	if (SUCCEEDED(hr))
 	{
 		assert(ppbData != nullptr);
 
@@ -409,12 +388,9 @@ static HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Lock(IDirect3DVertexBuff
 }
 static HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Unlock(IDirect3DVertexBuffer9 *pVertexBuffer)
 {
-	if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
+	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVertexBuffer))
 	{
-		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVertexBuffer))
-		{
-			reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, to_handle(pVertexBuffer));
-		}
+		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, to_handle(pVertexBuffer));
 	}
 
 	return reshade::hooks::call(IDirect3DVertexBuffer9_Unlock, vtable_from_instance(pVertexBuffer) + 12)(pVertexBuffer);
@@ -426,8 +402,7 @@ static HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Unlock(IDirect3DVertexBu
 static HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Lock(IDirect3DIndexBuffer9 *pIndexBuffer, UINT OffsetToLock, UINT SizeToLock, void **ppbData, DWORD Flags)
 {
 	const HRESULT hr = reshade::hooks::call(IDirect3DIndexBuffer9_Lock, vtable_from_instance(pIndexBuffer) + 11)(pIndexBuffer, OffsetToLock, SizeToLock, ppbData, Flags);
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
+	if (SUCCEEDED(hr))
 	{
 		assert(ppbData != nullptr);
 
@@ -447,12 +422,9 @@ static HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Lock(IDirect3DIndexBuffer
 }
 static HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Unlock(IDirect3DIndexBuffer9 *pIndexBuffer)
 {
-	if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
+	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pIndexBuffer))
 	{
-		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pIndexBuffer))
-		{
-			reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, to_handle(pIndexBuffer));
-		}
+		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, to_handle(pIndexBuffer));
 	}
 
 	return reshade::hooks::call(IDirect3DIndexBuffer9_Unlock, vtable_from_instance(pIndexBuffer) + 12)(pIndexBuffer);
@@ -1253,21 +1225,25 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSu
 		pSrcSurface->GetDesc(&desc);
 
 		uint32_t src_subresource;
-		reshade::api::subresource_box src_box;
 		const reshade::api::resource src_resource = get_resource_from_view(to_handle(pSrcSurface), &src_subresource);
 		uint32_t dst_subresource;
-		reshade::api::subresource_box dst_box;
 		const reshade::api::resource dst_resource = get_resource_from_view(to_handle(pDstSurface), &dst_subresource);
 
 		if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box), dst_resource, dst_subresource, convert_rect_to_box(pDstRect, dst_box),
+			reshade::api::subresource_box src_box, dst_box;
+
+			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
+					src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box),
+					dst_resource, dst_subresource, convert_rect_to_box(pDstRect, dst_box),
 					Filter == D3DTEXF_NONE || Filter == D3DTEXF_POINT ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear))
 				return D3D_OK;
 		}
 		else
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box), dst_resource, dst_subresource, reinterpret_cast<const int32_t *>(convert_rect_to_box(pDstRect, dst_box)),
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
+					src_resource, src_subresource, reinterpret_cast<const reshade::api::rect *>(pSrcRect),
+					dst_resource, dst_subresource, pDstRect != nullptr ? pDstRect->left : 0, pDstRect != nullptr ? pDstRect->top : 0,
 					reshade::d3d9::convert_format(desc.Format)))
 				return D3D_OK;
 		}

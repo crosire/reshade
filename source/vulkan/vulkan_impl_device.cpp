@@ -363,6 +363,12 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (is_shared)
 				{
+#ifdef VK_KHR_external_memory_win32
+					if (vk.GetMemoryWin32HandleKHR == nullptr)
+#endif
+						break;
+
+#ifdef VK_KHR_external_memory_win32
 					VkMemoryRequirements reqs = {};
 					vk.GetBufferMemoryRequirements(_orig, object, &reqs);
 
@@ -391,6 +397,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							break;
 						}
 					}
+#endif
 				}
 				else if (allocation != VMA_NULL)
 				{
@@ -445,6 +452,12 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (is_shared)
 				{
+#ifdef VK_KHR_external_memory_win32
+					if (vk.GetMemoryWin32HandleKHR == nullptr)
+#endif
+						break;
+
+#ifdef VK_KHR_external_memory_win32
 					VkMemoryRequirements reqs = {};
 					vk.GetImageMemoryRequirements(_orig, object, &reqs);
 
@@ -473,6 +486,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							break;
 						}
 					}
+#endif
 				}
 				else if (allocation != VMA_NULL)
 				{

@@ -665,7 +665,9 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 	convert_subresource(dst_subresource, dst_data->create_info, region.imageSubresource);
 	if (dst_box != nullptr)
 	{
-		std::copy_n(&dst_box->left, 3, &region.imageOffset.x);
+		region.imageOffset.x = dst_box->left;
+		region.imageOffset.y = dst_box->top;
+		region.imageOffset.z = dst_box->front;
 
 		region.imageExtent.width  = dst_box->right - dst_box->left;
 		region.imageExtent.height = dst_box->bottom - dst_box->top;
@@ -777,9 +779,12 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 	region.bufferImageHeight = slice_height;
 
 	convert_subresource(src_subresource, src_data->create_info, region.imageSubresource);
+
 	if (src_box != nullptr)
 	{
-		std::copy_n(&src_box->left, 3, &region.imageOffset.x);
+		region.imageOffset.x = src_box->left;
+		region.imageOffset.y = src_box->top;
+		region.imageOffset.z = src_box->front;
 
 		region.imageExtent.width  = src_box->right - src_box->left;
 		region.imageExtent.height = src_box->bottom - src_box->top;
@@ -796,7 +801,7 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 
 	vk.CmdCopyImageToBuffer(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, (VkBuffer)dst.handle, 1, &region);
 }
-void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
+void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::rect *src_rect, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, api::format)
 {
 	_has_commands = true;
 
@@ -806,29 +811,28 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	VkImageResolve region;
 
 	convert_subresource(src_subresource, src_data->create_info, region.srcSubresource);
-	if (src_box != nullptr)
-		std::copy_n(&src_box->left, 3, &region.srcOffset.x);
-	else
-		region.srcOffset = { 0, 0, 0 };
-
 	convert_subresource(dst_subresource, dst_data->create_info, region.dstSubresource);
-	if (dst_offset != nullptr)
-		std::copy_n(dst_offset, 3, &region.dstOffset.x);
-	else
-		region.dstOffset = { 0, 0, 0 };
 
-	if (src_box != nullptr)
+	if (src_rect != nullptr)
 	{
-		region.extent.width  = src_box->right - src_box->left;
-		region.extent.height = src_box->bottom - src_box->top;
-		region.extent.depth  = src_box->back - src_box->front;
+		region.srcOffset.x = src_rect->left;
+		region.srcOffset.y = src_rect->top;
+		region.srcOffset.z = 0;
+
+		region.extent.width  = src_rect->right - src_rect->left;
+		region.extent.height = src_rect->bottom - src_rect->top;
+		region.extent.depth  = 1;
 	}
 	else
 	{
+		region.srcOffset = { 0, 0, 0 };
+
 		region.extent.width  = std::max(1u, src_data->create_info.extent.width  >> region.srcSubresource.mipLevel);
 		region.extent.height = std::max(1u, src_data->create_info.extent.height >> region.srcSubresource.mipLevel);
 		region.extent.depth  = std::max(1u, src_data->create_info.extent.depth  >> region.srcSubresource.mipLevel);
 	}
+
+	region.dstOffset = { dst_x, dst_y, 0 };
 
 	vk.CmdResolveImage(_orig,
 		(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,

@@ -143,12 +143,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::SetName(LPCWSTR Name)
 #if RESHADE_ADDON
 #include "hook_manager.hpp"
 
-HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pReadRange, void **ppData)
+static HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pReadRange, void **ppData)
 {
 	const HRESULT hr = reshade::hooks::call(ID3D12Resource_Map, vtable_from_instance(pResource) + 8)(pResource, Subresource, pReadRange, ppData);
-	if (SUCCEEDED(hr) && (
-		reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-		reshade::has_addon_event<reshade::addon_event::map_texture_region>()))
+	if (SUCCEEDED(hr))
 	{
 		com_ptr<ID3D12Device> device;
 		pResource->GetDevice(IID_PPV_ARGS(&device));
@@ -204,28 +202,24 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Sub
 
 	return hr;
 }
-HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pWrittenRange)
+static HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pWrittenRange)
 {
-	if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-		reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+	com_ptr<ID3D12Device> device;
+	pResource->GetDevice(IID_PPV_ARGS(&device));
+
+	if (const auto device_proxy = get_private_pointer<D3D12Device>(device.get()))
 	{
-		com_ptr<ID3D12Device> device;
-		pResource->GetDevice(IID_PPV_ARGS(&device));
+		const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
 
-		if (const auto device_proxy = get_private_pointer<D3D12Device>(device.get()))
+		if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 		{
-			const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
+			assert(Subresource == 0);
 
-			if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
-			{
-				assert(Subresource == 0);
-
-				reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, to_handle(pResource));
-			}
-			else
-			{
-				reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pResource),	Subresource);
-			}
+			reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, to_handle(pResource));
+		}
+		else
+		{
+			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pResource),	Subresource);
 		}
 	}
 
@@ -824,8 +818,8 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 		// This assumes that all descriptors in the copied range are of the same type and that there are no constant buffer view descriptors
 		update.type = (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
 
-		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(NumDestDescriptorRanges * sizeof(reshade::api::descriptor_set_update)));
-		const auto descriptors = static_cast<uint64_t *>(_malloca(max_descriptors * sizeof(uint64_t)));
+		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(NumDestDescriptorRanges * sizeof(reshade::api::descriptor_set_update) + max_descriptors * sizeof(uint64_t)));
+		const auto descriptors = reinterpret_cast<uint64_t *>(updates + NumDestDescriptorRanges);
 
 		for (UINT dst_range = 0, src_range = 0, src_offset = 0, dst_base = 0; dst_range < NumDestDescriptorRanges; ++dst_range, dst_base += update.offset)
 		{
@@ -852,7 +846,6 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 
 		const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, num_updates, updates);
 
-		_freea(descriptors);
 		_freea(updates);
 
 		if (skip)

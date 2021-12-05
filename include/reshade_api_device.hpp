@@ -765,12 +765,13 @@ namespace reshade { namespace api
 		/// </remarks>
 		/// <param name="source">Texture resource to resolve from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to resolve from.</param>
-		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve. In D3D10 and D3D11 this has to be <see langword="nullptr"/>.</param>
+		/// <param name="source_rect">Optional rectangle (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve. In D3D10 and D3D11 this has to be <see langword="nullptr"/>.</param>
 		/// <param name="dest">Texture resource to resolve to.</param>
 		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/>ination texture to resolve to.</param>
-		/// <param name="dest_offset">Optional 3D offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to. In D3D10 and D3D11 this has to be <see langword="nullptr"/>.</param>
+		/// <param name="dest_x">Optional X offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to. In D3D10 and D3D11 this has to be zero.</param>
+		/// <param name="dest_y">Optional Y offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to. In D3D10 and D3D11 this has to be zero.</param>
 		/// <param name="format">Format of the resource data.</param>
-		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], format format) = 0;
+		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const rect *source_rect, resource dest, uint32_t dest_subresource, int32_t dest_x, int32_t dest_y, format format) = 0;
 
 		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.

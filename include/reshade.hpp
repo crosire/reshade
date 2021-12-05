@@ -130,10 +130,10 @@ namespace reshade
 	{
 		char value_string[32] = "";
 		std::to_chars(value_string, value_string + sizeof(value_string) - 1, value);
-		set_config_value(runtime, section, key, value_string);
+		set_config_value(runtime, section, key, static_cast<const char *>(value_string));
 	}
 	template <>
-	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const bool &value)
+	inline void set_config_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, const bool &value)
 	{
 		set_config_value<int>(runtime, section, key, value ? 1 : 0);
 	}
