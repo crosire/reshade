@@ -948,7 +948,7 @@ void reshade::runtime::draw_gui()
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
-		render_imgui_draw_data(cmd_list, draw_data, _back_buffer_passes[0], _back_buffer_fbos[back_buffer_index]);
+		render_imgui_draw_data(cmd_list, draw_data, _back_buffer_targets[back_buffer_index * 2]);
 		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 	}
 
@@ -3405,10 +3405,11 @@ bool reshade::runtime::init_imgui_resources()
 		depth_stencil_state.stencil_enable = false;
 	}
 
-	pso_desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
-	pso_desc.graphics.viewport_count = 1;
 	pso_desc.graphics.topology = api::primitive_topology::triangle_list;
-	pso_desc.graphics.render_pass_template = _back_buffer_passes[0];
+	pso_desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
+	pso_desc.graphics.sample_count = 1;
+	pso_desc.graphics.viewport_count = 1;
+	pso_desc.graphics.render_target_formats[0] = _back_buffer_format;
 
 	if (_device->create_pipeline(pso_desc, 0, nullptr, &_imgui_pipeline))
 	{
@@ -3420,7 +3421,7 @@ bool reshade::runtime::init_imgui_resources()
 		return false;
 	}
 }
-void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo)
+void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv)
 {
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const size_t buffer_index = _framecount % std::size(_imgui_vertices);
@@ -3486,7 +3487,10 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		_device->unmap_buffer_region(_imgui_vertices[buffer_index]);
 	}
 
-	cmd_list->begin_render_pass(pass, fbo);
+	api::render_pass_render_target_desc render_target = {};
+	render_target.view = rtv;
+
+	cmd_list->begin_render_pass(1, &render_target, nullptr);
 
 	// Setup render state
 	cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, _imgui_pipeline);

@@ -74,25 +74,6 @@ void reshade::runtime::init_gui_vr()
 		LOG(ERROR) << "Failed to create VR dashboard overlay render target!";
 		return;
 	}
-
-	const api::attachment_desc attachment_descs[2] = {
-		api::attachment_desc(api::attachment_type::color, 0, api::format::r8g8b8a8_unorm),
-		api::attachment_desc(api::attachment_type::stencil, 0, _device->get_resource_desc(_effect_stencil_tex).texture.format)
-	};
-
-	if (!_device->create_render_pass(2, attachment_descs, &_vr_overlay_pass))
-	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay render pass!";
-		return;
-	}
-
-	const api::resource_view attachment_views[2] = { _vr_overlay_target, _effect_stencil_dsv };
-
-	if (!_device->create_framebuffer(_vr_overlay_pass, 2, attachment_views, &_vr_overlay_fbo))
-	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay framebuffer!";
-		return;
-	}
 }
 
 void reshade::runtime::deinit_gui_vr()
@@ -104,8 +85,6 @@ void reshade::runtime::deinit_gui_vr()
 	_vr_overlay_tex = {};
 	_device->destroy_resource_view(_vr_overlay_target);
 	_vr_overlay_target = {};
-	_device->destroy_render_pass(_vr_overlay_pass);
-	_vr_overlay_pass = {};
 
 	s_overlay->DestroyOverlay(s_main_handle);
 	s_main_handle = vr::k_ulOverlayHandleInvalid;
@@ -306,7 +285,7 @@ void reshade::runtime::draw_gui_vr()
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 		cmd_list->barrier(_vr_overlay_tex, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
-		render_imgui_draw_data(cmd_list, draw_data, _vr_overlay_pass, _vr_overlay_fbo);
+		render_imgui_draw_data(cmd_list, draw_data, _vr_overlay_target);
 		cmd_list->barrier(_vr_overlay_tex, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
 	}
 

@@ -209,10 +209,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 		reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>() ||
 		reshade::has_addon_event<reshade::addon_event::copy_texture_to_buffer>())
 	{
-		reshade::api::subresource_box dst_box = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), static_cast<int32_t>(DstZ) };
-
 		if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
 		{
+			reshade::api::subresource_box dst_box = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), static_cast<int32_t>(DstZ) };
+
 			if (pSrcBox != nullptr)
 			{
 				dst_box.right = dst_box.left + pSrcBox->right - pSrcBox->left;
@@ -238,6 +238,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 		}
 		else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
 		{
+			reshade::api::subresource_box dst_box = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), static_cast<int32_t>(DstZ) };
+
 			if (pSrcBox != nullptr)
 			{
 				dst_box.right = dst_box.left + pSrcBox->right - pSrcBox->left;
@@ -297,15 +299,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTiles(ID3D12Resource *pTile
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresource(ID3D12Resource *pDstResource, UINT DstSubresource, ID3D12Resource *pSrcResource, UINT SrcSubresource, DXGI_FORMAT Format)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
-			this,
-			to_handle(pSrcResource),
-			SrcSubresource,
-			nullptr,
-			to_handle(pDstResource),
-			DstSubresource,
-			nullptr,
-			reshade::d3d12::convert_format(Format)))
+	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, nullptr, to_handle(pDstResource), DstSubresource, nullptr, reshade::d3d12::convert_format(Format)))
 		return;
 #endif
 	_orig->ResolveSubresource(pDstResource, DstSubresource, pSrcResource, SrcSubresource, Format);
@@ -389,9 +383,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 	if (!reshade::has_addon_event<reshade::addon_event::barrier>())
 		return;
 
-	const auto resources = static_cast<reshade::api::resource *>(_malloca(NumBarriers * sizeof(reshade::api::resource)));
-	const auto old_state = static_cast<reshade::api::resource_usage *>(_malloca(NumBarriers * sizeof(reshade::api::resource_usage)));
-	const auto new_state = static_cast<reshade::api::resource_usage *>(_malloca(NumBarriers * sizeof(reshade::api::resource_usage)));
+	const auto resources = static_cast<reshade::api::resource *>(_malloca(NumBarriers * (sizeof(reshade::api::resource) + 2 * sizeof(reshade::api::resource_usage))));
+	const auto old_state = reinterpret_cast<reshade::api::resource_usage *>(resources + NumBarriers);
+	const auto new_state = old_state + NumBarriers;
 
 	for (UINT i = 0; i < NumBarriers; ++i)
 	{
@@ -417,8 +411,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 
 	reshade::invoke_addon_event<reshade::addon_event::barrier>(this, NumBarriers, resources, old_state, new_state);
 
-	_freea(new_state);
-	_freea(old_state);
 	_freea(resources);
 #endif
 }
@@ -660,17 +652,13 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
 		rtvs[i] = to_handle(RTsSingleHandleToDescriptorRange ? _device->offset_descriptor_handle(*pRenderTargetDescriptors, i, D3D12_DESCRIPTOR_HEAP_TYPE_RTV) : pRenderTargetDescriptors[i]);
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRenderTargetDescriptors, rtvs, reshade::api::resource_view { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 });
+	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRenderTargetDescriptors, rtvs, to_handle(pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE {}));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	static_assert(
-		(UINT)reshade::api::attachment_type::depth   == (D3D12_CLEAR_FLAG_DEPTH << 1) &&
-		(UINT)reshade::api::attachment_type::stencil == (D3D12_CLEAR_FLAG_STENCIL << 1));
-
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(DepthStencilView), static_cast<reshade::api::attachment_type>(ClearFlags << 1), Depth, Stencil, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(DepthStencilView), ClearFlags & D3D12_CLEAR_FLAG_DEPTH ? &Depth : nullptr, ClearFlags & D3D12_CLEAR_FLAG_STENCIL ? &Stencil : nullptr, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
 		return;
 #endif
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
@@ -815,81 +803,43 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetProtectedResourceSession(ID3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags)
 {
 #if RESHADE_ADDON
-	uint32_t clear_value_count = 0;
-	void *const clear_values = _malloca((NumRenderTargets + 1) * 4 * sizeof(float));
+	assert(NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	// Use clear events with explicit resource view references here, since this is invoked before render pass begin
+	reshade::api::render_pass_render_target_desc rts[8];
 	for (UINT i = 0; i < NumRenderTargets; ++i)
 	{
-		if (pRenderTargets[i].BeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
-		{
-			// Cannot be skipped
-			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(this, to_handle(pRenderTargets[i].cpuDescriptor), pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color, 0, nullptr);
-
-			clear_value_count = NumRenderTargets;
-			std::memcpy(static_cast<float *>(clear_values) + i * 4, pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color, 4 * sizeof(float));
-		}
+		rts[i].view = to_handle(pRenderTargets[i].cpuDescriptor);
+		rts[i].load_op = reshade::d3d12::convert_render_pass_load_op(pRenderTargets[i].BeginningAccess.Type);
+		rts[i].store_op = reshade::d3d12::convert_render_pass_store_op(pRenderTargets[i].EndingAccess.Type);
+		std::copy_n(pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color, 4, rts[i].clear_color);
 	}
 
+	reshade::api::render_pass_depth_stencil_desc ds;
 	if (pDepthStencil != nullptr)
 	{
-		D3D12_DEPTH_STENCIL_VALUE clear_value = {};
-		reshade::api::attachment_type clear_flags = {};
-
-		if (pDepthStencil->DepthBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
-		{
-			clear_flags |= reshade::api::attachment_type::depth;
-			clear_value.Depth = pDepthStencil->DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth;
-
-			clear_value_count = NumRenderTargets + 1;
-			static_cast<float *>(clear_values)[NumRenderTargets * 4] = clear_value.Depth;
-		}
-		if (pDepthStencil->StencilBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
-		{
-			clear_flags |= reshade::api::attachment_type::stencil;
-			clear_value.Stencil = pDepthStencil->DepthBeginningAccess.Clear.ClearValue.DepthStencil.Stencil;
-
-			clear_value_count = NumRenderTargets + 1;
-			reinterpret_cast<uint32_t &>((static_cast<float *>(clear_values) + NumRenderTargets * 4)[1]) = clear_value.Stencil;
-		}
-
-		if (pDepthStencil->DepthBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR ||
-			pDepthStencil->StencilBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
-		{
-			// Cannot be skipped
-			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(pDepthStencil->cpuDescriptor), clear_flags, clear_value.Depth, clear_value.Stencil, 0, nullptr);
-		}
+		ds.view = to_handle(pDepthStencil->cpuDescriptor);
+		ds.depth_load_op = reshade::d3d12::convert_render_pass_load_op(pDepthStencil->DepthBeginningAccess.Type);
+		ds.depth_store_op = reshade::d3d12::convert_render_pass_store_op(pDepthStencil->DepthEndingAccess.Type);
+		ds.stencil_load_op = reshade::d3d12::convert_render_pass_load_op(pDepthStencil->StencilBeginningAccess.Type);
+		ds.stencil_store_op = reshade::d3d12::convert_render_pass_store_op(pDepthStencil->StencilEndingAccess.Type);
+		ds.clear_depth = pDepthStencil->DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth;
+		ds.clear_stencil = pDepthStencil->StencilBeginningAccess.Clear.ClearValue.DepthStencil.Stencil;
 	}
+
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumRenderTargets, rts, pDepthStencil != nullptr ? &ds : nullptr);
 #endif
 
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
-
-#if RESHADE_ADDON
-	assert(NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
-
-	_current_fbo->count = NumRenderTargets;
-	for (UINT i = 0; i < NumRenderTargets; ++i)
-		_current_fbo->rtv[i] = pRenderTargets[i].cpuDescriptor;
-	_current_fbo->dsv = (pDepthStencil != nullptr) ? pDepthStencil->cpuDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
-	_current_fbo->rtv_is_single_handle_to_range = FALSE;
-
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) }, clear_value_count, clear_value_count != 0 ? clear_values : nullptr);
-
-	_freea(clear_values);
-#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass(void)
 {
-	assert(_interface_version >= 4);
-	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EndRenderPass();
-
 #if RESHADE_ADDON
-	_current_fbo->count = 0;
-	_current_fbo->dsv.ptr = 0;
-
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
 #endif
+
+	assert(_interface_version >= 4);
+	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EndRenderPass();
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::InitializeMetaCommand(ID3D12MetaCommand *pMetaCommand, const void *pInitializationParametersData, SIZE_T InitializationParametersDataSizeInBytes)
 {

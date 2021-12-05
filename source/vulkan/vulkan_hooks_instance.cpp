@@ -132,7 +132,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 	VkInstance instance = *pInstance;
 	// Initialize the instance dispatch table
-	VkLayerInstanceDispatchTable dispatch_table = { get_physical_device_proc };
+	VkLayerInstanceDispatchTable dispatch_table = {};
+	dispatch_table.GetPhysicalDeviceProcAddr = get_physical_device_proc;
 
 	#pragma region Core 1_0
 	INIT_DISPATCH_PTR(DestroyInstance);
@@ -155,7 +156,9 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	INIT_DISPATCH_PTR(CreateWin32SurfaceKHR);
 	#pragma endregion
 	#pragma region VK_EXT_tooling_info
+#ifdef VK_EXT_tooling_info
 	INIT_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT);
+#endif
 	#pragma endregion
 
 	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance });
@@ -206,6 +209,7 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 	trampoline(instance, surface, pAllocator);
 }
 
+#ifdef VK_EXT_tooling_info
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
 {
 	GET_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
@@ -243,3 +247,4 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 
 	return VK_SUCCESS;
 }
+#endif

@@ -414,29 +414,13 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
 	state.current_viewport = viewport[0];
 }
-static void on_begin_render_pass(command_list *cmd_list, render_pass, framebuffer fbo, uint32_t, const void *)
-{
-	device *const device = cmd_list->get_device();
-	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
-
-	resource depth_stencil = { 0 };
-	const resource_view depth_stencil_view = device->get_framebuffer_attachment(fbo, attachment_type::depth, 0);
-	if (depth_stencil_view.handle != 0)
-		depth_stencil = device->get_resource_from_view(depth_stencil_view);
-
-	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
-	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
-		clear_depth_impl(cmd_list, state, device->get_private_data<state_tracking_context>(state_tracking_context::GUID), state.current_depth_stencil, true);
-
-	state.current_depth_stencil = depth_stencil;
-}
 static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resource_view *, resource_view depth_stencil_view)
 {
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
 
 	resource depth_stencil = { 0 };
-	if (depth_stencil_view.handle != 0)
+	if (depth_stencil_view != 0)
 		depth_stencil = device->get_resource_from_view(depth_stencil_view);
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
@@ -445,31 +429,13 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 	state.current_depth_stencil = depth_stencil;
 }
-static bool on_clear_depth_stencil_attachment(command_list *cmd_list, attachment_type flags, const float[4], float, uint8_t, uint32_t, const rect *)
+static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, const float *depth, const uint8_t *, uint32_t, const rect *)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
-	if ((flags & attachment_type::depth) == attachment_type::depth &&
-		device_state.preserve_depth_buffers &&
-		// Cannot preserve depth buffers here in Vulkan though, since it is not valid to issue copy commands inside a render pass (and since this event is called from 'vkCmdClearAttachments' always is inside one)
-		device->get_api() != device_api::vulkan)
-	{
-		auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
-
-		clear_depth_impl(cmd_list, state, device_state, state.current_depth_stencil, false);
-	}
-
-	return false;
-}
-static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, attachment_type flags, float, uint8_t, uint32_t, const rect *)
-{
-	device *const device = cmd_list->get_device();
-	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
-
-	// Ignore clears that do not affect the depth buffer (stencil clears)
-	if ((flags & attachment_type::depth) == attachment_type::depth && device_state.preserve_depth_buffers)
+	if (depth != nullptr && device_state.preserve_depth_buffers)
 	{
 		auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
 
@@ -479,6 +445,15 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, at
 	}
 
 	return false;
+}
+static void on_begin_render_pass_with_depth_stencil(command_list *cmd_list, uint32_t, const render_pass_render_target_desc *, const render_pass_depth_stencil_desc *depth_stencil_desc)
+{
+#if 0
+	if (depth_stencil_desc != nullptr && depth_stencil_desc->depth_load_op == render_pass_load_op::clear)
+		on_clear_depth_stencil(cmd_list, depth_stencil_desc->view, &depth_stencil_desc->clear_value.depth, &depth_stencil_desc->clear_value.stencil, 0, nullptr);
+#endif
+
+	on_bind_depth_stencil(cmd_list, 0, nullptr, depth_stencil_desc != nullptr ? depth_stencil_desc->view : resource_view {});
 }
 
 static void on_reset(command_list *cmd_list)
@@ -825,9 +800,8 @@ void register_addon_depth()
 	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
-	reshade::register_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
+	reshade::register_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass_with_depth_stencil);
 	reshade::register_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_depth_stencil);
-	reshade::register_event<reshade::addon_event::clear_attachments>(on_clear_depth_stencil_attachment);
 	reshade::register_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset);
@@ -858,9 +832,8 @@ void unregister_addon_depth()
 	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
-	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
+	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass_with_depth_stencil);
 	reshade::unregister_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_depth_stencil);
-	reshade::unregister_event<reshade::addon_event::clear_attachments>(on_clear_depth_stencil_attachment);
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset);

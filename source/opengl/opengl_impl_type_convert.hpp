@@ -65,11 +65,6 @@ namespace reshade::opengl
 		GLuint patch_vertices;
 	};
 
-	struct render_pass_impl
-	{
-		std::vector<api::attachment_desc> attachments;
-	};
-
 	struct pipeline_layout_impl
 	{
 		std::vector<GLuint> bindings;
@@ -141,8 +136,4 @@ namespace reshade::opengl
 	GLenum convert_primitive_topology(api::primitive_topology value);
 	GLenum convert_query_type(api::query_type type);
 	GLenum convert_shader_type(api::shader_stage type);
-
-	auto   convert_buffer_type_to_aspect(GLenum type) -> api::attachment_type;
-	auto   convert_buffer_bits_to_aspect(GLbitfield mask) -> api::attachment_type;
-	auto   convert_aspect_to_buffer_bits(api::attachment_type mask) -> GLbitfield;
 }

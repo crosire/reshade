@@ -81,28 +81,6 @@ static inline auto to_string(reshade::api::pipeline_stage value)
 		return "unknown";
 	}
 }
-static inline auto to_string(reshade::api::attachment_type value)
-{
-	switch (static_cast<uint32_t>(value))
-	{
-	case static_cast<uint32_t>(reshade::api::attachment_type::color):
-		return "color";
-	case static_cast<uint32_t>(reshade::api::attachment_type::depth):
-		return "depth";
-	case static_cast<uint32_t>(reshade::api::attachment_type::stencil):
-		return "stencil";
-	case static_cast<uint32_t>(reshade::api::attachment_type::color | reshade::api::attachment_type::depth):
-		return "color | depth";
-	case static_cast<uint32_t>(reshade::api::attachment_type::color | reshade::api::attachment_type::stencil):
-		return "color | stencil";
-	case static_cast<uint32_t>(reshade::api::attachment_type::color | reshade::api::attachment_type::depth | reshade::api::attachment_type::stencil):
-		return "color | depth | stencil";
-	case static_cast<uint32_t>(reshade::api::attachment_type::depth | reshade::api::attachment_type::stencil):
-		return "depth | stencil";
-	default:
-		return "unknown";
-	}
-}
 static inline auto to_string(reshade::api::descriptor_type value)
 {
 	switch (value)
@@ -366,12 +344,12 @@ static void on_barrier(reshade::api::command_list *, uint32_t num_resources, con
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
 
-static void on_begin_render_pass(reshade::api::command_list *, reshade::api::render_pass pass, reshade::api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values)
+static void on_begin_render_pass(reshade::api::command_list *, uint32_t count, const reshade::api::render_pass_render_target_desc *rts, const reshade::api::render_pass_depth_stencil_desc *ds)
 {
 	if (!s_do_capture)
 		return;
 
-	std::stringstream s; s << "begin_render_pass(" << (void *)pass.handle << ", " << (void *)fbo.handle << ", " << clear_value_count << ", " << clear_values << ")";
+	std::stringstream s; s << "begin_render_pass(" << count << ", " << rts << ", " << ds << ")";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
 static void on_end_render_pass(reshade::api::command_list *)
@@ -673,17 +651,7 @@ static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api
 	return false;
 }
 
-static bool on_clear_attachments(reshade::api::command_list *, reshade::api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t, const reshade::api::rect *)
-{
-	if (!s_do_capture)
-		return false;
-
-	std::stringstream s; s << "clear_attachments(" << to_string(clear_flags) << ", { " << color[0] << ", " << color[1] << ", " << color[2] << ", " << color[3] << " }, " << depth << ", " << (uint32_t)stencil << ")";
-	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
-
-	return false;
-}
-static bool on_clear_depth_stencil_view(reshade::api::command_list *, reshade::api::resource_view dsv, reshade::api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t, const reshade::api::rect *)
+static bool on_clear_depth_stencil_view(reshade::api::command_list *, reshade::api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t, const reshade::api::rect *)
 {
 	if (!s_do_capture)
 		return false;
@@ -693,7 +661,7 @@ static bool on_clear_depth_stencil_view(reshade::api::command_list *, reshade::a
 		assert(s_resource_views.find(dsv.handle) != s_resource_views.end());
 	}
 
-	std::stringstream s; s << "clear_depth_stencil_view(" << (void *)dsv.handle << ", " << to_string(clear_flags) << ", " << depth << ", " << stencil << ")";
+	std::stringstream s; s << "clear_depth_stencil_view(" << (void *)dsv.handle << ", " << (depth != nullptr ? *depth : 0.0f) << ", " << (stencil != nullptr ? *stencil : 0) << ")";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 
 	return false;
@@ -832,7 +800,6 @@ void register_addon_api_trace()
 	reshade::register_event<reshade::addon_event::copy_texture_region>(on_copy_texture_region);
 	reshade::register_event<reshade::addon_event::copy_texture_to_buffer>(on_copy_texture_to_buffer);
 	reshade::register_event<reshade::addon_event::resolve_texture_region>(on_resolve_texture_region);
-	reshade::register_event<reshade::addon_event::clear_attachments>(on_clear_attachments);
 	reshade::register_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil_view);
 	reshade::register_event<reshade::addon_event::clear_render_target_view>(on_clear_render_target_view);
 	reshade::register_event<reshade::addon_event::clear_unordered_access_view_uint>(on_clear_unordered_access_view_uint);
@@ -880,7 +847,6 @@ void unregister_addon_api_trace()
 	reshade::unregister_event<reshade::addon_event::copy_texture_region>(on_copy_texture_region);
 	reshade::unregister_event<reshade::addon_event::copy_texture_to_buffer>(on_copy_texture_to_buffer);
 	reshade::unregister_event<reshade::addon_event::resolve_texture_region>(on_resolve_texture_region);
-	reshade::unregister_event<reshade::addon_event::clear_attachments>(on_clear_attachments);
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil_view);
 	reshade::unregister_event<reshade::addon_event::clear_render_target_view>(on_clear_render_target_view);
 	reshade::unregister_event<reshade::addon_event::clear_unordered_access_view_uint>(on_clear_unordered_access_view_uint);

@@ -283,8 +283,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		gl3wGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &src_fbo);
 		assert(src_fbo != 0);
 
-		src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(
-			reshade::opengl::make_framebuffer_handle(src_fbo), reshade::api::attachment_type::color, src_object - GL_COLOR_ATTACHMENT0));
+		src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, GL_COLOR, src_object - GL_COLOR_ATTACHMENT0));
 	}
 
 	reshade::api::resource dst = reshade::opengl::make_resource_handle(dst_target, dst_object);
@@ -294,8 +293,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		gl3wGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 		assert(dst_fbo != 0);
 
-		dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(
-			reshade::opengl::make_framebuffer_handle(dst_fbo), reshade::api::attachment_type::color, dst_object - GL_COLOR_ATTACHMENT0));
+		dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, GL_COLOR, dst_object - GL_COLOR_ATTACHMENT0));
 	}
 
 	const reshade::api::subresource_box src_box = { x, y, z, x + width, y + height, z + depth };
@@ -356,54 +354,6 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 
 	std::vector<uint8_t> temp_data;
 	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth), dst, subresource, &dst_box);
-}
-
-static void update_framebuffer_object(GLenum target, GLuint fbo)
-{
-	if (!g_current_context)
-		return;
-
-	// Get object from current binding in case it was not specified
-	if (fbo == 0)
-		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&fbo));
-
-	const auto fbo_handle = reshade::opengl::make_framebuffer_handle(fbo);
-
-	reshade::invoke_addon_event<reshade::addon_event::destroy_framebuffer>(g_current_context, fbo_handle);
-
-	std::vector<reshade::api::resource_view> old_attachments(8 + 1);
-	for (uint32_t i = 0; i < 8; ++i)
-		old_attachments[i] = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::color, i);
-	old_attachments[8] = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::depth, 0);
-	std::vector<reshade::api::resource_view> new_attachments = old_attachments;
-
-	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(g_current_context, reshade::api::render_pass { 0 }, static_cast<uint32_t>(new_attachments.size()), new_attachments.data()))
-	{
-		// Update depth-stencil attachment
-		{
-			if (new_attachments[8] != old_attachments[8])
-			{
-				if ((new_attachments[8].handle >> 40) == GL_RENDERBUFFER)
-					gl3wNamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, new_attachments[8].handle & 0xFFFFFFFF);
-				else
-					gl3wNamedFramebufferTexture(fbo, GL_DEPTH_STENCIL_ATTACHMENT, new_attachments[8].handle & 0xFFFFFFFF, 0);
-			}
-		}
-
-		// Update render target attachments
-		for (uint32_t i = 0; i < 8; ++i)
-		{
-			if (new_attachments[i] != new_attachments[i])
-			{
-				if ((new_attachments[i].handle >> 40) == GL_RENDERBUFFER)
-					gl3wNamedFramebufferRenderbuffer(fbo, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, new_attachments[i].handle & 0xFFFFFFFF);
-				else
-					gl3wNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0 + i, new_attachments[i].handle & 0xFFFFFFFF, 0);
-			}
-		}
-	}
-
-	reshade::invoke_addon_event<reshade::addon_event::init_framebuffer>(g_current_context, reshade::api::render_pass { 0 }, static_cast<uint32_t>(new_attachments.size()), new_attachments.data(), fbo_handle);
 }
 
 static void update_current_primitive_topology(GLenum mode, GLenum type)
@@ -595,18 +545,37 @@ HOOK_EXPORT void APIENTRY glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei 
 HOOK_EXPORT void APIENTRY glClear(GLbitfield mask)
 {
 #if RESHADE_ADDON
-	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::clear_attachments>())
+	if (g_current_context && (
+		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
+		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>()))
 	{
-		GLfloat color_value[4] = {};
-		gl3wGetFloatv(GL_COLOR_CLEAR_VALUE, color_value);
-		GLfloat depth_value = 0.0f;
-		gl3wGetFloatv(GL_DEPTH_CLEAR_VALUE, &depth_value);
-		GLint   stencil_value = 0;
-		gl3wGetIntegerv(GL_STENCIL_CLEAR_VALUE, &stencil_value);
+		GLint dst_fbo = 0;
+		gl3wGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(g_current_context,
-			reshade::opengl::convert_buffer_bits_to_aspect(mask), color_value, depth_value, static_cast<uint8_t>(stencil_value & 0xFF), 0, nullptr))
+		if (const GLbitfield current_mask = mask & (GL_COLOR_BUFFER_BIT))
+		{
+			GLfloat color_value[4] = {};
+			gl3wGetFloatv(GL_COLOR_CLEAR_VALUE, color_value);
+
+			const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(dst_fbo, current_mask, 0);
+
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, color_value, 0, nullptr))
+				mask ^= current_mask;
+		}
+		if (const GLbitfield current_mask = mask & (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT))
+		{
+			GLfloat depth_value = 0.0f;
+			gl3wGetFloatv(GL_DEPTH_CLEAR_VALUE, &depth_value);
+			GLint   stencil_value = 0;
+			gl3wGetIntegerv(GL_STENCIL_CLEAR_VALUE, &stencil_value);
+
+			const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(dst_fbo, current_mask, 0);
+
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, mask & GL_DEPTH_BUFFER_BIT ? &depth_value : nullptr, mask & GL_STENCIL_BUFFER_BIT ? reinterpret_cast<const uint8_t *>(&stencil_value) : nullptr, 0, nullptr))
+				mask ^= current_mask;
+		}
+
+		if (mask == 0)
 			return;
 	}
 #endif
@@ -1974,21 +1943,6 @@ auto APIENTRY glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length
 	return result;
 }
 
-void APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint *framebuffers)
-{
-#if RESHADE_ADDON
-	if (g_current_context)
-	{
-		for (GLsizei i = 0; i < n; ++i)
-			if (framebuffers[i] != 0)
-				reshade::invoke_addon_event<reshade::addon_event::destroy_framebuffer>(g_current_context, reshade::opengl::make_framebuffer_handle(framebuffers[i]));
-	}
-#endif
-
-	static const auto trampoline = reshade::hooks::call(glDeleteFramebuffers);
-	trampoline(n, framebuffers);
-}
-
 void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
 {
 #if RESHADE_ADDON
@@ -1999,52 +1953,6 @@ void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
 
 	static const auto trampoline = reshade::hooks::call(glDeleteRenderbuffers);
 	trampoline(n, renderbuffers);
-}
-
-void APIENTRY glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
-{
-	static const auto trampoline = reshade::hooks::call(glFramebufferTexture1D);
-	trampoline(target, attachment, textarget, texture, level);
-
-#if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
-#endif
-}
-void APIENTRY glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
-{
-	static const auto trampoline = reshade::hooks::call(glFramebufferTexture2D);
-	trampoline(target, attachment, textarget, texture, level);
-
-#if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
-#endif
-}
-void APIENTRY glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer)
-{
-	static const auto trampoline = reshade::hooks::call(glFramebufferTexture3D);
-	trampoline(target, attachment, textarget, texture, level, layer);
-
-#if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
-#endif
-}
-void APIENTRY glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
-{
-	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayer);
-	trampoline(target, attachment, texture, level, layer);
-
-#if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
-#endif
-}
-void APIENTRY glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
-{
-	static const auto trampoline = reshade::hooks::call(glFramebufferRenderbuffer);
-	trampoline(target, attachment, renderbuffertarget, renderbuffer);
-
-#if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
-#endif
 }
 
 void APIENTRY glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height)
@@ -2110,14 +2018,12 @@ void APIENTRY glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *va
 		GLint fbo = 0;
 		gl3wGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		const auto type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
-
-		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo), type, drawbuffer);
+		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
 
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
-				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, type, *value, static_cast<uint8_t>(0), 0, nullptr) :
+				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, value, nullptr, 0, nullptr) :
 				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, value, 0, nullptr))
 				return;
 		}
@@ -2138,19 +2044,19 @@ void APIENTRY glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GL
 		GLint fbo = 0;
 		gl3wGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		const reshade::api::resource_view depth_view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo), reshade::api::attachment_type::depth, drawbuffer);
-		const reshade::api::resource_view stencil_view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo), reshade::api::attachment_type::stencil, drawbuffer);
+		const reshade::api::resource_view depth_view = g_current_context->get_framebuffer_attachment(fbo, GL_DEPTH, drawbuffer);
+		const reshade::api::resource_view stencil_view = g_current_context->get_framebuffer_attachment(fbo, GL_STENCIL, drawbuffer);
 
 		if (depth_view.handle != 0 && depth_view.handle == stencil_view.handle)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, reshade::api::attachment_type::depth | reshade::api::attachment_type::stencil, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
 				return;
 		}
 		else
 		{
-			if (depth_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, reshade::api::attachment_type::depth, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+			if (depth_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, &depth, nullptr, 0, nullptr))
 				return;
-			if (stencil_view.handle != 0 &&	reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, stencil_view, reshade::api::attachment_type::stencil, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+			if (stencil_view.handle != 0 &&	reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, stencil_view, nullptr, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
 				return;
 		}
 	}
@@ -2178,12 +2084,8 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 			if ((mask & flag) != flag)
 				continue;
 
-			const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(flag);
-
-			reshade::api::resource src = g_current_context->get_resource_from_view(
-				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(src_fbo), type, 0));
-			reshade::api::resource dst = g_current_context->get_resource_from_view(
-				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(dst_fbo), type, 0));
+			reshade::api::resource src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, flag, 0));
+			reshade::api::resource dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, flag, 0));
 
 			const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
 			const reshade::api::subresource_box dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
@@ -2292,19 +2194,25 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 
 #if RESHADE_ADDON
 	if (g_current_context && (
-		target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) && (
-		reshade::has_addon_event<reshade::addon_event::begin_render_pass>() || reshade::has_addon_event<reshade::addon_event::end_render_pass>()) &&
+		target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) &&
+		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
 		// Only interested in existing framebuffers that are were bound to the render pipeline
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
 	{
-		if (framebuffer != g_current_context->_current_fbo)
+		uint32_t count = 0;
+		reshade::api::resource_view rtvs[8], dsv;
+		while (count < 8)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(g_current_context);
-
-			g_current_context->_current_fbo = framebuffer;
-
-			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer), 0, nullptr);
+			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+			if (rtvs[count++].handle == 0 || framebuffer == 0)
+				break;
 		}
+
+		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
+		if (dsv.handle == 0)
+			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 	}
 #endif
 }
@@ -2532,16 +2440,6 @@ void APIENTRY glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, c
 #endif
 
 #ifdef GL_VERSION_3_2
-void APIENTRY glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
-{
-	static const auto trampoline = reshade::hooks::call(glFramebufferTexture);
-	trampoline(target, attachment, texture, level);
-
-#if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
-#endif
-}
-
 void APIENTRY glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLboolean fixedsamplelocations)
 {
 	static const auto trampoline = reshade::hooks::call(glTexImage2DMultisample);
@@ -3883,25 +3781,6 @@ void APIENTRY glCopyNamedBufferSubData(GLuint readBuffer, GLuint writeBuffer, GL
 	trampoline(readBuffer, writeBuffer, readOffset, writeOffset, size);
 }
 
-void APIENTRY glNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level)
-{
-	static const auto trampoline = reshade::hooks::call(glNamedFramebufferTexture);
-	trampoline(framebuffer, attachment, texture, level);
-
-#if RESHADE_ADDON
-	update_framebuffer_object(GL_FRAMEBUFFER, framebuffer);
-#endif
-}
-void APIENTRY glNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
-{
-	static const auto trampoline = reshade::hooks::call(glNamedFramebufferRenderbuffer);
-	trampoline(framebuffer, attachment, renderbuffertarget, renderbuffer);
-
-#if RESHADE_ADDON
-	update_framebuffer_object(GL_FRAMEBUFFER, framebuffer);
-#endif
-}
-
 void APIENTRY glNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height)
 {
 	static const auto trampoline = reshade::hooks::call(glNamedRenderbufferStorage);
@@ -3961,14 +3840,12 @@ void APIENTRY glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint
 	{
 		assert(buffer == GL_COLOR || drawbuffer == 0);
 
-		const auto type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
-
-		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer), type, drawbuffer);
+		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
 
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
-				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, type, *value, static_cast<uint8_t>(0), 0, nullptr) :
+				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, value, nullptr, 0, nullptr) :
 				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, value, 0, nullptr))
 				return;
 		}
@@ -3986,19 +3863,19 @@ void APIENTRY glClearNamedFramebufferfi(GLuint framebuffer, GLenum buffer, GLint
 	{
 		assert(buffer == GL_DEPTH_STENCIL && drawbuffer == 0);
 
-		const reshade::api::resource_view depth_view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer), reshade::api::attachment_type::depth, drawbuffer);
-		const reshade::api::resource_view stencil_view = g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer), reshade::api::attachment_type::stencil, drawbuffer);
+		const reshade::api::resource_view depth_view = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, drawbuffer);
+		const reshade::api::resource_view stencil_view = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, drawbuffer);
 
 		if (depth_view.handle != 0 && depth_view.handle == stencil_view.handle)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, reshade::api::attachment_type::depth | reshade::api::attachment_type::stencil, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
 				return;
 		}
 		else
 		{
-			if (depth_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, reshade::api::attachment_type::depth, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+			if (depth_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, &depth, nullptr, 0, nullptr))
 				return;
-			if (stencil_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, stencil_view, reshade::api::attachment_type::stencil, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
+			if (stencil_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, stencil_view, nullptr, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
 				return;
 		}
 	}
@@ -4021,12 +3898,8 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 			if ((mask & flag) != flag)
 				continue;
 
-			const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(flag);
-
-			reshade::api::resource src = g_current_context->get_resource_from_view(
-				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(readFramebuffer), type, 0));
-			reshade::api::resource dst = g_current_context->get_resource_from_view(
-				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(drawFramebuffer), type, 0));
+			reshade::api::resource src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(readFramebuffer, flag, 0));
+			reshade::api::resource dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(drawFramebuffer, flag, 0));
 
 			const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
 			const reshade::api::subresource_box dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
@@ -4106,19 +3979,25 @@ void APIENTRY glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 
 #if RESHADE_ADDON
 	if (g_current_context && (
-		target == 0x8D40 /* GL_FRAMEBUFFER_EXT */ || target == 0x8CA9 /* GL_DRAW_FRAMEBUFFER_EXT */) && (
-		reshade::has_addon_event<reshade::addon_event::begin_render_pass>() || reshade::has_addon_event<reshade::addon_event::end_render_pass>()) &&
+		target == 0x8D40 /* GL_FRAMEBUFFER_EXT */ || target == 0x8CA9 /* GL_DRAW_FRAMEBUFFER_EXT */) &&
+		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
 		// Only interested in existing framebuffers that are were bound to the render pipeline
 		glCheckFramebufferStatus(target) == 0x8CD5 /* GL_FRAMEBUFFER_COMPLETE_EXT */)
 	{
-		if (framebuffer != g_current_context->_current_fbo)
+		uint32_t count = 0;
+		reshade::api::resource_view rtvs[8], dsv;
+		while (count < 8)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(g_current_context);
-
-			g_current_context->_current_fbo = framebuffer;
-
-			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer), 0, nullptr);
+			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+			if (rtvs[count++].handle == 0 || framebuffer == 0)
+				break;
 		}
+
+		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
+		if (dsv.handle == 0)
+			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 	}
 #endif
 }

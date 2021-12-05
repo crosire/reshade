@@ -50,52 +50,44 @@ static void convert_cube_uv_to_vec(D3DCUBEMAP_FACES face, float u, float v, floa
 
 extern const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &rect);
 
-void reshade::d3d9::device_impl::begin_render_pass(api::render_pass pass, api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values)
+void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
-	assert(pass.handle != 0 && fbo.handle != 0);
-
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
-		_orig->SetRenderTarget(i, fbo_impl->rtv[i]);
-
-	_orig->SetDepthStencilSurface(fbo_impl->dsv);
-
-	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, fbo_impl->srgb_write_enable);
-
-	if (clear_value_count == 0)
-		return;
-
-	for (const api::attachment_desc &attach : reinterpret_cast<const render_pass_impl *>(pass.handle)->attachments)
+	if (count > _caps.NumSimultaneousRTs)
 	{
-		if (attach.type == api::attachment_type::color)
-		{
-			if (attach.color_or_depth_load_op == api::attachment_load_op::clear)
-			{
-				assert(clear_value_count != 0);
-
-				_orig->ColorFill(fbo_impl->rtv[attach.index], nullptr, D3DCOLOR_COLORVALUE(
-					static_cast<const float *>(clear_values)[0],
-					static_cast<const float *>(clear_values)[1],
-					static_cast<const float *>(clear_values)[2],
-					static_cast<const float *>(clear_values)[3]));
-			}
-		}
-		else
-		{
-			if (const DWORD clear_flags = ((attach.color_or_depth_load_op == api::attachment_load_op::clear) ? D3DCLEAR_ZBUFFER : 0) | ((attach.stencil_load_op == api::attachment_load_op::clear) ? D3DCLEAR_STENCIL : 0))
-			{
-				assert(clear_value_count != 0);
-
-				_orig->Clear(0, nullptr, clear_flags, 0,
-					static_cast<const float *>(clear_values)[0],
-					reinterpret_cast<const uint32_t &>(static_cast<const float *>(clear_values)[1]));
-			}
-		}
-
-		clear_values = static_cast<const float *>(clear_values) + 4;
-		clear_value_count--;
+		assert(false);
+		count = _caps.NumSimultaneousRTs;
 	}
+
+	DWORD clear_flags = 0;
+	api::resource_view rtv_handles[8], depth_stencil_handle = {};
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		rtv_handles[i] = rts[i].view;
+
+		if (rts[i].load_op == api::render_pass_load_op::clear)
+			clear_flags |= D3DCLEAR_TARGET;
+	}
+
+	if (ds != nullptr)
+	{
+		depth_stencil_handle = ds->view;
+
+		if (ds->depth_load_op == api::render_pass_load_op::clear)
+			clear_flags |= D3DCLEAR_ZBUFFER;
+		if (ds->stencil_load_op == api::render_pass_load_op::clear)
+			clear_flags |= D3DCLEAR_STENCIL;
+	}
+
+	bind_render_targets_and_depth_stencil(count, rtv_handles, depth_stencil_handle);
+
+	if (clear_flags != 0)
+		_orig->Clear(
+			0, nullptr,
+			clear_flags,
+			clear_flags & D3DCLEAR_TARGET  ? D3DCOLOR_COLORVALUE(rts->clear_color[0], rts->clear_color[1], rts->clear_color[2], rts->clear_color[3]) : 0,
+			clear_flags & D3DCLEAR_ZBUFFER ? ds->clear_depth : 0.0f,
+			clear_flags & D3DCLEAR_STENCIL ? ds->clear_stencil : 0);
 }
 void reshade::d3d9::device_impl::end_render_pass()
 {
@@ -104,12 +96,22 @@ void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t 
 {
 	assert(count <= _caps.NumSimultaneousRTs);
 
+	bool srgb_write_enable = false;
+
 	for (DWORD i = 0; i < count; ++i)
-		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle));
+	{
+		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull));
+
+		if (rtvs[i].handle & 1ull)
+			srgb_write_enable = true;
+	}
+
 	for (DWORD i = count; i < _caps.NumSimultaneousRTs; ++i)
 		_orig->SetRenderTarget(i, nullptr);
 
 	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
+
+	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, srgb_write_enable);
 }
 
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
@@ -707,11 +709,7 @@ void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint3
 	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, &dst_box, api::filter_mode::min_mag_mip_point);
 }
 
-void reshade::d3d9::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const api::rect *rects)
-{
-	_orig->Clear(rect_count, reinterpret_cast<const D3DRECT *>(rects), static_cast<DWORD>(clear_flags), color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, depth, stencil);
-}
-void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const api::rect *)
+void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)
 {
 	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
@@ -719,7 +717,9 @@ void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv
 
 	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
 
-	_orig->Clear(0, nullptr, static_cast<DWORD>(clear_flags), 0, depth, stencil);
+	_orig->Clear(
+		0, nullptr,
+		(depth != nullptr ? D3DCLEAR_ZBUFFER : 0) | (stencil != nullptr ? D3DCLEAR_STENCIL : 0), 0, depth != nullptr ? *depth : 0.0f, stencil != nullptr ? *stencil : 0);
 
 	_backup_state.apply_and_release();
 }
@@ -727,8 +727,22 @@ void reshade::d3d9::device_impl::clear_render_target_view(api::resource_view rtv
 {
 	assert(rtv.handle != 0 && color != nullptr);
 
+#if 1
 	for (uint32_t i = 0; i < std::max(rect_count, 1u); ++i)
 		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtv.handle & ~1ull), reinterpret_cast<const RECT *>(rects + i * 4), D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
+#else
+	assert(rect_count == 0); // Clearing rectangles is not supported
+
+	_backup_state.capture();
+
+	_orig->SetRenderTarget(0, reinterpret_cast<IDirect3DSurface9 *>(rtv.handle & ~1ull));
+	for (UINT i = 1; i < _caps.NumSimultaneousRTs; ++i)
+		_orig->SetRenderTarget(i, nullptr);
+
+	_orig->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), 1.0f, 0);
+
+	_backup_state.apply_and_release();
+#endif
 }
 void reshade::d3d9::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
 {

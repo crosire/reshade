@@ -111,8 +111,6 @@ extern "C" void APIENTRY glCopyTextureSubImage3D(GLuint texture, GLint level, GL
 extern "C" void APIENTRY glCullFace(GLenum mode);
 #undef glDeleteBuffers
 extern "C" void APIENTRY glDeleteBuffers(GLsizei n, const GLuint *buffers);
-#undef glDeleteFramebuffers
-extern "C" void APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint *framebuffers);
 #undef glDeleteProgram
 extern "C" void APIENTRY glDeleteProgram(GLuint program);
 #undef glDeleteRenderbuffers
@@ -165,18 +163,6 @@ extern "C" void APIENTRY glEnable(GLenum cap);
 extern "C" void APIENTRY glFinish();
 #undef glFlush
 extern "C" void APIENTRY glFlush();
-#undef glFramebufferRenderbuffer
-extern "C" void APIENTRY glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
-#undef glFramebufferTexture
-extern "C" void APIENTRY glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level);
-#undef glFramebufferTexture1D
-extern "C" void APIENTRY glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-#undef glFramebufferTexture2D
-extern "C" void APIENTRY glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-#undef glFramebufferTexture3D
-extern "C" void APIENTRY glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer);
-#undef glFramebufferTextureLayer
-extern "C" void APIENTRY glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer);
 #undef glFrontFace
 extern "C" void APIENTRY glFrontFace(GLenum mode);
 #undef glGenerateMipmap
@@ -245,10 +231,6 @@ extern "C" void APIENTRY glNamedBufferData(GLuint buffer, GLsizeiptr size, const
 extern "C" void APIENTRY glNamedBufferStorage(GLuint buffer, GLsizeiptr size, const void *data, GLbitfield flags);
 #undef glNamedBufferSubData
 extern "C" void APIENTRY glNamedBufferSubData(GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data);
-#undef glNamedFramebufferRenderbuffer
-extern "C" void APIENTRY glNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
-#undef glNamedFramebufferTexture
-extern "C" void APIENTRY glNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level);
 #undef glNamedRenderbufferStorage
 extern "C" void APIENTRY glNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height);
 #undef glNamedRenderbufferStorageMultisample

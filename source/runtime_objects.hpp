@@ -199,8 +199,7 @@ namespace reshade
 
 		struct pass_data
 		{
-			api::framebuffer fbo = {};
-			api::render_pass pass = {};
+			api::resource_view render_target_views[8] = {};
 			api::pipeline pipeline = {};
 			api::descriptor_set texture_set = {};
 			api::descriptor_set storage_set = {};

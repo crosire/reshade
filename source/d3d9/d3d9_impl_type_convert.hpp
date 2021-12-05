@@ -23,11 +23,6 @@ namespace reshade::d3d9
 		D3DPRIMITIVETYPE prim_type;
 	};
 
-	struct render_pass_impl
-	{
-		std::vector<api::attachment_desc> attachments;
-	};
-
 	struct pipeline_layout_impl
 	{
 		std::vector<UINT> shader_registers;
@@ -43,13 +38,6 @@ namespace reshade::d3d9
 	{
 		api::query_type type;
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
-	};
-
-	struct framebuffer_impl
-	{
-		IDirect3DSurface9 *rtv[8] = {};
-		IDirect3DSurface9 *dsv = nullptr;
-		BOOL srgb_write_enable = FALSE;
 	};
 
 	struct descriptor_set_impl

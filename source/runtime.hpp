@@ -306,7 +306,7 @@ namespace reshade
 		void clear_effect_cache();
 
 		void update_effects();
-		void render_technique(api::command_list *cmd_list, technique &technique, api::resource back_buffer_resource, const api::framebuffer back_buffer_fbos[2]);
+		void render_technique(api::command_list *cmd_list, technique &technique, api::resource_view rtv, api::resource_view rtv_srgb);
 
 		void save_texture(const texture &texture);
 
@@ -371,10 +371,6 @@ namespace reshade
 		api::resource_view _effect_color_srv[2] = {};
 		api::resource _effect_stencil_tex = {};
 		api::resource_view _effect_stencil_dsv = {};
-
-		api::render_pass   _back_buffer_passes[2] = {};
-		std::vector<api::framebuffer  > _back_buffer_fbos;
-		std::vector<api::framebuffer  > _effect_back_buffer_fbos;
 		std::vector<api::resource_view> _back_buffer_targets;
 
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
@@ -438,7 +434,7 @@ namespace reshade
 		void draw_technique_editor();
 
 		bool init_imgui_resources();
-		void render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo);
+		void render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv);
 		void destroy_imgui_resources();
 
 		#pragma region Overlay
@@ -476,8 +472,6 @@ namespace reshade
 		api::resource _imgui_vertices[4] = {};
 
 		api::resource _vr_overlay_tex = {};
-		api::framebuffer _vr_overlay_fbo = {};
-		api::render_pass _vr_overlay_pass = {};
 		api::resource_view _vr_overlay_target = {};
 		#pragma endregion
 

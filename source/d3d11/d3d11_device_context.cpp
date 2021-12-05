@@ -777,11 +777,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_ADDON
-	static_assert(
-		(UINT)reshade::api::attachment_type::depth   == (D3D11_CLEAR_DEPTH << 1) &&
-		(UINT)reshade::api::attachment_type::stencil == (D3D11_CLEAR_STENCIL << 1));
-
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(pDepthStencilView), static_cast<reshade::api::attachment_type>(ClearFlags << 1), Depth, Stencil, 0, nullptr))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(pDepthStencilView), ClearFlags & D3D11_CLEAR_DEPTH ? &Depth : nullptr, ClearFlags & D3D11_CLEAR_STENCIL ? &Stencil : nullptr, 0, nullptr))
 		return;
 #endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
@@ -1303,7 +1299,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const
 		SUCCEEDED(pView->QueryInterface(&dsv)))
 	{
 		// The 'ID3D11DeviceContext1::ClearView' API only works on depth-stencil views to depth-only resources (with no stencil component)
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(dsv.get()), reshade::api::attachment_type::depth, Color[0], static_cast<uint8_t>(0), NumRects, reinterpret_cast<const reshade::api::rect *>(pRect)))
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(dsv.get()), Color, nullptr, NumRects, reinterpret_cast<const reshade::api::rect *>(pRect)))
 			return;
 	}
 	else

@@ -202,39 +202,6 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
 
 	/// <summary>
-	/// The framebuffer attachment types that can be cleared by <see cref="command_list::clear_attachments"/>.
-	/// </summary>
-	enum class attachment_type
-	{
-		color = 0x1,
-		depth = 0x2,
-		stencil = 0x4,
-		depth_stencil = depth | stencil
-	};
-	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(attachment_type);
-
-	/// <summary>
-	/// Specifies how contents of an attachment are treated at the start of a render pass.
-	/// </summary>
-	enum class attachment_load_op : uint32_t
-	{
-		load,
-		clear,
-		discard,
-		dont_care
-	};
-
-	/// <summary>
-	/// Specifies how contents of an attachment are treated after finishing a render pass.
-	/// </summary>
-	enum class attachment_store_op : uint32_t
-	{
-		store,
-		discard,
-		dont_care
-	};
-
-	/// <summary>
 	/// The available query types.
 	/// </summary>
 	enum class query_type
@@ -346,18 +313,6 @@ namespace reshade { namespace api
 	/// <para>In D3D9, D3D10, D3D11 or D3D12 this is a pointer to a 'IDirect3D(...)Shader', 'ID3D10(...)(Shader/State)', 'ID3D11(...)(Shader/State)' or 'ID3D12PipelineState' object, in Vulkan a 'VkPipeline' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(pipeline);
-
-	/// <summary>
-	/// An opaque handle to a render pass.
-	/// <para>In Vulkan this is a 'VkRenderPass' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(render_pass);
-
-	/// <summary>
-	/// An opaque handle to a framebuffer object.
-	/// <para>In OpenGL this is a FBO handle, in Vulkan a 'VkFramebuffer' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(framebuffer);
 
 	/// <summary>
 	/// An opaque handle to a pipeline layout object.
@@ -757,19 +712,27 @@ namespace reshade { namespace api
 				depth_stencil_desc depth_stencil_state;
 
 				/// <summary>
+				/// Format of the depth-stencil view that may be used with this pipeline.
+				/// </summary>
+				format depth_stencil_format;
+				/// <summary>
+				/// Formats of the render target views that may be used with this pipeline.
+				/// </summary>
+				format render_target_formats[8];
+
+				/// <summary>
 				/// Mask applied to the coverage mask for a fragment during rasterization.
 				/// </summary>
 				uint32_t sample_mask;
+				/// <summary>
+				/// Number of samples used in rasterization.
+				/// </summary>
+				uint32_t sample_count;
 
 				/// <summary>
 				/// Maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> with this pipeline.
 				/// </summary>
 				uint32_t viewport_count;
-
-				/// <summary>
-				/// A render pass that describes the format of the render target and depth-stencil views that may be used with this pipeline.
-				/// </summary>
-				render_pass render_pass_template;
 			} graphics;
 		};
 	};
@@ -892,50 +855,6 @@ namespace reshade { namespace api
 			/// </summary>
 			descriptor_set_layout descriptor_layout;
 		};
-	};
-
-	/// <summary>
-	/// Describes a render pass attachment.
-	/// </summary>
-	struct attachment_desc
-	{
-		attachment_desc() :
-			type(attachment_type::color), index(0), format(format::unknown), samples(1), color_or_depth_load_op(attachment_load_op::load), color_or_depth_store_op(attachment_store_op::store), stencil_load_op(attachment_load_op::load), stencil_store_op(attachment_store_op::store) {}
-		attachment_desc(attachment_type type, uint32_t index, format format, uint16_t samples = 1) :
-			type(type), index(index), format(format), samples(samples), color_or_depth_load_op(attachment_load_op::load), color_or_depth_store_op(attachment_store_op::store), stencil_load_op(attachment_load_op::load), stencil_store_op(attachment_store_op::store) {}
-
-		/// <summary>
-		/// Type of the attachment.
-		/// </summary>
-		attachment_type type;
-		/// <summary>
-		/// Index of the attachment of the specified type.
-		/// </summary>
-		uint32_t index;
-		/// <summary>
-		/// Format of the resource view that will be used at this attachment.
-		/// </summary>
-		format format;
-		/// <summary>
-		/// Number of samples per pixel of the resource that will be used at this attachment.
-		/// </summary>
-		uint16_t samples;
-		/// <summary>
-		/// Specifies how the contents of this attachment are treated at the start of the render pass.
-		/// </summary>
-		attachment_load_op color_or_depth_load_op;
-		/// <summary>
-		/// Specifies how the contents of this attachment are treated after finishing the render pass.
-		/// </summary>
-		attachment_store_op color_or_depth_store_op;
-		/// <summary>
-		/// Specifies how the stencil contents of this depth-stencil attachment are treated at the start of the render pass.
-		/// </summary>
-		attachment_load_op stencil_load_op;
-		/// <summary>
-		/// Specifies how the stencil contents of this depth-stencil attachment are treated after finishing the render pass.
-		/// </summary>
-		attachment_store_op stencil_store_op;
 	};
 
 	/// <summary>

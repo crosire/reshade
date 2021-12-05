@@ -330,42 +330,6 @@ namespace reshade { namespace api
 		virtual void destroy_pipeline(pipeline handle) = 0;
 
 		/// <summary>
-		/// Creates a new render pass.
-		/// </summary>
-		/// <param name="attachment_count">Number of attachments to add to the render pass.</param>
-		/// <param name="attachments">Pointer to an array of attachments to add to the render pass.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created render pass.</param>
-		/// <returns><see langword="true"/> if the render pass was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_render_pass(uint32_t attachment_count, const attachment_desc *attachments, render_pass *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a render pass that was previously created via <see cref="create_render_pass"/>.
-		/// </summary>
-		virtual void destroy_render_pass(render_pass handle) = 0;
-
-		/// <summary>
-		/// Creates a new framebuffer.
-		/// </summary>
-		/// <param name="render_pass_template">Render pass to use as template to figure out where to bind attachments.</param>
-		/// <param name="attachment_count">Number of resource views to bind to the framebuffer.</param>
-		/// <param name="attachments">Pointer to an array of resource views to bind to the framebuffer.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created framebuffer.</param>
-		/// <returns><see langword="true"/> if the framebuffer was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_framebuffer(render_pass render_pass_template, uint32_t attachment_count, const resource_view *attachments, framebuffer *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a framebuffer that was previously created via <see cref="create_framebuffer"/>.
-		/// </summary>
-		virtual void destroy_framebuffer(framebuffer handle) = 0;
-
-		/// <summary>
-		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
-		/// </summary>
-		/// <param name="framebuffer">Framebuffer object to get the resource view from.</param>
-		/// <param name="type">Type of the attachment to get.</param>
-		/// <param name="index">Index of the attachment of the specified <paramref name="type"/> to get.</param>
-		/// <returns>Handle of the attached resource view if the attachment of the specified <paramref name="type"/> and <paramref name="index"/> exists in the framebuffer, zero otherwise.</returns>
-		virtual resource_view get_framebuffer_attachment(framebuffer framebuffer, attachment_type type, uint32_t index) const = 0;
-
-		/// <summary>
 		/// Creates a new pipeline layout.
 		/// </summary>
 		/// <param name="param_count">Number of layout parameters.</param>
@@ -561,13 +525,12 @@ namespace reshade { namespace api
 		virtual void barrier(uint32_t count, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
 
 		/// <summary>
-		/// Begins a render pass by binding its render targets and depth-stencil buffer.
+		/// Begins a render pass and binds render target and depth-stencil resource views.
 		/// </summary>
-		/// <param name="pass">Render pass to begin.</param>
-		/// <param name="framebuffer">Framebuffer to bind.</param>
-		/// <param name="clear_value_count">Number of clear values, or zero if there are no attachments with the <see cref="attachment_load_op::clear"/> operation in the render pass.</param>
-		/// <param name="clear_values">Pointer to an array of clear values, with four 32-bit elements for each attachment in the framebuffer.</param>
-		virtual void begin_render_pass(render_pass pass, framebuffer framebuffer, uint32_t clear_value_count = 0, const void *clear_values = nullptr) = 0;
+		/// <param name="count">Number of render target views to bind.</param>
+		/// <param name="rts">Pointer to an array of render target descriptions.</param>
+		/// <param name="ds">Optional pointer to a depth-stencil description, or <see langword="nullptr"/> to bind none.</param>
+		virtual void begin_render_pass(uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds = nullptr) = 0;
 		/// <summary>
 		/// Ends a render pass.
 		/// This must be preceeded by a call to <see cref="begin_render_pass"/>.
@@ -810,28 +773,17 @@ namespace reshade { namespace api
 		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], format format) = 0;
 
 		/// <summary>
-		/// Clears all attachments of the current render pass. Can only be called between <see cref="begin_render_pass"/> and <see cref="end_render_pass"/>.
-		/// </summary>
-		/// <param name="clear_flags">Combination of flags to identify which attachment types to clear.</param>
-		/// <param name="color">Value to clear render targets with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::color"/>.</param>
-		/// <param name="depth">Value to clear the depth buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::depth"/>.</param>
-		/// <param name="stencil">Value to clear the stencil buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::stencil"/>.</param>
-		/// <param name="rect_count">Number of rectangles to clear in the attachment resources, or zero to clear the whole resources.</param>
-		/// <param name="rects">Pointer to an array of rectangles.</param>
-		virtual void clear_attachments(attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
-		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.
 		/// </summary>
 		/// <remarks>
 		/// The resource the depth-stencil view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </remarks>
 		/// <param name="dsv">Resource view handle of the depth-stencil.</param>
-		/// <param name="clear_flags">Can be <see cref="attachment_type::depth"/> or <see cref="attachment_type::stencil"/> or both.</param>
-		/// <param name="depth">Value to clear the depth buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::depth"/>.</param>
-		/// <param name="stencil">Value to clear the stencil buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::stencil"/>.</param>
+		/// <param name="depth">Optional value to clear the depth buffer with.</param>
+		/// <param name="stencil">Optional value to clear the stencil buffer with.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the depth-stencil resource, or zero to clear the whole resource.</param>
 		/// <param name="rects">Pointer to an array of rectangles.</param>
-		virtual void clear_depth_stencil_view(resource_view dsv, attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
+		virtual void clear_depth_stencil_view(resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the render target view.
 		/// </summary>

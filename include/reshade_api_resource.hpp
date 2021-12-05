@@ -90,12 +90,12 @@ namespace reshade { namespace api
 	enum class resource_flags : uint32_t
 	{
 		none = 0,
+		dynamic = (1 << 1),
+		cube_compatible = (1 << 2),
+		generate_mipmaps = (1 << 0),
 		shared = (1 << 9),
 		shared_nt_handle = (1 << 11),
-		dynamic = (1 << 1),
-		sparse_binding = (1 << 18),
-		cube_compatible = (1 << 2),
-		generate_mipmaps = (1 << 0)
+		sparse_binding = (1 << 18)
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_flags);
 
@@ -438,4 +438,83 @@ namespace reshade { namespace api
 	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource_view);
+
+	/// <summary>
+	/// Specifies how the contents of a render target or depth-stencil view are treated at the start of a render pass.
+	/// </summary>
+	enum class render_pass_load_op : uint32_t
+	{
+		load,
+		clear,
+		discard,
+		dont_care
+	};
+
+	/// <summary>
+	/// Specifies how the contents of a render target or depth-stencil view are treated at the end of a render pass.
+	/// </summary>
+	enum class render_pass_store_op : uint32_t
+	{
+		store,
+		discard,
+		dont_care
+	};
+
+	/// <summary>
+	/// Describes a depth-stencil view and how it is treated at the start and end of a render pass.
+	/// </summary>
+	struct render_pass_depth_stencil_desc
+	{
+		/// <summary>
+		/// Depth-stencil resource view.
+		/// </summary>
+		resource_view view;
+		/// <summary>
+		/// Specifies how the depth contents of the depth-stencil view are treated at the start of the render pass.
+		/// </summary>
+		render_pass_load_op depth_load_op;
+		/// <summary>
+		/// Specifies how the depth contents of the depth-stencil view are treated at the end of the render pass.
+		/// </summary>
+		render_pass_store_op depth_store_op;
+		/// <summary>
+		/// Specifies how the stencil contents of the depth-stencil view are treated at the start of the render pass.
+		/// </summary>
+		render_pass_load_op stencil_load_op;
+		/// <summary>
+		/// Specifies how the stencil contents of the depth-stencil view are treated at the end of the render pass.
+		/// </summary>
+		render_pass_store_op stencil_store_op;
+		/// <summary>
+		/// Value the depth contents of the depth-stencil resource is cleared to when <see cref="depth_load_op"/> is <see cref="render_pass_load_op::clear"/>.
+		/// </summary>
+		float clear_depth;
+		/// <summary>
+		/// Value the stencil contents of the depth-stencil resource is cleared to when <see cref="stencil_load_op"/> is <see cref="render_pass_load_op::clear"/>.
+		/// </summary>
+		uint8_t clear_stencil;
+	};
+
+	/// <summary>
+	/// Describes a render target view and how it is treated at the start and end of a render pass.
+	/// </summary>
+	struct render_pass_render_target_desc
+	{
+		/// <summary>
+		/// Render target resource view.
+		/// </summary>
+		resource_view view;
+		/// <summary>
+		/// Specifies how the contents of the render target view are treated at the start of the render pass.
+		/// </summary>
+		render_pass_load_op load_op;
+		/// <summary>
+		/// Specifies how the contents of the render target view are treated at the end of the render pass.
+		/// </summary>
+		render_pass_store_op store_op;
+		/// <summary>
+		/// Value the render target resource is cleared to when <see cref="load_op"/> is <see cref="render_pass_load_op::clear"/>.
+		/// </summary>
+		float clear_color[4];
+	};
 } }

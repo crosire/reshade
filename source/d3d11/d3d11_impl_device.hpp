@@ -55,14 +55,6 @@ namespace reshade::d3d11
 		bool create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		void destroy_pipeline(api::pipeline handle) final;
 
-		bool create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle) final;
-		void destroy_render_pass(api::render_pass handle) final;
-
-		bool create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle) final;
-		void destroy_framebuffer(api::framebuffer handle) final;
-
-		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
-
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 

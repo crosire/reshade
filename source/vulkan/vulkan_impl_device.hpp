@@ -6,6 +6,8 @@
 #pragma once
 
 #include "addon_manager.hpp"
+#include <shared_mutex>
+#include <unordered_map>
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
@@ -55,14 +57,6 @@ namespace reshade::vulkan
 		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		bool create_graphics_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle);
 		void destroy_pipeline(api::pipeline handle) final;
-
-		bool create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle) final;
-		void destroy_render_pass(api::render_pass handle) final;
-
-		bool create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle) final;
-		void destroy_framebuffer(api::framebuffer handle) final;
-
-		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
@@ -130,7 +124,7 @@ namespace reshade::vulkan
 		}
 
 		template <VkObjectType type>
-		__forceinline object_data<type> *get_user_data_for_object(typename object_data<type>::Handle object) const
+		__forceinline object_data<type> *get_private_data_for_object(typename object_data<type>::Handle object) const
 		{
 			assert(object != VK_NULL_HANDLE);
 			uint64_t private_data = 0;
@@ -162,5 +156,6 @@ namespace reshade::vulkan
 		VkDescriptorPool _transient_descriptor_pool[4] = {};
 		uint32_t _transient_index = 0;
 		VkPrivateDataSlotEXT _private_data_slot = VK_NULL_HANDLE;
+		std::unordered_map<uint64_t, VkRenderPassBeginInfo> _render_pass_lookup;
 	};
 }

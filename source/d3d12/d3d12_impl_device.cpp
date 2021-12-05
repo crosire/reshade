@@ -506,8 +506,7 @@ bool reshade::d3d12::device_impl::create_compute_pipeline(const api::pipeline_de
 }
 bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
-	if (desc.graphics.topology == api::primitive_topology::triangle_fan ||
-		desc.graphics.render_pass_template.handle == 0)
+	if (desc.graphics.topology == api::primitive_topology::triangle_fan)
 	{
 		*out_handle = { 0 };
 		return false;
@@ -535,17 +534,6 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 	internal_desc.InputLayout.NumElements = static_cast<UINT>(internal_elements.size());
 	internal_desc.InputLayout.pInputElementDescs = internal_elements.data();
 
-	internal_desc.PrimitiveTopologyType = convert_primitive_topology_type(desc.graphics.topology);
-
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(desc.graphics.render_pass_template.handle);
-
-	internal_desc.SampleDesc = pass_impl->sample_desc;
-
-	internal_desc.NumRenderTargets = pass_impl->count;
-	for (UINT i = 0; i < 8; ++i)
-		internal_desc.RTVFormats[i] = pass_impl->rtv_format[i];
-	internal_desc.DSVFormat = pass_impl->dsv_format;
-
 	if (com_ptr<ID3D12PipelineState> pipeline;
 		SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
 	{
@@ -569,104 +557,6 @@ void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline handle)
 {
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
-}
-
-bool reshade::d3d12::device_impl::create_render_pass(uint32_t attachment_count, const api::attachment_desc *attachments, api::render_pass *out_handle)
-{
-	for (uint32_t a = 0; a < attachment_count; ++a)
-	{
-		if (attachments[a].index >= (attachments[a].type == api::attachment_type::color ? D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT : 1u))
-		{
-			*out_handle = { 0 };
-			return false;
-		}
-	}
-
-	const auto impl = new render_pass_impl();
-	impl->attachments.assign(attachments, attachments + attachment_count);
-
-	for (uint32_t a = 0; a < attachment_count; ++a)
-	{
-		if (attachments[a].type == api::attachment_type::color)
-		{
-			impl->rtv_format[attachments[a].index] = convert_format(attachments[a].format);
-			impl->count = std::max(impl->count, attachments[a].index + 1);
-		}
-		else
-		{
-			impl->dsv_format = convert_format(attachments[a].format);
-		}
-
-		impl->sample_desc.Count = attachments[a].samples;
-	}
-
-	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
-	return true;
-}
-void reshade::d3d12::device_impl::destroy_render_pass(api::render_pass handle)
-{
-	delete reinterpret_cast<render_pass_impl *>(handle.handle);
-}
-
-bool reshade::d3d12::device_impl::create_framebuffer(api::render_pass render_pass_template, uint32_t attachment_count, const api::resource_view *attachments, api::framebuffer *out_handle)
-{
-	const auto pass_impl = reinterpret_cast<render_pass_impl *>(render_pass_template.handle);
-
-	if (pass_impl == nullptr || attachment_count > pass_impl->attachments.size())
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-
-	const auto impl = new framebuffer_impl();
-	impl->rtv_is_single_handle_to_range = FALSE;
-
-	for (uint32_t a = 0; a < attachment_count; ++a)
-	{
-		if (pass_impl->attachments[a].type == api::attachment_type::color)
-		{
-			impl->rtv[pass_impl->attachments[a].index] = { static_cast<SIZE_T>(attachments[a].handle) };
-			impl->count = std::max(impl->count, pass_impl->attachments[a].index + 1);
-		}
-		else
-		{
-			impl->dsv = { static_cast<SIZE_T>(attachments[a].handle) };
-		}
-	}
-
-	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
-	return true;
-}
-void reshade::d3d12::device_impl::destroy_framebuffer(api::framebuffer handle)
-{
-	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
-}
-
-reshade::api::resource_view reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
-{
-	assert(fbo.handle != 0);
-
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	if (type == api::attachment_type::color)
-	{
-		if (index < fbo_impl->count)
-		{
-			if (fbo_impl->rtv_is_single_handle_to_range)
-				return { offset_descriptor_handle(*fbo_impl->rtv, index, D3D12_DESCRIPTOR_HEAP_TYPE_RTV).ptr };
-			else
-				return { fbo_impl->rtv[index].ptr };
-		}
-	}
-	else
-	{
-		if (fbo_impl->dsv.ptr != 0)
-		{
-			return { fbo_impl->dsv.ptr };
-		}
-	}
-
-	return { 0 };
 }
 
 bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)

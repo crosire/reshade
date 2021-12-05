@@ -73,15 +73,8 @@ namespace reshade::vulkan
 	{
 		using Handle = VkRenderPass;
 
-		struct attachment
-		{
-			VkImageLayout initial_layout;
-			VkImageAspectFlags clear_flags;
-			VkImageAspectFlags format_flags;
-		};
-
-		std::vector<attachment> attachments;
-		VkSampleCountFlagBits samples;
+		std::vector<VkSubpassDescription> subpasses;
+		std::vector<VkAttachmentDescription> attachments;
 	};
 
 	template <>
@@ -89,9 +82,7 @@ namespace reshade::vulkan
 	{
 		using Handle = VkFramebuffer;
 
-		VkExtent2D area;
 		std::vector<VkImageView> attachments;
-		std::vector<VkImageAspectFlags> attachment_types;
 	};
 
 	template <>
@@ -182,12 +173,14 @@ namespace reshade::vulkan
 	auto convert_stencil_op(VkStencilOp value) -> api::stencil_op;
 	auto convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology;
 	auto convert_primitive_topology(VkPrimitiveTopology value) -> api::primitive_topology;
+
 	auto convert_query_type(api::query_type value) -> VkQueryType;
+
 	auto convert_descriptor_type(api::descriptor_type value, bool is_image) -> VkDescriptorType;
 	auto convert_descriptor_type(VkDescriptorType value) -> api::descriptor_type;
-	auto convert_attachment_type(api::attachment_type value) -> VkImageAspectFlags;
-	auto convert_attachment_load_op(api::attachment_load_op value) -> VkAttachmentLoadOp;
-	auto convert_attachment_load_op(VkAttachmentLoadOp value) -> api::attachment_load_op;
-	auto convert_attachment_store_op(api::attachment_store_op value) -> VkAttachmentStoreOp;
-	auto convert_attachment_store_op(VkAttachmentStoreOp value) -> api::attachment_store_op;
+
+	auto convert_render_pass_load_op(api::render_pass_load_op value) -> VkAttachmentLoadOp;
+	auto convert_render_pass_load_op(VkAttachmentLoadOp value) -> api::render_pass_load_op;
+	auto convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp;
+	auto convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op;
 }

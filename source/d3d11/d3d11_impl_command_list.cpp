@@ -81,43 +81,33 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 	}
 }
 
-void reshade::d3d11::device_context_impl::begin_render_pass(api::render_pass pass, api::framebuffer fbo, uint32_t clear_value_count, const void *clear_values)
+void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
-	assert(pass.handle != 0 && fbo.handle != 0);
-
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->dsv);
-
-	if (clear_value_count == 0)
-		return;
-
-	for (const api::attachment_desc &attach : reinterpret_cast<const render_pass_impl *>(pass.handle)->attachments)
+	if (count > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)
 	{
-		if (attach.type == api::attachment_type::color)
-		{
-			if (attach.color_or_depth_load_op == api::attachment_load_op::clear)
-			{
-				assert(clear_value_count != 0);
-
-				_orig->ClearRenderTargetView(fbo_impl->rtv[attach.index], static_cast<const float *>(clear_values));
-			}
-		}
-		else
-		{
-			if (const UINT clear_flags = ((attach.color_or_depth_load_op == api::attachment_load_op::clear) ? D3D11_CLEAR_DEPTH : 0) | ((attach.stencil_load_op == api::attachment_load_op::clear) ? D3D11_CLEAR_STENCIL : 0))
-			{
-				assert(clear_value_count != 0);
-
-				_orig->ClearDepthStencilView(fbo_impl->dsv, clear_flags,
-					static_cast<const float *>(clear_values)[0],
-					reinterpret_cast<const uint32_t &>(static_cast<const float *>(clear_values)[1]) & 0xFF);
-			}
-		}
-
-		clear_values = static_cast<const float *>(clear_values) + 4;
-		clear_value_count--;
+		assert(false);
+		count = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
 	}
+
+	api::resource_view rtv_handles[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT], depth_stencil_handle = {};
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		rtv_handles[i] = rts[i].view;
+
+		if (rts[i].load_op == api::render_pass_load_op::clear)
+			_orig->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView *>(rtv_handles[i].handle), rts[i].clear_color);
+	}
+
+	if (ds != nullptr)
+	{
+		depth_stencil_handle = ds->view;
+
+		if (const UINT clear_flags = (ds->depth_load_op == api::render_pass_load_op::clear ? D3D11_CLEAR_DEPTH : 0) | (ds->stencil_load_op == api::render_pass_load_op::clear ? D3D11_CLEAR_STENCIL : 0))
+			_orig->ClearDepthStencilView(reinterpret_cast<ID3D11DepthStencilView *>(depth_stencil_handle.handle), clear_flags, ds->clear_depth, ds->clear_stencil);
+	}
+
+	bind_render_targets_and_depth_stencil(count, rtv_handles, depth_stencil_handle);
 }
 void reshade::d3d11::device_context_impl::end_render_pass()
 {
@@ -576,25 +566,13 @@ void reshade::d3d11::device_context_impl::resolve_texture_region(api::resource s
 		reinterpret_cast<ID3D11Resource *>(src.handle), src_subresource, convert_format(format));
 }
 
-void reshade::d3d11::device_context_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const api::rect *)
-{
-	assert(rect_count == 0); // Clearing rectangles is not supported
-
-	com_ptr<ID3D11DepthStencilView> dsv;
-	com_ptr<ID3D11RenderTargetView> rtv[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	_orig->OMGetRenderTargets(ARRAYSIZE(rtv), reinterpret_cast<ID3D11RenderTargetView **>(rtv), &dsv);
-
-	if (static_cast<UINT>(clear_flags & (api::attachment_type::color)) != 0)
-		for (UINT i = 0; i < ARRAYSIZE(rtv) && rtv[i] != nullptr; ++i)
-			_orig->ClearRenderTargetView(rtv[i].get(), color);
-	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0 && dsv != nullptr)
-		_orig->ClearDepthStencilView(dsv.get(), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
-}
-void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const api::rect *)
+void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)
 {
 	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
-	_orig->ClearDepthStencilView(reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
+	_orig->ClearDepthStencilView(
+		reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle),
+		(depth != nullptr ? D3D11_CLEAR_DEPTH : 0) | (stencil != nullptr ? D3D11_CLEAR_STENCIL : 0), depth != nullptr ? *depth : 0.0f, stencil != nullptr ? *stencil : 0);
 }
 void reshade::d3d11::device_context_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {

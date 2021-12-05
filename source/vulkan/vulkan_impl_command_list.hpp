@@ -21,7 +21,7 @@ namespace reshade::vulkan
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer, uint32_t clear_value_count, const void *clear_values) final;
+		void begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds) final;
 		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
@@ -49,8 +49,7 @@ namespace reshade::vulkan
 		void copy_texture_to_buffer(api::resource source, uint32_t source_subresource, const api::subresource_box *source_box, api::resource dest, uint64_t dest_offset, uint32_t row_length, uint32_t slice_height) final;
 		void resolve_texture_region(api::resource source, uint32_t source_subresource, const api::subresource_box *source_box, api::resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], api::format format) final;
 
-		void clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const api::rect *rects) final;
-		void clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const api::rect *rects) final;
+		void clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *rects) final;
 		void clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects) final;
 		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const api::rect *rects) final;
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const api::rect *rects) final;
@@ -65,8 +64,6 @@ namespace reshade::vulkan
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-		VkFramebuffer _current_fbo = VK_NULL_HANDLE;
-
 	protected:
 		device_impl *const _device_impl;
 		bool _has_commands = false;
@@ -78,5 +75,9 @@ namespace reshade::vulkan
 		using Handle = VkCommandBuffer;
 
 		object_data(device_impl *device, VkCommandBuffer cmd_list) : command_list_impl(device, cmd_list) {}
+
+		uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
+		VkRenderPass current_render_pass = VK_NULL_HANDLE;
+		VkFramebuffer current_framebuffer = VK_NULL_HANDLE;
 	};
 }

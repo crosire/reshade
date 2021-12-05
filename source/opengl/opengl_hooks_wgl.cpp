@@ -863,10 +863,6 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
 
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(runtime);
-#endif
-
 		uint32_t runtime_width = 0, runtime_height = 0;
 		runtime->get_screenshot_width_and_height(&runtime_width, &runtime_height);
 
@@ -889,12 +885,6 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 		// Assume that the correct OpenGL context is still current here
 		runtime->on_present();
-
-#if RESHADE_ADDON
-		GLint fbo = 0;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(runtime, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(fbo), 0, nullptr);
-#endif
 	}
 
 	return trampoline(hdc);
@@ -1193,13 +1183,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #endif
 #ifdef GL_VERSION_3_0
 		HOOK_PROC(glMapBufferRange);
-		HOOK_PROC(glDeleteFramebuffers);
 		HOOK_PROC(glDeleteRenderbuffers);
-		HOOK_PROC(glFramebufferTexture1D);
-		HOOK_PROC(glFramebufferTexture2D);
-		HOOK_PROC(glFramebufferTexture3D);
-		HOOK_PROC(glFramebufferTextureLayer);
-		HOOK_PROC(glFramebufferRenderbuffer);
 		HOOK_PROC(glRenderbufferStorage);
 		HOOK_PROC(glRenderbufferStorageMultisample);
 		HOOK_PROC(glClearBufferfv);
@@ -1226,7 +1210,6 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawElementsInstanced);
 #endif
 #ifdef GL_VERSION_3_2
-		HOOK_PROC(glFramebufferTexture);
 		HOOK_PROC(glTexImage2DMultisample);
 		HOOK_PROC(glTexImage3DMultisample);
 		HOOK_PROC(glDrawElementsBaseVertex);
@@ -1299,8 +1282,6 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glMapNamedBufferRange);
 		HOOK_PROC(glUnmapNamedBuffer);
 		HOOK_PROC(glCopyNamedBufferSubData);
-		HOOK_PROC(glNamedFramebufferTexture);
-		HOOK_PROC(glNamedFramebufferRenderbuffer);
 		HOOK_PROC(glNamedRenderbufferStorage);
 		HOOK_PROC(glNamedRenderbufferStorageMultisample);
 		HOOK_PROC(glClearNamedFramebufferfv);

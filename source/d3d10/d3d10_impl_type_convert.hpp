@@ -32,11 +32,6 @@ namespace reshade::d3d10
 		FLOAT blend_constant[4];
 	};
 
-	struct render_pass_impl
-	{
-		std::vector<api::attachment_desc> attachments;
-	};
-
 	struct pipeline_layout_impl
 	{
 		std::vector<UINT> shader_registers;
@@ -51,13 +46,6 @@ namespace reshade::d3d10
 	struct query_pool_impl
 	{
 		std::vector<com_ptr<ID3D10Query>> queries;
-	};
-
-	struct framebuffer_impl
-	{
-		UINT count;
-		ID3D10RenderTargetView *rtv[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		ID3D10DepthStencilView *dsv;
 	};
 
 	struct descriptor_set_impl
