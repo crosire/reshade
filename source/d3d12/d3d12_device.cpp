@@ -812,7 +812,7 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 		uint32_t num_updates = 0;
 		uint32_t max_descriptors = 0;
 		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
-			max_descriptors += pDestDescriptorRangeSizes[i];
+			max_descriptors += (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[i] : 1);
 
 		reshade::api::descriptor_set_update update = {};
 		// This assumes that all descriptors in the copied range are of the same type and that there are no constant buffer view descriptors
@@ -826,11 +826,11 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 			if (!resolve_descriptor_handle(pDestDescriptorRangeStarts[dst_range], DescriptorHeapsType, &update.set))
 				continue;
 
-			update.count = pDestDescriptorRangeSizes[dst_range];
+			update.count = (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[dst_range] : 1);
 
 			for (UINT dst_offset = dst_base; dst_offset < dst_base + update.count; ++dst_offset, ++src_offset)
 			{
-				if (pSrcDescriptorRangeSizes[src_range] <= src_offset)
+				if (src_offset > (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1))
 				{
 					src_range += 1;
 					src_offset = 0;
