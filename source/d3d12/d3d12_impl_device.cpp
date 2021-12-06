@@ -169,20 +169,16 @@ bool reshade::d3d12::device_impl::check_format_support(api::format format, api::
 		FAILED(_orig->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &feature, sizeof(feature))))
 		return false;
 
-	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined &&
-		(feature.Support1 & D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL) == 0)
+	if ((usage & api::resource_usage::depth_stencil) != 0 && (feature.Support1 & D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL) == 0)
 		return false;
-	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined &&
-		(feature.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET) == 0)
+	if ((usage & api::resource_usage::render_target) != 0 && (feature.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET) == 0)
 		return false;
-	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
-		(feature.Support1 & (D3D12_FORMAT_SUPPORT1_SHADER_LOAD | D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE)) == 0)
+	if ((usage & api::resource_usage::shader_resource) != 0 && (feature.Support1 & (D3D12_FORMAT_SUPPORT1_SHADER_LOAD | D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE)) == 0)
 		return false;
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined &&
-		(feature.Support1 & D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW) == 0)
+	if ((usage & api::resource_usage::unordered_access) != 0 && (feature.Support1 & D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW) == 0)
 		return false;
-	if ((usage & (api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != api::resource_usage::undefined &&
-		(feature.Support1 & D3D12_FORMAT_SUPPORT1_MULTISAMPLE_RESOLVE) == 0)
+
+	if ((usage & (api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != 0 && (feature.Support1 & D3D12_FORMAT_SUPPORT1_MULTISAMPLE_RESOLVE) == 0)
 		return false;
 
 	return true;
@@ -218,11 +214,11 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::general || initial_state == api::resource_usage::cpu_access);
 
-	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	const bool is_shared = (desc.flags & api::resource_flags::shared) != 0;
 	if (is_shared)
 	{
 		// Only NT handles are supported
-		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) != reshade::api::resource_flags::shared_nt_handle)
+		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) == 0)
 			return false;
 
 		if (*shared_handle != nullptr)
@@ -252,16 +248,16 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 		// Constant buffer views need to be aligned to 256 bytes, so make buffer large enough to ensure that is possible
-		if ((desc.usage & (api::resource_usage::constant_buffer)) != api::resource_usage::undefined)
+		if ((desc.usage & (api::resource_usage::constant_buffer)) != 0)
 			internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
 	}
 
 	// Use a default clear value of transparent black (all zeroes)
 	bool use_default_clear_value = true;
 	D3D12_CLEAR_VALUE default_clear_value = {};
-	if ((desc.usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+	if ((desc.usage & api::resource_usage::render_target) != 0)
 		default_clear_value.Format = convert_format(api::format_to_default_typed(desc.texture.format));
-	else if ((desc.usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
+	else if ((desc.usage & api::resource_usage::depth_stencil) != 0)
 		default_clear_value.Format = convert_format(api::format_to_depth_stencil_typed(desc.texture.format));
 	else
 		use_default_clear_value = false;

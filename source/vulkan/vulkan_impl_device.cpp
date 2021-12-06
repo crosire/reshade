@@ -213,24 +213,18 @@ bool reshade::vulkan::device_impl::check_format_support(api::format format, api:
 	props.optimalTilingFeatures = 0;
 	_instance_dispatch_table.GetPhysicalDeviceFormatProperties(_physical_device, vk_format, &props);
 
-	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined &&
-		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
+	if ((usage & api::resource_usage::depth_stencil) != 0 && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
 		return false;
-	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined &&
-		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) == 0)
+	if ((usage & api::resource_usage::render_target) != 0 && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) == 0)
 		return false;
-	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
-		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) == 0)
+	if ((usage & api::resource_usage::shader_resource) != 0 && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) == 0)
 		return false;
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined &&
-		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) == 0)
+	if ((usage & api::resource_usage::unordered_access) != 0 && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) == 0)
 		return false;
 
-	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined &&
-		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_DST_BIT) == 0)
+	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0 && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_DST_BIT) == 0)
 		return false;
-	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != api::resource_usage::undefined &&
-		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT) == 0)
+	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != 0 && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT) == 0)
 		return false;
 
 	return true;
@@ -304,13 +298,13 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 		VkImportMemoryWin32HandleInfoKHR import_info;
 	} import_export_info;
 
-	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	const bool is_shared = (desc.flags & api::resource_flags::shared) != 0;
 	if (is_shared)
 	{
 		if (shared_handle == nullptr)
 			return false;
 
-		if ((desc.flags & api::resource_flags::shared_nt_handle) == api::resource_flags::shared_nt_handle)
+		if ((desc.flags & api::resource_flags::shared_nt_handle) != 0)
 			handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 		else
 			handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;

@@ -426,25 +426,25 @@ auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAc
 		return VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT;
 
 	VkAccessFlags result = 0;
-	if ((state & api::resource_usage::depth_stencil_read) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::depth_stencil_read) != 0)
 		result |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-	if ((state & api::resource_usage::depth_stencil_write) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::depth_stencil_write) != 0)
 		result |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	if ((state & api::resource_usage::render_target) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::render_target) != 0)
 		result |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	if ((state & api::resource_usage::shader_resource) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::shader_resource) != 0)
 		result |= VK_ACCESS_SHADER_READ_BIT;
-	if ((state & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::unordered_access) != 0)
 		result |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-	if ((state & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined)
+	if ((state & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
 		result |= VK_ACCESS_TRANSFER_WRITE_BIT;
-	if ((state & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != api::resource_usage::undefined)
+	if ((state & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != 0)
 		result |= VK_ACCESS_TRANSFER_READ_BIT;
-	if ((state & api::resource_usage::index_buffer) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::index_buffer) != 0)
 		result |= VK_ACCESS_INDEX_READ_BIT;
-	if ((state & api::resource_usage::vertex_buffer) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::vertex_buffer) != 0)
 		result |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-	if ((state & api::resource_usage::constant_buffer) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::constant_buffer) != 0)
 		result |= VK_ACCESS_UNIFORM_READ_BIT;
 	return result;
 }
@@ -493,55 +493,55 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 		return VK_PIPELINE_STAGE_HOST_BIT;
 
 	VkPipelineStageFlags result = 0;
-	if ((state & api::resource_usage::depth_stencil_read) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::depth_stencil_read) != 0)
 		result |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	if ((state & api::resource_usage::depth_stencil_write) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::depth_stencil_write) != 0)
 		result |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-	if ((state & api::resource_usage::render_target) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::render_target) != 0)
 		result |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	if ((state & (api::resource_usage::shader_resource_pixel | api::resource_usage::constant_buffer)) != api::resource_usage::undefined)
+	if ((state & (api::resource_usage::shader_resource_pixel | api::resource_usage::constant_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	if ((state & (api::resource_usage::shader_resource_non_pixel | api::resource_usage::constant_buffer)) != api::resource_usage::undefined)
+	if ((state & (api::resource_usage::shader_resource_non_pixel | api::resource_usage::constant_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | (enabled_features.tessellationShader ? VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT : 0) | (enabled_features.geometryShader ? VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT : 0) | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-	if ((state & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	if ((state & api::resource_usage::unordered_access) != 0)
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-	if ((state & (api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != api::resource_usage::undefined)
+	if ((state & (api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != 0)
 		result |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-	if ((state & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer)) != api::resource_usage::undefined)
+	if ((state & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 	return result;
 }
 
 void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags)
 {
-	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined)
+	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
 		image_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != api::resource_usage::undefined)
+	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != 0)
 		image_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::depth_stencil) != 0)
 		// Add transfer destination usage as well to support clearing via 'vkCmdClearDepthStencilImage'
 		image_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::render_target) != 0)
 		// Add transfer destination usage as well to support clearing via 'vkCmdClearColorImage'
 		image_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::shader_resource) != 0)
 		image_flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_SAMPLED_BIT;
 
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 		image_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_STORAGE_BIT;
@@ -565,37 +565,37 @@ void reshade::vulkan::convert_image_usage_flags_to_usage(const VkImageUsageFlags
 }
 void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage usage, VkBufferUsageFlags &buffer_flags)
 {
-	if ((usage & api::resource_usage::index_buffer) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::index_buffer) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-	if ((usage & api::resource_usage::vertex_buffer) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::vertex_buffer) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-	if ((usage & api::resource_usage::constant_buffer) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::constant_buffer) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::shader_resource) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
 
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	else
 		buffer_flags &= ~(VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-	if ((usage & api::resource_usage::copy_dest) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::copy_dest) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-	if ((usage & api::resource_usage::copy_source) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::copy_source) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -910,22 +910,22 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 		desc.texture.format != api::format_to_default_typed(desc.texture.format))
 		create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
-	if ((desc.flags & api::resource_flags::sparse_binding) == api::resource_flags::sparse_binding)
+	if ((desc.flags & api::resource_flags::sparse_binding) != 0)
 		create_info.flags |= VK_IMAGE_CREATE_SPARSE_BINDING_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT;
 	else
 		create_info.flags &= ~(VK_IMAGE_CREATE_SPARSE_BINDING_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT);
 
-	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
+	if ((desc.flags & api::resource_flags::cube_compatible) != 0)
 		create_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	else
 		create_info.flags &= ~VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
 	// Mipmap generation is using 'vkCmdBlitImage' and therefore needs transfer usage flags (see 'command_list_impl::generate_mipmaps')
-	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((desc.flags & api::resource_flags::generate_mipmaps) != 0)
 		create_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 	// Dynamic resources do not exist in Vulkan
-	assert((desc.flags & api::resource_flags::dynamic) != api::resource_flags::dynamic);
+	assert((desc.flags & api::resource_flags::dynamic) == 0);
 }
 void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkBufferCreateInfo &create_info)
 {
@@ -935,7 +935,7 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkBu
 	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
 
 	// Dynamic resources do not exist in Vulkan
-	assert((desc.flags & api::resource_flags::dynamic) != api::resource_flags::dynamic);
+	assert((desc.flags & api::resource_flags::dynamic) == 0);
 }
 reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
 {

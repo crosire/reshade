@@ -114,21 +114,16 @@ bool reshade::d3d11::device_impl::check_format_support(api::format format, api::
 	if (FAILED(_orig->CheckFormatSupport(convert_format(format), &support)))
 		return false;
 
-	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined &&
-		(support & D3D11_FORMAT_SUPPORT_DEPTH_STENCIL) == 0)
+	if ((usage & api::resource_usage::depth_stencil) != 0 && (support & D3D11_FORMAT_SUPPORT_DEPTH_STENCIL) == 0)
 		return false;
-	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined &&
-		(support & D3D11_FORMAT_SUPPORT_RENDER_TARGET) == 0)
+	if ((usage & api::resource_usage::render_target) != 0 && (support & D3D11_FORMAT_SUPPORT_RENDER_TARGET) == 0)
 		return false;
-	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
-		(support & (D3D11_FORMAT_SUPPORT_SHADER_LOAD | D3D11_FORMAT_SUPPORT_SHADER_SAMPLE)) == 0)
+	if ((usage & api::resource_usage::shader_resource) != 0 && (support & (D3D11_FORMAT_SUPPORT_SHADER_LOAD | D3D11_FORMAT_SUPPORT_SHADER_SAMPLE)) == 0)
 		return false;
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined &&
-		(support & D3D11_FORMAT_SUPPORT_TYPED_UNORDERED_ACCESS_VIEW) == 0)
+	if ((usage & api::resource_usage::unordered_access) != 0 && (support & D3D11_FORMAT_SUPPORT_TYPED_UNORDERED_ACCESS_VIEW) == 0)
 		return false;
 
-	if ((usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != api::resource_usage::undefined &&
-		(support & D3D10_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE) == 0)
+	if ((usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0 && (support & D3D10_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE) == 0)
 		return false;
 
 	return true;
@@ -159,7 +154,7 @@ void reshade::d3d11::device_impl::destroy_sampler(api::sampler handle)
 
 static bool get_shared_resource(reshade::api::resource_flags flags, ID3D11Resource *object, HANDLE *shared_handle)
 {
-	if ((flags & reshade::api::resource_flags::shared_nt_handle) != reshade::api::resource_flags::shared_nt_handle)
+	if ((flags & reshade::api::resource_flags::shared_nt_handle) == 0)
 	{
 		com_ptr<IDXGIResource> object_dxgi;
 		return SUCCEEDED(object->QueryInterface(&object_dxgi)) && SUCCEEDED(object_dxgi->GetSharedHandle(shared_handle));
@@ -172,7 +167,7 @@ static bool get_shared_resource(reshade::api::resource_flags flags, ID3D11Resour
 }
 static bool open_shared_resource(reshade::api::resource_flags flags, HANDLE shared_handle, ID3D11Device *device, REFIID iid, void **out_object)
 {
-	if ((flags & reshade::api::resource_flags::shared_nt_handle) != reshade::api::resource_flags::shared_nt_handle)
+	if ((flags & reshade::api::resource_flags::shared_nt_handle) == 0)
 	{
 		return SUCCEEDED(device->OpenSharedResource(shared_handle, iid, out_object));
 	}
@@ -187,7 +182,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 {
 	*out_handle = { 0 };
 
-	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	const bool is_shared = (desc.flags & api::resource_flags::shared) != 0;
 	if (is_shared)
 	{
 		if (shared_handle == nullptr)

@@ -20,7 +20,9 @@
 	inline type &operator|=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) |= static_cast<uint32_t>(b)); } \
 	constexpr type operator|(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b)); } \
 	inline type &operator^=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) ^= static_cast<uint32_t>(b)); } \
-	constexpr type operator^(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) ^ static_cast<uint32_t>(b)); }
+	constexpr type operator^(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) ^ static_cast<uint32_t>(b)); } \
+	constexpr bool operator==(type lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) == rhs; } \
+	constexpr bool operator!=(type lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }
 
 #include "reshade_api_format.hpp"
 

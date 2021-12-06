@@ -679,8 +679,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		});
 
 		// Register all surfaces of this texture too
-		if (const reshade::api::resource_usage view_usage = desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil);
-			view_usage != reshade::api::resource_usage::undefined)
+		if (const reshade::api::resource_usage view_usage = desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil); view_usage != 0)
 		{
 			for (UINT level = 0; level < Levels; ++level)
 			{
@@ -700,7 +699,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 				}
 			}
 		}
-		if ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
+		if ((desc.usage & reshade::api::resource_usage::shader_resource) != 0)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 				this,
@@ -779,7 +778,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 			assert(ref != 0);
 		});
 
-		if ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
+		if ((desc.usage & reshade::api::resource_usage::shader_resource) != 0)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 				this,
@@ -863,8 +862,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		});
 
 		// Register all surfaces of this texture too
-		if (const reshade::api::resource_usage view_usage = desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil);
-			view_usage != reshade::api::resource_usage::undefined)
+		if (const reshade::api::resource_usage view_usage = desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil); view_usage != 0)
 		{
 			for (UINT level = 0; level < Levels; ++level)
 			{
@@ -1025,7 +1023,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::render_target))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
-	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) && !Lockable ?
+	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) && !Lockable ?
 		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
 		_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Lockable, ppSurface, pSharedHandle);
 #else
@@ -1088,7 +1086,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
-	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) ?
+	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) ?
 		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
 		_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Discard, ppSurface, pSharedHandle);
 #else
@@ -2227,7 +2225,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::render_target))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
-	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) && !Lockable ?
+	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) && !Lockable ?
 		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
 		static_cast<IDirect3DDevice9Ex *>(_orig)->CreateRenderTargetEx(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Lockable, ppSurface, pSharedHandle, internal_desc.Usage);
 #else
@@ -2359,7 +2357,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
-	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) ?
+	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) ?
 		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
 		static_cast<IDirect3DDevice9Ex *>(_orig)->CreateDepthStencilSurfaceEx(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Discard, ppSurface, pSharedHandle, internal_desc.Usage);
 #else

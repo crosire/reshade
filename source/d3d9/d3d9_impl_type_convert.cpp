@@ -325,18 +325,18 @@ void reshade::d3d9::convert_resource_usage_to_d3d_usage(api::resource_usage usag
 {
 	// Copying textures is implemented using the rasterization pipeline (see 'device_impl::copy_resource' implementation), so needs render target usage
 	// When the destination in 'IDirect3DDevice9::StretchRect' is a texture surface, it too has to have render target usage (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
-	if ((usage & (api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined)
+	if ((usage & (api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
 		d3d_usage |= D3DUSAGE_RENDERTARGET;
 	else
 		d3d_usage &= ~D3DUSAGE_RENDERTARGET;
 
-	if ((usage & (api::resource_usage::depth_stencil)) != api::resource_usage::undefined)
+	if ((usage & (api::resource_usage::depth_stencil)) != 0)
 		d3d_usage |= D3DUSAGE_DEPTHSTENCIL;
 	else
 		d3d_usage &= ~D3DUSAGE_DEPTHSTENCIL;
 
 	// Unordered access is not supported in D3D9
-	assert((usage & api::resource_usage::unordered_access) == api::resource_usage::undefined);
+	assert((usage & api::resource_usage::unordered_access) == 0);
 }
 void reshade::d3d9::convert_d3d_usage_to_resource_usage(DWORD d3d_usage, api::resource_usage &usage)
 {
@@ -366,7 +366,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 		// Volume textures cannot have render target or depth-stencil usage, so do not call 'convert_resource_usage_to_d3d_usage'
 		// See https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dusage
 
-		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
+		if ((desc.flags & api::resource_flags::dynamic) != 0 && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -376,7 +376,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 		}
 	}
 
-	assert((desc.flags & api::resource_flags::generate_mipmaps) != api::resource_flags::generate_mipmaps);
+	assert((desc.flags & api::resource_flags::generate_mipmaps) == 0);
 
 	if (levels != nullptr)
 		*levels = desc.texture.levels;
@@ -406,7 +406,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		if (desc.heap == api::memory_heap::gpu_only)
 			convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 
-		if (desc.type == api::resource_type::texture_2d && (desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
+		if (desc.type == api::resource_type::texture_2d && (desc.flags & api::resource_flags::dynamic) != 0 && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -416,7 +416,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		}
 	}
 
-	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
+	if ((desc.flags & api::resource_flags::cube_compatible) != 0)
 	{
 		assert(desc.texture.depth_or_layers == 6); // D3DRTYPE_CUBETEXTURE
 	}
@@ -425,7 +425,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		assert(desc.texture.depth_or_layers == 1);
 	}
 
-	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((desc.flags & api::resource_flags::generate_mipmaps) != 0)
 	{
 		assert(desc.type != api::resource_type::surface);
 
@@ -471,7 +471,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
 		}
 
-		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic)
+		if ((desc.flags & api::resource_flags::dynamic) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -506,7 +506,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
 		}
 
-		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic)
+		if ((desc.flags & api::resource_flags::dynamic) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 

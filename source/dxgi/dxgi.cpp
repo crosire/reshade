@@ -112,11 +112,11 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 		desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(buffer_desc.texture.format);
 		desc.SampleDesc.Count = buffer_desc.texture.samples;
 
-		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
 			desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != 0)
 			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != 0)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 	}
 #endif
@@ -193,13 +193,13 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 		desc.Stereo = buffer_desc.texture.depth_or_layers > 1;
 		desc.SampleDesc.Count = buffer_desc.texture.samples;
 
-		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
 			desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != 0)
 			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((buffer_desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared)
+		if ((buffer_desc.flags & reshade::api::resource_flags::shared) == 0)
 			desc.BufferUsage |= DXGI_USAGE_SHARED;
-		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != 0)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 	}
 #else

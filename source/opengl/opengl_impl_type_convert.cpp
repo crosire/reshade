@@ -1018,10 +1018,10 @@ void reshade::opengl::convert_memory_heap_to_usage(const api::resource_desc &des
 		usage = GL_STATIC_DRAW;
 		break;
 	case api::memory_heap::cpu_to_gpu:
-		usage = (desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
+		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
 		break;
 	case api::memory_heap::gpu_to_cpu:
-		usage = (desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic ? GL_DYNAMIC_READ : GL_STREAM_READ;
+		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_READ : GL_STREAM_READ;
 		break;
 	}
 }
@@ -1040,7 +1040,7 @@ void reshade::opengl::convert_memory_heap_to_flags(const api::resource_desc &des
 		break;
 	}
 
-	if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic)
+	if ((desc.flags & api::resource_flags::dynamic) != 0)
 		flags |= GL_DYNAMIC_STORAGE_BIT;
 }
 void reshade::opengl::convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage)

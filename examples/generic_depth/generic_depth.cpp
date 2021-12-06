@@ -288,7 +288,7 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 {
 	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
 		return false; // Skip resources that are not 2D textures
-	if (desc.texture.samples != 1 || (desc.usage & resource_usage::depth_stencil) == resource_usage::undefined)
+	if (desc.texture.samples != 1 || (desc.usage & resource_usage::depth_stencil) == 0)
 		return false; // Skip MSAA textures and resources that are not used for depth-stencil views
 
 	switch (device->get_api())
@@ -322,7 +322,7 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 
 	const resource_desc texture_desc = device->get_resource_desc(resource);
 	// Only non-MSAA textures where modified, so skip all others
-	if (texture_desc.texture.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == resource_usage::undefined)
+	if (texture_desc.texture.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == 0)
 		return false;
 
 	switch (usage_type)
@@ -547,7 +547,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing
-			if (device_state.preserve_depth_buffers || (best_desc.usage & resource_usage::shader_resource) == resource_usage::undefined || (api == device_api::d3d12 || api == device_api::vulkan))
+			if (device_state.preserve_depth_buffers || (best_desc.usage & resource_usage::shader_resource) == 0 || (api == device_api::d3d12 || api == device_api::vulkan))
 			{
 				device_state.update_backup_texture(device, best_desc);
 
@@ -580,7 +580,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 		else
 		{
 			// Copy to backup texture unless already copied during the current frame
-			if (device_state.backup_texture != 0 && !best_snapshot.copied_during_frame && (best_desc.usage & resource_usage::copy_source) != resource_usage::undefined)
+			if (device_state.backup_texture != 0 && !best_snapshot.copied_during_frame && (best_desc.usage & resource_usage::copy_source) != 0)
 			{
 				command_list *const cmd_list = queue->get_immediate_command_list();
 

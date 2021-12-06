@@ -137,33 +137,32 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 		break;
 	}
 
-	if ((desc.usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
+	if ((desc.usage & api::resource_usage::depth_stencil) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-	if ((desc.usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+	if ((desc.usage & api::resource_usage::render_target) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-	if ((desc.usage & api::resource_usage::shader_resource) == api::resource_usage::undefined && (internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
+	if ((desc.usage & api::resource_usage::shader_resource) == 0 && (internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
 	// Mipmap generation is using compute shaders and therefore needs unordered access flag (see 'command_list_impl::generate_mipmaps')
-	if ((desc.usage & api::resource_usage::unordered_access) != api::resource_usage::undefined ||
-		(desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((desc.usage & api::resource_usage::unordered_access) != 0 || (desc.flags & api::resource_flags::generate_mipmaps) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-	if ((desc.flags & api::resource_flags::shared) == api::resource_flags::shared)
+	if ((desc.flags & api::resource_flags::shared) != 0)
 		heap_flags |= D3D12_HEAP_FLAG_SHARED;
 
 	// Dynamic resources do not exist in D3D12
-	assert((desc.flags & api::resource_flags::dynamic) != api::resource_flags::dynamic);
+	assert((desc.flags & api::resource_flags::dynamic) == 0);
 }
 reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags)
 {

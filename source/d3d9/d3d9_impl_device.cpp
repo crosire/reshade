@@ -267,7 +267,7 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 }
 bool reshade::d3d9::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 		return false;
 
 	DWORD d3d_usage = 0;
@@ -316,11 +316,11 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 {
 	*out_handle = { 0 };
 
-	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	const bool is_shared = (desc.flags & api::resource_flags::shared) != 0;
 	if (is_shared)
 	{
 		// NT handles are not supported
-		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) == reshade::api::resource_flags::shared_nt_handle)
+		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) != 0)
 			return false;
 	}
 
@@ -375,7 +375,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 		case api::resource_type::texture_2d:
 		{
 			// Array or multisample textures are not supported in Direct3D 9
-			if ((desc.texture.depth_or_layers != 1 && (desc.flags & api::resource_flags::cube_compatible) != api::resource_flags::cube_compatible) || desc.texture.samples != 1)
+			if ((desc.texture.depth_or_layers != 1 && (desc.flags & api::resource_flags::cube_compatible) == 0) || desc.texture.samples != 1)
 				break;
 
 			UINT levels = 0;
@@ -385,7 +385,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			if (!convert_format_internal(desc.texture.format, internal_desc.Format))
 				break;
 
-			if ((desc.flags & api::resource_flags::cube_compatible) != api::resource_flags::cube_compatible)
+			if ((desc.flags & api::resource_flags::cube_compatible) == 0)
 			{
 				if (com_ptr<IDirect3DTexture9> object;
 					SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, shared_handle)))
@@ -465,7 +465,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					assert(internal_desc.Usage == D3DUSAGE_DEPTHSTENCIL);
 
 					if (com_ptr<IDirect3DSurface9> object;
-						SUCCEEDED((desc.usage & api::resource_usage::shader_resource) != api::resource_usage::undefined ?
+						SUCCEEDED((desc.usage & api::resource_usage::shader_resource) != 0 ?
 							create_surface_replacement(internal_desc, &object, shared_handle) :
 							_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, shared_handle)))
 					{
@@ -481,7 +481,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					assert(internal_desc.Usage == D3DUSAGE_RENDERTARGET);
 
 					if (com_ptr<IDirect3DSurface9> object;
-						SUCCEEDED((desc.usage & api::resource_usage::shader_resource) != api::resource_usage::undefined ?
+						SUCCEEDED((desc.usage & api::resource_usage::shader_resource) != 0 ?
 							create_surface_replacement(internal_desc, &object, shared_handle) :
 							_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, shared_handle)))
 					{

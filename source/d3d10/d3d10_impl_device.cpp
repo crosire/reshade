@@ -102,25 +102,21 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 }
 bool reshade::d3d10::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 		return false;
 
 	UINT support = 0;
 	if (FAILED(_orig->CheckFormatSupport(convert_format(format), &support)))
 		return false;
 
-	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined &&
-		(support & D3D10_FORMAT_SUPPORT_DEPTH_STENCIL) == 0)
+	if ((usage & api::resource_usage::depth_stencil) != 0 && (support & D3D10_FORMAT_SUPPORT_DEPTH_STENCIL) == 0)
 		return false;
-	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined &&
-		(support & D3D10_FORMAT_SUPPORT_RENDER_TARGET) == 0)
+	if ((usage & api::resource_usage::render_target) != 0 && (support & D3D10_FORMAT_SUPPORT_RENDER_TARGET) == 0)
 		return false;
-	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
-		(support & (D3D10_FORMAT_SUPPORT_SHADER_LOAD | D3D10_FORMAT_SUPPORT_SHADER_SAMPLE)) == 0)
+	if ((usage & api::resource_usage::shader_resource) != 0 && (support & (D3D10_FORMAT_SUPPORT_SHADER_LOAD | D3D10_FORMAT_SUPPORT_SHADER_SAMPLE)) == 0)
 		return false;
 
-	if ((usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != api::resource_usage::undefined &&
-		(support & D3D10_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE) == 0)
+	if ((usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0 && (support & D3D10_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE) == 0)
 		return false;
 
 	return true;
@@ -163,11 +159,11 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 {
 	*out_handle = { 0 };
 
-	const bool is_shared = (desc.flags & api::resource_flags::shared) == api::resource_flags::shared;
+	const bool is_shared = (desc.flags & api::resource_flags::shared) != 0;
 	if (is_shared)
 	{
 		// NT handles are not supported
-		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) == reshade::api::resource_flags::shared_nt_handle)
+		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) != 0)
 			return false;
 
 		if (*shared_handle != nullptr)

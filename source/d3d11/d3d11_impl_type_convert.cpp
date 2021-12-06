@@ -72,37 +72,37 @@ static void convert_resource_usage_to_bind_flags(reshade::api::resource_usage us
 {
 	using namespace reshade;
 
-	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::depth_stencil) != 0)
 		bind_flags |= D3D11_BIND_DEPTH_STENCIL;
 	else
 		bind_flags &= ~D3D11_BIND_DEPTH_STENCIL;
 
-	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::render_target) != 0)
 		bind_flags |= D3D11_BIND_RENDER_TARGET;
 	else
 		bind_flags &= ~D3D11_BIND_RENDER_TARGET;
 
-	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::shader_resource) != 0)
 		bind_flags |= D3D11_BIND_SHADER_RESOURCE;
 	else
 		bind_flags &= ~D3D11_BIND_SHADER_RESOURCE;
 
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 		bind_flags |= D3D11_BIND_UNORDERED_ACCESS;
 	else
 		bind_flags &= ~D3D11_BIND_UNORDERED_ACCESS;
 
-	if ((usage & api::resource_usage::index_buffer) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::index_buffer) != 0)
 		bind_flags |= D3D11_BIND_INDEX_BUFFER;
 	else
 		bind_flags &= ~D3D11_BIND_INDEX_BUFFER;
 
-	if ((usage & api::resource_usage::vertex_buffer) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::vertex_buffer) != 0)
 		bind_flags |= D3D11_BIND_VERTEX_BUFFER;
 	else
 		bind_flags &= ~D3D11_BIND_VERTEX_BUFFER;
 
-	if ((usage & api::resource_usage::constant_buffer) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::constant_buffer) != 0)
 		bind_flags |= D3D11_BIND_CONSTANT_BUFFER;
 	else
 		bind_flags &= ~D3D11_BIND_CONSTANT_BUFFER;
@@ -135,25 +135,25 @@ static void convert_resource_flags_to_misc_flags(reshade::api::resource_flags fl
 {
 	using namespace reshade;
 
-	if ((flags & api::resource_flags::shared) == api::resource_flags::shared && (misc_flags & (D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX | D3D11_RESOURCE_MISC_SHARED_NTHANDLE)) == 0)
+	if ((flags & api::resource_flags::shared) != 0 && (misc_flags & (D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX | D3D11_RESOURCE_MISC_SHARED_NTHANDLE)) == 0)
 		misc_flags |= D3D11_RESOURCE_MISC_SHARED;
 
-	if ((flags & api::resource_flags::shared_nt_handle) == api::resource_flags::shared_nt_handle)
+	if ((flags & api::resource_flags::shared_nt_handle) != 0)
 		misc_flags |= D3D11_RESOURCE_MISC_SHARED_NTHANDLE;
 	else
 		misc_flags &= ~D3D11_RESOURCE_MISC_SHARED_NTHANDLE;
 
-	if ((flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
+	if ((flags & api::resource_flags::cube_compatible) != 0)
 		misc_flags |= D3D11_RESOURCE_MISC_TEXTURECUBE;
 	else
 		misc_flags &= ~D3D11_RESOURCE_MISC_TEXTURECUBE;
 
-	if ((flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((flags & api::resource_flags::generate_mipmaps) != 0)
 		misc_flags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 	else
 		misc_flags &= ~D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-	if ((flags & api::resource_flags::sparse_binding) == api::resource_flags::sparse_binding)
+	if ((flags & api::resource_flags::sparse_binding) != 0)
 		misc_flags |= D3D11_RESOURCE_MISC_TILED;
 	else
 		misc_flags &= ~D3D11_RESOURCE_MISC_TILED;
@@ -260,7 +260,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 
 	// The 'D3D11_RESOURCE_MISC_GENERATE_MIPS' flag requires render target and shader resource bind flags
-	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((desc.flags & api::resource_flags::generate_mipmaps) != 0)
 		internal_desc.BindFlags |= D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 }
 void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE2D_DESC &internal_desc)
@@ -276,7 +276,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 
-	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((desc.flags & api::resource_flags::generate_mipmaps) != 0)
 		internal_desc.BindFlags |= D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 }
 void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE2D_DESC1 &internal_desc)
@@ -296,7 +296,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 
-	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((desc.flags & api::resource_flags::generate_mipmaps) != 0)
 		internal_desc.BindFlags |= D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 }
 void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE3D_DESC1 &internal_desc)

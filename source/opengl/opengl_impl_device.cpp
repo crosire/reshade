@@ -217,7 +217,7 @@ bool reshade::opengl::device_impl::check_format_support(api::format format, api:
 
 	GLint supported_depth = GL_TRUE;
 	GLint supported_stencil = GL_TRUE;
-	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::depth_stencil) != 0)
 	{
 		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_DEPTH_RENDERABLE, 1, &supported_depth);
 		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_STENCIL_RENDERABLE, 1, &supported_stencil);
@@ -225,7 +225,7 @@ bool reshade::opengl::device_impl::check_format_support(api::format format, api:
 
 	GLint supported_color_render = GL_TRUE;
 	GLint supported_render_target = GL_CAVEAT_SUPPORT;
-	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::render_target) != 0)
 	{
 		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_COLOR_RENDERABLE, 1, &supported_color_render);
 		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_FRAMEBUFFER_RENDERABLE, 1, &supported_render_target);
@@ -233,7 +233,7 @@ bool reshade::opengl::device_impl::check_format_support(api::format format, api:
 
 	GLint supported_unordered_access_load = GL_CAVEAT_SUPPORT;
 	GLint supported_unordered_access_store = GL_CAVEAT_SUPPORT;
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 	{
 		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_SHADER_IMAGE_LOAD, 1, &supported_unordered_access_load);
 		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_SHADER_IMAGE_STORE, 1, &supported_unordered_access_store);
@@ -367,7 +367,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;
 		break;
 	case api::resource_type::texture_2d:
-		if ((desc.flags & api::resource_flags::cube_compatible) != api::resource_flags::cube_compatible)
+		if ((desc.flags & api::resource_flags::cube_compatible) == 0)
 			target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
 		else
 			target = desc.texture.depth_or_layers > 6 ? GL_TEXTURE_CUBE_MAP_ARRAY : GL_TEXTURE_CUBE_MAP;
@@ -381,7 +381,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 #if 0
 	GLenum shared_handle_type = GL_NONE;
-	if ((desc.flags & api::resource_flags::shared) == api::resource_flags::shared)
+	if ((desc.flags & api::resource_flags::shared) != 0)
 	{
 		// Only import is supported
 		if (shared_handle == nullptr || *shared_handle == nullptr)
@@ -389,7 +389,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		assert(initial_data == nullptr);
 
-		if ((desc.flags & api::resource_flags::shared_nt_handle) == api::resource_flags::shared_nt_handle)
+		if ((desc.flags & api::resource_flags::shared_nt_handle) != 0)
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_EXT;
 		else
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT;
@@ -397,7 +397,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 #else
 	UNREFERENCED_PARAMETER(shared_handle);
 
-	if ((desc.flags & api::resource_flags::shared) == api::resource_flags::shared)
+	if ((desc.flags & api::resource_flags::shared) != 0)
 		return false;
 #endif
 

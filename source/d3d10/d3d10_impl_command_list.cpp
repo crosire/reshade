@@ -24,10 +24,9 @@ void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *,
 	bool transitions_away_from_shader_resource_usage = false;
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		if ((old_states[i] & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
-			(new_states[i] & api::resource_usage::shader_resource) == api::resource_usage::undefined &&
+		if ((old_states[i] & api::resource_usage::shader_resource) != 0 && (new_states[i] & api::resource_usage::shader_resource) == 0 &&
 			// Ignore transitions to copy source or destination states, since those are not affected by the current SRV bindings
-			(new_states[i] & (api::resource_usage::depth_stencil | api::resource_usage::render_target)) != api::resource_usage::undefined)
+			(new_states[i] & (api::resource_usage::depth_stencil | api::resource_usage::render_target)) != 0)
 			transitions_away_from_shader_resource_usage = true;
 	}
 
