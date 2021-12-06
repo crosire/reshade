@@ -355,6 +355,9 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 	if (resource.handle == 0)
 		return false;
 
+	// Cannot create a resource view with a typeless format
+	assert(desc.format != api::format_to_typeless(desc.format));
+
 	switch (usage_type)
 	{
 		case api::resource_usage::depth_stencil:
@@ -682,11 +685,16 @@ reshade::api::pipeline_layout_param reshade::d3d12::device_impl::get_pipeline_la
 
 	api::pipeline_layout_param param = {};
 
-	UINT private_size = (index + 1) * sizeof(api::pipeline_layout_param);
-	const auto data = static_cast<api::pipeline_layout_param *>(_malloca(private_size));
-	if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &private_size, data)))
+	UINT private_size = 0;
+	if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &private_size, nullptr)))
+	{
+		assert((private_size % sizeof(api::pipeline_layout_param)) == 0 && private_size >= ((index + 1) * sizeof(api::pipeline_layout_param)));
+
+		const auto data = static_cast<api::pipeline_layout_param *>(_malloca(private_size));
+		signature->GetPrivateData(extra_data_guid, &private_size, data);
 		param = data[index];
-	_freea(data);
+		_freea(data);
+	}
 
 	return param;
 }

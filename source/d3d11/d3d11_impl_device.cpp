@@ -378,6 +378,9 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 	if (resource.handle == 0)
 		return false;
 
+	// Cannot create a resource view with a typeless format
+	assert(desc.format != api::format_to_typeless(desc.format));
+
 	switch (usage_type)
 	{
 		case api::resource_usage::depth_stencil:
