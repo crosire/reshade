@@ -160,11 +160,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef VK_KHR_push_descriptor
 	bool push_descriptor_ext = false;
 #endif
-	bool custom_border_color_ext = false;
-	bool extended_dynamic_state_ext = false;
 #ifdef VK_KHR_dynamic_rendering
 	bool dynamic_rendering_ext = false;
 #endif
+	bool custom_border_color_ext = false;
+	bool extended_dynamic_state_ext = false;
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
@@ -225,6 +225,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef VK_KHR_push_descriptor
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 #endif
+#ifdef VK_KHR_dynamic_rendering
+		dynamic_rendering_ext = add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
+#endif
 #ifdef VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 #endif
@@ -233,9 +236,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 #ifdef VK_KHR_external_memory_win32
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
-#endif
-#ifdef VK_KHR_dynamic_rendering
-		dynamic_rendering_ext = add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
 #endif
 	}
 
@@ -413,8 +413,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	#pragma endregion
 	#pragma region Core 1_2
 	INIT_DISPATCH_PTR(CreateRenderPass2);
-	if (dispatch_table.CreateRenderPass2 == nullptr) // Try the KHR version if the core version does not exist
-		dispatch_table.CreateRenderPass2  = reinterpret_cast<PFN_vkCreateRenderPass2KHR>(get_device_proc(device, "vkCreateRenderPass2KHR"));
+	INIT_DISPATCH_PTR(CmdBeginRenderPass2);
+	INIT_DISPATCH_PTR(CmdNextSubpass2);
+	INIT_DISPATCH_PTR(CmdEndRenderPass2);
 	#pragma endregion
 	#pragma region VK_KHR_swapchain
 	INIT_DISPATCH_PTR(CreateSwapchainKHR);
@@ -428,6 +429,27 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	{
 		INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
 	}
+#endif
+	#pragma endregion
+	#pragma region VK_KHR_dynamic_rendering
+#ifdef VK_KHR_dynamic_rendering
+	if (dynamic_rendering_ext)
+	{
+		INIT_DISPATCH_PTR(CmdBeginRenderingKHR);
+		INIT_DISPATCH_PTR(CmdEndRenderingKHR);
+	}
+#endif
+	#pragma endregion
+	#pragma region VK_KHR_create_renderpass2
+#ifdef VK_KHR_create_renderpass2
+	if (dispatch_table.CreateRenderPass2 == nullptr) // Try the KHR version if the core version does not exist
+		dispatch_table.CreateRenderPass2 = reinterpret_cast<PFN_vkCreateRenderPass2KHR>(get_device_proc(device, "vkCreateRenderPass2KHR"));
+	if (dispatch_table.CmdBeginRenderPass2 == nullptr)
+		dispatch_table.CmdBeginRenderPass2 = reinterpret_cast<PFN_vkCmdBeginRenderPass2KHR>(get_device_proc(device, "vkCmdBeginRenderPass2KHR"));
+	if (dispatch_table.CmdNextSubpass2 == nullptr)
+		dispatch_table.CmdNextSubpass2 = reinterpret_cast<PFN_vkCmdNextSubpass2KHR>(get_device_proc(device, "vkCmdNextSubpass2KHR"));
+	if (dispatch_table.CmdEndRenderPass2 == nullptr)
+		dispatch_table.CmdEndRenderPass2 = reinterpret_cast<PFN_vkCmdEndRenderPass2KHR>(get_device_proc(device, "vkCmdEndRenderPass2KHR"));
 #endif
 	#pragma endregion
 	#pragma region VK_KHR_copy_commands2
@@ -449,12 +471,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdEndDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
 	#pragma endregion
-	#pragma region VK_EXT_private_data
-	INIT_DISPATCH_PTR(CreatePrivateDataSlotEXT);
-	INIT_DISPATCH_PTR(DestroyPrivateDataSlotEXT);
-	INIT_DISPATCH_PTR(GetPrivateDataEXT);
-	INIT_DISPATCH_PTR(SetPrivateDataEXT);
-	#pragma endregion
 	#pragma region VK_EXT_extended_dynamic_state
 #ifdef VK_EXT_extended_dynamic_state
 	if (extended_dynamic_state_ext)
@@ -474,22 +490,18 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 #endif
 	#pragma endregion
+	#pragma region VK_EXT_private_data
+	INIT_DISPATCH_PTR(CreatePrivateDataSlotEXT);
+	INIT_DISPATCH_PTR(DestroyPrivateDataSlotEXT);
+	INIT_DISPATCH_PTR(GetPrivateDataEXT);
+	INIT_DISPATCH_PTR(SetPrivateDataEXT);
+	#pragma endregion
 	#pragma region VK_KHR_external_memory_win32
 #ifdef VK_KHR_external_memory_win32
 	INIT_DISPATCH_PTR(GetMemoryWin32HandleKHR);
 	INIT_DISPATCH_PTR(GetMemoryWin32HandlePropertiesKHR);
 #endif
 	#pragma endregion
-	#pragma region VK_KHR_dynamic_rendering
-#ifdef VK_KHR_dynamic_rendering
-	if (dynamic_rendering_ext)
-	{
-		INIT_DISPATCH_PTR(CmdBeginRenderingKHR);
-		INIT_DISPATCH_PTR(CmdEndRenderingKHR);
-	}
-#endif
-	#pragma endregion
-
 
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(
