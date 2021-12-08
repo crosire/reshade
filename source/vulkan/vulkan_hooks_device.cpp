@@ -1372,14 +1372,25 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
 	data.params.resize(total_desc_count);
-	data.num_sets = pCreateInfo->setLayoutCount;
+	data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
 
 	for (uint32_t i = 0; i < set_desc_count; ++i)
 	{
-		const bool push_descriptors = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pCreateInfo->pSetLayouts[i])->push_descriptors;
+		const auto set_layout_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pCreateInfo->pSetLayouts[i]);
 
-		data.params[i].type = push_descriptors ? reshade::api::pipeline_layout_param_type::push_descriptors : reshade::api::pipeline_layout_param_type::descriptor_set;
-		data.params[i].descriptor_layout = { (uint64_t)pCreateInfo->pSetLayouts[i] };
+		if (set_layout_impl->push_descriptors)
+		{
+			assert(set_layout_impl->ranges.size() == 1); // TODO
+
+			data.params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+			data.params[i].push_descriptors = set_layout_impl->ranges[0];
+		}
+		else
+		{
+			data.params[i].type = reshade::api::pipeline_layout_param_type::descriptor_set;
+			data.params[i].descriptor_set.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
+			data.params[i].descriptor_set.ranges = set_layout_impl->ranges.data();
+		}
 	}
 
 	for (uint32_t i = set_desc_count; i < total_desc_count; ++i)

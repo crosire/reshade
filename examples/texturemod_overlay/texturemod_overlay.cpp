@@ -13,13 +13,6 @@
 
 using namespace reshade::api;
 
-struct set_data
-{
-	uint32_t offset;
-	uint32_t range;
-	descriptor_set_layout layout;
-};
-
 struct tex_data
 {
 	resource_desc desc;
@@ -228,18 +221,13 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 		const pipeline_layout_param param = device->get_pipeline_layout_param(layout, first + i);
 		assert(param.type == pipeline_layout_param_type::descriptor_set);
 	
-		uint32_t range_count = 0;
-		device->get_descriptor_set_layout_ranges(param.descriptor_layout, &range_count, nullptr);
-		std::vector<descriptor_range> ranges(range_count);
-		device->get_descriptor_set_layout_ranges(param.descriptor_layout, &range_count, ranges.data());
-
 		uint32_t base_offset = 0;
 		descriptor_pool pool = { 0 };
 		device->get_descriptor_pool_offset(sets[i], &pool, &base_offset);
 
-		for (uint32_t k = 0; k < range_count; ++k)
+		for (uint32_t k = 0; k < param.descriptor_set.count; ++k)
 		{
-			const descriptor_range &range = ranges[k];
+			const descriptor_range &range = param.descriptor_set.ranges[k];
 	
 			if ((range.visibility & shader_stage::pixel) != shader_stage::pixel || (range.type != descriptor_type::shader_resource_view && range.type != descriptor_type::sampler_with_resource_view))
 				continue;

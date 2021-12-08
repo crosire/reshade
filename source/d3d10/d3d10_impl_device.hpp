@@ -54,17 +54,12 @@ namespace reshade::d3d10
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		api::pipeline_layout_param get_pipeline_layout_param(api::pipeline_layout layout, uint32_t index) const final;
-
-		bool create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out_handle) final;
-		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
-
-		void get_descriptor_set_layout_ranges(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
+		api::pipeline_layout_param get_pipeline_layout_param(api::pipeline_layout layout, uint32_t layout_param) const final;
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
 
-		bool create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out_sets) final;
+		bool create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets) final;
 		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
 
 		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *offset) const final;

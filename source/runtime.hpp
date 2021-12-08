@@ -463,7 +463,6 @@ namespace reshade
 
 		api::pipeline _imgui_pipeline = {};
 		api::pipeline_layout _imgui_pipeline_layout = {};
-		api::descriptor_set_layout _imgui_set_layouts[2] = {};
 		api::sampler  _imgui_sampler_state = {};
 
 		int _imgui_num_indices[4] = {};

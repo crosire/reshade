@@ -3272,10 +3272,8 @@ bool reshade::runtime::init_imgui_resources()
 			ranges[0].type = api::descriptor_type::sampler_with_resource_view;
 			ranges[0].dx_register_index = 0; // s0
 
-			_device->create_descriptor_set_layout(1, &ranges[0], true, &_imgui_set_layouts[0]);
-
 			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[num_layout_params].descriptor_layout = _imgui_set_layouts[0];
+			layout_params[num_layout_params].push_descriptors = ranges[0];
 			num_layout_params++;
 		}
 		else
@@ -3283,19 +3281,15 @@ bool reshade::runtime::init_imgui_resources()
 			ranges[0].type = api::descriptor_type::sampler;
 			ranges[0].dx_register_index = 0; // s0
 
-			_device->create_descriptor_set_layout(1, &ranges[0], true, &_imgui_set_layouts[0]);
-
 			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[num_layout_params].descriptor_layout = _imgui_set_layouts[0];
+			layout_params[num_layout_params].push_descriptors = ranges[0];
 			num_layout_params++;
 
 			ranges[1].type = api::descriptor_type::shader_resource_view;
 			ranges[1].dx_register_index = 0; // t0
 
-			_device->create_descriptor_set_layout(1, &ranges[1], true, &_imgui_set_layouts[1]);
-
 			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[num_layout_params].descriptor_layout = _imgui_set_layouts[1];
+			layout_params[num_layout_params].push_descriptors = ranges[1];
 			num_layout_params++;
 		}
 
@@ -3582,10 +3576,6 @@ void reshade::runtime::destroy_imgui_resources()
 	_imgui_pipeline = {};
 	_device->destroy_pipeline_layout(_imgui_pipeline_layout);
 	_imgui_pipeline_layout = {};
-	_device->destroy_descriptor_set_layout(_imgui_set_layouts[0]);
-	_imgui_set_layouts[0] = {};
-	_device->destroy_descriptor_set_layout(_imgui_set_layouts[1]);
-	_imgui_set_layouts[1] = {};
 }
 
 #endif

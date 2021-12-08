@@ -814,7 +814,7 @@ void VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayo
 		cmd_impl,
 		static_cast<reshade::api::shader_stage>(stageFlags),
 		reshade::api::pipeline_layout { (uint64_t)layout },
-		layout_data->num_sets,
+		static_cast<uint32_t>(layout_data->set_layouts.size()),
 		offset / 4,
 		size / 4,
 		static_cast<const uint32_t *>(pValues));
@@ -846,7 +846,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 		static_cast<reshade::api::shader_stage>(0);
 
 	const auto pip_layout_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(layout);
-	const auto set_layout_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>((VkDescriptorSetLayout)pip_layout_data->params[set].descriptor_layout.handle);
+	const auto set_layout_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pip_layout_data->set_layouts[set]);
 
 	for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
 	{

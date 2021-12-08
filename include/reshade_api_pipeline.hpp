@@ -321,12 +321,6 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(pipeline_layout);
 
 	/// <summary>
-	/// An opaque handle to a descriptor set layout.
-	/// <para>In Vulkan this is a 'VkDescriptorSetLayout' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(descriptor_set_layout);
-
-	/// <summary>
 	/// An opaque handle to a query pool.
 	/// <para>In D3D12 this is a pointer to a 'ID3D12QueryHeap' object, in Vulkan a 'VkQueryPool' handle.</para>
 	/// </summary>
@@ -832,13 +826,6 @@ namespace reshade { namespace api
 	/// </summary>
 	struct pipeline_layout_param
 	{
-		pipeline_layout_param() :
-			type(pipeline_layout_param_type::push_constants), push_constants() {}
-		pipeline_layout_param(const constant_range &push_constants) :
-			type(pipeline_layout_param_type::push_constants), push_constants(push_constants) {}
-		pipeline_layout_param(descriptor_set_layout descriptor_layout) :
-			type(pipeline_layout_param_type::descriptor_set), descriptor_layout(descriptor_layout) {}
-
 		/// <summary>
 		/// Type of the parameter.
 		/// </summary>
@@ -851,9 +838,17 @@ namespace reshade { namespace api
 			/// </summary>
 			constant_range push_constants;
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/> or <see cref="pipeline_layout_param_type::push_descriptors"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::push_descriptors"/>.
 			/// </summary>
-			descriptor_set_layout descriptor_layout;
+			descriptor_range push_descriptors;
+			/// <summary>
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/>.
+			/// </summary>
+			struct
+			{
+				uint32_t count;
+				const descriptor_range *ranges;
+			} descriptor_set;
 		};
 	};
 

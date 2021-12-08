@@ -15,15 +15,16 @@ namespace reshade::d3d12
 
 	extern const GUID extra_data_guid;
 
+	struct pipeline_layout_impl
+	{
+		std::vector<api::pipeline_layout_param> params;
+		std::vector<std::vector<api::descriptor_range>> ranges;
+	};
+
 	struct pipeline_graphics_impl
 	{
 		D3D12_PRIMITIVE_TOPOLOGY topology;
 		FLOAT blend_constant[4];
-	};
-
-	struct descriptor_set_layout_impl
-	{
-		std::vector<api::descriptor_range> ranges;
 	};
 
 	auto convert_format(api::format format) -> DXGI_FORMAT;

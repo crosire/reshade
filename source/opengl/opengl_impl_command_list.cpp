@@ -386,7 +386,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 
 	uint32_t first = update.binding;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
-		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_param];
+		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_param];
 
 	switch (update.type)
 	{

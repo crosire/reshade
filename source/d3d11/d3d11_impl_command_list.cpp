@@ -411,7 +411,7 @@ void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage sta
 
 	uint32_t first = update.offset;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
-		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
+		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
 	switch (update.type)
 	{

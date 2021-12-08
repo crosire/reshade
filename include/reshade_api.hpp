@@ -101,7 +101,7 @@ namespace reshade { namespace api
 		/// Gets the current absolute position of the mouse cursor in screen coordinates.
 		/// </summary>
 		/// <param name="out_x">Pointer to a variable that is set to the X coordinate of the current cursor position.</param>
-		/// <param name="out_Y">Pointer to a variable that is set to the Y coordinate of the current cursor position.</param>
+		/// <param name="out_y">Pointer to a variable that is set to the Y coordinate of the current cursor position.</param>
 		/// <param name="out_wheel_delta">Optional pointer to a variable that is set to the mouse wheel delta since the last frame.</param>
 		virtual void get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta = nullptr) const = 0;
 

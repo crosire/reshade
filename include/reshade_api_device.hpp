@@ -346,33 +346,8 @@ namespace reshade { namespace api
 		/// Gets a layout parameter from the specified pipeline <paramref name="layout"/>.
 		/// </summary>
 		/// <param name="layout">Pipeline layout to get the layout parameter from.</param>
-		/// <param name="index">Index of the layout parameter to get.</param>
-		virtual pipeline_layout_param get_pipeline_layout_param(pipeline_layout layout, uint32_t index) const = 0;
-
-		/// <summary>
-		/// Creates a new descriptor set layout.
-		/// </summary>
-		/// <param name="range_count">Number of descriptor ranges.</param>
-		/// <param name="ranges">Pointer to an array of descriptor ranges that describe this descriptor set layout.</param>
-		/// <param name="push_descriptors"><see langword="true"/> if this layout is later used with <see cref="command_list::push_descriptors"/>, <see langword="false"/> if not.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created descriptor set layout.</param>
-		/// <returns><see langword="true"/> if the descriptor set layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_descriptor_set_layout(uint32_t range_count, const descriptor_range *ranges, bool push_descriptors, descriptor_set_layout *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
-		/// </summary>
-		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
-
-		/// <summary>
-		/// Gets the descriptor of the specified descriptor set <paramref name="layout"/>.
-		/// </summary>
-		/// <remarks>
-		/// Call this first with <paramref name="out_ranges"/> set to <see langword="nullptr"/> to get the size of the array in <paramref name="out_count"/>, then allocate the array and call this again with <paramref name="out_ranges"/> set to it.
-		/// </remarks>
-		/// <param name="layout">Pipeline layout to get the description from.</param>
-		/// <param name="out_count">Pointer to a variable that is set to the number of descriptor ranges in the <paramref name="layout"/>.</param>
-		/// <param name="out_ranges">Optional pointer to an array that is filled with the descriptor ranges in the <paramref name="layout"/>.</param>
-		virtual void get_descriptor_set_layout_ranges(descriptor_set_layout layout, uint32_t *out_count, descriptor_range *out_ranges) const = 0;
+		/// <param name="param">Index of the layout parameter to get.</param>
+		virtual pipeline_layout_param get_pipeline_layout_param(pipeline_layout layout, uint32_t param) const = 0;
 
 		/// <summary>
 		/// Creates a new query pool.
@@ -388,17 +363,30 @@ namespace reshade { namespace api
 		virtual void destroy_query_pool(query_pool handle) = 0;
 
 		/// <summary>
+		/// Allocates a descriptor set from an internal pool.
+		/// </summary>
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
+		/// <param name="out_handle">Pointer to a a variable that is set to the handles of the created descriptor set.</param>
+		/// <returns><see langword="true"/> if the descriptor set was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
+		inline  bool create_descriptor_set(pipeline_layout layout, uint32_t param, descriptor_set *out_handle) { return create_descriptor_sets(1, layout, param, out_handle); }
+		/// <summary>
 		/// Allocates one or more descriptor sets from an internal pool.
 		/// </summary>
 		/// <param name="count">Number of descriptor sets to allocate.</param>
-		/// <param name="layouts">Pointer to an array of layouts to allocate the descriptor sets with.</param>
-		/// <param name="out_sets">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor sets.</param>
-		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
-		virtual bool create_descriptor_sets(uint32_t count, const descriptor_set_layout *layouts, descriptor_set *out_sets) = 0;
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
+		/// <param name="out_handles">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor sets.</param>
+		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
+		virtual bool create_descriptor_sets(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_set *out_handles) = 0;
+		/// <summary>
+		/// Frees adescriptor set that was previously allocated via <see cref="create_descriptor_set"/>.
+		/// </summary>
+		inline  void destroy_descriptor_set(descriptor_set handle) { destroy_descriptor_sets(1, &handle); }
 		/// <summary>
 		/// Frees one or more descriptor sets that were previously allocated via <see cref="create_descriptor_sets"/>.
 		/// </summary>
-		virtual void destroy_descriptor_sets(uint32_t count, const descriptor_set *sets) = 0;
+		virtual void destroy_descriptor_sets(uint32_t count, const descriptor_set *handles) = 0;
 
 		/// <summary>
 		/// Gets the offset (in descriptors) of the specified descriptor <paramref name="set"/> in the underlying pool.
@@ -609,7 +597,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="param">Layout parameter index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="param">Index of the pipeline <paramref name="layout"/> parameter that describes the descriptor set (root parameter index in D3D12, descriptor set index in Vulkan).</param>
 		/// <param name="set">Descriptor set to bind.</param>
 		inline  void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t param, descriptor_set set) { bind_descriptor_sets(stages, layout, param, 1, &set); }
 		/// <summary>
@@ -617,7 +605,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="first">Layout parameter index of the first descriptor set to bind.</param>
+		/// <param name="first">Index of the first pipeline <paramref anem="layout"/> parameter that describes the first descriptor set to bind.</param>
 		/// <param name="count">Number of descriptor sets to bind.</param>
 		/// <param name="sets">Pointer to an array of descriptor sets to bind.</param>
 		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;

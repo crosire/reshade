@@ -27,11 +27,7 @@ namespace reshade::d3d9
 	{
 		std::vector<UINT> shader_registers;
 		std::vector<api::pipeline_layout_param> params;
-	};
-
-	struct descriptor_set_layout_impl
-	{
-		api::descriptor_range range;
+		std::vector<api::descriptor_range> ranges;
 	};
 
 	struct query_pool_impl

@@ -1156,7 +1156,62 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 	// Push constant ranges have to be at the end of the layout description
 	for (; i < param_count && params[i].type != api::pipeline_layout_param_type::push_constants; ++i)
 	{
-		set_layouts.push_back((VkDescriptorSetLayout)params[i].descriptor_layout.handle);
+		const bool push_descriptors = params[i].type == api::pipeline_layout_param_type::push_descriptors;
+		const uint32_t range_count = push_descriptors ? 1 : params[i].descriptor_set.count;
+		const api::descriptor_range *const input_ranges = push_descriptors ? &params[i].push_descriptors : params[i].descriptor_set.ranges;
+
+		object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
+		data.ranges.assign(input_ranges, input_ranges + range_count);
+		data.binding_to_offset.reserve(range_count);
+
+		std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
+		internal_bindings.reserve(range_count);
+
+		for (uint32_t k = 0; k < range_count; ++k)
+		{
+			const api::descriptor_range &range = input_ranges[k];
+
+			if (range.count == 0)
+				continue;
+
+			data.binding_to_offset[range.binding] = range.offset;
+
+			VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
+			internal_binding.binding = range.binding;
+			internal_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
+			internal_binding.descriptorCount = range.array_size;
+			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
+
+			// Add additional bindings if the total descriptor count exceeds the array size of the binding
+			for (uint32_t j = 0; j < (range.count - range.array_size); ++j)
+			{
+				data.binding_to_offset[range.binding + 1 + j] = range.offset + range.array_size + j;
+
+				VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
+				additional_binding.binding = range.binding + 1 + j;
+				additional_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
+				additional_binding.descriptorCount = 1;
+				additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
+			}
+		}
+
+		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
+		create_info.pBindings = internal_bindings.data();
+
+		if (push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
+			create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+
+		if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)
+		{
+			register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layouts.back(), std::move(data));
+		}
+		else
+		{
+			for (VkDescriptorSetLayout set_layout : set_layouts)
+				vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
+			return false;
+		}
 	}
 
 	for (; i < param_count && params[i].type == api::pipeline_layout_param_type::push_constants; ++i)
@@ -1181,7 +1236,11 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 	{
 		object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
 		data.params.assign(params, params + param_count);
-		data.num_sets = create_info.setLayoutCount;
+		data.set_layouts = std::move(set_layouts);
+
+		for (uint32_t k = 0; k < data.set_layouts.size(); ++k)
+			if (params[k].type == api::pipeline_layout_param_type::descriptor_set)
+				data.params[k].descriptor_set.ranges = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(data.set_layouts[k])->ranges.data();
 
 		register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(object, std::move(data));
 
@@ -1195,99 +1254,28 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 }
 void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
+	if (handle.handle == 0)
+		return;
+
+	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)handle.handle);
+
+	for (VkDescriptorSetLayout set_layout : data->set_layouts)
+	{
+		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layout);
+
+		vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
+	}
+
 	unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)handle.handle);
 
 	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
 }
 
-reshade::api::pipeline_layout_param reshade::vulkan::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t index) const
+reshade::api::pipeline_layout_param reshade::vulkan::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t layout_param) const
 {
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);
 
-	return index < data->params.size() ? data->params[index] : api::pipeline_layout_param {};
-}
-
-bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out_handle)
-{
-	*out_handle = { 0 };
-
-	object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
-	data.ranges.assign(ranges, ranges + range_count);
-	data.binding_to_offset.reserve(range_count);
-
-	std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
-	internal_bindings.reserve(range_count);
-
-	for (uint32_t i = 0; i < range_count; ++i)
-	{
-		const api::descriptor_range &range = ranges[i];
-
-		if (range.count == 0)
-			continue;
-
-		data.binding_to_offset[range.binding] = range.offset;
-
-		VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
-		internal_binding.binding = range.binding;
-		internal_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
-		internal_binding.descriptorCount = range.array_size;
-		internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
-
-		// Add additional bindings if the total descriptor count exceeds the array size of the binding
-		for (uint32_t k = 0; k < (range.count - range.array_size); ++k)
-		{
-			data.binding_to_offset[range.binding + 1 + k] = range.offset + range.array_size + k;
-
-			VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
-			additional_binding.binding = range.binding + 1 + k;
-			additional_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
-			additional_binding.descriptorCount = 1;
-			additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
-		}
-	}
-
-	VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-	create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
-	create_info.pBindings = internal_bindings.data();
-
-	if (push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
-		create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-
-	if (VkDescriptorSetLayout object = VK_NULL_HANDLE;
-		vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
-	{
-		register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(object, std::move(data));
-
-		*out_handle = { (uint64_t)object };
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
-{
-	unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>((VkDescriptorSetLayout)handle.handle);
-
-	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
-}
-
-void reshade::vulkan::device_impl::get_descriptor_set_layout_ranges(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
-{
-	assert(count != nullptr);
-
-	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>((VkDescriptorSetLayout)layout.handle);
-
-	if (ranges != nullptr)
-	{
-		*count = std::min(*count, static_cast<uint32_t>(data->ranges.size()));
-		std::memcpy(ranges, data->ranges.data(), *count * sizeof(api::descriptor_range));
-	}
-	else
-	{
-		*count = static_cast<uint32_t>(data->ranges.size());
-	}
+	return layout_param < data->params.size() ? data->params[layout_param] : api::pipeline_layout_param {};
 }
 
 bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out_handle)
@@ -1347,14 +1335,18 @@ void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
 	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
 }
 
-bool reshade::vulkan::device_impl::create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out_sets)
+bool reshade::vulkan::device_impl::create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
 {
-	static_assert(sizeof(*layouts) == sizeof(VkDescriptorSetLayout) && sizeof(*out_sets) == sizeof(VkDescriptorSet));
+	static_assert(sizeof(*out_sets) == sizeof(VkDescriptorSet));
+
+	const auto layout_data = get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);
+
+	std::vector<VkDescriptorSetLayout> set_layouts(count, layout_data->set_layouts[layout_param]);
 
 	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	alloc_info.descriptorPool = _descriptor_pool;
 	alloc_info.descriptorSetCount = count;
-	alloc_info.pSetLayouts = reinterpret_cast<const VkDescriptorSetLayout *>(layouts);
+	alloc_info.pSetLayouts = set_layouts.data();
 
 	if (vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out_sets)) == VK_SUCCESS)
 	{
@@ -1363,7 +1355,7 @@ bool reshade::vulkan::device_impl::create_descriptor_sets(uint32_t count, const 
 			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET> data;
 			data.pool = VK_NULL_HANDLE; // "get_descriptor_pool_offset" is not supported for the internal pool
 			data.offset = 0;
-			data.layout = (VkDescriptorSetLayout)layouts[i].handle;
+			data.layout = layout_data->set_layouts[layout_param];
 
 			register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)out_sets[i].handle, std::move(data));
 		}

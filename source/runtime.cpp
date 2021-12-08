@@ -1677,28 +1677,28 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[3].visibility = api::shader_stage::all;
 
 	api::pipeline_layout_param layout_params[4];
-	_device->create_descriptor_set_layout(1, &layout_ranges[0], false, &effect.set_layouts[0]);
 	layout_params[0].type = api::pipeline_layout_param_type::descriptor_set;
-	layout_params[0].descriptor_layout = effect.set_layouts[0];
+	layout_params[0].descriptor_set.count = 1;
+	layout_params[0].descriptor_set.ranges = &layout_ranges[0];
 
-	_device->create_descriptor_set_layout(1, &layout_ranges[1], false, &effect.set_layouts[1]);
 	layout_params[1].type = api::pipeline_layout_param_type::descriptor_set;
-	layout_params[1].descriptor_layout = effect.set_layouts[1];
+	layout_params[1].descriptor_set.count = 1;
+	layout_params[1].descriptor_set.ranges = &layout_ranges[1];
 
 	if (sampler_with_resource_view)
 	{
-		_device->create_descriptor_set_layout(1, &layout_ranges[3], false, &effect.set_layouts[3]);
 		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[2].descriptor_layout = effect.set_layouts[3];
+		layout_params[2].descriptor_set.count = 1;
+		layout_params[2].descriptor_set.ranges = &layout_ranges[3];
 	}
 	else
 	{
-		_device->create_descriptor_set_layout(1, &layout_ranges[2], false, &effect.set_layouts[2]);
 		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[2].descriptor_layout = effect.set_layouts[2];
-		_device->create_descriptor_set_layout(1, &layout_ranges[3], false, &effect.set_layouts[3]);
+		layout_params[2].descriptor_set.count = 1;
+		layout_params[2].descriptor_set.ranges = &layout_ranges[2];
 		layout_params[3].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[3].descriptor_layout = effect.set_layouts[3];
+		layout_params[3].descriptor_set.count = 1;
+		layout_params[3].descriptor_set.ranges = &layout_ranges[3];
 	}
 
 	// Create pipeline layout for this effect
@@ -1733,7 +1733,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		_device->set_resource_name(effect.cb, "ReShade constant buffer");
 
-		if (!_device->create_descriptor_sets(1, &effect.set_layouts[0], &effect.cb_set))
+		if (!_device->create_descriptor_set(effect.layout, 0, &effect.cb_set))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1753,18 +1753,16 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	}
 
 	// Initialize bindings
-	size_t total_pass_count = 0;
+	uint32_t total_pass_count = 0;
 	for (const reshadefx::technique_info &info : effect.module.techniques)
-		total_pass_count += info.passes.size();
+		total_pass_count += static_cast<uint32_t>(info.passes.size());
 
 	std::vector<api::descriptor_set> texture_tables(total_pass_count);
 	std::vector<api::descriptor_set> storage_tables(total_pass_count);
 
 	if (effect.module.num_sampler_bindings != 0)
 	{
-		const std::vector<api::descriptor_set_layout> layouts(sampler_with_resource_view ? total_pass_count : 1, effect.set_layouts[1]);
-
-		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), sampler_with_resource_view ? texture_tables.data() : &effect.sampler_set))
+		if (!_device->create_descriptor_sets(sampler_with_resource_view ? total_pass_count : 1, effect.layout, 1, sampler_with_resource_view ? texture_tables.data() : &effect.sampler_set))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1823,9 +1821,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		assert(!sampler_with_resource_view);
 
-		const std::vector<api::descriptor_set_layout> layouts(total_pass_count, effect.set_layouts[2]);
-
-		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), texture_tables.data()))
+		if (!_device->create_descriptor_sets(total_pass_count, effect.layout, 2, texture_tables.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1837,9 +1833,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	if (effect.module.num_storage_bindings != 0)
 	{
-		const std::vector<api::descriptor_set_layout> layouts(total_pass_count, effect.set_layouts[3]);
-
-		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), storage_tables.data()))
+		if (!_device->create_descriptor_sets(total_pass_count, effect.layout, 3, storage_tables.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -2229,12 +2223,6 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 
 		_device->destroy_pipeline_layout(effect.layout);
 		effect.layout = {};
-
-		for (int i = 0; i < 4; ++i)
-		{
-			_device->destroy_descriptor_set_layout(effect.set_layouts[i]);
-			effect.set_layouts[i] = {};
-		}
 
 		_device->destroy_query_pool(effect.query_pool);
 		effect.query_pool = {};
