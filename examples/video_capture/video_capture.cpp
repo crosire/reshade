@@ -12,10 +12,8 @@ extern "C" {
 #include <libavformat/avformat.h>
 }
 
-struct video_capture
+struct __declspec(uuid("0D7525F9-C4E1-426E-BC99-15BBD5FD51F2")) video_capture
 {
-	static constexpr uint8_t GUID[16] = { 0x0D, 0x75, 0x25, 0xF9, 0xC4, 0xE1, 0x42, 0x6E, 0xBC, 0x99, 0x15, 0xBB, 0xD5, 0xFD, 0x51, 0xF2 };
-
 	AVCodecContext *codec_ctx = nullptr;
 	AVFormatContext *output_ctx = nullptr;
 	AVFrame *frame = nullptr;
@@ -199,11 +197,11 @@ static void encode_frame(AVCodecContext *enc, AVFormatContext *s, AVFrame *frame
 
 static void on_init(reshade::api::swapchain *swapchain)
 {
-	swapchain->create_private_data<video_capture>(video_capture::GUID);
+	swapchain->create_private_data<video_capture>();
 }
 static void on_destroy(reshade::api::swapchain *swapchain)
 {
-	video_capture &data = swapchain->get_private_data<video_capture>(video_capture::GUID);
+	video_capture &data = swapchain->get_private_data<video_capture>();
 
 	if (data.host_resource != 0)
 		swapchain->get_device()->destroy_resource(data.host_resource);
@@ -214,12 +212,12 @@ static void on_destroy(reshade::api::swapchain *swapchain)
 
 	data.destroy_format_ctx(); data.destroy_codec_ctx();
 
-	swapchain->destroy_private_data<video_capture>(video_capture::GUID);
+	swapchain->destroy_private_data<video_capture>();
 }
 
 static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, reshade::api::command_list *, reshade::api::resource_view rtv, reshade::api::resource_view)
 {
-	video_capture &data = runtime->get_private_data<video_capture>(video_capture::GUID);
+	video_capture &data = runtime->get_private_data<video_capture>();
 
 	reshade::api::device *const device = runtime->get_device();
 

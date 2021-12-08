@@ -194,30 +194,30 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets a reference to user-defined data from the object that was previously allocated via <see cref="create_private_data"/>.
 		/// </summary>
-		template <typename T> inline T &get_private_data(const uint8_t guid[16])
+		template <typename T> inline T &get_private_data() const
 		{
 			uint64_t res;
-			get_private_data(guid, &res);
+			get_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)), &res);
 			return *reinterpret_cast<T *>(static_cast<uintptr_t>(res));
 		}
 		/// <summary>
 		/// Allocates user-defined data and stores it in the object.
 		/// </summary>
-		template <typename T> inline T &create_private_data(const uint8_t guid[16])
+		template <typename T> inline T &create_private_data()
 		{
 			uint64_t res = reinterpret_cast<uintptr_t>(new T());
-			set_private_data(guid,  res);
+			set_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)),  res);
 			return *reinterpret_cast<T *>(static_cast<uintptr_t>(res));
 		}
 		/// <summary>
 		/// Frees user-defined data that was previously allocated via <see cref="create_private_data"/>.
 		/// </summary>
-		template <typename T> inline void destroy_private_data(const uint8_t guid[16])
+		template <typename T> inline void destroy_private_data()
 		{
 			uint64_t res;
-			get_private_data(guid, &res);
+			get_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)), &res);
 			delete  reinterpret_cast<T *>(static_cast<uintptr_t>(res));
-			set_private_data(guid, 0);
+			set_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)), 0);
 		}
 	};
 

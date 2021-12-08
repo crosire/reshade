@@ -43,10 +43,8 @@ struct depth_stencil_hash
 	}
 };
 
-struct state_tracking
+struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 {
-	static constexpr uint8_t GUID[16] = { 0x43, 0x31, 0x9e, 0x83, 0x38, 0x7c, 0x44, 0x8e, 0x88, 0x1c, 0x7e, 0x68, 0xfc, 0x2e, 0x52, 0xc4 };
-
 	draw_stats best_copy_stats;
 	bool first_empty_stats = true;
 	bool has_indirect_drawcalls = false;
@@ -104,10 +102,8 @@ struct state_tracking
 	}
 };
 
-struct state_tracking_context
+struct __declspec(uuid("7c6363c7-f94e-437a-9160-141782c44a98")) state_tracking_context
 {
-	static constexpr uint8_t GUID[16] = { 0x7c, 0x63, 0x63, 0xc7, 0xf9, 0x4e, 0x43, 0x7a, 0x91, 0x60, 0x14, 0x17, 0x82, 0xc4, 0x4a, 0x98 };
-
 	// Enable or disable the creation of backup copies at clear operations on the selected depth-stencil
 	bool preserve_depth_buffers = false;
 	// Enable or disable the aspect ratio check from 'check_aspect_ratio' in the detection heuristic
@@ -239,7 +235,7 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 static void update_effect_runtime(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
-	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	// TODO: This only works reliably if there is a single effect runtime (swap chain).
 	// With multiple presenting swap chains it can happen that not all effect runtimes are updated after the selected depth-stencil resource changed (or worse the backup texture was updated).
@@ -254,7 +250,7 @@ static void update_effect_runtime(effect_runtime *runtime)
 
 static void on_init_device(device *device)
 {
-	state_tracking_context &device_state = device->create_private_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->create_private_data<state_tracking_context>();
 
 	reshade::get_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
 	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
@@ -266,22 +262,22 @@ static void on_init_device(device *device)
 }
 static void on_init_queue_or_command_list(api_object *queue_or_cmd_list)
 {
-	queue_or_cmd_list->create_private_data<state_tracking>(state_tracking::GUID);
+	queue_or_cmd_list->create_private_data<state_tracking>();
 }
 static void on_destroy_device(device *device)
 {
-	state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	if (device_state.backup_texture != 0)
 		device->destroy_resource(device_state.backup_texture);
 	if (device_state.selected_shader_resource != 0)
 		device->destroy_resource_view(device_state.selected_shader_resource);
 
-	device->destroy_private_data<state_tracking_context>(state_tracking_context::GUID);
+	device->destroy_private_data<state_tracking_context>();
 }
 static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 {
-	queue_or_cmd_list->destroy_private_data<state_tracking>(state_tracking::GUID);
+	queue_or_cmd_list->destroy_private_data<state_tracking>();
 }
 
 static bool on_create_resource(device *device, resource_desc &desc, subresource_data *, resource_usage)
@@ -349,7 +345,7 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 }
 static void on_destroy_resource(device *device, resource resource)
 {
-	state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
 	// The state tracking context would have been destroyed already in that case, so return early if it does not exist
@@ -362,7 +358,7 @@ static void on_destroy_resource(device *device, resource resource)
 
 static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
 {
-	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
+	auto &state = cmd_list->get_private_data<state_tracking>();
 	if (state.current_depth_stencil == 0)
 		return false; // This is a draw call with no depth-stencil bound
 
@@ -400,7 +396,7 @@ static bool on_draw_indirect(command_list *cmd_list, indirect_command type, reso
 	for (uint32_t i = 0; i < draw_count; ++i)
 		on_draw(cmd_list, 0, 0, 0, 0);
 
-	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
+	auto &state = cmd_list->get_private_data<state_tracking>();
 	state.has_indirect_drawcalls = true;
 
 	return false;
@@ -411,13 +407,13 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 	if (first != 0 || count == 0)
 		return; // Only interested in the main viewport
 
-	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
+	auto &state = cmd_list->get_private_data<state_tracking>();
 	state.current_viewport = viewport[0];
 }
 static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resource_view *, resource_view depth_stencil_view)
 {
 	device *const device = cmd_list->get_device();
-	auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
+	auto &state = cmd_list->get_private_data<state_tracking>();
 
 	resource depth_stencil = { 0 };
 	if (depth_stencil_view != 0)
@@ -425,19 +421,19 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
 	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
-		clear_depth_impl(cmd_list, state, device->get_private_data<state_tracking_context>(state_tracking_context::GUID), state.current_depth_stencil, true);
+		clear_depth_impl(cmd_list, state, device->get_private_data<state_tracking_context>(), state.current_depth_stencil, true);
 
 	state.current_depth_stencil = depth_stencil;
 }
 static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, const float *depth, const uint8_t *, uint32_t, const rect *)
 {
 	device *const device = cmd_list->get_device();
-	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
 	if (depth != nullptr && device_state.preserve_depth_buffers)
 	{
-		auto &state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
+		auto &state = cmd_list->get_private_data<state_tracking>();
 
 		const resource depth_stencil = device->get_resource_from_view(dsv);
 
@@ -458,13 +454,13 @@ static void on_begin_render_pass_with_depth_stencil(command_list *cmd_list, uint
 
 static void on_reset(command_list *cmd_list)
 {
-	auto &target_state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
+	auto &target_state = cmd_list->get_private_data<state_tracking>();
 	target_state.reset();
 }
 static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 {
-	auto &source_state = cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
-	auto &target_state = queue_or_cmd_list->get_private_data<state_tracking>(state_tracking::GUID);
+	auto &source_state = cmd_list->get_private_data<state_tracking>();
+	auto &target_state = queue_or_cmd_list->get_private_data<state_tracking>();
 	target_state.merge(source_state);
 }
 
@@ -473,8 +469,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 	effect_runtime *const runtime = swapchain->get_effect_runtime();
 	device *const device = runtime->get_device();
 	command_queue *const queue = runtime->get_command_queue();
-	state_tracking &queue_state = queue->get_private_data<state_tracking>(state_tracking::GUID);
-	state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking &queue_state = queue->get_private_data<state_tracking>();
+	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	device_state.current_depth_stencil_list.clear();
 	device_state.current_depth_stencil_list.reserve(queue_state.counters_per_used_depth_stencil.size());
@@ -619,7 +615,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_list, resource_view, resource_view)
 {
 	device *const device = runtime->get_device();
-	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	if (device_state.selected_shader_resource != 0)
 	{
@@ -638,7 +634,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_list, resource_view, resource_view)
 {
 	device *const device = runtime->get_device();
-	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	if (device_state.selected_shader_resource != 0)
 	{
@@ -658,7 +654,7 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 static void draw_settings_overlay(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
-	state_tracking_context &device_state = device->get_private_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	bool modified = false;
 	if (device->get_api() == device_api::d3d9)

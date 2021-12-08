@@ -28,17 +28,13 @@ struct tex_hash
 	}
 };
 
-struct cmd_data
+struct __declspec(uuid("f326a1eb-5062-453e-9852-a787594a977a")) cmd_data
 {
-	static constexpr uint8_t GUID[16] = { 0xf3, 0x26, 0xa1, 0xeb, 0x50, 0x62, 0x45, 0x3e, 0x98, 0x52, 0xa7, 0x87, 0x59, 0x4a, 0x97, 0x7a };
-
 	std::unordered_set<resource_view, tex_hash> current_texture_list;
 };
 
-struct device_data
+struct __declspec(uuid("0ce51b56-a973-4104-bcca-945686f50170")) device_data
 {
-	static constexpr uint8_t GUID[16] = { 0x0c, 0xe5, 0x1b, 0x56, 0xa9, 0x73, 0x41, 0x04, 0xbc, 0xca, 0x94, 0x56, 0x86, 0xf5, 0x01, 0x70 };
-
 	resource green_texture = {};
 	resource_view green_texture_srv = {};
 	resource_view replaced_texture_srv = {};
@@ -56,7 +52,7 @@ static bool s_is_in_reshade_runtime = false;
 
 static void on_init_device(device *device)
 {
-	auto &data = device->create_private_data<device_data>(device_data::GUID);
+	auto &data = device->create_private_data<device_data>();
 
 	constexpr uint32_t GREEN = 0xff00ff00;
 
@@ -76,20 +72,20 @@ static void on_init_device(device *device)
 }
 static void on_destroy_device(device *device)
 {
-	auto &data = device->get_private_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>();
 
 	device->destroy_resource(data.green_texture);
 	device->destroy_resource_view(data.green_texture_srv);
 
-	device->destroy_private_data<device_data>(device_data::GUID);
+	device->destroy_private_data<device_data>();
 }
 static void on_init_cmd_list(command_list *cmd_list)
 {
-	cmd_list->create_private_data<cmd_data>(cmd_data::GUID);
+	cmd_list->create_private_data<cmd_data>();
 }
 static void on_destroy_cmd_list(command_list *cmd_list)
 {
-	cmd_list->destroy_private_data<cmd_data>(cmd_data::GUID);
+	cmd_list->destroy_private_data<cmd_data>();
 }
 
 static void on_init_texture(device *device, const resource_desc &desc, const subresource_data *, resource_usage, resource res)
@@ -99,7 +95,7 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
 		return;
 
-	auto &data = device->get_private_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>();
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
@@ -107,7 +103,7 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 }
 static void on_destroy_texture(device *device, resource res)
 {
-	auto &data = device->get_private_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>();
 
 	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
 	if (&data == nullptr)
@@ -128,7 +124,7 @@ static void on_destroy_texture(device *device, resource res)
 }
 static void on_destroy_texture_view(device *device, resource_view view)
 {
-	auto &data = device->get_private_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>();
 
 	// In some cases the 'destroy_device' event may be called before all resource views have been destroyed
 	if (&data == nullptr)
@@ -155,8 +151,8 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 		return;
 
 	device *const device = cmd_list->get_device();
-	auto &data = device->get_private_data<device_data>(device_data::GUID);
-	auto &cmd_data = cmd_list->get_private_data<::cmd_data>(::cmd_data::GUID);
+	auto &data = device->get_private_data<struct device_data>();
+	auto &cmd_data = cmd_list->get_private_data<struct cmd_data>();
 
 	for (uint32_t i = 0; i < update.count; ++i)
 	{
@@ -212,8 +208,8 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 		return;
 
 	device *const device = cmd_list->get_device();
-	auto &cmd_data = cmd_list->get_private_data<::cmd_data>(::cmd_data::GUID);
-	auto &descriptor_data = device->get_private_data<descriptor_set_tracking>(descriptor_set_tracking::GUID);
+	auto &cmd_data = cmd_list->get_private_data<struct cmd_data>();
+	auto &descriptor_data = device->get_private_data<struct descriptor_set_tracking>();
 	assert((&descriptor_data) != nullptr);
 
 	for (uint32_t i = 0; i < count; ++i)
@@ -247,8 +243,8 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 static void on_execute(command_queue *, command_list *cmd_list)
 {
 	device *const device = cmd_list->get_device();
-	auto &data = device->get_private_data<device_data>(device_data::GUID);
-	auto &cmd_data = cmd_list->get_private_data<::cmd_data>(::cmd_data::GUID);
+	auto &data = device->get_private_data<struct device_data>();
+	auto &cmd_data = cmd_list->get_private_data<struct cmd_data>();
 
 	data.current_texture_list.insert(cmd_data.current_texture_list.begin(), cmd_data.current_texture_list.end());
 	cmd_data.current_texture_list.clear();
@@ -261,7 +257,7 @@ static void on_present(command_queue *queue, swapchain *runtime)
 	if (device->get_api() != device_api::d3d12 && device->get_api() != device_api::vulkan)
 		on_execute(queue, queue->get_immediate_command_list());
 
-	auto &data = device->get_private_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>();
 
 	data.frame_index++;
 
@@ -306,7 +302,7 @@ static void draw_overlay(effect_runtime *runtime)
 	assert(s_is_in_reshade_runtime);
 
 	device *const device = runtime->get_device();
-	auto &data = device->get_private_data<device_data>(device_data::GUID);
+	auto &data = device->get_private_data<device_data>();
 
 	ImGui::Checkbox("Show only used this frame", &data.filter);
 
