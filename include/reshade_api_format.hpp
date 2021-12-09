@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cfloat>
 #include <cstdint>
 
 namespace reshade { namespace api

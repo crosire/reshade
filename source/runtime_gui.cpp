@@ -3390,7 +3390,7 @@ bool reshade::runtime::init_imgui_resources()
 	}
 
 	{	auto &rasterizer_state = pso_desc.graphics.rasterizer_state;
-		rasterizer_state.depth_clip_enable = true;
+		rasterizer_state.cull_mode = api::cull_mode::none;
 		rasterizer_state.scissor_enable = true;
 	}
 
@@ -3400,9 +3400,6 @@ bool reshade::runtime::init_imgui_resources()
 	}
 
 	pso_desc.graphics.topology = api::primitive_topology::triangle_list;
-	pso_desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
-	pso_desc.graphics.sample_count = 1;
-	pso_desc.graphics.viewport_count = 1;
 	pso_desc.graphics.render_target_formats[0] = _back_buffer_format;
 
 	if (_device->create_pipeline(pso_desc, 0, nullptr, &_imgui_pipeline))

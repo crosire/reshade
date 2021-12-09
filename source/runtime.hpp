@@ -369,9 +369,10 @@ namespace reshade
 		api::resource_view _empty_srv = {};
 		api::resource _effect_color_tex = {};
 		api::resource_view _effect_color_srv[2] = {};
+		std::vector<api::resource_view> _back_buffer_targets;
+		api::format _effect_stencil_format = api::format::unknown;
 		api::resource _effect_stencil_tex = {};
 		api::resource_view _effect_stencil_dsv = {};
-		std::vector<api::resource_view> _back_buffer_targets;
 
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;

@@ -390,7 +390,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	}
 
 	const UINT push_constants_slot = (layout.handle != 0 && layout != global_pipeline_layout) ?
-		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param] : 0;
+		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].dx_register_index : 0;
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetConstantBuffers(push_constants_slot, 1, &push_constants);
@@ -411,7 +411,7 @@ void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage sta
 
 	uint32_t first = update.offset;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
-		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
+		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].dx_register_index;
 
 	switch (update.type)
 	{

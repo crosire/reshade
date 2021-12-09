@@ -605,7 +605,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="first">Index of the first pipeline <paramref anem="layout"/> parameter that describes the first descriptor set to bind.</param>
+		/// <param name="first">Index of the first pipeline <paramref name="layout"/> parameter that describes the first descriptor set to bind.</param>
 		/// <param name="count">Number of descriptor sets to bind.</param>
 		/// <param name="sets">Pointer to an array of descriptor sets to bind.</param>
 		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;

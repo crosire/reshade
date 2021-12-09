@@ -1306,7 +1306,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		return make_resource_view_handle(0, 0);
 	}
 
-	GLenum target = GL_NONE, object = 0;
+	GLenum target = GL_NONE, object = 0, format = GL_NONE;
 	if (_supports_dsa)
 	{
 		glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
@@ -1316,9 +1316,17 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		{
 			glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
 
-			// Get actual texture target from the texture object
 			if (target == GL_TEXTURE)
+			{
+				// Get actual texture target from the texture object
 				glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+			}
+			else if (target == GL_RENDERBUFFER)
+			{
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+			}
 		}
 	}
 	else
@@ -1337,8 +1345,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		glBindFramebuffer(GL_FRAMEBUFFER, prev_object);
 	}
 
-	const auto format = get_resource_view_desc(make_resource_view_handle(target, object)).format;
-	const bool has_srgb_attachment = format != api::format_to_default_typed(format, 0);
+	const bool has_srgb_attachment = convert_format(format) != api::format_to_default_typed(convert_format(format), 0);
 
 	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
 	return make_resource_view_handle(target, object, (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT) && has_srgb_attachment ? 0x2 : 0);
@@ -1348,7 +1355,6 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 {
 	*out_handle = { 0 };
 
-	std::vector<GLuint> bindings(param_count);
 	std::vector<api::descriptor_range> ranges(param_count);
 
 	for (uint32_t i = 0; i < param_count; ++i)
@@ -1394,26 +1400,21 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 					merged_range.visibility |= range.visibility;
 				}
 			}
-
-			bindings[i] = merged_range.binding;
 			break;
 		case api::pipeline_layout_param_type::push_descriptors:
 			merged_range = params[i].push_descriptors;
-
-			bindings[i] = merged_range.binding;
 			break;
 		case api::pipeline_layout_param_type::push_constants:
 			if (params[i].push_constants.offset != 0)
 				return false;
 
-			bindings[i] = params[i].push_constants.binding;
+			merged_range.binding = params[i].push_constants.binding;
 			break;
 		}
 	}
 
 	const auto impl = new pipeline_layout_impl();
 	impl->params.assign(params, params + param_count);
-	impl->bindings = std::move(bindings);
 	impl->ranges = std::move(ranges);
 
 	for (uint32_t i = 0; i < param_count; ++i)

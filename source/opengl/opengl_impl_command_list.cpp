@@ -356,7 +356,7 @@ void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t c
 void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
 	const GLuint push_constants_binding = (layout.handle != 0 && layout != global_pipeline_layout) ?
-		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_param] : 0;
+		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
 
 	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
 	glBindBufferBase(GL_UNIFORM_BUFFER, push_constants_binding, _push_constants);
@@ -386,7 +386,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 
 	uint32_t first = update.binding;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
-		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_param];
+		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding;
 
 	switch (update.type)
 	{

@@ -25,7 +25,6 @@ namespace reshade::d3d9
 
 	struct pipeline_layout_impl
 	{
-		std::vector<UINT> shader_registers;
 		std::vector<api::pipeline_layout_param> params;
 		std::vector<api::descriptor_range> ranges;
 	};

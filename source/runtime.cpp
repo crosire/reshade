@@ -191,7 +191,6 @@ bool reshade::runtime::on_init(input::window_handle window)
 	}
 
 	// Create effect stencil resource
-	api::format selected_stencil_format = api::format::unknown;
 	if (_effect_stencil_tex == 0)
 	{
 		// Find a supported stencil format with the smallest footprint (since the depth component is not used)
@@ -206,15 +205,15 @@ bool reshade::runtime::on_init(input::window_handle window)
 		{
 			if (_device->check_format_support(format, api::resource_usage::depth_stencil))
 			{
-				selected_stencil_format = format;
+				_effect_stencil_format = format;
 				break;
 			}
 		}
 
-		assert(selected_stencil_format != api::format::unknown);
+		assert(_effect_stencil_format != api::format::unknown);
 
 		if (!_device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, selected_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
+			api::resource_desc(_width, _height, 1, 1, _effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
 			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
 		{
 			LOG(ERROR) << "Failed to create effect stencil resource!";
@@ -223,15 +222,11 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 		_device->set_resource_name(_effect_stencil_tex, "ReShade effect stencil");
 
-		if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(selected_stencil_format), &_effect_stencil_dsv))
+		if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(_effect_stencil_format), &_effect_stencil_dsv))
 		{
 			LOG(ERROR) << "Failed to create effect stencil resource view!";
 			goto exit_failure;
 		}
-	}
-	else
-	{
-		selected_stencil_format = _device->get_resource_desc(_effect_stencil_tex).texture.format;
 	}
 
 	// Create render targets for the back buffer resources
@@ -1919,7 +1914,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					pass_info.viewport_width = _width;
 					pass_info.viewport_height = _height;
 
-					desc.graphics.depth_stencil_format = _device->get_resource_desc(_effect_stencil_tex).texture.format;
+					desc.graphics.depth_stencil_format = _effect_stencil_format;
 					desc.graphics.render_target_formats[0] = api::format_to_default_typed(_back_buffer_format, pass_info.srgb_write_enable);
 				}
 				else
@@ -1929,7 +1924,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						pass_info.viewport_width == _width &&
 						pass_info.viewport_height == _height)
 					{
-						desc.graphics.depth_stencil_format = _device->get_resource_desc(_effect_stencil_tex).texture.format;
+						desc.graphics.depth_stencil_format = _effect_stencil_format;
 					}
 
 					for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
@@ -1951,9 +1946,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				}
 
 				desc.graphics.topology = static_cast<api::primitive_topology>(pass_info.topology);
-				desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
-				desc.graphics.sample_count = 1;
-				desc.graphics.viewport_count = 1;
 
 				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
 					switch (value)
@@ -1996,9 +1988,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				}
 
 				auto &rasterizer_state = desc.graphics.rasterizer_state;
-				rasterizer_state.fill_mode = api::fill_mode::solid;
 				rasterizer_state.cull_mode = api::cull_mode::none;
-				rasterizer_state.depth_clip_enable = true;
 
 				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
 					switch (value) {

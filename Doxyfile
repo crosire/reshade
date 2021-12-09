@@ -17,6 +17,7 @@ GENERATE_LATEX         = NO
 SHOW_USED_FILES        = YES
 SHOW_FILES             = YES
 SHOW_NAMESPACES        = YES
+MAX_INITIALIZER_LINES  = 0
 
 # Parser configuration
 

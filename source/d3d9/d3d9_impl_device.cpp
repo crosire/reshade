@@ -1075,7 +1075,6 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 {
 	*out_handle = { 0 };
 
-	std::vector<UINT> shader_registers(param_count);
 	std::vector<api::descriptor_range> ranges(param_count);
 
 	for (uint32_t i = 0; i < param_count; ++i)
@@ -1123,28 +1122,21 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 					merged_range.visibility |= range.visibility;
 				}
 			}
-
-			shader_registers[i] = merged_range.dx_register_index;
 			break;
 		case api::pipeline_layout_param_type::push_descriptors:
 			merged_range = params[i].push_descriptors;
 			if (merged_range.dx_register_space != 0)
 				return false;
-
-			shader_registers[i] = merged_range.dx_register_index;
 			break;
 		case api::pipeline_layout_param_type::push_constants:
 			if (params[i].push_constants.dx_register_space != 0)
 				return false;
-
-			shader_registers[i] = params[i].push_constants.offset / 4;
 			break;
 		}
 	}
 
 	const auto impl = new pipeline_layout_impl();
 	impl->params.assign(params, params + param_count);
-	impl->shader_registers = std::move(shader_registers);
 	impl->ranges = std::move(ranges);
 
 	for (uint32_t i = 0; i < param_count; ++i)
