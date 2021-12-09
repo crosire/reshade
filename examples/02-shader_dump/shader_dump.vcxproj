@@ -20,11 +20,11 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{D80FD73E-5195-462A-B963-9A1CE30E2944}</ProjectGuid>
+    <ProjectGuid>{F1541A1E-CE3E-4D1B-87B7-F6E0D5C68B73}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformVersion Condition="'$(VisualStudioVersion)'=='16.0'">10.0</WindowsTargetPlatformVersion>
-    <ProjectName>ShaderMod Replace</ProjectName>
+    <ProjectName>02-shader_dump</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -117,7 +117,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="shadermod_replace.cpp" />
+    <ClCompile Include="shader_dump.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crc32_hash.hpp" />

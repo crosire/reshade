@@ -14,7 +14,7 @@ extern bool dump_texture(const resource_desc &desc, const subresource_data &data
 static bool dump_texture(const resource_desc &desc, const subresource_data &data)
 {
 	// Prepend executable file name to image files
-	WCHAR file_prefix[MAX_PATH] = {};
+	WCHAR file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
 	return dump_texture(desc, data, std::wstring(file_prefix) + L'_');

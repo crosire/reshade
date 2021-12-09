@@ -84,7 +84,7 @@
     <ClCompile Include="source\addon_manager.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="examples\generic_depth\generic_depth.cpp">
+    <ClCompile Include="examples\10-generic_depth\generic_depth.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\input.cpp">

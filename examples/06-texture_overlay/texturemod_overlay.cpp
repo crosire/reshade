@@ -291,7 +291,7 @@ extern bool dump_texture(command_queue *queue, resource tex, const resource_desc
 static bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 {
 	// Prepend executable file name to image files
-	WCHAR file_prefix[MAX_PATH] = {};
+	WCHAR file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
 	return dump_texture(queue, tex, desc, std::wstring(file_prefix) + L'_');
