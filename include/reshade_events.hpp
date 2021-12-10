@@ -550,12 +550,38 @@ namespace reshade
 		/// <item><description>glDeleteProgram</description></item>
 		/// <item><description>vkDestroyPipeline</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline pipeline)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, api::pipeline pipeline)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Is not called in D3D9.
 		/// </remarks>
 		destroy_pipeline,
+
+		/// <summary>
+		/// Called after successfull pipeline layout creation from:
+		/// <list type="bullet">
+		/// <item><description>ID3D12Device::CreateRootSignature</description></item>
+		/// <item><description>vkCreatePipelineLayout</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout layout)</c></para>
+		/// </summary>
+		init_pipeline_layout,
+
+		/// <summary>
+		/// Called on pipeline layout creation.
+		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t param_count, const api::pipeline_layout_param *params)</c></para>
+		/// </summary>
+		create_pipeline_layout,
+
+		/// <summary>
+		/// Called on pipeline layout destruction, before:
+		/// <list type="bullet">
+		/// <item><description>ID3D12RootSignature::Release</description></item>
+		/// <item><description>VkDestroyPipelineLayout</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::pipeline_layout layout)</c></para>
+		/// </summary>
+		destroy_pipeline_layout,
 
 		/// <summary>
 		/// Called after:
@@ -1334,6 +1360,10 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline, void, api::device *device, const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline pipeline);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline_layout, void, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout layout);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline_layout, bool, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline_layout, void, api::device *device, api::pipeline_layout layout);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::map_buffer_region, void, api::device *device, api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **data);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::unmap_buffer_region, void, api::device *device, api::resource resource);

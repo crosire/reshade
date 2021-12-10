@@ -598,7 +598,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 
 				root_signature->SetPrivateData(reshade::d3d12::extra_data_guid, sizeof(impl), &impl);
 
-				register_destruction_callback(root_signature, [impl]() {
+				reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(impl->params.size()), impl->params.data(), reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
+
+				register_destruction_callback(root_signature, [this, root_signature, impl]() {
+					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
+
 					delete impl;
 				});
 			}

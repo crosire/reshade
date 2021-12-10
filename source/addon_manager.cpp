@@ -47,6 +47,9 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(init_pipeline);
 		CASE(create_pipeline);
 		CASE(destroy_pipeline);
+		CASE(init_pipeline_layout);
+		CASE(create_pipeline_layout);
+		CASE(destroy_pipeline_layout);
 		CASE(map_buffer_region);
 		CASE(unmap_buffer_region);
 		CASE(map_texture_region);
