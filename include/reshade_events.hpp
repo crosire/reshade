@@ -692,9 +692,24 @@ namespace reshade
 		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
-		/// <item><description>ID3D12Device::CreateConstantBufferView</description></item>
 		/// <item><description>ID3D12Device::CopyDescriptors</description></item>
 		/// <item><description>ID3D12Device::CopyDescriptorsSimple</description></item>
+		/// <item><description>vkUpdateDescriptorSets</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t count, const api::descriptor_set_copy *copies)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		copy_descriptor_sets,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
+		/// <item><description>ID3D12Device::CreateConstantBufferView</description></item>
+		/// <item><description>ID3D12Device::CreateShaderResourceView</description></item>
+		/// <item><description>ID3D12Device::CreateUnorderedAccessView</description></item>
+		/// <item><description>ID3D12Device::CreateSampler</description></item>
 		/// <item><description>vkUpdateDescriptorSets</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t count, const api::descriptor_set_update *updates)</c></para>
@@ -1373,6 +1388,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_buffer_region, bool, api::device *device, const void *data, api::resource resource, uint64_t offset, uint64_t size);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box);
 
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_descriptor_sets, bool, api::device *device, uint32_t count, const api::descriptor_set_copy *copies);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_descriptor_sets, bool, api::device *device, uint32_t count, const api::descriptor_set_update *updates);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);

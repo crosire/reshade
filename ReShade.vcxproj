@@ -432,6 +432,7 @@
     <ClCompile Include="source\d3d12\d3d12_command_list.cpp" />
     <ClCompile Include="source\d3d12\d3d12_command_queue.cpp" />
     <ClCompile Include="source\d3d12\d3d12_command_queue_downlevel.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_descriptor_heap.cpp" />
     <ClCompile Include="source\d3d12\d3d12_device.cpp" />
     <ClCompile Include="source\d3d12\d3d12_device_downlevel.cpp" />
     <ClCompile Include="source\d3d12\d3d12_impl_command_list.cpp" />
@@ -529,6 +530,7 @@
     <ClInclude Include="source\d3d12\d3d12_command_list.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_queue.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_queue_downlevel.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_descriptor_heap.hpp" />
     <ClInclude Include="source\d3d12\d3d12_device.hpp" />
     <ClInclude Include="source\d3d12\d3d12_device_downlevel.hpp" />
     <ClInclude Include="source\d3d12\d3d12_impl_command_list.hpp" />

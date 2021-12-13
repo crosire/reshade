@@ -845,15 +845,11 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
 		static_cast<reshade::api::shader_stage>(0);
 
-	const auto pip_layout_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(layout);
-	const auto set_layout_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pip_layout_data->set_layouts[set]);
-
 	for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
 	{
 		const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
 		reshade::api::descriptor_set_update update = {};
-		update.offset = set_layout_data->binding_to_offset.at(write.dstBinding) + write.dstArrayElement;
 		update.binding = write.dstBinding;
 		update.array_offset = write.dstArrayElement;
 		update.count = write.descriptorCount;

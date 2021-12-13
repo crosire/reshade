@@ -1635,7 +1635,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	api::descriptor_range layout_ranges[4];
-	layout_ranges[0].offset = 0;
 	layout_ranges[0].binding = 0;
 	layout_ranges[0].dx_register_index = 0; // b0 (global constant buffer)
 	layout_ranges[0].dx_register_space = 0;
@@ -1644,7 +1643,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[0].type = api::descriptor_type::constant_buffer;
 	layout_ranges[0].visibility = api::shader_stage::all;
 
-	layout_ranges[1].offset = 0;
 	layout_ranges[1].binding = 0;
 	layout_ranges[1].dx_register_index = 0; // s#
 	layout_ranges[1].dx_register_space = 0;
@@ -1653,7 +1651,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[1].type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
 	layout_ranges[1].visibility = api::shader_stage::all;
 
-	layout_ranges[2].offset = 0;
 	layout_ranges[2].binding = 0;
 	layout_ranges[2].dx_register_index = 0; // t#
 	layout_ranges[2].dx_register_space = 0;
@@ -1662,7 +1659,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[2].type = api::descriptor_type::shader_resource_view;
 	layout_ranges[2].visibility = api::shader_stage::all;
 
-	layout_ranges[3].offset = 0;
 	layout_ranges[3].binding = 0;
 	layout_ranges[3].dx_register_index = 0; // u#
 	layout_ranges[3].dx_register_space = 0;
@@ -1741,7 +1737,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		api::descriptor_set_update &write = descriptor_writes.emplace_back();
 		write.set = effect.cb_set;
-		write.offset = write.binding = 0;
+		write.binding = 0;
 		write.type = api::descriptor_type::constant_buffer;
 		write.count = 1;
 		write.descriptors = &cb_range;
@@ -1804,7 +1800,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				api::descriptor_set_update &write = descriptor_writes.emplace_back();
 				write.set = effect.sampler_set;
-				write.offset = write.binding = info.binding;
+				write.binding = info.binding;
 				write.type = api::descriptor_type::sampler;
 				write.count = 1;
 				write.descriptors = &sampler_handle;
@@ -2063,7 +2059,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 					if (sampler_with_resource_view)
 					{
-						write.offset = write.binding = info.binding;
+						write.binding = info.binding;
 						write.type = api::descriptor_type::sampler_with_resource_view;
 						write.descriptors = &sampler_descriptors[info.binding];
 
@@ -2093,7 +2089,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					}
 					else
 					{
-						write.offset = write.binding = info.texture_binding;
+						write.binding = info.texture_binding;
 						write.type = api::descriptor_type::shader_resource_view;
 						write.descriptors = &srv;
 					}
@@ -2140,7 +2136,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 					api::descriptor_set_update &write = descriptor_writes.emplace_back();
 					write.set = pass_data.storage_set;
-					write.offset = write.binding = info.binding;
+					write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
 					write.descriptors = &texture->uav;
@@ -4054,7 +4050,7 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 
 			api::descriptor_set_update &write = descriptor_writes.emplace_back();
 			write.set = binding.set;
-			write.offset = write.binding = binding.index;
+			write.binding = binding.index;
 			write.count = 1;
 
 			if (binding.sampler != 0)

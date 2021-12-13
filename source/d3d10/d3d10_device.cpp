@@ -166,7 +166,7 @@ void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, U
 		stage,
 		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 		reshade::d3d10::global_pipeline_layout, 0,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::sampler, descriptors));
+		reshade::api::descriptor_set_update { {}, first, 0, count, reshade::api::descriptor_type::sampler, descriptors });
 }
 void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects)
 {
@@ -189,7 +189,7 @@ void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_s
 		stage,
 		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 		reshade::d3d10::global_pipeline_layout, 1,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::shader_resource_view, descriptors));
+		reshade::api::descriptor_set_update { {}, first, 0, count, reshade::api::descriptor_type::shader_resource_view, descriptors });
 }
 void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects)
 {
@@ -207,7 +207,7 @@ void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage 
 		stage,
 		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 		reshade::d3d10::global_pipeline_layout, 2,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::constant_buffer, descriptors));
+		reshade::api::descriptor_set_update { {}, first, 0, count, reshade::api::descriptor_type::constant_buffer, descriptors });
 }
 
 #include "hook_manager.hpp"

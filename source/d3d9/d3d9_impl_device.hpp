@@ -55,7 +55,7 @@ namespace reshade::d3d9
 		bool create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets) final;
 		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
 
-		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
+		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
 
 		bool map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data) final;
 		void unmap_buffer_region(api::resource resource) final;
@@ -65,6 +65,7 @@ namespace reshade::d3d9
 		void update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size) final;
 		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
+		void copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies) final;
 		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;

@@ -80,11 +80,7 @@ namespace reshade { namespace api
 	struct constant_range
 	{
 		/// <summary>
-		/// Vulkan push constant offset (in 32-bit values).
-		/// </summary>
-		uint32_t offset = 0;
-		/// <summary>
-		/// OpenGL uniform buffer binding index.
+		/// OpenGL uniform buffer binding index or Vulkan push constant offset (in 32-bit values).
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>
@@ -111,11 +107,8 @@ namespace reshade { namespace api
 	struct descriptor_range
 	{
 		/// <summary>
-		/// Offset (in descriptors) of this range in the descriptor set.
-		/// </summary>
-		uint32_t offset = 0;
-		/// <summary>
 		/// OpenGL/Vulkan binding index (<c>layout(binding=X)</c> in GLSL).
+		/// In D3D this is equivalent to the offset (in descriptors) of this range in the descriptor set (since each binding can only have an array size of 1).
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>
@@ -691,7 +684,7 @@ namespace reshade { namespace api
 				/// <summary>
 				/// Formats of the render target views that may be used with this pipeline.
 				/// </summary>
-				format render_target_formats[8] = {};
+				format render_target_formats[8] = { format::unknown, format::unknown, format::unknown, format::unknown, format::unknown, format::unknown, format::unknown, format::unknown };
 
 				/// <summary>
 				/// Mask applied to the coverage mask for a fragment during rasterization.
@@ -715,12 +708,6 @@ namespace reshade { namespace api
 	/// <para>In D3D9, D3D10, D3D11 or D3D12 this is a pointer to a 'IDirect3D(...)Shader', 'ID3D10(...)(Shader/State)', 'ID3D11(...)(Shader/State)' or 'ID3D12PipelineState' object, in Vulkan a 'VkPipeline' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(pipeline);
-
-	/// <summary>
-	/// An opaque handle to a descriptor set.
-	/// <para>In D3D12 this is a 'D3D12_GPU_DESCRIPTOR_HANDLE' to a descriptor table, in Vulkan a 'VkDescriptorSet' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(descriptor_set);
 
 	/// <summary>
 	/// A constant buffer resource descriptor.
@@ -758,39 +745,67 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// An opaque handle to a descriptor set.
+	/// <para>In Vulkan this is a 'VkDescriptorSet' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(descriptor_set);
+
+	/// <summary>
+	/// All information needed to copy descriptors between descriptor sets.
+	/// </summary>
+	struct descriptor_set_copy
+	{
+		/// <summary>
+		/// Descriptor set to copy from.
+		/// </summary>
+		descriptor_set source_set = { 0 };
+		/// <summary>
+		/// Index of the binding in the source descriptor set.
+		/// </summary>
+		uint32_t source_binding = 0;
+		/// <summary>
+		/// Array index in the specified source binding to begin copying from.
+		/// </summary>
+		uint32_t source_array_offset = 0;
+		/// <summary>
+		/// Descriptor set to copy to.
+		/// </summary>
+		descriptor_set dest_set = { 0 };
+		/// <summary>
+		/// Index of the binding in the destination descriptor set.
+		/// </summary>
+		uint32_t dest_binding = 0;
+		/// <summary>
+		/// Array index in the specified destination binding to begin copying to.
+		/// </summary>
+		uint32_t dest_array_offset = 0;
+		/// <summary>
+		/// Number of descriptors to copy.
+		/// </summary>
+		uint32_t count = 0;
+	};
+
+	/// <summary>
 	/// All information needed to update descriptors in a descriptor set.
 	/// </summary>
 	struct descriptor_set_update
 	{
-		descriptor_set_update() {}
-		descriptor_set_update(uint32_t offset, uint32_t count, descriptor_type type, const void *descriptors) :
-			offset(offset), binding(offset), array_offset(0), count(count), type(type), descriptors(descriptors) {}
-		descriptor_set_update(uint32_t offset, uint32_t binding, uint32_t array_offset, uint32_t count, descriptor_type type, const void *descriptors) :
-			offset(offset), binding(binding), array_offset(array_offset), count(count), type(type), descriptors(descriptors) {}
-		descriptor_set_update(descriptor_set set, uint32_t offset, uint32_t count, descriptor_type type, const void *descriptors) :
-			set(set), offset(offset), binding(offset), array_offset(0), count(count), type(type), descriptors(descriptors) {}
-		descriptor_set_update(descriptor_set set, uint32_t offset, uint32_t binding, uint32_t array_offset, uint32_t count, descriptor_type type, const void *descriptors) :
-			set(set), offset(offset), binding(binding), array_offset(array_offset), count(count), type(type), descriptors(descriptors) {}
-
 		/// <summary>
 		/// Descriptor set to update.
 		/// </summary>
 		descriptor_set set = { 0 };
 		/// <summary>
-		/// Offset (in descriptors) from the start of the set to begin updating at.
-		/// </summary>
-		uint32_t offset = 0;
-		/// <summary>
-		/// OpenGL/Vulkan binding index of the descriptor located at the specified <see cref="offset"/>.
+		/// OpenGL/Vulkan binding index in the descriptor set.
+		/// In D3D this is equivalent to the offset (in descriptors) from the start of the set.
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>
-		/// Array index in the specified <see cref="binding"/> at the specified <see cref="offset"/>.
+		/// Array index in the specified <see cref="binding"/> to begin updating at.
 		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 0 (since each GLSL array element gets a separate binding index).
 		/// </summary>
 		uint32_t array_offset = 0;
 		/// <summary>
-		/// Number of descriptors to update, starting at the specified <see cref="offset"/>.
+		/// Number of descriptors to update, starting at the specified <see cref="binding"/>.
 		/// If the specified <see cref="binding"/> has fewer than <see cref="count"/> array elements starting from <see cref="array_offset"/>, then the remainder will be used to update the subsequent binding starting at array element zero, recursively.
 		/// </summary>
 		uint32_t count = 0;

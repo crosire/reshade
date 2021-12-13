@@ -295,9 +295,11 @@ void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api
 {
 	assert(update.set.handle == 0);
 
-	uint32_t first = update.offset;
+	uint32_t first = 0;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
 		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].dx_register_index;
+	else
+		assert(update.binding == 0);
 
 	switch (update.type)
 	{
@@ -325,7 +327,7 @@ void reshade::d3d10::device_impl::bind_descriptor_sets(api::shader_stage stages,
 			stages,
 			layout,
 			first + i,
-			api::descriptor_set_update(0, set_impl->count, set_impl->type, set_impl->descriptors.data()));
+			api::descriptor_set_update { {}, 0, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
 	}
 }
 

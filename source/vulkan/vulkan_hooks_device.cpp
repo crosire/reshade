@@ -1398,7 +1398,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i];
 
 		data.params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
-		data.params[i].push_constants.offset = push_constant_range.offset;
+		data.params[i].push_constants.binding = push_constant_range.offset;
 		data.params[i].push_constants.count = push_constant_range.size;
 		data.params[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
 	}
@@ -1495,16 +1495,15 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 	{
 		assert(pCreateInfo->pBindings != nullptr);
 
-		std::vector<uint32_t> descriptor_counts_per_binding;
-		descriptor_counts_per_binding.reserve(pCreateInfo->bindingCount);
+		data.binding_to_offset.reserve(pCreateInfo->bindingCount);
 
 		for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
 		{
 			const VkDescriptorSetLayoutBinding &binding = pCreateInfo->pBindings[i];
 
-			if (binding.binding >= descriptor_counts_per_binding.size())
-				descriptor_counts_per_binding.resize(binding.binding + 1);
-			descriptor_counts_per_binding[binding.binding] = binding.descriptorCount;
+			if (binding.binding >= data.binding_to_offset.size())
+				data.binding_to_offset.resize(binding.binding + 1);
+			data.binding_to_offset[binding.binding] = binding.descriptorCount;
 
 			data.ranges[i].binding = binding.binding;
 			data.ranges[i].dx_register_index = 0;
@@ -1517,22 +1516,8 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 			data.num_descriptors += binding.descriptorCount;
 		}
 
-		for (size_t i = 1; i < descriptor_counts_per_binding.size(); ++i)
-			descriptor_counts_per_binding[i] += descriptor_counts_per_binding[i - 1];
-
-		data.binding_to_offset.reserve(descriptor_counts_per_binding.back());
-
-		for (uint32_t i = 0, offset = 0; i < pCreateInfo->bindingCount; ++i)
-		{
-			const uint32_t binding = data.ranges[i].binding;
-			if (binding != 0)
-			{
-				offset = descriptor_counts_per_binding[binding - 1];
-				data.ranges[i].offset = offset;
-			}
-
-			data.binding_to_offset[binding] = offset;
-		}
+		for (size_t i = 1; i < data.binding_to_offset.size(); ++i)
+			data.binding_to_offset[i] += data.binding_to_offset[i - 1];
 	}
 
 	device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(*pSetLayout, std::move(data));
@@ -1702,12 +1687,8 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 		{
 			const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
-			const auto set_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>(write.dstSet);
-			const auto set_layout_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
-
 			reshade::api::descriptor_set_update &update = updates[i];
 			update.set = { (uint64_t)write.dstSet };
-			update.offset = set_layout_data->binding_to_offset.at(write.dstBinding) + write.dstArrayElement;
 			update.binding = write.dstBinding;
 			update.array_offset = write.dstArrayElement;
 			update.count = write.descriptorCount;
@@ -1738,13 +1719,33 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 			}
 		}
 
-		const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates);
+		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates))
+			descriptorWriteCount = 0;
 
 		_freea(descriptors);
 		_freea(updates);
+	}
 
-		if (skip)
-			return;
+	if (descriptorCopyCount != 0 && reshade::has_addon_event<reshade::addon_event::copy_descriptor_sets>())
+	{
+		const auto copies = static_cast<reshade::api::descriptor_set_copy *>(_malloca(descriptorCopyCount * sizeof(reshade::api::descriptor_set_copy)));
+
+		for (uint32_t i = 0; i < descriptorCopyCount; ++i)
+		{
+			const VkCopyDescriptorSet &internal_copy = pDescriptorCopies[i];
+
+			reshade::api::descriptor_set_copy &copy = copies[i];
+			copy.source_set = { (uint64_t)internal_copy.srcSet };
+			copy.source_binding = internal_copy.srcBinding;
+			copy.source_array_offset = internal_copy.srcArrayElement;
+			copy.dest_set = { (uint64_t)internal_copy.dstSet };
+			copy.dest_binding = internal_copy.dstBinding;
+			copy.dest_array_offset = internal_copy.dstArrayElement;
+			copy.count = internal_copy.descriptorCount;
+		}
+
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(device_impl, descriptorCopyCount, copies))
+			descriptorCopyCount = 0;
 	}
 #endif
 

@@ -1167,14 +1167,17 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
 		internal_bindings.reserve(range_count);
 
-		for (uint32_t k = 0; k < range_count; ++k)
+		for (uint32_t k = 0, offset = 0; k < range_count; ++k)
 		{
 			const api::descriptor_range &range = input_ranges[k];
 
 			if (range.count == 0)
 				continue;
 
-			data.binding_to_offset[range.binding] = range.offset;
+			const uint32_t max_binding = range.binding + (range.count - range.array_size);
+			if (max_binding >= data.binding_to_offset.size())
+				data.binding_to_offset.resize(max_binding + 1);
+			data.binding_to_offset[range.binding] = offset;
 
 			VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
 			internal_binding.binding = range.binding;
@@ -1182,16 +1185,20 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 			internal_binding.descriptorCount = range.array_size;
 			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
 
+			offset += internal_binding.descriptorCount;
+
 			// Add additional bindings if the total descriptor count exceeds the array size of the binding
 			for (uint32_t j = 0; j < (range.count - range.array_size); ++j)
 			{
-				data.binding_to_offset[range.binding + 1 + j] = range.offset + range.array_size + j;
+				data.binding_to_offset[range.binding + 1 + j] = offset;
 
 				VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
 				additional_binding.binding = range.binding + 1 + j;
 				additional_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
 				additional_binding.descriptorCount = 1;
 				additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
+
+				offset += additional_binding.descriptorCount;
 			}
 		}
 
@@ -1218,7 +1225,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 	{
 		VkPushConstantRange &push_constant_range = push_constant_ranges.emplace_back();
 		push_constant_range.stageFlags = static_cast<VkShaderStageFlagBits>(params[i].push_constants.visibility);
-		push_constant_range.offset = params[i].push_constants.offset * 4;
+		push_constant_range.offset = params[i].push_constants.binding * 4;
 		push_constant_range.size = params[i].push_constants.count * 4;
 	}
 
@@ -1296,7 +1303,7 @@ bool reshade::vulkan::device_impl::create_descriptor_sets(uint32_t count, api::p
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET> data;
-			data.pool = VK_NULL_HANDLE; // "get_descriptor_pool_offset" is not supported for the internal pool
+			data.pool = VK_NULL_HANDLE; // 'get_descriptor_pool_offset' is not supported for the internal pool
 			data.offset = 0;
 			data.layout = layout_data->set_layouts[layout_param];
 
@@ -1318,12 +1325,13 @@ void reshade::vulkan::device_impl::destroy_descriptor_sets(uint32_t count, const
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
 
-void reshade::vulkan::device_impl::get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const
+void reshade::vulkan::device_impl::get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *pool, uint32_t *offset) const
 {
 	const auto set_data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)set.handle);
+	const auto set_layout_data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
 
 	*pool = { (uint64_t)set_data->pool };
-	*offset = static_cast<uint32_t>(set_data->offset);
+	*offset = set_data->offset + set_layout_data->binding_to_offset[binding] + array_offset;
 }
 
 bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access, void **out_data)
@@ -1517,6 +1525,31 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
 }
 
+void reshade::vulkan::device_impl::copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies)
+{
+	std::vector<VkCopyDescriptorSet> copies_internal;
+	copies_internal.reserve(count);
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const api::descriptor_set_copy &copy = copies[i];
+
+		if (copy.count == 0)
+			continue;
+
+		VkCopyDescriptorSet &copy_internal = copies_internal.emplace_back();
+		copy_internal = { VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET };
+		copy_internal.dstSet = (VkDescriptorSet)copy.dest_set.handle;
+		copy_internal.dstBinding = copy.dest_binding;
+		copy_internal.dstArrayElement = copy.dest_array_offset;
+		copy_internal.srcSet = (VkDescriptorSet)copy.source_set.handle;
+		copy_internal.srcBinding = copy.source_binding;
+		copy_internal.srcArrayElement = copy.source_array_offset;
+		copy_internal.descriptorCount = copy.count;
+	}
+
+	vk.UpdateDescriptorSets(_orig, 0, nullptr, static_cast<uint32_t>(copies_internal.size()), copies_internal.data());
+}
 void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates)
 {
 	std::vector<VkWriteDescriptorSet> writes_internal;

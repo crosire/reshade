@@ -376,12 +376,14 @@ namespace reshade { namespace api
 		virtual void destroy_descriptor_sets(uint32_t count, const descriptor_set *handles) = 0;
 
 		/// <summary>
-		/// Gets the offset (in descriptors) of the specified descriptor <paramref name="set"/> in the underlying pool.
+		/// Gets the offset (in descriptors) of the specified binding in the underlying descriptor pool.
 		/// </summary>
 		/// <param name="set">Descriptor set to get the offset from.</param>
+		/// <param name="binding">Binding in the descriptor set to get the offset from.</param>
+		/// <param name="array_offset">Array index in the specified <paramref name="binding"/>.</param>
 		/// <param name="out_pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
 		/// <param name="out_offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
-		virtual void get_descriptor_pool_offset(descriptor_set set, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
+		virtual void get_descriptor_pool_offset(descriptor_set set, uint32_t binding, uint32_t array_offset, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
 
 		/// <summary>
 		/// Maps the memory of a buffer resource into application address space.
@@ -433,7 +435,23 @@ namespace reshade { namespace api
 		virtual void update_texture_region(const subresource_data &data, resource resource, uint32_t subresource, const subresource_box *box = nullptr) = 0;
 
 		/// <summary>
-		/// Updates the contents of descriptor sets with the specified descriptors.
+		/// Copies the contents of a descriptor set to another descriptor set.
+		/// </summary>
+		/// <param name="copy">Descriptor set copy to process.</param>
+		inline  void copy_descriptors(const descriptor_set_copy &copy) { copy_descriptor_sets(1, &copy); }
+		/// <summary>
+		/// Copies the contents between multiple descriptor sets.
+		/// </summary>
+		/// <param name="count">Number of <paramref name="copies"/> to process.</param>
+		/// <param name="copies">Pointer to an array of descriptor set copies to process.</param>
+		virtual void copy_descriptor_sets(uint32_t count, const descriptor_set_copy *copies) = 0;
+		/// <summary>
+		/// Updates the contents of a descriptor set with the specified descriptors.
+		/// </summary>
+		/// <param name="update">Descriptor set update to process.</param>
+		inline  void update_descriptors(const descriptor_set_update &update) { update_descriptor_sets(1, &update); }
+		/// <summary>
+		/// Updates the contents of multiple descriptor sets with the specified descriptors.
 		/// </summary>
 		/// <param name="count">Number of <paramref name="updates"/> to process.</param>
 		/// <param name="updates">Pointer to an array of descriptor set updates to process.</param>

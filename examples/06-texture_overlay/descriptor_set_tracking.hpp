@@ -11,7 +11,7 @@
 
 struct descriptor_pool_data
 {
-	std::vector<reshade::api::resource_view> descriptors;
+	std::vector<std::pair<reshade::api::descriptor_type, uint64_t>> descriptors;
 };
 
 struct __declspec(uuid("33319e83-387c-448e-881c-7e68fc2e52c4")) descriptor_set_tracking

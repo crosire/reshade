@@ -101,7 +101,7 @@ namespace reshade::vulkan
 
 		uint32_t num_descriptors;
 		std::vector<api::descriptor_range> ranges;
-		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
+		std::vector<uint32_t> binding_to_offset;
 		bool push_descriptors;
 	};
 

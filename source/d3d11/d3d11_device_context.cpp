@@ -170,7 +170,7 @@ void D3D11DeviceContext::invoke_bind_samplers_event(reshade::api::shader_stage s
 		stage,
 		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 		reshade::d3d11::global_pipeline_layout, 0,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::sampler, descriptors));
+		reshade::api::descriptor_set_update { {}, first, 0, count, reshade::api::descriptor_type::sampler, descriptors });
 }
 void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11ShaderResourceView *const *objects)
 {
@@ -193,7 +193,7 @@ void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::s
 		stage,
 		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 		reshade::d3d11::global_pipeline_layout, 1,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::shader_resource_view, descriptors));
+		reshade::api::descriptor_set_update { {}, first, 0, count, reshade::api::descriptor_type::shader_resource_view, descriptors });
 }
 void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11UnorderedAccessView *const *objects)
 {
@@ -216,7 +216,7 @@ void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::
 		stage,
 		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 		reshade::d3d11::global_pipeline_layout, 3,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::unordered_access_view, descriptors));
+		reshade::api::descriptor_set_update { {}, first, 0, count, reshade::api::descriptor_type::unordered_access_view, descriptors });
 }
 void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11Buffer *const *objects, const UINT *first_constant, const UINT *constant_count)
 {
@@ -234,7 +234,7 @@ void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader
 		stage,
 		// See global pipeline layout specified in 'device_impl::get_pipeline_layout_param'
 		reshade::d3d11::global_pipeline_layout, 2,
-		reshade::api::descriptor_set_update(first, count, reshade::api::descriptor_type::constant_buffer, descriptors));
+		reshade::api::descriptor_set_update { {}, first, 0, count, reshade::api::descriptor_type::constant_buffer, descriptors });
 }
 #endif
 

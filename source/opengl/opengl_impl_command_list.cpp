@@ -494,7 +494,7 @@ void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages
 			stages,
 			layout,
 			first + i,
-			api::descriptor_set_update(0, set_impl->count, set_impl->type, set_impl->descriptors.data()));
+			api::descriptor_set_update { {}, 0, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
 	}
 }
 

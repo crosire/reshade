@@ -29,6 +29,10 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		_descriptor_handle_size[type] = device->GetDescriptorHandleIncrementSize(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type));
 	}
 
+	_heaps.push_back(_gpu_view_heap.get());
+	_heaps.push_back(_gpu_sampler_heap.get());
+	_descriptor_heap_index = 2;
+
 	// Create mipmap generation states
 	{
 		D3D12_DESCRIPTOR_RANGE srv_range = {};
@@ -604,7 +608,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				internal_range.NumDescriptors = range.count;
 				internal_range.BaseShaderRegister = range.dx_register_index;
 				internal_range.RegisterSpace = range.dx_register_space;
-				internal_range.OffsetInDescriptorsFromTableStart = range.offset;
+				internal_range.OffsetInDescriptorsFromTableStart = range.binding;
 
 				visibility_mask |= range.visibility;
 
@@ -717,34 +721,46 @@ bool reshade::d3d12::device_impl::create_descriptor_sets(uint32_t count, api::pi
 
 	uint32_t total_count = 0;
 	for (uint32_t k = 0; k < layout_param_desc.descriptor_set.count; ++k)
-		total_count = std::max(total_count, layout_param_desc.descriptor_set.ranges[k].offset + layout_param_desc.descriptor_set.ranges[k].count);
+		total_count = std::max(total_count, layout_param_desc.descriptor_set.ranges[k].binding + layout_param_desc.descriptor_set.ranges[k].count);
 
-	for (uint32_t i = 0; i < count; ++i)
+	if (total_count != 0)
 	{
-		if (total_count == 0)
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			const auto heap_type = convert_descriptor_type_to_heap_type(layout_param_desc.descriptor_set.ranges[0].type);
+
+			D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
+			D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
+
+			if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+			{
+				_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu);
+
+				out_sets[i].handle = (0u << 24); // Heap index 0
+			}
+			else
+			{
+				_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu);
+
+				out_sets[i].handle = (1u << 24); // Heap index 1
+			}
+
+			out_sets[i].handle |= heap_type << 20;
+			out_sets[i].handle |= (base_handle.ptr - _heaps[out_sets[i].handle]->GetCPUDescriptorHandleForHeapStart().ptr) / _descriptor_handle_size[heap_type];
+			out_sets[i].handle |= static_cast<uint64_t>(total_count) << 32;
+		}
+
+		return true;
+	}
+	else
+	{
+		for (uint32_t i = 0; i < count; ++i)
 		{
 			out_sets[i] = { 0 };
-			continue;
 		}
 
-		const auto heap_type = convert_descriptor_type_to_heap_type(layout_param_desc.descriptor_set.ranges[0].type);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
-		D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-
-		if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-			_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu);
-		else
-			_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu);
-
-		{	const std::unique_lock<std::shared_mutex> lock(_heap_mutex);
-			_sets.emplace(base_handle_gpu.ptr, total_count);
-		}
-
-		out_sets[i] = { base_handle_gpu.ptr };
+		return false;
 	}
-
-	return true;
 }
 void reshade::d3d12::device_impl::destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
@@ -753,21 +769,10 @@ void reshade::d3d12::device_impl::destroy_descriptor_sets(uint32_t count, const 
 		if (sets[i].handle == 0)
 			continue;
 
-		uint32_t total_count = 0;
-
-		{	const std::unique_lock<std::shared_mutex> lock(_heap_mutex);
-			total_count = _sets.at(sets[i].handle);
-			_sets.erase(sets[i].handle);
-		}
-
-		_gpu_view_heap.free({ static_cast<SIZE_T>(sets[i].handle) }, total_count);
-		_gpu_sampler_heap.free({ static_cast<SIZE_T>(sets[i].handle) }, total_count);
+		const uint32_t total_count = sets[i].handle >> 32;
+		_gpu_view_heap.free(convert_to_original_gpu_descriptor_handle(sets[i]), total_count);
+		_gpu_sampler_heap.free(convert_to_original_gpu_descriptor_handle(sets[i]), total_count);
 	}
-}
-
-void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const
-{
-	resolve_descriptor_handle(set, nullptr, pool, offset);
 }
 
 bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
@@ -779,8 +784,7 @@ bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint
 
 	const D3D12_RANGE no_read = { 0, 0 };
 
-	if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(
-		0, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, out_data)))
+	if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(0, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, out_data)))
 	{
 		*out_data = static_cast<uint8_t *>(*out_data) + offset;
 		return true;
@@ -957,21 +961,38 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	}
 }
 
-void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates)
+void reshade::d3d12::device_impl::copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies)
 {
+	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto &update = updates[i];
+		const api::descriptor_set_copy &copy = copies[i];
 
-		assert(update.offset >= update.binding);
+		assert(copy.dest_array_offset == 0 && copy.source_array_offset == 0);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start;
-		if (!resolve_descriptor_handle(update.set, &dst_range_start))
-			continue;
+		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = convert_to_original_cpu_descriptor_handle(copy.dest_set, heap_type);
+		dst_range_start = offset_descriptor_handle(dst_range_start, copy.dest_binding, heap_type);
+		D3D12_CPU_DESCRIPTOR_HANDLE src_range_start = convert_to_original_cpu_descriptor_handle(copy.source_set, heap_type);
+		src_range_start = offset_descriptor_handle(src_range_start, copy.source_binding, heap_type);
 
-		const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(update.type);
+		_orig->CopyDescriptorsSimple(copy.count, dst_range_start, src_range_start, heap_type);
+	}
+}
+void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates)
+{
+	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 
-		dst_range_start = offset_descriptor_handle(dst_range_start, update.offset, heap_type);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const api::descriptor_set_update &update = updates[i];
+
+		assert(update.array_offset == 0);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = convert_to_original_cpu_descriptor_handle(update.set, heap_type);
+		dst_range_start = offset_descriptor_handle(dst_range_start, update.binding, heap_type);
+
+		assert(convert_descriptor_type_to_heap_type(update.type) == heap_type);
 
 		if (update.type == api::descriptor_type::constant_buffer)
 		{
@@ -1132,23 +1153,6 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 #endif
 }
 
-#if RESHADE_ADDON
-void reshade::d3d12::device_impl::register_descriptor_heap(ID3D12DescriptorHeap *heap)
-{
-	assert(heap != nullptr);
-
-	const std::unique_lock<std::shared_mutex> lock(_heap_mutex);
-	_descriptor_heaps.push_back(heap);
-}
-void reshade::d3d12::device_impl::unregister_descriptor_heap(ID3D12DescriptorHeap *heap)
-{
-	assert(heap != nullptr);
-
-	const std::unique_lock<std::shared_mutex> lock(_heap_mutex);
-	_descriptor_heaps.erase(std::find(_descriptor_heaps.begin(), _descriptor_heaps.end(), heap));
-}
-#endif
-
 bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const
 {
 	assert(out_offset != nullptr && out_resource != nullptr);
@@ -1178,97 +1182,5 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 #endif
 
 	assert(false);
-	return false;
-}
-
-bool reshade::d3d12::device_impl::resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set) const
-{
-	assert(out_set != nullptr);
-
-#if RESHADE_ADDON
-	// It is unlikely an application creates or destroys descriptor heaps while this can be called, so avoid locking
-	for (ID3D12DescriptorHeap *const heap : _descriptor_heaps)
-	{
-		const auto desc = heap->GetDesc();
-		if (desc.Type != type)
-			continue;
-
-		const auto heap_start_cpu = heap->GetCPUDescriptorHandleForHeapStart();
-		if (heap_start_cpu.ptr <= _descriptor_handle_size[desc.Type])
-		{
-			// 'GetCPUDescriptorHandleForHeapStart' returns a global descriptor heap index and CPU descriptor handles use that as alignment
-			if ((handle.ptr % _descriptor_handle_size[desc.Type]) != heap_start_cpu.ptr)
-				continue;
-		}
-		else
-		{
-			if ((handle.ptr < heap_start_cpu.ptr) || (handle.ptr >= (heap_start_cpu.ptr + static_cast<SIZE_T>(desc.NumDescriptors) * _descriptor_handle_size[desc.Type])))
-				continue;
-		}
-
-		SIZE_T address_offset = handle.ptr - heap_start_cpu.ptr;
-		assert(address_offset < (static_cast<SIZE_T>(desc.NumDescriptors) * _descriptor_handle_size[desc.Type]) && (address_offset % _descriptor_handle_size[desc.Type]) == 0);
-
-		*out_set = { heap->GetGPUDescriptorHandleForHeapStart().ptr + address_offset };
-		return (desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) != 0;
-	}
-#endif
-
-	assert(false);
-
-	*out_set = { 0 };
-	return false;
-}
-bool reshade::d3d12::device_impl::resolve_descriptor_handle(api::descriptor_set set, D3D12_CPU_DESCRIPTOR_HANDLE *handle, api::descriptor_pool *out_pool, uint32_t *out_offset) const
-{
-	const D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = { set.handle };
-
-	if (handle != nullptr)
-	{
-		assert(out_pool == nullptr && out_offset == nullptr);
-
-		// This handle conversion does not require locking, since it is soly based on the heap base addresses which do not change
-		if (_gpu_view_heap.convert_handle(handle_gpu, *handle))
-			return true;
-		if (_gpu_sampler_heap.convert_handle(handle_gpu, *handle))
-			return true;
-	}
-
-#if RESHADE_ADDON
-	// It is unlikely an application creates or destroys descriptor heaps while this can be called, so avoid locking
-	for (ID3D12DescriptorHeap *const heap : _descriptor_heaps)
-	{
-		if (heap == nullptr)
-			continue;
-
-		const D3D12_GPU_DESCRIPTOR_HANDLE base_handle = heap->GetGPUDescriptorHandleForHeapStart();
-		if (handle_gpu.ptr < base_handle.ptr)
-			continue;
-
-		const auto desc = heap->GetDesc();
-		const auto address_offset = handle_gpu.ptr - base_handle.ptr;
-		if (address_offset >= (static_cast<UINT64>(desc.NumDescriptors) * _descriptor_handle_size[desc.Type]))
-			continue;
-
-		assert((address_offset % _descriptor_handle_size[desc.Type]) == 0);
-
-		if (handle != nullptr)
-			handle->ptr = heap->GetCPUDescriptorHandleForHeapStart().ptr + static_cast<SIZE_T>(address_offset);
-		if (out_pool != nullptr)
-			*out_pool = { reinterpret_cast<uintptr_t>(heap) };
-		if (out_offset != nullptr)
-			*out_offset = static_cast<UINT>(address_offset / _descriptor_handle_size[desc.Type]);
-		return true;
-	}
-#endif
-
-	assert(false);
-
-	if (handle != nullptr)
-		handle->ptr = 0;
-	if (out_pool != nullptr)
-		*out_pool = { 0 };
-	if (out_offset != nullptr)
-		*out_offset = 0;
 	return false;
 }

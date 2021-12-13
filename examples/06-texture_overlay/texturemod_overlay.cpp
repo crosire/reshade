@@ -166,7 +166,6 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 
 				descriptor_set_update new_update = update;
 				new_update.binding += i;
-				new_update.array_offset = 0;
 				new_update.count = 1;
 				new_update.descriptors = &descriptor;
 
@@ -187,7 +186,6 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 
 				descriptor_set_update new_update = update;
 				new_update.binding += i;
-				new_update.array_offset = 0;
 				new_update.count = 1;
 				new_update.descriptors = &descriptor;
 
@@ -211,10 +209,6 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 		const pipeline_layout_param param = device->get_pipeline_layout_param(layout, first + i);
 		assert(param.type == pipeline_layout_param_type::descriptor_set);
 	
-		uint32_t base_offset = 0;
-		descriptor_pool pool = { 0 };
-		device->get_descriptor_pool_offset(sets[i], &pool, &base_offset);
-
 		for (uint32_t k = 0; k < param.descriptor_set.count; ++k)
 		{
 			const descriptor_range &range = param.descriptor_set.ranges[k];
@@ -222,9 +216,13 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 			if ((range.visibility & shader_stage::pixel) != shader_stage::pixel || (range.type != descriptor_type::shader_resource_view && range.type != descriptor_type::sampler_with_resource_view))
 				continue;
 
+			uint32_t base_offset = 0;
+			descriptor_pool pool = { 0 };
+			device->get_descriptor_pool_offset(sets[i], range.binding, 0, &pool, &base_offset);
+
 			for (uint32_t j = 0; j < std::min(10u, range.count); ++j)
 			{
-				resource_view descriptor = descriptor_data.lookup_descriptor(pool, base_offset + range.offset + j);
+				resource_view descriptor = descriptor_data.lookup_descriptor(pool, base_offset + j);
 				if (descriptor.handle == 0)
 					continue;
 

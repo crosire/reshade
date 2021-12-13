@@ -7,6 +7,7 @@
 #include "d3d12_device_downlevel.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
+#include "d3d12_descriptor_heap.hpp"
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
@@ -259,7 +260,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 		if (command_queue_proxy->check_and_upgrade_interface(riid))
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(INFO) << "> Returning ID3D12CommandQueue" << command_queue_proxy->_interface_version << " object " << command_queue_proxy << " (" << command_queue_proxy->_orig << ").";
+			LOG(INFO) << "> Returning ID3D12CommandQueue" << " object " << command_queue_proxy << " (" << command_queue_proxy->_orig << ").";
 #endif
 			*ppCommandQueue = command_queue_proxy;
 		}
@@ -403,32 +404,52 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CheckFeatureSupport(D3D12_FEATURE Feature
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc, REFIID riid, void **ppvHeap)
 {
-#if RESHADE_ADDON
-	if (ppvHeap == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, nullptr);
-#endif
+	LOG(INFO) << "Redirecting " << "ID3D12Device::CreateDescriptorHeap" << '(' << "this = " << this << ", pDescriptorHeapDesc = " << pDescriptorHeapDesc << ", riid = " << riid << ", ppvHeap = " << ppvHeap << ')' << " ...";
+
+	if (pDescriptorHeapDesc == nullptr)
+		return E_INVALIDARG;
 
 	const HRESULT hr = _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
-		if (riid == __uuidof(ID3D12DescriptorHeap))
+		if (ppvHeap != nullptr && pDescriptorHeapDesc->Type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
 		{
-			const auto heap = static_cast<ID3D12DescriptorHeap *>(*ppvHeap);
+			const auto descriptor_heap_proxy = new D3D12DescriptorHeap(this, static_cast<ID3D12DescriptorHeap *>(*ppvHeap));
 
-			register_descriptor_heap(heap);
+			// Upgrade to the actual interface version requested here
+			if (descriptor_heap_proxy->check_and_upgrade_interface(riid))
+			{
+				const UINT heap_index = InterlockedIncrement(&_descriptor_heap_index);
+				// TODO: Thread safety
+				if (heap_index >= _heaps.size())
+					_heaps.resize(heap_index + 32);
+				_heaps[heap_index] = descriptor_heap_proxy;
 
-			register_destruction_callback(heap, [this, heap]() {
-				unregister_descriptor_heap(heap);
-			});
-		}
+				descriptor_heap_proxy->initialize_descriptor_base_handle(heap_index);
+
+#if RESHADE_VERBOSE_LOG
+				LOG(INFO) << "> Returning ID3D12DescriptorHeap" << " object " << descriptor_heap_proxy << " (" << descriptor_heap_proxy->_orig << ").";
 #endif
+				*ppvHeap = descriptor_heap_proxy;
+			}
+			else // Do not hook object if we do not support the requested interface
+			{
+				delete descriptor_heap_proxy; // Delete instead of release to keep reference count untouched
+			}
+		}
+	}
+	else
+	{
+		LOG(WARN) << "ID3D12Device::CreateDescriptorHeap" << " failed with error code " << hr << '.';
 	}
 
 	return hr;
 }
 UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType)
 {
+	if (DescriptorHeapType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+		return 0x1; // See 'D3D12DescriptorHeap::initialize_descriptor_base_handle'
+
 	return _orig->GetDescriptorHandleIncrementSize(DescriptorHeapType);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const void *pBlobWithRootSignature, SIZE_T blobLengthInBytes, REFIID riid, void **ppvRootSignature)
@@ -501,7 +522,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 									for (uint32_t j = 0; j < range_count; ++j, ++range_data)
 									{
 										reshade::api::descriptor_range &range = ranges[j];
-										range.binding = j;
 										range.dx_register_index = range_data->BaseShaderRegister;
 										range.dx_register_space = range_data->RegisterSpace;
 										range.count = range_data->NumDescriptors;
@@ -510,11 +530,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 										range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 
 										if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-											range.offset = descriptor_offset;
+											range.binding = descriptor_offset;
 										else
-											range.offset = range_data->OffsetInDescriptorsFromTableStart;
+											range.binding = range_data->OffsetInDescriptorsFromTableStart;
 
-										descriptor_offset = range.offset + range.count;
+										descriptor_offset = range.binding + range.count;
 									}
 								}
 								if (version == D3D_ROOT_SIGNATURE_VERSION_1_1)
@@ -524,7 +544,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 									for (uint32_t j = 0; j < range_count; ++j, ++range_data)
 									{
 										reshade::api::descriptor_range &range = ranges[j];
-										range.binding = j;
 										range.dx_register_index = range_data->BaseShaderRegister;
 										range.dx_register_space = range_data->RegisterSpace;
 										range.count = range_data->NumDescriptors;
@@ -533,11 +552,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 										range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 
 										if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-											range.offset = descriptor_offset;
+											range.binding = descriptor_offset;
 										else
-											range.offset = range_data->OffsetInDescriptorsFromTableStart;
+											range.binding = range_data->OffsetInDescriptorsFromTableStart;
 
-										descriptor_offset = range.offset + range.count;
+										descriptor_offset = range.binding + range.count;
 									}
 								}
 
@@ -555,7 +574,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 
 								// Convert root constant description
 								reshade::api::constant_range &root_constant = impl->params[k].push_constants;
-								root_constant.offset = 0;
 								root_constant.binding = 0;
 								root_constant.dx_register_index = constant_data->ShaderRegister;
 								root_constant.dx_register_space = constant_data->RegisterSpace;
@@ -570,7 +588,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 								auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
 
 								reshade::api::descriptor_range range;
-								range.offset = 0;
 								range.binding = 0;
 								range.dx_register_index = descriptor_data->ShaderRegister;
 								range.dx_register_space = descriptor_data->RegisterSpace;
@@ -622,24 +639,23 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 {
 	assert(pDesc != nullptr);
 
-	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
+	_orig->CreateConstantBufferView(pDesc, convert_to_original_cpu_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
 #if RESHADE_ADDON
-	if (reshade::api::descriptor_set_update update = {};
-		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>() &&
-		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
-	{
-		reshade::api::buffer_range buffer_range;
-		if (!resolve_gpu_address(pDesc->BufferLocation, &buffer_range.buffer, &buffer_range.offset))
-			return;
-		buffer_range.size = pDesc->SizeInBytes;
+	reshade::api::buffer_range buffer_range;
+	if (!resolve_gpu_address(pDesc->BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+		return;
+	buffer_range.size = pDesc->SizeInBytes;
 
-		update.type = reshade::api::descriptor_type::constant_buffer;
-		update.count = 1;
-		update.descriptors = &buffer_range;
+	reshade::api::descriptor_set_update update;
+	update.set = { DestDescriptor.ptr };
+	update.binding = 0;
+	update.array_offset = 0;
+	update.type = reshade::api::descriptor_type::constant_buffer;
+	update.count = 1;
+	update.descriptors = &buffer_range;
 
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
-	}
+	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -657,29 +673,24 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	}
 #endif
 
-	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
+	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = convert_to_original_cpu_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	_orig->CreateShaderResourceView(pResource, pDesc, original_descriptor_handle);
 
 #if RESHADE_ADDON
-	if (reshade::api::descriptor_set_update update = {};
-		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
-	{
-#if 0
-		reshade::api::resource_view temp_view;
-		create_resource_view(to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, &temp_view); // This leaks
+	const reshade::api::resource_view descriptor_value = to_handle(original_descriptor_handle);
 
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, temp_view);
+	register_resource_view(original_descriptor_handle, pResource, desc);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, descriptor_value);
 
-		update.type = reshade::api::descriptor_type::shader_resource_view;
-		update.count = 1;
-		update.descriptors = &temp_view;
+	reshade::api::descriptor_set_update update;
+	update.set = { DestDescriptor.ptr };
+	update.binding = 0;
+	update.array_offset = 0;
+	update.type = reshade::api::descriptor_type::shader_resource_view;
+	update.count = 1;
+	update.descriptors = &descriptor_value;
 
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
-#endif
-		return;
-	}
-
-	register_resource_view(DestDescriptor, pResource, desc);
-	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, to_handle(DestDescriptor));
+	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource *pResource, ID3D12Resource *pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -697,29 +708,24 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 	}
 #endif
 
-	_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
+	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = convert_to_original_cpu_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, convert_to_original_cpu_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
 #if RESHADE_ADDON
-	if (reshade::api::descriptor_set_update update = {};
-		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
-	{
-#if 0
-		reshade::api::resource_view temp_view;
-		create_resource_view(to_handle(pResource), reshade::api::resource_usage::unordered_access, desc, &temp_view); // This leaks
+	const reshade::api::resource_view descriptor_value = to_handle(original_descriptor_handle);
 
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::unordered_access, desc, temp_view);
+	register_resource_view(original_descriptor_handle, pResource, desc);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::unordered_access, desc, descriptor_value);
 
-		update.type = reshade::api::descriptor_type::unordered_access_view;
-		update.count = 1;
-		update.descriptors = &temp_view;
+	reshade::api::descriptor_set_update update;
+	update.set = { DestDescriptor.ptr };
+	update.binding = 0;
+	update.array_offset = 0;
+	update.type = reshade::api::descriptor_type::unordered_access_view;
+	update.count = 1;
+	update.descriptors = &descriptor_value;
 
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
-#endif
-		return;
-	}
-
-	register_resource_view(DestDescriptor, pResource, desc);
-	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::unordered_access, desc, to_handle(DestDescriptor));
+	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pResource, const D3D12_RENDER_TARGET_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -782,28 +788,23 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 	}
 #endif
 
-	_orig->CreateSampler(pDesc, DestDescriptor);
+	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = convert_to_original_cpu_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	_orig->CreateSampler(pDesc, original_descriptor_handle);
 
 #if RESHADE_ADDON
-	if (reshade::api::descriptor_set_update update = {};
-		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, &update.set))
-	{
-#if 0
-		reshade::api::sampler temp_sampler;
-		create_sampler(desc, &temp_sampler); // This leaks
+	const reshade::api::sampler descriptor_value = { original_descriptor_handle.ptr };
 
-		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, temp_sampler);
+	reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, descriptor_value);
 
-		update.type = reshade::api::descriptor_type::sampler;
-		update.count = 1;
-		update.descriptors = &temp_sampler;
+	reshade::api::descriptor_set_update update;
+	update.set = { DestDescriptor.ptr };
+	update.binding = 0;
+	update.array_offset = 0;
+	update.type = reshade::api::descriptor_type::sampler;
+	update.count = 1;
+	update.descriptors = &descriptor_value;
 
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
-#endif
-		return;
-	}
-
-	reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, reshade::api::sampler { DestDescriptor.ptr });
+	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts, const UINT *pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts, const UINT *pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
@@ -811,89 +812,101 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 #if RESHADE_ADDON
 	// All elements in the source ranges must be in a non shader-visible descriptor heap, so can treat this like an update
 	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
-		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+		reshade::has_addon_event<reshade::addon_event::copy_descriptor_sets>())
 	{
-		uint32_t num_updates = 0;
+		uint32_t num_copies = 0;
 		uint32_t max_descriptors = 0;
 		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
 			max_descriptors += (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[i] : 1);
 
-		reshade::api::descriptor_set_update update = {};
-		// This assumes that all descriptors in the copied range are of the same type and that there are no constant buffer view descriptors
-		update.type = (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
+		reshade::api::descriptor_set_copy copy;
+		copy.dest_binding = 0;
+		copy.dest_array_offset = 0;
+		copy.source_binding = 0;
+		copy.source_array_offset = 0;
 
-		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(NumDestDescriptorRanges * sizeof(reshade::api::descriptor_set_update) + max_descriptors * sizeof(uint64_t)));
-		const auto descriptors = reinterpret_cast<uint64_t *>(updates + NumDestDescriptorRanges);
+		const auto copies = static_cast<reshade::api::descriptor_set_copy *>(_malloca(max_descriptors * sizeof(reshade::api::descriptor_set_copy)));
 
-		for (UINT dst_range = 0, src_range = 0, src_offset = 0, dst_base = 0; dst_range < NumDestDescriptorRanges; ++dst_range, dst_base += update.offset)
+		for (UINT dst_range = 0, src_range = 0, dst_offset = 0, src_offset = 0; dst_range < NumDestDescriptorRanges; ++dst_range, dst_offset = 0)
 		{
-			if (!resolve_descriptor_handle(pDestDescriptorRangeStarts[dst_range], DescriptorHeapsType, &update.set))
-				continue;
+			copy.dest_set = { pDestDescriptorRangeStarts[dst_range].ptr };
 
-			update.count = (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[dst_range] : 1);
+			const UINT dst_count = (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[dst_range] : 1);
 
-			for (UINT dst_offset = dst_base; dst_offset < dst_base + update.count; ++dst_offset, ++src_offset)
+			while (dst_offset < dst_count)
 			{
-				if (src_offset > (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1))
+				const UINT src_count = (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1);
+
+				if (src_count <= (dst_count - dst_offset))
 				{
+					copy.source_set = { pSrcDescriptorRangeStarts[src_range].ptr };
+					copy.count = src_count;
+					copies[num_copies++] = copy;
+
 					src_range += 1;
 					src_offset = 0;
+					dst_offset += src_count;
 				}
+				else
+				{
+					copy.source_set = { pSrcDescriptorRangeStarts[src_range].ptr };
+					copy.count = 1;
+					copies[num_copies++] = copy;
 
-				descriptors[dst_offset] = offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType).ptr;
+					src_offset += 1;
+					dst_offset += 1;
+
+					if (src_offset >= src_count)
+					{
+						src_range += 1;
+						src_offset = 0;
+					}
+				}
 			}
-
-			update.descriptors = descriptors + dst_base;
-
-			updates[num_updates++] = update;
 		}
 
-		const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, num_updates, updates);
+		const bool skip = reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(this, num_copies, copies);
 
-		_freea(updates);
+		_freea(copies);
 
 		if (skip)
 			return;
 	}
 #endif
 
-	_orig->CopyDescriptors(NumDestDescriptorRanges, pDestDescriptorRangeStarts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
+	D3D12_CPU_DESCRIPTOR_HANDLE *const dest_descriptor_range_starts = static_cast<D3D12_CPU_DESCRIPTOR_HANDLE *>(_malloca((NumDestDescriptorRanges + NumSrcDescriptorRanges) * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE)));
+	D3D12_CPU_DESCRIPTOR_HANDLE *const source_descriptor_range_starts = dest_descriptor_range_starts + NumDestDescriptorRanges;
+
+	for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
+		dest_descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(pDestDescriptorRangeStarts[i], DescriptorHeapsType);
+	for (UINT i = 0; i <  NumSrcDescriptorRanges; ++i)
+		source_descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(pSrcDescriptorRangeStarts[i], DescriptorHeapsType);
+
+	_orig->CopyDescriptors(NumDestDescriptorRanges, dest_descriptor_range_starts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, source_descriptor_range_starts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
+
+	_freea(dest_descriptor_range_starts);
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart, D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
 #if RESHADE_ADDON
-	// All elements in the source ranges must be in a non shader-visible descriptor heap, so can treat this like an update
 	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
-		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+		reshade::has_addon_event<reshade::addon_event::copy_descriptor_sets>())
 	{
-		reshade::api::descriptor_set_update update = {};
-		// This assumes that all descriptors in the copied range are of the same type and that there are no constant buffer view descriptors
-		update.type = (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
+		reshade::api::descriptor_set_copy copy;
+		copy.dest_set = { DestDescriptorRangeStart.ptr };
+		copy.dest_binding = 0;
+		copy.dest_array_offset = 0;
+		copy.source_set = { SrcDescriptorRangeStart.ptr };
+		copy.source_binding = 0;
+		copy.source_array_offset = 0;
+		copy.count = NumDescriptors;
 
-		if (resolve_descriptor_handle(DestDescriptorRangeStart, DescriptorHeapsType, &update.set))
-		{
-			const auto descriptors = static_cast<uint64_t *>(_malloca(NumDescriptors * sizeof(uint64_t)));
-
-			update.count = NumDescriptors;
-
-			for (UINT dst_offset = 0; dst_offset < update.count; ++dst_offset)
-			{
-				descriptors[dst_offset] = offset_descriptor_handle(SrcDescriptorRangeStart, dst_offset, DescriptorHeapsType).ptr;
-			}
-
-			update.descriptors = descriptors;
-
-			const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
-
-			_freea(descriptors);
-
-			if (skip)
-				return;
-		}
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(this, 1, &copy))
+			return;
 	}
 #endif
 
-	_orig->CopyDescriptorsSimple(NumDescriptors, DestDescriptorRangeStart, SrcDescriptorRangeStart, DescriptorHeapsType);
+	_orig->CopyDescriptorsSimple(NumDescriptors, convert_to_original_cpu_descriptor_handle(DestDescriptorRangeStart, DescriptorHeapsType), convert_to_original_cpu_descriptor_handle(SrcDescriptorRangeStart, DescriptorHeapsType), DescriptorHeapsType);
 }
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC *pResourceDescs)
 {

@@ -453,7 +453,7 @@ static void on_push_descriptors(reshade::api::command_list *, reshade::api::shad
 		}
 	}
 
-	std::stringstream s; s << "push_descriptors(" << to_string(stages) << ", " << (void *)layout.handle << ", " << param_index << ", { " << to_string(update.type) << ", " << update.offset << ", " << update.count << " })";
+	std::stringstream s; s << "push_descriptors(" << to_string(stages) << ", " << (void *)layout.handle << ", " << param_index << ", { " << to_string(update.type) << ", " << update.binding << ", " << update.count << " })";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 }
 static void on_bind_descriptor_sets(reshade::api::command_list *, reshade::api::shader_stage stages, reshade::api::pipeline_layout layout, uint32_t first, uint32_t count, const reshade::api::descriptor_set *sets)

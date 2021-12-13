@@ -260,18 +260,16 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 }
 void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.set.handle == 0 && update.offset == 0);
+	assert(update.set.handle == 0 && update.binding == 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 	if (update.type != api::descriptor_type::sampler ?
-		!_device_impl->_gpu_view_heap.allocate_transient(update.offset + update.count, base_handle, base_handle_gpu) :
-		!_device_impl->_gpu_sampler_heap.allocate_transient(update.offset + update.count, base_handle, base_handle_gpu))
+		!_device_impl->_gpu_view_heap.allocate_transient(update.count, base_handle, base_handle_gpu) :
+		!_device_impl->_gpu_sampler_heap.allocate_transient(update.count, base_handle, base_handle_gpu))
 		return;
 
 	const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(update.type);
-
-	base_handle = _device_impl->offset_descriptor_handle(base_handle, update.offset, heap_type);
 
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
@@ -355,7 +353,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 
 	// Change descriptor heaps to internal ones if descriptor sets were allocated from them
 	if ((_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() || _current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get()) &&
-		(_device_impl->_gpu_sampler_heap.contains(D3D12_GPU_DESCRIPTOR_HANDLE { sets[0].handle }) || _device_impl->_gpu_view_heap.contains(D3D12_GPU_DESCRIPTOR_HANDLE { sets[0].handle })))
+		(_device_impl->_gpu_sampler_heap.contains(_device_impl->convert_to_original_gpu_descriptor_handle(sets[0])) || _device_impl->_gpu_view_heap.contains(_device_impl->convert_to_original_gpu_descriptor_handle(sets[0]))))
 	{
 		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
 		_orig->SetDescriptorHeaps(2, heaps);
@@ -375,7 +373,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 		}
 
 		for (uint32_t i = 0; i < count; ++i)
-			_orig->SetComputeRootDescriptorTable(first + i, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle });
+			_orig->SetComputeRootDescriptorTable(first + i, _device_impl->convert_to_original_gpu_descriptor_handle(sets[i]));
 	}
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
 	{
@@ -386,7 +384,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 		}
 
 		for (uint32_t i = 0; i < count; ++i)
-			_orig->SetGraphicsRootDescriptorTable(first + i, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle });
+			_orig->SetGraphicsRootDescriptorTable(first + i, _device_impl->convert_to_original_gpu_descriptor_handle(sets[i]));
 	}
 }
 
