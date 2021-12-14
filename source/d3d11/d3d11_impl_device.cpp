@@ -35,7 +35,25 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 #if RESHADE_ADDON
 	load_addons();
 
-	invoke_addon_event<reshade::addon_event::init_device>(this);
+	invoke_addon_event<addon_event::init_device>(this);
+
+	const D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
+
+	api::pipeline_layout_param global_pipeline_layout_params[4];
+	global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler;
+	global_pipeline_layout_params[0].push_descriptors.count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
+	global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::shader_resource_view;
+	global_pipeline_layout_params[1].push_descriptors.count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+	global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
+	global_pipeline_layout_params[2].push_descriptors.count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+	global_pipeline_layout_params[3].push_descriptors.type = api::descriptor_type::unordered_access_view;
+	global_pipeline_layout_params[3].push_descriptors.count =
+		feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+		feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
+		feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
+	global_pipeline_layout_params[3].push_descriptors.visibility = api::shader_stage::pixel | api::shader_stage::compute;
+
+	invoke_addon_event<addon_event::init_pipeline_layout>(this, 4, global_pipeline_layout_params, global_pipeline_layout);
 #endif
 }
 reshade::d3d11::device_impl::~device_impl()
@@ -47,6 +65,8 @@ reshade::d3d11::device_impl::~device_impl()
 	// Ensure all objects referenced by the device are destroyed before the 'destroy_device' event is called
 	immediate_context->ClearState();
 	immediate_context->Flush();
+
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
 
 	invoke_addon_event<addon_event::destroy_device>(this);
 
@@ -358,13 +378,6 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 	assert(false); // Not implemented
 	return api::resource_desc {};
 }
-void reshade::d3d11::device_impl::set_resource_name(api::resource handle, const char *name)
-{
-	assert(handle.handle != 0);
-
-	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
-	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
-}
 
 bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
@@ -554,12 +567,88 @@ reshade::api::resource_view_desc reshade::d3d11::device_impl::get_resource_view_
 	assert(false); // Not implemented
 	return api::resource_view_desc();
 }
-void reshade::d3d11::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
-{
-	assert(handle.handle != 0);
 
-	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
-	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+bool reshade::d3d11::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
+{
+	if (out_data == nullptr)
+		return false;
+
+	assert(resource.handle != 0);
+
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	_orig->GetImmediateContext(&immediate_context);
+
+	D3D11_MAPPED_SUBRESOURCE mapped_ptr;
+	if (SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access), 0, &mapped_ptr)))
+	{
+		*out_data = static_cast<uint8_t *>(mapped_ptr.pData) + offset;
+		return true;
+	}
+	else
+	{
+		*out_data = 0;
+		return false;
+	}
+}
+void reshade::d3d11::device_impl::unmap_buffer_region(api::resource resource)
+{
+	assert(resource.handle != 0);
+
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	_orig->GetImmediateContext(&immediate_context);
+
+	immediate_context->Unmap(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0);
+}
+bool reshade::d3d11::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
+{
+	if (out_data == nullptr)
+		return false;
+
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
+
+	// Mapping a subset of a texture is not supported
+	if (box != nullptr)
+		return false;
+
+	assert(resource.handle != 0);
+
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	_orig->GetImmediateContext(&immediate_context);
+
+	return SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D11_MAPPED_SUBRESOURCE *>(out_data)));
+}
+void reshade::d3d11::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
+{
+	assert(resource.handle != 0);
+
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	_orig->GetImmediateContext(&immediate_context);
+
+	immediate_context->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
+}
+
+void reshade::d3d11::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
+{
+	assert(resource.handle != 0);
+	assert(offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
+
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	_orig->GetImmediateContext(&immediate_context);
+
+	const D3D11_BOX box = { static_cast<UINT>(offset), 0, 0, static_cast<UINT>(offset + size), 1, 1 };
+
+	immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(resource.handle), 0, offset != 0 ? &box : nullptr, data, static_cast<UINT>(size), 0);
+}
+void reshade::d3d11::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
+{
+	assert(resource.handle != 0);
+
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	_orig->GetImmediateContext(&immediate_context);
+
+	immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, reinterpret_cast<const D3D11_BOX *>(box), data.data, data.row_pitch, data.slice_pitch);
 }
 
 bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
@@ -943,12 +1032,7 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t param_count, c
 	}
 
 	const auto impl = new pipeline_layout_impl();
-	impl->params.assign(params, params + param_count);
 	impl->ranges = std::move(ranges);
-
-	for (uint32_t i = 0; i < param_count; ++i)
-		if (params[i].type == api::pipeline_layout_param_type::descriptor_set)
-			impl->params[i].descriptor_set.ranges = &impl->ranges[i];
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
@@ -960,59 +1044,7 @@ void reshade::d3d11::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-reshade::api::pipeline_layout_param reshade::d3d11::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t layout_param) const
-{
-	assert(layout.handle != 0);
-
-	api::pipeline_layout_param param = {};
-
-	if (layout == global_pipeline_layout)
-	{
-		const D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
-
-		switch (layout_param)
-		{
-		case 0:
-			param.push_descriptors.count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
-			param.push_descriptors.array_size = 1;
-			param.push_descriptors.type = api::descriptor_type::sampler;
-			param.push_descriptors.visibility = api::shader_stage::all;
-			break;
-		case 1:
-			param.push_descriptors.count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-			param.push_descriptors.array_size = 1;
-			param.push_descriptors.type = api::descriptor_type::shader_resource_view;
-			param.push_descriptors.visibility = api::shader_stage::all;
-			break;
-		case 2:
-			param.push_descriptors.count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
-			param.push_descriptors.array_size = 1;
-			param.push_descriptors.type = api::descriptor_type::constant_buffer;
-			param.push_descriptors.visibility = api::shader_stage::all;
-			break;
-		case 3:
-			param.push_descriptors.count =
-				feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
-				feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
-				feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
-			param.push_descriptors.array_size = 1;
-			param.push_descriptors.type = api::descriptor_type::unordered_access_view;
-			param.push_descriptors.visibility = api::shader_stage::pixel | api::shader_stage::compute;
-			break;
-		}
-	}
-	else
-	{
-		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-		if (layout_param < layout_impl->params.size())
-			param = layout_impl->params[layout_param];
-	}
-
-	return param;
-}
-
-bool reshade::d3d11::device_impl::create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
+bool reshade::d3d11::device_impl::allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
 {
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
@@ -1054,7 +1086,7 @@ bool reshade::d3d11::device_impl::create_descriptor_sets(uint32_t count, api::pi
 		return false;
 	}
 }
-void reshade::d3d11::device_impl::destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d11::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
 	for (uint32_t i = 0; i < count; ++i)
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
@@ -1066,89 +1098,6 @@ void reshade::d3d11::device_impl::get_descriptor_pool_offset(api::descriptor_set
 
 	*pool = { 0 }; // Not implemented
 	*offset = binding;
-}
-
-bool reshade::d3d11::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
-{
-	if (out_data == nullptr)
-		return false;
-
-	assert(resource.handle != 0);
-
-	com_ptr<ID3D11DeviceContext> immediate_context;
-	_orig->GetImmediateContext(&immediate_context);
-
-	D3D11_MAPPED_SUBRESOURCE mapped_ptr;
-	if (SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access), 0, &mapped_ptr)))
-	{
-		*out_data = static_cast<uint8_t *>(mapped_ptr.pData) + offset;
-		return true;
-	}
-	else
-	{
-		*out_data = 0;
-		return false;
-	}
-}
-void reshade::d3d11::device_impl::unmap_buffer_region(api::resource resource)
-{
-	assert(resource.handle != 0);
-
-	com_ptr<ID3D11DeviceContext> immediate_context;
-	_orig->GetImmediateContext(&immediate_context);
-
-	immediate_context->Unmap(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0);
-}
-bool reshade::d3d11::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
-{
-	if (out_data == nullptr)
-		return false;
-
-	out_data->data = nullptr;
-	out_data->row_pitch = 0;
-	out_data->slice_pitch = 0;
-
-	// Mapping a subset of a texture is not supported
-	if (box != nullptr)
-		return false;
-
-	assert(resource.handle != 0);
-
-	com_ptr<ID3D11DeviceContext> immediate_context;
-	_orig->GetImmediateContext(&immediate_context);
-
-	return SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D11_MAPPED_SUBRESOURCE *>(out_data)));
-}
-void reshade::d3d11::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
-{
-	assert(resource.handle != 0);
-
-	com_ptr<ID3D11DeviceContext> immediate_context;
-	_orig->GetImmediateContext(&immediate_context);
-
-	immediate_context->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
-}
-
-void reshade::d3d11::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
-{
-	assert(resource.handle != 0);
-	assert(offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
-
-	com_ptr<ID3D11DeviceContext> immediate_context;
-	_orig->GetImmediateContext(&immediate_context);
-
-	const D3D11_BOX box = { static_cast<UINT>(offset), 0, 0, static_cast<UINT>(offset + size), 1, 1 };
-
-	immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(resource.handle), 0, offset != 0 ? &box : nullptr, data, static_cast<UINT>(size), 0);
-}
-void reshade::d3d11::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
-{
-	assert(resource.handle != 0);
-
-	com_ptr<ID3D11DeviceContext> immediate_context;
-	_orig->GetImmediateContext(&immediate_context);
-
-	immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, reinterpret_cast<const D3D11_BOX *>(box), data.data, data.row_pitch, data.slice_pitch);
 }
 
 void reshade::d3d11::device_impl::copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies)
@@ -1252,4 +1201,19 @@ bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, u
 	}
 
 	return true;
+}
+
+void reshade::d3d11::device_impl::set_resource_name(api::resource handle, const char *name)
+{
+	assert(handle.handle != 0);
+
+	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
+	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+}
+void reshade::d3d11::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
+{
+	assert(handle.handle != 0);
+
+	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
+	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
 }

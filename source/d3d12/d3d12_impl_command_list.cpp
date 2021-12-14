@@ -181,7 +181,7 @@ void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage type, 
 	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
 	_orig->SetPipelineState(pipeline_object);
 
-	pipeline_graphics_impl extra_data;
+	pipeline_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
 	if (type == api::pipeline_stage::all_graphics &&
 		SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))

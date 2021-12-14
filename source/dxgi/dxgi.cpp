@@ -462,8 +462,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
+#if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory" << '(' << "riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 	LOG(INFO) << "> Passing on to " << "CreateDXGIFactory1" << ':';
+#endif
 
 	// DXGI 1.1 should always be available, so to simplify code just call 'CreateDXGIFactory' which is otherwise identical
 	return CreateDXGIFactory1(riid, ppFactory);

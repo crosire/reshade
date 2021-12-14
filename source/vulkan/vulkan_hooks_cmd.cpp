@@ -80,8 +80,20 @@ void VKAPI_CALL vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t firstVi
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	const auto viewport_data = static_cast<reshade::api::viewport *>(_malloca(viewportCount * sizeof(reshade::api::viewport)));
+	for (uint32_t i = 0; i < viewportCount; ++i)
+	{
+		std::memcpy(&viewport_data[i], &pViewports[i], sizeof(VkViewport));
+
+		// Flip viewport vertically
+		viewport_data[i].y += viewport_data[i].height;
+		viewport_data[i].height = -viewport_data[i].height;
+	}
+
 	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(
-		cmd_impl, firstViewport, viewportCount, reinterpret_cast<const reshade::api::viewport *>(pViewports));
+		cmd_impl, firstViewport, viewportCount, viewport_data);
+
+	_freea(viewport_data);
 #endif
 }
 void VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firstScissor, uint32_t scissorCount, const VkRect2D *pScissors)
@@ -836,7 +848,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 
 	uint32_t max_descriptors = 0;
 	for (uint32_t i = 0; i < descriptorWriteCount; ++i)
-		max_descriptors += pDescriptorWrites[i].descriptorCount;
+		max_descriptors = std::max(max_descriptors, pDescriptorWrites[i].descriptorCount);
 
 	const auto descriptors = static_cast<uint64_t *>(_malloca(max_descriptors * 2 * sizeof(uint64_t)));
 
@@ -845,7 +857,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
 		static_cast<reshade::api::shader_stage>(0);
 
-	for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
+	for (uint32_t i = 0; i < descriptorWriteCount; ++i)
 	{
 		const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
@@ -854,24 +866,23 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 		update.array_offset = write.dstArrayElement;
 		update.count = write.descriptorCount;
 		update.type = reshade::vulkan::convert_descriptor_type(write.descriptorType);
-		update.descriptors = descriptors + j;
+		update.descriptors = descriptors;
 
 		switch (write.descriptorType)
 		{
 		case VK_DESCRIPTOR_TYPE_SAMPLER:
-			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k)
+				descriptors[k] = (uint64_t)write.pImageInfo[k].sampler;
 			break;
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-			for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
-				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler,
-				descriptors[j + 1] = (uint64_t)write.pImageInfo[k].imageView;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k)
+				descriptors[k * 2 + 0] = (uint64_t)write.pImageInfo[k].sampler,
+				descriptors[k * 2 + 1] = (uint64_t)write.pImageInfo[k].imageView;
 			break;
 		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-			update.descriptors = descriptors + j;
-			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].imageView;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k)
+				descriptors[k] = (uint64_t)write.pImageInfo[k].imageView;
 			break;
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
@@ -1137,6 +1148,8 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 }
 
 #ifdef VK_KHR_dynamic_rendering
+
+#if RESHADE_ADDON
 static void invoke_begin_render_pass_event(const reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderingInfoKHR *rendering_info)
 {
 	assert(rendering_info != nullptr);
@@ -1184,6 +1197,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::object_data<VK
 
 	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, rendering_info->colorAttachmentCount, rts, rendering_info->pDepthAttachment != nullptr || rendering_info->pStencilAttachment != nullptr ? &ds : nullptr);
 }
+#endif
 
 void VKAPI_CALL vkCmdBeginRenderingKHR(VkCommandBuffer commandBuffer, const VkRenderingInfoKHR *pRenderingInfo)
 {

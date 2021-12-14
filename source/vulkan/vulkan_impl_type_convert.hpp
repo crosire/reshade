@@ -11,6 +11,7 @@
 namespace reshade::vulkan
 {
 	static_assert(sizeof(VkViewport) == sizeof(api::viewport));
+	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_set));
 
 	template <VkObjectType type>
 	struct object_data;
@@ -90,7 +91,6 @@ namespace reshade::vulkan
 	{
 		using Handle = VkPipelineLayout;
 
-		std::vector<api::pipeline_layout_param> params;
 		std::vector<VkDescriptorSetLayout> set_layouts;
 	};
 

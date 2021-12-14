@@ -74,7 +74,6 @@ namespace reshade::opengl
 
 	struct pipeline_layout_impl
 	{
-		std::vector<api::pipeline_layout_param> params;
 		std::vector<api::descriptor_range> ranges;
 	};
 

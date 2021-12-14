@@ -414,13 +414,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 			// Upgrade to the actual interface version requested here
 			if (descriptor_heap_proxy->check_and_upgrade_interface(riid))
 			{
-				const UINT heap_index = InterlockedIncrement(&_descriptor_heap_index);
-				// TODO: Thread safety
-				if (heap_index >= _heaps.size())
-					_heaps.resize(heap_index + 32);
-				_heaps[heap_index] = descriptor_heap_proxy;
-
-				descriptor_heap_proxy->initialize_descriptor_base_handle(heap_index);
+				register_descriptor_heap(descriptor_heap_proxy);
 
 #if RESHADE_VERBOSE_LOG
 				LOG(INFO) << "> Returning ID3D12DescriptorHeap" << " object " << descriptor_heap_proxy << " (" << descriptor_heap_proxy->_orig << ").";
@@ -472,7 +466,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 			{
 				assert((blobLengthInBytes % sizeof(uint32_t)) == 0 && blobLengthInBytes == data[6]);
 
-				const auto impl = new reshade::d3d12::pipeline_layout_impl();
+				std::vector<reshade::api::pipeline_layout_param> params;
+				std::vector<std::vector<reshade::api::descriptor_range>> ranges;
 
 				for (uint32_t i = 0; i < data[7]; ++i)
 				{
@@ -491,8 +486,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 					const uint32_t param_offset = chunk[2];
 					auto param_list = chunk + (param_offset / sizeof(uint32_t));
 
-					impl->params.resize(param_count);
-					impl->ranges.resize(param_count);
+					params.resize(param_count);
+					ranges.resize(param_count);
 
 					for (uint32_t k = 0; k < param_count; ++k, param_list += 3)
 					{
@@ -507,7 +502,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 								const uint32_t range_count = param_data[0];
 								uint32_t descriptor_offset = 0;
 
-								std::vector<reshade::api::descriptor_range> ranges(range_count);
+								ranges[k].resize(range_count);
 
 								// Convert descriptor ranges
 								if (version == D3D_ROOT_SIGNATURE_VERSION_1_0)
@@ -516,7 +511,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 
 									for (uint32_t j = 0; j < range_count; ++j, ++range_data)
 									{
-										reshade::api::descriptor_range &range = ranges[j];
+										reshade::api::descriptor_range &range = ranges[k][j];
 										range.dx_register_index = range_data->BaseShaderRegister;
 										range.dx_register_space = range_data->RegisterSpace;
 										range.count = range_data->NumDescriptors;
@@ -538,7 +533,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 
 									for (uint32_t j = 0; j < range_count; ++j, ++range_data)
 									{
-										reshade::api::descriptor_range &range = ranges[j];
+										reshade::api::descriptor_range &range = ranges[k][j];
 										range.dx_register_index = range_data->BaseShaderRegister;
 										range.dx_register_space = range_data->RegisterSpace;
 										range.count = range_data->NumDescriptors;
@@ -555,20 +550,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 									}
 								}
 
-								impl->ranges[k] = std::move(ranges);
-								impl->params[k].type = reshade::api::pipeline_layout_param_type::descriptor_set;
-								impl->params[k].descriptor_set.count = range_count;
-								impl->params[k].descriptor_set.ranges = impl->ranges[k].data();
+								params[k].type = reshade::api::pipeline_layout_param_type::descriptor_set;
+								params[k].descriptor_set.count = range_count;
+								params[k].descriptor_set.ranges = ranges[k].data();
 								break;
 							}
 							case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
 							{
 								auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
 
-								impl->params[k].type = reshade::api::pipeline_layout_param_type::push_constants;
+								params[k].type = reshade::api::pipeline_layout_param_type::push_constants;
 
 								// Convert root constant description
-								reshade::api::constant_range &root_constant = impl->params[k].push_constants;
+								reshade::api::constant_range &root_constant = params[k].push_constants;
 								root_constant.binding = 0;
 								root_constant.dx_register_index = constant_data->ShaderRegister;
 								root_constant.dx_register_space = constant_data->RegisterSpace;
@@ -582,7 +576,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 							{
 								auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
 
-								reshade::api::descriptor_range range;
+								params[k].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+
+								reshade::api::descriptor_range &range = params[k].push_descriptors;
 								range.binding = 0;
 								range.dx_register_index = descriptor_data->ShaderRegister;
 								range.dx_register_space = descriptor_data->RegisterSpace;
@@ -596,9 +592,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 									range.type = reshade::api::descriptor_type::shader_resource_view;
 								else
 									range.type = reshade::api::descriptor_type::unordered_access_view;
-
-								impl->params[k].type = reshade::api::pipeline_layout_param_type::push_descriptors;
-								impl->params[k].push_descriptors = range;
 								break;
 							}
 						}
@@ -608,14 +601,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 
 				const auto root_signature = static_cast<ID3D12RootSignature *>(*ppvRootSignature);
 
-				root_signature->SetPrivateData(reshade::d3d12::extra_data_guid, sizeof(impl), &impl);
+				reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(params.size()), params.data(), reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
 
-				reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(impl->params.size()), impl->params.data(), reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
-
-				register_destruction_callback(root_signature, [this, root_signature, impl]() {
+				register_destruction_callback(root_signature, [this, root_signature]() {
 					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
-
-					delete impl;
 				});
 			}
 		}

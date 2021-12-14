@@ -154,6 +154,41 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_device>(this);
+
+	api::pipeline_layout_param global_pipeline_layout_params[8];
+	global_pipeline_layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
+	global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
+	global_pipeline_layout_params[0].push_descriptors.count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
+	global_pipeline_layout_params[0].push_descriptors.visibility = api::shader_stage::vertex;
+	global_pipeline_layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
+	global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
+	global_pipeline_layout_params[1].push_descriptors.count = _caps.MaxSimultaneousTextures; // s#
+	global_pipeline_layout_params[1].push_descriptors.visibility = api::shader_stage::pixel;
+
+	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
+	global_pipeline_layout_params[2].type = api::pipeline_layout_param_type::push_constants;
+	global_pipeline_layout_params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
+	global_pipeline_layout_params[2].push_constants.visibility = api::shader_stage::vertex;
+	global_pipeline_layout_params[3].type = api::pipeline_layout_param_type::push_constants;
+	global_pipeline_layout_params[3].push_constants.count =  16 * 4; // i#
+	global_pipeline_layout_params[3].push_constants.visibility = api::shader_stage::vertex;
+	global_pipeline_layout_params[4].type = api::pipeline_layout_param_type::push_constants;
+	global_pipeline_layout_params[4].push_constants.count =  16 * 1; // b#
+	global_pipeline_layout_params[4].push_constants.visibility = api::shader_stage::vertex;
+
+	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+	global_pipeline_layout_params[5].type = api::pipeline_layout_param_type::push_constants;
+	global_pipeline_layout_params[5].push_constants.count = 224 * 4; // c#
+	global_pipeline_layout_params[5].push_constants.visibility = api::shader_stage::pixel;
+	global_pipeline_layout_params[6].type = api::pipeline_layout_param_type::push_constants;
+	global_pipeline_layout_params[6].push_constants.count =  16 * 4; // i#
+	global_pipeline_layout_params[6].push_constants.visibility = api::shader_stage::pixel;
+	global_pipeline_layout_params[7].type = api::pipeline_layout_param_type::push_constants;
+	global_pipeline_layout_params[7].push_constants.count =  16 * 1; // b#
+	global_pipeline_layout_params[7].push_constants.visibility = api::shader_stage::pixel;
+
+	invoke_addon_event<addon_event::init_pipeline_layout>(this, 8, global_pipeline_layout_params, global_pipeline_layout);
+
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
@@ -214,6 +249,8 @@ void reshade::d3d9::device_impl::on_reset()
 
 	// Release reference to the potentially replaced auto depth-stencil resource
 	_orig->SetDepthStencilSurface(nullptr);
+
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
 
 	invoke_addon_event<addon_event::destroy_device>(this);
 #endif
@@ -840,450 +877,6 @@ reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_d
 	return api::resource_view_desc();
 }
 
-bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t, const api::dynamic_state *, api::pipeline *out_handle)
-{
-	switch (desc.type)
-	{
-	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out_handle);
-	case api::pipeline_stage::input_assembler:
-		return create_input_layout(desc, out_handle);
-	case api::pipeline_stage::vertex_shader:
-		return create_vertex_shader(desc, out_handle);
-	case api::pipeline_stage::pixel_shader:
-		return create_pixel_shader(desc, out_handle);
-	default:
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	*out_handle = { 0 };
-
-	// Check for unsupported states
-	if (desc.graphics.hull_shader.code_size != 0 ||
-		desc.graphics.domain_shader.code_size != 0 ||
-		desc.graphics.geometry_shader.code_size != 0 ||
-		desc.graphics.rasterizer_state.conservative_rasterization ||
-		desc.graphics.blend_state.alpha_to_coverage_enable ||
-		desc.graphics.blend_state.logic_op_enable[0] ||
-		desc.graphics.topology > api::primitive_topology::triangle_fan ||
-		desc.graphics.viewport_count > 1)
-		return false;
-
-#define create_state_object(name, type, condition) \
-	api::pipeline name##_handle = { 0 }; \
-	if (condition && !create_##name(desc, &name##_handle)) \
-		return false; \
-	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
-
-	create_state_object(vertex_shader, IDirect3DVertexShader9, desc.graphics.vertex_shader.code_size != 0);
-	create_state_object(pixel_shader, IDirect3DPixelShader9, desc.graphics.pixel_shader.code_size != 0);
-
-	create_state_object(input_layout, IDirect3DVertexDeclaration9, true);
-#undef create_state_object
-
-	if (FAILED(_orig->BeginStateBlock()))
-		return false;
-
-	_orig->SetVertexShader(vertex_shader.get());
-	_orig->SetPixelShader(pixel_shader.get());
-
-	if (input_layout != nullptr)
-	{
-		_orig->SetVertexDeclaration(input_layout.get());
-	}
-	else
-	{
-		// Setup default input (so that vertex shaders can get the vertex IDs)
-		_orig->SetStreamSource(0, _default_input_stream.get(), 0, sizeof(float));
-		_orig->SetVertexDeclaration(_default_input_layout.get());
-	}
-
-	_orig->SetRenderState(D3DRS_ZENABLE,
-		desc.graphics.depth_stencil_state.depth_enable);
-	_orig->SetRenderState(D3DRS_FILLMODE,
-		convert_fill_mode(desc.graphics.rasterizer_state.fill_mode));
-	_orig->SetRenderState(D3DRS_ZWRITEENABLE,
-		desc.graphics.depth_stencil_state.depth_write_mask);
-	_orig->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-	_orig->SetRenderState(D3DRS_LASTPIXEL, TRUE);
-	_orig->SetRenderState(D3DRS_SRCBLEND,
-		convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[0]));
-	_orig->SetRenderState(D3DRS_DESTBLEND,
-		convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[0]));
-	_orig->SetRenderState(D3DRS_CULLMODE,
-		convert_cull_mode(desc.graphics.rasterizer_state.cull_mode, desc.graphics.rasterizer_state.front_counter_clockwise));
-	_orig->SetRenderState(D3DRS_ZFUNC,
-		convert_compare_op(desc.graphics.depth_stencil_state.depth_func));
-	_orig->SetRenderState(D3DRS_DITHERENABLE, FALSE);
-	_orig->SetRenderState(D3DRS_ALPHABLENDENABLE,
-		desc.graphics.blend_state.blend_enable[0]);
-	_orig->SetRenderState(D3DRS_FOGENABLE, FALSE);
-	_orig->SetRenderState(D3DRS_STENCILENABLE,
-		desc.graphics.depth_stencil_state.stencil_enable);
-	_orig->SetRenderState(D3DRS_STENCILZFAIL,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_depth_fail_op : desc.graphics.depth_stencil_state.front_stencil_depth_fail_op));
-	_orig->SetRenderState(D3DRS_STENCILFAIL,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_fail_op : desc.graphics.depth_stencil_state.front_stencil_fail_op));
-	_orig->SetRenderState(D3DRS_STENCILPASS,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_pass_op : desc.graphics.depth_stencil_state.front_stencil_pass_op));
-	_orig->SetRenderState(D3DRS_STENCILFUNC,
-		convert_compare_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_func : desc.graphics.depth_stencil_state.front_stencil_func));
-	_orig->SetRenderState(D3DRS_STENCILREF,
-		desc.graphics.depth_stencil_state.stencil_reference_value);
-	_orig->SetRenderState(D3DRS_STENCILMASK,
-		desc.graphics.depth_stencil_state.stencil_read_mask);
-	_orig->SetRenderState(D3DRS_STENCILWRITEMASK,
-		desc.graphics.depth_stencil_state.stencil_write_mask);
-	_orig->SetRenderState(D3DRS_CLIPPING,
-		desc.graphics.rasterizer_state.depth_clip_enable);
-	_orig->SetRenderState(D3DRS_LIGHTING, FALSE);
-	_orig->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
-	_orig->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
-	_orig->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS,
-		desc.graphics.rasterizer_state.multisample_enable);
-	_orig->SetRenderState(D3DRS_MULTISAMPLEMASK,
-		desc.graphics.sample_mask);
-	_orig->SetRenderState(D3DRS_COLORWRITEENABLE,
-		desc.graphics.blend_state.render_target_write_mask[0]);
-	_orig->SetRenderState(D3DRS_BLENDOP,
-		convert_blend_op(desc.graphics.blend_state.color_blend_op[0]));
-	_orig->SetRenderState(D3DRS_SCISSORTESTENABLE,
-		desc.graphics.rasterizer_state.scissor_enable);
-	_orig->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS,
-		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.slope_scaled_depth_bias));
-	_orig->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE,
-		desc.graphics.rasterizer_state.antialiased_line_enable);
-	_orig->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, FALSE);
-	_orig->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE,
-		desc.graphics.rasterizer_state.cull_mode == api::cull_mode::none && (
-		desc.graphics.depth_stencil_state.front_stencil_fail_op != desc.graphics.depth_stencil_state.back_stencil_fail_op ||
-		desc.graphics.depth_stencil_state.front_stencil_depth_fail_op != desc.graphics.depth_stencil_state.back_stencil_depth_fail_op ||
-		desc.graphics.depth_stencil_state.front_stencil_pass_op != desc.graphics.depth_stencil_state.back_stencil_pass_op ||
-		desc.graphics.depth_stencil_state.front_stencil_func != desc.graphics.depth_stencil_state.back_stencil_func));
-	_orig->SetRenderState(D3DRS_CCW_STENCILZFAIL,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_depth_fail_op : desc.graphics.depth_stencil_state.back_stencil_depth_fail_op));
-	_orig->SetRenderState(D3DRS_CCW_STENCILFAIL,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_fail_op : desc.graphics.depth_stencil_state.back_stencil_fail_op));
-	_orig->SetRenderState(D3DRS_CCW_STENCILPASS,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_pass_op : desc.graphics.depth_stencil_state.back_stencil_pass_op));
-	_orig->SetRenderState(D3DRS_CCW_STENCILFUNC,
-		convert_compare_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_func : desc.graphics.depth_stencil_state.back_stencil_func));
-	_orig->SetRenderState(D3DRS_COLORWRITEENABLE1,
-		desc.graphics.blend_state.render_target_write_mask[1]);
-	_orig->SetRenderState(D3DRS_COLORWRITEENABLE2,
-		desc.graphics.blend_state.render_target_write_mask[2]);
-	_orig->SetRenderState(D3DRS_COLORWRITEENABLE3,
-		desc.graphics.blend_state.render_target_write_mask[3]);
-	_orig->SetRenderState(D3DRS_BLENDFACTOR,
-		D3DCOLOR_COLORVALUE(desc.graphics.blend_state.blend_constant[0], desc.graphics.blend_state.blend_constant[1], desc.graphics.blend_state.blend_constant[2], desc.graphics.blend_state.blend_constant[3]));
-	_orig->SetRenderState(D3DRS_DEPTHBIAS,
-		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.depth_bias));
-	_orig->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
-	_orig->SetRenderState(D3DRS_SRCBLENDALPHA,
-		convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[0]));
-	_orig->SetRenderState(D3DRS_DESTBLENDALPHA,
-		convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[0]));
-	_orig->SetRenderState(D3DRS_BLENDOPALPHA,
-		convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]));
-
-	if (com_ptr<IDirect3DStateBlock9> state_block;
-		SUCCEEDED(_orig->EndStateBlock(&state_block)))
-	{
-		const auto impl = new pipeline_impl();
-		impl->prim_type = convert_primitive_topology(desc.graphics.topology);
-		impl->state_block = std::move(state_block);
-
-		// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
-		static_assert(alignof(pipeline_impl) >= 2);
-
-		*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(IDirect3DVertexDeclaration9) >= 2);
-
-	std::vector<D3DVERTEXELEMENT9> internal_elements;
-	convert_pipeline_desc(desc, internal_elements);
-
-	if (com_ptr<IDirect3DVertexDeclaration9> object;
-		internal_elements.size() == 1 || // Avoid vertex declaration creation if the input layout is empty (it always contains at least a single 'D3DDECL_END' element)
-		SUCCEEDED(_orig->CreateVertexDeclaration(internal_elements.data(), &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(IDirect3DVertexShader9) >= 2);
-
-	assert(desc.graphics.vertex_shader.spec_constants == 0);
-
-	if (com_ptr<IDirect3DVertexShader9> object;
-		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(IDirect3DPixelShader9) >= 2);
-
-	assert(desc.graphics.pixel_shader.spec_constants == 0);
-
-	if (com_ptr<IDirect3DPixelShader9> object;
-		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline handle)
-{
-	if (handle.handle & 1)
-		delete reinterpret_cast<pipeline_impl *>(handle.handle ^ 1);
-	else if (handle.handle != 0)
-		reinterpret_cast<IUnknown *>(handle.handle)->Release();
-}
-
-bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
-{
-	*out_handle = { 0 };
-
-	std::vector<api::descriptor_range> ranges(param_count);
-
-	for (uint32_t i = 0; i < param_count; ++i)
-	{
-		api::descriptor_range &merged_range = ranges[i];
-
-		switch (params[i].type)
-		{
-		case api::pipeline_layout_param_type::descriptor_set:
-			if (params[i].descriptor_set.count == 0)
-				return false;
-
-			merged_range = params[i].descriptor_set.ranges[0];
-			if (merged_range.array_size > 1 || merged_range.dx_register_space != 0)
-				return false;
-
-			for (uint32_t k = 1; k < params[i].descriptor_set.count; ++k)
-			{
-				const api::descriptor_range &range = params[i].descriptor_set.ranges[k];
-
-				if (range.type != merged_range.type || range.array_size > 1 || range.dx_register_space != merged_range.dx_register_space)
-					return false;
-
-				if (range.binding >= merged_range.binding)
-				{
-					const uint32_t distance = range.binding - merged_range.binding;
-
-					if ((range.dx_register_index - merged_range.dx_register_index) != distance)
-						return false;
-
-					merged_range.count += distance;
-					merged_range.visibility |= range.visibility;
-				}
-				else
-				{
-					const uint32_t distance = merged_range.binding - range.binding;
-
-					if ((merged_range.dx_register_index - range.dx_register_index) != distance)
-						return false;
-
-					merged_range.binding = range.binding;
-					merged_range.dx_register_index = range.dx_register_index;
-					merged_range.count += distance;
-					merged_range.visibility |= range.visibility;
-				}
-			}
-			break;
-		case api::pipeline_layout_param_type::push_descriptors:
-			merged_range = params[i].push_descriptors;
-			if (merged_range.dx_register_space != 0)
-				return false;
-			break;
-		case api::pipeline_layout_param_type::push_constants:
-			merged_range.dx_register_index = params[i].push_constants.dx_register_index;
-			merged_range.dx_register_space = params[i].push_constants.dx_register_space;
-			if (merged_range.dx_register_space != 0)
-				return false;
-			break;
-		}
-	}
-
-	const auto impl = new pipeline_layout_impl();
-	impl->params.assign(params, params + param_count);
-	impl->ranges = std::move(ranges);
-
-	for (uint32_t i = 0; i < param_count; ++i)
-		if (params[i].type == api::pipeline_layout_param_type::descriptor_set)
-			impl->params[i].descriptor_set.ranges = &impl->ranges[i];
-
-	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
-	return true;
-}
-void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
-{
-	assert(handle != global_pipeline_layout);
-
-	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
-}
-
-reshade::api::pipeline_layout_param reshade::d3d9::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t layout_param) const
-{
-	assert(layout.handle != 0);
-
-	api::pipeline_layout_param param = {};
-
-	if (layout == global_pipeline_layout)
-	{
-		switch (layout_param)
-		{
-		case 0:
-			param.type = api::pipeline_layout_param_type::push_descriptors;
-			param.push_descriptors.count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
-			param.push_descriptors.array_size = 1;
-			param.push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-			param.push_descriptors.visibility = api::shader_stage::vertex;
-			break;
-		case 1:
-			param.type = api::pipeline_layout_param_type::push_descriptors;
-			param.push_descriptors.count = _caps.MaxSimultaneousTextures; // s#
-			param.push_descriptors.array_size = 1;
-			param.push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-			param.push_descriptors.visibility = api::shader_stage::pixel;
-			break;
-
-		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-		case 2:
-			param.type = api::pipeline_layout_param_type::push_constants;
-			param.push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
-			param.push_constants.visibility = api::shader_stage::vertex;
-			break;
-		case 3:
-			param.type = api::pipeline_layout_param_type::push_constants;
-			param.push_constants.count = 16 * 4; // i#
-			param.push_constants.visibility = api::shader_stage::vertex;
-			break;
-		case 4:
-			param.type = api::pipeline_layout_param_type::push_constants;
-			param.push_constants.count = 16; // b#
-			param.push_constants.visibility = api::shader_stage::vertex;
-			break;
-
-		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-		case 5:
-			param.type = api::pipeline_layout_param_type::push_constants;
-			param.push_constants.count = 224 * 4; // c#
-			param.push_constants.visibility = api::shader_stage::pixel;
-			break;
-		case 6:
-			param.type = api::pipeline_layout_param_type::push_constants;
-			param.push_constants.count = 16 * 4; // i#
-			param.push_constants.visibility = api::shader_stage::pixel;
-			break;
-		case 7:
-			param.type = api::pipeline_layout_param_type::push_constants;
-			param.push_constants.count = 16; // b#
-			param.push_constants.visibility = api::shader_stage::pixel;
-			break;
-
-		default:
-			assert(false);
-			break;
-		}
-	}
-	else
-	{
-		const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-		if (layout_param < layout_impl->params.size())
-			param = layout_impl->params[layout_param];
-	}
-
-	return param;
-}
-
-bool reshade::d3d9::device_impl::create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
-{
-	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
-
-	if (layout_impl != nullptr)
-	{
-		for (uint32_t i = 0; i < count; ++i)
-		{
-			const auto set_impl = new descriptor_set_impl();
-			set_impl->type = layout_impl->ranges[layout_param].type;
-			set_impl->count = layout_impl->ranges[layout_param].count;
-
-			switch (set_impl->type)
-			{
-			case api::descriptor_type::sampler:
-			case api::descriptor_type::shader_resource_view:
-				set_impl->descriptors.resize(set_impl->count * 1);
-				break;
-			case api::descriptor_type::sampler_with_resource_view:
-				set_impl->descriptors.resize(set_impl->count * 2);
-				break;
-			default:
-				assert(false);
-				break;
-			}
-
-			out_sets[i] = { reinterpret_cast<uintptr_t>(set_impl) };
-		}
-
-		return true;
-	}
-	else
-	{
-		for (uint32_t i = 0; i < count; ++i)
-		{
-			out_sets[i] = { 0 };
-		}
-
-		return false;
-	}
-}
-void reshade::d3d9::device_impl::destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
-{
-	for (uint32_t i = 0; i < count; ++i)
-		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
-}
-
-void reshade::d3d9::device_impl::get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *pool, uint32_t *offset) const
-{
-	assert(set.handle != 0 && array_offset == 0);
-
-	*pool = { 0 }; // Not implemented
-	*offset = binding;
-}
-
 bool reshade::d3d9::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data)
 {
 	if (out_data == nullptr)
@@ -1583,6 +1176,370 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 	}
 
 	assert(false); // Not implemented
+}
+
+bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t, const api::dynamic_state *, api::pipeline *out_handle)
+{
+	switch (desc.type)
+	{
+	case api::pipeline_stage::all_graphics:
+		return create_graphics_pipeline(desc, out_handle);
+	case api::pipeline_stage::input_assembler:
+		return create_input_layout(desc, out_handle);
+	case api::pipeline_stage::vertex_shader:
+		return create_vertex_shader(desc, out_handle);
+	case api::pipeline_stage::pixel_shader:
+		return create_pixel_shader(desc, out_handle);
+	default:
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+{
+	*out_handle = { 0 };
+
+	// Check for unsupported states
+	if (desc.graphics.hull_shader.code_size != 0 ||
+		desc.graphics.domain_shader.code_size != 0 ||
+		desc.graphics.geometry_shader.code_size != 0 ||
+		desc.graphics.rasterizer_state.conservative_rasterization ||
+		desc.graphics.blend_state.alpha_to_coverage_enable ||
+		desc.graphics.blend_state.logic_op_enable[0] ||
+		desc.graphics.topology > api::primitive_topology::triangle_fan ||
+		desc.graphics.viewport_count > 1)
+		return false;
+
+#define create_state_object(name, type, condition) \
+	api::pipeline name##_handle = { 0 }; \
+	if (condition && !create_##name(desc, &name##_handle)) \
+		return false; \
+	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
+
+	create_state_object(vertex_shader, IDirect3DVertexShader9, desc.graphics.vertex_shader.code_size != 0);
+	create_state_object(pixel_shader, IDirect3DPixelShader9, desc.graphics.pixel_shader.code_size != 0);
+
+	create_state_object(input_layout, IDirect3DVertexDeclaration9, true);
+#undef create_state_object
+
+	if (FAILED(_orig->BeginStateBlock()))
+		return false;
+
+	_orig->SetVertexShader(vertex_shader.get());
+	_orig->SetPixelShader(pixel_shader.get());
+
+	if (input_layout != nullptr)
+	{
+		_orig->SetVertexDeclaration(input_layout.get());
+	}
+	else
+	{
+		// Setup default input (so that vertex shaders can get the vertex IDs)
+		_orig->SetStreamSource(0, _default_input_stream.get(), 0, sizeof(float));
+		_orig->SetVertexDeclaration(_default_input_layout.get());
+	}
+
+	_orig->SetRenderState(D3DRS_ZENABLE,
+		desc.graphics.depth_stencil_state.depth_enable);
+	_orig->SetRenderState(D3DRS_FILLMODE,
+		convert_fill_mode(desc.graphics.rasterizer_state.fill_mode));
+	_orig->SetRenderState(D3DRS_ZWRITEENABLE,
+		desc.graphics.depth_stencil_state.depth_write_mask);
+	_orig->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+	_orig->SetRenderState(D3DRS_LASTPIXEL, TRUE);
+	_orig->SetRenderState(D3DRS_SRCBLEND,
+		convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[0]));
+	_orig->SetRenderState(D3DRS_DESTBLEND,
+		convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[0]));
+	_orig->SetRenderState(D3DRS_CULLMODE,
+		convert_cull_mode(desc.graphics.rasterizer_state.cull_mode, desc.graphics.rasterizer_state.front_counter_clockwise));
+	_orig->SetRenderState(D3DRS_ZFUNC,
+		convert_compare_op(desc.graphics.depth_stencil_state.depth_func));
+	_orig->SetRenderState(D3DRS_DITHERENABLE, FALSE);
+	_orig->SetRenderState(D3DRS_ALPHABLENDENABLE,
+		desc.graphics.blend_state.blend_enable[0]);
+	_orig->SetRenderState(D3DRS_FOGENABLE, FALSE);
+	_orig->SetRenderState(D3DRS_STENCILENABLE,
+		desc.graphics.depth_stencil_state.stencil_enable);
+	_orig->SetRenderState(D3DRS_STENCILZFAIL,
+		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_depth_fail_op : desc.graphics.depth_stencil_state.front_stencil_depth_fail_op));
+	_orig->SetRenderState(D3DRS_STENCILFAIL,
+		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_fail_op : desc.graphics.depth_stencil_state.front_stencil_fail_op));
+	_orig->SetRenderState(D3DRS_STENCILPASS,
+		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_pass_op : desc.graphics.depth_stencil_state.front_stencil_pass_op));
+	_orig->SetRenderState(D3DRS_STENCILFUNC,
+		convert_compare_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_func : desc.graphics.depth_stencil_state.front_stencil_func));
+	_orig->SetRenderState(D3DRS_STENCILREF,
+		desc.graphics.depth_stencil_state.stencil_reference_value);
+	_orig->SetRenderState(D3DRS_STENCILMASK,
+		desc.graphics.depth_stencil_state.stencil_read_mask);
+	_orig->SetRenderState(D3DRS_STENCILWRITEMASK,
+		desc.graphics.depth_stencil_state.stencil_write_mask);
+	_orig->SetRenderState(D3DRS_CLIPPING,
+		desc.graphics.rasterizer_state.depth_clip_enable);
+	_orig->SetRenderState(D3DRS_LIGHTING, FALSE);
+	_orig->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
+	_orig->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
+	_orig->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS,
+		desc.graphics.rasterizer_state.multisample_enable);
+	_orig->SetRenderState(D3DRS_MULTISAMPLEMASK,
+		desc.graphics.sample_mask);
+	_orig->SetRenderState(D3DRS_COLORWRITEENABLE,
+		desc.graphics.blend_state.render_target_write_mask[0]);
+	_orig->SetRenderState(D3DRS_BLENDOP,
+		convert_blend_op(desc.graphics.blend_state.color_blend_op[0]));
+	_orig->SetRenderState(D3DRS_SCISSORTESTENABLE,
+		desc.graphics.rasterizer_state.scissor_enable);
+	_orig->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS,
+		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.slope_scaled_depth_bias));
+	_orig->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE,
+		desc.graphics.rasterizer_state.antialiased_line_enable);
+	_orig->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, FALSE);
+	_orig->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE,
+		desc.graphics.rasterizer_state.cull_mode == api::cull_mode::none && (
+		desc.graphics.depth_stencil_state.front_stencil_fail_op != desc.graphics.depth_stencil_state.back_stencil_fail_op ||
+		desc.graphics.depth_stencil_state.front_stencil_depth_fail_op != desc.graphics.depth_stencil_state.back_stencil_depth_fail_op ||
+		desc.graphics.depth_stencil_state.front_stencil_pass_op != desc.graphics.depth_stencil_state.back_stencil_pass_op ||
+		desc.graphics.depth_stencil_state.front_stencil_func != desc.graphics.depth_stencil_state.back_stencil_func));
+	_orig->SetRenderState(D3DRS_CCW_STENCILZFAIL,
+		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_depth_fail_op : desc.graphics.depth_stencil_state.back_stencil_depth_fail_op));
+	_orig->SetRenderState(D3DRS_CCW_STENCILFAIL,
+		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_fail_op : desc.graphics.depth_stencil_state.back_stencil_fail_op));
+	_orig->SetRenderState(D3DRS_CCW_STENCILPASS,
+		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_pass_op : desc.graphics.depth_stencil_state.back_stencil_pass_op));
+	_orig->SetRenderState(D3DRS_CCW_STENCILFUNC,
+		convert_compare_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_func : desc.graphics.depth_stencil_state.back_stencil_func));
+	_orig->SetRenderState(D3DRS_COLORWRITEENABLE1,
+		desc.graphics.blend_state.render_target_write_mask[1]);
+	_orig->SetRenderState(D3DRS_COLORWRITEENABLE2,
+		desc.graphics.blend_state.render_target_write_mask[2]);
+	_orig->SetRenderState(D3DRS_COLORWRITEENABLE3,
+		desc.graphics.blend_state.render_target_write_mask[3]);
+	_orig->SetRenderState(D3DRS_BLENDFACTOR,
+		D3DCOLOR_COLORVALUE(desc.graphics.blend_state.blend_constant[0], desc.graphics.blend_state.blend_constant[1], desc.graphics.blend_state.blend_constant[2], desc.graphics.blend_state.blend_constant[3]));
+	_orig->SetRenderState(D3DRS_DEPTHBIAS,
+		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.depth_bias));
+	_orig->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
+	_orig->SetRenderState(D3DRS_SRCBLENDALPHA,
+		convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[0]));
+	_orig->SetRenderState(D3DRS_DESTBLENDALPHA,
+		convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[0]));
+	_orig->SetRenderState(D3DRS_BLENDOPALPHA,
+		convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]));
+
+	if (com_ptr<IDirect3DStateBlock9> state_block;
+		SUCCEEDED(_orig->EndStateBlock(&state_block)))
+	{
+		const auto impl = new pipeline_impl();
+		impl->prim_type = convert_primitive_topology(desc.graphics.topology);
+		impl->state_block = std::move(state_block);
+
+		// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
+		static_assert(alignof(pipeline_impl) >= 2);
+
+		*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(IDirect3DVertexDeclaration9) >= 2);
+
+	std::vector<D3DVERTEXELEMENT9> internal_elements;
+	convert_pipeline_desc(desc, internal_elements);
+
+	if (com_ptr<IDirect3DVertexDeclaration9> object;
+		internal_elements.size() == 1 || // Avoid vertex declaration creation if the input layout is empty (it always contains at least a single 'D3DDECL_END' element)
+		SUCCEEDED(_orig->CreateVertexDeclaration(internal_elements.data(), &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(IDirect3DVertexShader9) >= 2);
+
+	assert(desc.graphics.vertex_shader.spec_constants == 0);
+
+	if (com_ptr<IDirect3DVertexShader9> object;
+		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(IDirect3DPixelShader9) >= 2);
+
+	assert(desc.graphics.pixel_shader.spec_constants == 0);
+
+	if (com_ptr<IDirect3DPixelShader9> object;
+		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline handle)
+{
+	if (handle.handle & 1)
+		delete reinterpret_cast<pipeline_impl *>(handle.handle ^ 1);
+	else if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
+bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
+{
+	*out_handle = { 0 };
+
+	std::vector<api::descriptor_range> ranges(param_count);
+
+	for (uint32_t i = 0; i < param_count; ++i)
+	{
+		api::descriptor_range &merged_range = ranges[i];
+
+		switch (params[i].type)
+		{
+		case api::pipeline_layout_param_type::descriptor_set:
+			if (params[i].descriptor_set.count == 0)
+				return false;
+
+			merged_range = params[i].descriptor_set.ranges[0];
+			if (merged_range.array_size > 1 || merged_range.dx_register_space != 0)
+				return false;
+
+			for (uint32_t k = 1; k < params[i].descriptor_set.count; ++k)
+			{
+				const api::descriptor_range &range = params[i].descriptor_set.ranges[k];
+
+				if (range.type != merged_range.type || range.array_size > 1 || range.dx_register_space != merged_range.dx_register_space)
+					return false;
+
+				if (range.binding >= merged_range.binding)
+				{
+					const uint32_t distance = range.binding - merged_range.binding;
+
+					if ((range.dx_register_index - merged_range.dx_register_index) != distance)
+						return false;
+
+					merged_range.count += distance;
+					merged_range.visibility |= range.visibility;
+				}
+				else
+				{
+					const uint32_t distance = merged_range.binding - range.binding;
+
+					if ((merged_range.dx_register_index - range.dx_register_index) != distance)
+						return false;
+
+					merged_range.binding = range.binding;
+					merged_range.dx_register_index = range.dx_register_index;
+					merged_range.count += distance;
+					merged_range.visibility |= range.visibility;
+				}
+			}
+			break;
+		case api::pipeline_layout_param_type::push_descriptors:
+			merged_range = params[i].push_descriptors;
+			if (merged_range.dx_register_space != 0)
+				return false;
+			break;
+		case api::pipeline_layout_param_type::push_constants:
+			merged_range.dx_register_index = params[i].push_constants.dx_register_index;
+			merged_range.dx_register_space = params[i].push_constants.dx_register_space;
+			if (merged_range.dx_register_space != 0)
+				return false;
+			break;
+		}
+	}
+
+	const auto impl = new pipeline_layout_impl();
+	impl->ranges = std::move(ranges);
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
+	return true;
+}
+void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
+{
+	assert(handle != global_pipeline_layout);
+
+	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
+}
+
+bool reshade::d3d9::device_impl::allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
+{
+	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
+
+	if (layout_impl != nullptr)
+	{
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			const auto set_impl = new descriptor_set_impl();
+			set_impl->type = layout_impl->ranges[layout_param].type;
+			set_impl->count = layout_impl->ranges[layout_param].count;
+
+			switch (set_impl->type)
+			{
+			case api::descriptor_type::sampler:
+			case api::descriptor_type::shader_resource_view:
+				set_impl->descriptors.resize(set_impl->count * 1);
+				break;
+			case api::descriptor_type::sampler_with_resource_view:
+				set_impl->descriptors.resize(set_impl->count * 2);
+				break;
+			default:
+				assert(false);
+				break;
+			}
+
+			out_sets[i] = { reinterpret_cast<uintptr_t>(set_impl) };
+		}
+
+		return true;
+	}
+	else
+	{
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			out_sets[i] = { 0 };
+		}
+
+		return false;
+	}
+}
+void reshade::d3d9::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+{
+	for (uint32_t i = 0; i < count; ++i)
+		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+}
+
+void reshade::d3d9::device_impl::get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *pool, uint32_t *offset) const
+{
+	assert(set.handle != 0 && array_offset == 0);
+
+	*pool = { 0 }; // Not implemented
+	*offset = binding;
 }
 
 void reshade::d3d9::device_impl::copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies)

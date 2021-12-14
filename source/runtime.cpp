@@ -1724,7 +1724,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		_device->set_resource_name(effect.cb, "ReShade constant buffer");
 
-		if (!_device->create_descriptor_set(effect.layout, 0, &effect.cb_set))
+		if (!_device->allocate_descriptor_set(effect.layout, 0, &effect.cb_set))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1748,12 +1748,12 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 		total_pass_count += static_cast<uint32_t>(info.passes.size());
 
-	std::vector<api::descriptor_set> texture_tables(total_pass_count);
-	std::vector<api::descriptor_set> storage_tables(total_pass_count);
+	std::vector<api::descriptor_set> texture_sets(total_pass_count);
+	std::vector<api::descriptor_set> storage_sets(total_pass_count);
 
 	if (effect.module.num_sampler_bindings != 0)
 	{
-		if (!_device->create_descriptor_sets(sampler_with_resource_view ? total_pass_count : 1, effect.layout, 1, sampler_with_resource_view ? texture_tables.data() : &effect.sampler_set))
+		if (!_device->allocate_descriptor_sets(sampler_with_resource_view ? total_pass_count : 1, effect.layout, 1, sampler_with_resource_view ? texture_sets.data() : &effect.sampler_set))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1812,7 +1812,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		assert(!sampler_with_resource_view);
 
-		if (!_device->create_descriptor_sets(total_pass_count, effect.layout, 2, texture_tables.data()))
+		if (!_device->allocate_descriptor_sets(total_pass_count, effect.layout, 2, texture_sets.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1824,7 +1824,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	if (effect.module.num_storage_bindings != 0)
 	{
-		if (!_device->create_descriptor_sets(total_pass_count, effect.layout, 3, storage_tables.data()))
+		if (!_device->allocate_descriptor_sets(total_pass_count, effect.layout, 3, storage_sets.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -2043,7 +2043,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			if (effect.module.num_sampler_bindings != 0 ||
 				effect.module.num_texture_bindings != 0)
 			{
-				pass_data.texture_set = texture_tables[total_pass_index];
+				pass_data.texture_set = texture_sets[total_pass_index];
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
@@ -2120,7 +2120,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 			if (effect.module.num_storage_bindings != 0)
 			{
-				pass_data.storage_set = storage_tables[total_pass_index];
+				pass_data.storage_set = storage_sets[total_pass_index];
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
@@ -2190,8 +2190,8 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		{
 			_device->destroy_pipeline(pass.pipeline);
 
-			_device->destroy_descriptor_sets(1, &pass.texture_set);
-			_device->destroy_descriptor_sets(1, &pass.storage_set);
+			_device->free_descriptor_set(pass.texture_set);
+			_device->free_descriptor_set(pass.storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -2202,9 +2202,9 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		_device->destroy_resource(effect.cb);
 		effect.cb = {};
 
-		_device->destroy_descriptor_sets(1, &effect.cb_set);
+		_device->free_descriptor_set(effect.cb_set);
 		effect.cb_set = {};
-		_device->destroy_descriptor_sets(1, &effect.sampler_set);
+		_device->free_descriptor_set(effect.sampler_set);
 		effect.sampler_set = {};
 
 		_device->destroy_pipeline_layout(effect.layout);

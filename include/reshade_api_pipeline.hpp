@@ -80,7 +80,7 @@ namespace reshade { namespace api
 	struct constant_range
 	{
 		/// <summary>
-		/// OpenGL uniform buffer binding index or Vulkan push constant offset (in 32-bit values).
+		/// OpenGL uniform buffer binding index.
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>

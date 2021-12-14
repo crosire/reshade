@@ -274,16 +274,9 @@ namespace reshade { namespace api
 		virtual void destroy_resource(resource handle) = 0;
 
 		/// <summary>
-		/// Gets the description of the specified <paramref name="resource"/>.
+		/// Gets the description of the specified resource.
 		/// </summary>
 		virtual resource_desc get_resource_desc(resource resource) const = 0;
-
-		/// <summary>
-		/// Associates a name with a resource, for easier debugging in external tools.
-		/// </summary>
-		/// <param name="handle">Resource to associate a name with.</param>
-		/// <param name="name">Null-terminated name string.</param>
-		virtual void set_resource_name(resource handle, const char *name) = 0;
 
 		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/>.
@@ -302,88 +295,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
-		virtual resource get_resource_from_view(resource_view view) const = 0;
+		virtual      resource get_resource_from_view(resource_view view) const = 0;
 		/// <summary>
-		/// Gets the description of the specified resource <paramref name="view"/>.
+		/// Gets the description of the specified resource view.
 		/// </summary>
 		virtual resource_view_desc get_resource_view_desc(resource_view view) const = 0;
-
-		/// <summary>
-		/// Associates a name with a resource view, for easier debugging in external tools.
-		/// </summary>
-		/// <param name="handle">Resource view to associate a name with.</param>
-		/// <param name="name">Null-terminated name string.</param>
-		virtual void set_resource_view_name(resource_view handle, const char *name) = 0;
-
-		/// <summary>
-		/// Creates a new pipeline state object.
-		/// </summary>
-		/// <param name="desc">Description of the pipeline state object to create.</param>
-		/// <param name="dynamic_state_count">Number of dynamic pipeline states.</param>
-		/// <param name="dynamic_states">Optional pointer to an array of pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding the created pipeline state object.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
-		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_pipeline(const pipeline_desc &desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states, pipeline *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
-		/// </summary>
-		virtual void destroy_pipeline(pipeline handle) = 0;
-
-		/// <summary>
-		/// Creates a new pipeline layout.
-		/// </summary>
-		/// <param name="param_count">Number of layout parameters.</param>
-		/// <param name="params">Pointer to an array of layout parameters that describe this pipeline layout.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
-		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_pipeline_layout(uint32_t param_count, const pipeline_layout_param *params, pipeline_layout *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
-		/// </summary>
-		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
-
-		/// <summary>
-		/// Gets a layout parameter from the specified pipeline <paramref name="layout"/>.
-		/// </summary>
-		/// <param name="layout">Pipeline layout to get the layout parameter from.</param>
-		/// <param name="param">Index of the layout parameter to get.</param>
-		virtual pipeline_layout_param get_pipeline_layout_param(pipeline_layout layout, uint32_t param) const = 0;
-
-		/// <summary>
-		/// Allocates a descriptor set from an internal pool.
-		/// </summary>
-		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
-		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
-		/// <param name="out_handle">Pointer to a a variable that is set to the handles of the created descriptor set.</param>
-		/// <returns><see langword="true"/> if the descriptor set was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
-		inline  bool create_descriptor_set(pipeline_layout layout, uint32_t param, descriptor_set *out_handle) { return create_descriptor_sets(1, layout, param, out_handle); }
-		/// <summary>
-		/// Allocates one or more descriptor sets from an internal pool.
-		/// </summary>
-		/// <param name="count">Number of descriptor sets to allocate.</param>
-		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
-		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
-		/// <param name="out_handles">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor sets.</param>
-		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
-		virtual bool create_descriptor_sets(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_set *out_handles) = 0;
-		/// <summary>
-		/// Frees adescriptor set that was previously allocated via <see cref="create_descriptor_set"/>.
-		/// </summary>
-		inline  void destroy_descriptor_set(descriptor_set handle) { destroy_descriptor_sets(1, &handle); }
-		/// <summary>
-		/// Frees one or more descriptor sets that were previously allocated via <see cref="create_descriptor_sets"/>.
-		/// </summary>
-		virtual void destroy_descriptor_sets(uint32_t count, const descriptor_set *handles) = 0;
-
-		/// <summary>
-		/// Gets the offset (in descriptors) of the specified binding in the underlying descriptor pool.
-		/// </summary>
-		/// <param name="set">Descriptor set to get the offset from.</param>
-		/// <param name="binding">Binding in the descriptor set to get the offset from.</param>
-		/// <param name="array_offset">Array index in the specified <paramref name="binding"/>.</param>
-		/// <param name="out_pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
-		/// <param name="out_offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
-		virtual void get_descriptor_pool_offset(descriptor_set set, uint32_t binding, uint32_t array_offset, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
 
 		/// <summary>
 		/// Maps the memory of a buffer resource into application address space.
@@ -435,6 +351,69 @@ namespace reshade { namespace api
 		virtual void update_texture_region(const subresource_data &data, resource resource, uint32_t subresource, const subresource_box *box = nullptr) = 0;
 
 		/// <summary>
+		/// Creates a new pipeline state object.
+		/// </summary>
+		/// <param name="desc">Description of the pipeline state object to create.</param>
+		/// <param name="dynamic_state_count">Number of dynamic pipeline states.</param>
+		/// <param name="dynamic_states">Optional pointer to an array of pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding the created pipeline state object.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
+		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_pipeline(const pipeline_desc &desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states, pipeline *out_handle) = 0;
+		/// <summary>
+		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
+		/// </summary>
+		virtual void destroy_pipeline(pipeline handle) = 0;
+
+		/// <summary>
+		/// Creates a new pipeline layout.
+		/// </summary>
+		/// <param name="param_count">Number of layout parameters.</param>
+		/// <param name="params">Pointer to an array of layout parameters that describe this pipeline layout.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
+		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_pipeline_layout(uint32_t param_count, const pipeline_layout_param *params, pipeline_layout *out_handle) = 0;
+		/// <summary>
+		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
+		/// </summary>
+		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
+
+		/// <summary>
+		/// Allocates a descriptor set from an internal pool.
+		/// </summary>
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
+		/// <param name="out_handle">Pointer to a a variable that is set to the handles of the created descriptor set.</param>
+		/// <returns><see langword="true"/> if the descriptor set was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
+		inline  bool allocate_descriptor_set(pipeline_layout layout, uint32_t param, descriptor_set *out_handle) { return allocate_descriptor_sets(1, layout, param, out_handle); }
+		/// <summary>
+		/// Allocates one or more descriptor sets from an internal pool.
+		/// </summary>
+		/// <param name="count">Number of descriptor sets to allocate.</param>
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
+		/// <param name="out_handles">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor sets.</param>
+		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
+		virtual bool allocate_descriptor_sets(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_set *out_handles) = 0;
+		/// <summary>
+		/// Frees adescriptor set that was previously allocated via <see cref="create_descriptor_set"/>.
+		/// </summary>
+		inline  void free_descriptor_set(descriptor_set handle) { free_descriptor_sets(1, &handle); }
+		/// <summary>
+		/// Frees one or more descriptor sets that were previously allocated via <see cref="create_descriptor_sets"/>.
+		/// </summary>
+		virtual void free_descriptor_sets(uint32_t count, const descriptor_set *handles) = 0;
+
+		/// <summary>
+		/// Gets the offset (in descriptors) of the specified binding in the underlying descriptor pool.
+		/// </summary>
+		/// <param name="set">Descriptor set to get the offset from.</param>
+		/// <param name="binding">Binding in the descriptor set to get the offset from.</param>
+		/// <param name="array_offset">Array index in the specified <paramref name="binding"/>.</param>
+		/// <param name="out_pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
+		/// <param name="out_offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
+		virtual void get_descriptor_pool_offset(descriptor_set set, uint32_t binding, uint32_t array_offset, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
+
+		/// <summary>
 		/// Copies the contents of a descriptor set to another descriptor set.
 		/// </summary>
 		/// <param name="copy">Descriptor set copy to process.</param>
@@ -480,6 +459,19 @@ namespace reshade { namespace api
 		/// <param name="stride">Size (in bytes) of each element in the <paramref name="results"/> array.</param>
 		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
 		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
+
+		/// <summary>
+		/// Associates a name with a resource, for easier debugging in external tools.
+		/// </summary>
+		/// <param name="handle">Resource to associate a name with.</param>
+		/// <param name="name">Null-terminated name string.</param>
+		virtual void set_resource_name(resource handle, const char *name) = 0;
+		/// <summary>
+		/// Associates a name with a resource view, for easier debugging in external tools.
+		/// </summary>
+		/// <param name="handle">Resource view to associate a name with.</param>
+		/// <param name="name">Null-terminated name string.</param>
+		virtual void set_resource_view_name(resource_view handle, const char *name) = 0;
 	};
 
 	/// <summary>

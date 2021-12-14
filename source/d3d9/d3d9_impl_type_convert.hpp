@@ -32,7 +32,6 @@ namespace reshade::d3d9
 
 	struct pipeline_layout_impl
 	{
-		std::vector<api::pipeline_layout_param> params;
 		std::vector<api::descriptor_range> ranges;
 	};
 

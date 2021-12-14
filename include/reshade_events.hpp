@@ -443,6 +443,112 @@ namespace reshade
 		destroy_resource_view,
 
 		/// <summary>
+		/// Called after:
+		/// <list type="bullet">
+		/// <item><description>IDirect3DVertexBuffer9::Lock</description></item>
+		/// <item><description>IDirect3DIndexBuffer9::Lock</description></item>
+		/// <item><description>ID3D10Resource::Map</description></item>
+		/// <item><description>ID3D11DeviceContext::Map</description></item>
+		/// <item><description>ID3D12Resource::Map</description></item>
+		/// <item><description>glMapBuffer</description></item>
+		/// <item><description>glMapBufferRange</description></item>
+		/// <item><description>glMapNamedBuffer</description></item>
+		/// <item><description>glMapNamedBufferRange</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **data)</c></para>
+		/// </summary>
+		map_buffer_region,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
+		/// <item><description>IDirect3DVertexBuffer9::Unlock</description></item>
+		/// <item><description>IDirect3DIndexBuffer9::Unlock</description></item>
+		/// <item><description>ID3D10Resource::Unmap</description></item>
+		/// <item><description>ID3D11DeviceContext::Unmap</description></item>
+		/// <item><description>ID3D12Resource::Unmap</description></item>
+		/// <item><description>glUnmapBuffer</description></item>
+		/// <item><description>glUnmapNamedBuffer</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource)</c></para>
+		/// </summary>
+		unmap_buffer_region,
+
+		/// <summary>
+		/// Called after:
+		/// <list type="bullet">
+		/// <item><description>IDirect3DSurface9::LockRect</description></item>
+		/// <item><description>IDirect3DVolume9::LockBox</description></item>
+		/// <item><description>IDirect3DTexture9::LockRect</description></item>
+		/// <item><description>IDirect3DVolumeTexture9::LockBox</description></item>
+		/// <item><description>IDirect3DCubeTexture9::LockRect</description></item>
+		/// <item><description>ID3D10Resource::Map</description></item>
+		/// <item><description>ID3D11DeviceContext::Map</description></item>
+		/// <item><description>ID3D12Resource::Map</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint32_t subresource, const api::box *box, api::map_access access, api::subresource_data *data)</c></para>
+		/// </summary>
+		map_texture_region,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
+		/// <item><description>IDirect3DSurface9::UnlockRect</description></item>
+		/// <item><description>IDirect3DVolume9::UnlockBox</description></item>
+		/// <item><description>IDirect3DTexture9::UnlockRect</description></item>
+		/// <item><description>IDirect3DVolumeTexture9::UnlockBox</description></item>
+		/// <item><description>IDirect3DCubeTexture9::UnlockRect</description></item>
+		/// <item><description>ID3D10Resource::Unmap</description></item>
+		/// <item><description>ID3D11DeviceContext::Unmap</description></item>
+		/// <item><description>ID3D12Resource::Unmap</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint32_t subresource)</c></para>
+		/// </summary>
+		unmap_texture_region,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
+		/// <item><description>ID3D10Device::UpdateSubresource</description></item>
+		/// <item><description>ID3D11DeviceContext::UpdateSubresource</description></item>
+		/// <item><description>glBufferSubData</description></item>
+		/// <item><description>glNamedBufferSubData</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource resource, uint64_t offset, uint64_t size)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
+		/// </remarks>
+		update_buffer_region,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
+		/// <item><description>ID3D10Device::UpdateSubresource</description></item>
+		/// <item><description>ID3D11DeviceContext::UpdateSubresource</description></item>
+		/// <item><description>glTexSubData1D</description></item>
+		/// <item><description>glTexSubData2D</description></item>
+		/// <item><description>glTexSubData3D</description></item>
+		/// <item><description>glTextureSubData1D</description></item>
+		/// <item><description>glTextureSubData2D</description></item>
+		/// <item><description>glTextureSubData3D</description></item>
+		/// <item><description>glCompressedTexSubData1D</description></item>
+		/// <item><description>glCompressedTexSubData2D</description></item>
+		/// <item><description>glCompressedTexSubData3D</description></item>
+		/// <item><description>glCompressedTextureSubData1D</description></item>
+		/// <item><description>glCompressedTextureSubData2D</description></item>
+		/// <item><description>glCompressedTextureSubData3D</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::box *box)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
+		/// </remarks>
+		update_texture_region,
+
+		/// <summary>
 		/// Called after successfull pipeline creation from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::CreateVertexShader</description></item>
@@ -582,112 +688,6 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::device *device, api::pipeline_layout layout)</c></para>
 		/// </summary>
 		destroy_pipeline_layout,
-
-		/// <summary>
-		/// Called after:
-		/// <list type="bullet">
-		/// <item><description>IDirect3DVertexBuffer9::Lock</description></item>
-		/// <item><description>IDirect3DIndexBuffer9::Lock</description></item>
-		/// <item><description>ID3D10Resource::Map</description></item>
-		/// <item><description>ID3D11DeviceContext::Map</description></item>
-		/// <item><description>ID3D12Resource::Map</description></item>
-		/// <item><description>glMapBuffer</description></item>
-		/// <item><description>glMapBufferRange</description></item>
-		/// <item><description>glMapNamedBuffer</description></item>
-		/// <item><description>glMapNamedBufferRange</description></item>
-		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **data)</c></para>
-		/// </summary>
-		map_buffer_region,
-
-		/// <summary>
-		/// Called before:
-		/// <list type="bullet">
-		/// <item><description>IDirect3DVertexBuffer9::Unlock</description></item>
-		/// <item><description>IDirect3DIndexBuffer9::Unlock</description></item>
-		/// <item><description>ID3D10Resource::Unmap</description></item>
-		/// <item><description>ID3D11DeviceContext::Unmap</description></item>
-		/// <item><description>ID3D12Resource::Unmap</description></item>
-		/// <item><description>glUnmapBuffer</description></item>
-		/// <item><description>glUnmapNamedBuffer</description></item>
-		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource)</c></para>
-		/// </summary>
-		unmap_buffer_region,
-
-		/// <summary>
-		/// Called after:
-		/// <list type="bullet">
-		/// <item><description>IDirect3DSurface9::LockRect</description></item>
-		/// <item><description>IDirect3DVolume9::LockBox</description></item>
-		/// <item><description>IDirect3DTexture9::LockRect</description></item>
-		/// <item><description>IDirect3DVolumeTexture9::LockBox</description></item>
-		/// <item><description>IDirect3DCubeTexture9::LockRect</description></item>
-		/// <item><description>ID3D10Resource::Map</description></item>
-		/// <item><description>ID3D11DeviceContext::Map</description></item>
-		/// <item><description>ID3D12Resource::Map</description></item>
-		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint32_t subresource, const api::box *box, api::map_access access, api::subresource_data *data)</c></para>
-		/// </summary>
-		map_texture_region,
-
-		/// <summary>
-		/// Called before:
-		/// <list type="bullet">
-		/// <item><description>IDirect3DSurface9::UnlockRect</description></item>
-		/// <item><description>IDirect3DVolume9::UnlockBox</description></item>
-		/// <item><description>IDirect3DTexture9::UnlockRect</description></item>
-		/// <item><description>IDirect3DVolumeTexture9::UnlockBox</description></item>
-		/// <item><description>IDirect3DCubeTexture9::UnlockRect</description></item>
-		/// <item><description>ID3D10Resource::Unmap</description></item>
-		/// <item><description>ID3D11DeviceContext::Unmap</description></item>
-		/// <item><description>ID3D12Resource::Unmap</description></item>
-		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, uint32_t subresource)</c></para>
-		/// </summary>
-		unmap_texture_region,
-
-		/// <summary>
-		/// Called before:
-		/// <list type="bullet">
-		/// <item><description>ID3D10Device::UpdateSubresource</description></item>
-		/// <item><description>ID3D11DeviceContext::UpdateSubresource</description></item>
-		/// <item><description>glBufferSubData</description></item>
-		/// <item><description>glNamedBufferSubData</description></item>
-		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource resource, uint64_t offset, uint64_t size)</c></para>
-		/// </summary>
-		/// <remarks>
-		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
-		/// </remarks>
-		update_buffer_region,
-
-		/// <summary>
-		/// Called before:
-		/// <list type="bullet">
-		/// <item><description>ID3D10Device::UpdateSubresource</description></item>
-		/// <item><description>ID3D11DeviceContext::UpdateSubresource</description></item>
-		/// <item><description>glTexSubData1D</description></item>
-		/// <item><description>glTexSubData2D</description></item>
-		/// <item><description>glTexSubData3D</description></item>
-		/// <item><description>glTextureSubData1D</description></item>
-		/// <item><description>glTextureSubData2D</description></item>
-		/// <item><description>glTextureSubData3D</description></item>
-		/// <item><description>glCompressedTexSubData1D</description></item>
-		/// <item><description>glCompressedTexSubData2D</description></item>
-		/// <item><description>glCompressedTexSubData3D</description></item>
-		/// <item><description>glCompressedTextureSubData1D</description></item>
-		/// <item><description>glCompressedTextureSubData2D</description></item>
-		/// <item><description>glCompressedTextureSubData3D</description></item>
-		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::box *box)</c></para>
-		/// </summary>
-		/// <remarks>
-		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
-		/// </remarks>
-		update_texture_region,
 
 		/// <summary>
 		/// Called before:
@@ -1372,14 +1372,6 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_resource_view, bool, api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &desc);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_resource_view, void, api::device *device, api::resource_view view);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline, void, api::device *device, const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline pipeline);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
-
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline_layout, void, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout layout);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline_layout, bool, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline_layout, void, api::device *device, api::pipeline_layout layout);
-
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::map_buffer_region, void, api::device *device, api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **data);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::unmap_buffer_region, void, api::device *device, api::resource resource);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::map_texture_region, void, api::device *device, api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *data);
@@ -1387,6 +1379,14 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_buffer_region, bool, api::device *device, const void *data, api::resource resource, uint64_t offset, uint64_t size);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline, void, api::device *device, const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline pipeline);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline_layout, void, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout layout);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline_layout, bool, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline_layout, void, api::device *device, api::pipeline_layout layout);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_descriptor_sets, bool, api::device *device, uint32_t count, const api::descriptor_set_copy *copies);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_descriptor_sets, bool, api::device *device, uint32_t count, const api::descriptor_set_update *updates);

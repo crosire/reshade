@@ -206,7 +206,7 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const pipeline_layout_param param = device->get_pipeline_layout_param(layout, first + i);
+		const pipeline_layout_param param = descriptor_data.get_pipeline_layout_param(layout, first + i);
 		assert(param.type == pipeline_layout_param_type::descriptor_set);
 	
 		for (uint32_t k = 0; k < param.descriptor_set.count; ++k)
@@ -222,7 +222,7 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 
 			for (uint32_t j = 0; j < std::min(10u, range.count); ++j)
 			{
-				resource_view descriptor = descriptor_data.lookup_descriptor(pool, base_offset + j);
+				resource_view descriptor = descriptor_data.get_shader_resource_view(pool, base_offset + j);
 				if (descriptor.handle == 0)
 					continue;
 
@@ -369,9 +369,6 @@ static void draw_overlay(effect_runtime *runtime)
 		ImGui::NewLine(); // Reset ImGui::SameLine() so the following starts on a new line
 }
 
-extern void register_addon_descriptor_set_tracking(); // See implementation in 'descriptor_set_tracking.cpp'
-extern void unregister_addon_descriptor_set_tracking();
-
 void register_addon_texmod_overlay()
 {
 	reshade::register_overlay("TexMod", draw_overlay);
@@ -422,11 +419,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		if (!reshade::register_addon(hModule))
 			return FALSE;
 		register_addon_texmod_overlay();
-		register_addon_descriptor_set_tracking();
+		register_descriptor_set_tracking();
 		break;
 	case DLL_PROCESS_DETACH:
 		unregister_addon_texmod_overlay();
-		unregister_addon_descriptor_set_tracking();
+		unregister_descriptor_set_tracking();
 		reshade::unregister_addon(hModule);
 		break;
 	}

@@ -406,22 +406,19 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 }
 void reshade::vulkan::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
-#if 0
-	_device_impl->vk.CmdSetViewport(_orig, first, count, reinterpret_cast<const VkViewport *>(viewports));
-#else
-	assert(count <= 16);
-	VkViewport new_viewports[16];
+	const auto viewport_data = static_cast<VkViewport *>(_malloca(count * sizeof(VkViewport)));
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		std::memcpy(&new_viewports[i], &viewports[i], sizeof(VkViewport));
+		std::memcpy(&viewport_data[i], &viewports[i], sizeof(VkViewport));
 
 		// Flip viewport vertically
-		new_viewports[i].y += new_viewports[i].height;
-		new_viewports[i].height = -new_viewports[i].height;
+		viewport_data[i].y += viewport_data[i].height;
+		viewport_data[i].height = -viewport_data[i].height;
 	}
 
-	vk.CmdSetViewport(_orig, first, count, new_viewports);
-#endif
+	vk.CmdSetViewport(_orig, first, count, viewport_data);
+
+	_freea(viewport_data);
 }
 void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
@@ -552,8 +549,6 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 }
 void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
-	static_assert(sizeof(*sets) == sizeof(VkDescriptorSet));
-
 	if ((stages & api::shader_stage::all_compute) == api::shader_stage::all_compute)
 	{
 		vk.CmdBindDescriptorSets(_orig,

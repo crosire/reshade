@@ -30,7 +30,6 @@ namespace reshade::d3d9
 		void destroy_resource(api::resource handle) final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
-		void set_resource_name(api::resource, const char *) final {}
 
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
@@ -38,7 +37,14 @@ namespace reshade::d3d9
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource get_resource_from_view(api::resource_view view, uint32_t *out_subresource, uint32_t *out_levels = nullptr) const;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
-		void set_resource_view_name(api::resource_view, const char *) final {}
+
+		bool map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data) final;
+		void unmap_buffer_region(api::resource resource) final;
+		bool map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data) final;
+		void unmap_texture_region(api::resource resource, uint32_t subresource) final;
+
+		void update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size) final;
+		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
 		bool create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle) final;
 		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
@@ -50,20 +56,10 @@ namespace reshade::d3d9
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		api::pipeline_layout_param get_pipeline_layout_param(api::pipeline_layout layout, uint32_t layout_param) const final;
-
-		bool create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets) final;
-		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+		bool allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets) final;
+		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
 
 		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
-
-		bool map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data) final;
-		void unmap_buffer_region(api::resource resource) final;
-		bool map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data) final;
-		void unmap_texture_region(api::resource resource, uint32_t subresource) final;
-
-		void update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size) final;
-		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
 		void copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies) final;
 		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
@@ -72,6 +68,9 @@ namespace reshade::d3d9
 		void destroy_query_pool(api::query_pool handle) final;
 
 		bool get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+
+		void set_resource_name(api::resource, const char *) final {}
+		void set_resource_view_name(api::resource_view, const char *) final {}
 
 		api::device *get_device() final { return this; }
 

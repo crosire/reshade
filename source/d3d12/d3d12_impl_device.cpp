@@ -6,6 +6,7 @@
 #include "d3d12_impl_device.hpp"
 #include "d3d12_impl_command_queue.hpp"
 #include "d3d12_impl_type_convert.hpp"
+#include "d3d12_descriptor_heap.hpp"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include <malloc.h>
@@ -29,9 +30,9 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		_descriptor_handle_size[type] = device->GetDescriptorHandleIncrementSize(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type));
 	}
 
-	_heaps.push_back(_gpu_view_heap.get());
-	_heaps.push_back(_gpu_sampler_heap.get());
-	_descriptor_heap_index = 2;
+	register_descriptor_heap(new D3D12DescriptorHeap(reinterpret_cast<D3D12Device *>(device), _gpu_view_heap.get()));
+	register_descriptor_heap(new D3D12DescriptorHeap(reinterpret_cast<D3D12Device *>(device), _gpu_sampler_heap.get()));
+	assert(_descriptor_heaps.size() == 2);
 
 	// Create mipmap generation states
 	{
@@ -103,6 +104,11 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 reshade::d3d12::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
+
+	delete _descriptor_heaps[0];
+	_descriptor_heaps[0] = nullptr;
+	delete _descriptor_heaps[1];
+	_descriptor_heaps[1] = nullptr;
 
 	// Do not call add-on events if initialization failed
 	if (_mipmap_pipeline == nullptr)
@@ -338,15 +344,6 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
 }
-void reshade::d3d12::device_impl::set_resource_name(api::resource handle, const char *name)
-{
-	const size_t debug_name_len = strlen(name);
-	std::wstring debug_name_wide;
-	debug_name_wide.reserve(debug_name_len + 1);
-	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
-
-	reinterpret_cast<ID3D12Resource *>(handle.handle)->SetName(debug_name_wide.c_str());
-}
 
 bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
@@ -432,7 +429,7 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(handle.handle) };
 
-	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
+	const std::unique_lock<std::shared_mutex> lock(_device_mutex);
 	_views.erase(descriptor_handle.ptr);
 
 	for (UINT i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
@@ -445,7 +442,7 @@ reshade::api::resource reshade::d3d12::device_impl::get_resource_from_view(api::
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
 
-	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
+	const std::shared_lock<std::shared_mutex> lock(_device_mutex);
 
 	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
 		return to_handle(it->second.first);
@@ -458,321 +455,12 @@ reshade::api::resource_view_desc reshade::d3d12::device_impl::get_resource_view_
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
 
-	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
+	const std::shared_lock<std::shared_mutex> lock(_device_mutex);
 
 	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
 		return it->second.second;
 	else
 		return assert(false), api::resource_view_desc();
-}
-void reshade::d3d12::device_impl::set_resource_view_name(api::resource_view, const char *)
-{
-}
-
-bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
-{
-	*out_handle = { 0 };
-
-	for (uint32_t i = 0; i < dynamic_state_count; ++i)
-		if (dynamic_states[i] != api::dynamic_state::stencil_reference_value &&
-			dynamic_states[i] != api::dynamic_state::blend_constant &&
-			dynamic_states[i] != api::dynamic_state::primitive_topology)
-			return false;
-
-	switch (desc.type)
-	{
-	case api::pipeline_stage::all_compute:
-		assert(dynamic_state_count == 0);
-		return create_compute_pipeline(desc, out_handle);
-	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out_handle);
-	default:
-		return false;
-	}
-}
-bool reshade::d3d12::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
-
-	if (com_ptr<ID3D12PipelineState> pipeline;
-		SUCCEEDED(_orig->CreateComputePipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
-	{
-		*out_handle = to_handle(pipeline.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	if (desc.graphics.topology == api::primitive_topology::triangle_fan)
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
-
-	std::vector<D3D12_INPUT_ELEMENT_DESC> internal_elements;
-	internal_elements.reserve(16);
-	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
-	{
-		const api::input_element &element = desc.graphics.input_layout[i];
-
-		D3D12_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
-		internal_element.SemanticName = element.semantic;
-		internal_element.SemanticIndex = element.semantic_index;
-		internal_element.Format = convert_format(element.format);
-		internal_element.InputSlot = element.buffer_binding;
-		internal_element.AlignedByteOffset = element.offset;
-		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		internal_element.InstanceDataStepRate = element.instance_step_rate;
-	}
-
-	internal_desc.InputLayout.NumElements = static_cast<UINT>(internal_elements.size());
-	internal_desc.InputLayout.pInputElementDescs = internal_elements.data();
-
-	if (com_ptr<ID3D12PipelineState> pipeline;
-		SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
-	{
-		pipeline_graphics_impl extra_data;
-		extra_data.topology = convert_primitive_topology(desc.graphics.topology);
-
-		std::copy_n(desc.graphics.blend_state.blend_constant, 4, extra_data.blend_constant);
-
-		pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
-
-		*out_handle = to_handle(pipeline.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline handle)
-{
-	if (handle.handle != 0)
-		reinterpret_cast<IUnknown *>(handle.handle)->Release();
-}
-
-bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
-{
-	*out_handle = { 0 };
-
-	std::vector<D3D12_ROOT_PARAMETER> internal_params(param_count);
-	std::vector<std::vector<api::descriptor_range>> ranges(param_count);
-	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> internal_ranges(param_count);
-
-	for (uint32_t i = 0; i < param_count; ++i)
-	{
-		api::shader_stage visibility_mask = static_cast<api::shader_stage>(0);
-
-		if (params[i].type != api::pipeline_layout_param_type::push_constants)
-		{
-			const bool push_descriptors = params[i].type == api::pipeline_layout_param_type::push_descriptors;
-			const uint32_t range_count = push_descriptors ? 1 : params[i].descriptor_set.count;
-			const api::descriptor_range *const input_ranges = push_descriptors ? &params[i].push_descriptors : params[i].descriptor_set.ranges;
-
-			if (range_count == 0 || input_ranges[0].count == 0)
-			{
-				// Dummy parameter (to prevent root signature creation from failing)
-				internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-				internal_params[i].Constants.ShaderRegister = i;
-				internal_params[i].Constants.RegisterSpace = 255;
-				internal_params[i].Constants.Num32BitValues = 1;
-				continue;
-			}
-
-			ranges[i].reserve(range_count);
-			internal_ranges[i].reserve(range_count);
-
-			D3D12_DESCRIPTOR_HEAP_TYPE prev_heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
-
-			for (uint32_t k = 0; k < range_count; ++k)
-			{
-				const api::descriptor_range &range = input_ranges[k];
-
-				assert(range.array_size <= 1);
-
-				ranges[i].push_back(range);
-
-				D3D12_DESCRIPTOR_RANGE &internal_range = internal_ranges[i].emplace_back();
-				internal_range.RangeType = convert_descriptor_type(range.type);
-				internal_range.NumDescriptors = range.count;
-				internal_range.BaseShaderRegister = range.dx_register_index;
-				internal_range.RegisterSpace = range.dx_register_space;
-				internal_range.OffsetInDescriptorsFromTableStart = range.binding;
-
-				visibility_mask |= range.visibility;
-
-				// Cannot mix different descriptor heap types in a single descriptor table
-				const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(range.type);
-				if (prev_heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES && prev_heap_type != heap_type)
-					return false;
-
-				prev_heap_type = heap_type;
-			}
-
-			internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			internal_params[i].DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
-			internal_params[i].DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
-		}
-		else
-		{
-			internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-			internal_params[i].Constants.ShaderRegister = params[i].push_constants.dx_register_index;
-			internal_params[i].Constants.RegisterSpace = params[i].push_constants.dx_register_space;
-			internal_params[i].Constants.Num32BitValues = params[i].push_constants.count;
-
-			visibility_mask = params[i].push_constants.visibility;
-		}
-
-		switch (visibility_mask)
-		{
-		default:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-			break;
-		case api::shader_stage::vertex:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-			break;
-		case api::shader_stage::hull:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
-			break;
-		case api::shader_stage::domain:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
-			break;
-		case api::shader_stage::geometry:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
-			break;
-		case api::shader_stage::pixel:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-			break;
-		}
-	}
-
-	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
-	internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	internal_desc.NumParameters = param_count;
-	internal_desc.pParameters = internal_params.data();
-
-	com_ptr<ID3DBlob> blob;
-	com_ptr<ID3D12RootSignature> signature;
-	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)) &&
-		SUCCEEDED(_orig->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
-	{
-		const auto impl = new pipeline_layout_impl();
-		impl->params.assign(params, params + param_count);
-		impl->ranges = std::move(ranges);
-
-		for (uint32_t i = 0; i < param_count; ++i)
-			if (params[i].type == api::pipeline_layout_param_type::descriptor_set)
-				impl->params[i].descriptor_set.ranges = impl->ranges[i].data();
-
-		signature->SetPrivateData(extra_data_guid, sizeof(impl), &impl);
-
-		*out_handle = to_handle(signature.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
-{
-	if (handle.handle == 0)
-		return;
-
-	const auto signature = reinterpret_cast<ID3D12RootSignature *>(handle.handle);
-
-	pipeline_layout_impl *impl = nullptr;
-	UINT impl_size = sizeof(impl);
-	signature->GetPrivateData(extra_data_guid, &impl_size, &impl);
-	delete impl;
-
-	signature->Release();
-}
-
-reshade::api::pipeline_layout_param reshade::d3d12::device_impl::get_pipeline_layout_param(api::pipeline_layout layout, uint32_t layout_param) const
-{
-	assert(layout.handle != 0);
-
-	const auto signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
-
-	pipeline_layout_impl *impl = nullptr;
-	UINT impl_size = sizeof(impl);
-	if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &impl_size, &impl)))
-		return impl->params[layout_param];
-	else
-		return api::pipeline_layout_param {};
-}
-
-bool reshade::d3d12::device_impl::create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
-{
-	const api::pipeline_layout_param layout_param_desc = get_pipeline_layout_param(layout, layout_param);
-
-	uint32_t total_count = 0;
-	for (uint32_t k = 0; k < layout_param_desc.descriptor_set.count; ++k)
-		total_count = std::max(total_count, layout_param_desc.descriptor_set.ranges[k].binding + layout_param_desc.descriptor_set.ranges[k].count);
-
-	if (total_count != 0)
-	{
-		for (uint32_t i = 0; i < count; ++i)
-		{
-			const auto heap_type = convert_descriptor_type_to_heap_type(layout_param_desc.descriptor_set.ranges[0].type);
-
-			D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
-			D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-
-			if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-			{
-				_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu);
-
-				out_sets[i].handle = (0u << 24); // Heap index 0
-			}
-			else
-			{
-				_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu);
-
-				out_sets[i].handle = (1u << 24); // Heap index 1
-			}
-
-			out_sets[i].handle |= heap_type << 20;
-			out_sets[i].handle |= (base_handle.ptr - _heaps[out_sets[i].handle]->GetCPUDescriptorHandleForHeapStart().ptr) / _descriptor_handle_size[heap_type];
-			out_sets[i].handle |= static_cast<uint64_t>(total_count) << 32;
-		}
-
-		return true;
-	}
-	else
-	{
-		for (uint32_t i = 0; i < count; ++i)
-		{
-			out_sets[i] = { 0 };
-		}
-
-		return false;
-	}
-}
-void reshade::d3d12::device_impl::destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
-{
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		if (sets[i].handle == 0)
-			continue;
-
-		const uint32_t total_count = sets[i].handle >> 32;
-		_gpu_view_heap.free(convert_to_original_gpu_descriptor_handle(sets[i]), total_count);
-		_gpu_sampler_heap.free(convert_to_original_gpu_descriptor_handle(sets[i]), total_count);
-	}
 }
 
 bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
@@ -961,6 +649,321 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	}
 }
 
+bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
+{
+	*out_handle = { 0 };
+
+	for (uint32_t i = 0; i < dynamic_state_count; ++i)
+		if (dynamic_states[i] != api::dynamic_state::stencil_reference_value &&
+			dynamic_states[i] != api::dynamic_state::blend_constant &&
+			dynamic_states[i] != api::dynamic_state::primitive_topology)
+			return false;
+
+	switch (desc.type)
+	{
+	case api::pipeline_stage::all_compute:
+		assert(dynamic_state_count == 0);
+		return create_compute_pipeline(desc, out_handle);
+	case api::pipeline_stage::all_graphics:
+		return create_graphics_pipeline(desc, out_handle);
+	default:
+		return false;
+	}
+}
+bool reshade::d3d12::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+{
+	D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = {};
+	convert_pipeline_desc(desc, internal_desc);
+
+	if (com_ptr<ID3D12PipelineState> pipeline;
+		SUCCEEDED(_orig->CreateComputePipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
+	{
+		*out_handle = to_handle(pipeline.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+{
+	if (desc.graphics.topology == api::primitive_topology::triangle_fan)
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC internal_desc = {};
+	convert_pipeline_desc(desc, internal_desc);
+
+	std::vector<D3D12_INPUT_ELEMENT_DESC> internal_elements;
+	internal_elements.reserve(16);
+	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+	{
+		const api::input_element &element = desc.graphics.input_layout[i];
+
+		D3D12_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
+		internal_element.SemanticName = element.semantic;
+		internal_element.SemanticIndex = element.semantic_index;
+		internal_element.Format = convert_format(element.format);
+		internal_element.InputSlot = element.buffer_binding;
+		internal_element.AlignedByteOffset = element.offset;
+		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		internal_element.InstanceDataStepRate = element.instance_step_rate;
+	}
+
+	internal_desc.InputLayout.NumElements = static_cast<UINT>(internal_elements.size());
+	internal_desc.InputLayout.pInputElementDescs = internal_elements.data();
+
+	if (com_ptr<ID3D12PipelineState> pipeline;
+		SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
+	{
+		pipeline_extra_data extra_data;
+		extra_data.topology = convert_primitive_topology(desc.graphics.topology);
+
+		std::copy_n(desc.graphics.blend_state.blend_constant, 4, extra_data.blend_constant);
+
+		pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+
+		*out_handle = to_handle(pipeline.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline handle)
+{
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
+bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
+{
+	*out_handle = { 0 };
+
+	std::vector<D3D12_ROOT_PARAMETER> internal_params(param_count);
+	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> internal_ranges(param_count);
+	const auto set_ranges = new std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT>[param_count];
+
+	for (uint32_t i = 0; i < param_count; ++i)
+	{
+		api::shader_stage visibility_mask = static_cast<api::shader_stage>(0);
+
+		set_ranges[i] = { D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES, 0 };
+
+		if (params[i].type != api::pipeline_layout_param_type::push_constants)
+		{
+			const bool push_descriptors = params[i].type == api::pipeline_layout_param_type::push_descriptors;
+			const uint32_t  range_count = push_descriptors ? 1 : params[i].descriptor_set.count;
+			const api::descriptor_range *const input_ranges = push_descriptors ? &params[i].push_descriptors : params[i].descriptor_set.ranges;
+
+			if (range_count == 0 || input_ranges[0].count == 0)
+			{
+				// Dummy parameter (to prevent root signature creation from failing)
+				internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+				internal_params[i].Constants.ShaderRegister = i;
+				internal_params[i].Constants.RegisterSpace = 255;
+				internal_params[i].Constants.Num32BitValues = 1;
+				continue;
+			}
+
+			internal_ranges[i].reserve(range_count);
+
+			D3D12_DESCRIPTOR_HEAP_TYPE prev_heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+
+			for (uint32_t k = 0; k < range_count; ++k)
+			{
+				const api::descriptor_range &range = input_ranges[k];
+
+				assert(range.array_size <= 1);
+
+				D3D12_DESCRIPTOR_RANGE &internal_range = internal_ranges[i].emplace_back();
+				internal_range.RangeType = convert_descriptor_type(range.type);
+				internal_range.NumDescriptors = range.count;
+				internal_range.BaseShaderRegister = range.dx_register_index;
+				internal_range.RegisterSpace = range.dx_register_space;
+				internal_range.OffsetInDescriptorsFromTableStart = range.binding;
+
+				visibility_mask |= range.visibility;
+
+				// Cannot mix different descriptor heap types in a single descriptor table
+				const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(range.type);
+				if (prev_heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES && prev_heap_type != heap_type)
+					return false;
+
+				prev_heap_type = heap_type;
+
+				set_ranges[i].second = std::max(set_ranges[i].second, range.binding + range.count);
+			}
+
+			set_ranges[i].first = prev_heap_type;
+
+			internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			internal_params[i].DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
+			internal_params[i].DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
+		}
+		else
+		{
+			internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			internal_params[i].Constants.ShaderRegister = params[i].push_constants.dx_register_index;
+			internal_params[i].Constants.RegisterSpace = params[i].push_constants.dx_register_space;
+			internal_params[i].Constants.Num32BitValues = params[i].push_constants.count;
+
+			visibility_mask = params[i].push_constants.visibility;
+		}
+
+		switch (visibility_mask)
+		{
+		default:
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			break;
+		case api::shader_stage::vertex:
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+			break;
+		case api::shader_stage::hull:
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
+			break;
+		case api::shader_stage::domain:
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
+			break;
+		case api::shader_stage::geometry:
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
+			break;
+		case api::shader_stage::pixel:
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			break;
+		}
+	}
+
+	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
+	internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	internal_desc.NumParameters = param_count;
+	internal_desc.pParameters = internal_params.data();
+
+	com_ptr<ID3DBlob> blob;
+	com_ptr<ID3D12RootSignature> signature;
+	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)) &&
+		SUCCEEDED(_orig->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
+	{
+		pipeline_layout_extra_data extra_data;
+		extra_data.ranges = set_ranges;
+
+		signature->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+
+		*out_handle = to_handle(signature.release());
+		return true;
+	}
+	else
+	{
+		delete[] set_ranges;
+
+		*out_handle = { 0 };
+		return false;
+	}
+}
+void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
+{
+	if (handle.handle == 0)
+		return;
+
+	const auto signature = reinterpret_cast<ID3D12RootSignature *>(handle.handle);
+
+	pipeline_layout_extra_data extra_data;
+	UINT extra_data_size = sizeof(extra_data);
+	if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	{
+		delete[] extra_data.ranges;
+	}
+
+	signature->Release();
+}
+
+bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
+{
+	uint32_t total_count = 0;
+	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+
+	const auto signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+
+	if (signature != nullptr)
+	{
+		pipeline_layout_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+		{
+			heap_type = extra_data.ranges[layout_param].first;
+			total_count = extra_data.ranges[layout_param].second;
+		}
+	}
+
+	if (total_count != 0)
+	{
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			UINT heap_index;
+			D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
+			D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
+
+			if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+			{
+				heap_index = 0;
+				_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu);
+			}
+			else
+			{
+				heap_index = 1;
+				_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu);
+			}
+
+			out_sets[i].handle = { 0 };
+			out_sets[i].handle |= (heap_index << 24) | (heap_type << 20);
+			out_sets[i].handle |= (base_handle.ptr - _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr) / _descriptor_handle_size[heap_type];
+			out_sets[i].handle |= static_cast<uint64_t>(total_count) << 32;
+		}
+
+		return true;
+	}
+	else
+	{
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			out_sets[i] = { 0 };
+		}
+
+		return false;
+	}
+}
+void reshade::d3d12::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+{
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		if (sets[i].handle == 0)
+			continue;
+
+		const uint32_t total_count = sets[i].handle >> 32;
+		_gpu_view_heap.free(convert_to_original_gpu_descriptor_handle(sets[i]), total_count);
+		_gpu_sampler_heap.free(convert_to_original_gpu_descriptor_handle(sets[i]), total_count);
+	}
+}
+
+void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *pool, uint32_t *offset) const
+{
+	assert(set.handle != 0 && array_offset == 0);
+
+	const SIZE_T heap_index = (set.handle >> 24) & 0xFF;
+	D3D12DescriptorHeap *const heap = _descriptor_heaps[heap_index];
+	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((set.handle >> 20) & 0x3);
+
+	*pool = { reinterpret_cast<uintptr_t>(heap->_orig) };
+	// Increment size is 1 (see 'D3D12Device::GetDescriptorHandleIncrementSize'), so can just subtract to get offset
+	*offset = static_cast<uint32_t>(set.handle - heap->_internal_base_cpu_handle.ptr) + binding;
+}
+
 void reshade::d3d12::device_impl::copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies)
 {
 	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
@@ -1109,11 +1112,21 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 	return false;
 }
 
+void reshade::d3d12::device_impl::set_resource_name(api::resource handle, const char *name)
+{
+	const size_t debug_name_len = strlen(name);
+	std::wstring debug_name_wide;
+	debug_name_wide.reserve(debug_name_len + 1);
+	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
+
+	reinterpret_cast<ID3D12Resource *>(handle.handle)->SetName(debug_name_wide.c_str());
+}
+
 void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 {
 	assert(resource != nullptr);
 
-	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
+	const std::unique_lock<std::shared_mutex> lock(_device_mutex);
 
 #if RESHADE_ADDON
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
@@ -1129,7 +1142,7 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 {
 	assert(resource != nullptr);
 
-	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
+	const std::unique_lock<std::shared_mutex> lock(_device_mutex);
 
 #if RESHADE_ADDON
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
@@ -1164,7 +1177,7 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 		return true;
 
 #if RESHADE_ADDON
-	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
+	const std::shared_lock<std::shared_mutex> lock(_device_mutex);
 
 	for (const auto &buffer_info : _buffer_gpu_addresses)
 	{
@@ -1183,4 +1196,42 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 
 	assert(false);
 	return false;
+}
+
+void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *heap)
+{
+	const std::unique_lock<std::shared_mutex> lock(_device_mutex);
+
+	_descriptor_heaps.push_back(heap);
+
+	heap->initialize_descriptor_base_handle(static_cast<UINT>(_descriptor_heaps.size() - 1));
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(api::descriptor_set set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = { static_cast<SIZE_T>(set.handle & 0xFFFFFFFF) };
+	type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3);
+
+	return convert_to_original_cpu_descriptor_handle(handle, type);
+}
+D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu_descriptor_handle(api::descriptor_set set) const
+{
+	D3D12_GPU_DESCRIPTOR_HANDLE handle = { static_cast<UINT64>(set.handle & 0xFFFFFFFF) };
+
+	return convert_to_original_gpu_descriptor_handle(handle);
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type) const
+{
+	const SIZE_T heap_index = (handle.ptr >> 24) & 0xFF;
+	assert(type == static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3));
+
+	return offset_descriptor_handle(_descriptor_heaps[heap_index]->_orig_base_cpu_handle, handle.ptr & 0xFFFFF, type);
+}
+D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle) const
+{
+	const SIZE_T heap_index = (handle.ptr >> 24) & 0xFF;
+	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3);
+
+	return offset_descriptor_handle(_descriptor_heaps[heap_index]->_orig_base_gpu_handle, handle.ptr & 0xFFFFF, type);
 }

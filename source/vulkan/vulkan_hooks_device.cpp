@@ -463,6 +463,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 	#pragma endregion
 	#pragma region VK_EXT_debug_utils
+#ifdef VK_EXT_debug_utils
 	INIT_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
 	INIT_DISPATCH_PTR(QueueBeginDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(QueueEndDebugUtilsLabelEXT);
@@ -470,6 +471,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdBeginDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdEndDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
+#endif
 	#pragma endregion
 	#pragma region VK_EXT_extended_dynamic_state
 #ifdef VK_EXT_extended_dynamic_state
@@ -1371,8 +1373,9 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	const uint32_t total_param_count = set_desc_count + pCreateInfo->pushConstantRangeCount;
 
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
-	data.params.resize(total_param_count);
 	data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
+
+	std::vector<reshade::api::pipeline_layout_param> params(total_param_count);
 
 	for (uint32_t i = 0; i < set_desc_count; ++i)
 	{
@@ -1382,14 +1385,14 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		{
 			assert(set_layout_impl->ranges.size() == 1); // TODO
 
-			data.params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors;
-			data.params[i].push_descriptors = set_layout_impl->ranges[0];
+			params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+			params[i].push_descriptors = set_layout_impl->ranges[0];
 		}
 		else
 		{
-			data.params[i].type = reshade::api::pipeline_layout_param_type::descriptor_set;
-			data.params[i].descriptor_set.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
-			data.params[i].descriptor_set.ranges = set_layout_impl->ranges.data();
+			params[i].type = reshade::api::pipeline_layout_param_type::descriptor_set;
+			params[i].descriptor_set.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
+			params[i].descriptor_set.ranges = set_layout_impl->ranges.data();
 		}
 	}
 
@@ -1397,15 +1400,14 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	{
 		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i];
 
-		data.params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
-		data.params[i].push_constants.binding = push_constant_range.offset;
-		data.params[i].push_constants.count = push_constant_range.size;
-		data.params[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
+		params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
+		params[i].push_constants.count = push_constant_range.offset + push_constant_range.size;
+		params[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
 	}
 
 	device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout, data);
 
-	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(device_impl, total_param_count, data.params.data(), reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
+	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(device_impl, total_param_count, params.data(), reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
 #endif
 
 	return result;
@@ -1680,8 +1682,8 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 		for (uint32_t i = 0; i < descriptorWriteCount; ++i)
 			max_descriptors += pDescriptorWrites[i].descriptorCount;
 
-		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(descriptorWriteCount * sizeof(reshade::api::descriptor_set_update)));
-		const auto descriptors = static_cast<uint64_t *>(_malloca(max_descriptors * 2 * sizeof(uint64_t)));
+		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(descriptorWriteCount * sizeof(reshade::api::descriptor_set_update) + max_descriptors * 2 * sizeof(uint64_t)));
+		const auto descriptors = reinterpret_cast<uint64_t *>(updates + descriptorWriteCount);
 
 		for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
 		{
@@ -1722,7 +1724,6 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates))
 			descriptorWriteCount = 0;
 
-		_freea(descriptors);
 		_freea(updates);
 	}
 
@@ -1746,6 +1747,8 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(device_impl, descriptorCopyCount, copies))
 			descriptorCopyCount = 0;
+
+		_freea(copies);
 	}
 #endif
 
