@@ -176,7 +176,7 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
-	assert(type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
+	assert(type == api::pipeline_stage::all || type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
 
 	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
 	_orig->SetPipelineState(pipeline_object);

@@ -145,21 +145,11 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 
 	const HRESULT hr = _orig->Reset(pAllocator, pInitialState);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
+	if (SUCCEEDED(hr))
 	{
-		reshade::api::pipeline_stage type = static_cast<reshade::api::pipeline_stage>(0);
+		// Only invoke event if there actually is an initial state to bind, otherwise expect things were already handled by the 'reset_command_list' event above
 		if (pInitialState != nullptr)
-		{
-			if (UINT extra_data_size = 0;
-				FAILED(pInitialState->GetPrivateData(reshade::d3d12::extra_data_guid, &extra_data_size, nullptr)))
-				type = reshade::api::pipeline_stage::all_compute;
-			else
-				type = reshade::api::pipeline_stage::all_graphics;
-
-			// Only invoke event if there actually is an initial state to bind, otherwise expect things were already handled by the 'reset_command_list' event above
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, to_handle(pInitialState));
-		}
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all, to_handle(pInitialState));
 	}
 #endif
 
@@ -367,21 +357,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 	_orig->SetPipelineState(pPipelineState);
 
 #if RESHADE_ADDON
-	if (!reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
-		return;
-
-	reshade::api::pipeline_stage type = static_cast<reshade::api::pipeline_stage>(0);
-	if (pPipelineState != nullptr)
-	{
-		// Check if the extra data exists in the pipeline, which is only added for graphics pipelines
-		if (UINT extra_data_size = 0;
-			FAILED(pPipelineState->GetPrivateData(reshade::d3d12::extra_data_guid, &extra_data_size, nullptr)))
-			type = reshade::api::pipeline_stage::all_compute;
-		else
-			type = reshade::api::pipeline_stage::all_graphics;
-	}
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, to_handle(pPipelineState));
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all, to_handle(pPipelineState));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)

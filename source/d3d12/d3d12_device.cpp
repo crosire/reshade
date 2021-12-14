@@ -307,11 +307,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
 
-			reshade::d3d12::pipeline_graphics_impl extra_data;
-			extra_data.topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
-
-			pipeline->SetPrivateData(reshade::d3d12::extra_data_guid, sizeof(extra_data), &extra_data);
-
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 3, states, to_handle(pipeline));
 
 			register_destruction_callback(pipeline, [this, pipeline]() {
