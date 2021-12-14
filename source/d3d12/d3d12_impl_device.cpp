@@ -711,51 +711,6 @@ reshade::api::pipeline_layout_param reshade::d3d12::device_impl::get_pipeline_la
 		return api::pipeline_layout_param {};
 }
 
-bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
-{
-	com_ptr<ID3D12Resource> readback_resource;
-	{
-		D3D12_RESOURCE_DESC readback_desc = {};
-		readback_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		readback_desc.Width = size * sizeof(uint64_t);
-		readback_desc.Height = 1;
-		readback_desc.DepthOrArraySize = 1;
-		readback_desc.MipLevels = 1;
-		readback_desc.SampleDesc = { 1, 0 };
-		readback_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_READBACK };
-
-		if (FAILED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &readback_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback_resource))))
-		{
-			*out_handle = { 0 };
-			return false;
-		}
-	}
-
-	D3D12_QUERY_HEAP_DESC internal_desc = {};
-	internal_desc.Type = convert_query_type_to_heap_type(type);
-	internal_desc.Count = size;
-
-	if (com_ptr<ID3D12QueryHeap> object;
-		SUCCEEDED(_orig->CreateQueryHeap(&internal_desc, IID_PPV_ARGS(&object))))
-	{
-		object->SetPrivateDataInterface(extra_data_guid, readback_resource.get());
-
-		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-void reshade::d3d12::device_impl::destroy_query_pool(api::query_pool handle)
-{
-	if (handle.handle != 0)
-		reinterpret_cast<IUnknown *>(handle.handle)->Release();
-}
-
 bool reshade::d3d12::device_impl::create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
 {
 	const api::pipeline_layout_param layout_param_desc = get_pipeline_layout_param(layout, layout_param);
@@ -1055,6 +1010,51 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const a
 			assert(false);
 		}
 	}
+}
+
+bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
+{
+	com_ptr<ID3D12Resource> readback_resource;
+	{
+		D3D12_RESOURCE_DESC readback_desc = {};
+		readback_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		readback_desc.Width = size * sizeof(uint64_t);
+		readback_desc.Height = 1;
+		readback_desc.DepthOrArraySize = 1;
+		readback_desc.MipLevels = 1;
+		readback_desc.SampleDesc = { 1, 0 };
+		readback_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_READBACK };
+
+		if (FAILED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &readback_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback_resource))))
+		{
+			*out_handle = { 0 };
+			return false;
+		}
+	}
+
+	D3D12_QUERY_HEAP_DESC internal_desc = {};
+	internal_desc.Type = convert_query_type_to_heap_type(type);
+	internal_desc.Count = size;
+
+	if (com_ptr<ID3D12QueryHeap> object;
+		SUCCEEDED(_orig->CreateQueryHeap(&internal_desc, IID_PPV_ARGS(&object))))
+	{
+		object->SetPrivateDataInterface(extra_data_guid, readback_resource.get());
+
+		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+void reshade::d3d12::device_impl::destroy_query_pool(api::query_pool handle)
+{
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
 bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)

@@ -1228,33 +1228,6 @@ reshade::api::pipeline_layout_param reshade::d3d9::device_impl::get_pipeline_lay
 	return param;
 }
 
-bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
-{
-	const auto impl = new query_pool_impl();
-	impl->type = type;
-	impl->queries.resize(size);
-
-	const D3DQUERYTYPE internal_type = convert_query_type(type);
-
-	for (uint32_t i = 0; i < size; ++i)
-	{
-		if (FAILED(_orig->CreateQuery(internal_type, &impl->queries[i])))
-		{
-			delete impl;
-
-			*out_handle = { 0 };
-			return false;
-		}
-	}
-
-	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
-	return true;
-}
-void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
-{
-	delete reinterpret_cast<query_pool_impl *>(handle.handle);
-}
-
 bool reshade::d3d9::device_impl::create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
 {
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
@@ -1629,6 +1602,33 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t count, const ap
 			break;
 		}
 	}
+}
+
+bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
+{
+	const auto impl = new query_pool_impl();
+	impl->type = type;
+	impl->queries.resize(size);
+
+	const D3DQUERYTYPE internal_type = convert_query_type(type);
+
+	for (uint32_t i = 0; i < size; ++i)
+	{
+		if (FAILED(_orig->CreateQuery(internal_type, &impl->queries[i])))
+		{
+			delete impl;
+
+			*out_handle = { 0 };
+			return false;
+		}
+	}
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
+	return true;
+}
+void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
+{
+	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 
 bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)

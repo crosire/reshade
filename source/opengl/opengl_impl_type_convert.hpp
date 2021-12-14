@@ -65,6 +65,13 @@ namespace reshade::opengl
 		GLuint patch_vertices;
 	};
 
+	struct descriptor_set_impl
+	{
+		api::descriptor_type type;
+		GLuint count;
+		std::vector<uint64_t> descriptors;
+	};
+
 	struct pipeline_layout_impl
 	{
 		std::vector<api::pipeline_layout_param> params;
@@ -74,13 +81,6 @@ namespace reshade::opengl
 	struct query_pool_impl
 	{
 		std::vector<GLuint> queries;
-	};
-
-	struct descriptor_set_impl
-	{
-		api::descriptor_type type;
-		GLuint count;
-		std::vector<uint64_t> descriptors;
 	};
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };

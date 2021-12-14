@@ -350,19 +350,6 @@ namespace reshade { namespace api
 		virtual pipeline_layout_param get_pipeline_layout_param(pipeline_layout layout, uint32_t param) const = 0;
 
 		/// <summary>
-		/// Creates a new query pool.
-		/// </summary>
-		/// <param name="type">Type of queries that will be used with this pool.</param>
-		/// <param name="size">Number of queries to allocate in the pool.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query pool.</param>
-		/// <returns><see langword="true"/> if the query pool was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
-		/// </summary>
-		virtual void destroy_query_pool(query_pool handle) = 0;
-
-		/// <summary>
 		/// Allocates a descriptor set from an internal pool.
 		/// </summary>
 		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
@@ -451,6 +438,19 @@ namespace reshade { namespace api
 		/// <param name="count">Number of <paramref name="updates"/> to process.</param>
 		/// <param name="updates">Pointer to an array of descriptor set updates to process.</param>
 		virtual void update_descriptor_sets(uint32_t count, const descriptor_set_update *updates) = 0;
+
+		/// <summary>
+		/// Creates a new query pool.
+		/// </summary>
+		/// <param name="type">Type of queries that will be used with this pool.</param>
+		/// <param name="size">Number of queries to allocate in the pool.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query pool.</param>
+		/// <returns><see langword="true"/> if the query pool was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out_handle) = 0;
+		/// <summary>
+		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
+		/// </summary>
+		virtual void destroy_query_pool(query_pool handle) = 0;
 
 		/// <summary>
 		/// Gets the results of queries in a query pool.

@@ -32,6 +32,13 @@ namespace reshade::d3d10
 		FLOAT blend_constant[4];
 	};
 
+	struct descriptor_set_impl
+	{
+		api::descriptor_type type;
+		UINT count;
+		std::vector<uint64_t> descriptors;
+	};
+
 	struct pipeline_layout_impl
 	{
 		std::vector<api::pipeline_layout_param> params;
@@ -41,13 +48,6 @@ namespace reshade::d3d10
 	struct query_pool_impl
 	{
 		std::vector<com_ptr<ID3D10Query>> queries;
-	};
-
-	struct descriptor_set_impl
-	{
-		api::descriptor_type type;
-		UINT count;
-		std::vector<uint64_t> descriptors;
 	};
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };

@@ -1278,63 +1278,6 @@ reshade::api::pipeline_layout_param reshade::vulkan::device_impl::get_pipeline_l
 	return layout_param < data->params.size() ? data->params[layout_param] : api::pipeline_layout_param {};
 }
 
-bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out_handle)
-{
-	VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
-	create_info.queryType = convert_query_type(type);
-	create_info.queryCount = count;
-
-	if (type == api::query_type::pipeline_statistics)
-	{
-		create_info.pipelineStatistics =
-			VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT |
-			VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;
-	}
-
-	if (VkQueryPool pool = VK_NULL_HANDLE;
-		vk.CreateQueryPool(_orig, &create_info, nullptr, &pool) == VK_SUCCESS)
-	{
-		// Reset all queries for initial use
-#if 0
-		vk.ResetQueryPool(_orig, pool, 0, count);
-#else
-		for (command_queue_impl *const queue : _queues)
-		{
-			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-			if (immediate_command_list != nullptr)
-			{
-				vk.CmdResetQueryPool(immediate_command_list->_orig, pool, 0, count);
-
-				immediate_command_list->_has_commands = true;
-				queue->flush_immediate_command_list();
-				break;
-			}
-		}
-#endif
-
-		*out_handle = { (uint64_t)pool };
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
-{
-	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
-}
-
 bool reshade::vulkan::device_impl::create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
 {
 	static_assert(sizeof(*out_sets) == sizeof(VkDescriptorSet));
@@ -1652,6 +1595,63 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const 
 	vk.UpdateDescriptorSets(_orig, static_cast<uint32_t>(writes_internal.size()), writes_internal.data(), 0, nullptr);
 
 	_freea(image_info);
+}
+
+bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out_handle)
+{
+	VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+	create_info.queryType = convert_query_type(type);
+	create_info.queryCount = count;
+
+	if (type == api::query_type::pipeline_statistics)
+	{
+		create_info.pipelineStatistics =
+			VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;
+	}
+
+	if (VkQueryPool pool = VK_NULL_HANDLE;
+		vk.CreateQueryPool(_orig, &create_info, nullptr, &pool) == VK_SUCCESS)
+	{
+		// Reset all queries for initial use
+#if 0
+		vk.ResetQueryPool(_orig, pool, 0, count);
+#else
+		for (command_queue_impl *const queue : _queues)
+		{
+			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
+			if (immediate_command_list != nullptr)
+			{
+				vk.CmdResetQueryPool(immediate_command_list->_orig, pool, 0, count);
+
+				immediate_command_list->_has_commands = true;
+				queue->flush_immediate_command_list();
+				break;
+			}
+		}
+#endif
+
+		*out_handle = { (uint64_t)pool };
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
+{
+	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
 }
 
 bool reshade::vulkan::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)

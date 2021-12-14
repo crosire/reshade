@@ -52,9 +52,6 @@ namespace reshade::d3d12
 
 		api::pipeline_layout_param get_pipeline_layout_param(api::pipeline_layout layout, uint32_t layout_param) const final;
 
-		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;
-		void destroy_query_pool(api::query_pool handle) final;
-
 		bool create_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets) final;
 		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
 
@@ -69,6 +66,9 @@ namespace reshade::d3d12
 		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
 		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
+
+		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;
+		void destroy_query_pool(api::query_pool handle) final;
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 

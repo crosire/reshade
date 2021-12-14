@@ -23,6 +23,13 @@ namespace reshade::d3d9
 		D3DPRIMITIVETYPE prim_type;
 	};
 
+	struct descriptor_set_impl
+	{
+		api::descriptor_type type;
+		UINT count;
+		std::vector<uint64_t> descriptors;
+	};
+
 	struct pipeline_layout_impl
 	{
 		std::vector<api::pipeline_layout_param> params;
@@ -33,13 +40,6 @@ namespace reshade::d3d9
 	{
 		api::query_type type;
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
-	};
-
-	struct descriptor_set_impl
-	{
-		api::descriptor_type type;
-		UINT count;
-		std::vector<uint64_t> descriptors;
 	};
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
