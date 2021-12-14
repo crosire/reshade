@@ -5,6 +5,8 @@
 
 #pragma once
 
+#if RESHADE_ADDON
+
 #include <d3d12.h>
 
 struct D3D12Device;
@@ -43,3 +45,5 @@ struct DECLSPEC_UUID("8628AD68-6047-4D27-9D87-3E5F386E0231") D3D12DescriptorHeap
 	D3D12_CPU_DESCRIPTOR_HANDLE _internal_base_cpu_handle = { 0 }, _orig_base_cpu_handle = { 0 };
 	D3D12_GPU_DESCRIPTOR_HANDLE _internal_base_gpu_handle = { 0 }, _orig_base_gpu_handle = { 0 };
 };
+
+#endif

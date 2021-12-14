@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#if RESHADE_ADDON
+
 #include "d3d12_device.hpp"
 #include "d3d12_descriptor_heap.hpp"
 #include "dll_log.hpp"
@@ -124,3 +126,5 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(UINT heap_index)
 		_internal_base_gpu_handle.ptr = _internal_base_cpu_handle.ptr;
 	}
 }
+
+#endif
