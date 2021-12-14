@@ -73,7 +73,7 @@ bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
 		if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&new_interface))))
 			return false;
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Upgraded IDirect3DDevice9 object " << this << " to IDirect3DDevice9Ex.";
+		LOG(DEBUG) << "Upgrading IDirect3DDevice9 object " << this << " to IDirect3DDevice9Ex.";
 #endif
 		_orig->Release();
 		_orig = new_interface;

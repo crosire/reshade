@@ -118,7 +118,7 @@ void reshade::d3d12::swapchain_impl::on_reset()
 #endif
 
 	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
-	_device->wait_idle();
+	_graphics_queue->wait_idle();
 
 	_backbuffers.clear();
 }

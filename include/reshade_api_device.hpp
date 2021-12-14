@@ -226,7 +226,7 @@ namespace reshade { namespace api
 	/// <para>Functionally equivalent to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device', 'ID3D12Device', 'HGLRC' or 'VkDevice'.</para>
 	/// </summary>
 	/// <remarks>
-	/// This class is safe to use concurrently from multiple threads in D3D10+ and Vulkan (with the exception of <see cref="device::wait_idle"/>).
+	/// This class is safe to use concurrently from multiple threads in D3D10+ and Vulkan.
 	/// </remarks>
 	class __declspec(novtable) device : public api_object
 	{
@@ -462,15 +462,6 @@ namespace reshade { namespace api
 		/// <param name="stride">Size (in bytes) of each element in the <paramref name="results"/> array.</param>
 		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
 		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
-
-		/// <summary>
-		/// Waits for all issued GPU operations to finish before returning.
-		/// This can be used to e.g. ensure that resources are no longer in use on the GPU before destroying them.
-		/// </summary>
-		/// <remarks>
-		/// Must not be called while another thread is recording to the immediate command list!
-		/// </remarks>
-		virtual void wait_idle() const = 0;
 	};
 
 	/// <summary>

@@ -76,13 +76,13 @@ namespace reshade::d3d10
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
-		void wait_idle() const final { /* no-op */ }
-
 		api::device *get_device() final { return this; }
 
 		api::command_list *get_immediate_command_list() final { return this; }
 
 		void flush_immediate_command_list() const final;
+
+		void wait_idle() const final { /* no-op */ }
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 

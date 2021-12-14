@@ -207,7 +207,7 @@ bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded IDXGISwapChain" << _interface_version << " object " << this << " to IDXGISwapChain" << version << '.';
+			LOG(DEBUG) << "Upgrading IDXGISwapChain" << _interface_version << " object " << this << " to IDXGISwapChain" << version << '.';
 #endif
 			_orig->Release();
 			_orig = static_cast<IDXGISwapChain *>(new_interface);

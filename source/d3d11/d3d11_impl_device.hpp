@@ -80,8 +80,6 @@ namespace reshade::d3d11
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
-		void wait_idle() const final { /* no-op */ }
-
 	private:
 		com_ptr<ID3D11VertexShader> _copy_vert_shader;
 		com_ptr<ID3D11PixelShader>  _copy_pixel_shader;

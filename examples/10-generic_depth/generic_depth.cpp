@@ -152,8 +152,10 @@ struct __declspec(uuid("7c6363c7-f94e-437a-9160-141782c44a98")) state_tracking_c
 	}
 
 	// Update the backup texture to match the requested dimensions
-	void update_backup_texture(device *device, resource_desc desc)
+	void update_backup_texture(command_queue *queue, resource_desc desc)
 	{
+		device *const device = queue->get_device();
+
 		if (backup_texture != 0)
 		{
 			const resource_desc existing_desc = device->get_resource_desc(backup_texture);
@@ -161,7 +163,7 @@ struct __declspec(uuid("7c6363c7-f94e-437a-9160-141782c44a98")) state_tracking_c
 			if (desc.texture.width == existing_desc.texture.width && desc.texture.height == existing_desc.texture.height && desc.texture.format == existing_desc.texture.format)
 				return; // Texture already matches dimensions, so can re-use
 
-			device->wait_idle(); // Texture may still be in use on device, so wait for all operations to finish before destroying it
+			queue->wait_idle(); // Texture may still be in use on device, so wait for all operations to finish before destroying it
 			device->destroy_resource(backup_texture);
 			backup_texture = { 0 };
 		}
@@ -469,18 +471,19 @@ static void on_present(command_queue *, swapchain *swapchain)
 	effect_runtime *const runtime = swapchain->get_effect_runtime();
 	device *const device = runtime->get_device();
 	command_queue *const queue = runtime->get_command_queue();
+
 	state_tracking &queue_state = queue->get_private_data<state_tracking>();
 	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	device_state.current_depth_stencil_list.clear();
 	device_state.current_depth_stencil_list.reserve(queue_state.counters_per_used_depth_stencil.size());
 
+	resource best_match = { 0 };
+	resource_desc best_match_desc;
+	depth_stencil_info best_snapshot;
+
 	uint32_t frame_width, frame_height;
 	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
-
-	resource_desc best_desc = {};
-	resource best_match = { 0 };
-	depth_stencil_info best_snapshot;
 
 	for (const auto &[resource, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
@@ -507,8 +510,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 			// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
 			snapshot.total_stats.drawcalls > best_snapshot.total_stats.drawcalls)
 		{
-			best_desc = desc;
 			best_match = resource;
+			best_match_desc = desc;
 			best_snapshot = snapshot;
 		}
 	}
@@ -517,8 +520,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 		device_state.override_depth_stencil != 0 &&
 		std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), device_state.override_depth_stencil) == device_state.destroyed_resources.end())
 	{
-		best_desc = device->get_resource_desc(device_state.override_depth_stencil);
 		best_match = device_state.override_depth_stencil;
+		best_match_desc = device->get_resource_desc(device_state.override_depth_stencil);
 		best_snapshot = queue_state.counters_per_used_depth_stencil[best_match];
 	}
 
@@ -529,7 +532,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 			// Destroy previous resource view, since the underlying resource has changed
 			if (device_state.selected_shader_resource != 0)
 			{
-				device->wait_idle(); // Ensure resource view is no longer in-use before destroying it
+				queue->wait_idle(); // Ensure resource view is no longer in-use before destroying it
 				device->destroy_resource_view(device_state.selected_shader_resource);
 			}
 
@@ -539,13 +542,13 @@ static void on_present(command_queue *, swapchain *swapchain)
 			const device_api api = device->get_api();
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
-			resource_view_desc srv_desc(api != device_api::vulkan ? format_to_default_typed(best_desc.texture.format) : best_desc.texture.format);
+			resource_view_desc srv_desc(api != device_api::vulkan ? format_to_default_typed(best_match_desc.texture.format) : best_match_desc.texture.format);
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing
-			if (device_state.preserve_depth_buffers || (best_desc.usage & resource_usage::shader_resource) == 0 || (api == device_api::d3d12 || api == device_api::vulkan))
+			if (device_state.preserve_depth_buffers || (best_match_desc.usage & resource_usage::shader_resource) == 0 || (api == device_api::d3d12 || api == device_api::vulkan))
 			{
-				device_state.update_backup_texture(device, best_desc);
+				device_state.update_backup_texture(queue, best_match_desc);
 
 				if (device_state.backup_texture != 0)
 				{
@@ -576,7 +579,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 		else
 		{
 			// Copy to backup texture unless already copied during the current frame
-			if (device_state.backup_texture != 0 && !best_snapshot.copied_during_frame && (best_desc.usage & resource_usage::copy_source) != 0)
+			if (device_state.backup_texture != 0 && !best_snapshot.copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
 			{
 				command_list *const cmd_list = queue->get_immediate_command_list();
 
@@ -595,7 +598,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 		{
 			if (device_state.selected_shader_resource != 0)
 			{
-				device->wait_idle(); // Ensure resource view is no longer in-use before destroying it
+				queue->wait_idle(); // Ensure resource view is no longer in-use before destroying it
 				device->destroy_resource_view(device_state.selected_shader_resource);
 			}
 
@@ -654,6 +657,8 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 static void draw_settings_overlay(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
+	command_queue *const queue = runtime->get_command_queue();
+
 	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	bool modified = false;
@@ -761,7 +766,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		// Reset selected depth-stencil to force re-creation of resources next frame (like the backup texture)
 		if (device_state.selected_shader_resource != 0)
 		{
-			device->wait_idle(); // Ensure resource view is no longer in-use before destroying it
+			queue->wait_idle(); // Ensure resource view is no longer in-use before destroying it
 			device->destroy_resource_view(device_state.selected_shader_resource);
 		}
 

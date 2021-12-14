@@ -42,13 +42,13 @@ struct __declspec(uuid("0ce51b56-a973-4104-bcca-945686f50170")) device_data
 	std::map<resource, tex_data> total_texture_list;
 	std::vector<resource_view> destroyed_views;
 	uint64_t frame_index = 0;
+	command_queue *graphics_queue = nullptr;
 
 	bool filter = false;
 	float scale = 1.0f;
 };
 
 static std::mutex s_mutex;
-static bool s_is_in_reshade_runtime = false;
 
 static void on_init_device(device *device)
 {
@@ -114,10 +114,8 @@ static void on_destroy_texture(device *device, resource res)
 	if (const auto it = data.total_texture_list.find(res);
 		it != data.total_texture_list.end())
 	{
-		if (s_is_in_reshade_runtime)
-			/*Sleep(5)*/;
-		else
-			device->wait_idle(); // In case a command list is still in flight using one of those
+		if (data.graphics_queue != nullptr)
+			data.graphics_queue->wait_idle(); // In case a command list is still in flight using one of those
 
 		data.total_texture_list.erase(it);
 	}
@@ -145,8 +143,6 @@ static void on_destroy_texture_view(device *device, resource_view view)
 
 static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pipeline_layout layout, uint32_t param_index, const descriptor_set_update &update)
 {
-	s_is_in_reshade_runtime = false;
-
 	if ((stages & shader_stage::pixel) != shader_stage::pixel || (update.type != descriptor_type::shader_resource_view && update.type != descriptor_type::sampler_with_resource_view))
 		return;
 
@@ -202,8 +198,6 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 }
 static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets)
 {
-	s_is_in_reshade_runtime = false;
-
 	if ((stages & shader_stage::pixel) != shader_stage::pixel)
 		return;
 
@@ -250,14 +244,15 @@ static void on_execute(command_queue *, command_list *cmd_list)
 	cmd_data.current_texture_list.clear();
 }
 
-static void on_present(command_queue *queue, swapchain *runtime)
+static void on_present(command_queue *queue, swapchain *swapchain)
 {
-	device *const device = runtime->get_device();
+	device *const device = swapchain->get_device();
 
 	if (device->get_api() != device_api::d3d12 && device->get_api() != device_api::vulkan)
 		on_execute(queue, queue->get_immediate_command_list());
 
 	auto &data = device->get_private_data<device_data>();
+	data.graphics_queue = swapchain->get_effect_runtime()->get_command_queue();
 
 	data.frame_index++;
 
@@ -281,8 +276,6 @@ static void on_present(command_queue *queue, swapchain *runtime)
 
 	data.current_texture_list.clear();
 	data.destroyed_views.clear();
-
-	s_is_in_reshade_runtime = true;
 }
 
 // See implementation in 'dump_texture.cpp'
@@ -299,8 +292,6 @@ static bool dump_texture(command_queue *queue, resource tex, const resource_desc
 
 static void draw_overlay(effect_runtime *runtime)
 {
-	assert(s_is_in_reshade_runtime);
-
 	device *const device = runtime->get_device();
 	auto &data = device->get_private_data<device_data>();
 

@@ -1088,12 +1088,6 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 	return false;
 }
 
-void reshade::d3d12::device_impl::wait_idle() const
-{
-	for (command_queue_impl *const queue : _queues)
-		queue->wait_idle();
-}
-
 void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 {
 	assert(resource != nullptr);

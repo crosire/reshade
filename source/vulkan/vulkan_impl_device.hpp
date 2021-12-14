@@ -83,8 +83,6 @@ namespace reshade::vulkan
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
-		void wait_idle() const final;
-
 		void advance_transient_descriptor_pool();
 
 		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;

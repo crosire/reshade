@@ -1662,24 +1662,6 @@ bool reshade::vulkan::device_impl::get_query_pool_results(api::query_pool pool, 
 	return vk.GetQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
 }
 
-void reshade::vulkan::device_impl::wait_idle() const
-{
-	vk.DeviceWaitIdle(_orig);
-
-	// Make sure any pending work gets executed here, so it is not enqueued later (at which point the referenced objects may have been destroyed by the code calling this)
-	// Do this after waiting for idle, since it should run after all work by the application is done and is synchronous anyway
-	for (command_queue_impl *const queue : _queues)
-	{
-		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-		if (immediate_command_list != nullptr)
-			immediate_command_list->flush_and_wait(queue->_orig);
-	}
-
-#ifndef NDEBUG
-	_wait_for_idle_happened = true;
-#endif
-}
-
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 {
 	if (vk.CmdPushDescriptorSetKHR != nullptr)
