@@ -112,25 +112,19 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 
 void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
-	if (count > 8)
-	{
-		assert(false);
-		count = 8;
-	}
-
-	api::resource_view rtv_handles[8], depth_stencil_handle = {};
-
+	temp_mem<api::resource_view, 8> rtv_handles(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		rtv_handles[i] = rts[i].view;
 	}
 
+	api::resource_view depth_stencil_handle = {};
 	if (ds != nullptr)
 	{
 		depth_stencil_handle = ds->view;
 	}
 
-	bind_render_targets_and_depth_stencil(count, rtv_handles, depth_stencil_handle);
+	bind_render_targets_and_depth_stencil(count, rtv_handles.p, depth_stencil_handle);
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -159,12 +153,6 @@ void reshade::opengl::device_impl::end_render_pass()
 }
 void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
-	if (count > 8)
-	{
-		assert(false);
-		count = 8;
-	}
-
 	bool has_srgb_attachment = false;
 	const bool use_framebuffer_default_rtv = (count == 1) && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT;
 
@@ -241,10 +229,11 @@ void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_
 	}
 	else
 	{
-		assert(count < 8);
+		temp_mem<GLenum, 8> draw_buffers(count);
+		for (uint32_t i = 0; i < count; ++i)
+			draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
-		const GLenum draw_buffers[8] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5, GL_COLOR_ATTACHMENT6, GL_COLOR_ATTACHMENT7 };
-		glDrawBuffers(count, draw_buffers);
+		glDrawBuffers(count, draw_buffers.p);
 	}
 
 	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, has_srgb_attachment);

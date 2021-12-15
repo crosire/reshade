@@ -805,33 +805,26 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 		reshade::has_addon_event<reshade::addon_event::copy_descriptor_sets>())
 	{
 		uint32_t num_copies = 0;
-		uint32_t max_descriptors = 0;
 		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
-			max_descriptors += (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[i] : 1);
+			num_copies += (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[i] : 1);
+		temp_mem<reshade::api::descriptor_set_copy, 32> copies(num_copies);
 
-		reshade::api::descriptor_set_copy copy;
-		copy.dest_binding = 0;
-		copy.dest_array_offset = 0;
-		copy.source_binding = 0;
-		copy.source_array_offset = 0;
-
-		const auto copies = static_cast<reshade::api::descriptor_set_copy *>(_malloca(max_descriptors * sizeof(reshade::api::descriptor_set_copy)));
+		num_copies = 0;
 
 		for (UINT dst_range = 0, src_range = 0, dst_offset = 0, src_offset = 0; dst_range < NumDestDescriptorRanges; ++dst_range, dst_offset = 0)
 		{
-			copy.dest_set = { pDestDescriptorRangeStarts[dst_range].ptr };
-
 			const UINT dst_count = (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[dst_range] : 1);
 
 			while (dst_offset < dst_count)
 			{
 				const UINT src_count = (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1);
 
+				copies[num_copies].dest_set = { pDestDescriptorRangeStarts[dst_range].ptr };
+				copies[num_copies].source_set = { pSrcDescriptorRangeStarts[src_range].ptr };
+
 				if (src_count <= (dst_count - dst_offset))
 				{
-					copy.source_set = { pSrcDescriptorRangeStarts[src_range].ptr };
-					copy.count = src_count;
-					copies[num_copies++] = copy;
+					copies[num_copies].count = src_count;
 
 					src_range += 1;
 					src_offset = 0;
@@ -839,9 +832,7 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 				}
 				else
 				{
-					copy.source_set = { pSrcDescriptorRangeStarts[src_range].ptr };
-					copy.count = 1;
-					copies[num_copies++] = copy;
+					copies[num_copies].count = 1;
 
 					src_offset += 1;
 					dst_offset += 1;
@@ -852,28 +843,22 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 						src_offset = 0;
 					}
 				}
+
+				num_copies++;
 			}
 		}
 
-		const bool skip = reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(this, num_copies, copies);
-
-		_freea(copies);
-
-		if (skip)
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(this, num_copies, copies.p))
 			return;
 	}
 
-	D3D12_CPU_DESCRIPTOR_HANDLE *const dest_descriptor_range_starts = static_cast<D3D12_CPU_DESCRIPTOR_HANDLE *>(_malloca((NumDestDescriptorRanges + NumSrcDescriptorRanges) * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE)));
-	D3D12_CPU_DESCRIPTOR_HANDLE *const source_descriptor_range_starts = dest_descriptor_range_starts + NumDestDescriptorRanges;
-
+	temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, 32> descriptor_range_starts(NumDestDescriptorRanges + NumSrcDescriptorRanges);
+	for (UINT i = 0; i < NumSrcDescriptorRanges; ++i)
+		descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(pSrcDescriptorRangeStarts[i], DescriptorHeapsType);
 	for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
-		dest_descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(pDestDescriptorRangeStarts[i], DescriptorHeapsType);
-	for (UINT i = 0; i <  NumSrcDescriptorRanges; ++i)
-		source_descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(pSrcDescriptorRangeStarts[i], DescriptorHeapsType);
+		descriptor_range_starts[NumSrcDescriptorRanges + i] = convert_to_original_cpu_descriptor_handle(pDestDescriptorRangeStarts[i], DescriptorHeapsType);
 
-	_orig->CopyDescriptors(NumDestDescriptorRanges, dest_descriptor_range_starts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, source_descriptor_range_starts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
-
-	_freea(dest_descriptor_range_starts);
+	_orig->CopyDescriptors(NumDestDescriptorRanges, descriptor_range_starts.p + NumSrcDescriptorRanges, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, descriptor_range_starts.p, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 #else
 	_orig->CopyDescriptors(NumDestDescriptorRanges, pDestDescriptorRangeStarts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 #endif
@@ -886,11 +871,7 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors
 	{
 		reshade::api::descriptor_set_copy copy;
 		copy.dest_set = { DestDescriptorRangeStart.ptr };
-		copy.dest_binding = 0;
-		copy.dest_array_offset = 0;
 		copy.source_set = { SrcDescriptorRangeStart.ptr };
-		copy.source_binding = 0;
-		copy.source_array_offset = 0;
 		copy.count = NumDescriptors;
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(this, 1, &copy))

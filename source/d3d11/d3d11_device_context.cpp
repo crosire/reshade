@@ -157,9 +157,10 @@ void D3D11DeviceContext::invoke_bind_samplers_event(reshade::api::shader_stage s
 		return;
 
 #ifndef WIN64
-	reshade::api::sampler descriptors[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT];
+	temp_mem<reshade::api::sampler, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> descriptors_mem(count);
 	for (UINT i = 0; i < count; ++i)
-		descriptors[i] = to_handle(objects[i]);
+		descriptors_mem[i] = to_handle(objects[i]);
+	const auto descriptors = descriptors_mem.p;
 #else
 	static_assert(sizeof(*objects) == sizeof(reshade::api::sampler));
 	const auto descriptors = reinterpret_cast<const reshade::api::sampler *>(objects);
@@ -180,9 +181,10 @@ void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::s
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_view descriptors[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<reshade::api::resource_view, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> descriptors_mem(count);
 	for (UINT i = 0; i < count; ++i)
-		descriptors[i] = to_handle(objects[i]);
+		descriptors_mem[i] = to_handle(objects[i]);
+	const auto descriptors = descriptors_mem.p;
 #else
 	static_assert(sizeof(*objects) == sizeof(reshade::api::resource_view));
 	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
@@ -203,9 +205,10 @@ void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_view descriptors[D3D11_1_UAV_SLOT_COUNT];
+	temp_mem<reshade::api::resource_view, D3D11_1_UAV_SLOT_COUNT> descriptors_mem(count);
 	for (UINT i = 0; i < count; ++i)
-		descriptors[i] = to_handle(objects[i]);
+		descriptors_mem[i] = to_handle(objects[i]);
+	const auto descriptors = descriptors_mem.p;
 #else
 	static_assert(sizeof(*objects) == sizeof(reshade::api::resource_view));
 	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
@@ -225,9 +228,10 @@ void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader
 	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
-	reshade::api::buffer_range descriptors[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	temp_mem<reshade::api::buffer_range, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> descriptors_mem(count);
 	for (UINT i = 0; i < count; ++i)
-		descriptors[i] = { to_handle(objects[i]), (first_constant != nullptr) ? first_constant[i] * 16 : 0, (constant_count != nullptr) ? constant_count[i] * 16 : UINT64_MAX };
+		descriptors_mem[i] = { to_handle(objects[i]), (first_constant != nullptr) ? first_constant[i] * 16 : 0, (constant_count != nullptr) ? constant_count[i] * 16 : UINT64_MAX };
+	const auto descriptors = descriptors_mem.p;
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
@@ -373,9 +377,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot,
 		return;
 
 #ifndef WIN64
-	reshade::api::resource buffer_handles[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<reshade::api::resource, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> buffer_handles_mem(NumBuffers);
 	for (UINT i = 0; i < NumBuffers; ++i)
-		buffer_handles[i] = to_handle(ppVertexBuffers[i]);
+		buffer_handles_mem[i] = to_handle(ppVertexBuffers[i]);
+	const auto buffer_handles = buffer_handles_mem.p;
 #else
 	static_assert(sizeof(*ppVertexBuffers) == sizeof(reshade::api::resource));
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppVertexBuffers);
@@ -490,9 +495,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_view rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	temp_mem<reshade::api::resource_view, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> rtvs_mem(NumViews);
 	for (UINT i = 0; i < NumViews; ++i)
-		rtvs[i] = to_handle(ppRenderTargetViews[i]);
+		rtvs_mem[i] = to_handle(ppRenderTargetViews[i]);
+	const auto rtvs = rtvs_mem.p;
 #else
 	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view));
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(ppRenderTargetViews);
@@ -512,9 +518,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 	{
 #ifndef WIN64
-		reshade::api::resource_view rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		temp_mem<reshade::api::resource_view, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> rtvs_mem(NumRTVs);
 		for (UINT i = 0; i < NumRTVs; ++i)
-			rtvs[i] = to_handle(ppRenderTargetViews[i]);
+			rtvs_mem[i] = to_handle(ppRenderTargetViews[i]);
+		const auto rtvs = rtvs_mem.p;
 #else
 		static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view));
 		const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(ppRenderTargetViews);

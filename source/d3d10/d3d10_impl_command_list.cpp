@@ -42,14 +42,9 @@ void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *,
 
 void reshade::d3d10::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
-	if (count > D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT)
-	{
-		assert(false);
-		count = D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT;
-	}
+	assert(count <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	api::resource_view rtv_handles[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT], depth_stencil_handle = {};
-
+	temp_mem<api::resource_view, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_handles(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		rtv_handles[i] = rts[i].view;
@@ -58,6 +53,7 @@ void reshade::d3d10::device_impl::begin_render_pass(uint32_t count, const api::r
 			_orig->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtv_handles[i].handle), rts[i].clear_color);
 	}
 
+	api::resource_view depth_stencil_handle = {};
 	if (ds != nullptr)
 	{
 		depth_stencil_handle = ds->view;
@@ -66,7 +62,7 @@ void reshade::d3d10::device_impl::begin_render_pass(uint32_t count, const api::r
 			_orig->ClearDepthStencilView(reinterpret_cast<ID3D10DepthStencilView *>(depth_stencil_handle.handle), clear_flags, ds->clear_depth, ds->clear_stencil);
 	}
 
-	bind_render_targets_and_depth_stencil(count, rtv_handles, depth_stencil_handle);
+	bind_render_targets_and_depth_stencil(count, rtv_handles.p, depth_stencil_handle);
 }
 void reshade::d3d10::device_impl::end_render_pass()
 {
@@ -75,16 +71,13 @@ void reshade::d3d10::device_impl::end_render_pass()
 }
 void reshade::d3d10::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
-	if (count > D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT)
-	{
-		assert(false);
-		count = D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT;
-	}
+	assert(count <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
 #ifndef WIN64
-	ID3D10RenderTargetView *rtv_ptrs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	temp_mem<ID3D10RenderTargetView *, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		rtv_ptrs[i] = reinterpret_cast<ID3D10RenderTargetView *>(rtvs[i].handle);
+		rtv_ptrs_mem[i] = reinterpret_cast<ID3D10RenderTargetView *>(rtvs[i].handle);
+	const auto rtv_ptrs = rtv_ptrs_mem.p;
 #else
 	const auto rtv_ptrs = reinterpret_cast<ID3D10RenderTargetView *const *>(rtvs);
 #endif
@@ -148,13 +141,9 @@ void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count,
 	if (first != 0)
 		return;
 
-	if (count > D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)
-	{
-		assert(false);
-		count = D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
-	}
+	assert(count <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 
-	D3D10_VIEWPORT viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+	temp_mem<D3D10_VIEWPORT, D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE> viewport_data(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		viewport_data[i].TopLeftX = static_cast<INT>(viewports[i].x);
@@ -165,7 +154,7 @@ void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count,
 		viewport_data[i].MaxDepth = viewports[i].max_depth;
 	}
 
-	_orig->RSSetViewports(count, viewport_data);
+	_orig->RSSetViewports(count, viewport_data.p);
 }
 void reshade::d3d10::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
@@ -177,16 +166,13 @@ void reshade::d3d10::device_impl::bind_scissor_rects(uint32_t first, uint32_t co
 
 void reshade::d3d10::device_impl::bind_samplers(api::shader_stage stages, uint32_t first, uint32_t count, const api::sampler *samplers)
 {
-	if (count > D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
-	}
+	assert(count <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
 #ifndef WIN64
-	ID3D10SamplerState *sampler_ptrs[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
+	temp_mem<ID3D10SamplerState *, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT> sampler_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		sampler_ptrs[i] = reinterpret_cast<ID3D10SamplerState *>(samplers[i].handle);
+		sampler_ptrs_mem[i] = reinterpret_cast<ID3D10SamplerState *>(samplers[i].handle);
+	const auto sampler_ptrs = sampler_ptrs_mem.p;
 #else
 	const auto sampler_ptrs = reinterpret_cast<ID3D10SamplerState *const *>(samplers);
 #endif
@@ -200,16 +186,13 @@ void reshade::d3d10::device_impl::bind_samplers(api::shader_stage stages, uint32
 }
 void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage stages, uint32_t first, uint32_t count, const api::resource_view *views)
 {
-	if (count > D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-	}
+	assert(count <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
 #ifndef WIN64
-	ID3D10ShaderResourceView *view_ptrs[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<ID3D10ShaderResourceView *, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> view_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		view_ptrs[i] = reinterpret_cast<ID3D10ShaderResourceView *>(views[i].handle);
+		view_ptrs_mem[i] = reinterpret_cast<ID3D10ShaderResourceView *>(views[i].handle);
+	const auto view_ptrs = view_ptrs_mem.p;
 #else
 	const auto view_ptrs = reinterpret_cast<ID3D10ShaderResourceView *const *>(views);
 #endif
@@ -223,13 +206,9 @@ void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage s
 }
 void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stages, uint32_t first, uint32_t count, const api::buffer_range *buffer_ranges)
 {
-	if (count > D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
-	}
+	assert(count <= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
 
-	ID3D10Buffer *buffer_ptrs[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	temp_mem<ID3D10Buffer *, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> buffer_ptrs(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		buffer_ptrs[i] = reinterpret_cast<ID3D10Buffer *>(buffer_ranges[i].buffer.handle);
@@ -237,11 +216,11 @@ void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stages
 	}
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
-		_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
+		_orig->VSSetConstantBuffers(first, count, buffer_ptrs.p);
 	if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
-		_orig->GSSetConstantBuffers(first, count, buffer_ptrs);
+		_orig->GSSetConstantBuffers(first, count, buffer_ptrs.p);
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
-		_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
+		_orig->PSSetConstantBuffers(first, count, buffer_ptrs.p);
 }
 
 void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
@@ -340,25 +319,22 @@ void reshade::d3d10::device_impl::bind_index_buffer(api::resource buffer, uint64
 }
 void reshade::d3d10::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	if (count > D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
-	}
+	assert(count <= D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
 #ifndef WIN64
-	ID3D10Buffer *buffer_ptrs[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<ID3D10Buffer *, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> buffer_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		buffer_ptrs[i] = reinterpret_cast<ID3D10Buffer *>(buffers[i].handle);
+		buffer_ptrs_mem[i] = reinterpret_cast<ID3D10Buffer *>(buffers[i].handle);
+	const auto buffer_ptrs = buffer_ptrs_mem.p;
 #else
 	const auto buffer_ptrs = reinterpret_cast<ID3D10Buffer *const *>(buffers);
 #endif
 
-	UINT offsets_32[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<UINT, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> offsets_32(count);
 	for (uint32_t i = 0; i < count; ++i)
 		offsets_32[i] = static_cast<UINT>(offsets[i]);
 
-	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32);
+	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32.p);
 }
 
 void reshade::d3d10::device_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)

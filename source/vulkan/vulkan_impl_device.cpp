@@ -1515,8 +1515,7 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const 
 	uint32_t max_descriptors = 0;
 	for (uint32_t i = 0; i < count; ++i)
 		max_descriptors += updates[i].count;
-
-	const auto image_info = static_cast<VkDescriptorImageInfo *>(_malloca(max_descriptors * sizeof(VkDescriptorImageInfo)));
+	temp_mem<VkDescriptorImageInfo> image_info(max_descriptors);
 
 	for (uint32_t i = 0, j = 0; i < count; ++i)
 	{
@@ -1536,7 +1535,7 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const 
 		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
-			write.pImageInfo = image_info + j;
+			write.pImageInfo = image_info.p + j;
 			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
 				const auto &descriptor = static_cast<const api::sampler *>(update.descriptors)[k];
@@ -1544,7 +1543,7 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const 
 			}
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			write.pImageInfo = image_info + j;
+			write.pImageInfo = image_info.p + j;
 			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
 				const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[k];
@@ -1558,7 +1557,7 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const 
 			if (const auto descriptors = static_cast<const api::resource_view *>(update.descriptors);
 				get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)descriptors[0].handle)->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 			{
-				write.pImageInfo = image_info + j;
+				write.pImageInfo = image_info.p + j;
 				for (uint32_t k = 0; k < update.count; ++k, ++j)
 				{
 					const auto &descriptor = descriptors[k];
@@ -1583,8 +1582,6 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const 
 	}
 
 	vk.UpdateDescriptorSets(_orig, static_cast<uint32_t>(writes_internal.size()), writes_internal.data(), 0, nullptr);
-
-	_freea(image_info);
 }
 
 bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out_handle)

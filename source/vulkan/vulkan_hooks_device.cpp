@@ -1678,12 +1678,12 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 #if RESHADE_ADDON
 	if (descriptorWriteCount != 0 && reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
+		temp_mem<reshade::api::descriptor_set_update> updates(descriptorWriteCount);
+
 		uint32_t max_descriptors = 0;
 		for (uint32_t i = 0; i < descriptorWriteCount; ++i)
 			max_descriptors += pDescriptorWrites[i].descriptorCount;
-
-		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(descriptorWriteCount * sizeof(reshade::api::descriptor_set_update) + max_descriptors * 2 * sizeof(uint64_t)));
-		const auto descriptors = reinterpret_cast<uint64_t *>(updates + descriptorWriteCount);
+		temp_mem<uint64_t> descriptors(max_descriptors * 2);
 
 		for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
 		{
@@ -1695,7 +1695,7 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 			update.array_offset = write.dstArrayElement;
 			update.count = write.descriptorCount;
 			update.type = reshade::vulkan::convert_descriptor_type(write.descriptorType);
-			update.descriptors = descriptors + j;
+			update.descriptors = descriptors.p + j;
 
 			switch (write.descriptorType)
 			{
@@ -1721,15 +1721,13 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 			}
 		}
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates))
+		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates.p))
 			descriptorWriteCount = 0;
-
-		_freea(updates);
 	}
 
 	if (descriptorCopyCount != 0 && reshade::has_addon_event<reshade::addon_event::copy_descriptor_sets>())
 	{
-		const auto copies = static_cast<reshade::api::descriptor_set_copy *>(_malloca(descriptorCopyCount * sizeof(reshade::api::descriptor_set_copy)));
+		temp_mem<reshade::api::descriptor_set_copy> copies(descriptorCopyCount);
 
 		for (uint32_t i = 0; i < descriptorCopyCount; ++i)
 		{
@@ -1745,10 +1743,8 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 			copy.count = internal_copy.descriptorCount;
 		}
 
-		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(device_impl, descriptorCopyCount, copies))
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(device_impl, descriptorCopyCount, copies.p))
 			descriptorCopyCount = 0;
-
-		_freea(copies);
 	}
 #endif
 

@@ -150,7 +150,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
-	const auto command_lists = static_cast<ID3D12CommandList **>(_malloca(NumCommandLists * sizeof(ID3D12CommandList *)));
+	temp_mem<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; i++)
 	{
 		assert(ppCommandLists[i] != nullptr);
@@ -174,9 +174,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 
 	flush_immediate_command_list();
 
-	_orig->ExecuteCommandLists(NumCommandLists, command_lists);
-
-	_freea(command_lists);
+	_orig->ExecuteCommandLists(NumCommandLists, command_lists.p);
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::SetMarker(UINT Metadata, const void *pData, UINT Size)
 {

@@ -81,14 +81,9 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 
 void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
-	if (count > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)
-	{
-		assert(false);
-		count = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-	}
+	assert(count <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	api::resource_view rtv_handles[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT], depth_stencil_handle = {};
-
+	temp_mem<api::resource_view, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_handles(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		rtv_handles[i] = rts[i].view;
@@ -97,6 +92,7 @@ void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, cons
 			_orig->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView *>(rtv_handles[i].handle), rts[i].clear_color);
 	}
 
+	api::resource_view depth_stencil_handle = {};
 	if (ds != nullptr)
 	{
 		depth_stencil_handle = ds->view;
@@ -105,7 +101,7 @@ void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, cons
 			_orig->ClearDepthStencilView(reinterpret_cast<ID3D11DepthStencilView *>(depth_stencil_handle.handle), clear_flags, ds->clear_depth, ds->clear_stencil);
 	}
 
-	bind_render_targets_and_depth_stencil(count, rtv_handles, depth_stencil_handle);
+	bind_render_targets_and_depth_stencil(count, rtv_handles.p, depth_stencil_handle);
 }
 void reshade::d3d11::device_context_impl::end_render_pass()
 {
@@ -114,16 +110,13 @@ void reshade::d3d11::device_context_impl::end_render_pass()
 }
 void reshade::d3d11::device_context_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
-	if (count > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)
-	{
-		assert(false);
-		count = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-	}
+	assert(count <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
 #ifndef WIN64
-	ID3D11RenderTargetView *rtv_ptrs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	temp_mem<ID3D11RenderTargetView *, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		rtv_ptrs[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
+		rtv_ptrs_mem[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
+	const auto rtv_ptrs = rtv_ptrs_mem.p;
 #else
 	const auto rtv_ptrs = reinterpret_cast<ID3D11RenderTargetView *const *>(rtvs);
 #endif
@@ -208,16 +201,13 @@ void reshade::d3d11::device_context_impl::bind_scissor_rects(uint32_t first, uin
 
 void reshade::d3d11::device_context_impl::bind_samplers(api::shader_stage stages, uint32_t first, uint32_t count, const api::sampler *samplers)
 {
-	if (count > D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
-	}
+	assert(count <= D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
 #ifndef WIN64
-	ID3D11SamplerState *sampler_ptrs[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT];
+	temp_mem<ID3D11SamplerState *, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> sampler_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		sampler_ptrs[i] = reinterpret_cast<ID3D11SamplerState *>(samplers[i].handle);
+		sampler_ptrs_mem[i] = reinterpret_cast<ID3D11SamplerState *>(samplers[i].handle);
+	const auto sampler_ptrs = sampler_ptrs_mem.p;
 #else
 	const auto sampler_ptrs = reinterpret_cast<ID3D11SamplerState *const *>(samplers);
 #endif
@@ -237,16 +227,13 @@ void reshade::d3d11::device_context_impl::bind_samplers(api::shader_stage stages
 }
 void reshade::d3d11::device_context_impl::bind_shader_resource_views(api::shader_stage stages, uint32_t first, uint32_t count, const api::resource_view *views)
 {
-	if (count > D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-	}
+	assert(count <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
 #ifndef WIN64
-	ID3D11ShaderResourceView *view_ptrs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<ID3D11ShaderResourceView *, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> view_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		view_ptrs[i] = reinterpret_cast<ID3D11ShaderResourceView *>(views[i].handle);
+		view_ptrs_mem[i] = reinterpret_cast<ID3D11ShaderResourceView *>(views[i].handle);
+	const auto view_ptrs = view_ptrs_mem.p;
 #else
 	const auto view_ptrs = reinterpret_cast<ID3D11ShaderResourceView *const *>(views);
 #endif
@@ -266,16 +253,13 @@ void reshade::d3d11::device_context_impl::bind_shader_resource_views(api::shader
 }
 void reshade::d3d11::device_context_impl::bind_unordered_access_views(api::shader_stage stages, uint32_t first, uint32_t count, const api::resource_view *views)
 {
-	if (count > D3D11_1_UAV_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D11_1_UAV_SLOT_COUNT;
-	}
+	assert(count <= D3D11_1_UAV_SLOT_COUNT);
 
 #ifndef WIN64
-	ID3D11UnorderedAccessView *view_ptrs[D3D11_1_UAV_SLOT_COUNT];
+	temp_mem<ID3D11UnorderedAccessView *, D3D11_1_UAV_SLOT_COUNT> view_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		view_ptrs[i] = reinterpret_cast<ID3D11UnorderedAccessView *>(views[i].handle);
+		view_ptrs_mem[i] = reinterpret_cast<ID3D11UnorderedAccessView *>(views[i].handle);
+	const auto view_ptrs = view_ptrs_mem.p;
 #else
 	const auto view_ptrs = reinterpret_cast<ID3D11UnorderedAccessView *const *>(views);
 #endif
@@ -287,16 +271,12 @@ void reshade::d3d11::device_context_impl::bind_unordered_access_views(api::shade
 }
 void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stage stages, uint32_t first, uint32_t count, const api::buffer_range *buffer_ranges)
 {
-	if (count > D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
-	}
+	assert(count <= D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
 
 	bool whole_range = true;
-	ID3D11Buffer *buffer_ptrs[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	UINT first_constant[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	UINT constant_count[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	temp_mem<ID3D11Buffer *, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> buffer_ptrs(count);
+	temp_mem<UINT, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> first_constant(count);
+	temp_mem<UINT, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> constant_count(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		buffer_ptrs[i] = reinterpret_cast<ID3D11Buffer *>(buffer_ranges[i].buffer.handle);
@@ -323,32 +303,32 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 		FAILED(_orig->QueryInterface(&context1)))
 	{
 		if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
-			_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
+			_orig->VSSetConstantBuffers(first, count, buffer_ptrs.p);
 		if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
-			_orig->HSSetConstantBuffers(first, count, buffer_ptrs);
+			_orig->HSSetConstantBuffers(first, count, buffer_ptrs.p);
 		if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
-			_orig->DSSetConstantBuffers(first, count, buffer_ptrs);
+			_orig->DSSetConstantBuffers(first, count, buffer_ptrs.p);
 		if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
-			_orig->GSSetConstantBuffers(first, count, buffer_ptrs);
+			_orig->GSSetConstantBuffers(first, count, buffer_ptrs.p);
 		if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
-			_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
+			_orig->PSSetConstantBuffers(first, count, buffer_ptrs.p);
 		if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
-			_orig->CSSetConstantBuffers(first, count, buffer_ptrs);
+			_orig->CSSetConstantBuffers(first, count, buffer_ptrs.p);
 	}
 	else
 	{
 		if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
-			context1->VSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+			context1->VSSetConstantBuffers1(first, count, buffer_ptrs.p, first_constant.p, constant_count.p);
 		if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
-			context1->HSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+			context1->HSSetConstantBuffers1(first, count, buffer_ptrs.p, first_constant.p, constant_count.p);
 		if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
-			context1->DSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+			context1->DSSetConstantBuffers1(first, count, buffer_ptrs.p, first_constant.p, constant_count.p);
 		if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
-			context1->GSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+			context1->GSSetConstantBuffers1(first, count, buffer_ptrs.p, first_constant.p, constant_count.p);
 		if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
-			context1->PSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+			context1->PSSetConstantBuffers1(first, count, buffer_ptrs.p, first_constant.p, constant_count.p);
 		if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
-			context1->CSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+			context1->CSSetConstantBuffers1(first, count, buffer_ptrs.p, first_constant.p, constant_count.p);
 	}
 }
 
@@ -457,25 +437,22 @@ void reshade::d3d11::device_context_impl::bind_index_buffer(api::resource buffer
 }
 void reshade::d3d11::device_context_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	if (count > D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
-	}
+	assert(count <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
 #ifndef WIN64
-	ID3D11Buffer *buffer_ptrs[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<ID3D11Buffer *, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> buffer_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		buffer_ptrs[i] = reinterpret_cast<ID3D11Buffer *>(buffers[i].handle);
+		buffer_ptrs_mem[i] = reinterpret_cast<ID3D11Buffer *>(buffers[i].handle);
+	const auto buffer_ptrs = buffer_ptrs_mem.p;
 #else
 	const auto buffer_ptrs = reinterpret_cast<ID3D11Buffer *const *>(buffers);
 #endif
 
-	UINT offsets_32[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<UINT, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> offsets_32(count);
 	for (uint32_t i = 0; i < count; ++i)
 		offsets_32[i] = static_cast<UINT>(offsets[i]);
 
-	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32);
+	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32.p);
 }
 
 void reshade::d3d11::device_context_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)

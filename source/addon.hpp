@@ -9,6 +9,30 @@
 #include <vector>
 #include <cassert>
 
+template <typename T, size_t STACK_ELEMENTS = 16>
+struct temp_mem
+{
+	temp_mem(size_t elements)
+	{
+		if (elements > STACK_ELEMENTS)
+			p = new T[elements];
+		else
+			p = stack;
+	}
+	~temp_mem()
+	{
+		if (p != stack)
+			delete[] p;
+	}
+
+	T &operator[](size_t element)
+	{
+		return p[element];
+	}
+
+	T *p, stack[STACK_ELEMENTS];
+};
+
 namespace reshade::api
 {
 	class api_object;

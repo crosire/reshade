@@ -52,15 +52,9 @@ extern const RECT *convert_box_to_rect(const reshade::api::subresource_box *box,
 
 void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
-	if (count > _caps.NumSimultaneousRTs)
-	{
-		assert(false);
-		count = _caps.NumSimultaneousRTs;
-	}
-
 	DWORD clear_flags = 0;
-	api::resource_view rtv_handles[8], depth_stencil_handle = {};
 
+	temp_mem<api::resource_view, 8> rtv_handles(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		rtv_handles[i] = rts[i].view;
@@ -69,6 +63,7 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 			clear_flags |= D3DCLEAR_TARGET;
 	}
 
+	api::resource_view depth_stencil_handle = {};
 	if (ds != nullptr)
 	{
 		depth_stencil_handle = ds->view;
@@ -79,7 +74,7 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 			clear_flags |= D3DCLEAR_STENCIL;
 	}
 
-	bind_render_targets_and_depth_stencil(count, rtv_handles, depth_stencil_handle);
+	bind_render_targets_and_depth_stencil(count, rtv_handles.p, depth_stencil_handle);
 
 	if (clear_flags != 0)
 		_orig->Clear(

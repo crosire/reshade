@@ -48,8 +48,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 
 	_has_commands = true;
 
-	const auto barriers = static_cast<D3D12_RESOURCE_BARRIER *>(_malloca(count * sizeof(D3D12_RESOURCE_BARRIER)));
-
+	temp_mem<D3D12_RESOURCE_BARRIER> barriers(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		if (old_states[i] == api::resource_usage::unordered_access && new_states[i] == api::resource_usage::unordered_access)
@@ -69,23 +68,17 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 		}
 	}
 
-	_orig->ResourceBarrier(count, barriers);
-
-	_freea(barriers);
+	_orig->ResourceBarrier(count, barriers.p);
 }
 
 void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
-	if (count > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT)
-	{
-		assert(false);
-		count = D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
-	}
+	assert(count <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
 	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
 	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
 	{
-		D3D12_RENDER_PASS_RENDER_TARGET_DESC rt_desc[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT] = {};
+		temp_mem<D3D12_RENDER_PASS_RENDER_TARGET_DESC, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rt_desc(count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			rt_desc[i].cpuDescriptor = { static_cast<SIZE_T>(rts[i].view.handle) };
@@ -120,11 +113,11 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 			}
 		}
 
-		cmd_list4->BeginRenderPass(count, rt_desc, ds != nullptr ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+		cmd_list4->BeginRenderPass(count, rt_desc.p, ds != nullptr ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
 	}
 	else
 	{
-		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handles[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_handles(count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			rtv_handles[i] = { static_cast<SIZE_T>(rts[i].view.handle) };
@@ -142,7 +135,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 				_orig->ClearDepthStencilView(depth_stencil_handle, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), ds->clear_depth, ds->clear_stencil, 0, nullptr);
 		}
 
-		_orig->OMSetRenderTargets(count, rtv_handles, FALSE, ds != nullptr ? &depth_stencil_handle : nullptr);
+		_orig->OMSetRenderTargets(count, rtv_handles.p, FALSE, ds != nullptr ? &depth_stencil_handle : nullptr);
 	}
 }
 void reshade::d3d12::command_list_impl::end_render_pass()
@@ -155,16 +148,13 @@ void reshade::d3d12::command_list_impl::end_render_pass()
 }
 void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
-	if (count > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT)
-	{
-		assert(false);
-		count = D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
-	}
+	assert(count <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
 #ifndef WIN64
-	D3D12_CPU_DESCRIPTOR_HANDLE rtv_handles[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_handles_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		rtv_handles[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
+		rtv_handles_mem[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
+	const auto rtv_handles = rtv_handles_mem.p;
 #else
 	const auto rtv_handles = reinterpret_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(rtvs);
 #endif
@@ -317,21 +307,17 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	else if (update.type == api::descriptor_type::sampler || update.type == api::descriptor_type::shader_resource_view || update.type == api::descriptor_type::unordered_access_view)
 	{
 #ifndef WIN64
-		auto src_handles = static_cast<D3D12_CPU_DESCRIPTOR_HANDLE *>(_malloca(update.count * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE)));
+		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(update.count);
 		for (uint32_t k = 0; k < update.count; ++k)
 			src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(update.descriptors)[k]) };
 		const UINT src_range_size = 1;
 
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles, &src_range_size, convert_descriptor_type_to_heap_type(update.type));
-
-		_freea(src_handles);
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles.p, &src_range_size, convert_descriptor_type_to_heap_type(update.type));
 #else
-		auto src_range_sizes = static_cast<UINT *>(_malloca(update.count * sizeof(UINT)));
-		std::fill(src_range_sizes, src_range_sizes + update.count, 1);
+		temp_mem<UINT> src_range_sizes(update.count);
+		std::fill(src_range_sizes.p, src_range_sizes.p + update.count, 1);
 
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes, convert_descriptor_type_to_heap_type(update.type));
-
-		_freea(src_range_sizes);
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.p, convert_descriptor_type_to_heap_type(update.type));
 #endif
 	}
 	else
@@ -414,14 +400,9 @@ void reshade::d3d12::command_list_impl::bind_index_buffer(api::resource buffer, 
 }
 void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	if (count > D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
-	}
+	assert(count <= D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
-	D3D12_VERTEX_BUFFER_VIEW views[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-
+	temp_mem<D3D12_VERTEX_BUFFER_VIEW, D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> views(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
@@ -431,7 +412,7 @@ void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint
 		views[i].StrideInBytes = strides[i];
 	}
 
-	_orig->IASetVertexBuffers(first, count, views);
+	_orig->IASetVertexBuffers(first, count, views.p);
 }
 
 void reshade::d3d12::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
