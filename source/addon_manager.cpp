@@ -58,6 +58,10 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(destroy_pipeline_layout);
 		CASE(copy_descriptor_sets);
 		CASE(update_descriptor_sets);
+		CASE(init_query_pool);
+		CASE(create_query_pool);
+		CASE(destroy_query_pool);
+		CASE(get_query_pool_results);
 		CASE(barrier);
 		CASE(begin_render_pass);
 		CASE(end_render_pass);
@@ -86,6 +90,9 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(clear_unordered_access_view_uint);
 		CASE(clear_unordered_access_view_float);
 		CASE(generate_mipmaps);
+		CASE(begin_query);
+		CASE(end_query);
+		CASE(copy_query_pool_results);
 		CASE(reset_command_list);
 		CASE(execute_command_list);
 		CASE(execute_secondary_command_list);

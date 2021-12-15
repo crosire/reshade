@@ -968,7 +968,7 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 	D3D12DescriptorHeap *const heap = _descriptor_heaps[heap_index];
 	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((set.handle >> 20) & 0x3);
 
-	*pool = { reinterpret_cast<uintptr_t>(heap->_orig) };
+	*pool = to_handle(heap->_orig);
 	// Increment size is 1 (see 'D3D12Device::GetDescriptorHandleIncrementSize'), so can just subtract to get offset
 	*offset = static_cast<uint32_t>(set.handle - heap->_internal_base_cpu_handle.ptr) + binding;
 #else
@@ -1111,7 +1111,7 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 		void *mapped_data = nullptr;
 		if (SUCCEEDED(readback_resource->Map(0, &read_range, &mapped_data)))
 		{
-			for (uint32_t i = 0; i < count; ++i)
+			for (size_t i = 0; i < count; ++i)
 			{
 				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[first + i];
 			}

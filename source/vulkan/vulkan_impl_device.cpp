@@ -1609,6 +1609,11 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 	if (VkQueryPool pool = VK_NULL_HANDLE;
 		vk.CreateQueryPool(_orig, &create_info, nullptr, &pool) == VK_SUCCESS)
 	{
+		object_data<VK_OBJECT_TYPE_QUERY_POOL> data;
+		data.type = create_info.queryType;
+
+		register_object<VK_OBJECT_TYPE_QUERY_POOL>(pool, std::move(data));
+
 		// Reset all queries for initial use
 #if 0
 		vk.ResetQueryPool(_orig, pool, 0, count);
@@ -1638,6 +1643,11 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 }
 void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
 {
+	if (handle.handle == 0)
+		return;
+
+	unregister_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)handle.handle);
+
 	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
 }
 
@@ -1646,7 +1656,7 @@ bool reshade::vulkan::device_impl::get_query_pool_results(api::query_pool pool, 
 	assert(pool.handle != 0);
 	assert(stride >= sizeof(uint64_t));
 
-	return vk.GetQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
+	return vk.GetQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, static_cast<size_t>(count) * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
 }
 
 void reshade::vulkan::device_impl::set_resource_name(api::resource handle, const char *name)

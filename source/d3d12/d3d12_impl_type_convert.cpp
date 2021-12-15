@@ -1187,6 +1187,21 @@ auto reshade::d3d12::convert_query_type_to_heap_type(api::query_type type) -> D3
 		return static_cast<D3D12_QUERY_HEAP_TYPE>(UINT_MAX);
 	}
 }
+auto reshade::d3d12::convert_query_heap_type_to_type(D3D12_QUERY_HEAP_TYPE type) -> api::query_type
+{
+	switch (type)
+	{
+	case D3D12_QUERY_HEAP_TYPE_OCCLUSION:
+		return api::query_type::occlusion;
+	case D3D12_QUERY_HEAP_TYPE_TIMESTAMP:
+		return api::query_type::timestamp;
+	case D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS:
+		return api::query_type::pipeline_statistics;
+	default:
+		assert(false);
+		return static_cast<api::query_type>(UINT_MAX);
+	}
+}
 
 auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_RANGE_TYPE
 {

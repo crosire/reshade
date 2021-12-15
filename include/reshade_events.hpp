@@ -720,6 +720,45 @@ namespace reshade
 		update_descriptor_sets,
 
 		/// <summary>
+		/// Called after successfull query pool creation from:
+		/// <list type="bullet">
+		/// <item><description>ID3D12Device::CreateQueryHeap</description></item>
+		/// <item><description>vkCreateQueryPool</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::query_type type, uint32_t size, api::query_pool pool)</c></para>
+		/// </summary>
+		init_query_pool,
+
+		/// <summary>
+		/// Called on query pool creation, before:
+		/// <list type="bullet">
+		/// <item><description>ID3D12Device::CreateQueryHeap</description></item>
+		/// <item><description>vkCreateQueryPool</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::query_type type, uint32_t &amp;size)</c></para>
+		/// </summary>
+		create_query_pool,
+
+		/// <summary>
+		/// Called on query pool destruction, before:
+		/// <list type="bullet">
+		/// <item><description>ID3D12QueryHeap::Release</description></item>
+		/// <item><description>vkDestroyQueryPool</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::query_pool pool)</c></para>
+		/// </summary>
+		destroy_query_pool,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
+		/// <item><description>vkGetQueryPoolResults</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)</c></para>
+		/// </summary>
+		get_query_pool_results,
+
+		/// <summary>
 		/// Called after:
 		/// <list type="bullet">
 		/// <item><description>ID3D12GraphicsCommandList::ResourceBarrier</description></item>
@@ -1261,6 +1300,46 @@ namespace reshade
 		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
+		/// <item><description>ID3D12GraphicsCommandList::BeginQuery</description></item>
+		/// <item><description>vkCmdBeginQuery</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		begin_query,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
+		/// <item><description>ID3D12GraphicsCommandList::EndQuery</description></item>
+		/// <item><description>vkCmdEndQuery</description></item>
+		/// <item><description>vkCmdWriteTimestamp</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		end_query,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
+		/// <item><description>ID3D12GraphicsCommandList::ResolveQueryData</description></item>
+		/// <item><description>vkCmdCopyQueryPoolResults</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		copy_query_pool_results,
+
+		/// <summary>
+		/// Called before:
+		/// <list type="bullet">
 		/// <item><description>ID3D12GraphicsCommandList::Reset</description></item>
 		/// <item><description>vkBeginCommandBuffer</description></item>
 		/// </list>
@@ -1391,6 +1470,12 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_descriptor_sets, bool, api::device *device, uint32_t count, const api::descriptor_set_copy *copies);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_descriptor_sets, bool, api::device *device, uint32_t count, const api::descriptor_set_update *updates);
 
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_query_pool, void, api::device *device, api::query_type type, uint32_t size, api::query_pool pool);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_query_pool, bool, api::device *device, api::query_type type, uint32_t &size);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_query_pool, void, api::device *device, api::query_pool pool);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::get_query_pool_results, bool, api::device *device, api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride);
+
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_render_pass, void, api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds);
@@ -1425,6 +1510,11 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_unordered_access_view_float, bool, api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t rect_count, const api::rect *rects);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::generate_mipmaps, bool, api::command_list *cmd_list, api::resource_view srv);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_query, bool, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::end_query, bool, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_query_pool_results, bool, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reset_command_list, void, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_command_list, void, api::command_queue *queue, api::command_list *cmd_list);

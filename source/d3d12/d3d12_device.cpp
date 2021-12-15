@@ -1131,7 +1131,44 @@ void    STDMETHODCALLTYPE D3D12Device::GetCopyableFootprints(const D3D12_RESOURC
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateQueryHeap(const D3D12_QUERY_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
 {
-	return _orig->CreateQueryHeap(pDesc, riid, ppvHeap);
+#if RESHADE_ADDON
+	if (pDesc == nullptr)
+		return E_INVALIDARG;
+	if (ppvHeap == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreateQueryHeap(pDesc, riid, nullptr);
+
+	D3D12_QUERY_HEAP_DESC internal_desc = *pDesc;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_query_pool>(this, reshade::d3d12::convert_query_heap_type_to_type(internal_desc.Type), internal_desc.Count))
+	{
+		pDesc = &internal_desc;
+	}
+#endif
+
+	const HRESULT hr = _orig->CreateQueryHeap(pDesc, riid, ppvHeap);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		if (riid == __uuidof(ID3D12QueryHeap))
+		{
+			const auto query_heap = static_cast<ID3D12QueryHeap *>(*ppvHeap);
+
+			reshade::invoke_addon_event<reshade::addon_event::init_query_pool>(this, reshade::d3d12::convert_query_heap_type_to_type(internal_desc.Type), internal_desc.Count, to_handle(query_heap));
+
+			register_destruction_callback(query_heap, [this, query_heap]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_query_pool>(this, to_handle(query_heap));
+			});
+		}
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "ID3D12Device::CreateQueryHeap" << " failed with error code " << hr << '.';
+#endif
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::SetStablePowerState(BOOL Enable)
 {

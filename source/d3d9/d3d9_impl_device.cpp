@@ -1631,7 +1631,7 @@ bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool pool, ui
 
 	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (size_t i = 0; i < count; ++i)
 	{
 		if (impl->queries[first + i]->GetData(static_cast<uint8_t *>(results) + i * stride, stride, 0) != S_OK)
 			return false;

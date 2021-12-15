@@ -33,6 +33,9 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(BindBufferMemory2);
 	HOOK_PROC(BindImageMemory);
 	HOOK_PROC(BindImageMemory2);
+	HOOK_PROC(CreateQueryPool);
+	HOOK_PROC(DestroyQueryPool);
+	HOOK_PROC(GetQueryPoolResults);
 	HOOK_PROC(CreateBuffer);
 	HOOK_PROC(DestroyBuffer);
 	HOOK_PROC(CreateBufferView);
@@ -95,6 +98,10 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdClearAttachments);
 	HOOK_PROC(CmdResolveImage);
 	HOOK_PROC(CmdPipelineBarrier);
+	HOOK_PROC(CmdBeginQuery);
+	HOOK_PROC(CmdEndQuery);
+	HOOK_PROC(CmdWriteTimestamp);
+	HOOK_PROC(CmdCopyQueryPoolResults);
 	HOOK_PROC(CmdPushConstants);
 	HOOK_PROC(CmdBeginRenderPass);
 	HOOK_PROC(CmdEndRenderPass);

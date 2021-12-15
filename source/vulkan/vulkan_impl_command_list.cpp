@@ -962,11 +962,12 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)
+void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	_has_commands = true;
 
 	assert(pool.handle != 0);
+	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)pool.handle)->type == convert_query_type(type));
 
 	vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
 	vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
@@ -976,6 +977,7 @@ void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::qu
 	_has_commands = true;
 
 	assert(pool.handle != 0);
+	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)pool.handle)->type == convert_query_type(type));
 
 	if (type == api::query_type::timestamp)
 	{
@@ -987,11 +989,12 @@ void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::qu
 		vk.CmdEndQuery(_orig, (VkQueryPool)pool.handle, index);
 	}
 }
-void reshade::vulkan::command_list_impl::copy_query_pool_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::vulkan::command_list_impl::copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
 	_has_commands = true;
 
 	assert(pool.handle != 0);
+	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)pool.handle)->type == convert_query_type(type));
 
 	vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
 }

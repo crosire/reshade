@@ -1617,6 +1617,22 @@ auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
 		return VK_QUERY_TYPE_MAX_ENUM;
 	}
 }
+auto reshade::vulkan::convert_query_type(VkQueryType type) -> api::query_type
+{
+	switch (type)
+	{
+	case VK_QUERY_TYPE_OCCLUSION:
+		return api::query_type::occlusion;
+	case VK_QUERY_TYPE_TIMESTAMP:
+		return api::query_type::timestamp;
+	case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+		return api::query_type::pipeline_statistics;
+	default:
+		assert(false);
+		return static_cast<api::query_type>(UINT32_MAX);
+	}
+}
+
 auto reshade::vulkan::convert_descriptor_type(api::descriptor_type value, bool is_image) -> VkDescriptorType
 {
 	switch (value)

@@ -995,6 +995,72 @@ VkResult VKAPI_CALL vkBindImageMemory2(VkDevice device, uint32_t bindInfoCount, 
 	return result;
 }
 
+VkResult VKAPI_CALL vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkQueryPool *pQueryPool)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreateQueryPool, device_impl);
+
+	assert(pCreateInfo != nullptr && pQueryPool != nullptr);
+
+#if RESHADE_ADDON
+	VkQueryPoolCreateInfo create_info = *pCreateInfo;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_query_pool>(device_impl, reshade::vulkan::convert_query_type(create_info.queryType), create_info.queryCount))
+	{
+		pCreateInfo = &create_info;
+	}
+#endif
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pQueryPool);
+	if (result < VK_SUCCESS)
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkCreateQueryPool" << " failed with error code " << result << '.';
+#endif
+		return result;
+	}
+
+#if RESHADE_ADDON
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_QUERY_POOL> data;
+	data.type = create_info.queryType;
+
+	device_impl->register_object<VK_OBJECT_TYPE_QUERY_POOL>(*pQueryPool, std::move(data));
+
+	reshade::invoke_addon_event<reshade::addon_event::init_query_pool>(
+		device_impl, reshade::vulkan::convert_query_type(create_info.queryType), create_info.queryCount, reshade::api::query_pool { (uint64_t)*pQueryPool });
+#endif
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyQueryPool, device_impl);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_query_pool>(device_impl, reshade::api::query_pool { (uint64_t)queryPool });
+
+	device_impl->unregister_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
+#endif
+
+	trampoline(device, queryPool, pAllocator);
+}
+
+VkResult VKAPI_CALL vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void *pData, VkDeviceSize stride, VkQueryResultFlags flags)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(GetQueryPoolResults, device_impl);
+
+#if RESHADE_ADDON
+	assert(stride <= std::numeric_limits<uint32_t>::max());
+
+	if (reshade::invoke_addon_event<reshade::addon_event::get_query_pool_results>(device_impl, reshade::api::query_pool { (uint64_t)queryPool }, firstQuery, queryCount, pData, static_cast<uint32_t>(stride)))
+		return VK_SUCCESS;
+#endif
+
+	return trampoline(device, queryPool, firstQuery, queryCount, dataSize, pData, stride, flags);
+}
+
 VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkBuffer *pBuffer)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));

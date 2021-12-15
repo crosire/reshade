@@ -1881,7 +1881,7 @@ bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool pool, 
 
 	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (size_t i = 0; i < count; ++i)
 	{
 		const GLuint query_object = impl->queries[first + i];
 
