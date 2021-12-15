@@ -137,7 +137,9 @@ namespace reshade { namespace api
 		/// Gets the name of a uniform <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
-		virtual const char *get_uniform_variable_name(effect_uniform_variable variable) const = 0;
+		/// <param name="value">Pointer to a string buffer that is filled with the name of the uniform variable.</param>
+		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+		virtual void get_uniform_variable_name(effect_uniform_variable variable, char *name, size_t *length) const = 0;
 
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as boolean values.
@@ -182,7 +184,7 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
-		virtual bool get_uniform_annotation_string(effect_uniform_variable variable, const char *name, char *value, size_t *length) const = 0;
+		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, char *value, size_t *length) const = 0;
 
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/> as boolean values.
@@ -330,7 +332,9 @@ namespace reshade { namespace api
 		/// Gets the name of a texture <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the texture variable.</param>
-		virtual const char *get_texture_variable_name(effect_texture_variable variable) const = 0;
+		/// <param name="value">Pointer to a string buffer that is filled with the name of the texture variable.</param>
+		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+		virtual void get_texture_variable_name(effect_texture_variable variable, char *name, size_t *length) const = 0;
 
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as boolean values.
@@ -375,7 +379,7 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
-		virtual bool get_texture_annotation_string(effect_texture_variable variable, const char *name, char *value, size_t *length) const = 0;
+		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, char *value, size_t *length) const = 0;
 
 		/// <summary>
 		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
@@ -437,7 +441,9 @@ namespace reshade { namespace api
 		/// Gets the name of a <paramref name="technique"/>.
 		/// </summary>
 		/// <param name="technique">Opaque handle to the technique.</param>
-		virtual const char *get_technique_name(effect_technique technique) const = 0;
+		/// <param name="value">Pointer to a string buffer that is filled with the name of the technique.</param>
+		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+		virtual void get_technique_name(effect_technique technique, char *name, size_t *length) const = 0;
 
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as boolean values.
@@ -482,7 +488,7 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
-		virtual bool get_technique_annotation_string(effect_technique technique, const char *name, char *value, size_t *length) const = 0;
+		virtual void get_technique_annotation_value(effect_technique technique, const char *name, char *value, size_t *length) const = 0;
 
 		/// <summary>
 		/// Gets the status of a <paramref name="technique"/>.

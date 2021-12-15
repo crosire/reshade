@@ -131,7 +131,7 @@ namespace reshade
 		/// <summary>
 		/// Gets the name of a uniform <paramref name="variable"/>.
 		/// </summary>
-		const char *get_uniform_variable_name(api::effect_uniform_variable variable) const final;
+		void get_uniform_variable_name(api::effect_uniform_variable variable, char *name, size_t *length) const final;
 
 		/// <summary>
 		/// Gets the value from a named annotation attached to the specified uniform <paramref name="variable"/>.
@@ -140,7 +140,7 @@ namespace reshade
 		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		bool get_uniform_annotation_string(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const final;
+		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/>.
@@ -171,7 +171,7 @@ namespace reshade
 		/// <summary>
 		/// Gets the name of a texture <paramref name="variable"/>.
 		/// </summary>
-		const char *get_texture_variable_name(api::effect_texture_variable variable) const final;
+		void get_texture_variable_name(api::effect_texture_variable variable, char *name, size_t *length) const final;
 
 		/// <summary>
 		/// Gets the value from a named annotation attached to the specified texture <paramref name="variable"/>.
@@ -180,7 +180,7 @@ namespace reshade
 		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		bool get_texture_annotation_string(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const final;
+		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
 		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
@@ -210,7 +210,7 @@ namespace reshade
 		/// <summary>
 		/// Gets the name of a <paramref name="technique"/>.
 		/// </summary>
-		const char *get_technique_name(api::effect_technique technique) const final;
+		void get_technique_name(api::effect_technique technique, char *name, size_t *length) const final;
 
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/>.
@@ -219,7 +219,7 @@ namespace reshade
 		void get_technique_annotation_value(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		void get_technique_annotation_value(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		void get_technique_annotation_value(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		bool get_technique_annotation_string(api::effect_technique technique, const char *name, char *value, size_t *length) const final;
+		void get_technique_annotation_value(api::effect_technique technique, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
 		/// Gets the status of a <paramref name="technique"/>.
