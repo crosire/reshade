@@ -215,6 +215,7 @@ bool reshade::opengl::swapchain_impl::on_vr_submit(uint32_t eye, GLenum source_t
 	return true;
 }
 
+#if RESHADE_EFFECTS
 void reshade::opengl::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
 	_app_state.capture(_compatibility_context);
@@ -227,3 +228,4 @@ void reshade::opengl::swapchain_impl::render_effects(api::command_list *cmd_list
 
 	_app_state.apply(_compatibility_context);
 }
+#endif

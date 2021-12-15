@@ -1093,7 +1093,7 @@ auto reshade::d3d9::convert_query_type(api::query_type value) -> D3DQUERYTYPE
 		return D3DQUERYTYPE_TIMESTAMP;
 	default:
 		assert(false);
-		return static_cast<D3DQUERYTYPE>(0xFFFFFFFF);
+		return static_cast<D3DQUERYTYPE>(UINT32_MAX);
 	}
 }
 auto reshade::d3d9::convert_dynamic_state(D3DRENDERSTATETYPE value) -> api::dynamic_state

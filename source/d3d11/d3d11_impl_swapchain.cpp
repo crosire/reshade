@@ -269,6 +269,7 @@ bool reshade::d3d11::swapchain_impl::on_vr_submit(UINT eye, ID3D11Texture2D *sou
 	return true;
 }
 
+#if RESHADE_EFFECTS
 void reshade::d3d11::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
 	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(cmd_list)->_orig;
@@ -278,3 +279,4 @@ void reshade::d3d11::swapchain_impl::render_effects(api::command_list *cmd_list,
 
 	_app_state.apply_and_release();
 }
+#endif

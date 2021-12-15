@@ -49,10 +49,12 @@ namespace reshade
 		/// </summary>
 		inline std::filesystem::path get_config_path() const { return _config_path; }
 
+#if RESHADE_EFFECTS
 		/// <summary>
 		/// Gets a boolean indicating whether effects are being loaded.
 		/// </summary>
 		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max(); }
+#endif
 		/// <summary>
 		/// Gets a boolean indicating whether the runtime is initialized.
 		/// </summary>
@@ -63,15 +65,19 @@ namespace reshade
 		/// </summary>
 		virtual api::resource get_back_buffer_resolved(uint32_t index) = 0;
 
+#if RESHADE_EFFECTS
 		/// <summary>
 		/// Applies post-processing effects to the specified render targets.
 		/// </summary>
 		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
+#else
+		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final { cmd_list; rtv; rtv_srgb; }
+#endif
 
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
-		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
+		void save_screenshot(const std::wstring &postfix = std::wstring());
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
 		/// </summary>
@@ -139,43 +145,18 @@ namespace reshade
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/>.
 		/// </summary>
-		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
-
 		void get_uniform_value(api::effect_uniform_variable variable, bool *values, size_t count, size_t array_index) const final;
 		void get_uniform_value(api::effect_uniform_variable variable, float *values, size_t count, size_t array_index) const final;
 		void get_uniform_value(api::effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index) const final;
 		void get_uniform_value(api::effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index) const final;
 
-		template <typename T>
-		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
-		get_uniform_value(const uniform &variable, T *values, size_t count = 1, size_t array_index = 0) const
-		{
-			get_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
-		}
-
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/>.
 		/// </summary>
-		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
-
 		void set_uniform_value(api::effect_uniform_variable variable, const bool *values, size_t count, size_t array_index) final;
 		void set_uniform_value(api::effect_uniform_variable variable, const float *values, size_t count, size_t array_index) final;
 		void set_uniform_value(api::effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index) final;
 		void set_uniform_value(api::effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index) final;
-
-		template <typename T>
-		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
-		set_uniform_value(uniform &variable, T x, T y = T(0), T z = T(0), T w = T(0))
-		{
-			const T values[4] = { x, y, z, w };
-			set_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, 4, 0);
-		}
-		template <typename T>
-		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
-		set_uniform_value(uniform &variable, const T *values, size_t count = 1, size_t array_index = 0)
-		{
-			set_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
-		}
 
 		/// <summary>
 		/// Enumerates all texture variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
@@ -282,6 +263,7 @@ namespace reshade
 		void load_config();
 		void save_config() const;
 
+#if RESHADE_EFFECTS
 		void load_current_preset();
 		void save_current_preset() const;
 
@@ -313,9 +295,33 @@ namespace reshade
 
 		void save_texture(const texture &texture);
 
-		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
+		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		get_uniform_value(const uniform &variable, T *values, size_t count = 1, size_t array_index = 0) const
+		{
+			get_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
+		}
+
+		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		set_uniform_value(uniform &variable, T x, T y = T(0), T z = T(0), T w = T(0))
+		{
+			const T values[4] = { x, y, z, w };
+			set_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, 4, 0);
+		}
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		set_uniform_value(uniform &variable, const T *values, size_t count = 1, size_t array_index = 0)
+		{
+			set_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
+		}
 
 		void reset_uniform_value(uniform &variable);
+#endif
+
+		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
 
 		#pragma region Status
 		bool _needs_update = false;
@@ -323,6 +329,7 @@ namespace reshade
 		std::filesystem::path _config_path;
 
 		bool _is_initialized = false;
+		bool _preset_save_success = true;
 		bool _effects_enabled = true;
 		bool _effects_rendered_this_frame = false;
 
@@ -338,6 +345,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Effect Loading
+#if RESHADE_EFFECTS
 		bool _no_debug_info = 0;
 		bool _no_effect_cache = false;
 		bool _no_reload_on_init = false;
@@ -360,19 +368,20 @@ namespace reshade
 		std::atomic<size_t> _reload_remaining_effects = 0;
 		std::mutex _reload_mutex;
 		std::vector<std::thread> _worker_threads;
-		std::chrono::high_resolution_clock::time_point _last_reload_time;
 
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
+#endif
+		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		#pragma endregion
 
 		#pragma region Effect Rendering
+#if RESHADE_EFFECTS
 		api::resource _empty_tex = {};
 		api::resource_view _empty_srv = {};
 		api::resource _effect_color_tex = {};
 		api::resource_view _effect_color_srv[2] = {};
-		std::vector<api::resource_view> _back_buffer_targets;
 		api::format _effect_stencil_format = api::format::unknown;
 		api::resource _effect_stencil_tex = {};
 		api::resource_view _effect_stencil_dsv = {};
@@ -380,6 +389,8 @@ namespace reshade
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _backup_texture_semantic_bindings;
+#endif
+		std::vector<api::resource_view> _back_buffer_targets;
 		#pragma endregion
 
 		#pragma region Screenshot
@@ -400,14 +411,15 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Preset Switching
+#if RESHADE_EFFECTS
 		unsigned int _prev_preset_key_data[4] = {};
 		unsigned int _next_preset_key_data[4] = {};
 		unsigned int _preset_transition_delay = 1000;
 		std::filesystem::path _current_preset_path;
 
-		bool _preset_save_success = true;
 		bool _is_in_between_presets_transition = false;
 		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
+#endif
 		#pragma endregion
 
 #if RESHADE_GUI
@@ -426,7 +438,9 @@ namespace reshade
 		void draw_gui();
 		void draw_gui_vr();
 
+#if RESHADE_EFFECTS
 		void draw_gui_home();
+#endif
 		void draw_gui_settings();
 		void draw_gui_statistics();
 		void draw_gui_log();
@@ -434,8 +448,10 @@ namespace reshade
 #if RESHADE_ADDON
 		void draw_gui_addons();
 #endif
+#if RESHADE_EFFECTS
 		void draw_variable_editor();
 		void draw_technique_editor();
+#endif
 
 		bool init_imgui_resources();
 		void render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv);
@@ -479,6 +495,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Home
+#if RESHADE_EFFECTS
 		char _effect_filter[32] = {};
 		bool _variable_editor_tabs = false;
 		bool _duplicate_current_preset = false;
@@ -488,6 +505,7 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		float _variable_editor_height = 300.0f;
+#endif
 		#pragma endregion
 
 		#pragma region Overlay Add-ons
@@ -521,6 +539,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Code Editor
+#if RESHADE_EFFECTS
 		struct editor_instance
 		{
 			size_t effect_index;
@@ -536,6 +555,7 @@ namespace reshade
 		void draw_code_editor(editor_instance &instance);
 
 		std::vector<editor_instance> _editors;
+#endif
 		uint32_t _editor_palette[imgui::code_editor::color_palette_max];
 		#pragma endregion
 #endif

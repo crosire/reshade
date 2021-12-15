@@ -247,6 +247,7 @@ bool reshade::d3d10::swapchain_impl::on_vr_submit(UINT eye, ID3D10Texture2D *sou
 	return true;
 }
 
+#if RESHADE_EFFECTS
 void reshade::d3d10::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
 	_app_state.capture();
@@ -255,3 +256,4 @@ void reshade::d3d10::swapchain_impl::render_effects(api::command_list *cmd_list,
 
 	_app_state.apply_and_release();
 }
+#endif

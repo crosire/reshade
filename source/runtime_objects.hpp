@@ -60,6 +60,7 @@ namespace reshade
 		T _average, _tick_sum, _tick_list[SAMPLES];
 	};
 
+#if RESHADE_EFFECTS
 	struct texture final : reshadefx::texture_info
 	{
 		texture(const reshadefx::texture_info &init) : texture_info(init) {}
@@ -243,4 +244,5 @@ namespace reshade
 		api::query_pool query_pool = {};
 		std::vector<binding_data> texture_semantic_to_binding;
 	};
+#endif
 }

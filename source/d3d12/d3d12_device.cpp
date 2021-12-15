@@ -271,7 +271,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D12Device::CreateCommandQueue" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;
@@ -388,7 +390,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D12Device::CreateCommandList" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;
@@ -431,7 +435,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D12Device::CreateDescriptorHeap" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;
@@ -1249,7 +1255,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D12Device4::CreateCommandList1" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;

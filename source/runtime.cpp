@@ -25,6 +25,7 @@
 #include <malloc.h>
 #include <d3dcompiler.h>
 
+#if RESHADE_EFFECTS
 bool resolve_path(std::filesystem::path &path)
 {
 	std::error_code ec;
@@ -100,6 +101,7 @@ static inline int format_color_bit_depth(reshade::api::format value)
 		return 16;
 	}
 }
+#endif
 
 reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queue) :
 	_device(device),
@@ -107,8 +109,10 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
+#if RESHADE_EFFECTS
 	_effect_search_paths({ L".\\" }),
 	_texture_search_paths({ L".\\" }),
+#endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path)
 {
@@ -133,8 +137,10 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 }
 reshade::runtime::~runtime()
 {
+#if RESHADE_EFFECTS
 	assert(_worker_threads.empty());
 	assert(!_is_initialized && _techniques.empty());
+#endif
 
 	// Save configuration before shutting down to ensure the current window state is written to disk
 	save_config();
@@ -148,6 +154,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 {
 	assert(!_is_initialized);
 
+#if RESHADE_EFFECTS
 	// Create an empty texture, which is bound to shader resource view slots with an unknown semantic (since it is not valid to bind a zero handle in Vulkan, unless the 'VK_EXT_robustness2' extension is enabled)
 	if (_empty_tex == 0)
 	{
@@ -228,6 +235,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 			goto exit_failure;
 		}
 	}
+#endif
 
 	// Create render targets for the back buffer resources
 	for (uint32_t i = 0; i < get_back_buffer_count(); ++i)
@@ -277,15 +285,19 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 	_preset_save_success = true;
 	_screenshot_save_success = true;
-#if RESHADE_ADDON
+
+#if RESHADE_EFFECTS && RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
 #endif
 
+#if RESHADE_EFFECTS && RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
+#endif
 
 	return true;
 
 exit_failure:
+#if RESHADE_EFFECTS
 	_device->destroy_resource(_empty_tex);
 	_empty_tex = {};
 	_device->destroy_resource_view(_empty_srv);
@@ -302,6 +314,7 @@ exit_failure:
 	_effect_stencil_tex = {};
 	_device->destroy_resource_view(_effect_stencil_dsv);
 	_effect_stencil_dsv = {};
+#endif
 
 	for (const auto view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
@@ -324,10 +337,9 @@ void reshade::runtime::on_reset()
 	else
 		return; // Nothing to do if the runtime was already destroyed or not successfully initialized in the first place
 
+#if RESHADE_EFFECTS
 	// Already performs a wait for idle, so no need to do it again before destroying resources below
 	destroy_effects();
-
-	_width = _height = 0;
 
 	_device->destroy_resource(_empty_tex);
 	_empty_tex = {};
@@ -345,10 +357,13 @@ void reshade::runtime::on_reset()
 	_effect_stencil_tex = {};
 	_device->destroy_resource_view(_effect_stencil_dsv);
 	_effect_stencil_dsv = {};
+#endif
 
 	for (const auto view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
+
+	_width = _height = 0;
 
 #if RESHADE_GUI
 	if (_is_vr)
@@ -357,16 +372,19 @@ void reshade::runtime::on_reset()
 	destroy_imgui_resources();
 #endif
 
-#if RESHADE_ADDON
+#if RESHADE_EFFECTS && RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_effect_runtime>(this);
 #endif
 
+#if RESHADE_EFFECTS && RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
+#endif
 }
 void reshade::runtime::on_present()
 {
 	assert(is_initialized());
 
+#if RESHADE_EFFECTS
 	update_effects();
 
 	if (_effects_enabled && !_effects_rendered_this_frame)
@@ -382,9 +400,10 @@ void reshade::runtime::on_present()
 		runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index * 2], _back_buffer_targets[back_buffer_index * 2 + 1]);
 		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 	}
+#endif
 
 	if (_should_save_screenshot)
-		save_screenshot(std::wstring(), true);
+		save_screenshot(std::wstring());
 
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -419,6 +438,7 @@ void reshade::runtime::on_present()
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
 			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
 
+#if RESHADE_EFFECTS
 		// Do not allow the next shortcuts while effects are being loaded or initialized (since they affect that state)
 		if (!is_loading() && _reload_create_queue.empty())
 		{
@@ -448,6 +468,7 @@ void reshade::runtime::on_present()
 			if (_is_in_between_presets_transition)
 				load_current_preset();
 		}
+#endif
 	}
 
 	// Reset input status
@@ -473,6 +494,7 @@ void reshade::runtime::on_present()
 		traffic = 0;
 		cooldown = 60;
 
+#if RESHADE_EFFECTS
 		if (addon::enabled != was_enabled)
 		{
 			if (was_enabled)
@@ -483,6 +505,7 @@ void reshade::runtime::on_present()
 				update_texture_bindings(info.first.c_str(), addon::enabled ? info.second.first : api::resource_view { 0 }, addon::enabled ? info.second.second : api::resource_view { 0 });
 			}
 		}
+#endif
 	}
 
 	g_network_traffic = 0;
@@ -494,12 +517,13 @@ void reshade::runtime::load_config()
 	const ini_file &config = ini_file::load_cache(_config_path);
 
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
+#if RESHADE_EFFECTS
 	config.get("INPUT", "KeyEffects", _effects_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyReload", _reload_key_data);
-	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoEffectCache", _no_effect_cache);
@@ -527,6 +551,7 @@ void reshade::runtime::load_config()
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
 		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
+#endif
 
 	config.get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
@@ -546,12 +571,13 @@ void reshade::runtime::save_config() const
 	ini_file &config = ini_file::load_cache(_config_path);
 
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
+#if RESHADE_EFFECTS
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyReload", _reload_key_data);
-	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.set("GENERAL", "NoEffectCache", _no_effect_cache);
@@ -573,6 +599,7 @@ void reshade::runtime::save_config() const
 		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
+#endif
 
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
@@ -588,6 +615,7 @@ void reshade::runtime::save_config() const
 #endif
 }
 
+#if RESHADE_EFFECTS
 void reshade::runtime::load_current_preset()
 {
 	_preset_save_success = true;
@@ -3244,7 +3272,9 @@ void reshade::runtime::save_texture(const texture &tex)
 	_last_screenshot_file = screenshot_path;
 	_last_screenshot_time = std::chrono::high_resolution_clock::now();
 }
-void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
+#endif
+
+void reshade::runtime::save_screenshot(const std::wstring &postfix)
 {
 	char timestamp[21];
 	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -3252,8 +3282,10 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	std::wstring filename = g_target_executable_path.stem().concat(timestamp);
+#if RESHADE_EFFECTS
 	if (_screenshot_naming == 1)
 		filename += L' ' + _current_preset_path.stem().wstring();
+#endif
 
 	filename += postfix;
 	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
@@ -3313,11 +3345,13 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 	}
-	else if (_screenshot_include_preset && should_save_preset && ini_file::flush_cache(_current_preset_path))
+#if RESHADE_EFFECTS
+	else if (_screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path))
 	{
 		// Preset was flushed to disk, so can just copy it over to the new location
 		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
 	}
+#endif
 }
 
 bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)
@@ -3466,6 +3500,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	return mapped_data.data != nullptr;
 }
 
+#if RESHADE_EFFECTS
 void reshade::runtime::reset_uniform_value(uniform &variable)
 {
 	if (!variable.has_initializer_value)
@@ -3476,7 +3511,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 
 	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
 	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-		i < array_length; ++i)
+		 i < array_length; ++i)
 	{
 		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
 
@@ -3495,6 +3530,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 		}
 	}
 }
+#endif
 
 bool reshade::runtime::is_key_down(uint32_t keycode) const
 {
@@ -3533,6 +3569,7 @@ void reshade::runtime::get_cursor_position(uint32_t *out_x, uint32_t *out_y, int
 
 void reshade::runtime::enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data)
 {
+#if RESHADE_EFFECTS
 	if (is_loading())
 		return;
 
@@ -3547,10 +3584,12 @@ void reshade::runtime::enumerate_uniform_variables(const char *effect_name, void
 		if (effect_name != nullptr)
 			break;
 	}
+#endif
 }
 
 reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable(const char *effect_name, const char *variable_name) const
 {
+#if RESHADE_EFFECTS
 	if (is_loading())
 		return { 0 };
 
@@ -3568,54 +3607,67 @@ reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable(co
 		if (effect_name != nullptr)
 			break;
 	}
-
+#endif
 	return { 0 };
 }
 
 const char *reshade::runtime::get_uniform_variable_name(api::effect_uniform_variable variable) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return nullptr;
 
 	return reinterpret_cast<const uniform *>(variable.handle)->name.c_str();
+#else
+	return nullptr;
+#endif
 }
 
 void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_uint(name, array_index + i) != 0;
+#endif
 }
 void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_float(name, array_index + i);
+#endif
 }
 void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_int(name, array_index + i);
+#endif
 }
 void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_uint(name, array_index + i);
+#endif
 }
 bool reshade::runtime::get_uniform_annotation_string(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
-		return nullptr;
+		return false;
 
 	const std::string_view annotation = reinterpret_cast<const reshade::uniform *>(variable.handle)->annotation_as_string(name);
 	if (annotation.empty())
@@ -3626,8 +3678,12 @@ bool reshade::runtime::get_uniform_annotation_string(api::effect_uniform_variabl
 
 	*length = annotation.size();
 	return true;
+#else
+	return false;
+#endif
 }
 
+#if RESHADE_EFFECTS
 static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
 {
 	if (renderer_id == 0x9000)
@@ -3673,9 +3729,11 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 		std::memcpy(data, data_storage.data() + variable.offset, size);
 	}
 }
+#endif
 
 void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, bool *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (handle == 0)
 		return;
 	auto &variable = *reinterpret_cast<const uniform *>(handle.handle);
@@ -3688,9 +3746,11 @@ void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, bo
 
 	for (size_t i = 0; i < count; i++)
 		values[i] = reinterpret_cast<const uint32_t *>(data)[i] != 0;
+#endif
 }
 void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, float *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (handle == 0)
 		return;
 	auto &variable = *reinterpret_cast<const uniform *>(handle.handle);
@@ -3712,9 +3772,11 @@ void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, fl
 			values[i] = static_cast<float>(reinterpret_cast<const int32_t *>(data)[i]);
 		else
 			values[i] = static_cast<float>(reinterpret_cast<const uint32_t *>(data)[i]);
+#endif
 }
 void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, int32_t *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (handle == 0)
 		return;
 	auto &variable = *reinterpret_cast<const uniform *>(handle.handle);
@@ -3733,12 +3795,16 @@ void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, in
 
 	for (size_t i = 0; i < count; i++)
 		values[i] = static_cast<int32_t>(reinterpret_cast<const float *>(data)[i]);
+#endif
 }
 void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, uint32_t *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	get_uniform_value(handle, reinterpret_cast<int32_t *>(values), count, array_index);
+#endif
 }
 
+#if RESHADE_EFFECTS
 void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index)
 {
 	size = std::min(size, static_cast<size_t>(variable.size));
@@ -3775,9 +3841,11 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 		std::memcpy(data_storage.data() + variable.offset, data, size);
 	}
 }
+#endif
 
 void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const bool *values, size_t count, size_t array_index)
 {
+#if RESHADE_EFFECTS
 	if (handle == 0)
 		return;
 	auto &variable = *reinterpret_cast<uniform *>(handle.handle);
@@ -3798,9 +3866,11 @@ void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, co
 
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(uint32_t), array_index);
 	}
+#endif
 }
 void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const float *values, size_t count, size_t array_index)
 {
+#if RESHADE_EFFECTS
 	if (handle == 0)
 		return;
 	auto &variable = *reinterpret_cast<uniform *>(handle.handle);
@@ -3817,9 +3887,11 @@ void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, co
 
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t), array_index);
 	}
+#endif
 }
 void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const int32_t *values, size_t count, size_t array_index)
 {
+#if RESHADE_EFFECTS
 	if (handle == 0)
 		return;
 	auto &variable = *reinterpret_cast<uniform *>(handle.handle);
@@ -3836,9 +3908,11 @@ void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, co
 	{
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int32_t), array_index);
 	}
+#endif
 }
 void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const uint32_t *values, size_t count, size_t array_index)
 {
+#if RESHADE_EFFECTS
 	if (handle == 0)
 		return;
 	auto &variable = *reinterpret_cast<uniform *>(handle.handle);
@@ -3855,10 +3929,12 @@ void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, co
 	{
 		set_uniform_value(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t), array_index);
 	}
+#endif
 }
 
 void reshade::runtime::enumerate_texture_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), void *user_data)
 {
+#if RESHADE_EFFECTS
 	if (is_loading() || !_reload_create_queue.empty())
 		return;
 
@@ -3871,10 +3947,12 @@ void reshade::runtime::enumerate_texture_variables(const char *effect_name, void
 
 		callback(this, { reinterpret_cast<uintptr_t>(&variable) }, user_data);
 	}
+#endif
 }
 
 reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(const char *effect_name, const char *variable_name) const
 {
+#if RESHADE_EFFECTS
 	if (is_loading() || !_reload_create_queue.empty())
 		return { 0 };
 
@@ -3888,54 +3966,67 @@ reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(co
 		if (variable.name == variable_name || variable.unique_name == variable_name)
 			return { reinterpret_cast<uintptr_t>(&variable) };
 	}
-
+#endif
 	return { 0 };
 }
 
 const char *reshade::runtime::get_texture_variable_name(api::effect_texture_variable variable) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return nullptr;
 
 	return reinterpret_cast<const texture *>(variable.handle)->name.c_str();
+#else
+	return nullptr;
+#endif
 }
 
 void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_uint(name, array_index + i) != 0;
+#endif
 }
 void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_float(name, array_index + i);
+#endif
 }
 void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_int(name, array_index + i);
+#endif
 }
 void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_uint(name, array_index + i);
+#endif
 }
 bool reshade::runtime::get_texture_annotation_string(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0 || length == nullptr)
-		return nullptr;
+		return false;
 
 	const std::string_view annotation = reinterpret_cast<const reshade::texture *>(variable.handle)->annotation_as_string(name);
 	if (annotation.empty())
@@ -3946,10 +4037,14 @@ bool reshade::runtime::get_texture_annotation_string(api::effect_texture_variabl
 
 	*length = annotation.size();
 	return true;
+#else
+	return false;
+#endif
 }
 
 void reshade::runtime::update_texture(api::effect_texture_variable handle, const uint32_t width, const uint32_t height, const uint8_t *pixels)
 {
+#if RESHADE_EFFECTS
 	if (handle == 0)
 		return;
 	const auto &variable = *reinterpret_cast<texture *>(handle.handle);
@@ -3998,10 +4093,12 @@ void reshade::runtime::update_texture(api::effect_texture_variable handle, const
 
 	if (variable.levels > 1)
 		cmd_list->generate_mipmaps(variable.srv[0]);
+#endif
 }
 
 void reshade::runtime::get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const
 {
+#if RESHADE_EFFECTS
 	if (variable == 0)
 		return;
 
@@ -4009,10 +4106,12 @@ void reshade::runtime::get_texture_binding(api::effect_texture_variable variable
 		*out_srv = reinterpret_cast<const texture *>(variable.handle)->srv[0];
 	if (out_srv_srgb != nullptr)
 		*out_srv_srgb = reinterpret_cast<const texture *>(variable.handle)->srv[1];
+#endif
 }
 
 void reshade::runtime::update_texture_bindings(const char *semantic, api::resource_view srv, api::resource_view srv_srgb)
 {
+#if RESHADE_EFFECTS
 	if (srv_srgb == 0)
 		srv_srgb = srv;
 
@@ -4070,10 +4169,12 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	}
 
 	_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
+#endif
 }
 
 void reshade::runtime::enumerate_techniques(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_technique technique, void *user_data), void *user_data)
 {
+#if RESHADE_EFFECTS
 	if (is_loading())
 		return;
 
@@ -4084,10 +4185,12 @@ void reshade::runtime::enumerate_techniques(const char *effect_name, void(*callb
 
 		callback(this, { reinterpret_cast<uintptr_t>(&technique) }, user_data);
 	}
+#endif
 }
 
 reshade::api::effect_technique reshade::runtime::find_technique(const char *effect_name, const char *technique_name)
 {
+#if RESHADE_EFFECTS
 	if (is_loading())
 		return { 0 };
 
@@ -4099,52 +4202,65 @@ reshade::api::effect_technique reshade::runtime::find_technique(const char *effe
 		if (technique.name == technique_name)
 			return { reinterpret_cast<uintptr_t>(&technique) };
 	}
-
+#endif
 	return { 0 };
 }
 
 const char *reshade::runtime::get_technique_name(api::effect_technique technique) const
 {
+#if RESHADE_EFFECTS
 	if (technique == 0)
 		return nullptr;
 
 	return reinterpret_cast<const reshade::technique *>(technique.handle)->name.c_str();
+#else
+	return nullptr;
+#endif
 }
 
 void reshade::runtime::get_technique_annotation_value(api::effect_technique technique, const char *name, bool *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (technique == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_uint(name, array_index + i) != 0;
+#endif
 }
 void reshade::runtime::get_technique_annotation_value(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (technique == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_float(name, array_index + i);
+#endif
 }
 void reshade::runtime::get_technique_annotation_value(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (technique == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_int(name, array_index + i);
+#endif
 }
 void reshade::runtime::get_technique_annotation_value(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index) const
 {
+#if RESHADE_EFFECTS
 	if (technique == 0)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const reshade::technique *>(technique.handle)->annotation_as_uint(name, array_index + i);
+#endif
 }
 bool reshade::runtime::get_technique_annotation_string(api::effect_technique technique, const char *name, char *value, size_t *length) const
 {
+#if RESHADE_EFFECTS
 	if (technique == 0 || length == nullptr)
 		return false;
 
@@ -4157,17 +4273,25 @@ bool reshade::runtime::get_technique_annotation_string(api::effect_technique tec
 
 	*length = annotation.size();
 	return true;
+#else
+	return false;
+#endif
 }
 
 bool reshade::runtime::get_technique_enabled(api::effect_technique technique) const
 {
+#if RESHADE_EFFECTS
 	if (technique == 0)
 		return false;
 
 	return reinterpret_cast<const reshade::technique *>(technique.handle)->enabled;
+#else
+	return false;
+#endif
 }
 void reshade::runtime::set_technique_enabled(api::effect_technique technique, bool enabled)
 {
+#if RESHADE_EFFECTS
 	if (technique == 0)
 		return;
 
@@ -4175,10 +4299,12 @@ void reshade::runtime::set_technique_enabled(api::effect_technique technique, bo
 		enable_technique(*reinterpret_cast<reshade::technique *>(technique.handle));
 	else
 		disable_technique(*reinterpret_cast<reshade::technique *>(technique.handle));
+#endif
 }
 
 void reshade::runtime::set_preprocessor_definition(const char *name, const char *value)
 {
+#if RESHADE_EFFECTS
 	if (name == nullptr)
 		return;
 
@@ -4213,9 +4339,11 @@ void reshade::runtime::set_preprocessor_definition(const char *name, const char 
 	}
 
 	reload_effects();
+#endif
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, char *value, size_t *length) const
 {
+#if RESHADE_EFFECTS
 	if (name == nullptr || length == nullptr)
 		return false;
 
@@ -4249,6 +4377,6 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, char *value
 			return true;
 		}
 	}
-
+#endif
 	return false;
 }

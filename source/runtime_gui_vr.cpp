@@ -187,7 +187,9 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 	static constexpr std::pair<const char *, void(runtime::*)()> overlay_callbacks[] = {
+#if RESHADE_EFFECTS
 		{ "Home", &runtime::draw_gui_home },
+#endif
 #if RESHADE_ADDON
 		{ "Add-ons", &runtime::draw_gui_addons },
 #endif

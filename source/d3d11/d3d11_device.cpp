@@ -956,7 +956,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D11Device::CreateDeferredContext" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;
@@ -1123,7 +1125,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D11Device1::CreateDeferredContext1" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;
@@ -1381,7 +1385,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D11Device2::CreateDeferredContext2" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;
@@ -1677,7 +1683,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D11Device3::CreateDeferredContext3" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;

@@ -11,8 +11,7 @@
 
 #include "imgui_function_table.hpp"
 
-namespace
-	reshade { namespace internal { const imgui_function_table *get_imgui_function_table(); } }
+namespace reshade { namespace internal { const imgui_function_table *get_imgui_function_table(); } }
 
 namespace ImGui
 {

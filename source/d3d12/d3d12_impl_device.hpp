@@ -83,11 +83,13 @@ namespace reshade::d3d12
 
 		__forceinline D3D12_CPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
-			return { handle.ptr + offset * _descriptor_handle_size[type] };
+			handle.ptr += offset * _descriptor_handle_size[type];
+			return handle;
 		}
 		__forceinline D3D12_GPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
-			return { handle.ptr + offset * _descriptor_handle_size[type] };
+			handle.ptr += offset * _descriptor_handle_size[type];
+			return handle;
 		}
 
 	protected:
