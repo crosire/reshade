@@ -13,6 +13,8 @@
 
 using namespace reshade::api;
 
+static thread_local std::vector<std::vector<uint8_t>> data_to_delete;
+
 static bool replace_texture(const resource_desc &desc, subresource_data &data, const std::filesystem::path &file_prefix)
 {
 	if (desc.texture.format != format::r8g8b8a8_typeless && desc.texture.format != format::r8g8b8a8_unorm && desc.texture.format != format::r8g8b8a8_unorm_srgb &&
@@ -62,7 +64,11 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data, c
 				return false;
 			}
 
-			data.data = filedata;
+			data_to_delete.emplace_back(filedata, filedata + width * height * 4);
+
+			stbi_image_free(filedata);
+
+			data.data = data_to_delete.back().data();
 			data.row_pitch = 4 * width;
 			data.slice_pitch = data.row_pitch * height;
 			return true;
@@ -101,22 +107,17 @@ static inline bool filter_texture(device *device, const resource_desc &desc, con
 	return true;
 }
 
-static thread_local bool replaced_last_texture = false;
-
 static bool on_create_texture(device *device, resource_desc &desc, subresource_data *initial_data, resource_usage)
 {
 	if (!filter_texture(device, desc, nullptr))
 		return false;
 
-	return replaced_last_texture = (initial_data != nullptr) && replace_texture(desc, *initial_data);
+	return initial_data != nullptr && replace_texture(desc, *initial_data);
 }
-static void on_after_create_texture(device *, const resource_desc &, const subresource_data *initial_data, resource_usage, resource)
+static void on_after_create_texture(device *, const resource_desc &, const subresource_data *, resource_usage, resource)
 {
 	// Free the memory allocated in 'replace_texture' above
-	if (replaced_last_texture)
-		stbi_image_free(initial_data->data);
-
-	replaced_last_texture = false;
+	data_to_delete.clear();
 }
 
 static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_subresource, const subresource_box *, resource dst, uint32_t dst_subresource, const subresource_box *dst_box, filter_mode)

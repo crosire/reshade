@@ -10,6 +10,8 @@
 
 using namespace reshade::api;
 
+static thread_local std::vector<std::vector<uint8_t>> data_to_delete;
+
 static bool replace_shader_code(device_api device_type, pipeline_stage, shader_desc &desc, const std::filesystem::path &file_prefix = L"shader_")
 {
 	if (desc.code_size == 0)
@@ -39,19 +41,19 @@ static bool replace_shader_code(device_api device_type, pipeline_stage, shader_d
 		std::vector<uint8_t> shader_code(static_cast<size_t>(file.tellg()));
 		file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(shader_code.data()), shader_code.size());
 
-		desc.code = new uint8_t[shader_code.size()];
-		desc.code_size = shader_code.size();
-		std::memcpy(const_cast<void *>(desc.code), shader_code.data(), desc.code_size);
+		data_to_delete.push_back(std::move(shader_code));
+
+		desc.code = data_to_delete.back().data();
+		desc.code_size = data_to_delete.back().size();
 		return true;
 	}
 
 	return false;
 }
 
-static thread_local shader_stage replaced_stages = static_cast<shader_stage>(0);
-
 static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, const dynamic_state *)
 {
+	shader_stage replaced_stages = static_cast<shader_stage>(0);
 	const device_api device_type = device->get_api();
 
 	// Go through all shader stages that are in this pipeline and potentially replace the associated shader code
@@ -77,26 +79,10 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, co
 	// Return whether any shader code was replaced
 	return static_cast<shader_stage>(0) != replaced_stages;
 }
-static void on_after_create_pipeline(device *device, const pipeline_desc &desc, uint32_t, const dynamic_state *, pipeline)
+static void on_after_create_pipeline(device *, const pipeline_desc &, uint32_t, const dynamic_state *, pipeline)
 {
-	if (device->get_api() != device_api::opengl) // TODO: Does not work in OpenGL because 'glLinkProgram' calls this with different pointers
-	{
-		// Free the memory allocated in 'replace_shader_code' above
-		if ((replaced_stages & shader_stage::vertex) == shader_stage::vertex)
-			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.vertex_shader.code));
-		if ((replaced_stages & shader_stage::hull) == shader_stage::hull)
-			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.hull_shader.code));
-		if ((replaced_stages & shader_stage::domain) == shader_stage::domain)
-			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.domain_shader.code));
-		if ((replaced_stages & shader_stage::geometry) == shader_stage::geometry)
-			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.geometry_shader.code));
-		if ((replaced_stages & shader_stage::pixel) == shader_stage::pixel)
-			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.pixel_shader.code));
-		if ((replaced_stages & shader_stage::compute) == shader_stage::compute)
-			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.compute.shader.code));
-	}
-
-	replaced_stages = static_cast<shader_stage>(0);
+	// Free the memory allocated in 'replace_shader_code' above
+	data_to_delete.clear();
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "ShaderMod Replace";
