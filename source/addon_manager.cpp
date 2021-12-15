@@ -114,8 +114,11 @@ void reshade::load_addons()
 	LOG(INFO) << "Loading built-in add-ons ...";
 #endif
 
+	internal::get_reshade_module_handle() = g_module_handle;
+	internal::get_current_module_handle() = g_module_handle;
+
 	std::vector<std::string> disabled_addons;
-	reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons);
+	global_config().get("ADDON", "DisabledAddons", disabled_addons);
 
 	{	addon::info &info = addon::loaded_info.emplace_back();
 		info.name = "Generic Depth";
@@ -187,7 +190,7 @@ void reshade::unload_addons()
 	addon::loaded_info.clear();
 }
 
-#if RESHADE_ADDON && RESHADE_ADDON_LOAD
+#if RESHADE_ADDON
 
 reshade::addon::info *find_addon(HMODULE module)
 {
@@ -326,6 +329,12 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 	if (info == nullptr)
 		return;
 
+#if RESHADE_ADDON_LOAD == 0
+	// Block all application events when building without add-on loading support
+	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
+		return;
+#endif
+
 	auto &event_list = reshade::addon::event_list[static_cast<uint32_t>(ev)];
 	event_list.push_back(callback);
 
@@ -343,6 +352,11 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 	reshade::addon::info *const info = find_addon_from_address(callback);
 	if (info == nullptr)
 		return;
+
+#if RESHADE_ADDON_LOAD == 0
+	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
+		return;
+#endif
 
 	auto &event_list = reshade::addon::event_list[static_cast<uint32_t>(ev)];
 	event_list.erase(std::remove(event_list.begin(), event_list.end(), callback), event_list.end());
