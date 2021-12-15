@@ -295,7 +295,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
-		virtual      resource get_resource_from_view(resource_view view) const = 0;
+		virtual resource get_resource_from_view(resource_view view) const = 0;
 		/// <summary>
 		/// Gets the description of the specified resource view.
 		/// </summary>
@@ -882,16 +882,16 @@ namespace reshade { namespace api
 		virtual command_list *get_immediate_command_list() = 0;
 
 		/// <summary>
-		/// Flushes and executes the special immediate command list returned by <see cref="get_immediate_command_list"/> immediately.
-		/// This can be used to force commands to execute right away instead of waiting for the runtime to flush it automatically at some point.
-		/// </summary>
-		virtual void flush_immediate_command_list() const  = 0;
-
-		/// <summary>
 		/// Waits for all issued GPU operations on this queue to finish before returning.
 		/// This can be used to ensure that e.g. resources are no longer in use on the GPU before destroying them.
 		/// </summary>
 		virtual void wait_idle() const = 0;
+
+		/// <summary>
+		/// Flushes and executes the special immediate command list returned by <see cref="get_immediate_command_list"/> immediately.
+		/// This can be used to force commands to execute right away instead of waiting for the runtime to flush it automatically at some point.
+		/// </summary>
+		virtual void flush_immediate_command_list() const  = 0;
 
 		/// <summary>
 		/// Opens a debug event region in the command queue.

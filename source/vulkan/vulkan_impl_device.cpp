@@ -836,7 +836,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 
 	const auto row_pitch = api::format_row_pitch(convert_format(resource_data->create_info.format), extent.width);
 	const auto slice_pitch = api::format_slice_pitch(convert_format(resource_data->create_info.format), row_pitch, extent.height);
-	const auto total_image_size = extent.depth * slice_pitch;
+	const auto total_image_size = extent.depth * static_cast<size_t>(slice_pitch);
 
 	// Allocate host memory for upload
 	VkBuffer intermediate = VK_NULL_HANDLE;
@@ -868,8 +868,8 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 		}
 		else
 		{
-			for (uint32_t z = 0; z < extent.depth; ++z)
-				for (uint32_t y = 0; y < extent.height; ++y, mapped_data += row_pitch)
+			for (size_t z = 0; z < extent.depth; ++z)
+				for (size_t y = 0; y < extent.height; ++y, mapped_data += row_pitch)
 					std::memcpy(mapped_data, static_cast<const uint8_t *>(data.data) + z * data.slice_pitch + y * data.row_pitch, row_pitch);
 		}
 

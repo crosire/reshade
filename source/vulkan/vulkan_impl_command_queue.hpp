@@ -19,10 +19,10 @@ namespace reshade::vulkan
 
 		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
 
+		void wait_idle() const final;
+
 		void flush_immediate_command_list() const final;
 		void flush_immediate_command_list(std::vector<VkSemaphore> &wait_semaphores) const;
-
-		void wait_idle() const final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;

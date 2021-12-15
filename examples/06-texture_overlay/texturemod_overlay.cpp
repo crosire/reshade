@@ -42,7 +42,6 @@ struct __declspec(uuid("0ce51b56-a973-4104-bcca-945686f50170")) device_data
 	std::map<resource, tex_data> total_texture_list;
 	std::vector<resource_view> destroyed_views;
 	uint64_t frame_index = 0;
-	command_queue *graphics_queue = nullptr;
 
 	bool filter = false;
 	float scale = 1.0f;
@@ -114,9 +113,7 @@ static void on_destroy_texture(device *device, resource res)
 	if (const auto it = data.total_texture_list.find(res);
 		it != data.total_texture_list.end())
 	{
-		if (data.graphics_queue != nullptr)
-			data.graphics_queue->wait_idle(); // In case a command list is still in flight using one of those
-
+		// TODO: Crash will occur if application destroys texture, but it is still referenced in command list with ImGui commands being executed
 		data.total_texture_list.erase(it);
 	}
 }
@@ -250,8 +247,6 @@ static void on_present(command_queue *queue, swapchain *swapchain)
 		on_execute(queue, queue->get_immediate_command_list());
 
 	auto &data = device->get_private_data<device_data>();
-	data.graphics_queue = swapchain->get_effect_runtime()->get_command_queue();
-
 	data.frame_index++;
 
 	std::lock_guard<std::mutex> lock(s_mutex);

@@ -80,9 +80,9 @@ namespace reshade::d3d10
 
 		api::command_list *get_immediate_command_list() final { return this; }
 
-		void flush_immediate_command_list() const final;
-
 		void wait_idle() const final { /* no-op */ }
+
+		void flush_immediate_command_list() const final;
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 

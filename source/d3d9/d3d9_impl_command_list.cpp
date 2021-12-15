@@ -64,7 +64,7 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 	}
 
 	api::resource_view depth_stencil_handle = {};
-	if (ds != nullptr)
+	if (ds != nullptr && ds->view.handle != 0)
 	{
 		depth_stencil_handle = ds->view;
 
@@ -77,12 +77,14 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 	bind_render_targets_and_depth_stencil(count, rtv_handles.p, depth_stencil_handle);
 
 	if (clear_flags != 0)
+	{
 		_orig->Clear(
 			0, nullptr,
 			clear_flags,
 			clear_flags & D3DCLEAR_TARGET  ? D3DCOLOR_COLORVALUE(rts->clear_color[0], rts->clear_color[1], rts->clear_color[2], rts->clear_color[3]) : 0,
 			clear_flags & D3DCLEAR_ZBUFFER ? ds->clear_depth : 0.0f,
 			clear_flags & D3DCLEAR_STENCIL ? ds->clear_stencil : 0);
+	}
 }
 void reshade::d3d9::device_impl::end_render_pass()
 {
@@ -741,7 +743,7 @@ void reshade::d3d9::device_impl::clear_render_target_view(api::resource_view rtv
 	assert(rtv.handle != 0 && color != nullptr);
 
 #if 1
-	for (uint32_t i = 0; i < std::max(rect_count, 1u); ++i)
+	for (size_t i = 0; i < std::max(rect_count, 1u); ++i)
 		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtv.handle & ~1ull), reinterpret_cast<const RECT *>(rects + i * 4), D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
 #else
 	assert(rect_count == 0); // Clearing rectangles is not supported

@@ -148,7 +148,9 @@ namespace reshade::vulkan
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorPool _transient_descriptor_pool[4] = {};
 		uint32_t _transient_index = 0;
+
 		VkPrivateDataSlotEXT _private_data_slot = VK_NULL_HANDLE;
+
 		std::unordered_map<uint64_t, VkRenderPassBeginInfo> _render_pass_lookup;
 	};
 }

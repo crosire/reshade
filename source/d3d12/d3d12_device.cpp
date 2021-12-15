@@ -820,7 +820,11 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 				const UINT src_count = (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1);
 
 				copies[num_copies].dest_set = { pDestDescriptorRangeStarts[dst_range].ptr };
+				copies[num_copies].dest_binding = 0;
+				copies[num_copies].dest_array_offset = 0;
 				copies[num_copies].source_set = { pSrcDescriptorRangeStarts[src_range].ptr };
+				copies[num_copies].source_binding = 0;
+				copies[num_copies].source_array_offset = 0;
 
 				if (src_count <= (dst_count - dst_offset))
 				{

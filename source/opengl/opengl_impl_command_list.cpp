@@ -114,15 +114,11 @@ void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::
 {
 	temp_mem<api::resource_view, 8> rtv_handles(count);
 	for (uint32_t i = 0; i < count; ++i)
-	{
 		rtv_handles[i] = rts[i].view;
-	}
 
 	api::resource_view depth_stencil_handle = {};
 	if (ds != nullptr)
-	{
 		depth_stencil_handle = ds->view;
-	}
 
 	bind_render_targets_and_depth_stencil(count, rtv_handles.p, depth_stencil_handle);
 
@@ -1336,11 +1332,11 @@ void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool,
 {
 	assert(pool.handle != 0);
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (size_t i = 0; i < count; ++i)
 	{
 		assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 
-		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + static_cast<uint64_t>(i) * stride));
+		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
 	}
 }
 

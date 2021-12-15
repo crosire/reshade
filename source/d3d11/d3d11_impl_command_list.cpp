@@ -93,7 +93,7 @@ void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, cons
 	}
 
 	api::resource_view depth_stencil_handle = {};
-	if (ds != nullptr)
+	if (ds != nullptr && ds->view.handle != 0)
 	{
 		depth_stencil_handle = ds->view;
 

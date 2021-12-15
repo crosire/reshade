@@ -155,39 +155,40 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_device>(this);
 
-	api::pipeline_layout_param global_pipeline_layout_params[8];
-	global_pipeline_layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
-	global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-	global_pipeline_layout_params[0].push_descriptors.count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
-	global_pipeline_layout_params[0].push_descriptors.visibility = api::shader_stage::vertex;
-	global_pipeline_layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
-	global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-	global_pipeline_layout_params[1].push_descriptors.count = _caps.MaxSimultaneousTextures; // s#
-	global_pipeline_layout_params[1].push_descriptors.visibility = api::shader_stage::pixel;
+	{	api::pipeline_layout_param global_pipeline_layout_params[8];
+		global_pipeline_layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
+		global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
+		global_pipeline_layout_params[0].push_descriptors.count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
+		global_pipeline_layout_params[0].push_descriptors.visibility = api::shader_stage::vertex;
+		global_pipeline_layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
+		global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
+		global_pipeline_layout_params[1].push_descriptors.count = _caps.MaxSimultaneousTextures; // s#
+		global_pipeline_layout_params[1].push_descriptors.visibility = api::shader_stage::pixel;
 
-	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-	global_pipeline_layout_params[2].type = api::pipeline_layout_param_type::push_constants;
-	global_pipeline_layout_params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
-	global_pipeline_layout_params[2].push_constants.visibility = api::shader_stage::vertex;
-	global_pipeline_layout_params[3].type = api::pipeline_layout_param_type::push_constants;
-	global_pipeline_layout_params[3].push_constants.count =  16 * 4; // i#
-	global_pipeline_layout_params[3].push_constants.visibility = api::shader_stage::vertex;
-	global_pipeline_layout_params[4].type = api::pipeline_layout_param_type::push_constants;
-	global_pipeline_layout_params[4].push_constants.count =  16 * 1; // b#
-	global_pipeline_layout_params[4].push_constants.visibility = api::shader_stage::vertex;
+		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
+		global_pipeline_layout_params[2].type = api::pipeline_layout_param_type::push_constants;
+		global_pipeline_layout_params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
+		global_pipeline_layout_params[2].push_constants.visibility = api::shader_stage::vertex;
+		global_pipeline_layout_params[3].type = api::pipeline_layout_param_type::push_constants;
+		global_pipeline_layout_params[3].push_constants.count =  16 * 4; // i#
+		global_pipeline_layout_params[3].push_constants.visibility = api::shader_stage::vertex;
+		global_pipeline_layout_params[4].type = api::pipeline_layout_param_type::push_constants;
+		global_pipeline_layout_params[4].push_constants.count =  16 * 1; // b#
+		global_pipeline_layout_params[4].push_constants.visibility = api::shader_stage::vertex;
 
-	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-	global_pipeline_layout_params[5].type = api::pipeline_layout_param_type::push_constants;
-	global_pipeline_layout_params[5].push_constants.count = 224 * 4; // c#
-	global_pipeline_layout_params[5].push_constants.visibility = api::shader_stage::pixel;
-	global_pipeline_layout_params[6].type = api::pipeline_layout_param_type::push_constants;
-	global_pipeline_layout_params[6].push_constants.count =  16 * 4; // i#
-	global_pipeline_layout_params[6].push_constants.visibility = api::shader_stage::pixel;
-	global_pipeline_layout_params[7].type = api::pipeline_layout_param_type::push_constants;
-	global_pipeline_layout_params[7].push_constants.count =  16 * 1; // b#
-	global_pipeline_layout_params[7].push_constants.visibility = api::shader_stage::pixel;
+		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+		global_pipeline_layout_params[5].type = api::pipeline_layout_param_type::push_constants;
+		global_pipeline_layout_params[5].push_constants.count = 224 * 4; // c#
+		global_pipeline_layout_params[5].push_constants.visibility = api::shader_stage::pixel;
+		global_pipeline_layout_params[6].type = api::pipeline_layout_param_type::push_constants;
+		global_pipeline_layout_params[6].push_constants.count =  16 * 4; // i#
+		global_pipeline_layout_params[6].push_constants.visibility = api::shader_stage::pixel;
+		global_pipeline_layout_params[7].type = api::pipeline_layout_param_type::push_constants;
+		global_pipeline_layout_params[7].push_constants.count =  16 * 1; // b#
+		global_pipeline_layout_params[7].push_constants.visibility = api::shader_stage::pixel;
 
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, 8, global_pipeline_layout_params, global_pipeline_layout);
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, 8, global_pipeline_layout_params, global_pipeline_layout);
+	}
 
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);

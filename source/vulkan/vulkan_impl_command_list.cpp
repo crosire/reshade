@@ -172,6 +172,8 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			hash_combine(hash, rts[i].view.handle);
 		hash_combine(hash, ds != nullptr ? ds->view.handle : 0);
 
+		const uint32_t max_attachments = count + 1;
+
 		VkRenderPassBeginInfo begin_info;
 
 		// TODO: This is not thread-safe!
@@ -182,9 +184,9 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		}
 		else
 		{
-			temp_mem<VkImageView, 9> attach_views(count + 1);
-			temp_mem<VkAttachmentReference, 9> attach_refs(count + 1);
-			temp_mem<VkAttachmentDescription, 9> attach_descs(count + 1);
+			temp_mem<VkImageView, 9> attach_views(max_attachments);
+			temp_mem<VkAttachmentReference, 9> attach_refs(max_attachments);
+			temp_mem<VkAttachmentDescription, 9> attach_descs(max_attachments);
 
 			// Synchronize any writes to render targets in previous passes with reads from them in this pass
 			VkSubpassDependency subdep = {};
@@ -222,7 +224,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 				const auto image_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(view_data->create_info.image);
 
 				VkAttachmentReference &attach_ref = attach_refs[i];
-				attach_ref.attachment = rts[i].load_op == api::render_pass_load_op::discard && rts[i].store_op == api::render_pass_store_op::discard ? VK_ATTACHMENT_UNUSED : i;
+				attach_ref.attachment = (rts[i].load_op == api::render_pass_load_op::discard && rts[i].store_op == api::render_pass_store_op::discard) ? VK_ATTACHMENT_UNUSED : i;
 				attach_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 				VkAttachmentDescription &attach_desc = attach_descs[i];
@@ -250,8 +252,8 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 				VkAttachmentReference &attach_ref = attach_refs[count];
 				attach_ref.attachment =
-					ds->depth_load_op == api::render_pass_load_op::discard && ds->depth_store_op == api::render_pass_store_op::discard &&
-					ds->stencil_load_op == api::render_pass_load_op::discard && ds->stencil_store_op == api::render_pass_store_op::discard ? VK_ATTACHMENT_UNUSED : count;
+					(ds->depth_load_op == api::render_pass_load_op::discard && ds->depth_store_op == api::render_pass_store_op::discard) &&
+					(ds->stencil_load_op == api::render_pass_load_op::discard && ds->stencil_store_op == api::render_pass_store_op::discard) ? VK_ATTACHMENT_UNUSED : count;
 				attach_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 				VkAttachmentDescription &attach_desc = attach_descs[count];
@@ -289,7 +291,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			_device_impl->_render_pass_lookup.emplace(hash, begin_info);
 		}
 
-		temp_mem<VkClearValue, 9> clear_values(count + 1);
+		temp_mem<VkClearValue, 9> clear_values(max_attachments);
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			std::copy_n(rts[i].clear_color, 4, clear_values[i].color.float32);

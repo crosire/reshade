@@ -250,15 +250,19 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 			desc.heap = reshade::api::memory_heap::gpu_to_cpu;
 			desc.usage = reshade::api::resource_usage::copy_dest;
 
-			if (!device->create_resource(desc, nullptr, reshade::api::resource_usage::cpu_access, &data.host_resource))
+			if (device->create_resource(desc, nullptr, reshade::api::resource_usage::cpu_access, &data.host_resource))
+			{
+				reshade::log_message(3, "Starting video recording ...");
+
+				data.start_time = data.last_time = std::chrono::system_clock::now();
+			}
+			else
 			{
 				reshade::log_message(1, "Failed to create host resource!");
+
+				data.destroy_format_ctx(); data.destroy_codec_ctx();
 				return;
 			}
-
-			reshade::log_message(3, "Starting video recording ...");
-
-			data.start_time = data.last_time = std::chrono::system_clock::now();
 		}
 	}
 

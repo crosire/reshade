@@ -39,21 +39,22 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 
 	const D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
 
-	api::pipeline_layout_param global_pipeline_layout_params[4];
-	global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler;
-	global_pipeline_layout_params[0].push_descriptors.count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
-	global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::shader_resource_view;
-	global_pipeline_layout_params[1].push_descriptors.count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-	global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
-	global_pipeline_layout_params[2].push_descriptors.count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
-	global_pipeline_layout_params[3].push_descriptors.type = api::descriptor_type::unordered_access_view;
-	global_pipeline_layout_params[3].push_descriptors.count =
-		feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
-		feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
-		feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
-	global_pipeline_layout_params[3].push_descriptors.visibility = api::shader_stage::pixel | api::shader_stage::compute;
+	{	api::pipeline_layout_param global_pipeline_layout_params[4];
+		global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler;
+		global_pipeline_layout_params[0].push_descriptors.count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
+		global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::shader_resource_view;
+		global_pipeline_layout_params[1].push_descriptors.count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+		global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
+		global_pipeline_layout_params[2].push_descriptors.count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+		global_pipeline_layout_params[3].push_descriptors.type = api::descriptor_type::unordered_access_view;
+		global_pipeline_layout_params[3].push_descriptors.count =
+			feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
+			feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
+		global_pipeline_layout_params[3].push_descriptors.visibility = api::shader_stage::pixel | api::shader_stage::compute;
 
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, 4, global_pipeline_layout_params, global_pipeline_layout);
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, 4, global_pipeline_layout_params, global_pipeline_layout);
+	}
 #endif
 }
 reshade::d3d11::device_impl::~device_impl()

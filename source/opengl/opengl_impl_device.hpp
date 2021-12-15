@@ -85,9 +85,9 @@ namespace reshade::opengl
 
 		api::command_list *get_immediate_command_list() final { return this; }
 
-		void flush_immediate_command_list() const final;
-
 		void wait_idle() const final;
+
+		void flush_immediate_command_list() const final;
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 

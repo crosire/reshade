@@ -121,23 +121,24 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 
 	invoke_addon_event<addon_event::init_device>(this);
 
-	api::pipeline_layout_param global_pipeline_layout_params[6];
-	global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[0].push_descriptors.count));
-	global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::unordered_access_view;
-	glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[1].push_descriptors.count));
-	global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
-	glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[2].push_descriptors.count));
-	glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[3].push_descriptors.count));
-	global_pipeline_layout_params[3].push_descriptors.type = api::descriptor_type::shader_storage_buffer;
-	global_pipeline_layout_params[4].type = api::pipeline_layout_param_type::push_constants;
-	global_pipeline_layout_params[4].push_constants.count = std::numeric_limits<uint32_t>::max();
-	global_pipeline_layout_params[4].push_constants.visibility = api::shader_stage::all;
-	global_pipeline_layout_params[5].type = api::pipeline_layout_param_type::push_constants;
-	global_pipeline_layout_params[5].push_constants.count = std::numeric_limits<uint32_t>::max();
-	global_pipeline_layout_params[5].push_constants.visibility = api::shader_stage::all;
+	{	api::pipeline_layout_param global_pipeline_layout_params[6];
+		global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[0].push_descriptors.count));
+		global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::shader_storage_buffer;
+		glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[1].push_descriptors.count));
+		global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
+		glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[2].push_descriptors.count));
+		global_pipeline_layout_params[3].push_descriptors.type = api::descriptor_type::unordered_access_view;
+		glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[3].push_descriptors.count));
+		global_pipeline_layout_params[4].type = api::pipeline_layout_param_type::push_constants;
+		global_pipeline_layout_params[4].push_constants.count = std::numeric_limits<uint32_t>::max();
+		global_pipeline_layout_params[4].push_constants.visibility = api::shader_stage::all;
+		global_pipeline_layout_params[5].type = api::pipeline_layout_param_type::push_constants;
+		global_pipeline_layout_params[5].push_constants.count = std::numeric_limits<uint32_t>::max();
+		global_pipeline_layout_params[5].push_constants.visibility = api::shader_stage::all;
 
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, 6, global_pipeline_layout_params, global_pipeline_layout);
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, 6, global_pipeline_layout_params, global_pipeline_layout);
+	}
 
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
@@ -1192,7 +1193,9 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 
 	const auto row_pitch = api::format_row_pitch(convert_format(format), width);
 	const auto slice_pitch = api::format_slice_pitch(convert_format(format), row_pitch, height);
-	const auto total_image_size = depth * slice_pitch;
+	const auto total_image_size = depth * static_cast<size_t>(slice_pitch);
+
+	assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 
 	format = convert_upload_format(format, type);
 
@@ -1205,8 +1208,8 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		temp_pixels.resize(total_image_size);
 		uint8_t *dst_pixels = temp_pixels.data();
 
-		for (GLuint z = 0; z < depth; ++z)
-			for (GLuint y = 0; y < height; ++y, dst_pixels += row_pitch)
+		for (size_t z = 0; z < depth; ++z)
+			for (size_t y = 0; y < height; ++y, dst_pixels += row_pitch)
 				std::memcpy(dst_pixels, pixels + z * data.slice_pitch + y * data.row_pitch, row_pitch);
 
 		pixels = temp_pixels.data();
@@ -1221,7 +1224,7 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		}
 		else
 		{
-			glCompressedTexSubImage1D(level_target, level, xoffset, width, format, total_image_size, pixels);
+			glCompressedTexSubImage1D(level_target, level, xoffset, width, format, static_cast<GLsizei>(total_image_size), pixels);
 		}
 		break;
 	case GL_TEXTURE_1D_ARRAY:
@@ -1240,7 +1243,7 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		}
 		else
 		{
-			glCompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, total_image_size, pixels);
+			glCompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), pixels);
 		}
 		break;
 	case GL_TEXTURE_2D_ARRAY:
@@ -1253,7 +1256,7 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		}
 		else
 		{
-			glCompressedTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, total_image_size, pixels);
+			glCompressedTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, static_cast<GLsizei>(total_image_size), pixels);
 		}
 		break;
 	}

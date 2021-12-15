@@ -35,15 +35,16 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 
 	invoke_addon_event<addon_event::init_device>(this);
 
-	api::pipeline_layout_param global_pipeline_layout_params[3];
-	global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler;
-	global_pipeline_layout_params[0].push_descriptors.count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
-	global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::shader_resource_view;
-	global_pipeline_layout_params[1].push_descriptors.count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-	global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
-	global_pipeline_layout_params[2].push_descriptors.count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+	{	api::pipeline_layout_param global_pipeline_layout_params[3];
+		global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler;
+		global_pipeline_layout_params[0].push_descriptors.count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
+		global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::shader_resource_view;
+		global_pipeline_layout_params[1].push_descriptors.count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+		global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
+		global_pipeline_layout_params[2].push_descriptors.count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
 
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, 3, global_pipeline_layout_params, global_pipeline_layout);
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, 3, global_pipeline_layout_params, global_pipeline_layout);
+	}
 
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);

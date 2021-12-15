@@ -12,7 +12,7 @@
 template <typename T, size_t STACK_ELEMENTS = 16>
 struct temp_mem
 {
-	temp_mem(size_t elements) : stack()
+	temp_mem(size_t elements)
 	{
 		if (elements > STACK_ELEMENTS)
 			p = new T[elements];

@@ -93,7 +93,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 		}
 
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depth_stencil_desc = {};
-		if (ds != nullptr)
+		if (ds != nullptr && ds->view.handle != 0)
 		{
 			depth_stencil_desc.cpuDescriptor = { static_cast<SIZE_T>(ds->view.handle) };
 			depth_stencil_desc.DepthBeginningAccess.Type = convert_render_pass_load_op(ds->depth_load_op);
@@ -127,7 +127,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE depth_stencil_handle = {};
-		if (ds != nullptr)
+		if (ds != nullptr && ds->view.handle != 0)
 		{
 			depth_stencil_handle = { static_cast<SIZE_T>(ds->view.handle) };
 
@@ -186,9 +186,6 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 	{
 		switch (states[i])
 		{
-		case api::dynamic_state::stencil_reference_value:
-			_orig->OMSetStencilRef(values[i]);
-			break;
 		case api::dynamic_state::blend_constant:
 		{
 			float blend_factor[4];
@@ -199,6 +196,9 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			_orig->OMSetBlendFactor(blend_factor);
 			break;
 		}
+		case api::dynamic_state::stencil_reference_value:
+			_orig->OMSetStencilRef(values[i]);
+			break;
 		case api::dynamic_state::primitive_topology:
 			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
