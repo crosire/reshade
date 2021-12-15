@@ -113,6 +113,8 @@ private:
 				s += "precise ";
 			if (type.has(type::q_groupshared))
 				s += "shared ";
+			if (type.has(type::q_const))
+				s += "const ";
 		}
 
 		if constexpr (is_interface)
@@ -519,6 +521,8 @@ private:
 			std::string &code = _blocks.at(_current_block);
 
 			write_location(code, loc);
+
+			assert(!info.type.has(type::q_static) && !info.type.has(type::q_const));
 
 			code += "const ";
 			write_type(code, info.type);
@@ -1181,15 +1185,17 @@ private:
 
 		if (type.is_array() || type.is_struct())
 		{
+			assert(type.has(type::q_const));
+
 			std::string &code = _blocks.at(_current_block);
 
+			auto temp_type = type;
+			// GLSL requires constants to be initialized, but struct initialization is not supported right now
+			if (type.is_struct())
+				temp_type.qualifiers &= ~type::q_const;
+
 			code += '\t';
-
-			// GLSL requires constants to be initialized
-			if (!type.is_struct())
-				code += "const ";
-
-			write_type(code, type);
+			write_type(code, temp_type);
 			code += ' ' + id_to_name(res);
 
 			// Array constants need to be stored in a constant variable as they cannot be used in-place

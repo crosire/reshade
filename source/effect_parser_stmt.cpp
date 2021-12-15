@@ -1253,6 +1253,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				warning(initializer.location, 3206, "implicit truncation of vector type");
 
 			initializer.add_cast_operation(type);
+
+			if (type.has(type::q_static))
+				initializer.type.qualifiers |= type::q_static;
 		}
 		else if (type.is_numeric() || type.is_struct()) // Numeric variables without an initializer need special handling
 		{
@@ -1399,7 +1402,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	symbol symbol;
 
 	// Variables with a constant initializer and constant type are named constants
-	if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant)
+	// Skip this for very large arrays though, to avoid large amounts of duplicated values when that array constant is accessed with a dynamic index
+	if (type.is_numeric() && type.has(type::q_const) && initializer.is_constant && type.array_length < 100)
 	{
 		// Named constants are special symbols
 		symbol = { symbol_type::constant, 0, type, initializer.constant };
