@@ -88,9 +88,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 	// Generate push constants buffer name
 	glGenBuffers(1, &_push_constants);
 
-	// Generate copy framebuffers
-	glGenFramebuffers(3, _copy_fbo);
-
 	// Create mipmap generation program used in the 'generate_mipmaps' function
 	{
 		const GLchar *mipmap_shader[] = {
@@ -162,11 +159,11 @@ reshade::opengl::device_impl::~device_impl()
 	unload_addons();
 #endif
 
+	// Destroy framebuffers
+	destroy_resource_view({ 0 });
+
 	// Destroy mipmap generation program
 	glDeleteProgram(_mipmap_program);
-
-	// Destroy framebuffers used in 'copy_resource' implementation
-	glDeleteFramebuffers(3, _copy_fbo);
 
 	// Destroy push constants buffer
 	glDeleteBuffers(1, &_push_constants);
@@ -921,6 +918,14 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view hand
 {
 	if (((handle.handle >> 32) & 0x1) != 0)
 		destroy_resource({ handle.handle });
+
+	// Destroy all framebuffers, to ensure they are recreated even if a resource view handle is re-used
+	for (const auto &fbo_data : _fbo_lookup)
+	{
+		glDeleteFramebuffers(1, &fbo_data.second);
+	}
+
+	_fbo_lookup.clear();
 }
 
 reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const

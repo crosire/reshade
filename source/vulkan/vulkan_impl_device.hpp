@@ -151,6 +151,6 @@ namespace reshade::vulkan
 
 		VkPrivateDataSlotEXT _private_data_slot = VK_NULL_HANDLE;
 
-		std::unordered_map<uint64_t, VkRenderPassBeginInfo> _render_pass_lookup;
+		std::unordered_map<size_t, VkRenderPassBeginInfo> _render_pass_lookup;
 	};
 }

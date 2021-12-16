@@ -11,13 +11,13 @@
 
 #define vk _device_impl->_dispatch_table
 
-extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
-
 template <typename T>
-static inline void hash_combine(size_t &seed, const T &v)
+inline void hash_combine(size_t &seed, const T &v)
 {
 	seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
+
+extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
 
 static inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &result)
 {

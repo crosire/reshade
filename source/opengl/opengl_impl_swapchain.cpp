@@ -183,7 +183,7 @@ bool reshade::opengl::swapchain_impl::on_vr_submit(uint32_t eye, GLenum source_t
 			return false;
 	}
 
-	// Copy source region to RBO
+	// Copy source region to RBO. TODO: Replace this with call to 'copy_texture_region'.
 	if (object_desc.texture.samples == 1)
 	{
 		glCopyImageSubData(source_object, source_target, 0, source_region[0], source_region[1], source_target == GL_TEXTURE_2D_ARRAY ? eye : 0, _rbo, GL_RENDERBUFFER, 0, eye * region_width, 0, 0, region_width, _height, 1);

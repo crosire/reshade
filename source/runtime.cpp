@@ -1852,7 +1852,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	if (effect.module.num_storage_bindings != 0)
 	{
-		if (!_device->allocate_descriptor_sets(total_pass_count, effect.layout, 3, storage_sets.data()))
+		if (!_device->allocate_descriptor_sets(total_pass_count, effect.layout, sampler_with_resource_view ? 2 : 3, storage_sets.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;

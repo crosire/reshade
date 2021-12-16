@@ -7,6 +7,7 @@
 
 #include "opengl.hpp"
 #include "addon_manager.hpp"
+#include <unordered_map>
 #include <unordered_set>
 
 namespace reshade::opengl
@@ -95,6 +96,9 @@ namespace reshade::opengl
 		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
+		void bind_framebuffer_with_resource(GLenum target, GLenum attachment, api::resource dest, uint32_t dest_subresource, const api::resource_desc &dest_desc);
+		void bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
+
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
 		void bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports) final;
@@ -151,11 +155,12 @@ namespace reshade::opengl
 		bool   _compatibility_context = false;
 
 	private:
-		GLuint _copy_fbo[3] = {};
 		GLuint _mipmap_program = 0;
 		std::vector<GLuint> _reserved_texture_names;
 
 		GLuint _push_constants = 0;
 		GLuint _push_constants_size = 0;
+
+		std::unordered_map<size_t, GLuint> _fbo_lookup;
 	};
 }
