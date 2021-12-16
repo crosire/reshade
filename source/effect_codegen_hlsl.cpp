@@ -115,8 +115,6 @@ private:
 				s += "precise ";
 			if (type.has(type::q_groupshared))
 				s += "groupshared ";
-			if (type.has(type::q_const))
-				s += "const ";
 		}
 
 		if constexpr (is_param)
@@ -602,6 +600,9 @@ private:
 		if (!global)
 			code += '\t';
 
+		if (initializer_value != 0 && type.has(type::q_const))
+			code += "const ";
+
 		write_type(code, type);
 		code += ' ' + id_to_name(res);
 
@@ -932,6 +933,7 @@ private:
 
 			// Array constants need to be stored in a constant variable as they cannot be used in-place
 			code += '\t';
+			code += "const ";
 			write_type(code, type);
 			code += ' ' + id_to_name(res);
 			code += '[' + std::to_string(type.array_length) + ']';
