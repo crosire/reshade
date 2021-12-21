@@ -52,7 +52,7 @@ namespace ReShade.Setup
 		Queue<EffectPackage> packages;
 		string[] effects;
 		EffectPackage package;
-		bool? addonSupport;
+		bool? addonLoadSupport;
 
 		public MainWindow()
 		{
@@ -92,13 +92,13 @@ namespace ReShade.Setup
 					throw new InvalidDataException();
 				}
 
-				if (zip.GetEntry("ReShade32_signed.dll") == null || zip.GetEntry("ReShade64_signed.dll") == null)
+				if (zip.GetEntry("ReShade32_official.dll") == null || zip.GetEntry("ReShade64_official.dll") == null)
 				{
-					addonSupport = null;
+					addonLoadSupport = null;
 				}
 				else
 				{
-					addonSupport = true;
+					addonLoadSupport = true;
 				}
 			}
 			catch
@@ -517,7 +517,7 @@ namespace ReShade.Setup
 				page.ApiOpenGL.IsChecked = isApiOpenGL;
 				page.ApiVulkan.IsChecked = isApiVulkan;
 
-				if (addonSupport != null)
+				if (addonLoadSupport != null)
 				{
 					page.AddonSupport.IsEnabled = true;
 					page.AddonSupport.IsChecked = false;
@@ -662,7 +662,7 @@ namespace ReShade.Setup
 					Directory.CreateDirectory(parentPath);
 				}
 
-				var module = zip.GetEntry(moduleName + (addonSupport != false ? string.Empty : "_signed") + ".dll");
+				var module = zip.GetEntry(moduleName + (addonLoadSupport != false ? string.Empty : "_official") + ".dll");
 				if (module == null)
 				{
 					throw new FileFormatException("Setup archive is missing ReShade DLL file.");
@@ -1237,7 +1237,7 @@ In that event here are some steps you can try to resolve this:
 
 				if (page1.AddonSupport.IsEnabled)
 				{
-					addonSupport = page1.AddonSupport.IsChecked == true;
+					addonLoadSupport = page1.AddonSupport.IsChecked == true;
 				}
 
 				Task.Run(InstallStep2);

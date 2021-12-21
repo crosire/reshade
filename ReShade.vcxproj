@@ -67,7 +67,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <LinkIncremental>false</LinkIncremental>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <TargetName Condition="Exists('res\sign.pfx')">$(TargetName)_signed</TargetName>
+    <TargetName Condition="Exists('res\sign.pfx')">$(TargetName)_official</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Release App'">
     <ConfigurationType>Application</ConfigurationType>
