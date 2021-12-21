@@ -587,7 +587,7 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 	assert(pDstResource != nullptr && pSrcResource != nullptr);
 
 	D3D10_RESOURCE_DIMENSION type = D3D10_RESOURCE_DIMENSION_UNKNOWN;
-	pDstResource->GetType(&type);
+	pSrcResource->GetType(&type);
 	if (type == D3D10_RESOURCE_DIMENSION_BUFFER)
 	{
 		assert(SrcSubresource == 0 && DstSubresource == 0);
@@ -603,7 +603,7 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 	}
 	else
 	{
-		bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
+		const bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
 		reshade::api::subresource_box dst_box;
 
 		if (use_dst_box)
@@ -620,9 +620,40 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 			}
 			else
 			{
-				use_dst_box = false;
-				// TODO: Destination box size is not implemented (would have to get it from the resource)
-				assert(DstX == 0 && DstY == 0 && DstZ == 0);
+				dst_box.right = dst_box.left;
+				dst_box.bottom = dst_box.top;
+				dst_box.back = dst_box.front;
+
+				switch (type)
+				{
+					case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
+					{
+						D3D10_TEXTURE1D_DESC desc;
+						static_cast<ID3D10Texture1D *>(pSrcResource)->GetDesc(&desc);
+						dst_box.right += desc.Width;
+						dst_box.bottom += 1;
+						dst_box.back += 1;
+						break;
+					}
+					case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
+					{
+						D3D10_TEXTURE2D_DESC desc;
+						static_cast<ID3D10Texture2D *>(pSrcResource)->GetDesc(&desc);
+						dst_box.right += desc.Width;
+						dst_box.bottom += desc.Height;
+						dst_box.back += 1;
+						break;
+					}
+					case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
+					{
+						D3D10_TEXTURE3D_DESC desc;
+						static_cast<ID3D10Texture3D *>(pSrcResource)->GetDesc(&desc);
+						dst_box.right += desc.Width;
+						dst_box.bottom += desc.Height;
+						dst_box.back += desc.Depth;
+						break;
+					}
+				}
 			}
 		}
 

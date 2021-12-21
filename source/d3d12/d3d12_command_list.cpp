@@ -200,7 +200,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 
 	if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
 	{
-		bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
+		const bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
 		reshade::api::subresource_box dst_box;
 
 		if (use_dst_box)
@@ -217,9 +217,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 			}
 			else
 			{
-				use_dst_box = false;
-				// TODO: Destination box size is not implemented (would have to get it from the resource)
-				assert(DstX == 0 && DstY == 0 && DstZ == 0);
+				const D3D12_RESOURCE_DESC desc = pSrc->pResource->GetDesc();
+
+				dst_box.right = dst_box.left + static_cast<UINT>(desc.Width);
+				dst_box.bottom = dst_box.top + desc.Height;
+				dst_box.back = dst_box.front + (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D ? desc.DepthOrArraySize : 1u);
 			}
 		}
 

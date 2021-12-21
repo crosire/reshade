@@ -423,11 +423,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 			{
 				register_descriptor_heap(descriptor_heap_proxy);
 
-#ifndef NDEBUG
 				register_destruction_callback(descriptor_heap_proxy, [this, descriptor_heap_proxy]() {
 					unregister_descriptor_heap(descriptor_heap_proxy);
 				});
-#endif
 
 #if RESHADE_VERBOSE_LOG
 				LOG(INFO) << "> Returning ID3D12DescriptorHeap" << " object " << descriptor_heap_proxy << " (" << descriptor_heap_proxy->_orig << ").";

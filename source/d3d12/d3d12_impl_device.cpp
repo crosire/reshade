@@ -31,8 +31,10 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	}
 
 #if RESHADE_ADDON && RESHADE_ADDON_LOAD
-	register_descriptor_heap(new D3D12DescriptorHeap(reinterpret_cast<D3D12Device *>(device), _gpu_view_heap.get()));
-	register_descriptor_heap(new D3D12DescriptorHeap(reinterpret_cast<D3D12Device *>(device), _gpu_sampler_heap.get()));
+	const auto gpu_view_heap = new D3D12DescriptorHeap(reinterpret_cast<D3D12Device *>(device), _gpu_view_heap.get());
+	register_descriptor_heap(gpu_view_heap);
+	const auto gpu_sampler_heap = new D3D12DescriptorHeap(reinterpret_cast<D3D12Device *>(device), _gpu_sampler_heap.get());
+	register_descriptor_heap(gpu_sampler_heap);
 	assert(_descriptor_heaps.second == 2);
 #endif
 
@@ -108,14 +110,13 @@ reshade::d3d12::device_impl::~device_impl()
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
 #if RESHADE_ADDON && RESHADE_ADDON_LOAD
-	delete _descriptor_heaps.first[0];
-	_descriptor_heaps.first[0] = nullptr;
-	delete _descriptor_heaps.first[1];
-	_descriptor_heaps.first[1] = nullptr;
-
-	_descriptor_heaps.second = 0;
-	const auto old_heaps = _descriptor_heaps.first.exchange(nullptr);
-	delete[] old_heaps;
+	const auto gpu_view_heap = _descriptor_heaps.first[0];
+	unregister_descriptor_heap(gpu_view_heap);
+	delete gpu_view_heap;
+	const auto gpu_sampler_heap = _descriptor_heaps.first[1];
+	unregister_descriptor_heap(gpu_sampler_heap);
+	delete gpu_sampler_heap;
+	assert(_descriptor_heaps.second == 0);
 #endif
 
 	// Do not call add-on events if initialization failed
@@ -1225,11 +1226,12 @@ void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *
 	size_t num_heaps = ++_descriptor_heaps.second;
 	size_t heap_index = num_heaps - 1;
 
+	const auto old_heaps = _descriptor_heaps.first.load();
 	const auto new_heaps = new D3D12DescriptorHeap *[num_heaps];
-	std::memcpy(new_heaps, _descriptor_heaps.first.load(), heap_index * sizeof(D3D12DescriptorHeap *));
+	std::memcpy(new_heaps, old_heaps, heap_index * sizeof(D3D12DescriptorHeap *));
 	new_heaps[heap_index] = heap;
 
-	const auto old_heaps = _descriptor_heaps.first.exchange(new_heaps);
+	_descriptor_heaps.first.store(new_heaps);
 	delete[] old_heaps;
 
 	heap->initialize_descriptor_base_handle(static_cast<UINT>(heap_index));
@@ -1239,17 +1241,37 @@ void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *
 }
 void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap *heap)
 {
-#if RESHADE_ADDON && RESHADE_ADDON_LOAD && !defined(NDEBUG)
+#if RESHADE_ADDON && RESHADE_ADDON_LOAD
 	const std::unique_lock<std::shared_mutex> lock(_device_mutex);
 
-	for (size_t heap_index = 0; heap_index < _descriptor_heaps.second; ++heap_index)
+	size_t num_heaps = _descriptor_heaps.second;
+
+	const auto old_heaps = _descriptor_heaps.first.load();
+
+	for (size_t heap_index = 0; heap_index < num_heaps; ++heap_index)
 	{
-		if (heap == _descriptor_heaps.first[heap_index])
+		if (heap == old_heaps[heap_index])
 		{
-			_descriptor_heaps.first[heap_index] = nullptr;
+			old_heaps[heap_index] = nullptr;
 			break;
 		}
 	}
+
+	while (num_heaps != 0)
+	{
+		if (old_heaps[num_heaps - 1] == nullptr)
+			num_heaps--;
+		else
+			break;
+	}
+
+	_descriptor_heaps.second = num_heaps;
+
+	const auto new_heaps = (num_heaps != 0) ? new D3D12DescriptorHeap *[num_heaps] : nullptr;
+	std::memcpy(new_heaps, old_heaps, num_heaps * sizeof(D3D12DescriptorHeap *));
+
+	_descriptor_heaps.first.store(new_heaps);
+	delete[] old_heaps;
 #else
 	UNREFERENCED_PARAMETER(heap);
 #endif
