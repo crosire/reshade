@@ -189,11 +189,11 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 		format += 1;
 
 		temp_data->resize(static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4);
-		for (size_t z = 0; z < depth; ++z)
+		for (size_t z = 0; z < static_cast<size_t>(depth); ++z)
 		{
-			for (size_t y = 0; y < height; ++y)
+			for (size_t y = 0; y < static_cast<size_t>(height); ++y)
 			{
-				for (size_t x = 0; x < width; ++x)
+				for (size_t x = 0; x < static_cast<size_t>(width); ++x)
 				{
 					const size_t in_index = (z * width * height + y * width + x) * 3;
 					const size_t out_index = (z * width * height + y * width + x) * 4;

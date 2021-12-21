@@ -7,7 +7,7 @@
 
 #include "addon_manager.hpp"
 #include "descriptor_heap.hpp"
-#include <dxgi1_5.h>
+#include <atomic>
 #include <shared_mutex>
 
 struct D3D12DescriptorHeap;
@@ -97,6 +97,7 @@ namespace reshade::d3d12
 		void unregister_resource(ID3D12Resource *resource);
 
 		void register_descriptor_heap(D3D12DescriptorHeap *heap);
+		void unregister_descriptor_heap(D3D12DescriptorHeap *heap);
 
 		inline void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource, const api::resource_view_desc &desc)
 		{
@@ -115,7 +116,7 @@ namespace reshade::d3d12
 
 		mutable std::shared_mutex _device_mutex;
 #if RESHADE_ADDON
-		std::vector<D3D12DescriptorHeap *> _descriptor_heaps;
+		std::pair<std::atomic<D3D12DescriptorHeap **>, size_t> _descriptor_heaps;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;

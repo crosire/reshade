@@ -33,7 +33,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 #if RESHADE_ADDON
 	register_descriptor_heap(new D3D12DescriptorHeap(reinterpret_cast<D3D12Device *>(device), _gpu_view_heap.get()));
 	register_descriptor_heap(new D3D12DescriptorHeap(reinterpret_cast<D3D12Device *>(device), _gpu_sampler_heap.get()));
-	assert(_descriptor_heaps.size() == 2);
+	assert(_descriptor_heaps.second == 2);
 #endif
 
 	// Create mipmap generation states
@@ -108,10 +108,14 @@ reshade::d3d12::device_impl::~device_impl()
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
 #if RESHADE_ADDON
-	delete _descriptor_heaps[0];
-	_descriptor_heaps[0] = nullptr;
-	delete _descriptor_heaps[1];
-	_descriptor_heaps[1] = nullptr;
+	delete _descriptor_heaps.first[0];
+	_descriptor_heaps.first[0] = nullptr;
+	delete _descriptor_heaps.first[1];
+	_descriptor_heaps.first[1] = nullptr;
+
+	_descriptor_heaps.second = 0;
+	const auto old_heaps = _descriptor_heaps.first.exchange(nullptr);
+	delete[] old_heaps;
 #endif
 
 	// Do not call add-on events if initialization failed
@@ -927,7 +931,7 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::
 #if RESHADE_ADDON
 			out_sets[i] = { 0 };
 			out_sets[i].handle |= (heap_index << 24) | (heap_type << 20);
-			out_sets[i].handle |= (base_handle.ptr - _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr) / _descriptor_handle_size[heap_type];
+			out_sets[i].handle |= (base_handle.ptr - _descriptor_heaps.first[heap_index]->_orig_base_cpu_handle.ptr) / _descriptor_handle_size[heap_type];
 			out_sets[i].handle |= static_cast<uint64_t>(total_count) << 32;
 #else
 			out_sets[i] = { base_handle_gpu.ptr };
@@ -965,7 +969,9 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 
 #if RESHADE_ADDON
 	const SIZE_T heap_index = (set.handle >> 24) & 0xFF;
-	D3D12DescriptorHeap *const heap = _descriptor_heaps[heap_index];
+	assert(heap_index < _descriptor_heaps.second && _descriptor_heaps.first[heap_index] != nullptr);
+
+	D3D12DescriptorHeap *const heap = _descriptor_heaps.first[heap_index];
 	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((set.handle >> 20) & 0x3);
 
 	*pool = to_handle(heap->_orig);
@@ -1216,9 +1222,36 @@ void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *
 #if RESHADE_ADDON
 	const std::unique_lock<std::shared_mutex> lock(_device_mutex);
 
-	_descriptor_heaps.push_back(heap);
+	size_t num_heaps = ++_descriptor_heaps.second;
+	size_t heap_index = num_heaps - 1;
 
-	heap->initialize_descriptor_base_handle(static_cast<UINT>(_descriptor_heaps.size() - 1));
+	const auto new_heaps = new D3D12DescriptorHeap *[num_heaps];
+	std::memcpy(new_heaps, _descriptor_heaps.first.load(), heap_index * sizeof(D3D12DescriptorHeap *));
+	new_heaps[heap_index] = heap;
+
+	const auto old_heaps = _descriptor_heaps.first.exchange(new_heaps);
+	delete[] old_heaps;
+
+	heap->initialize_descriptor_base_handle(static_cast<UINT>(heap_index));
+#else
+	UNREFERENCED_PARAMETER(heap);
+#endif
+}
+void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap *heap)
+{
+#if RESHADE_ADDON && !defined(NDEBUG)
+	const std::unique_lock<std::shared_mutex> lock(_device_mutex);
+
+	for (size_t heap_index = 0; heap_index < _descriptor_heaps.second; ++heap_index)
+	{
+		if (heap == _descriptor_heaps.first[heap_index])
+		{
+			_descriptor_heaps.first[heap_index] = nullptr;
+			break;
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(heap);
 #endif
 }
 
@@ -1263,8 +1296,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 #if RESHADE_ADDON
 	const SIZE_T heap_index = (handle.ptr >> 24) & 0xFF;
 	assert(type == static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3));
+	assert(heap_index < _descriptor_heaps.second && _descriptor_heaps.first[heap_index] != nullptr);
 
-	return offset_descriptor_handle(_descriptor_heaps[heap_index]->_orig_base_cpu_handle, handle.ptr & 0xFFFFF, type);
+	return offset_descriptor_handle(_descriptor_heaps.first[heap_index]->_orig_base_cpu_handle, handle.ptr & 0xFFFFF, type);
 #else
 	UNREFERENCED_PARAMETER(type);
 
@@ -1276,8 +1310,9 @@ D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu
 #if RESHADE_ADDON
 	const SIZE_T heap_index = (handle.ptr >> 24) & 0xFF;
 	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3);
+	assert(heap_index < _descriptor_heaps.second && _descriptor_heaps.first[heap_index] != nullptr);
 
-	return offset_descriptor_handle(_descriptor_heaps[heap_index]->_orig_base_gpu_handle, handle.ptr & 0xFFFFF, type);
+	return offset_descriptor_handle(_descriptor_heaps.first[heap_index]->_orig_base_gpu_handle, handle.ptr & 0xFFFFF, type);
 #else
 	return handle;
 #endif

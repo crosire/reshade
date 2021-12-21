@@ -65,10 +65,10 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::EVREye eye, ID3D10Texture2D
 	const auto runtime = static_cast<reshade::d3d10::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_vr_submit(
-		static_cast<UINT>(eye),
-		texture,
-		reinterpret_cast<const float *>(bounds),
-		&target_texture))
+			static_cast<UINT>(eye),
+			texture,
+			reinterpret_cast<const float *>(bounds),
+			&target_texture))
 	{
 	normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
@@ -129,10 +129,10 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::EVREye eye, ID3D11Texture2D
 	const auto runtime = static_cast<reshade::d3d11::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_vr_submit(
-		static_cast<UINT>(eye),
-		texture,
-		reinterpret_cast<const float *>(bounds),
-		&target_texture))
+			static_cast<UINT>(eye),
+			texture,
+			reinterpret_cast<const float *>(bounds),
+			&target_texture))
 	{
 	normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
@@ -182,10 +182,10 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::EVREye eye, const vr::D3D12
 	const auto runtime = static_cast<reshade::d3d12::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_vr_submit(
-		static_cast<UINT>(eye),
-		texture->m_pResource, // Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
-		reinterpret_cast<const float *>(bounds),
-		&target_texture.m_pResource))
+			static_cast<UINT>(eye),
+			texture->m_pResource, // Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
+			reinterpret_cast<const float *>(bounds),
+			&target_texture.m_pResource))
 	{
 	normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
@@ -235,11 +235,11 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::EVREye eye, GLuint object,
 	const auto runtime = static_cast<reshade::opengl::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_vr_submit(
-		static_cast<uint32_t>(eye),
-		(flags & vr::Submit_GlRenderBuffer) != 0 ? GL_RENDERBUFFER : ((flags & vr::Submit_GlArrayTexture) != 0 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D),
-		object,
-		reinterpret_cast<const float *>(bounds),
-		&target_rbo))
+			static_cast<uint32_t>(eye),
+			(flags & vr::Submit_GlRenderBuffer) != 0 ? GL_RENDERBUFFER : ((flags & vr::Submit_GlArrayTexture) != 0 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D),
+			object,
+			reinterpret_cast<const float *>(bounds),
+			&target_rbo))
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
@@ -301,14 +301,14 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::EVREye eye, const vr::VRVu
 	const auto runtime = static_cast<reshade::vulkan::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_vr_submit(
-		static_cast<uint32_t>(eye),
-		(VkImage)texture->m_nImage, // Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this point
-		VkExtent2D { texture->m_nWidth, texture->m_nHeight },
-		static_cast<VkFormat>(texture->m_nFormat),
-		static_cast<VkSampleCountFlags>(texture->m_nSampleCount),
-		(flags & vr::Submit_VulkanTextureWithArrayData) != 0 ? static_cast<const vr::VRVulkanTextureArrayData_t *>(texture)->m_unArrayIndex : 0,
-		reinterpret_cast<const float *>(bounds),
-		&target_image))
+			static_cast<uint32_t>(eye),
+			(VkImage)texture->m_nImage, // Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this point
+			VkExtent2D { texture->m_nWidth, texture->m_nHeight },
+			static_cast<VkFormat>(texture->m_nFormat),
+			static_cast<VkSampleCountFlags>(texture->m_nSampleCount),
+			(flags & vr::Submit_VulkanTextureWithArrayData) != 0 ? static_cast<const vr::VRVulkanTextureArrayData_t *>(texture)->m_unArrayIndex : 0,
+			reinterpret_cast<const float *>(bounds),
+			&target_image))
 	{
 	normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects

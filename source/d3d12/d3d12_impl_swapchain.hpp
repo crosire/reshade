@@ -6,6 +6,7 @@
 #pragma once
 
 #include "runtime.hpp"
+#include <dxgi1_5.h>
 
 namespace reshade::d3d12
 {
