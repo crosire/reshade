@@ -144,6 +144,11 @@
     <EmbeddedResource Condition="Exists('Compatibility.ini')" Include="Compatibility.ini" />
     <EmbeddedResource Condition="Exists('EffectPackages.ini')" Include="EffectPackages.ini" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Pages\Resources\DirectX.png" />
+    <Resource Include="Pages\Resources\OpenGL.png" />
+    <Resource Include="Pages\Resources\Vulkan.png" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

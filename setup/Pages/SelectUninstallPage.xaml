@@ -8,7 +8,9 @@
       Width="Auto" Height="Auto">
   <DockPanel>
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select the operation to perform:" />
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="An existing ReShade installation was found. Choose whether it should be updated to the version from this setup tool, or uninstalled." />
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
+      An existing ReShade installation was found. Choose whether it should be updated to the version from this setup tool, or uninstalled.
+    </TextBlock>
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
       <Button x:Name="UpdateButton" Width="250" Height="35" Margin="5" Content="_Update" IsDefault="True" />
       <Button x:Name="UninstallButton" Width="250" Height="35" Margin="5" Content="Un_install" />
