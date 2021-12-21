@@ -495,7 +495,32 @@ private:
 
 			write_location(code, loc);
 
-			code += "RWTexture2D<float4> " + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
+			code += "RWTexture2D<";
+
+			switch (info.format)
+			{
+			case texture_format::r8:
+			case texture_format::r16f:
+			case texture_format::r32f:
+				code += "float";
+				break;
+			default:
+				assert(false);
+			case texture_format::unknown:
+			case texture_format::rg8:
+			case texture_format::rg16:
+			case texture_format::rg16f:
+			case texture_format::rg32f:
+			case texture_format::rgba8:
+			case texture_format::rgba16:
+			case texture_format::rgba16f:
+			case texture_format::rgba32f:
+			case texture_format::rgb10a2:
+				code += "float4";
+				break;
+			}
+
+			code += "> " + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
 		}
 
 		_module.storages.push_back(info);
@@ -1153,15 +1178,18 @@ private:
 
 		std::string &code = _blocks.at(_current_block);
 
-		write_location(code, loc);
-
-		code += '\t';
-
 		enum
 		{
 		#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) name##i,
 			#include "effect_symbol_table_intrinsics.inl"
 		};
+
+		if (intrinsic == tex2Dstore0)
+			code += "#pragma warning(disable : 3206)\n";
+
+		write_location(code, loc);
+
+		code += '\t';
 
 		if (_shader_model >= 40 && (
 			intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2 ||
@@ -1189,6 +1217,9 @@ private:
 		}
 
 		code += ";\n";
+
+		if (intrinsic == tex2Dstore0)
+			code += "#pragma warning(default : 3206)\n";
 
 		return res;
 	}

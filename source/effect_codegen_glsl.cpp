@@ -498,7 +498,59 @@ private:
 
 		write_location(code, loc);
 
-		code += "layout(binding = " + std::to_string(info.binding) + ") uniform writeonly image2D " + id_to_name(info.id) + ";\n";
+		code += "layout(binding = " + std::to_string(info.binding);
+
+		if (info.format != texture_format::unknown)
+		{
+			code += ", ";
+			switch (info.format)
+			{
+			case texture_format::r8:
+				code += "r8";
+				break;
+			case texture_format::r16f:
+				code += "r16f";
+				break;
+			case texture_format::r32f:
+				code += "r32f";
+				break;
+			case texture_format::rg8:
+				code += "rg8";
+				break;
+			case texture_format::rg16:
+				code += "rg16";
+				break;
+			case texture_format::rg16f:
+				code += "rg16f";
+				break;
+			case texture_format::rg32f:
+				code += "rg32f";
+				break;
+			case texture_format::rgba8:
+				code += "rgba8";
+				break;
+			case texture_format::rgba16:
+				code += "rgba16";
+				break;
+			case texture_format::rgba16f:
+				code += "rgba16f";
+				break;
+			case texture_format::rgba32f:
+				code += "rgba32f";
+				break;
+			case texture_format::rgb10a2:
+				code += "rgb10_a2";
+				break;
+			default:
+				assert(false);
+				break;
+			}
+		}
+
+		code += ") uniform ";
+		if (info.format == texture_format::unknown)
+			code += "writeonly ";
+		code += "image2D " + id_to_name(info.id) + ";\n";
 
 		_module.storages.push_back(info);
 

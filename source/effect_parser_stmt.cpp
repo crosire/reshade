@@ -1452,6 +1452,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		storage_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(storage_info.unique_name.begin(), storage_info.unique_name.end(), ':', '_');
 
+		storage_info.format = texture_info.format;
+
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_storage(location, storage_info);
 	}

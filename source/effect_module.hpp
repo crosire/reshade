@@ -212,6 +212,7 @@ namespace reshadefx
 		std::string name;
 		std::string unique_name;
 		std::string texture_name;
+		texture_format format = texture_format::unknown;
 	};
 
 	/// <summary>
