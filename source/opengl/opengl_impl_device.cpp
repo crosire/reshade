@@ -1280,18 +1280,19 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
 	if (fbo_object == 0)
 	{
-		if (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT)
+		if (index == 0)
 		{
-			return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+			if (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT)
+			{
+				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+			}
+			if (_default_depth_format != GL_NONE)
+			{
+				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+			}
 		}
-		if (_default_depth_format != GL_NONE)
-		{
-			return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-		}
-		else
-		{
-			return make_resource_view_handle(0, 0); // No default depth buffer exists
-		}
+
+		return make_resource_view_handle(0, 0);
 	}
 
 	GLenum attachment;

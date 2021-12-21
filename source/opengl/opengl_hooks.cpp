@@ -2202,10 +2202,10 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 	{
 		uint32_t count = 0;
 		reshade::api::resource_view rtvs[8], dsv;
-		while (count < 8)
+		for (; count < 8; ++count)
 		{
 			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-			if (rtvs[count++].handle == 0 || framebuffer == 0)
+			if (rtvs[count].handle == 0)
 				break;
 		}
 
@@ -3960,10 +3960,10 @@ void APIENTRY glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 	{
 		uint32_t count = 0;
 		reshade::api::resource_view rtvs[8], dsv;
-		while (count < 8)
+		for (; count < 8; ++count)
 		{
 			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-			if (rtvs[count++].handle == 0 || framebuffer == 0)
+			if (rtvs[count].handle == 0)
 				break;
 		}
 
