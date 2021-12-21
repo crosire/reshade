@@ -14,7 +14,7 @@
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
     <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
-      Check all effect packages you want to install/update or click on Cancel to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).<LineBreak />You will get prompted to select individual effects for packages with a filled out checkbox. Those with a checkmark will instead have all effects installed.
+      Check all effect packages you want to install/update or click on Skip to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).<LineBreak />You will get prompted to select individual effects for packages with a filled out checkbox. Those with a checkmark will instead have all effects installed.
     </TextBlock>
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
       <Grid.ColumnDefinitions>

@@ -34,6 +34,7 @@ namespace ReShade.Setup
 		IniFile compatibilityIni;
 
 		StatusPage status = new StatusPage();
+		SelectAppPage appPage = new SelectAppPage();
 
 		Api targetApi = Api.Unknown;
 		bool is64Bit;
@@ -41,7 +42,7 @@ namespace ReShade.Setup
 		string targetName;
 		string configPath;
 		string modulePath;
-		readonly string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReShade");
+		static readonly string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReShade");
 		string tempPath;
 		string tempPathEffects;
 		string tempPathTextures;
@@ -57,7 +58,6 @@ namespace ReShade.Setup
 			InitializeComponent();
 
 			var assembly = Assembly.GetExecutingAssembly();
-			Title = "ReShade Setup v" + assembly.GetName().Version.ToString(3);
 
 			try
 			{
@@ -191,10 +191,9 @@ namespace ReShade.Setup
 
 			NextButton.IsEnabled = false;
 
-			var page = new SelectAppPage();
-			page.PathBox.TextChanged += (sender2, e2) => NextButton.IsEnabled = !string.IsNullOrEmpty(page.FileName) && Path.GetExtension(page.FileName) == ".exe" && File.Exists(page.FileName);
+			appPage.PathBox.TextChanged += (sender2, e2) => NextButton.IsEnabled = !string.IsNullOrEmpty(appPage.FileName) && Path.GetExtension(appPage.FileName) == ".exe" && File.Exists(appPage.FileName);
 
-			CurrentPage.Navigate(page);
+			ResetStatus();
 		}
 
 		static void MoveFiles(string sourcePath, string targetPath)
@@ -289,6 +288,21 @@ namespace ReShade.Setup
 			iniFile.SaveFile();
 		}
 
+		void ResetStatus()
+		{
+			isFinished = false;
+
+			targetApi = Api.Unknown;
+			targetPath = targetName = configPath = modulePath = tempPath = tempPathEffects = tempPathTextures = targetPathEffects = targetPathTextures = downloadPath = null;
+			packages = null; effects = null; package = null;
+
+			Dispatcher.Invoke(() =>
+			{
+				CurrentPage.Navigate(appPage);
+
+				Title = "ReShade Setup v" + Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+			});
+		}
 		void UpdateStatus(string message)
 		{
 			Dispatcher.Invoke(() =>
@@ -319,7 +333,6 @@ namespace ReShade.Setup
 				CurrentPage.Navigate(status);
 
 				Title += success ? " was successful!" : " was not successful!";
-				NextButton.Content = "_Finish";
 
 				AeroGlass.HideSystemMenu(this, false);
 			});
@@ -1249,12 +1262,21 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
+			if (isFinished)
+			{
+				ResetStatus();
+				return;
+			}
+
 			Close();
 		}
 
 		void OnCurrentPageNavigated(object sender, NavigationEventArgs e)
 		{
-			CancelButton.IsEnabled = !(e.Content is StatusPage);
+			NextButton.Content = isFinished ? "_Finish" : "_Next";
+			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : "_Cancel";
+
+			CancelButton.IsEnabled = !(e.Content is StatusPage) || isFinished;
 
 			if (!(e.Content is SelectAppPage))
 			{
