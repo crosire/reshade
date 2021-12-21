@@ -857,51 +857,56 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #  endif
 
 #  ifndef NDEBUG
-		CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(&LoadLibraryW), L"dbghelp.dll", 0, nullptr);
+		// Disable exception handler for Java games, since it causing problems with the Java runtime
+		if (g_target_executable_path.filename() != L"java.exe" &&
+			g_target_executable_path.filename() != L"javaw.exe")
+		{
+			CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(&LoadLibraryW), L"dbghelp.dll", 0, nullptr);
 
-		s_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
-			// Ignore debugging and some common language exceptions
-			if (const DWORD code = ex->ExceptionRecord->ExceptionCode;
-				code == CONTROL_C_EXIT || code == 0x406D1388 /* SetThreadName */ ||
-				code == DBG_PRINTEXCEPTION_C || code == DBG_PRINTEXCEPTION_WIDE_C || code == STATUS_BREAKPOINT ||
-				code == 0xE0434352 /* CLR exception */ ||
-				code == 0xE06D7363 /* Visual C++ exception */)
-				goto continue_search;
-
-			// Create dump with exception information for the first 100 occurrences
-			if (static unsigned int dump_index = 0; dump_index < 100)
-			{
-				const auto dbghelp = GetModuleHandleW(L"dbghelp.dll");
-				if (dbghelp == nullptr)
+			s_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
+				// Ignore debugging and some common language exceptions
+				if (const DWORD code = ex->ExceptionRecord->ExceptionCode;
+					code == CONTROL_C_EXIT || code == 0x406D1388 /* SetThreadName */ ||
+					code == DBG_PRINTEXCEPTION_C || code == DBG_PRINTEXCEPTION_WIDE_C || code == STATUS_BREAKPOINT ||
+					code == 0xE0434352 /* CLR exception */ ||
+					code == 0xE06D7363 /* Visual C++ exception */)
 					goto continue_search;
 
-				const auto dbghelp_write_dump = reinterpret_cast<BOOL(WINAPI *)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION)>(
-					GetProcAddress(dbghelp, "MiniDumpWriteDump"));
-				if (dbghelp_write_dump == nullptr)
-					goto continue_search;
+				// Create dump with exception information for the first 100 occurrences
+				if (static unsigned int dump_index = 0; dump_index < 100)
+				{
+					const auto dbghelp = GetModuleHandleW(L"dbghelp.dll");
+					if (dbghelp == nullptr)
+						goto continue_search;
 
-				char dump_name[] = "exception_00.dmp";
-				dump_name[10] = '0' + static_cast<char>(dump_index / 10);
-				dump_name[11] = '0' + static_cast<char>(dump_index % 10);
+					const auto dbghelp_write_dump = reinterpret_cast<BOOL(WINAPI *)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION)>(
+						GetProcAddress(dbghelp, "MiniDumpWriteDump"));
+					if (dbghelp_write_dump == nullptr)
+						goto continue_search;
 
-				const HANDLE file = CreateFileA(dump_name, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-				if (file == INVALID_HANDLE_VALUE)
-					goto continue_search;
+					char dump_name[] = "exception_00.dmp";
+					dump_name[10] = '0' + static_cast<char>(dump_index / 10);
+					dump_name[11] = '0' + static_cast<char>(dump_index % 10);
 
-				MINIDUMP_EXCEPTION_INFORMATION info;
-				info.ThreadId = GetCurrentThreadId();
-				info.ExceptionPointers = ex;
-				info.ClientPointers = TRUE;
+					const HANDLE file = CreateFileA(dump_name, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+					if (file == INVALID_HANDLE_VALUE)
+						goto continue_search;
 
-				if (dbghelp_write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr))
-					dump_index++;
+					MINIDUMP_EXCEPTION_INFORMATION info;
+					info.ThreadId = GetCurrentThreadId();
+					info.ExceptionPointers = ex;
+					info.ClientPointers = TRUE;
 
-				CloseHandle(file);
-			}
+					if (dbghelp_write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr))
+						dump_index++;
 
-		continue_search:
-			return EXCEPTION_CONTINUE_SEARCH;
-		});
+					CloseHandle(file);
+				}
+
+			continue_search:
+				return EXCEPTION_CONTINUE_SEARCH;
+			});
+		}
 #  endif
 
 		// Check if another ReShade instance was already loaded into the process
@@ -980,7 +985,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		Sleep(1000);
 
 #  ifndef NDEBUG
-		RemoveVectoredExceptionHandler(s_exception_handler_handle);
+		if (s_exception_handler_handle != nullptr)
+			RemoveVectoredExceptionHandler(s_exception_handler_handle);
 #  endif
 
 		LOG(INFO) << "Finished exiting.";
