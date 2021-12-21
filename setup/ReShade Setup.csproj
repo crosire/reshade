@@ -159,7 +159,9 @@ cl.exe /nologo /EP /C /I "$(SolutionDir)res" "$(ProjectDir)Properties\AssemblyIn
 
 echo Compiling ReShade setup tool ...</PreBuildEvent>
     <PostBuildEvent Condition=" '$(Configuration)' == 'Debug' ">echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(SolutionDir)bin\x64\Debug\ReShade64.dll" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
+"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
+if exist "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" &gt; nul
+if exist "$(SolutionDir)bin\x64\Debug\ReShade64.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\x64\Debug\ReShade64.dll" &gt; nul
 
 echo Appending archive to setup executable ...
 copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
@@ -167,7 +169,11 @@ copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
 echo Cleaning up and deleting temporary archive ...
 del "$(TargetDir)ReShade Setup.zip"</PostBuildEvent>
     <PostBuildEvent Condition=" '$(Configuration)' == 'Release' ">echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
+"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
+if exist "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" &gt; nul
+if exist "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\x64\Release\ReShade64.dll" &gt; nul
+if exist "$(SolutionDir)bin\Win32\Release\ReShade32_signed.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32_signed.dll" &gt; nul
+if exist "$(SolutionDir)bin\x64\Release\ReShade64_signed.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\x64\Release\ReShade64_signed.dll" &gt; nul
 
 echo Appending archive to setup executable ...
 copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"

@@ -52,6 +52,7 @@ namespace ReShade.Setup
 		Queue<EffectPackage> packages;
 		string[] effects;
 		EffectPackage package;
+		bool? addonSupport;
 
 		public MainWindow()
 		{
@@ -89,6 +90,15 @@ namespace ReShade.Setup
 				if (zip.GetEntry("ReShade32.dll") == null || zip.GetEntry("ReShade64.dll") == null)
 				{
 					throw new InvalidDataException();
+				}
+
+				if (zip.GetEntry("ReShade32_signed.dll") == null || zip.GetEntry("ReShade64_signed.dll") == null)
+				{
+					addonSupport = null;
+				}
+				else
+				{
+					addonSupport = true;
 				}
 			}
 			catch
@@ -422,6 +432,11 @@ namespace ReShade.Setup
 			var peInfo = new PEInfo(targetPath);
 			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
+			bool isApiD3D9 = false;
+			bool isApiDXGI = false;
+			bool isApiOpenGL = false;
+			bool isApiVulkan = false;
+
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
 			var executableName = Path.GetFileName(targetPath);
 			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "RenderApi"))
@@ -430,46 +445,45 @@ namespace ReShade.Setup
 
 				if (api == "D3D8" || api == "D3D9")
 				{
-					targetApi = Api.D3D9;
+					isApiD3D9 = true;
 				}
 				else if (api == "D3D10" || api == "D3D11" || api == "D3D12" || api == "DXGI")
 				{
-					targetApi = Api.DXGI;
+					isApiDXGI = true;
 				}
 				else if (api == "OpenGL")
 				{
-					targetApi = Api.OpenGL;
+					isApiOpenGL = true;
 				}
 				else if (api == "Vulkan")
 				{
-					targetApi = Api.Vulkan;
+					isApiVulkan = true;
 				}
+			}
+			else
+			{
+				bool isApiD3D8 = peInfo.Modules.Any(s => s.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase));
+				isApiD3D9 = isApiD3D8 || peInfo.Modules.Any(s => s.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase));
+				isApiDXGI = peInfo.Modules.Any(s => s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) || s.StartsWith("d3d1", StringComparison.OrdinalIgnoreCase) || s.Contains("GFSDK")); // Assume DXGI when GameWorks SDK is in use
+				isApiOpenGL = peInfo.Modules.Any(s => s.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase));
+				isApiVulkan = peInfo.Modules.Any(s => s.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase));
 
-				InstallStep2();
-				return;
-			}
-
-			bool isApiD3D8 = peInfo.Modules.Any(s => s.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase));
-			bool isApiD3D9 = isApiD3D8 || peInfo.Modules.Any(s => s.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase));
-			bool isApiDXGI = peInfo.Modules.Any(s => s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) || s.StartsWith("d3d1", StringComparison.OrdinalIgnoreCase) || s.Contains("GFSDK")); // Assume DXGI when GameWorks SDK is in use
-			bool isApiOpenGL = peInfo.Modules.Any(s => s.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase));
-			bool isApiVulkan = peInfo.Modules.Any(s => s.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase));
-
-			if (isApiD3D9 && isApiDXGI)
-			{
-				isApiD3D9 = false; // Prefer DXGI over D3D9
-			}
-			if (isApiD3D8 && !isHeadless)
-			{
-				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'https://github.com/crosire/d3d8to9/releases' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-			}
-			if (isApiDXGI && isApiVulkan)
-			{
-				isApiDXGI = false; // Prefer Vulkan over Direct3D 12
-			}
-			if (isApiOpenGL && (isApiD3D8 || isApiD3D9 || isApiDXGI || isApiVulkan))
-			{
-				isApiOpenGL = false; // Prefer Vulkan and Direct3D over OpenGL
+				if (isApiD3D9 && isApiDXGI)
+				{
+					isApiD3D9 = false; // Prefer DXGI over D3D9
+				}
+				if (isApiD3D8 && !isHeadless)
+				{
+					MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'https://github.com/crosire/d3d8to9/releases' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+				}
+				if (isApiDXGI && isApiVulkan)
+				{
+					isApiDXGI = false; // Prefer Vulkan over Direct3D 12
+				}
+				if (isApiOpenGL && (isApiD3D8 || isApiD3D9 || isApiDXGI || isApiVulkan))
+				{
+					isApiOpenGL = false; // Prefer Vulkan and Direct3D over OpenGL
+				}
 			}
 
 			if (isHeadless)
@@ -502,6 +516,17 @@ namespace ReShade.Setup
 				page.ApiDXGI.IsChecked = isApiDXGI;
 				page.ApiOpenGL.IsChecked = isApiOpenGL;
 				page.ApiVulkan.IsChecked = isApiVulkan;
+
+				if (addonSupport != null)
+				{
+					page.AddonSupport.IsEnabled = true;
+					page.AddonSupport.IsChecked = false;
+				}
+				else
+				{
+					page.AddonSupport.IsEnabled = false;
+					page.AddonSupport.IsChecked = true;
+				}
 
 				CurrentPage.Navigate(page);
 			});
@@ -628,6 +653,8 @@ namespace ReShade.Setup
 
 			string parentPath = Path.GetDirectoryName(modulePath);
 
+			string moduleName = is64Bit ? "ReShade64" : "ReShade32";
+
 			try
 			{
 				if (!Directory.Exists(parentPath))
@@ -635,7 +662,7 @@ namespace ReShade.Setup
 					Directory.CreateDirectory(parentPath);
 				}
 
-				var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
+				var module = zip.GetEntry(moduleName + (addonSupport != false ? string.Empty : "_signed") + ".dll");
 				if (module == null)
 				{
 					throw new FileFormatException("Setup archive is missing ReShade DLL file.");
@@ -653,7 +680,7 @@ namespace ReShade.Setup
 			{
 				try
 				{
-					var manifest = zip.GetEntry(is64Bit ? "ReShade64.json" : "ReShade32.json");
+					var manifest = zip.GetEntry(moduleName + ".json");
 					if (manifest == null)
 					{
 						throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
@@ -667,7 +694,7 @@ namespace ReShade.Setup
 					return;
 				}
 
-				string overrideMetaLayerPath = Path.Combine(commonPath, is64Bit ? "ReShade64_override.json" : "ReShade32_override.json");
+				string overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_override.json");
 
 				if (!File.Exists(overrideMetaLayerPath))
 				{
@@ -1206,6 +1233,11 @@ In that event here are some steps you can try to resolve this:
 				if (page1.ApiVulkan.IsChecked == true)
 				{
 					targetApi = Api.Vulkan;
+				}
+
+				if (page1.AddonSupport.IsEnabled)
+				{
+					addonSupport = page1.AddonSupport.IsChecked == true;
 				}
 
 				Task.Run(InstallStep2);
