@@ -29,7 +29,8 @@ namespace reshade::vulkan
 			VkPhysicalDevice physical_device,
 			const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
 			bool custom_border_color_ext,
-			bool extended_dynamic_state_ext);
+			bool extended_dynamic_state_ext,
+			bool conservative_rasterization_ext);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::vulkan; }
@@ -133,9 +134,10 @@ namespace reshade::vulkan
 		uint32_t _graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 		std::vector<command_queue_impl *> _queues;
 
-		const bool _custom_border_color_ext = false;
-		const bool _extended_dynamic_state_ext = false;
-		const VkPhysicalDeviceFeatures _enabled_features = {};
+		const bool _custom_border_color_ext;
+		const bool _extended_dynamic_state_ext;
+		const bool _conservative_rasterization_ext;
+		const VkPhysicalDeviceFeatures _enabled_features;
 
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;

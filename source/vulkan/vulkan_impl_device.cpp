@@ -30,13 +30,15 @@ reshade::vulkan::device_impl::device_impl(
 	VkPhysicalDevice physical_device,
 	const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
 	bool custom_border_color_ext,
-	bool extended_dynamic_state_ext) :
+	bool extended_dynamic_state_ext,
+	bool conservative_rasterization_ext) :
 	api_object_impl(device),
 	_physical_device(physical_device),
 	_dispatch_table(device_table),
 	_instance_dispatch_table(instance_table),
 	_custom_border_color_ext(custom_border_color_ext),
 	_extended_dynamic_state_ext(extended_dynamic_state_ext),
+	_conservative_rasterization_ext(conservative_rasterization_ext),
 	_enabled_features(enabled_features)
 {
 	{	VmaVulkanFunctions functions;
@@ -169,8 +171,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::fill_mode_non_solid:
 		return _enabled_features.fillModeNonSolid;
 	case api::device_caps::conservative_rasterization:
-		// TODO: Enable when the 'VK_EXT_conservative_rasterization' extension is enabled
-		return false;
+		return _conservative_rasterization_ext;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 		return false;
 	case api::device_caps::multi_viewport:

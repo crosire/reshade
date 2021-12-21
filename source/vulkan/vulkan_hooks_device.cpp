@@ -165,6 +165,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 	bool custom_border_color_ext = false;
 	bool extended_dynamic_state_ext = false;
+	bool conservative_rasterization_ext = false;
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
@@ -233,6 +234,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 #ifdef VK_EXT_extended_dynamic_state
 		extended_dynamic_state_ext = add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
+#endif
+#ifdef VK_EXT_conservative_rasterization
+		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
 #endif
 #ifdef VK_KHR_external_memory_win32
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
@@ -513,7 +517,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		dispatch_table,
 		enabled_features,
 		custom_border_color_ext,
-		extended_dynamic_state_ext);
+		extended_dynamic_state_ext,
+		conservative_rasterization_ext);
 
 	device_impl->_graphics_queue_family_index = graphics_queue_family_index;
 
