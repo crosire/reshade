@@ -857,6 +857,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #  endif
 
 #  ifndef NDEBUG
+		CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(&LoadLibraryW), L"dbghelp.dll", 0, nullptr);
+
 		s_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
 			// Ignore debugging and some common language exceptions
 			if (const DWORD code = ex->ExceptionRecord->ExceptionCode;
@@ -869,12 +871,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			// Create dump with exception information for the first 100 occurrences
 			if (static unsigned int dump_index = 0; dump_index < 100)
 			{
-				// Call into the original "LoadLibrary" directly, to avoid failing memory corruption checks
-				const auto ll = reshade::hooks::call<decltype(&LoadLibraryW)>(nullptr, LoadLibraryW);
-				if (ll == nullptr)
-					goto continue_search;
-
-				const auto dbghelp = ll(L"dbghelp.dll");
+				const auto dbghelp = GetModuleHandleW(L"dbghelp.dll");
 				if (dbghelp == nullptr)
 					goto continue_search;
 
