@@ -242,12 +242,14 @@ static void on_init_swapchain(reshade::api::swapchain *swapchain)
 {
 	const std::lock_guard<std::mutex> lock(s_mutex);
 
+	reshade::api::device *const device = swapchain->get_device();
+
 	for (uint32_t i = 0; i < swapchain->get_back_buffer_count(); ++i)
 	{
 		const reshade::api::resource buffer = swapchain->get_back_buffer(i);
 
 		s_resources.emplace(buffer.handle);
-		if (swapchain->get_device()->get_api() == reshade::api::device_api::d3d9)
+		if (device->get_api() == reshade::api::device_api::d3d9 || device->get_api() == reshade::api::device_api::opengl)
 			s_resource_views.emplace(buffer.handle);
 	}
 }
@@ -255,14 +257,15 @@ static void on_destroy_swapchain(reshade::api::swapchain *swapchain)
 {
 	const std::lock_guard<std::mutex> lock(s_mutex);
 
+	reshade::api::device *const device = swapchain->get_device();
+
 	for (uint32_t i = 0; i < swapchain->get_back_buffer_count(); ++i)
 	{
 		const reshade::api::resource buffer = swapchain->get_back_buffer(i);
 		assert(s_resources.find(buffer.handle) != s_resources.end());
 
-		if (swapchain->get_device()->get_api() != reshade::api::device_api::d3d12) // d3d12on7
-			s_resources.erase(buffer.handle);
-		if (swapchain->get_device()->get_api() == reshade::api::device_api::d3d9)
+		s_resources.erase(buffer.handle);
+		if (device->get_api() == reshade::api::device_api::d3d9 || device->get_api() == reshade::api::device_api::opengl)
 			s_resource_views.erase(buffer.handle);
 	}
 }

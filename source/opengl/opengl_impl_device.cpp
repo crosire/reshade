@@ -139,11 +139,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
-
-	// Communicate default state to add-ons
-	const api::resource_view default_rtv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-	const api::resource_view default_dsv = _default_depth_format != GL_NONE ? make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT) : make_resource_view_handle(0, 0);
-	invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 1, &default_rtv, default_dsv);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()

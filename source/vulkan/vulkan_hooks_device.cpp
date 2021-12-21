@@ -756,8 +756,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (queue_impl != nullptr)
 	{
-		if (swapchain_impl == nullptr)
-			swapchain_impl  = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
+		if (nullptr == swapchain_impl)
+			swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
 
 		swapchain_impl->on_init(*pSwapchain, create_info, hwnd);
 

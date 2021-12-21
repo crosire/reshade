@@ -33,9 +33,7 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compa
 
 	_back_buffer_format = convert_format(_default_color_format);
 
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
+	on_init(nullptr, 0, 0);
 }
 reshade::opengl::swapchain_impl::~swapchain_impl()
 {
@@ -68,10 +66,25 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
+
+	api::resource_view default_rtv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+	api::resource_view default_dsv = make_resource_view_handle(0, 0);
+	if (_default_depth_format != GL_NONE)
+	{
+		default_dsv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+		invoke_addon_event<addon_event::init_resource>(this, get_resource_desc(get_resource_from_view(default_dsv)), nullptr, api::resource_usage::depth_stencil, get_resource_from_view(default_dsv));
+		invoke_addon_event<addon_event::init_resource_view>(this, get_resource_from_view(default_dsv), api::resource_usage::depth_stencil, api::resource_view_desc(convert_format(_default_depth_format)), default_dsv);
+	}
+
+	// Communicate default state to add-ons
+	invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 1, &default_rtv, default_dsv);
 #endif
 
 	_width = width;
 	_height = height;
+
+	if (_width == 0 || _height == 0)
+		return true;
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture(_compatibility_context);
@@ -92,9 +105,18 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 }
 void reshade::opengl::swapchain_impl::on_reset()
 {
-	runtime::on_reset();
+	if (_width != 0 && _height != 0)
+		runtime::on_reset();
 
 #if RESHADE_ADDON
+	api::resource_view default_dsv = make_resource_view_handle(0, 0);
+	if (_default_depth_format != GL_NONE)
+	{
+		default_dsv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+		invoke_addon_event<addon_event::destroy_resource_view>(this, default_dsv);
+		invoke_addon_event<addon_event::destroy_resource>(this, get_resource_from_view(default_dsv));
+	}
+
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 

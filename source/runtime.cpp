@@ -160,8 +160,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 	{
 		// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
 		if (!_device->create_resource(
-			api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
-			nullptr, api::resource_usage::shader_resource, &_empty_tex))
+				api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
+				nullptr, api::resource_usage::shader_resource, &_empty_tex))
 		{
 			LOG(ERROR) << "Failed to create empty texture resource!";
 			goto exit_failure;
@@ -180,8 +180,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 	if (_effect_color_tex == 0)
 	{
 		if (!_device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
-			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
+				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+				nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
 		{
 			LOG(ERROR) << "Failed to create back buffer resource!";
 			goto exit_failure;
@@ -220,8 +220,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 		assert(_effect_stencil_format != api::format::unknown);
 
 		if (!_device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, _effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
-			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
+				api::resource_desc(_width, _height, 1, 1, _effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
+				nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
 		{
 			LOG(ERROR) << "Failed to create effect stencil resource!";
 			goto exit_failure;
@@ -1740,8 +1740,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	if (_renderer_id != 0x9000 && !effect.uniform_data_storage.empty())
 	{
 		if (!_device->create_resource(
-			api::resource_desc(effect.uniform_data_storage.size(), api::memory_heap::cpu_to_gpu, api::resource_usage::constant_buffer),
-			nullptr, api::resource_usage::cpu_access, &effect.cb))
+				api::resource_desc(effect.uniform_data_storage.size(), api::memory_heap::cpu_to_gpu, api::resource_usage::constant_buffer),
+				nullptr, api::resource_usage::cpu_access, &effect.cb))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
