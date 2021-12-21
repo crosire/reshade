@@ -3,7 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "d3d9_impl_device.hpp"
+#include <vector>
+#include <limits>
+#include "com_ptr.hpp"
+#include "reshade_api_pipeline.hpp"
 #include "d3d9_impl_type_convert.hpp"
 
 auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORMAT
@@ -17,6 +20,8 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 		break;
 	case api::format::r1_unorm:
 		return D3DFMT_A1;
+	case api::format::l8_unorm:
+		return D3DFMT_L8;
 	case api::format::a8_unorm:
 		return D3DFMT_A8;
 	case api::format::r8_typeless:
@@ -25,6 +30,8 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::r8_sint:
 	case api::format::r8_snorm:
 		return D3DFMT_L8;
+	case api::format::l8a8_unorm:
+		return D3DFMT_A8L8;
 	case api::format::r8g8_typeless:
 	case api::format::r8g8_unorm:
 	case api::format::r8g8_uint:
@@ -61,6 +68,7 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::b10g10r10a2_uint:
 	case api::format::b10g10r10a2_unorm:
 		return D3DFMT_A2R10G10B10;
+	case api::format::l16_unorm:
 	case api::format::r16_uint:
 	case api::format::r16_sint:
 	case api::format::r16_unorm:
@@ -69,6 +77,8 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::r16_typeless:
 	case api::format::r16_float:
 		return D3DFMT_R16F;
+	case api::format::l16a16_unorm:
+		break; // Unsupported
 	case api::format::r16g16_uint:
 	case api::format::r16g16_sint:
 	case api::format::r16g16_unorm:
@@ -172,10 +182,10 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 		return api::format::unknown;
 	case D3DFMT_A1:
 		return api::format::r1_unorm;
+	case D3DFMT_L8:
+		return api::format::l8_unorm;
 	case D3DFMT_A8:
 		return api::format::a8_unorm;
-	case D3DFMT_L8:
-		return api::format::r8_unorm;
 	case D3DFMT_A8B8G8R8:
 		return api::format::r8g8b8a8_unorm;
 	case D3DFMT_X8B8G8R8:
@@ -191,7 +201,7 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 	case D3DFMT_A2R10G10B10:
 		return api::format::b10g10r10a2_unorm;
 	case D3DFMT_L16:
-		return api::format::r16_uint;
+		return api::format::l16_unorm;
 	case D3DFMT_R16F:
 		return api::format::r16_float;
 	case D3DFMT_G16R16F:
@@ -291,22 +301,42 @@ void reshade::d3d9::convert_d3d_pool_to_memory_heap(D3DPOOL d3d_pool, api::memor
 	}
 }
 
+auto reshade::d3d9::convert_access_flags(api::map_access access) -> DWORD
+{
+	switch (access)
+	{
+	case api::map_access::read_only:
+		return D3DLOCK_READONLY;
+	case api::map_access::write_discard:
+		return D3DLOCK_DISCARD;
+	}
+	return 0;
+}
+reshade::api::map_access reshade::d3d9::convert_access_flags(DWORD lock_flags)
+{
+	if ((lock_flags & D3DLOCK_READONLY) != 0)
+		return reshade::api::map_access::read_only;
+	else if ((lock_flags & D3DLOCK_DISCARD) != 0)
+		return reshade::api::map_access::write_discard;
+	return reshade::api::map_access::read_write;
+}
+
 void reshade::d3d9::convert_resource_usage_to_d3d_usage(api::resource_usage usage, DWORD &d3d_usage)
 {
 	// Copying textures is implemented using the rasterization pipeline (see 'device_impl::copy_resource' implementation), so needs render target usage
 	// When the destination in 'IDirect3DDevice9::StretchRect' is a texture surface, it too has to have render target usage (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
-	if ((usage & (api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined)
+	if ((usage & (api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
 		d3d_usage |= D3DUSAGE_RENDERTARGET;
 	else
 		d3d_usage &= ~D3DUSAGE_RENDERTARGET;
 
-	if ((usage & (api::resource_usage::depth_stencil)) != api::resource_usage::undefined)
+	if ((usage & (api::resource_usage::depth_stencil)) != 0)
 		d3d_usage |= D3DUSAGE_DEPTHSTENCIL;
 	else
 		d3d_usage &= ~D3DUSAGE_DEPTHSTENCIL;
 
 	// Unordered access is not supported in D3D9
-	assert((usage & api::resource_usage::unordered_access) == api::resource_usage::undefined);
+	assert((usage & api::resource_usage::unordered_access) == 0);
 }
 void reshade::d3d9::convert_d3d_usage_to_resource_usage(DWORD d3d_usage, api::resource_usage &usage)
 {
@@ -336,7 +366,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 		// Volume textures cannot have render target or depth-stencil usage, so do not call 'convert_resource_usage_to_d3d_usage'
 		// See https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dusage
 
-		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
+		if ((desc.flags & api::resource_flags::dynamic) != 0 && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -346,7 +376,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 		}
 	}
 
-	assert((desc.flags & api::resource_flags::generate_mipmaps) != api::resource_flags::generate_mipmaps);
+	assert((desc.flags & api::resource_flags::generate_mipmaps) == 0);
 
 	if (levels != nullptr)
 		*levels = desc.texture.levels;
@@ -376,7 +406,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		if (desc.heap == api::memory_heap::gpu_only)
 			convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 
-		if (desc.type == api::resource_type::texture_2d && (desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
+		if (desc.type == api::resource_type::texture_2d && (desc.flags & api::resource_flags::dynamic) != 0 && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -386,7 +416,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		}
 	}
 
-	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
+	if ((desc.flags & api::resource_flags::cube_compatible) != 0)
 	{
 		assert(desc.texture.depth_or_layers == 6); // D3DRTYPE_CUBETEXTURE
 	}
@@ -395,7 +425,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		assert(desc.texture.depth_or_layers == 1);
 	}
 
-	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((desc.flags & api::resource_flags::generate_mipmaps) != 0)
 	{
 		assert(desc.type != api::resource_type::surface);
 
@@ -441,7 +471,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
 		}
 
-		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic)
+		if ((desc.flags & api::resource_flags::dynamic) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -476,7 +506,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
 		}
 
-		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic)
+		if ((desc.flags & api::resource_flags::dynamic) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -486,7 +516,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 		}
 	}
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels, bool shared_handle)
 {
 	assert(internal_desc.Type == D3DRTYPE_VOLUME || internal_desc.Type == D3DRTYPE_VOLUMETEXTURE);
 
@@ -505,9 +535,12 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME
 	if (internal_desc.Type == D3DRTYPE_VOLUMETEXTURE)
 		desc.usage |= api::resource_usage::shader_resource;
 
+	if (shared_handle)
+		desc.flags |= api::resource_flags::shared;
+
 	return desc;
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps, bool shared_handle)
 {
 	assert(internal_desc.Type == D3DRTYPE_SURFACE || internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE);
 
@@ -558,7 +591,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 
 	// Copying is restricted by limitations of 'IDirect3DDevice9::StretchRect' (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
 	// or performing copy between two textures using rasterization pipeline (see 'device_impl::copy_resource' implementation)
-	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Type == D3DRTYPE_SURFACE || (internal_desc.Type == D3DRTYPE_TEXTURE && (caps.DevCaps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES) != 0)))
+	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Type == D3DRTYPE_SURFACE || (caps.DevCaps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES) != 0))
 	{
 		switch (static_cast<DWORD>(internal_desc.Format))
 		{
@@ -598,6 +631,14 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 			break;
 		}
 	}
+	else if (internal_desc.Pool == D3DPOOL_SYSTEMMEM)
+	{
+		// Implemented via 'IDirect3DDevice9::GetRenderTargetData' and 'IDirect3DDevice9::UpdateSurface'
+		desc.usage |= api::resource_usage::copy_source | api::resource_usage::copy_dest;
+	}
+
+	if (shared_handle)
+		desc.flags |= api::resource_flags::shared;
 
 	if (internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.flags |= api::resource_flags::cube_compatible;
@@ -608,7 +649,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 
 	return desc;
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc, bool shared_handle)
 {
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
@@ -619,6 +660,9 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXB
 		convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	desc.usage = api::resource_usage::index_buffer;
 
+	if (shared_handle)
+		desc.flags |= api::resource_flags::shared;
+
 	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
 	{
 		desc.heap = api::memory_heap::cpu_to_gpu;
@@ -627,7 +671,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXB
 
 	return desc;
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc, bool shared_handle)
 {
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
@@ -637,6 +681,9 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 	else
 		convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	desc.usage = api::resource_usage::vertex_buffer;
+
+	if (shared_handle)
+		desc.flags |= api::resource_flags::shared;
 
 	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
 	{
@@ -654,8 +701,9 @@ void reshade::d3d9::convert_pipeline_desc(const api::pipeline_desc &desc, std::v
 
 	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
 	{
-		auto &internal_element = internal_elements.emplace_back();
-		const api::input_layout_element &element = desc.graphics.input_layout[i];
+		const api::input_element &element = desc.graphics.input_layout[i];
+
+		D3DVERTEXELEMENT9 &internal_element = internal_elements.emplace_back();
 
 		assert(element.buffer_binding <= std::numeric_limits<WORD>::max());
 		internal_element.Stream = static_cast<WORD>(element.buffer_binding);
@@ -762,10 +810,14 @@ reshade::api::pipeline_desc reshade::d3d9::convert_pipeline_desc(const D3DVERTEX
 {
 	api::pipeline_desc desc = { api::pipeline_stage::input_assembler };
 
-	for (UINT i = 0; i < 16 && elements != nullptr && elements->Stream != 0xFF; ++i, ++elements)
+	if (elements == nullptr)
+		return desc;
+
+	for (UINT i = 0; i < 16 && elements[i].Stream != 0xFF; ++i)
 	{
-		const auto &internal_element = *elements;
-		api::input_layout_element &element = desc.graphics.input_layout[i];
+		api::input_element &element = desc.graphics.input_layout[i];
+
+		const D3DVERTEXELEMENT9 &internal_element = elements[i];
 
 		element.buffer_binding = internal_element.Stream;
 		element.offset = internal_element.Offset;
@@ -900,31 +952,31 @@ auto reshade::d3d9::convert_blend_factor(D3DBLEND value) -> api::blend_factor
 	case D3DBLEND_ONE:
 		return api::blend_factor::one;
 	case D3DBLEND_SRCCOLOR:
-		return api::blend_factor::src_color;
+		return api::blend_factor::source_color;
 	case D3DBLEND_INVSRCCOLOR:
-		return api::blend_factor::inv_src_color;
+		return api::blend_factor::one_minus_source_color;
 	case D3DBLEND_DESTCOLOR:
-		return api::blend_factor::dst_color;
+		return api::blend_factor::dest_color;
 	case D3DBLEND_INVDESTCOLOR:
-		return api::blend_factor::inv_dst_color;
+		return api::blend_factor::one_minus_dest_color;
 	case D3DBLEND_SRCALPHA:
-		return api::blend_factor::src_alpha;
+		return api::blend_factor::source_alpha;
 	case D3DBLEND_INVSRCALPHA:
-		return api::blend_factor::inv_src_alpha;
+		return api::blend_factor::one_minus_source_alpha;
 	case D3DBLEND_DESTALPHA:
-		return api::blend_factor::dst_alpha;
+		return api::blend_factor::dest_alpha;
 	case D3DBLEND_INVDESTALPHA:
-		return api::blend_factor::inv_dst_alpha;
+		return api::blend_factor::one_minus_dest_alpha;
 	case D3DBLEND_BLENDFACTOR:
 		return api::blend_factor::constant_color;
 	case D3DBLEND_INVBLENDFACTOR:
-		return api::blend_factor::inv_constant_color;
+		return api::blend_factor::one_minus_constant_color;
 	case D3DBLEND_SRCALPHASAT:
-		return api::blend_factor::src_alpha_sat;
+		return api::blend_factor::source_alpha_saturate;
 	case D3DBLEND_SRCCOLOR2:
-		return api::blend_factor::src1_color;
+		return api::blend_factor::source1_color;
 	case D3DBLEND_INVSRCCOLOR2:
-		return api::blend_factor::inv_src1_color;
+		return api::blend_factor::one_minus_source1_color;
 	}
 }
 auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
@@ -938,43 +990,43 @@ auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
 		return D3DBLEND_ZERO;
 	case api::blend_factor::one:
 		return D3DBLEND_ONE;
-	case api::blend_factor::src_color:
+	case api::blend_factor::source_color:
 		return D3DBLEND_SRCCOLOR;
-	case api::blend_factor::inv_src_color:
+	case api::blend_factor::one_minus_source_color:
 		return D3DBLEND_INVSRCCOLOR;
-	case api::blend_factor::dst_color:
+	case api::blend_factor::dest_color:
 		return D3DBLEND_DESTCOLOR;
-	case api::blend_factor::inv_dst_color:
+	case api::blend_factor::one_minus_dest_color:
 		return D3DBLEND_INVDESTCOLOR;
-	case api::blend_factor::src_alpha:
+	case api::blend_factor::source_alpha:
 		return D3DBLEND_SRCALPHA;
-	case api::blend_factor::inv_src_alpha:
+	case api::blend_factor::one_minus_source_alpha:
 		return D3DBLEND_INVSRCALPHA;
-	case api::blend_factor::dst_alpha:
+	case api::blend_factor::dest_alpha:
 		return D3DBLEND_DESTALPHA;
-	case api::blend_factor::inv_dst_alpha:
+	case api::blend_factor::one_minus_dest_alpha:
 		return D3DBLEND_INVDESTALPHA;
 	case api::blend_factor::constant_alpha:
 		assert(false);
 		[[fallthrough]];
 	case api::blend_factor::constant_color:
 		return D3DBLEND_BLENDFACTOR;
-	case api::blend_factor::inv_constant_alpha:
+	case api::blend_factor::one_minus_constant_alpha:
 		assert(false);
 		[[fallthrough]];
-	case api::blend_factor::inv_constant_color:
+	case api::blend_factor::one_minus_constant_color:
 		return D3DBLEND_INVBLENDFACTOR;
-	case api::blend_factor::src_alpha_sat:
+	case api::blend_factor::source_alpha_saturate:
 		return D3DBLEND_SRCALPHASAT;
-	case api::blend_factor::src1_alpha:
+	case api::blend_factor::source1_alpha:
 		assert(false);
 		[[fallthrough]];
-	case api::blend_factor::src1_color:
+	case api::blend_factor::source1_color:
 		return D3DBLEND_SRCCOLOR2;
-	case api::blend_factor::inv_src1_alpha:
+	case api::blend_factor::one_minus_source1_alpha:
 		assert(false);
 		[[fallthrough]];
-	case api::blend_factor::inv_src1_color:
+	case api::blend_factor::one_minus_source1_color:
 		return D3DBLEND_INVSRCCOLOR2;
 	}
 }
@@ -1014,6 +1066,22 @@ auto reshade::d3d9::convert_stencil_op(api::stencil_op value) -> D3DSTENCILOP
 {
 	return static_cast<D3DSTENCILOP>(static_cast<uint32_t>(value) + 1);
 }
+auto reshade::d3d9::convert_primitive_topology(D3DPRIMITIVETYPE value) -> api::primitive_topology
+{
+	return static_cast<api::primitive_topology>(value);
+}
+auto reshade::d3d9::convert_primitive_topology(api::primitive_topology value) -> D3DPRIMITIVETYPE
+{
+	static_assert(
+		(DWORD)reshade::api::primitive_topology::point_list     == D3DPT_POINTLIST &&
+		(DWORD)reshade::api::primitive_topology::line_list      == D3DPT_LINELIST &&
+		(DWORD)reshade::api::primitive_topology::line_strip     == D3DPT_LINESTRIP &&
+		(DWORD)reshade::api::primitive_topology::triangle_list  == D3DPT_TRIANGLELIST &&
+		(DWORD)reshade::api::primitive_topology::triangle_strip == D3DPT_TRIANGLESTRIP &&
+		(DWORD)reshade::api::primitive_topology::triangle_fan   == D3DPT_TRIANGLEFAN);
+
+	return static_cast<D3DPRIMITIVETYPE>(value);
+}
 auto reshade::d3d9::convert_query_type(api::query_type value) -> D3DQUERYTYPE
 {
 	switch (value)
@@ -1025,8 +1093,55 @@ auto reshade::d3d9::convert_query_type(api::query_type value) -> D3DQUERYTYPE
 		return D3DQUERYTYPE_TIMESTAMP;
 	default:
 		assert(false);
-		return static_cast<D3DQUERYTYPE>(0xFFFFFFFF);
+		return static_cast<D3DQUERYTYPE>(UINT32_MAX);
 	}
+}
+auto reshade::d3d9::convert_dynamic_state(D3DRENDERSTATETYPE value) -> api::dynamic_state
+{
+	return static_cast<api::dynamic_state>(value);
+}
+auto reshade::d3d9::convert_dynamic_state(api::dynamic_state value) -> D3DRENDERSTATETYPE
+{
+	static_assert(
+		(DWORD)reshade::api::dynamic_state::depth_enable                == D3DRS_ZENABLE &&
+		(DWORD)reshade::api::dynamic_state::fill_mode                   == D3DRS_FILLMODE &&
+		(DWORD)reshade::api::dynamic_state::depth_write_mask            == D3DRS_ZWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::alpha_test_enable           == D3DRS_ALPHATESTENABLE &&
+		(DWORD)reshade::api::dynamic_state::source_color_blend_factor   == D3DRS_SRCBLEND &&
+		(DWORD)reshade::api::dynamic_state::dest_color_blend_factor     == D3DRS_DESTBLEND &&
+		(DWORD)reshade::api::dynamic_state::cull_mode                   == D3DRS_CULLMODE &&
+		(DWORD)reshade::api::dynamic_state::depth_func                  == D3DRS_ZFUNC &&
+		(DWORD)reshade::api::dynamic_state::alpha_reference_value       == D3DRS_ALPHAREF &&
+		(DWORD)reshade::api::dynamic_state::alpha_func                  == D3DRS_ALPHAFUNC &&
+		(DWORD)reshade::api::dynamic_state::blend_enable                == D3DRS_ALPHABLENDENABLE &&
+		(DWORD)reshade::api::dynamic_state::stencil_enable              == D3DRS_STENCILENABLE &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_fail_op       == D3DRS_STENCILFAIL &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_depth_fail_op == D3DRS_STENCILZFAIL &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_pass_op       == D3DRS_STENCILPASS &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_func          == D3DRS_STENCILFUNC &&
+		(DWORD)reshade::api::dynamic_state::stencil_reference_value     == D3DRS_STENCILREF &&
+		(DWORD)reshade::api::dynamic_state::stencil_read_mask           == D3DRS_STENCILMASK &&
+		(DWORD)reshade::api::dynamic_state::stencil_write_mask          == D3DRS_STENCILWRITEMASK &&
+		(DWORD)reshade::api::dynamic_state::depth_clip_enable           == D3DRS_CLIPPING &&
+		(DWORD)reshade::api::dynamic_state::multisample_enable          == D3DRS_MULTISAMPLEANTIALIAS &&
+		(DWORD)reshade::api::dynamic_state::sample_mask                 == D3DRS_MULTISAMPLEMASK &&
+		(DWORD)reshade::api::dynamic_state::render_target_write_mask    == D3DRS_COLORWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::color_blend_op              == D3DRS_BLENDOP &&
+		(DWORD)reshade::api::dynamic_state::scissor_enable              == D3DRS_SCISSORTESTENABLE &&
+		(DWORD)reshade::api::dynamic_state::depth_bias_slope_scaled     == D3DRS_SLOPESCALEDEPTHBIAS &&
+		(DWORD)reshade::api::dynamic_state::antialiased_line_enable     == D3DRS_ANTIALIASEDLINEENABLE &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_fail_op        == D3DRS_CCW_STENCILFAIL &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_depth_fail_op  == D3DRS_CCW_STENCILZFAIL &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_pass_op        == D3DRS_CCW_STENCILPASS &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_func           == D3DRS_CCW_STENCILFUNC &&
+		(DWORD)reshade::api::dynamic_state::blend_constant              == D3DRS_BLENDFACTOR &&
+		(DWORD)reshade::api::dynamic_state::srgb_write_enable           == D3DRS_SRGBWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::depth_bias                  == D3DRS_DEPTHBIAS &&
+		(DWORD)reshade::api::dynamic_state::source_alpha_blend_factor   == D3DRS_SRCBLENDALPHA &&
+		(DWORD)reshade::api::dynamic_state::dest_alpha_blend_factor     == D3DRS_DESTBLENDALPHA &&
+		(DWORD)reshade::api::dynamic_state::alpha_blend_op              == D3DRS_BLENDOPALPHA);
+
+	return static_cast<D3DRENDERSTATETYPE>(value);
 }
 
 UINT reshade::d3d9::calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count)

@@ -1,10 +1,17 @@
-﻿<Window x:Class="ReShade.Setup.Dialogs.SelectPackagesDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ReShade.Setup.Dialogs" Title="Select effect packages" Width="510" Height="638" MinWidth="355" MinHeight="275" WindowStyle="None" WindowStartupLocation="CenterOwner" FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
+﻿<Page x:Class="ReShade.Setup.Pages.SelectPackagesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:local="clr-namespace:ReShade.Setup.Pages"
+      mc:Ignorable="d"
+      d:DesignWidth="510" d:DesignHeight="638"
+      Width="Auto" Height="Auto"
+      FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
-    <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effect packages to install:" />
-    <DockPanel DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
-      <Button Width="100" Margin="10,15" Content="Uncheck _all" Click="OnCheck" KeyboardNavigation.TabIndex="2" />
-      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Skip" Click="OnCancel" IsCancel="True" KeyboardNavigation.TabIndex="1" />
-      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_OK" Click="OnConfirm" IsDefault="True" KeyboardNavigation.TabIndex="0" />
+    <DockPanel DockPanel.Dock="Top">
+      <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effect packages to install:" />
+      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
     <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Check all effect packages you want to install or update or click on Skip to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).&#10;You will get prompted to select individual effects for packages with a filled out checkbox. Those with a checkmark will instead have all effects installed." />
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
@@ -14,7 +21,7 @@
         <ColumnDefinition Width="100" />
       </Grid.ColumnDefinitions>
       <TextBox x:Name="PathBox" Grid.Column="0" Text="Enter ZIP download link to custom repository here" GotFocus="OnTextBoxGotFocus" />
-      <Button Grid.Column="2" Content="Add" Click="OnAddPackage" />
+      <Button Grid.Column="2" Content="Add" Click="OnAddPackageButtonClick" />
     </Grid>
     <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>
@@ -59,4 +66,4 @@
       </ListBox.ItemTemplate>
     </ListBox>
   </DockPanel>
-</Window>
+</Page>

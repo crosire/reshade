@@ -1,5 +1,5 @@
 ﻿/*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * Copyright (C) 2021 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 
@@ -11,15 +11,15 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using System.Text.RegularExpressions;
 using System.Xml;
 
 static class StringExtensionMethods
@@ -45,11 +45,51 @@ static class HashSetExtensionMethods
 	}
 }
 
-namespace ReShade.Setup.Dialogs
+namespace ReShade.Setup.Pages
 {
-	public partial class SelectAppDialog : Window
+	public partial class SelectAppPage : Page
 	{
-		public SelectAppDialog()
+		class ProgramItem
+		{
+			public ProgramItem(string path, FileVersionInfo info)
+			{
+				Path = path;
+				Name = info.FileDescription;
+				if (Name is null || Name.Trim().Length == 0)
+				{
+					Name = System.IO.Path.GetFileNameWithoutExtension(path);
+				}
+
+				Name += " (" + System.IO.Path.GetFileName(path) + ")";
+
+				using (var ico = System.Drawing.Icon.ExtractAssociatedIcon(path))
+				{
+					Icon = Imaging.CreateBitmapSourceFromHIcon(ico.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+				}
+
+				try
+				{
+					LastAccess = File.GetLastAccessTime(path).ToString("s");
+				}
+				catch
+				{
+					LastAccess = string.Empty;
+				}
+			}
+
+			public string Name { get; }
+			public string Path { get; }
+			public ImageSource Icon { get; }
+			public string LastAccess { get; }
+		}
+
+		Thread UpdateThread = null;
+		AutoResetEvent SuspendUpdateThreadEvent = new AutoResetEvent(false);
+		bool SuspendUpdateThread = false;
+		public string FileName { get => PathBox.Text; private set => PathBox.Text = value; }
+		ObservableCollection<ProgramItem> ProgramListItems = new ObservableCollection<ProgramItem>();
+
+		public SelectAppPage()
 		{
 			InitializeComponent();
 
@@ -249,58 +289,17 @@ namespace ReShade.Setup.Dialogs
 					}
 				}
 #endif
-
-				// Hide progress bar after search has finished
-				Dispatcher.BeginInvoke(new Action(() =>
-				{
-					ProgramListProgress.Visibility = Visibility.Collapsed;
-				}));
 			});
 
 			UpdateThread.Start();
 		}
 
-		class ProgramItem
+		public void Cancel()
 		{
-			public ProgramItem(string path, FileVersionInfo info)
-			{
-				Path = path;
-				Name = info.FileDescription;
-				if (Name is null || Name.Trim().Length == 0)
-				{
-					Name = System.IO.Path.GetFileNameWithoutExtension(path);
-				}
-
-				Name += " (" + System.IO.Path.GetFileName(path) + ")";
-
-				using (var ico = System.Drawing.Icon.ExtractAssociatedIcon(path))
-				{
-					Icon = Imaging.CreateBitmapSourceFromHIcon(ico.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-				}
-
-				try
-				{
-					LastAccess = File.GetLastAccessTime(path).ToString("s");
-				}
-				catch
-				{
-					LastAccess = string.Empty;
-				}
-			}
-
-			public string Name { get; }
-			public string Path { get; }
-			public ImageSource Icon { get; }
-			public string LastAccess { get; }
+			UpdateThread.Abort();
 		}
 
-		Thread UpdateThread = null;
-		AutoResetEvent SuspendUpdateThreadEvent = new AutoResetEvent(false);
-		bool SuspendUpdateThread = false;
-		public string FileName { get => PathBox.Text; private set => PathBox.Text = value; }
-		ObservableCollection<ProgramItem> ProgramListItems = new ObservableCollection<ProgramItem>();
-
-		void OnBrowse(object sender, RoutedEventArgs e)
+		private void OnBrowseClick(object sender, RoutedEventArgs e)
 		{
 			SuspendUpdateThread = true;
 
@@ -316,8 +315,8 @@ namespace ReShade.Setup.Dialogs
 			if (dlg.ShowDialog() == true)
 			{
 				UpdateThread.Abort();
+
 				FileName = dlg.FileName;
-				DialogResult = true;
 			}
 			else
 			{
@@ -326,31 +325,12 @@ namespace ReShade.Setup.Dialogs
 			}
 		}
 
-		void OnCancel(object sender, RoutedEventArgs e)
+		private void OnPathGotFocus(object sender, RoutedEventArgs e)
 		{
-			UpdateThread.Abort();
-			DialogResult = false;
+			Dispatcher.BeginInvoke(new Action(PathBox.SelectAll));
 		}
 
-		void OnConfirm(object sender, RoutedEventArgs e)
-		{
-			// Only close dialog if an actual item was selected in the list
-			if (!string.IsNullOrEmpty(FileName) && Path.GetExtension(FileName) == ".exe" && File.Exists(FileName))
-			{
-				UpdateThread.Abort();
-				DialogResult = true;
-			}
-		}
-
-		void OnConfirmSelection(object sender, MouseButtonEventArgs e)
-		{
-			if (e.ChangedButton == MouseButton.Left && e.ButtonState == MouseButtonState.Pressed)
-			{
-				OnConfirm(sender, null);
-			}
-		}
-
-		void OnPathChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+		private void OnPathTextChanged(object sender, TextChangedEventArgs e)
 		{
 			OnSortByChanged(sender, null);
 
@@ -359,12 +339,8 @@ namespace ReShade.Setup.Dialogs
 				ProgramList.UnselectAll();
 			}
 		}
-		void OnPathGotFocus(object sender, RoutedEventArgs e)
-		{
-			Dispatcher.BeginInvoke(new Action(() => PathBox.SelectAll()));
-		}
 
-		void OnSortByChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+		private void OnSortByChanged(object sender, SelectionChangedEventArgs e)
 		{
 			var view = CollectionViewSource.GetDefaultView(ProgramListItems);
 
@@ -391,11 +367,14 @@ namespace ReShade.Setup.Dialogs
 					break;
 			}
 		}
-		void OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+
+		private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
 			if (ProgramList.SelectedItem is ProgramItem item)
 			{
 				FileName = item.Path;
+
+				ProgramList.ScrollIntoView(item);
 			}
 		}
 	}

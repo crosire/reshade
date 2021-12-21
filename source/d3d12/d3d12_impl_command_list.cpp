@@ -23,8 +23,6 @@ void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
 {
-	_current_fbo = new framebuffer_impl();
-
 #if RESHADE_ADDON
 	if (_has_commands) // Do not call add-on event for immediate command list
 		invoke_addon_event<addon_event::init_command_list>(this);
@@ -36,8 +34,6 @@ reshade::d3d12::command_list_impl::~command_list_impl()
 	if (_has_commands)
 		invoke_addon_event<addon_event::destroy_command_list>(this);
 #endif
-
-	delete _current_fbo;
 }
 
 reshade::api::device *reshade::d3d12::command_list_impl::get_device()
@@ -52,8 +48,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 
 	_has_commands = true;
 
-	const auto barriers = static_cast<D3D12_RESOURCE_BARRIER *>(_malloca(count * sizeof(D3D12_RESOURCE_BARRIER)));
-
+	temp_mem<D3D12_RESOURCE_BARRIER> barriers(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		if (old_states[i] == api::resource_usage::unordered_access && new_states[i] == api::resource_usage::unordered_access)
@@ -73,38 +68,93 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 		}
 	}
 
-	_orig->ResourceBarrier(count, barriers);
-
-	_freea(barriers);
+	_orig->ResourceBarrier(count, barriers.p);
 }
 
-void reshade::d3d12::command_list_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
+void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
-	assert(fbo.handle != 0);
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+	assert(count <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	// It is not allowed to call "ClearRenderTargetView", "ClearDepthStencilView" etc. inside a render pass, which would break the "command_impl::clear_attachments" implementation, so use plain old "OMSetRenderTargets" instead of render pass API
-	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->rtv_is_single_handle_to_range, fbo_impl->dsv.ptr != 0 ? &fbo_impl->dsv : nullptr);
+	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	{
+		temp_mem<D3D12_RENDER_PASS_RENDER_TARGET_DESC, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rt_desc(count);
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			rt_desc[i].cpuDescriptor = { static_cast<SIZE_T>(rts[i].view.handle) };
+			rt_desc[i].BeginningAccess.Type = convert_render_pass_load_op(rts[i].load_op);
+			rt_desc[i].EndingAccess.Type = convert_render_pass_store_op(rts[i].store_op);
 
-	std::memcpy(_current_fbo, fbo_impl, sizeof(framebuffer_impl));
+			if (rts[i].load_op == api::render_pass_load_op::clear)
+			{
+				rt_desc[i].BeginningAccess.Clear.ClearValue.Format = convert_format(_device_impl->get_resource_view_desc(rts[i].view).format);
+				std::copy_n(rts[i].clear_color, 4, rt_desc[i].BeginningAccess.Clear.ClearValue.Color);
+			}
+		}
+
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depth_stencil_desc = {};
+		if (ds != nullptr && ds->view.handle != 0)
+		{
+			depth_stencil_desc.cpuDescriptor = { static_cast<SIZE_T>(ds->view.handle) };
+			depth_stencil_desc.DepthBeginningAccess.Type = convert_render_pass_load_op(ds->depth_load_op);
+			depth_stencil_desc.StencilBeginningAccess.Type = convert_render_pass_load_op(ds->stencil_load_op);
+			depth_stencil_desc.DepthEndingAccess.Type = convert_render_pass_store_op(ds->depth_store_op);
+			depth_stencil_desc.StencilEndingAccess.Type = convert_render_pass_store_op(ds->stencil_store_op);
+
+			if (ds->depth_load_op == api::render_pass_load_op::clear)
+			{
+				depth_stencil_desc.DepthBeginningAccess.Clear.ClearValue.Format = convert_format(_device_impl->get_resource_view_desc(ds->view).format);
+				depth_stencil_desc.DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth = ds->clear_depth;
+			}
+			if (ds->stencil_load_op == api::render_pass_load_op::clear)
+			{
+				depth_stencil_desc.StencilBeginningAccess.Clear.ClearValue.Format = convert_format(_device_impl->get_resource_view_desc(ds->view).format);
+				depth_stencil_desc.StencilBeginningAccess.Clear.ClearValue.DepthStencil.Stencil = ds->clear_stencil;
+			}
+		}
+
+		cmd_list4->BeginRenderPass(count, rt_desc.p, ds != nullptr ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+	}
+	else
+	{
+		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_handles(count);
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			rtv_handles[i] = { static_cast<SIZE_T>(rts[i].view.handle) };
+
+			if (rts[i].load_op == api::render_pass_load_op::clear)
+				_orig->ClearRenderTargetView(rtv_handles[i], rts[i].clear_color, 0, nullptr);
+		}
+
+		D3D12_CPU_DESCRIPTOR_HANDLE depth_stencil_handle = {};
+		if (ds != nullptr && ds->view.handle != 0)
+		{
+			depth_stencil_handle = { static_cast<SIZE_T>(ds->view.handle) };
+
+			if (const UINT clear_flags = (ds->depth_load_op == api::render_pass_load_op::clear ? D3D12_CLEAR_FLAG_DEPTH : 0) | (ds->stencil_load_op == api::render_pass_load_op::clear ? D3D12_CLEAR_FLAG_STENCIL : 0))
+				_orig->ClearDepthStencilView(depth_stencil_handle, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), ds->clear_depth, ds->clear_stencil, 0, nullptr);
+		}
+
+		_orig->OMSetRenderTargets(count, rtv_handles.p, FALSE, ds != nullptr ? &depth_stencil_handle : nullptr);
+	}
 }
-void reshade::d3d12::command_list_impl::finish_render_pass()
+void reshade::d3d12::command_list_impl::end_render_pass()
 {
-	_current_fbo->count = 0;
-	_current_fbo->dsv.ptr = 0;
+	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	{
+		cmd_list4->EndRenderPass();
+	}
 }
 void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
-	if (count > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT)
-	{
-		assert(false);
-		count = D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
-	}
+	assert(count <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
 #ifndef WIN64
-	D3D12_CPU_DESCRIPTOR_HANDLE rtv_handles[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_handles_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
-		rtv_handles[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
+		rtv_handles_mem[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
+	const auto rtv_handles = rtv_handles_mem.p;
 #else
 	const auto rtv_handles = reinterpret_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(rtvs);
 #endif
@@ -116,17 +166,18 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
-	assert(type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
+	assert(type == api::pipeline_stage::all || type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
 
 	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
 	_orig->SetPipelineState(pipeline_object);
 
-	pipeline_graphics_impl extra_data;
+	pipeline_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
 	if (type == api::pipeline_stage::all_graphics &&
 		SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		_orig->IASetPrimitiveTopology(extra_data.topology);
+		_orig->OMSetBlendFactor(extra_data.blend_constant);
 	}
 }
 void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
@@ -142,15 +193,14 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			blend_factor[1] = ((values[i] >>  4) & 0xFF) / 255.0f;
 			blend_factor[2] = ((values[i] >>  8) & 0xFF) / 255.0f;
 			blend_factor[3] = ((values[i] >> 12) & 0xFF) / 255.0f;
-
 			_orig->OMSetBlendFactor(blend_factor);
 			break;
 		}
-		case api::dynamic_state::primitive_topology:
-			_orig->IASetPrimitiveTopology(static_cast<D3D12_PRIMITIVE_TOPOLOGY>(values[i]));
-			break;
 		case api::dynamic_state::stencil_reference_value:
 			_orig->OMSetStencilRef(values[i]);
+			break;
+		case api::dynamic_state::primitive_topology:
+			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		default:
 			assert(false);
@@ -158,15 +208,17 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 		}
 	}
 }
-void reshade::d3d12::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::d3d12::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
-	assert(first == 0);
+	if (first != 0)
+		return;
 
 	_orig->RSSetViewports(count, reinterpret_cast<const D3D12_VIEWPORT *>(viewports));
 }
-void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
-	assert(first == 0);
+	if (first != 0)
+		return;
 
 	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
@@ -198,18 +250,16 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 }
 void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.set.handle == 0 && update.offset == 0);
+	assert(update.set.handle == 0 && update.binding == 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 	if (update.type != api::descriptor_type::sampler ?
-		!_device_impl->_gpu_view_heap.allocate_transient(update.offset + update.count, base_handle, base_handle_gpu) :
-		!_device_impl->_gpu_sampler_heap.allocate_transient(update.offset + update.count, base_handle, base_handle_gpu))
+		!_device_impl->_gpu_view_heap.allocate_transient(update.count, base_handle, base_handle_gpu) :
+		!_device_impl->_gpu_sampler_heap.allocate_transient(update.count, base_handle, base_handle_gpu))
 		return;
 
 	const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(update.type);
-
-	base_handle = _device_impl->offset_descriptor_handle(base_handle, update.offset, heap_type);
 
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
@@ -249,7 +299,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
 			view_desc.BufferLocation = buffer_resource->GetGPUVirtualAddress() + buffer_range.offset;
-			view_desc.SizeInBytes = static_cast<UINT>(buffer_range.size == std::numeric_limits<uint64_t>::max() ? buffer_resource->GetDesc().Width : buffer_range.size);
+			view_desc.SizeInBytes = (buffer_range.size == UINT64_MAX) ? static_cast<UINT>(buffer_resource->GetDesc().Width) : static_cast<UINT>(buffer_range.size);
 
 			_device_impl->_orig->CreateConstantBufferView(&view_desc, base_handle);
 		}
@@ -257,21 +307,17 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	else if (update.type == api::descriptor_type::sampler || update.type == api::descriptor_type::shader_resource_view || update.type == api::descriptor_type::unordered_access_view)
 	{
 #ifndef WIN64
-		auto src_handles = static_cast<D3D12_CPU_DESCRIPTOR_HANDLE *>(_malloca(update.count * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE)));
+		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(update.count);
 		for (uint32_t k = 0; k < update.count; ++k)
 			src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(update.descriptors)[k]) };
 		const UINT src_range_size = 1;
 
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles, &src_range_size, convert_descriptor_type_to_heap_type(update.type));
-
-		_freea(src_handles);
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles.p, &src_range_size, convert_descriptor_type_to_heap_type(update.type));
 #else
-		auto src_range_sizes = static_cast<UINT *>(_malloca(update.count * sizeof(UINT)));
-		std::fill(src_range_sizes, src_range_sizes + update.count, 1);
+		temp_mem<UINT> src_range_sizes(update.count);
+		std::fill(src_range_sizes.p, src_range_sizes.p + update.count, 1);
 
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes, convert_descriptor_type_to_heap_type(update.type));
-
-		_freea(src_range_sizes);
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.p, convert_descriptor_type_to_heap_type(update.type));
 #endif
 	}
 	else
@@ -293,7 +339,11 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 
 	// Change descriptor heaps to internal ones if descriptor sets were allocated from them
 	if ((_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() || _current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get()) &&
-		(_device_impl->_gpu_sampler_heap.contains(D3D12_GPU_DESCRIPTOR_HANDLE { sets[0].handle }) || _device_impl->_gpu_view_heap.contains(D3D12_GPU_DESCRIPTOR_HANDLE { sets[0].handle })))
+#if RESHADE_ADDON
+		((sets[0].handle >> 24) & 0xFF) < 2) // Heap index 0 or 1
+#else
+		(_device_impl->_gpu_sampler_heap.contains(_device_impl->convert_to_original_gpu_descriptor_handle(sets[0])) || _device_impl->_gpu_view_heap.contains(_device_impl->convert_to_original_gpu_descriptor_handle(sets[0]))))
+#endif
 	{
 		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
 		_orig->SetDescriptorHeaps(2, heaps);
@@ -313,7 +363,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 		}
 
 		for (uint32_t i = 0; i < count; ++i)
-			_orig->SetComputeRootDescriptorTable(first + i, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle });
+			_orig->SetComputeRootDescriptorTable(first + i, _device_impl->convert_to_original_gpu_descriptor_handle(sets[i]));
 	}
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
 	{
@@ -324,7 +374,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 		}
 
 		for (uint32_t i = 0; i < count; ++i)
-			_orig->SetGraphicsRootDescriptorTable(first + i, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle });
+			_orig->SetGraphicsRootDescriptorTable(first + i, _device_impl->convert_to_original_gpu_descriptor_handle(sets[i]));
 	}
 }
 
@@ -350,14 +400,9 @@ void reshade::d3d12::command_list_impl::bind_index_buffer(api::resource buffer, 
 }
 void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	if (count > D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
-	}
+	assert(count <= D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
-	D3D12_VERTEX_BUFFER_VIEW views[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-
+	temp_mem<D3D12_VERTEX_BUFFER_VIEW, D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> views(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
@@ -367,7 +412,7 @@ void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint
 		views[i].StrideInBytes = strides[i];
 	}
 
-	_orig->IASetVertexBuffers(first, count, views);
+	_orig->IASetVertexBuffers(first, count, views.p);
 }
 
 void reshade::d3d12::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
@@ -407,12 +452,12 @@ void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, ui
 
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (size == std::numeric_limits<uint64_t>::max())
+	if (size == UINT64_MAX)
 		size  = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc().Width;
 
 	_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(src.handle), src_offset, size);
 }
-void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
 	_has_commands = true;
 
@@ -423,9 +468,9 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 	D3D12_BOX src_box = {};
 	if (dst_box != nullptr)
 	{
-		src_box.right = src_box.left + (dst_box[3] - dst_box[0]);
-		src_box.bottom = src_box.top + (dst_box[4] - dst_box[1]);
-		src_box.back = src_box.front + (dst_box[5] - dst_box[2]);
+		src_box.right = src_box.left + (dst_box->right - dst_box->left);
+		src_box.bottom = src_box.top + (dst_box->bottom - dst_box->top);
+		src_box.back = src_box.front + (dst_box->back - dst_box->front);
 	}
 	else
 	{
@@ -450,18 +495,18 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 	dst_copy_location.SubresourceIndex = dst_subresource;
 
 	_orig->CopyTextureRegion(
-		&dst_copy_location, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, dst_box != nullptr ? dst_box[2] : 0,
+		&dst_copy_location, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
 		&src_copy_location, &src_box);
 }
-void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_mode)
+void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode)
 {
 	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-		(dst_box[3] - dst_box[0]) == (src_box[3] - src_box[0]) && // Blit between different region dimensions is not supported
-		(dst_box[4] - dst_box[1]) == (src_box[4] - src_box[1]) &&
-		(dst_box[5] - dst_box[2]) == (src_box[5] - src_box[2])));
+		(dst_box->right - dst_box->left) == (src_box->right - src_box->left) && // Blit between different region dimensions is not supported
+		(dst_box->bottom - dst_box->top) == (src_box->bottom - src_box->top) &&
+		(dst_box->back - dst_box->front) == (src_box->back - src_box->front)));
 
 	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
 	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
@@ -474,16 +519,17 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 	dst_copy_location.SubresourceIndex = dst_subresource;
 
 	_orig->CopyTextureRegion(
-		&dst_copy_location, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, dst_box != nullptr ? dst_box[2] : 0,
+		&dst_copy_location, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
-void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 
 	D3D12_RESOURCE_DESC res_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
+
 	if (row_length != 0)
 		res_desc.Width = row_length;
 	if (slice_height != 0)
@@ -503,58 +549,41 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 		&dst_copy_location, 0, 0, 0,
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
-void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)
+void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::rect *src_rect, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, api::format format)
 {
 	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (src_box == nullptr && dst_offset == nullptr)
+	com_ptr<ID3D12GraphicsCommandList1> cmd_list1;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list1)))
 	{
+		cmd_list1->ResolveSubresourceRegion(
+			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource, dst_x, dst_y,
+			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, reinterpret_cast<D3D12_RECT *>(const_cast<api::rect *>(src_rect)), convert_format(format), D3D12_RESOLVE_MODE_MIN);
+	}
+	else
+	{
+		assert(src_rect == nullptr && dst_x == 0 && dst_y == 0);
+
 		_orig->ResolveSubresource(
 			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource,
 			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, convert_format(format));
 	}
-	else
-	{
-		com_ptr<ID3D12GraphicsCommandList1> cmd_list1;
-		if (SUCCEEDED(_orig->QueryInterface(&cmd_list1)))
-		{
-			assert(src_box == nullptr || (src_box[2] == 0 && src_box[5] == 1));
-			assert(dst_offset == nullptr || dst_offset[2] == 0);
-
-			D3D12_RECT src_rect = (src_box != nullptr) ? D3D12_RECT { src_box[0], src_box[1], src_box[3], src_box[4] } : D3D12_RECT {};
-
-			cmd_list1->ResolveSubresourceRegion(
-				reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource, dst_offset != nullptr ? dst_offset[0] : 0, dst_offset != nullptr ? dst_offset[1] : 0,
-				reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, &src_rect, convert_format(format), D3D12_RESOLVE_MODE_MIN);
-		}
-		else
-		{
-			assert(false);
-		}
-	}
 }
 
-void reshade::d3d12::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)
-{
-	_has_commands = true;
-
-	if (static_cast<UINT>(clear_flags & (api::attachment_type::color)) != 0)
-		for (UINT i = 0; i < _current_fbo->count; ++i)
-			_orig->ClearRenderTargetView(_current_fbo->rtv[i], color, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
-	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0)
-		_orig->ClearDepthStencilView(_current_fbo->dsv, static_cast<D3D12_CLEAR_FLAGS>(static_cast<UINT>(clear_flags) >> 1), depth, stencil, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
-}
-void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
 	assert(dsv.handle != 0);
 
-	_orig->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
+	_orig->ClearDepthStencilView(
+		D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) },
+		static_cast<D3D12_CLEAR_FLAGS>((depth != nullptr ? D3D12_CLEAR_FLAG_DEPTH : 0) | (stencil != nullptr ? D3D12_CLEAR_FLAG_STENCIL : 0)), depth != nullptr ? *depth : 0.0f, stencil != nullptr ? *stencil : 0,
+		rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
-void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
@@ -562,7 +591,7 @@ void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_v
 
 	_orig->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtv.handle) }, color, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
-void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
@@ -586,7 +615,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
 }
-void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const int32_t *rects)
+void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const api::rect *rects)
 {
 	_has_commands = true;
 
@@ -700,7 +729,7 @@ void reshade::d3d12::command_list_impl::begin_query(api::query_pool pool, api::q
 
 	_orig->BeginQuery(reinterpret_cast<ID3D12QueryHeap *>(pool.handle), convert_query_type(type), index);
 }
-void reshade::d3d12::command_list_impl::finish_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::d3d12::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	_has_commands = true;
 
@@ -739,7 +768,7 @@ void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, con
 	_orig->BeginEvent(2, pix3blob, sizeof(pix3blob));
 #endif
 }
-void reshade::d3d12::command_list_impl::finish_debug_event()
+void reshade::d3d12::command_list_impl::end_debug_event()
 {
 	_orig->EndEvent();
 }

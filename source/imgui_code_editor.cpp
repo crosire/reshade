@@ -29,7 +29,7 @@
 #include <imgui_internal.h> // GetCurrentWindowRead
 #include <algorithm>
 
-const char *reshade::gui::code_editor::get_palette_color_name(unsigned int col)
+const char *reshade::imgui::code_editor::get_palette_color_name(unsigned int col)
 {
 	// Use similar naming convention as 'ImGui::GetStyleColorName'
 	switch (col)
@@ -78,12 +78,12 @@ const char *reshade::gui::code_editor::get_palette_color_name(unsigned int col)
 	return nullptr;
 }
 
-reshade::gui::code_editor::code_editor()
+reshade::imgui::code_editor::code_editor()
 {
 	_lines.emplace_back();
 }
 
-void reshade::gui::code_editor::render(const char *title, const uint32_t palette[color_palette_max], bool border, ImFont *font)
+void reshade::imgui::code_editor::render(const char *title, const uint32_t palette[color_palette_max], bool border, ImFont *font)
 {
 	// There should always at least be a single line with a new line character
 	assert(!_lines.empty());
@@ -576,7 +576,7 @@ void reshade::gui::code_editor::render(const char *title, const uint32_t palette
 	}
 }
 
-void reshade::gui::code_editor::select(const text_pos &beg, const text_pos &end, selection_mode mode)
+void reshade::imgui::code_editor::select(const text_pos &beg, const text_pos &end, selection_mode mode)
 {
 	assert(beg.line < _lines.size());
 	assert(end.line < _lines.size());
@@ -632,7 +632,7 @@ void reshade::gui::code_editor::select(const text_pos &beg, const text_pos &end,
 		break;
 	}
 }
-void reshade::gui::code_editor::select_all()
+void reshade::imgui::code_editor::select_all()
 {
 	if (_lines.empty())
 		return; // Cannot select anything if no text is set
@@ -647,7 +647,7 @@ void reshade::gui::code_editor::select_all()
 	select(_interactive_beg, _interactive_end);
 }
 
-void reshade::gui::code_editor::set_text(const std::string &text)
+void reshade::imgui::code_editor::set_text(const std::string &text)
 {
 	_lines.clear();
 	_lines.emplace_back();
@@ -675,11 +675,11 @@ void reshade::gui::code_editor::set_text(const std::string &text)
 	_colorize_line_beg = 0;
 	_colorize_line_end = _lines.size();
 }
-void reshade::gui::code_editor::clear_text()
+void reshade::imgui::code_editor::clear_text()
 {
 	set_text(std::string());
 }
-void reshade::gui::code_editor::insert_text(const std::string &text)
+void reshade::imgui::code_editor::insert_text(const std::string &text)
 {
 	// Insert all characters of the text
 	for (const char c : text)
@@ -688,7 +688,7 @@ void reshade::gui::code_editor::insert_text(const std::string &text)
 	// Move cursor to end of inserted text
 	select(_cursor_pos, _cursor_pos);
 }
-void reshade::gui::code_editor::insert_character(char c, bool auto_indent)
+void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 {
 	if (_readonly)
 		return;
@@ -849,11 +849,11 @@ void reshade::gui::code_editor::insert_character(char c, bool auto_indent)
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 10 + 1);
 }
 
-std::string reshade::gui::code_editor::get_text() const
+std::string reshade::imgui::code_editor::get_text() const
 {
 	return get_text(0, _lines.size());
 }
-std::string reshade::gui::code_editor::get_text(const text_pos &beg, const text_pos &end) const
+std::string reshade::imgui::code_editor::get_text(const text_pos &beg, const text_pos &end) const
 {
 	// Calculate length of text to pre-allocate memory before building the string
 	size_t length = 0;
@@ -886,14 +886,14 @@ std::string reshade::gui::code_editor::get_text(const text_pos &beg, const text_
 
 	return result;
 }
-std::string reshade::gui::code_editor::get_selected_text() const
+std::string reshade::imgui::code_editor::get_selected_text() const
 {
 	assert(has_selection());
 
 	return get_text(_select_beg, _select_end);
 }
 
-void reshade::gui::code_editor::undo(unsigned int steps)
+void reshade::imgui::code_editor::undo(unsigned int steps)
 {
 	if (_readonly)
 		return;
@@ -924,7 +924,7 @@ void reshade::gui::code_editor::undo(unsigned int steps)
 	_scroll_to_cursor = true;
 	_in_undo_operation = false;
 }
-void reshade::gui::code_editor::redo(unsigned int steps)
+void reshade::imgui::code_editor::redo(unsigned int steps)
 {
 	if (_readonly)
 		return;
@@ -956,7 +956,7 @@ void reshade::gui::code_editor::redo(unsigned int steps)
 	_in_undo_operation = false;
 }
 
-void reshade::gui::code_editor::record_undo(undo_record &&record)
+void reshade::imgui::code_editor::record_undo(undo_record &&record)
 {
 	if (_in_undo_operation)
 		return;
@@ -966,7 +966,7 @@ void reshade::gui::code_editor::record_undo(undo_record &&record)
 	_undo_index++;
 }
 
-void reshade::gui::code_editor::delete_next()
+void reshade::imgui::code_editor::delete_next()
 {
 	if (_readonly)
 		return;
@@ -1017,7 +1017,7 @@ void reshade::gui::code_editor::delete_next()
 	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min<size_t>(_cursor_pos.line, 10));
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 10 + 1);
 }
-void reshade::gui::code_editor::delete_previous()
+void reshade::imgui::code_editor::delete_previous()
 {
 	if (_readonly)
 		return;
@@ -1071,7 +1071,7 @@ void reshade::gui::code_editor::delete_previous()
 	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min<size_t>(_cursor_pos.line, 10));
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 10 + 1);
 }
-void reshade::gui::code_editor::delete_selection()
+void reshade::imgui::code_editor::delete_selection()
 {
 	if (_readonly)
 		return;
@@ -1121,7 +1121,7 @@ void reshade::gui::code_editor::delete_selection()
 	_cursor_pos = _select_beg;
 	select(_cursor_pos, _cursor_pos);
 }
-void reshade::gui::code_editor::delete_lines(size_t first_line, size_t last_line)
+void reshade::imgui::code_editor::delete_lines(size_t first_line, size_t last_line)
 {
 	if (_readonly)
 		return;
@@ -1137,7 +1137,7 @@ void reshade::gui::code_editor::delete_lines(size_t first_line, size_t last_line
 	_lines.erase(_lines.begin() + first_line, _lines.begin() + last_line + 1);
 }
 
-void reshade::gui::code_editor::clipboard_copy()
+void reshade::imgui::code_editor::clipboard_copy()
 {
 	_last_copy_string.clear();
 	_last_copy_from_empty_selection = false;
@@ -1161,7 +1161,7 @@ void reshade::gui::code_editor::clipboard_copy()
 		ImGui::SetClipboardText(line_text.c_str());
 	}
 }
-void reshade::gui::code_editor::clipboard_cut()
+void reshade::imgui::code_editor::clipboard_cut()
 {
 	if (!has_selection())
 		return;
@@ -1169,7 +1169,7 @@ void reshade::gui::code_editor::clipboard_cut()
 	clipboard_copy();
 	delete_selection();
 }
-void reshade::gui::code_editor::clipboard_paste()
+void reshade::imgui::code_editor::clipboard_paste()
 {
 	if (_readonly)
 		return;
@@ -1216,7 +1216,7 @@ void reshade::gui::code_editor::clipboard_paste()
 		_cursor_pos.column = cursor_column;
 }
 
-void reshade::gui::code_editor::move_up(size_t amount, bool selection)
+void reshade::imgui::code_editor::move_up(size_t amount, bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1248,7 +1248,7 @@ void reshade::gui::code_editor::move_up(size_t amount, bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void reshade::gui::code_editor::move_down(size_t amount, bool selection)
+void reshade::imgui::code_editor::move_down(size_t amount, bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1280,7 +1280,7 @@ void reshade::gui::code_editor::move_down(size_t amount, bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void reshade::gui::code_editor::move_left(size_t amount, bool selection, bool word_mode)
+void reshade::imgui::code_editor::move_left(size_t amount, bool selection, bool word_mode)
 {
 	assert(!_lines.empty());
 
@@ -1336,7 +1336,7 @@ void reshade::gui::code_editor::move_left(size_t amount, bool selection, bool wo
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void reshade::gui::code_editor::move_right(size_t amount, bool selection, bool word_mode)
+void reshade::imgui::code_editor::move_right(size_t amount, bool selection, bool word_mode)
 {
 	assert(!_lines.empty());
 
@@ -1384,7 +1384,7 @@ void reshade::gui::code_editor::move_right(size_t amount, bool selection, bool w
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void reshade::gui::code_editor::move_top(bool selection)
+void reshade::imgui::code_editor::move_top(bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1413,7 +1413,7 @@ void reshade::gui::code_editor::move_top(bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void reshade::gui::code_editor::move_bottom(bool selection)
+void reshade::imgui::code_editor::move_bottom(bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1441,7 +1441,7 @@ void reshade::gui::code_editor::move_bottom(bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void reshade::gui::code_editor::move_home(bool selection)
+void reshade::imgui::code_editor::move_home(bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1470,7 +1470,7 @@ void reshade::gui::code_editor::move_home(bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void reshade::gui::code_editor::move_end(bool selection)
+void reshade::imgui::code_editor::move_end(bool selection)
 {
 	assert(!_lines.empty());
 
@@ -1499,7 +1499,7 @@ void reshade::gui::code_editor::move_end(bool selection)
 	select(_interactive_beg, _interactive_end);
 	_scroll_to_cursor = true;
 }
-void reshade::gui::code_editor::move_lines_up()
+void reshade::imgui::code_editor::move_lines_up()
 {
 	if (_select_beg.line == 0 || _readonly)
 		return;
@@ -1511,7 +1511,7 @@ void reshade::gui::code_editor::move_lines_up()
 	_select_end.line--;
 	_cursor_pos.line--;
 }
-void reshade::gui::code_editor::move_lines_down()
+void reshade::imgui::code_editor::move_lines_down()
 {
 	if (_select_end.line + 1 >= _lines.size() || _readonly)
 		return;
@@ -1524,7 +1524,7 @@ void reshade::gui::code_editor::move_lines_down()
 	_cursor_pos.line++;
 }
 
-bool reshade::gui::code_editor::find_and_scroll_to_text(const std::string &text, bool backwards, bool with_selection)
+bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string &text, bool backwards, bool with_selection)
 {
 	if (text.empty())
 		return false; // Cannot search for empty text
@@ -1649,7 +1649,7 @@ bool reshade::gui::code_editor::find_and_scroll_to_text(const std::string &text,
 	return false; // No match found
 }
 
-void reshade::gui::code_editor::colorize()
+void reshade::imgui::code_editor::colorize()
 {
 	if (_colorize_line_beg >= _colorize_line_end)
 		return;

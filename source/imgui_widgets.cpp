@@ -8,7 +8,7 @@
 #include "fonts/forkawesome.h"
 #include <cassert>
 
-bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path)
+bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path)
 {
 	bool res = false;
 	const float item_width = ImGui::CalcItemWidth();
@@ -87,7 +87,7 @@ bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesy
 	return res;
 }
 
-bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts)
+bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts)
 {
 	if (!ImGui::BeginPopup(name))
 		return false;
@@ -210,7 +210,7 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 	return result;
 }
 
-bool reshade::gui::widgets::key_input_box(const char *name, unsigned int key[4], const reshade::input &input)
+bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const reshade::input &input)
 {
 	char buf[48] = "Click to set keyboard shortcut";
 	if (key[0] || key[1] || key[2] || key[3])
@@ -249,7 +249,7 @@ bool reshade::gui::widgets::key_input_box(const char *name, unsigned int key[4],
 	return false;
 }
 
-bool reshade::gui::widgets::font_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
+bool reshade::imgui::font_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
 {
 	bool res = false;
 	const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
@@ -280,7 +280,7 @@ bool reshade::gui::widgets::font_input_box(const char *name, std::filesystem::pa
 	return res;
 }
 
-bool reshade::gui::widgets::search_input_box(char *filter, int filter_size, float width)
+bool reshade::imgui::search_input_box(char *filter, int filter_size, float width)
 {
 	bool res = false;
 	const bool show_clear_button = filter[0] != '\0';
@@ -300,7 +300,7 @@ bool reshade::gui::widgets::search_input_box(char *filter, int filter_size, floa
 	return res;
 }
 
-bool reshade::gui::widgets::file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
+bool reshade::imgui::file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
 {
 	bool res = false;
 	const float button_size = ImGui::GetFrameHeight();
@@ -345,7 +345,7 @@ bool reshade::gui::widgets::file_input_box(const char *name, std::filesystem::pa
 
 	return res;
 }
-bool reshade::gui::widgets::directory_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path)
+bool reshade::imgui::directory_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path)
 {
 	bool res = false;
 	const float button_size = ImGui::GetFrameHeight();
@@ -389,7 +389,7 @@ bool reshade::gui::widgets::directory_input_box(const char *name, std::filesyste
 	return res;
 }
 
-bool reshade::gui::widgets::radio_list(const char *label, const std::string_view ui_items, int &v)
+bool reshade::imgui::radio_list(const char *label, const std::string_view ui_items, int &v)
 {
 	bool modified = false;
 	const float item_width = ImGui::CalcItemWidth();
@@ -408,18 +408,18 @@ bool reshade::gui::widgets::radio_list(const char *label, const std::string_view
 	return modified;
 }
 
-bool reshade::gui::widgets::popup_button(const char *label, float width, ImGuiWindowFlags flags)
+bool reshade::imgui::popup_button(const char *label, float width, ImGuiWindowFlags flags)
 {
 	if (ImGui::Button(label, ImVec2(width, 0)))
 		ImGui::OpenPopup(label); // Popups can have the same ID as other items without conflict
 	return ImGui::BeginPopup(label, flags);
 }
 
-bool reshade::gui::widgets::toggle_button(const char *label, bool &v)
+bool reshade::imgui::toggle_button(const char *label, bool &v, float width, ImGuiButtonFlags flags)
 {
 	if (v)
 		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_ButtonActive]);
-	const bool modified = ImGui::SmallButton(label);
+	const bool modified = ImGui::ButtonEx(label, ImVec2(width, 0), flags);
 	if (v)
 		ImGui::PopStyleColor();
 
@@ -429,7 +429,7 @@ bool reshade::gui::widgets::toggle_button(const char *label, bool &v)
 	return modified;
 }
 
-bool reshade::gui::widgets::list_with_buttons(const char *label, const std::string_view ui_items, int &v)
+bool reshade::imgui::list_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
 	bool modified = false;
 
@@ -461,7 +461,7 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 		ImGui::EndCombo();
 	}
 
-	ImGui::PushItemFlag(ImGuiItemFlags_Disabled, items.empty());
+	ImGui::BeginDisabled(items.empty());
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button("<", ImVec2(button_size, 0)))
@@ -477,7 +477,7 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 		v = (v == static_cast<int>(items.size() - 1)) ? 0 : v + 1;
 	}
 
-	ImGui::PopItemFlag();
+	ImGui::EndDisabled();
 
 	ImGui::EndGroup();
 	const bool is_hovered = ImGui::IsItemHovered();
@@ -510,14 +510,14 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 	return modified;
 }
 
-bool reshade::gui::widgets::combo_with_buttons(const char *label, bool &v)
+bool reshade::imgui::combo_with_buttons(const char *label, bool &v)
 {
 	int current_item = v ? 1 : 0;
 	bool modified = combo_with_buttons(label, "Off\0On\0", current_item);
 	v = current_item != 0;
 	return modified;
 }
-bool reshade::gui::widgets::combo_with_buttons(const char *label, const std::string_view ui_items, int &v)
+bool reshade::imgui::combo_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
 	size_t num_items = 0;
 	std::string items;
@@ -536,7 +536,7 @@ bool reshade::gui::widgets::combo_with_buttons(const char *label, const std::str
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 	bool modified = ImGui::Combo("##v", &v, items.c_str());
 
-	ImGui::PushItemFlag(ImGuiItemFlags_Disabled, num_items == 0);
+	ImGui::BeginDisabled(num_items == 0);
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button("<", ImVec2(button_size, 0)))
@@ -552,7 +552,7 @@ bool reshade::gui::widgets::combo_with_buttons(const char *label, const std::str
 		v = (v == static_cast<int>(num_items - 1)) ? 0 : v + 1;
 	}
 
-	ImGui::PopItemFlag();
+	ImGui::EndDisabled();
 
 	ImGui::EndGroup();
 
@@ -601,7 +601,7 @@ static bool drag_with_buttons(const char *label, T *v, int components, T v_speed
 	return value_changed;
 
 }
-bool reshade::gui::widgets::drag_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format)
+bool reshade::imgui::drag_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format)
 {
 	switch (data_type)
 	{
@@ -664,7 +664,7 @@ static bool slider_with_buttons(const char *label, T *v, int components, T v_spe
 	return value_changed;
 
 }
-bool reshade::gui::widgets::slider_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format)
+bool reshade::imgui::slider_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format)
 {
 	switch (data_type)
 	{
@@ -688,7 +688,7 @@ bool reshade::gui::widgets::slider_with_buttons(const char *label, ImGuiDataType
 	}
 }
 
-bool reshade::gui::widgets::slider_for_alpha_value(const char *label, float *v)
+bool reshade::imgui::slider_for_alpha_value(const char *label, float *v)
 {
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
@@ -713,7 +713,7 @@ bool reshade::gui::widgets::slider_for_alpha_value(const char *label, float *v)
 
 }
 
-void reshade::gui::widgets::image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col)
+void reshade::imgui::image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col)
 {
 	const auto draw_list = ImGui::GetWindowDrawList();
 

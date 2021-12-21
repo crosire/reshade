@@ -27,6 +27,7 @@ namespace reshade
 		overlay_open,
 		overlay_active,
 		overlay_hovered,
+		unknown
 	};
 
 	template <typename T, size_t SAMPLES>
@@ -59,9 +60,9 @@ namespace reshade
 		T _average, _tick_sum, _tick_list[SAMPLES];
 	};
 
+#if RESHADE_EFFECTS
 	struct texture final : reshadefx::texture_info
 	{
-		texture() {} // For standalone textures like the font atlas
 		texture(const reshadefx::texture_info &init) : texture_info(init) {}
 
 		auto annotation_as_int(const char *ann_name, size_t i = 0) const
@@ -153,7 +154,7 @@ namespace reshade
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		special_uniform special = special_uniform::none;
-		uint32_t toggle_key_data[4] = {};
+		unsigned int toggle_key_data[4] = {};
 	};
 
 	struct technique final : reshadefx::technique_info
@@ -166,6 +167,13 @@ namespace reshade
 				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return 0;
 			return it->type.is_integral() ? it->value.as_int[i] : static_cast<int>(it->value.as_float[i]);
+		}
+		auto annotation_as_uint(const char *ann_name, size_t i = 0) const
+		{
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
+			if (it == annotations.end()) return 0u;
+			return it->type.is_integral() ? it->value.as_uint[i] : static_cast<unsigned int>(it->value.as_float[i]);
 		}
 		auto annotation_as_float(const char *ann_name, size_t i = 0) const
 		{
@@ -186,14 +194,13 @@ namespace reshade
 		bool hidden = false;
 		bool enabled = false;
 		int64_t time_left = 0;
-		uint32_t toggle_key_data[4] = {};
+		unsigned int toggle_key_data[4] = {};
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
 
 		struct pass_data
 		{
-			api::framebuffer fbo = {};
-			api::render_pass pass = {};
+			api::resource_view render_target_views[8] = {};
 			api::pipeline pipeline = {};
 			api::descriptor_set texture_set = {};
 			api::descriptor_set storage_set = {};
@@ -232,10 +239,10 @@ namespace reshade
 
 		api::resource cb = {};
 		api::pipeline_layout layout = {};
-		api::descriptor_set_layout set_layouts[4] = {};
 		api::descriptor_set cb_set = {};
 		api::descriptor_set sampler_set = {};
-		api::query_pool query_heap = {};
+		api::query_pool query_pool = {};
 		std::vector<binding_data> texture_semantic_to_binding;
 	};
+#endif
 }

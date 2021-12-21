@@ -6,7 +6,29 @@
 #include <GL/gl3w.h>
 
 // OpenGL tokens for compatibility profile
+#define GL_ALPHA 0x1906
 #define GL_ALPHA_TEST 0x0BC0
+#define GL_ALPHA4 0x803B
+#define GL_ALPHA8 0x803C
+#define GL_ALPHA12 0x803D
+#define GL_ALPHA16 0x803E
+#define GL_LUMINANCE 0x1909
+#define GL_LUMINANCE4 0x803F
+#define GL_LUMINANCE8 0x8040
+#define GL_LUMINANCE12 0x8041
+#define GL_LUMINANCE16 0x8042
+#define GL_LUMINANCE_ALPHA 0x190A
+#define GL_LUMINANCE4_ALPHA4 0x8043
+#define GL_LUMINANCE6_ALPHA2 0x8044
+#define GL_LUMINANCE8_ALPHA8 0x8045
+#define GL_LUMINANCE12_ALPHA4 0x8046
+#define GL_LUMINANCE12_ALPHA12 0x8047
+#define GL_LUMINANCE16_ALPHA16 0x8048
+#define GL_INTENSITY 0x8049
+#define GL_INTENSITY4 0x804A
+#define GL_INTENSITY8 0x804B
+#define GL_INTENSITY12 0x804C
+#define GL_INTENSITY16 0x804D
 
 #ifndef NDEBUG
 
@@ -20,7 +42,9 @@
 		GLenum __e = glGetError(); \
 		if (__e != GL_NO_ERROR) { \
 			char __m[1024]; \
-			sprintf_s(__m, "OpenGL error %x in %s at line %d: %s", __e, __FILE__, __LINE__, #call); \
+			GLsizei __m_offset = sprintf_s(__m, "OpenGL error %x in %s(%d): %s\n\n", __e, __FILE__, __LINE__, #call), __m_length = 0; \
+			while (glGetDebugMessageLog(1, sizeof(__m) - __m_offset, nullptr, nullptr, nullptr, nullptr, &__m_length, __m + __m_offset)); \
+			__m[__m_offset + __m_length] = '\0'; \
 			MessageBoxA(nullptr, __m, 0, MB_ICONERROR); \
 		} \
 	}
@@ -446,10 +470,6 @@
 #define glGetCompressedTextureImage(...)                   GLCHECK(gl3wProcs.gl.GetCompressedTextureImage(__VA_ARGS__))
 #undef glGetCompressedTextureSubImage
 #define glGetCompressedTextureSubImage(...)                GLCHECK(gl3wProcs.gl.GetCompressedTextureSubImage(__VA_ARGS__))
-#undef glGetDebugMessageLog
-#define glGetDebugMessageLog(...)                          GLCHECK(gl3wProcs.gl.GetDebugMessageLog(__VA_ARGS__))
-#undef glGetDebugMessageLogARB
-#define glGetDebugMessageLogARB(...)                       GLCHECK(gl3wProcs.gl.GetDebugMessageLogARB(__VA_ARGS__))
 #undef glGetDoublei_v
 #define glGetDoublei_v(...)                                GLCHECK(gl3wProcs.gl.GetDoublei_v(__VA_ARGS__))
 #undef glGetDoublev

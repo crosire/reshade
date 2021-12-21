@@ -25,7 +25,13 @@ void reshade::opengl::state_block::capture(bool compatibility)
 	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &_ibo);
 
 	glGetIntegerv(GL_CURRENT_PROGRAM, &_program);
-	glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &_ubo);
+
+	// Save and restore individual UBO bindings (for compatibility with Yamagi Quake II)
+	glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &_active_ubo);
+	for (GLuint i = 0; i < 4; i++)
+	{
+		glGetIntegeri_v(GL_UNIFORM_BUFFER_BINDING, i, &_ubo[i]);
+	}
 
 	// Technically should capture image bindings here as well ...
 	glGetIntegerv(GL_ACTIVE_TEXTURE, &_active_texture);
@@ -100,7 +106,12 @@ void reshade::opengl::state_block::apply(bool compatibility) const
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ibo);
 
 	glUseProgram(_program);
-	glBindBuffer(GL_UNIFORM_BUFFER, _ubo);
+
+	for (GLuint i = 0; i < 4; i++)
+	{
+		glBindBufferBase(GL_UNIFORM_BUFFER, i, _ubo[i]);
+	}
+	glBindBuffer(GL_UNIFORM_BUFFER, _active_ubo);
 
 	for (GLuint i = 0; i < 32; i++)
 	{

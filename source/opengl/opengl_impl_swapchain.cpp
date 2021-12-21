@@ -31,7 +31,7 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compa
 		}
 	}
 
-	_backbuffer_format = convert_format(_default_color_format);
+	_back_buffer_format = convert_format(_default_color_format);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
@@ -104,7 +104,6 @@ void reshade::opengl::swapchain_impl::on_reset()
 	_rbo = 0;
 	_fbo[0] = 0;
 	_fbo[1] = 0;
-	std::memset(_fbo, 0, sizeof(_fbo));
 }
 
 void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
@@ -148,22 +147,16 @@ void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
 		glDrawBuffer(GL_BACK);
 		glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	}
-	else
-	{
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[0]);
-		glDrawBuffer(GL_COLOR_ATTACHMENT0);
-	}
 
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
 }
 
-bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo)
+bool reshade::opengl::swapchain_impl::on_vr_submit(uint32_t eye, GLenum source_target, GLuint source_object, const float bounds[4], GLuint *target_rbo)
 {
 	assert(eye < 2 && source_object != 0);
 
-	api::resource_desc object_desc = get_resource_desc(
-		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : (is_array ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D), source_object));
+	api::resource_desc object_desc = get_resource_desc(reshade::opengl::make_resource_handle(source_target, source_object));
 
 	GLint source_region[4] = { 0, 0, static_cast<GLint>(object_desc.texture.width), static_cast<GLint>(object_desc.texture.height) };
 	if (bounds != nullptr)
@@ -190,28 +183,49 @@ bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint sourc
 			return false;
 	}
 
-	// Copy source region to RBO
-	glDisable(GL_SCISSOR_TEST);
-	glDisable(GL_FRAMEBUFFER_SRGB);
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[1]); // Use clear FBO here, since it is reset on every use anyway
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[0]);
+	// Copy source region to RBO. TODO: Replace this with call to 'copy_texture_region'.
+	if (object_desc.texture.samples == 1)
+	{
+		glCopyImageSubData(source_object, source_target, 0, source_region[0], source_region[1], source_target == GL_TEXTURE_2D_ARRAY ? eye : 0, _rbo, GL_RENDERBUFFER, 0, eye * region_width, 0, 0, region_width, _height, 1);
+	}
+	else
+	{
+		glDisable(GL_SCISSOR_TEST);
+		glDisable(GL_FRAMEBUFFER_SRGB);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[1]);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[0]);
 
-	if (is_rbo) {
-		// TODO: This or the second blit below will fail if RBO is multisampled
-		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, source_object);
-	}
-	else if (is_array) {
-		glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0, eye);
-	}
-	else {
-		glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0);
-	}
+		if (source_target == GL_RENDERBUFFER) {
+			glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, source_object);
+		}
+		else if (source_target == GL_TEXTURE_2D_ARRAY) {
+			glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0, eye);
+		}
+		else {
+			glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0);
+		}
 
-	glReadBuffer(GL_COLOR_ATTACHMENT0);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0);
-	glBlitFramebuffer(source_region[0], source_region[1], source_region[2], source_region[3], eye * region_width, 0, (eye + 1) * region_width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glBlitFramebuffer(source_region[0], source_region[1], source_region[2], source_region[3], eye * region_width, 0, (eye + 1) * region_width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	}
 
 	*target_rbo = _rbo;
 
 	return true;
 }
+
+#if RESHADE_EFFECTS
+void reshade::opengl::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	_app_state.capture(_compatibility_context);
+
+	// Set clip space to something consistent
+	if (gl3wProcs.gl.ClipControl != nullptr)
+		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+
+	runtime::render_effects(cmd_list, rtv, rtv_srgb);
+
+	_app_state.apply(_compatibility_context);
+}
+#endif

@@ -3,10 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#ifdef IMGUI_VERSION
+#include <imgui.h>
 
 struct imgui_function_table
 {
+	ImGuiIO&(*GetIO)();
+	ImGuiStyle&(*GetStyle)();
 	bool(*Begin)(const char* name, bool* p_open, ImGuiWindowFlags flags);
 	void(*End)();
 	bool(*BeginChild)(const char* str_id, const ImVec2& size, bool border, ImGuiWindowFlags flags);
@@ -16,6 +18,7 @@ struct imgui_function_table
 	bool(*IsWindowCollapsed)();
 	bool(*IsWindowFocused)(ImGuiFocusedFlags flags);
 	bool(*IsWindowHovered)(ImGuiHoveredFlags flags);
+	ImDrawList*(*GetWindowDrawList)();
 	float(*GetWindowDpiScale)();
 	ImVec2(*GetWindowPos)();
 	ImVec2(*GetWindowSize)();
@@ -71,6 +74,7 @@ struct imgui_function_table
 	float(*CalcItemWidth)();
 	void(*PushTextWrapPos)(float wrap_local_pos_x);
 	void(*PopTextWrapPos)();
+	ImFont*(*GetFont)();
 	float(*GetFontSize)();
 	ImVec2(*GetFontTexUvWhitePixel)();
 	ImU32(*GetColorU32)(ImGuiCol idx, float alpha_mul);
@@ -224,6 +228,7 @@ struct imgui_function_table
 	void(*OpenPopupOnItemClick)(const char* str_id, ImGuiPopupFlags popup_flags);
 	void(*CloseCurrentPopup)();
 	bool(*BeginPopupContextItem)(const char* str_id, ImGuiPopupFlags popup_flags);
+	bool(*BeginPopupContextWindow)(const char* str_id, ImGuiPopupFlags popup_flags);
 	bool(*BeginPopupContextVoid)(const char* str_id, ImGuiPopupFlags popup_flags);
 	bool(*IsPopupOpen)(const char* str_id, ImGuiPopupFlags flags);
 	bool(*BeginTable)(const char* str_id, int column, ImGuiTableFlags flags, const ImVec2& outer_size, float inner_width);
@@ -235,10 +240,12 @@ struct imgui_function_table
 	void(*TableSetupScrollFreeze)(int cols, int rows);
 	void(*TableHeadersRow)();
 	void(*TableHeader)(const char* label);
+	ImGuiTableSortSpecs*(*TableGetSortSpecs)();
 	int(*TableGetColumnCount)();
 	int(*TableGetColumnIndex)();
 	int(*TableGetRowIndex)();
 	ImGuiTableColumnFlags(*TableGetColumnFlags)(int column_n);
+	void(*TableSetColumnEnabled)(int column_n, bool v);
 	void(*TableSetBgColor)(ImGuiTableBgTarget target, ImU32 color, int column_n);
 	void(*Columns)(int count, const char* id, bool border);
 	void(*NextColumn)();
@@ -288,11 +295,18 @@ struct imgui_function_table
 	ImVec2(*GetItemRectMax)();
 	ImVec2(*GetItemRectSize)();
 	void(*SetItemAllowOverlap)();
+	ImGuiViewport*(*GetMainViewport)();
 	bool(*IsRectVisible)(const ImVec2& size);
 	bool(*IsRectVisible2)(const ImVec2& rect_min, const ImVec2& rect_max);
 	double(*GetTime)();
 	int(*GetFrameCount)();
+	ImDrawList*(*GetBackgroundDrawList)();
+	ImDrawList*(*GetForegroundDrawList)();
+	ImDrawList*(*GetBackgroundDrawList2)(ImGuiViewport* viewport);
+	ImDrawList*(*GetForegroundDrawList2)(ImGuiViewport* viewport);
+	ImDrawListSharedData*(*GetDrawListSharedData)();
 	void(*SetStateStorage)(ImGuiStorage* storage);
+	ImGuiStorage*(*GetStateStorage)();
 	void(*CalcListClipping)(int items_count, float items_height, int* out_items_display_start, int* out_items_display_end);
 	bool(*BeginChildFrame)(ImGuiID id, const ImVec2& size, ImGuiWindowFlags flags);
 	void(*EndChildFrame)();
@@ -311,6 +325,7 @@ struct imgui_function_table
 	bool(*IsMouseClicked)(ImGuiMouseButton button, bool repeat);
 	bool(*IsMouseReleased)(ImGuiMouseButton button);
 	bool(*IsMouseDoubleClicked)(ImGuiMouseButton button);
+	bool(*IsMouseHoveringRect)(const ImVec2& r_min, const ImVec2& r_max, bool clip);
 	bool(*IsMousePosValid)(const ImVec2* mouse_pos);
 	bool(*IsAnyMouseDown)();
 	ImVec2(*GetMousePos)();
@@ -325,10 +340,12 @@ struct imgui_function_table
 	bool(*DebugCheckVersionAndDataLayout)(const char* version_str, size_t sz_io, size_t sz_style, size_t sz_vec2, size_t sz_vec4, size_t sz_drawvert, size_t sz_drawidx);
 	void(*SetAllocatorFunctions)(ImGuiMemAllocFunc alloc_func, ImGuiMemFreeFunc free_func, void* user_data);
 	void(*GetAllocatorFunctions)(ImGuiMemAllocFunc* p_alloc_func, ImGuiMemFreeFunc* p_free_func, void** p_user_data);
+	void*(*MemAlloc)(size_t size);
 	void(*MemFree)(void* ptr);
+	ImGuiPlatformIO&(*GetPlatformIO)();
 	void(*UpdatePlatformWindows)();
 	void(*RenderPlatformWindowsDefault)(void* platform_render_arg, void* renderer_render_arg);
 	void(*DestroyPlatformWindows)();
+	ImGuiViewport*(*FindViewportByID)(ImGuiID id);
+	ImGuiViewport*(*FindViewportByPlatformHandle)(void* platform_handle);
 };
-
-#endif

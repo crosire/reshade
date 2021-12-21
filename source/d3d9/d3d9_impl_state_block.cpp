@@ -26,7 +26,10 @@ reshade::d3d9::state_block::~state_block()
 
 void reshade::d3d9::state_block::capture()
 {
-	_state_block->Capture();
+	assert(_state_block == nullptr);
+
+	if (SUCCEEDED(_device->CreateStateBlock(D3DSBT_ALL, &_state_block)))
+		_state_block->Capture();
 
 	_device->GetViewport(&_viewport);
 
@@ -36,7 +39,11 @@ void reshade::d3d9::state_block::capture()
 }
 void reshade::d3d9::state_block::apply_and_release()
 {
-	_state_block->Apply();
+	if (_state_block != nullptr)
+		_state_block->Apply();
+
+	// Release state block every time, so that all references to captured vertex and index buffers, textures, etc. are released again
+	_state_block.reset();
 
 	for (DWORD target = 0; target < _num_simultaneous_rts; target++)
 		_device->SetRenderTarget(target, _render_targets[target].get());
@@ -48,14 +55,6 @@ void reshade::d3d9::state_block::apply_and_release()
 	release_all_device_objects();
 }
 
-bool reshade::d3d9::state_block::init_state_block()
-{
-	return SUCCEEDED(_device->CreateStateBlock(D3DSBT_ALL, &_state_block));
-}
-void reshade::d3d9::state_block::release_state_block()
-{
-	_state_block.reset();
-}
 void reshade::d3d9::state_block::release_all_device_objects()
 {
 	_depth_stencil.reset();

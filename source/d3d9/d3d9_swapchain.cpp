@@ -48,7 +48,7 @@ bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)
 		if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&new_interface))))
 			return false;
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Upgraded IDirect3DSwapChain9 object " << this << " to IDirect3DSwapChain9Ex.";
+		LOG(DEBUG) << "Upgrading IDirect3DSwapChain9 object " << this << " to IDirect3DSwapChain9Ex.";
 #endif
 		_orig->Release();
 		_orig = new_interface;
@@ -81,7 +81,10 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
-		return _orig->Release(), ref;
+	{
+		_orig->Release();
+		return ref;
+	}
 
 	const auto it = std::find(_device->_additional_swapchains.begin(), _device->_additional_swapchains.end(), this);
 	if (it != _device->_additional_swapchains.end())
@@ -106,13 +109,14 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(_device, this);
-#endif
-
 	// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
+	{
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::present>(_device, this);
+#endif
 		swapchain_impl::on_present();
+	}
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }

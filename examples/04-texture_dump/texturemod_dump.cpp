@@ -1,0 +1,168 @@
+/*
+ * Copyright (C) 2021 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
+
+#include <reshade.hpp>
+#include <filesystem>
+
+using namespace reshade::api;
+
+// See implementation in 'dump_texture.cpp'
+extern bool dump_texture(const resource_desc &desc, const subresource_data &data, const std::filesystem::path &file_prefix);
+
+static bool dump_texture(const resource_desc &desc, const subresource_data &data)
+{
+	// Prepend executable file name to image files
+	WCHAR file_prefix[MAX_PATH] = L"";
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
+	return dump_texture(desc, data, std::wstring(file_prefix) + L'_');
+}
+
+// There are multiple different ways textures can be initialized, so try and intercept them all
+// - Via initial data provided during texture creation (e.g. for immutable textures, common in D3D11 and OpenGL): See 'on_init_texture' implementation below
+// - Via a direct update operation from host memory to the texture (common in D3D11): See 'on_update_texture' implementation below
+// - Via a copy operation from a buffer in host memory to the texture (common in D3D12 and Vulkan): See 'on_copy_buffer_to_texture' implementation below
+// - Via mapping and writing to texture that is accessible in host memory (common in D3D9): See 'on_map_texture' and 'on_unmap_texture' implementation below
+
+static inline bool filter_texture(device *device, const resource_desc &desc, const subresource_box *box)
+{
+	if (desc.type != resource_type::texture_2d || (desc.usage & resource_usage::shader_resource) == resource_usage::undefined || (desc.heap != memory_heap::gpu_only && desc.heap != memory_heap::unknown) || (desc.flags & resource_flags::dynamic) == resource_flags::dynamic)
+		return false; // Ignore resources that are not static 2D textures that can be used as shader input
+
+	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
+		return false; // Ignore resources that can be used as render targets (except in OpenGL, since all textures have the render target usage flag there)
+
+	if (box != nullptr && (
+		static_cast<uint32_t>(box->right - box->left) != desc.texture.width ||
+		static_cast<uint32_t>(box->bottom - box->top) != desc.texture.height ||
+		static_cast<uint32_t>(box->back - box->front) != desc.texture.depth_or_layers))
+		return false; // Ignore updates that do not update the entire texture
+
+	if (desc.texture.samples != 1)
+		return false;
+
+	if (desc.texture.height <= 8 || (desc.texture.width == 128 && desc.texture.height == 32))
+		return false; // Filter out small textures, which are commonly just lookup tables that are not interesting to save
+
+	if (desc.texture.format == format::r8_unorm || desc.texture.format == format::a8_unorm || desc.texture.format == format::l8_unorm)
+		return false; // Filter out single component textures, since they are commonly used for video processing
+
+	return true;
+}
+
+static void on_init_texture(device *device, const resource_desc &desc, const subresource_data *initial_data, resource_usage, resource)
+{
+	if (initial_data == nullptr || !filter_texture(device, desc, nullptr))
+		return; // Ignore resources that are not 2D textures
+
+	dump_texture(desc, *initial_data);
+}
+static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const subresource_box *dst_box)
+{
+	if (dst_subresource != 0)
+		return false; // Ignore updates to mipmap levels other than the base level
+
+	const resource_desc dst_desc = device->get_resource_desc(dst);
+	if (!filter_texture(device, dst_desc, dst_box))
+		return false;
+
+	dump_texture(dst_desc, data);
+
+	return false;
+}
+
+static bool on_copy_buffer_to_texture(command_list *cmd_list, resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource dst, uint32_t dst_subresource, const subresource_box *dst_box)
+{
+	if (dst_subresource != 0)
+		return false; // Ignore copies to mipmap levels other than the base level
+
+	device *const device = cmd_list->get_device();
+
+	const resource_desc src_desc = device->get_resource_desc(src);
+	if (src_desc.heap != memory_heap::cpu_to_gpu && src_desc.heap != memory_heap::unknown)
+		return false; // Ignore copies that are not from a buffer in host memory
+
+	const resource_desc dst_desc = device->get_resource_desc(dst);
+	if (!filter_texture(device, dst_desc, dst_box))
+		return false;
+
+	// Map source buffer to get the contents that will be copied into the target texture (this should succeed, since it was already checked that the buffer is in host memory)
+	if (void *mapped_ptr;
+		device->map_buffer_region(src, src_offset, ~0ULL, map_access::read_only, &mapped_ptr))
+	{
+		subresource_data mapped_data;
+		mapped_data.data = mapped_ptr;
+		mapped_data.row_pitch = format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : dst_desc.texture.width);
+		mapped_data.slice_pitch = format_slice_pitch(dst_desc.texture.format, mapped_data.row_pitch, slice_height != 0 ? slice_height : dst_desc.texture.height);
+
+		if (device->get_api() == device_api::d3d12) // Align row pitch to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT (256)
+			mapped_data.row_pitch = (mapped_data.row_pitch + 255) & ~255;
+
+		dump_texture(dst_desc, mapped_data);
+
+		device->unmap_buffer_region(src);
+	}
+
+	return false;
+}
+
+// Keep track of current resource between 'map_texture_region' and 'unmap_texture_region' event invocations
+static thread_local struct {
+	resource res = { 0 };
+	resource_desc desc;
+	subresource_data data;
+} s_current_mapping;
+
+static void on_map_texture(device *device, resource resource, uint32_t subresource, const subresource_box *box, map_access access, subresource_data *data)
+{
+	if (subresource != 0 || access == map_access::read_only || data == nullptr)
+		return;
+
+	const resource_desc desc = device->get_resource_desc(resource);
+	if (!filter_texture(device, desc, box))
+		return;
+
+	s_current_mapping.res = resource;
+	s_current_mapping.desc = desc;
+	s_current_mapping.data = *data;
+}
+static void on_unmap_texture(device *, resource resource, uint32_t subresource)
+{
+	if (subresource != 0 || resource != s_current_mapping.res)
+		return;
+
+	s_current_mapping.res = { 0 };
+
+	dump_texture(s_current_mapping.desc, s_current_mapping.data);
+}
+
+extern "C" __declspec(dllexport) const char *NAME = "TextureMod Dump";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that dumps all textures used by the application to disk.";
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
+{
+	switch (fdwReason)
+	{
+	case DLL_PROCESS_ATTACH:
+		if (!reshade::register_addon(hModule))
+			return FALSE;
+		reshade::register_event<reshade::addon_event::init_resource>(on_init_texture);
+		reshade::register_event<reshade::addon_event::update_texture_region>(on_update_texture);
+		reshade::register_event<reshade::addon_event::copy_buffer_to_texture>(on_copy_buffer_to_texture);
+		reshade::register_event<reshade::addon_event::map_texture_region>(on_map_texture);
+		reshade::register_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
+		break;
+	case DLL_PROCESS_DETACH:
+		reshade::unregister_event<reshade::addon_event::init_resource>(on_init_texture);
+		reshade::unregister_event<reshade::addon_event::update_texture_region>(on_update_texture);
+		reshade::unregister_event<reshade::addon_event::copy_buffer_to_texture>(on_copy_buffer_to_texture);
+		reshade::unregister_event<reshade::addon_event::map_texture_region>(on_map_texture);
+		reshade::unregister_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
+		reshade::unregister_addon(hModule);
+		break;
+	}
+
+	return TRUE;
+}

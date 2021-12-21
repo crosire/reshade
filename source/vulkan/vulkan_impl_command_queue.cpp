@@ -92,7 +92,7 @@ void reshade::vulkan::command_queue_impl::begin_debug_event(const char *label, c
 
 	vk.QueueBeginDebugUtilsLabelEXT(_orig, &label_info);
 }
-void reshade::vulkan::command_queue_impl::finish_debug_event()
+void reshade::vulkan::command_queue_impl::end_debug_event()
 {
 	if (vk.QueueEndDebugUtilsLabelEXT == nullptr)
 		return;

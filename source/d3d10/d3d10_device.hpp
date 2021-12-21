@@ -5,13 +5,12 @@
 
 #pragma once
 
+#include "dxgi/dxgi_device.hpp"
 #include "d3d10_impl_device.hpp"
 
-struct DXGIDevice;
-
-struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final : ID3D10Device1, public reshade::d3d10::device_impl
+struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final : DXGIDevice, ID3D10Device1, public reshade::d3d10::device_impl
 {
-	D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original);
+	D3D10Device(IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original);
 
 	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -124,12 +123,17 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final :
 	bool check_and_upgrade_interface(REFIID riid);
 
 #if RESHADE_ADDON
-	void invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D10Buffer *const *buffers, const UINT *strides, const UINT *offsets);
+	static void invoke_map_buffer_region_event(ID3D10Buffer *resource, D3D10_MAP map_type, void **data);
+	static void invoke_unmap_buffer_region_event(ID3D10Buffer *resource);
+	static void invoke_map_texture_region_event(ID3D10Resource *resource, UINT subresource, D3D10_MAP map_type, reshade::api::subresource_data *data);
+	static void invoke_unmap_texture_region_event(ID3D10Resource *resource, UINT subresource);
+
 	void invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10SamplerState *const *objects);
 	void invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects);
 	void invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects);
 #endif
 
+	using device_impl::_orig;
+
 	LONG _ref = 1;
-	DXGIDevice *const _dxgi_device;
 };

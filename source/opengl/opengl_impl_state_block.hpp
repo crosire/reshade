@@ -21,7 +21,8 @@ namespace reshade::opengl
 		GLint _vao;
 		GLint _vbo;
 		GLint _ibo;
-		GLint _ubo;
+		GLint _ubo[4];
+		GLint _active_ubo;
 		GLint _program;
 		GLint _textures2d[32], _samplers[32];
 		GLint _active_texture;

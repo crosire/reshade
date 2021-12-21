@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cfloat>
 #include <cstdint>
 
 namespace reshade { namespace api
@@ -20,12 +21,14 @@ namespace reshade { namespace api
 		// Color formats
 
 		r1_unorm = 66,
+		l8_unorm = 0x3030384C,
 		a8_unorm = 65,
 		r8_typeless = 60,
 		r8_uint = 62,
 		r8_sint = 64,
 		r8_unorm = 61,
 		r8_snorm = 63,
+		l8a8_unorm = 0x3038414C,
 		r8g8_typeless = 48,
 		r8g8_uint = 50,
 		r8g8_sint = 52,
@@ -53,12 +56,14 @@ namespace reshade { namespace api
 		b10g10r10a2_typeless = 0x42475330,
 		b10g10r10a2_uint = 0x42475332,
 		b10g10r10a2_unorm = 0x42475331,
+		l16_unorm = 0x3036314C,
 		r16_typeless = 53,
 		r16_uint = 57,
 		r16_sint = 59,
 		r16_float = 54,
 		r16_unorm = 56,
 		r16_snorm = 58,
+		l16a16_unorm = 0x3631414C,
 		r16g16_typeless = 33,
 		r16g16_uint = 36,
 		r16g16_sint = 38,
@@ -152,12 +157,14 @@ namespace reshade { namespace api
 	{
 		switch (value)
 		{
+		case format::l8_unorm:
 		case format::r8_typeless:
 		case format::r8_uint:
 		case format::r8_sint:
 		case format::r8_unorm:
 		case format::r8_snorm:
 			return format::r8_typeless;
+		case format::l8a8_unorm:
 		case format::r8g8_typeless:
 		case format::r8g8_uint:
 		case format::r8g8_sint:
@@ -188,6 +195,7 @@ namespace reshade { namespace api
 		case format::b10g10r10a2_uint:
 		case format::b10g10r10a2_unorm:
 			return format::b10g10r10a2_typeless;
+		case format::l16_unorm:
 		case format::d16_unorm:
 		case format::r16_typeless:
 		case format::r16_uint:
@@ -196,6 +204,7 @@ namespace reshade { namespace api
 		case format::r16_unorm:
 		case format::r16_snorm:
 			return format::r16_typeless;
+		case format::l16a16_unorm:
 		case format::r16g16_typeless:
 		case format::r16g16_uint:
 		case format::r16g16_sint:
@@ -278,8 +287,8 @@ namespace reshade { namespace api
 	/// Converts the specified format <paramref name="value"/> to its equivalent typed variant ("unorm" or "float").
 	/// </summary>
 	/// <param name="value">The format to convert.</param>
-	/// <param name="srgb">Set to 1 to get sRGB variant, 0 to get non-sRGB variant and -1 to preserve existing variant.</param>
-	inline format format_to_default_typed(format value, int srgb = -1)
+	/// <param name="srgb_variant">Set to 1 to get sRGB variant, 0 to get linear variant and -1 to preserve existing one.</param>
+	inline format format_to_default_typed(format value, int srgb_variant = -1)
 	{
 		switch (value)
 		{
@@ -289,29 +298,30 @@ namespace reshade { namespace api
 			return format::r8g8_unorm;
 		case format::r8g8b8a8_typeless:
 		case format::r8g8b8a8_unorm:
-			return srgb == 1 ? format::r8g8b8a8_unorm_srgb : format::r8g8b8a8_unorm;
+			return srgb_variant == 1 ? format::r8g8b8a8_unorm_srgb : format::r8g8b8a8_unorm;
 		case format::r8g8b8a8_unorm_srgb:
-			return srgb != 0 ? format::r8g8b8a8_unorm_srgb : format::r8g8b8a8_unorm;
+			return srgb_variant != 0 ? format::r8g8b8a8_unorm_srgb : format::r8g8b8a8_unorm;
 		case format::r8g8b8x8_typeless:
 		case format::r8g8b8x8_unorm:
-			return srgb == 1 ? format::r8g8b8x8_unorm_srgb : format::r8g8b8x8_unorm;
+			return srgb_variant == 1 ? format::r8g8b8x8_unorm_srgb : format::r8g8b8x8_unorm;
 		case format::r8g8b8x8_unorm_srgb:
-			return srgb != 0 ? format::r8g8b8x8_unorm_srgb : format::r8g8b8x8_unorm;
+			return srgb_variant != 0 ? format::r8g8b8x8_unorm_srgb : format::r8g8b8x8_unorm;
 		case format::b8g8r8a8_typeless:
 		case format::b8g8r8a8_unorm:
-			return srgb == 1 ? format::b8g8r8a8_unorm_srgb : format::b8g8r8a8_unorm;
+			return srgb_variant == 1 ? format::b8g8r8a8_unorm_srgb : format::b8g8r8a8_unorm;
 		case format::b8g8r8a8_unorm_srgb:
-			return srgb != 0 ? format::b8g8r8a8_unorm_srgb : format::b8g8r8a8_unorm;
+			return srgb_variant != 0 ? format::b8g8r8a8_unorm_srgb : format::b8g8r8a8_unorm;
 		case format::b8g8r8x8_typeless:
 		case format::b8g8r8x8_unorm:
-			return srgb == 1 ? format::b8g8r8x8_unorm_srgb : format::b8g8r8x8_unorm;
+			return srgb_variant == 1 ? format::b8g8r8x8_unorm_srgb : format::b8g8r8x8_unorm;
 		case format::b8g8r8x8_unorm_srgb:
-			return srgb != 0 ? format::b8g8r8x8_unorm_srgb : format::b8g8r8x8_unorm;
+			return srgb_variant != 0 ? format::b8g8r8x8_unorm_srgb : format::b8g8r8x8_unorm;
 		case format::r10g10b10a2_typeless:
 			return format::r10g10b10a2_unorm;
 		case format::b10g10r10a2_typeless:
 			return format::b10g10r10a2_unorm;
 		case format::d16_unorm:
+		case format::r16_typeless:
 			return format::r16_unorm;
 		case format::r16g16_typeless:
 			return format::r16g16_unorm;
@@ -334,19 +344,19 @@ namespace reshade { namespace api
 			return format::r24_unorm_x8_uint;
 		case format::bc1_typeless:
 		case format::bc1_unorm:
-			return srgb == 1 ? format::bc1_unorm_srgb : format::bc1_unorm;
+			return srgb_variant == 1 ? format::bc1_unorm_srgb : format::bc1_unorm;
 		case format::bc1_unorm_srgb:
-			return srgb != 0 ? format::bc1_unorm_srgb : format::bc1_unorm;
+			return srgb_variant != 0 ? format::bc1_unorm_srgb : format::bc1_unorm;
 		case format::bc2_typeless:
 		case format::bc2_unorm:
-			return srgb == 1 ? format::bc2_unorm_srgb : format::bc2_unorm;
+			return srgb_variant == 1 ? format::bc2_unorm_srgb : format::bc2_unorm;
 		case format::bc2_unorm_srgb:
-			return srgb != 0 ? format::bc2_unorm_srgb : format::bc2_unorm;
+			return srgb_variant != 0 ? format::bc2_unorm_srgb : format::bc2_unorm;
 		case format::bc3_typeless:
 		case format::bc3_unorm:
-			return srgb == 1 ? format::bc3_unorm_srgb : format::bc3_unorm;
+			return srgb_variant == 1 ? format::bc3_unorm_srgb : format::bc3_unorm;
 		case format::bc3_unorm_srgb:
-			return srgb != 0 ? format::bc3_unorm_srgb : format::bc3_unorm;
+			return srgb_variant != 0 ? format::bc3_unorm_srgb : format::bc3_unorm;
 		case format::bc4_typeless:
 			return format::bc4_unorm;
 		case format::bc5_typeless:
@@ -355,9 +365,9 @@ namespace reshade { namespace api
 			return format::bc6h_ufloat;
 		case format::bc7_typeless:
 		case format::bc7_unorm:
-			return srgb == 1 ? format::bc7_unorm_srgb : format::bc7_unorm;
+			return srgb_variant == 1 ? format::bc7_unorm_srgb : format::bc7_unorm;
 		case format::bc7_unorm_srgb:
-			return srgb != 0 ? format::bc7_unorm_srgb : format::bc7_unorm;
+			return srgb_variant != 0 ? format::bc7_unorm_srgb : format::bc7_unorm;
 		default:
 			return value;
 		}
@@ -391,27 +401,44 @@ namespace reshade { namespace api
 	}
 
 	/// <summary>
-	/// Gets the number of bytes per pixel the specified format <paramref name="value"/> occupies.
+	/// Gets the number of bytes a texture row of the specified format <paramref name="value"/> occupies.
 	/// </summary>
-	inline const unsigned int format_bytes_per_pixel(format value)
+	inline const uint32_t format_row_pitch(format value, uint32_t width)
 	{
 		if (value == format::unknown)
 			return 0;
+
 		if (value <= format::r32g32b32a32_sint)
-			return 16;
+			return 16 * width;
 		if (value <= format::r32g32b32_sint)
-			return 12;
+			return 12 * width;
 		if (value <= format::x32_float_g8_uint)
-			return 8;
-		if (value <= format::x24_unorm_g8_uint || value == format::b5g6r5_unorm || value == format::b5g5r5a1_unorm || value == format::b5g5r5x1_unorm)
-			return 4;
-		if (value <= format::r16_sint)
-			return 2;
-		if (value <= format::a8_unorm)
-			return 1;
+			return  8 * width;
+		if (value <= format::x24_unorm_g8_uint || value == format::l16a16_unorm)
+			return  4 * width;
+		if (value <= format::r16_sint || value == format::b5g6r5_unorm || value == format::b5g5r5a1_unorm || value == format::b5g5r5x1_unorm || value == format::l8a8_unorm || value == format::l16_unorm)
+			return  2 * width;
+		if (value <= format::a8_unorm || value == format::l8_unorm)
+			return  1 * width;
 		if (value <= format::g8r8_g8b8_unorm || (value >= format::b8g8r8a8_unorm && value <= format::b8g8r8x8_unorm_srgb) || (value >= format::r8g8b8x8_typeless && value <= format::r8g8b8x8_unorm_srgb))
-			return 4;
-		// TODO: Block compressed formats
+			return  4 * width;
+
+		// Block compressed formats are bytes per block, rather than per pixel
+		if ((value >= format::bc1_typeless && value <= format::bc1_unorm_srgb) || (value >= format::bc4_typeless && value <= format::bc4_snorm))
+			return  8 * ((width + 3) / 4);
+		if ((value >= format::bc2_typeless && value <= format::bc2_unorm_srgb) || (value >= format::bc3_typeless && value <= format::bc3_unorm_srgb) || (value >= format::bc5_typeless && value <= format::bc7_unorm_srgb))
+			return 16 * ((width + 3) / 4);
+
 		return 0;
+	}
+	/// <summary>
+	/// Gets the number of bytes a texture slice of the specified format <paramref name="value"/> occupies.
+	/// </summary>
+	inline const uint32_t format_slice_pitch(format value, uint32_t row_pitch, uint32_t height)
+	{
+		if (value < format::bc1_typeless || value > format::bc7_unorm_srgb)
+			return row_pitch * height;
+		else
+			return row_pitch * ((height + 3) / 4);
 	}
 } }

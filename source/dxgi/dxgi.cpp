@@ -16,32 +16,35 @@ extern bool is_windows7();
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 extern thread_local bool g_in_dxgi_runtime;
 
-inline const char *dxgi_format_to_string(DXGI_FORMAT format)
+static void dump_format(DXGI_FORMAT format)
 {
+	const char *format_string = nullptr;
 	switch (format)
 	{
 	case DXGI_FORMAT_UNKNOWN:
-		return "DXGI_FORMAT_UNKNOWN";
+		format_string = "DXGI_FORMAT_UNKNOWN";
+		break;
 	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return "DXGI_FORMAT_R8G8B8A8_UNORM";
+		format_string = "DXGI_FORMAT_R8G8B8A8_UNORM";
+		break;
 	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		return "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB";
+		format_string = "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB";
+		break;
 	case DXGI_FORMAT_B8G8R8A8_UNORM:
-		return "DXGI_FORMAT_B8G8R8A8_UNORM";
+		format_string = "DXGI_FORMAT_B8G8R8A8_UNORM";
+		break;
 	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-		return "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB";
+		format_string = "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB";
+		break;
 	case DXGI_FORMAT_R10G10B10A2_UNORM:
-		return "DXGI_FORMAT_R10G10B10A2_UNORM";
+		format_string = "DXGI_FORMAT_R10G10B10A2_UNORM";
+		break;
 	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		return "DXGI_FORMAT_R16G16B16A16_FLOAT";
-	default:
-		return nullptr;
+		format_string = "DXGI_FORMAT_R16G16B16A16_FLOAT";
+		break;
 	}
-}
 
-static void dump_format(DXGI_FORMAT format)
-{
-	if (const char *format_string = dxgi_format_to_string(format); format_string != nullptr)
+	if (format_string != nullptr)
 		LOG(INFO) << "  | Format                                  | " << std::setw(39) << format_string << " |";
 	else
 		LOG(INFO) << "  | Format                                  | " << std::setw(39) << format << " |";
@@ -99,8 +102,6 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 		buffer_desc.usage |= reshade::api::resource_usage::shader_resource;
 	if (desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
 		buffer_desc.usage |= reshade::api::resource_usage::render_target;
-	if (desc.BufferUsage & DXGI_USAGE_SHARED)
-		buffer_desc.flags |= reshade::api::resource_flags::shared;
 	if (desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
 		buffer_desc.usage |= reshade::api::resource_usage::unordered_access;
 
@@ -111,13 +112,11 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 		desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(buffer_desc.texture.format);
 		desc.SampleDesc.Count = buffer_desc.texture.samples;
 
-		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
 			desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != 0)
 			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((buffer_desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared)
-			desc.BufferUsage |= DXGI_USAGE_SHARED;
-		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != 0)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 	}
 #endif
@@ -194,15 +193,17 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 		desc.Stereo = buffer_desc.texture.depth_or_layers > 1;
 		desc.SampleDesc.Count = buffer_desc.texture.samples;
 
-		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
 			desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != 0)
 			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((buffer_desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared)
+		if ((buffer_desc.flags & reshade::api::resource_flags::shared) == 0)
 			desc.BufferUsage |= DXGI_USAGE_SHARED;
-		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != reshade::api::resource_usage::undefined)
+		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != 0)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 	}
+#else
+	UNREFERENCED_PARAMETER(hwnd);
 #endif
 
 	if (reshade::global_config().get("APP", "ForceWindowed"))
@@ -230,19 +231,22 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 
 UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 {
-	if (com_ptr<D3D10Device> device_d3d10; SUCCEEDED(device->QueryInterface(&device_d3d10)))
+	if (com_ptr<D3D10Device> device_d3d10;
+		SUCCEEDED(device->QueryInterface(&device_d3d10)))
 	{
 		device = device_d3d10->_orig; // Set device pointer back to original object so that the swap chain creation functions work as expected
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d10));
 		return 10;
 	}
-	if (com_ptr<D3D11Device> device_d3d11; SUCCEEDED(device->QueryInterface(&device_d3d11)))
+	if (com_ptr<D3D11Device> device_d3d11;
+		SUCCEEDED(device->QueryInterface(&device_d3d11)))
 	{
 		device = device_d3d11->_orig;
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d11));
 		return 11;
 	}
-	if (com_ptr<D3D12CommandQueue> command_queue_d3d12; SUCCEEDED(device->QueryInterface(&command_queue_d3d12)))
+	if (com_ptr<D3D12CommandQueue> command_queue_d3d12;
+		SUCCEEDED(device->QueryInterface(&command_queue_d3d12)))
 	{
 		device = command_queue_d3d12->_orig;
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(command_queue_d3d12));
@@ -299,7 +303,7 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 		reshade::global_config().get("APP", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
 
 #if RESHADE_VERBOSE_LOG
-		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << '.';
+		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
 #endif
 		swapchain = swapchain_proxy;
 	}
@@ -307,6 +311,9 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 
 HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)
 {
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(IDXGIFactory_CreateSwapChain, vtable_from_instance(pFactory) + 10)(pFactory, pDevice, pDesc, ppSwapChain);
+
 	LOG(INFO) << "Redirecting " << "IDXGIFactory::CreateSwapChain" << '('
 		<<   "this = " << pFactory
 		<< ", pDevice = " << pDevice
@@ -339,6 +346,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pFactory, IUnknown *pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 *pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd, vtable_from_instance(pFactory) + 15)(pFactory, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+
 	LOG(INFO) << "Redirecting " << "IDXGIFactory2::CreateSwapChainForHwnd" << '('
 		<<   "this = " << pFactory
 		<< ", pDevice = " << pDevice
@@ -378,6 +388,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 }
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactory2 *pFactory, IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow, vtable_from_instance(pFactory) + 16)(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
+
 	LOG(INFO) << "Redirecting " << "IDXGIFactory2::CreateSwapChainForCoreWindow" << '('
 		<<   "this = " << pFactory
 		<< ", pDevice = " << pDevice
@@ -412,6 +425,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 }
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFactory2 *pFactory, IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(IDXGIFactory2_CreateSwapChainForComposition, vtable_from_instance(pFactory) + 24)(pFactory, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
+
 	LOG(INFO) << "Redirecting " << "IDXGIFactory2::CreateSwapChainForComposition" << '('
 		<<   "this = " << pFactory
 		<< ", pDevice = " << pDevice
@@ -446,14 +462,19 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
+#if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory" << '(' << "riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 	LOG(INFO) << "> Passing on to " << "CreateDXGIFactory1" << ':';
+#endif
 
 	// DXGI 1.1 should always be available, so to simplify code just call 'CreateDXGIFactory' which is otherwise identical
 	return CreateDXGIFactory1(riid, ppFactory);
 }
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(CreateDXGIFactory1)(riid, ppFactory);
+
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory1" << '(' << "riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 
 	const HRESULT hr = reshade::hooks::call(CreateDXGIFactory1)(riid, ppFactory);

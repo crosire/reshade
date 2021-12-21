@@ -3,7 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "d3d12_impl_device.hpp"
+#include <vector>
+#include <limits>
+#include <cassert>
+#include "reshade_api_pipeline.hpp"
 #include "d3d12_impl_type_convert.hpp"
 
 auto reshade::d3d12::convert_format(api::format format) -> DXGI_FORMAT
@@ -134,33 +137,32 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 		break;
 	}
 
-	if ((desc.usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
+	if ((desc.usage & api::resource_usage::depth_stencil) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-	if ((desc.usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+	if ((desc.usage & api::resource_usage::render_target) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-	if ((desc.usage & api::resource_usage::shader_resource) == api::resource_usage::undefined && (internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
+	if ((desc.usage & api::resource_usage::shader_resource) == 0 && (internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
 	// Mipmap generation is using compute shaders and therefore needs unordered access flag (see 'command_list_impl::generate_mipmaps')
-	if ((desc.usage & api::resource_usage::unordered_access) != api::resource_usage::undefined ||
-		(desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	if ((desc.usage & api::resource_usage::unordered_access) != 0 || (desc.flags & api::resource_flags::generate_mipmaps) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-	if ((desc.flags & api::resource_flags::shared) == api::resource_flags::shared)
+	if ((desc.flags & api::resource_flags::shared) != 0)
 		heap_flags |= D3D12_HEAP_FLAG_SHARED;
 
 	// Dynamic resources do not exist in D3D12
-	assert((desc.flags & api::resource_flags::dynamic) != api::resource_flags::dynamic);
+	assert((desc.flags & api::resource_flags::dynamic) == 0);
 }
 reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags)
 {
@@ -246,7 +248,7 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	}
 
 	if ((heap_flags & D3D12_HEAP_FLAG_SHARED) != 0)
-		desc.flags |= api::resource_flags::shared;
+		desc.flags |= api::resource_flags::shared | api::resource_flags::shared_nt_handle;
 
 	return desc;
 }
@@ -396,8 +398,8 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.TextureCubeArray.MostDetailedMip = desc.texture.first_level;
 		internal_desc.TextureCubeArray.MipLevels = desc.texture.level_count;
 		internal_desc.TextureCubeArray.First2DArrayFace = desc.texture.first_layer;
-		if (desc.texture.layer_count == 0xFFFFFFFF)
-			internal_desc.TextureCubeArray.NumCubes = 0xFFFFFFFF;
+		if (desc.texture.layer_count == UINT32_MAX)
+			internal_desc.TextureCubeArray.NumCubes = UINT_MAX;
 		else
 			internal_desc.TextureCubeArray.NumCubes = desc.texture.layer_count / 6;
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
@@ -594,8 +596,8 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.texture.first_level = internal_desc.TextureCubeArray.MostDetailedMip;
 		desc.texture.level_count = internal_desc.TextureCubeArray.MipLevels;
 		desc.texture.first_layer = internal_desc.TextureCubeArray.First2DArrayFace;
-		if (internal_desc.TextureCubeArray.NumCubes == 0xFFFFFFFF)
-			desc.texture.layer_count = 0xFFFFFFFF;
+		if (internal_desc.TextureCubeArray.NumCubes == UINT_MAX)
+			desc.texture.layer_count = UINT32_MAX;
 		else
 			desc.texture.layer_count = internal_desc.TextureCubeArray.NumCubes * 6;
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
@@ -690,11 +692,11 @@ void reshade::d3d12::convert_pipeline_desc(const api::pipeline_desc &desc, D3D12
 	{
 		internal_desc.BlendState.RenderTarget[i].BlendEnable = desc.graphics.blend_state.blend_enable[i];
 		internal_desc.BlendState.RenderTarget[i].LogicOpEnable = desc.graphics.blend_state.logic_op_enable[i];
-		internal_desc.BlendState.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
-		internal_desc.BlendState.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
+		internal_desc.BlendState.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[i]);
+		internal_desc.BlendState.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[i]);
 		internal_desc.BlendState.RenderTarget[i].BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
-		internal_desc.BlendState.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
-		internal_desc.BlendState.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
+		internal_desc.BlendState.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[i]);
+		internal_desc.BlendState.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[i]);
 		internal_desc.BlendState.RenderTarget[i].BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
 		internal_desc.BlendState.RenderTarget[i].LogicOp = convert_logic_op(desc.graphics.blend_state.logic_op[i]);
 		internal_desc.BlendState.RenderTarget[i].RenderTargetWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
@@ -713,7 +715,7 @@ void reshade::d3d12::convert_pipeline_desc(const api::pipeline_desc &desc, D3D12
 	internal_desc.RasterizerState.MultisampleEnable = desc.graphics.rasterizer_state.multisample_enable;
 	internal_desc.RasterizerState.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line_enable;
 	internal_desc.RasterizerState.ForcedSampleCount = 0;
-	internal_desc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	internal_desc.RasterizerState.ConservativeRaster = static_cast<D3D12_CONSERVATIVE_RASTERIZATION_MODE>(desc.graphics.rasterizer_state.conservative_rasterization);
 
 	internal_desc.DepthStencilState.DepthEnable = desc.graphics.depth_stencil_state.depth_enable;
 	internal_desc.DepthStencilState.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
@@ -729,6 +731,15 @@ void reshade::d3d12::convert_pipeline_desc(const api::pipeline_desc &desc, D3D12
 	internal_desc.DepthStencilState.FrontFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
 	internal_desc.DepthStencilState.FrontFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
 	internal_desc.DepthStencilState.FrontFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
+
+	internal_desc.PrimitiveTopologyType = convert_primitive_topology_type(desc.graphics.topology);
+
+	internal_desc.NumRenderTargets = 0;
+	for (UINT i = 0; i < 8 && desc.graphics.render_target_formats[i] != api::format::unknown; ++i, ++internal_desc.NumRenderTargets)
+		internal_desc.RTVFormats[i] = convert_format(desc.graphics.render_target_formats[i]);
+	internal_desc.DSVFormat = convert_format(desc.graphics.depth_stencil_format);
+
+	internal_desc.SampleDesc.Count = desc.graphics.sample_count;
 }
 reshade::api::pipeline_desc reshade::d3d12::convert_pipeline_desc(const D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc)
 {
@@ -768,6 +779,20 @@ reshade::api::pipeline_desc reshade::d3d12::convert_pipeline_desc(const D3D12_GR
 		desc.graphics.input_layout[i].instance_step_rate = element.InstanceDataStepRate;
 	}
 
+	desc.graphics.topology = convert_primitive_topology_type(internal_desc.PrimitiveTopologyType);
+
+	desc.graphics.rasterizer_state.fill_mode = convert_fill_mode(internal_desc.RasterizerState.FillMode);
+	desc.graphics.rasterizer_state.cull_mode = convert_cull_mode(internal_desc.RasterizerState.CullMode);
+	desc.graphics.rasterizer_state.front_counter_clockwise = internal_desc.RasterizerState.FrontCounterClockwise;
+	desc.graphics.rasterizer_state.depth_bias = static_cast<float>(internal_desc.RasterizerState.DepthBias);
+	desc.graphics.rasterizer_state.depth_bias_clamp = internal_desc.RasterizerState.DepthBiasClamp;
+	desc.graphics.rasterizer_state.slope_scaled_depth_bias = internal_desc.RasterizerState.SlopeScaledDepthBias;
+	desc.graphics.rasterizer_state.depth_clip_enable = internal_desc.RasterizerState.DepthClipEnable;
+	desc.graphics.rasterizer_state.scissor_enable = true;
+	desc.graphics.rasterizer_state.multisample_enable = internal_desc.RasterizerState.MultisampleEnable;
+	desc.graphics.rasterizer_state.antialiased_line_enable = internal_desc.RasterizerState.AntialiasedLineEnable;
+	desc.graphics.rasterizer_state.conservative_rasterization = static_cast<uint32_t>(internal_desc.RasterizerState.ConservativeRaster);
+
 	desc.graphics.blend_state.alpha_to_coverage_enable = internal_desc.BlendState.AlphaToCoverageEnable;
 
 	for (UINT i = 0; i < 8; ++i)
@@ -780,11 +805,11 @@ reshade::api::pipeline_desc reshade::d3d12::convert_pipeline_desc(const D3D12_GR
 		// Only convert blend state if blending is enabled (since some applications leave these uninitialized in this case)
 		if (target.BlendEnable)
 		{
-			desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
-			desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
+			desc.graphics.blend_state.source_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
+			desc.graphics.blend_state.dest_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
 			desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(target.BlendOp);
-			desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
-			desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
+			desc.graphics.blend_state.source_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
+			desc.graphics.blend_state.dest_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
 			desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(target.BlendOpAlpha);
 		}
 		if (target.LogicOpEnable)
@@ -794,19 +819,6 @@ reshade::api::pipeline_desc reshade::d3d12::convert_pipeline_desc(const D3D12_GR
 
 		desc.graphics.blend_state.render_target_write_mask[i] = target.RenderTargetWriteMask;
 	}
-
-	desc.graphics.sample_mask = internal_desc.SampleMask;
-
-	desc.graphics.rasterizer_state.fill_mode = convert_fill_mode(internal_desc.RasterizerState.FillMode);
-	desc.graphics.rasterizer_state.cull_mode = convert_cull_mode(internal_desc.RasterizerState.CullMode);
-	desc.graphics.rasterizer_state.front_counter_clockwise = internal_desc.RasterizerState.FrontCounterClockwise;
-	desc.graphics.rasterizer_state.depth_bias = static_cast<float>(internal_desc.RasterizerState.DepthBias);
-	desc.graphics.rasterizer_state.depth_bias_clamp = internal_desc.RasterizerState.DepthBiasClamp;
-	desc.graphics.rasterizer_state.slope_scaled_depth_bias = internal_desc.RasterizerState.SlopeScaledDepthBias;
-	desc.graphics.rasterizer_state.depth_clip_enable = internal_desc.RasterizerState.DepthClipEnable;
-	desc.graphics.rasterizer_state.scissor_enable = true;
-	desc.graphics.rasterizer_state.multisample_enable = internal_desc.RasterizerState.MultisampleEnable;
-	desc.graphics.rasterizer_state.antialiased_line_enable = internal_desc.RasterizerState.AntialiasedLineEnable;
 
 	desc.graphics.depth_stencil_state.depth_enable = internal_desc.DepthStencilState.DepthEnable;
 	desc.graphics.depth_stencil_state.depth_write_mask = internal_desc.DepthStencilState.DepthWriteMask != D3D12_DEPTH_WRITE_MASK_ZERO;
@@ -823,7 +835,12 @@ reshade::api::pipeline_desc reshade::d3d12::convert_pipeline_desc(const D3D12_GR
 	desc.graphics.depth_stencil_state.front_stencil_pass_op = convert_stencil_op(internal_desc.DepthStencilState.FrontFace.StencilPassOp);
 	desc.graphics.depth_stencil_state.front_stencil_func = convert_compare_op(internal_desc.DepthStencilState.FrontFace.StencilFunc);
 
-	desc.graphics.topology = convert_primitive_topology_type(internal_desc.PrimitiveTopologyType);
+	desc.graphics.depth_stencil_format = convert_format(internal_desc.DSVFormat);
+	for (UINT i = 0; i < internal_desc.NumRenderTargets; ++i)
+		desc.graphics.render_target_formats[i] = convert_format(internal_desc.RTVFormats[i]);
+
+	desc.graphics.sample_mask = internal_desc.SampleMask;
+	desc.graphics.sample_count = internal_desc.SampleDesc.Count;
 	desc.graphics.viewport_count = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
 
 	return desc;
@@ -930,41 +947,41 @@ auto reshade::d3d12::convert_blend_factor(api::blend_factor value) -> D3D12_BLEN
 		return D3D12_BLEND_ZERO;
 	case api::blend_factor::one:
 		return D3D12_BLEND_ONE;
-	case api::blend_factor::src_color:
+	case api::blend_factor::source_color:
 		return D3D12_BLEND_SRC_COLOR;
-	case api::blend_factor::inv_src_color:
+	case api::blend_factor::one_minus_source_color:
 		return D3D12_BLEND_INV_SRC_COLOR;
-	case api::blend_factor::dst_color:
+	case api::blend_factor::dest_color:
 		return D3D12_BLEND_DEST_COLOR;
-	case api::blend_factor::inv_dst_color:
+	case api::blend_factor::one_minus_dest_color:
 		return D3D12_BLEND_INV_DEST_COLOR;
-	case api::blend_factor::src_alpha:
+	case api::blend_factor::source_alpha:
 		return D3D12_BLEND_SRC_ALPHA;
-	case api::blend_factor::inv_src_alpha:
+	case api::blend_factor::one_minus_source_alpha:
 		return D3D12_BLEND_INV_SRC_ALPHA;
-	case api::blend_factor::dst_alpha:
+	case api::blend_factor::dest_alpha:
 		return D3D12_BLEND_DEST_ALPHA;
-	case api::blend_factor::inv_dst_alpha:
+	case api::blend_factor::one_minus_dest_alpha:
 		return D3D12_BLEND_INV_DEST_ALPHA;
 	case api::blend_factor::constant_alpha:
 		assert(false);
 		[[fallthrough]];
 	case api::blend_factor::constant_color:
 		return D3D12_BLEND_BLEND_FACTOR;
-	case api::blend_factor::inv_constant_alpha:
+	case api::blend_factor::one_minus_constant_alpha:
 		assert(false);
 		[[fallthrough]];
-	case api::blend_factor::inv_constant_color:
+	case api::blend_factor::one_minus_constant_color:
 		return D3D12_BLEND_INV_BLEND_FACTOR;
-	case api::blend_factor::src_alpha_sat:
+	case api::blend_factor::source_alpha_saturate:
 		return D3D12_BLEND_SRC_ALPHA_SAT;
-	case api::blend_factor::src1_color:
+	case api::blend_factor::source1_color:
 		return D3D12_BLEND_SRC1_COLOR;
-	case api::blend_factor::inv_src1_color:
+	case api::blend_factor::one_minus_source1_color:
 		return D3D12_BLEND_INV_SRC1_COLOR;
-	case api::blend_factor::src1_alpha:
+	case api::blend_factor::source1_alpha:
 		return D3D12_BLEND_SRC1_ALPHA;
-	case api::blend_factor::inv_src1_alpha:
+	case api::blend_factor::one_minus_source1_alpha:
 		return D3D12_BLEND_INV_SRC1_ALPHA;
 	}
 }
@@ -980,35 +997,35 @@ auto reshade::d3d12::convert_blend_factor(D3D12_BLEND value) -> api::blend_facto
 	case D3D12_BLEND_ONE:
 		return api::blend_factor::one;
 	case D3D12_BLEND_SRC_COLOR:
-		return api::blend_factor::src_color;
+		return api::blend_factor::source_color;
 	case D3D12_BLEND_INV_SRC_COLOR:
-		return api::blend_factor::inv_src_color;
+		return api::blend_factor::one_minus_source_color;
 	case D3D12_BLEND_DEST_COLOR:
-		return api::blend_factor::dst_color;
+		return api::blend_factor::dest_color;
 	case D3D12_BLEND_INV_DEST_COLOR:
-		return api::blend_factor::inv_dst_color;
+		return api::blend_factor::one_minus_dest_color;
 	case D3D12_BLEND_SRC_ALPHA:
-		return api::blend_factor::src_alpha;
+		return api::blend_factor::source_alpha;
 	case D3D12_BLEND_INV_SRC_ALPHA:
-		return api::blend_factor::inv_src_alpha;
+		return api::blend_factor::one_minus_source_alpha;
 	case D3D12_BLEND_DEST_ALPHA:
-		return api::blend_factor::dst_alpha;
+		return api::blend_factor::dest_alpha;
 	case D3D12_BLEND_INV_DEST_ALPHA:
-		return api::blend_factor::inv_dst_alpha;
+		return api::blend_factor::one_minus_dest_alpha;
 	case D3D12_BLEND_BLEND_FACTOR:
 		return api::blend_factor::constant_color;
 	case D3D12_BLEND_INV_BLEND_FACTOR:
-		return api::blend_factor::inv_constant_color;
+		return api::blend_factor::one_minus_constant_color;
 	case D3D12_BLEND_SRC_ALPHA_SAT:
-		return api::blend_factor::src_alpha_sat;
+		return api::blend_factor::source_alpha_saturate;
 	case D3D12_BLEND_SRC1_COLOR:
-		return api::blend_factor::src1_color;
+		return api::blend_factor::source1_color;
 	case D3D12_BLEND_INV_SRC1_COLOR:
-		return api::blend_factor::inv_src1_color;
+		return api::blend_factor::one_minus_source1_color;
 	case D3D12_BLEND_SRC1_ALPHA:
-		return api::blend_factor::src1_alpha;
+		return api::blend_factor::source1_alpha;
 	case D3D12_BLEND_INV_SRC1_ALPHA:
-		return api::blend_factor::inv_src1_alpha;
+		return api::blend_factor::one_minus_source1_alpha;
 	}
 }
 auto reshade::d3d12::convert_fill_mode(api::fill_mode value) -> D3D12_FILL_MODE
@@ -1060,6 +1077,14 @@ auto reshade::d3d12::convert_stencil_op(api::stencil_op value) -> D3D12_STENCIL_
 auto reshade::d3d12::convert_stencil_op(D3D12_STENCIL_OP value) -> api::stencil_op
 {
 	return static_cast<api::stencil_op>(static_cast<uint32_t>(value) - 1);
+}
+auto reshade::d3d12::convert_primitive_topology(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY
+{
+	return static_cast<D3D12_PRIMITIVE_TOPOLOGY>(value);
+}
+auto reshade::d3d12::convert_primitive_topology(D3D12_PRIMITIVE_TOPOLOGY value) -> api::primitive_topology
+{
+	return static_cast<api::primitive_topology>(value);
 }
 auto reshade::d3d12::convert_primitive_topology_type(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY_TYPE
 {
@@ -1159,7 +1184,22 @@ auto reshade::d3d12::convert_query_type_to_heap_type(api::query_type type) -> D3
 		return D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS;
 	default:
 		assert(false);
-		return static_cast<D3D12_QUERY_HEAP_TYPE>(0xFFFFFFFF);
+		return static_cast<D3D12_QUERY_HEAP_TYPE>(UINT_MAX);
+	}
+}
+auto reshade::d3d12::convert_query_heap_type_to_type(D3D12_QUERY_HEAP_TYPE type) -> api::query_type
+{
+	switch (type)
+	{
+	case D3D12_QUERY_HEAP_TYPE_OCCLUSION:
+		return api::query_type::occlusion;
+	case D3D12_QUERY_HEAP_TYPE_TIMESTAMP:
+		return api::query_type::timestamp;
+	case D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS:
+		return api::query_type::pipeline_statistics;
+	default:
+		assert(false);
+		return static_cast<api::query_type>(UINT_MAX);
 	}
 }
 
@@ -1232,5 +1272,63 @@ auto reshade::d3d12::convert_shader_visibility(D3D12_SHADER_VISIBILITY visibilit
 		return api::shader_stage::geometry;
 	case D3D12_SHADER_VISIBILITY_PIXEL:
 		return api::shader_stage::pixel;
+	}
+}
+
+auto reshade::d3d12::convert_render_pass_load_op(api::render_pass_load_op value) -> D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE
+{
+	switch (value)
+	{
+	case reshade::api::render_pass_load_op::load:
+		return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
+	case reshade::api::render_pass_load_op::clear:
+		return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+	case reshade::api::render_pass_load_op::discard:
+		return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
+	default:
+	case reshade::api::render_pass_load_op::dont_care:
+		return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS;
+	}
+}
+auto reshade::d3d12::convert_render_pass_load_op(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE value) -> api::render_pass_load_op
+{
+	switch (value)
+	{
+	case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD:
+		return reshade::api::render_pass_load_op::discard;
+	case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE:
+		return reshade::api::render_pass_load_op::load;
+	case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR:
+		return reshade::api::render_pass_load_op::clear;
+	default:
+	case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS:
+		return reshade::api::render_pass_load_op::dont_care;
+	}
+}
+auto reshade::d3d12::convert_render_pass_store_op(api::render_pass_store_op value) -> D3D12_RENDER_PASS_ENDING_ACCESS_TYPE
+{
+	switch (value)
+	{
+	case reshade::api::render_pass_store_op::store:
+		return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+	case reshade::api::render_pass_store_op::discard:
+		return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+	default:
+	case reshade::api::render_pass_store_op::dont_care:
+		return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS;
+	}
+}
+auto reshade::d3d12::convert_render_pass_store_op(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE value) -> api::render_pass_store_op
+{
+	switch (value)
+	{
+	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD:
+		return reshade::api::render_pass_store_op::discard;
+	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE:
+	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE:
+		return reshade::api::render_pass_store_op::store;
+	default:
+	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS:
+		return reshade::api::render_pass_store_op::dont_care;
 	}
 }

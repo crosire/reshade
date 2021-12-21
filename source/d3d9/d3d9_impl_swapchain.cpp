@@ -40,13 +40,13 @@ reshade::api::resource reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t i
 {
 	assert(index == 0);
 
-	return { reinterpret_cast<uintptr_t>(_backbuffer.get()) };
+	return to_handle(static_cast<IDirect3DResource9 *>(_backbuffer.get()));
 }
 reshade::api::resource reshade::d3d9::swapchain_impl::get_back_buffer_resolved(uint32_t index)
 {
 	assert(index == 0);
 
-	return { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
+	return to_handle(static_cast<IDirect3DResource9 *>(_backbuffer_resolved.get()));
 }
 
 bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
@@ -62,22 +62,22 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 
 	_width = pp.BackBufferWidth;
 	_height = pp.BackBufferHeight;
-	_backbuffer_format = convert_format(pp.BackBufferFormat);
+	_back_buffer_format = convert_format(pp.BackBufferFormat);
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
 	{
-		// Some effects rely on there being an alpha channel available, so create custom back buffer in case that is not the case
-		switch (_backbuffer_format)
+		// Some effects rely on there being an alpha channel available, so create custom back buffer if that is not the case
+		switch (_back_buffer_format)
 		{
 		case api::format::r8g8b8x8_unorm:
-			_backbuffer_format = api::format::r8g8b8a8_unorm;
+			_back_buffer_format = api::format::r8g8b8a8_unorm;
 			break;
 		case api::format::b8g8r8x8_unorm:
-			_backbuffer_format = api::format::b8g8r8a8_unorm;
+			_back_buffer_format = api::format::b8g8r8a8_unorm;
 			break;
 		}
 
-		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTarget(_width, _height, convert_format(_backbuffer_format), D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTarget(_width, _height, convert_format(_back_buffer_format), D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
 		{
 			LOG(ERROR) << "Failed to create back buffer resolve render target!";
 			return false;
@@ -88,24 +88,18 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		_backbuffer_resolved = _backbuffer;
 	}
 
-	// Create state block object
-	if (!_app_state.init_state_block())
-	{
-		LOG(ERROR) << "Failed to create application state block!";
-		return false;
-	}
-
 	return runtime::on_init(pp.hDeviceWindow);
 }
 void reshade::d3d9::swapchain_impl::on_reset()
 {
+	if (_backbuffer == nullptr)
+		return;
+
 	runtime::on_reset();
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
-
-	_app_state.release_state_block();
 
 	_backbuffer.reset();
 	_backbuffer_resolved.reset();
@@ -141,3 +135,22 @@ void reshade::d3d9::swapchain_impl::on_present()
 
 	device_impl->_orig->EndScene();
 }
+
+#if RESHADE_EFFECTS
+void reshade::d3d9::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	const auto device_impl = static_cast<class device_impl *>(_device);
+
+	_app_state.capture();
+	BOOL software_rendering_enabled = FALSE;
+	if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+		software_rendering_enabled = device_impl->_orig->GetSoftwareVertexProcessing(),
+		device_impl->_orig->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
+
+	runtime::render_effects(cmd_list, rtv, rtv_srgb);
+
+	_app_state.apply_and_release();
+	if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+		device_impl->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
+}
+#endif

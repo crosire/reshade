@@ -9,46 +9,65 @@
 #include "reshade_overlay.hpp"
 #include <Windows.h>
 #include <Psapi.h>
+#include <charconv>
 
 #define RESHADE_API_VERSION 1
 
 namespace reshade
 {
-	/// <summary>
-	/// Gets the handle to the ReShade module in the current process.
-	/// </summary>
-	inline HMODULE &get_reshade_module_handle()
+	namespace internal
 	{
-		static HMODULE handle = nullptr;
-		if (handle == nullptr)
+		/// <summary>
+		/// Gets the handle to the ReShade module.
+		/// </summary>
+		inline HMODULE &get_reshade_module_handle()
 		{
-			// Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
-			HMODULE modules[1024]; DWORD num = 0;
-			if (K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &num))
+			static HMODULE handle = nullptr;
+			if (handle == nullptr)
 			{
-				if (num > sizeof(modules))
-					num = sizeof(modules);
-
-				for (DWORD i = 0; i < num / sizeof(HMODULE); ++i)
+				// Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
+				HMODULE modules[1024]; DWORD num = 0;
+				if (K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &num))
 				{
-					if (GetProcAddress(modules[i], "ReShadeRegisterAddon") &&
-						GetProcAddress(modules[i], "ReShadeUnregisterAddon"))
+					if (num > sizeof(modules))
+						num = sizeof(modules);
+
+					for (DWORD i = 0; i < num / sizeof(HMODULE); ++i)
 					{
-						handle = modules[i];
-						break;
+						if (GetProcAddress(modules[i], "ReShadeRegisterAddon") &&
+							GetProcAddress(modules[i], "ReShadeUnregisterAddon"))
+						{
+							handle = modules[i];
+							break;
+						}
 					}
 				}
 			}
+			return handle;
 		}
-		return handle;
-	}
-	/// <summary>
-	/// Gets the handle to the current add-on module.
-	/// </summary>
-	inline HMODULE &get_current_module_handle()
-	{
-		static HMODULE handle = nullptr;
-		return handle;
+
+		/// <summary>
+		/// Gets the handle to the current add-on module.
+		/// </summary>
+		inline HMODULE &get_current_module_handle()
+		{
+			static HMODULE handle = nullptr;
+			return handle;
+		}
+
+#if defined(IMGUI_VERSION_NUM)
+		/// <summary>
+		/// Gets a pointer to the Dear ImGui function table.
+		/// </summary>
+		inline const imgui_function_table *get_imgui_function_table()
+		{
+			static const auto func = reinterpret_cast<const imgui_function_table *(*)(uint32_t)>(
+				GetProcAddress(get_reshade_module_handle(), "ReShadeGetImGuiFunctionTable"));
+			if (func != nullptr)
+				return func(IMGUI_VERSION_NUM);
+			return nullptr;
+		}
+#endif
 	}
 
 	/// <summary>
@@ -59,8 +78,64 @@ namespace reshade
 	inline void log_message(int level, const char *message)
 	{
 		static const auto func = reinterpret_cast<void(*)(HMODULE, int, const char *)>(
-			GetProcAddress(get_reshade_module_handle(), "ReShadeLogMessage"));
-		func(get_current_module_handle(), level, message);
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeLogMessage"));
+		func(internal::get_current_module_handle(), level, message);
+	}
+
+	/// <summary>
+	/// Gets a value from one of ReShade's config files.
+	/// </summary>
+	/// <param name="runtime">Optional effect runtime to use the config file from, or <see langword="nullptr"/> to use the global config file.</param>
+	/// <param name="section">Name of the config section.</param>
+	/// <param name="key">Name of the config value.</param>
+	/// <param name="value">Pointer to a string buffer that is filled with the config value.</param>
+	/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+	/// <returns><see langword="true"/> if the specified config value exists, <see cref="false"/> otherwise.</returns>
+	inline bool get_config_value(api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)
+	{
+		static const auto func = reinterpret_cast<bool(*)(HMODULE, api::effect_runtime *, const char *, const char *, char *, size_t *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetConfigValue"));
+		return func(internal::get_current_module_handle(), runtime, section, key, value, length);
+	}
+	template <typename T>
+	inline bool get_config_value(api::effect_runtime *runtime, const char *section, const char *key, T &value)
+	{
+		char value_string[32] = ""; size_t value_length = sizeof(value_string) - 1;
+		if (!get_config_value(runtime, section, key, value_string, &value_length))
+			return false;
+		return std::from_chars(value_string, value_string + value_length, value).ec != std::errc();
+	}
+	template <>
+	inline bool get_config_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, bool &value)
+	{
+		int value_int = 0;
+		return get_config_value<int>(runtime, section, key, value_int) ? value = value_int != 0, true : false;
+	}
+
+	/// <summary>
+	/// Sets and saves a value in one of ReShade's config files.
+	/// </summary>
+	/// <param name="runtime">Optional effect runtime to use the config file from, or <see langword="nullptr"/> to use the global config file.</param>
+	/// <param name="section">Name of the config section.</param>
+	/// <param name="key">Name of the config value.</param>
+	/// <param name="value">Config value to set.</param>
+	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const char *value)
+	{
+		static const auto func = reinterpret_cast<void(*)(HMODULE, api::effect_runtime *, const char *, const char *, const char *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeSetConfigValue"));
+		func(internal::get_current_module_handle(), runtime, section, key, value);
+	}
+	template <typename T>
+	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const T &value)
+	{
+		char value_string[32] = "";
+		std::to_chars(value_string, value_string + sizeof(value_string) - 1, value);
+		set_config_value(runtime, section, key, static_cast<const char *>(value_string));
+	}
+	template <>
+	inline void set_config_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, const bool &value)
+	{
+		set_config_value<int>(runtime, section, key, value ? 1 : 0);
 	}
 
 	/// <summary>
@@ -70,9 +145,9 @@ namespace reshade
 	/// <param name="module">Handle of the current add-on module.</param>
 	inline bool register_addon(HMODULE module)
 	{
-		get_current_module_handle() = module;
+		internal::get_current_module_handle() = module;
 
-		const HMODULE reshade_module = get_reshade_module_handle();
+		const HMODULE reshade_module = internal::get_reshade_module_handle();
 		if (reshade_module == nullptr)
 			return false;
 
@@ -82,18 +157,10 @@ namespace reshade
 		if (!func(module, RESHADE_API_VERSION))
 			return false;
 
-#ifdef IMGUI_VERSION
-		// Check that the ReShade module was built with imgui support
-		const auto imgui_func = reinterpret_cast<const imgui_function_table *(*)(unsigned int)>(
-			GetProcAddress(reshade_module, "ReShadeGetImGuiFunctionTable"));
-		if (imgui_func == nullptr)
+#if defined(IMGUI_VERSION_NUM)
+		// Check that the ReShade module was built with Dear ImGui support and supports the used version
+		if (!internal::get_imgui_function_table())
 			return false;
-
-		// Check that the ReShade module supports the used imgui version
-		const imgui_function_table *const imgui_table = imgui_func(IMGUI_VERSION_NUM);
-		if (imgui_table == nullptr)
-			return false;
-		g_imgui_function_table = *imgui_table;
 #endif
 
 		return true;
@@ -104,7 +171,7 @@ namespace reshade
 	/// <param name="module">Handle of the current add-on module.</param>
 	inline void unregister_addon(HMODULE module)
 	{
-		const HMODULE reshade_module = get_reshade_module_handle();
+		const HMODULE reshade_module = internal::get_reshade_module_handle();
 		if (reshade_module == nullptr)
 			return;
 
@@ -122,7 +189,7 @@ namespace reshade
 	inline void register_event(typename reshade::addon_event_traits<ev>::decl callback)
 	{
 		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
-			GetProcAddress(get_reshade_module_handle(), "ReShadeRegisterEvent"));
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeRegisterEvent"));
 		func(ev, static_cast<void *>(callback));
 	}
 	/// <summary>
@@ -133,30 +200,31 @@ namespace reshade
 	inline void unregister_event(typename reshade::addon_event_traits<ev>::decl callback)
 	{
 		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
-			GetProcAddress(get_reshade_module_handle(), "ReShadeUnregisterEvent"));
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUnregisterEvent"));
 		func(ev, static_cast<void *>(callback));
 	}
 
 	/// <summary>
 	/// Registers an overlay with ReShade.
-	/// <para>The callback function is then called whenever the ReShade overlay is visible and allows adding imgui widgets for user interaction.</para>
+	/// <para>The callback function is then called whenever the ReShade overlay is visible and allows adding Dear ImGui widgets for user interaction.</para>
 	/// </summary>
-	/// <param name="title">A null-terminated title string, or <c>nullptr</c> to register a settings overlay for this add-on.</param>
+	/// <param name="title">A null-terminated title string, or <see langword="nullptr"/> to register a settings overlay for this add-on.</param>
 	/// <param name="callback">Pointer to the callback function.</param>
-	inline void register_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context))
+	inline void register_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 	{
-		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *, void *))>(
-			GetProcAddress(get_reshade_module_handle(), "ReShadeRegisterOverlay"));
+		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *))>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeRegisterOverlay"));
 		func(title, callback);
 	}
 	/// <summary>
 	/// Unregisters an overlay that was previously registered via <see cref="register_overlay"/>.
 	/// </summary>
 	/// <param name="title">A null-terminated title string.</param>
-	inline void unregister_overlay(const char *title)
+	/// <param name="callback">Pointer to the callback function.</param>
+	inline void unregister_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 	{
-		static const auto func = reinterpret_cast<void(*)(const char *)>(
-			GetProcAddress(get_reshade_module_handle(), "ReShadeUnregisterOverlay"));
-		func(title);
+		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *))>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUnregisterOverlay"));
+		func(title, callback);
 	}
 }

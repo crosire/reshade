@@ -5,10 +5,10 @@
 
 #pragma once
 
-#include "com_ptr.hpp"
 #include <mutex>
 #include <vector>
 #include <d3d12.h>
+#include "com_ptr.hpp"
 
 namespace reshade::d3d12
 {

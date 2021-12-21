@@ -8,7 +8,6 @@
 #include "d3d12_impl_swapchain.hpp"
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
-#include "dll_resources.hpp"
 #include <CoreWindow.h>
 
 reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
@@ -48,11 +47,11 @@ reshade::d3d12::swapchain_impl::~swapchain_impl()
 
 reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer(uint32_t index)
 {
-	return { reinterpret_cast<uintptr_t>(_backbuffers[index].get()) };
+	return to_handle(_backbuffers[index].get());
 }
 reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer_resolved(uint32_t index)
 {
-	return { reinterpret_cast<uintptr_t>(_backbuffers[index].get()) };
+	return to_handle(_backbuffers[index].get());
 }
 
 uint32_t reshade::d3d12::swapchain_impl::get_back_buffer_count() const
@@ -103,12 +102,15 @@ bool reshade::d3d12::swapchain_impl::on_init()
 
 	_width = swap_desc.BufferDesc.Width;
 	_height = swap_desc.BufferDesc.Height;
-	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
+	_back_buffer_format = convert_format(swap_desc.BufferDesc.Format);
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
 void reshade::d3d12::swapchain_impl::on_reset()
 {
+	if (_backbuffers.empty())
+		return;
+
 	runtime::on_reset();
 
 #if RESHADE_ADDON
@@ -116,19 +118,19 @@ void reshade::d3d12::swapchain_impl::on_reset()
 #endif
 
 	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
-	_device->wait_idle();
+	_graphics_queue->wait_idle();
 
 	_backbuffers.clear();
 }
 
 void reshade::d3d12::swapchain_impl::on_present()
 {
-	if (!is_initialized())
-		return;
-
 	// There is no swap chain in d3d12on7
 	if (_orig != nullptr)
 		_swap_index = _orig->GetCurrentBackBufferIndex();
+
+	if (!is_initialized())
+		return;
 
 	runtime::on_present();
 }
@@ -160,7 +162,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 
 			_width = static_cast<UINT>(source_desc.Width);
 			_height = source_desc.Height;
-			_backbuffer_format = convert_format(source_desc.Format);
+			_back_buffer_format = convert_format(source_desc.Format);
 
 #if RESHADE_ADDON
 			invoke_addon_event<addon_event::init_swapchain>(this);
@@ -176,7 +178,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 	return true;
 }
 
-bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target)
+bool reshade::d3d12::swapchain_impl::on_vr_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target)
 {
 	assert(eye < 2 && source != nullptr);
 
@@ -206,7 +208,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 
 	const api::format source_format = convert_format(source_desc.Format);
 
-	if (width_difference > 2 || region_height != _height || source_format != _backbuffer_format)
+	if (width_difference > 2 || region_height != _height || source_format != _back_buffer_format)
 	{
 		on_reset();
 
@@ -230,7 +232,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 		_is_vr = true;
 		_width = target_width;
 		_height = region_height;
-		_backbuffer_format = source_format;
+		_back_buffer_format = source_format;
 
 #if RESHADE_ADDON
 		invoke_addon_event<addon_event::init_swapchain>(this);

@@ -97,7 +97,7 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 	_width = desc.imageExtent.width;
 	_height = desc.imageExtent.height;
-	_backbuffer_format = convert_format(desc.imageFormat);
+	_back_buffer_format = convert_format(desc.imageFormat);
 
 	for (uint32_t i = 0; i < NUM_SYNC_SEMAPHORES; ++i)
 	{
@@ -114,6 +114,9 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 }
 void reshade::vulkan::swapchain_impl::on_reset()
 {
+	if (_swapchain_images.empty())
+		return;
+
 	runtime::on_reset();
 
 #if RESHADE_ADDON
@@ -136,10 +139,10 @@ void reshade::vulkan::swapchain_impl::on_reset()
 
 void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
 {
+	_swap_index = swapchain_image_index;
+
 	if (!is_initialized())
 		return;
-
-	_swap_index = swapchain_image_index;
 
 	runtime::on_present();
 
@@ -180,7 +183,7 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 	}
 }
 
-bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
+bool reshade::vulkan::swapchain_impl::on_vr_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
 {
 	assert(eye < 2 && source != VK_NULL_HANDLE);
 
@@ -202,11 +205,9 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
 	const int32_t width_difference = std::abs(static_cast<int32_t>(target_extent.width) - static_cast<int32_t>(_width));
 
-	if (width_difference > 2 || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
+	if (width_difference > 2 || target_extent.height != _height || convert_format(source_format) != _back_buffer_format)
 	{
 		on_reset();
-
-		_is_vr = true;
 
 		api::resource image = {};
 		if (!static_cast<device_impl *>(_device)->create_resource(
@@ -217,6 +218,8 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 			LOG(DEBUG) << "> Details: Width = " << target_extent.width << ", Height = " << target_extent.height << ", Format = " << source_format;
 			return false;
 		}
+
+		_is_vr = true;
 
 		_swapchain_images.resize(1);
 		_swapchain_images[0] = (VkImage)image.handle;

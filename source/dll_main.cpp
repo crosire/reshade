@@ -71,7 +71,7 @@ std::filesystem::path get_base_path()
 		return result;
 
 	std::error_code ec;
-	if (std::filesystem::exists(reshade::global_config().path(), ec) || !std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
+	if (!std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
 	{
 		return g_reshade_dll_path.parent_path();
 	}
@@ -139,9 +139,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	reshade::log::open_log_file(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
 	reshade::hooks::register_module(L"user32.dll");
-
-	extern void init_message_queue_trampolines();
-	init_message_queue_trampolines();
 
 	static UINT s_resize_w = 0, s_resize_h = 0;
 
@@ -466,7 +463,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 			else
 			{
-				// Synchronization is handled in "swapchain_impl::on_present"
+				// Synchronization is handled in 'swapchain_impl::on_present'
 				HR_CHECK(swapchain->Present(1, 0));
 			}
 		}
@@ -580,8 +577,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			};
 			const char *const enabled_extensions[] = {
 				VK_KHR_SURFACE_EXTENSION_NAME,
-				VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
-				VK_EXT_DEBUG_REPORT_EXTENSION_NAME
+				VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 			};
 
 			VkInstanceCreateInfo create_info { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
@@ -825,7 +821,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 #  ifndef NDEBUG
 #include <DbgHelp.h>
 
-static PVOID g_exception_handler_handle = nullptr;
+static PVOID s_exception_handler_handle = nullptr;
 #  endif
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
@@ -840,7 +836,19 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_target_executable_path = get_module_path(nullptr);
 		g_reshade_base_path = get_base_path(); // Needs to happen after DLL and executable path are set (since those are referenced in 'get_base_path')
 
-		reshade::log::open_log_file(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
+		if (std::filesystem::path log_path = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log");
+			reshade::log::open_log_file(log_path) == false)
+		{
+			// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
+			std::filesystem::path log_filename = g_reshade_dll_path.stem();
+			log_filename += L"_";
+			log_filename += g_target_executable_path.stem();
+			log_filename += L".log";
+
+			log_path.replace_filename(log_filename);
+
+			reshade::log::open_log_file(log_path);
+		}
 
 #  ifdef WIN64
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
@@ -849,7 +857,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #  endif
 
 #  ifndef NDEBUG
-		g_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
+		s_exception_handler_handle = AddVectoredExceptionHandler(1, [](PEXCEPTION_POINTERS ex) -> LONG {
 			// Ignore debugging and some common language exceptions
 			if (const DWORD code = ex->ExceptionRecord->ExceptionCode;
 				code == CONTROL_C_EXIT || code == 0x406D1388 /* SetThreadName */ ||
@@ -859,8 +867,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				goto continue_search;
 
 			// Create dump with exception information for the first 100 occurrences
-			if (static unsigned int dump_index = 0;
-				++dump_index < 100)
+			if (static unsigned int dump_index = 0; dump_index < 100)
 			{
 				// Call into the original "LoadLibrary" directly, to avoid failing memory corruption checks
 				const auto ll = reshade::hooks::call<decltype(&LoadLibraryW)>(nullptr, LoadLibraryW);
@@ -887,9 +894,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				MINIDUMP_EXCEPTION_INFORMATION info;
 				info.ThreadId = GetCurrentThreadId();
 				info.ExceptionPointers = ex;
-				info.ClientPointers = FALSE;
+				info.ClientPointers = TRUE;
 
-				dbghelp_write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr);
+				if (dbghelp_write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr))
+					dump_index++;
 
 				CloseHandle(file);
 			}
@@ -912,42 +920,58 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			}
 		}
 
-		reshade::hooks::register_module(L"user32.dll");
-		reshade::hooks::register_module(L"ws2_32.dll");
+		// Register modules to hook
+		{
+			reshade::hooks::register_module(L"user32.dll");
+			reshade::hooks::register_module(L"ws2_32.dll");
 
-		reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
-		reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
-		reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
-		reshade::hooks::register_module(get_system_path() / L"d3d10_1.dll");
-		reshade::hooks::register_module(get_system_path() / L"d3d11.dll");
+			const std::filesystem::path module_name = g_reshade_dll_path.stem();
 
-		// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
-		if (is_windows7() && _wcsicmp(g_reshade_dll_path.stem().c_str(), L"d3d12") != 0)
-			reshade::hooks::register_module(L"d3d12.dll");
-		else
-			reshade::hooks::register_module(get_system_path() / L"d3d12.dll");
+			// Only register D3D hooks when module is not called opengl32.dll
+			if (_wcsicmp(module_name.c_str(), L"opengl32") != 0)
+			{
+				reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
+				reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
+				reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
+				reshade::hooks::register_module(get_system_path() / L"d3d10_1.dll");
+				reshade::hooks::register_module(get_system_path() / L"d3d11.dll");
 
-		reshade::hooks::register_module(get_system_path() / L"dxgi.dll");
-		reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
-		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
+				// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
+				if (is_windows7() && _wcsicmp(module_name.c_str(), L"d3d12") != 0)
+					reshade::hooks::register_module(L"d3d12.dll");
+				else
+					reshade::hooks::register_module(get_system_path() / L"d3d12.dll");
+
+				reshade::hooks::register_module(get_system_path() / L"dxgi.dll");
+			}
+
+			// Only register OpenGL hooks when module is not called any D3D module name
+			if (_wcsnicmp(module_name.c_str(), L"d3d", 3) != 0 && _wcsicmp(module_name.c_str(), L"dxgi") != 0)
+			{
+				reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
+			}
+
+			// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
 #  ifdef WIN64
-		reshade::hooks::register_module(L"vrclient_x64.dll");
+			reshade::hooks::register_module(L"vrclient_x64.dll");
 #  else
-		reshade::hooks::register_module(L"vrclient.dll");
+			reshade::hooks::register_module(L"vrclient.dll");
 #  endif
 
-		// Register DirectInput module in case it was used to load ReShade (but ignore otherwise)
-		if (_wcsicmp(g_reshade_dll_path.stem().c_str(), L"dinput8") == 0)
-			reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
+      
+      // Register DirectInput module in case it was used to load ReShade (but ignore otherwise)
+      if (_wcsicmp(module_name.c_str(), L"dinput8") == 0)
+      {
+        reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
+      }
 
-		// Register Windows Multimedia module in case it was used to load ReShade (but ignore otherwise)
-		if (_wcsicmp(g_reshade_dll_path.stem().c_str(), L"winmm") == 0)
-			reshade::hooks::register_module(get_system_path() / L"winmm.dll");
-
-		// user32.dll will always be loaded at this point, so can safely initialize trampoline pointers
-		extern void init_message_queue_trampolines();
-		init_message_queue_trampolines();
+          // Register Windows Multimedia module in case it was used to load ReShade (but ignore otherwise)
+      if (_wcsicmp(module_name.c_str(), L"winmm") == 0)
+      {
+        reshade::hooks::register_module(get_system_path() / L"winmm.dll");
+      }
+ 		}
 
 		LOG(INFO) << "Initialized.";
 		break;
@@ -966,7 +990,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		Sleep(1000);
 
 #  ifndef NDEBUG
-		RemoveVectoredExceptionHandler(g_exception_handler_handle);
+		RemoveVectoredExceptionHandler(s_exception_handler_handle);
 #  endif
 
 		LOG(INFO) << "Finished exiting.";

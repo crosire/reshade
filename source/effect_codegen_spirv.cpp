@@ -128,7 +128,7 @@ private:
 		reshadefx::type type;
 		bool is_ptr;
 		uint32_t array_stride;
-		spv::StorageClass storage;
+		std::pair<spv::StorageClass, spv::ImageFormat> storage;
 
 		friend bool operator==(const type_lookup &lhs, const type_lookup &rhs)
 		{
@@ -168,7 +168,7 @@ private:
 	std::vector<std::tuple<type, constant, spv::Id>> _constant_lookup;
 	std::vector<std::pair<function_blocks, spv::Id>> _function_type_lookup;
 	std::unordered_map<std::string, spv::Id> _string_lookup;
-	std::unordered_map<spv::Id, spv::StorageClass> _storage_lookup;
+	std::unordered_map<spv::Id, std::pair<spv::StorageClass, spv::ImageFormat>> _storage_lookup;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 
 	std::vector<function_blocks> _functions_blocks;
@@ -338,7 +338,7 @@ private:
 		}
 	}
 
-	spv::Id convert_type(type info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, uint32_t array_stride = 0)
+	spv::Id convert_type(type info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, spv::ImageFormat format = spv::ImageFormatUnknown, uint32_t array_stride = 0)
 	{
 		assert(array_stride == 0 || info.is_array());
 
@@ -348,12 +348,14 @@ private:
 		// There cannot be sampler variables that are local to a function, so always assume uniform storage for them
 		if (info.is_texture() || info.is_sampler() || info.is_storage())
 			storage = spv::StorageClassUniformConstant;
+		else
+			assert(format == spv::ImageFormatUnknown);
 
 		// Fall back to 32-bit types and use relaxed precision decoration instead if 16-bit types are not enabled
 		if (!_enable_16bit_types && info.is_numeric() && info.precision() < 32)
 			info.base = static_cast<type::datatype>(info.base + 1); // min16int -> int, min16uint -> uint, min16float -> float
 
-		const type_lookup lookup = { info, is_ptr, array_stride, storage };
+		const type_lookup lookup = { info, is_ptr, array_stride, { storage, format } };
 		if (const auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
 			[&lookup](const auto &lookup_it) { return lookup_it.first == lookup; }); it != _type_lookup.end())
 			return it->second;
@@ -361,7 +363,7 @@ private:
 		spv::Id type, elem_type;
 		if (is_ptr)
 		{
-			elem_type = convert_type(info, false, storage, array_stride);
+			elem_type = convert_type(info, false, storage, format, array_stride);
 
 			add_instruction(spv::OpTypePointer, 0, _types_and_constants, type)
 				.add(storage)
@@ -375,7 +377,7 @@ private:
 			// Make sure we don't get any dynamic arrays here
 			assert(info.array_length > 0);
 
-			elem_type = convert_type(elem_info, false, storage);
+			elem_type = convert_type(elem_info, false, storage, format);
 			const spv::Id array_length = emit_constant(info.array_length);
 
 			add_instruction(spv::OpTypeArray, 0, _types_and_constants, type)
@@ -392,7 +394,7 @@ private:
 			elem_info.rows = info.cols;
 			elem_info.cols = 1;
 
-			elem_type = convert_type(elem_info, false, storage);
+			elem_type = convert_type(elem_info, false, storage, format);
 
 			// Matrix types with just one row are interpreted as if they were a vector type
 			if (info.rows == 1)
@@ -408,7 +410,7 @@ private:
 			elem_info.rows = 1;
 			elem_info.cols = 1;
 
-			elem_type = convert_type(elem_info, false, storage);
+			elem_type = convert_type(elem_info, false, storage, format);
 
 			add_instruction(spv::OpTypeVector, 0, _types_and_constants, type)
 				.add(elem_type)
@@ -475,13 +477,14 @@ private:
 				break;
 			case type::t_sampler:
 				assert(info.rows == 0 && info.cols == 0);
-				elem_type = convert_type({ type::t_texture, 0, 0, type::q_uniform });
+				elem_type = convert_type({ type::t_texture, 0, 0, type::q_uniform }, false, storage, format);
 				add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants, type)
 					.add(elem_type);
 				break;
 			case type::t_storage:
 				// No format specified for the storage image
-				add_capability(spv::CapabilityStorageImageWriteWithoutFormat);
+				if (format == spv::ImageFormatUnknown)
+					add_capability(spv::CapabilityStorageImageWriteWithoutFormat);
 			case type::t_texture:
 				assert(info.rows == 0 && info.cols == 0);
 				elem_type = convert_type({ type::t_float, 1, 1 });
@@ -492,7 +495,7 @@ private:
 					.add(0) // Not an array
 					.add(0) // Not multi-sampled
 					.add(info.is_texture() ? 1 : 2) // Used with a sampler or as storage
-					.add(spv::ImageFormatUnknown);
+					.add(format);
 				break;
 			default:
 				return assert(false), 0;
@@ -575,6 +578,48 @@ private:
 		if (semantic == "SV_DISPATCHTHREADID")
 			return spv::BuiltInGlobalInvocationId;
 		return spv::BuiltInMax;
+	}
+	const spv::ImageFormat format_to_image_format(texture_format format)
+	{
+		switch (format)
+		{
+		default:
+			assert(false);
+		case texture_format::unknown:
+			return spv::ImageFormatUnknown;
+		case texture_format::r8:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatR8;
+		case texture_format::r16f:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatR16f;
+		case texture_format::r32f:
+			return spv::ImageFormatR32f;
+		case texture_format::rg8:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatRg8;
+		case texture_format::rg16:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatRg16;
+		case texture_format::rg16f:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatRg16f;
+		case texture_format::rg32f:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatRg32f;
+		case texture_format::rgba8:
+			return spv::ImageFormatRgba8;
+		case texture_format::rgba16:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatRgba16;
+		case texture_format::rgba16f:
+			return spv::ImageFormatRgba16f;
+		case texture_format::rgba32f:
+			return spv::ImageFormatRgba32f;
+		case texture_format::rgb10a2:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatRgb10A2;
+		}
 	}
 
 	inline void add_name(id id, const char *name)
@@ -692,7 +737,7 @@ private:
 	}
 	id   define_storage(const location &loc, storage_info &info) override
 	{
-		info.id = define_variable(loc, { type::t_storage, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
+		info.id = define_variable(loc, { type::t_storage, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant, format_to_image_format(info.format));
 		info.binding = _module.num_storage_bindings++;
 
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
@@ -827,7 +872,7 @@ private:
 
 			// Composite objects in the uniform storage class must be explicitly laid out, which includes array types requiring a stride decoration
 			_global_ubo_types.push_back(
-				convert_type(ubo_type, false, spv::StorageClassUniform, info.type.is_array() ? array_stride : 0u));
+				convert_type(ubo_type, false, spv::StorageClassUniform, spv::ImageFormatUnknown, info.type.is_array() ? array_stride : 0u));
 
 			add_member_name(_global_ubo_type, member_index, info.name.c_str());
 
@@ -854,9 +899,9 @@ private:
 		else if (global)
 			storage = spv::StorageClassPrivate;
 
-		return define_variable(loc, type, name.c_str(), storage, initializer_value);
+		return define_variable(loc, type, name.c_str(), storage, spv::ImageFormatUnknown, initializer_value);
 	}
-	id   define_variable(const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::Id initializer_value = 0)
+	id   define_variable(const location &loc, const type &type, const char *name, spv::StorageClass storage, spv::ImageFormat format = spv::ImageFormatUnknown, spv::Id initializer_value = 0)
 	{
 		assert(storage != spv::StorageClassFunction || _current_function != nullptr);
 
@@ -867,7 +912,7 @@ private:
 
 		spv::Id res;
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
-		spirv_instruction &inst = add_instruction(spv::OpVariable, convert_type(type, true, storage), block, res)
+		spirv_instruction &inst = add_instruction(spv::OpVariable, convert_type(type, true, storage, format), block, res)
 			.add(storage);
 
 		if (initializer_value != 0)
@@ -892,7 +937,7 @@ private:
 		if (!_enable_16bit_types && type.is_numeric() && type.precision() < 32)
 			add_decoration(res, spv::DecorationRelaxedPrecision);
 
-		_storage_lookup[res] = storage;
+		_storage_lookup[res] = { storage, format };
 
 		return res;
 	}
@@ -1265,7 +1310,7 @@ private:
 			if (!exp.chain.empty())
 				base_type = exp.chain[0].from;
 
-			spv::StorageClass storage = spv::StorageClassFunction;
+			std::pair<spv::StorageClass, spv::ImageFormat> storage = { spv::StorageClassFunction, spv::ImageFormatUnknown };
 			if (const auto it = _storage_lookup.find(exp.base);
 				it != _storage_lookup.end())
 				storage = it->second;
@@ -1277,7 +1322,7 @@ private:
 			{
 				const uint32_t member_index = result ^ 0xF0000000;
 
-				storage = spv::StorageClassUniform;
+				storage.first = spv::StorageClassUniform;
 				is_uniform_bool = base_type.is_boolean();
 
 				if (is_uniform_bool)
@@ -1314,16 +1359,16 @@ private:
 						emit_constant(exp.chain[i].index)); // Indexes
 
 				base_type = exp.chain[i - 1].to;
-				access_chain->type = convert_type(base_type, true, storage); // Last type is the result
+				access_chain->type = convert_type(base_type, true, storage.first, storage.second); // Last type is the result
 				result = access_chain->result;
 			}
 			else if (access_chain != nullptr)
 			{
-				access_chain->type = convert_type(base_type, true, storage, base_type.is_array() ? 16u : 0u);
+				access_chain->type = convert_type(base_type, true, storage.first, storage.second, base_type.is_array() ? 16u : 0u);
 				result = access_chain->result;
 			}
 
-			result = add_instruction(spv::OpLoad, convert_type(base_type))
+			result = add_instruction(spv::OpLoad, convert_type(base_type, false, spv::StorageClassFunction, storage.second))
 				.add(result) // Pointer
 				.result;
 		}
@@ -1605,7 +1650,7 @@ private:
 			exp.chain[0].op != expression::operation::op_constant_index))
 			return exp.base;
 
-		spv::StorageClass storage = spv::StorageClassFunction;
+		std::pair<spv::StorageClass, spv::ImageFormat> storage = { spv::StorageClassFunction, spv::ImageFormatUnknown };
 		if (const auto it = _storage_lookup.find(exp.base);
 			it != _storage_lookup.end())
 			storage = it->second;
@@ -1628,7 +1673,7 @@ private:
 				exp.chain[i].index :
 				emit_constant(exp.chain[i].index)); // Indexes
 
-		access_chain->type = convert_type(exp.chain[i - 1].to, true, storage); // Last type is the result
+		access_chain->type = convert_type(exp.chain[i - 1].to, true, storage.first, storage.second); // Last type is the result
 		return access_chain->result;
 	}
 

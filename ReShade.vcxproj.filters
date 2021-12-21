@@ -13,9 +13,6 @@
     <Filter Include="core\runtime">
       <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\runtime\addon">
-      <UniqueIdentifier>{0def8993-de0e-4d32-8464-9cc89e2c30a6}</UniqueIdentifier>
-    </Filter>
     <Filter Include="core\runtime\widgets">
       <UniqueIdentifier>{ea5f4e2d-9d3f-4db7-8343-08b97e53a2dc}</UniqueIdentifier>
     </Filter>
@@ -81,6 +78,15 @@
     <ClCompile Include="source\hook_manager.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
+    <ClCompile Include="source\addon.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\addon_manager.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="examples\10-generic_depth\generic_depth.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
@@ -98,15 +104,6 @@
     </ClCompile>
     <ClCompile Include="source\runtime_update_check.cpp">
       <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\addon.cpp">
-      <Filter>core\runtime\addon</Filter>
-    </ClCompile>
-    <ClCompile Include="source\addon_manager.cpp">
-      <Filter>core\runtime\addon</Filter>
-    </ClCompile>
-    <ClCompile Include="source\addon\generic_depth.cpp">
-      <Filter>core\runtime\addon</Filter>
     </ClCompile>
     <ClCompile Include="source\imgui_code_editor.cpp">
       <Filter>core\runtime\widgets</Filter>
@@ -219,6 +216,9 @@
     <ClCompile Include="source\d3d12\d3d12_command_queue_downlevel.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_descriptor_heap.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d12\d3d12_device.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
@@ -256,6 +256,9 @@
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl_hooks.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\opengl_hooks_ffp.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp">
@@ -350,6 +353,9 @@
     <ClInclude Include="include\reshade_api.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
+    <ClInclude Include="include\reshade_api_device.hpp">
+      <Filter>core\api</Filter>
+    </ClInclude>
     <ClInclude Include="include\reshade_api_format.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
@@ -371,6 +377,12 @@
     <ClInclude Include="source\hook_manager.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
+    <ClInclude Include="source\addon.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\addon_manager.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
     <ClInclude Include="source\input.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
@@ -383,16 +395,10 @@
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\addon.hpp">
-      <Filter>core\runtime\addon</Filter>
-    </ClInclude>
-    <ClInclude Include="source\addon_manager.hpp">
-      <Filter>core\runtime\addon</Filter>
-    </ClInclude>
-    <ClInclude Include="source\imgui_code_editor.hpp">
+    <ClInclude Include="include\imgui_function_table.hpp">
       <Filter>core\runtime\widgets</Filter>
     </ClInclude>
-    <ClInclude Include="include\imgui_function_table.hpp">
+    <ClInclude Include="source\imgui_code_editor.hpp">
       <Filter>core\runtime\widgets</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_widgets.hpp">
@@ -477,6 +483,9 @@
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_impl_command_queue.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_descriptor_heap.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_impl_device.hpp">

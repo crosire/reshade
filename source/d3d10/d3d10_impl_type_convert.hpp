@@ -5,8 +5,14 @@
 
 #pragma once
 
+#include <d3d10_1.h>
+
 namespace reshade::d3d10
 {
+	static_assert(sizeof(D3D10_BOX) == sizeof(api::subresource_box));
+	static_assert(sizeof(D3D10_RECT) == sizeof(api::rect));
+	static_assert(sizeof(D3D10_SUBRESOURCE_DATA) == sizeof(api::subresource_data));
+
 	struct pipeline_impl
 	{
 		void apply(ID3D10Device *ctx) const;
@@ -26,29 +32,6 @@ namespace reshade::d3d10
 		FLOAT blend_constant[4];
 	};
 
-	struct pipeline_layout_impl
-	{
-		std::vector<UINT> shader_registers;
-		std::vector<api::pipeline_layout_param> params;
-	};
-
-	struct descriptor_set_layout_impl
-	{
-		api::descriptor_range range;
-	};
-
-	struct query_pool_impl
-	{
-		std::vector<com_ptr<ID3D10Query>> queries;
-	};
-
-	struct framebuffer_impl
-	{
-		UINT count;
-		ID3D10RenderTargetView *rtv[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		ID3D10DepthStencilView *dsv;
-	};
-
 	struct descriptor_set_impl
 	{
 		api::descriptor_type type;
@@ -56,8 +39,23 @@ namespace reshade::d3d10
 		std::vector<uint64_t> descriptors;
 	};
 
+	struct pipeline_layout_impl
+	{
+		std::vector<api::descriptor_range> ranges;
+	};
+
+	struct query_pool_impl
+	{
+		std::vector<com_ptr<ID3D10Query>> queries;
+	};
+
+	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
+
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
+
+	auto convert_access_flags(api::map_access access) -> D3D10_MAP;
+	api::map_access convert_access_flags(D3D10_MAP map_type);
 
 	void convert_sampler_desc(const api::sampler_desc &desc, D3D10_SAMPLER_DESC &internal_desc);
 	api::sampler_desc convert_sampler_desc(const D3D10_SAMPLER_DESC &internal_desc);
@@ -103,5 +101,18 @@ namespace reshade::d3d10
 	auto convert_compare_op(D3D10_COMPARISON_FUNC value) ->api::compare_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3D10_STENCIL_OP;
 	auto convert_stencil_op(D3D10_STENCIL_OP value) -> api::stencil_op;
+	auto convert_primitive_topology(api::primitive_topology value) -> D3D10_PRIMITIVE_TOPOLOGY;
+	auto convert_primitive_topology(D3D10_PRIMITIVE_TOPOLOGY value) -> api::primitive_topology;
 	auto convert_query_type(api::query_type value) -> D3D10_QUERY;
+
+	inline auto to_handle(ID3D10SamplerState *ptr) { return api::sampler { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10Resource *ptr) { return api::resource { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10View *ptr) { return api::resource_view { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10InputLayout *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10VertexShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10GeometryShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10PixelShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10BlendState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10RasterizerState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D10DepthStencilState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 }

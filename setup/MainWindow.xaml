@@ -1,40 +1,15 @@
-﻿<Window x:Class="ReShade.Setup.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:utils="clr-namespace:ReShade.Setup.Utilities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="" Width="500" Height="146" ResizeMode="NoResize" WindowStyle="SingleBorderWindow" WindowStartupLocation="CenterScreen" SourceInitialized="OnWindowInit" Loaded="OnWindowLoaded" Closed="OnWindowClosed">
+﻿<Window x:Class="ReShade.Setup.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="510" Height="638"
+        MinWidth="410" MinHeight="275"
+        WindowStartupLocation="CenterScreen"
+        SourceInitialized="OnWindowInit">
   <DockPanel LastChildFill="True">
-    <Grid x:Name="InstallButtons" DockPanel.Dock="Bottom" Height="30" Margin="5,0,5,5" Visibility="Collapsed">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="0.5*" />
-        <ColumnDefinition Width="0.5*" />
-      </Grid.ColumnDefinitions>
-      <Button Grid.Column="0" Margin="0,0,2.5,0" Content="_Update" Click="OnUpdateClick" IsDefault="True" />
-      <Button Grid.Column="1" Margin="2.5,0,0,0" Content="Un_install" Click="OnUninstallClick" />
-    </Grid>
-    <Border x:Name="ApiGroup" DockPanel.Dock="Bottom" Height="30" Margin="5,0,5,5" Padding="5" Visibility="Collapsed" Background="{x:Static SystemColors.WindowBrush}" BorderBrush="#FF707070" CornerRadius="3" BorderThickness="1">
-      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <RadioButton x:Name="ApiD3D9" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" Content="Direct3D _9" />
-        <RadioButton x:Name="ApiDXGI" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" Content="Direct3D _10/11/12" />
-        <RadioButton x:Name="ApiOpenGL" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" Content="_OpenGL" />
-        <RadioButton x:Name="ApiVulkan" Margin="8,0,0,0" Visibility="Collapsed" Click="OnApiChecked" Content="_Vulkan" />
-        <CheckBox x:Name="ApiVulkanGlobal" Visibility="Visible" Content="Enable ReShade in Vulkan globally (affects all Vulkan games)" Checked="OnApiVulkanGlobalChecked" Unchecked="OnApiVulkanGlobalChecked" />
-      </StackPanel>
-    </Border>
-    <Button x:Name="ApiVulkanGlobalButton" DockPanel.Dock="Bottom" Height="30" Margin="5,0,5,5" Padding="5" Click="OnApiVulkanGlobalChecked">
-      <StackPanel Orientation="Horizontal">
-        <Image Source="{x:Static utils:AeroGlass.UacShieldIcon}" Stretch="None" />
-        <TextBlock Padding="2,0,0,0" Text="Enable/disable ReShade in Vulkan globally (affects all Vulkan games)" />
-      </StackPanel>
-    </Button>
-    <Button x:Name="SetupButton" DockPanel.Dock="Top" Margin="5" AllowDrop="True" Click="OnSetupButtonClick" Drop="OnSetupButtonDragDrop" IsDefault="True">
-      <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto">
-        <Grid.RowDefinitions>
-          <RowDefinition />
-          <RowDefinition />
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition />
-        </Grid.ColumnDefinitions>
-        <TextBlock x:Name="Message" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" FontSize="14" Text="Click here to select a game and manage its ReShade installation" />
-        <TextBlock x:Name="MessageDescription" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" TextAlignment="Center"  FontSize="10" TextWrapping="WrapWithOverflow" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
-      </Grid>
-    </Button>
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
+      <Button x:Name="CancelButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Cancel" Click="OnCancelButtonClick" IsCancel="True" KeyboardNavigation.TabIndex="1" />
+      <Button x:Name="NextButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Next" Click="OnNextButtonClick" IsDefault="True" KeyboardNavigation.TabIndex="0" />
+    </DockPanel>
+    <Frame x:Name="CurrentPage" DockPanel.Dock="Top" NavigationUIVisibility="Hidden" Navigated="OnCurrentPageNavigated" />
   </DockPanel>
 </Window>

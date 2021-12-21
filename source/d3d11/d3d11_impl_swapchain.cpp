@@ -43,13 +43,13 @@ reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t 
 {
 	assert(index == 0);
 
-	return { reinterpret_cast<uintptr_t>(_backbuffer.get()) };
+	return to_handle(_backbuffer.get());
 }
 reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer_resolved(uint32_t index)
 {
 	assert(index == 0);
 
-	return { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
+	return to_handle(_backbuffer_resolved.get());
 }
 
 bool reshade::d3d11::swapchain_impl::on_init()
@@ -76,10 +76,15 @@ bool reshade::d3d11::swapchain_impl::on_init()
 		tex_desc.Height = swap_desc.BufferDesc.Height;
 		tex_desc.MipLevels = 1;
 		tex_desc.ArraySize = 1;
-		tex_desc.Format = swap_desc.BufferDesc.Format;
+		tex_desc.Format = convert_format(api::format_to_typeless(convert_format(swap_desc.BufferDesc.Format)));
 		tex_desc.SampleDesc = { 1, 0 };
 		tex_desc.Usage = D3D11_USAGE_DEFAULT;
 		tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.Format = swap_desc.BufferDesc.Format;
+		srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Texture2D.MipLevels = 1;
 
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 		{
@@ -91,7 +96,7 @@ bool reshade::d3d11::swapchain_impl::on_init()
 			LOG(ERROR) << "Failed to create original back buffer render target!";
 			return false;
 		}
-		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_resolved.get(), nullptr, &_backbuffer_resolved_srv)))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_resolved.get(), &srv_desc, &_backbuffer_resolved_srv)))
 		{
 			LOG(ERROR) << "Failed to create back buffer resolve shader resource view!";
 			return false;
@@ -110,26 +115,26 @@ bool reshade::d3d11::swapchain_impl::on_init()
 
 	_width = swap_desc.BufferDesc.Width;
 	_height = swap_desc.BufferDesc.Height;
-	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
+	_back_buffer_format = convert_format(swap_desc.BufferDesc.Format);
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
 void reshade::d3d11::swapchain_impl::on_reset()
 {
-	if (_backbuffer != nullptr)
-	{
-		unsigned int add_references = 0;
-		// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
-		// Releasing the references ReShade owns would then make the count negative, which consequently breaks DXGI validation, so reset those references here
-		if (_backbuffer.ref_count() == 0)
-			add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
-		// Add the reference back that was released because of Unreal Engine 4
-		else if (_backbuffer == _backbuffer_resolved)
-			add_references = 1;
+	if (_backbuffer == nullptr)
+		return;
 
-		for (unsigned int i = 0; i < add_references; ++i)
-			_backbuffer->AddRef();
-	}
+	unsigned int add_references = 0;
+	// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
+	// Releasing the references ReShade owns would then make the count negative, which consequently breaks DXGI validation, so reset those references here
+	if (_backbuffer.ref_count() == 0)
+		add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
+	// Add the reference back that was released because of Unreal Engine 4
+	else if (_backbuffer == _backbuffer_resolved)
+		add_references = 1;
+
+	for (unsigned int i = 0; i < add_references; ++i)
+		_backbuffer->AddRef();
 
 	runtime::on_reset();
 
@@ -153,7 +158,7 @@ void reshade::d3d11::swapchain_impl::on_present()
 
 	// Resolve MSAA back buffer if MSAA is active
 	if (_backbuffer_resolved != _backbuffer)
-		immediate_context->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, convert_format(_backbuffer_format));
+		immediate_context->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, convert_format(_back_buffer_format));
 
 	runtime::on_present();
 
@@ -188,7 +193,7 @@ void reshade::d3d11::swapchain_impl::on_present()
 	_app_state.apply_and_release();
 }
 
-bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *source, const float bounds[4], ID3D11Texture2D **target)
+bool reshade::d3d11::swapchain_impl::on_vr_submit(UINT eye, ID3D11Texture2D *source, const float bounds[4], ID3D11Texture2D **target)
 {
 	assert(eye < 2 && source != nullptr);
 
@@ -219,7 +224,7 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 
 	const api::format source_format = convert_format(source_desc.Format);
 
-	if (width_difference > 2 || region_height != _height || source_format != _backbuffer_format)
+	if (width_difference > 2 || region_height != _height || source_format != _back_buffer_format)
 	{
 		on_reset();
 
@@ -245,7 +250,7 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 		_is_vr = true;
 		_width = target_width;
 		_height = region_height;
-		_backbuffer_format = source_format;
+		_back_buffer_format = source_format;
 
 #if RESHADE_ADDON
 		invoke_addon_event<addon_event::init_swapchain>(this);
@@ -263,3 +268,15 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 
 	return true;
 }
+
+#if RESHADE_EFFECTS
+void reshade::d3d11::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(cmd_list)->_orig;
+	_app_state.capture(immediate_context);
+
+	runtime::render_effects(cmd_list, rtv, rtv_srgb);
+
+	_app_state.apply_and_release();
+}
+#endif

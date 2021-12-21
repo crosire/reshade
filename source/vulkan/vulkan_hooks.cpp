@@ -14,6 +14,10 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 #define HOOK_PROC(name) \
 	if (0 == strcmp(pName, "vk" #name)) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
+#define HOOK_PROC_OPTIONAL(name) \
+	if (0 == strcmp(pName, "vk" #name) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
+		return reinterpret_cast<PFN_vkVoidFunction>(vk##name);
+
 
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
@@ -29,6 +33,9 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(BindBufferMemory2);
 	HOOK_PROC(BindImageMemory);
 	HOOK_PROC(BindImageMemory2);
+	HOOK_PROC(CreateQueryPool);
+	HOOK_PROC(DestroyQueryPool);
+	HOOK_PROC(GetQueryPoolResults);
 	HOOK_PROC(CreateBuffer);
 	HOOK_PROC(DestroyBuffer);
 	HOOK_PROC(CreateBufferView);
@@ -52,6 +59,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(DestroyDescriptorPool);
 	HOOK_PROC(ResetDescriptorPool);
 	HOOK_PROC(AllocateDescriptorSets);
+	HOOK_PROC(FreeDescriptorSets);
 	HOOK_PROC(UpdateDescriptorSets);
 	HOOK_PROC(CreateFramebuffer);
 	HOOK_PROC(DestroyFramebuffer);
@@ -90,10 +98,22 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdClearAttachments);
 	HOOK_PROC(CmdResolveImage);
 	HOOK_PROC(CmdPipelineBarrier);
+	HOOK_PROC(CmdBeginQuery);
+	HOOK_PROC(CmdEndQuery);
+	HOOK_PROC(CmdWriteTimestamp);
+	HOOK_PROC(CmdCopyQueryPoolResults);
 	HOOK_PROC(CmdPushConstants);
 	HOOK_PROC(CmdBeginRenderPass);
 	HOOK_PROC(CmdEndRenderPass);
 	HOOK_PROC(CmdExecuteCommands);
+
+	HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR);
+	HOOK_PROC_OPTIONAL(CmdCopyBuffer2KHR);
+	HOOK_PROC_OPTIONAL(CmdCopyImage2KHR);
+	HOOK_PROC_OPTIONAL(CmdBlitImage2KHR);
+	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2KHR);
+	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2KHR);
+	HOOK_PROC_OPTIONAL(CmdResolveImage2KHR);
 
 	if (0 == strcmp(pName, "vkBindBufferMemory2KHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkBindBufferMemory2);
@@ -101,9 +121,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 		return reinterpret_cast<PFN_vkVoidFunction>(vkBindImageMemory2);
 	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
-	if (0 == strcmp(pName, "vkCmdPushDescriptorSetKHR") &&
-		g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.CmdPushDescriptorSetKHR != nullptr)
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdPushDescriptorSetKHR);
 #endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)

@@ -22,14 +22,14 @@ namespace reshade::d3d12
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer) final;
-		void finish_render_pass() final;
+		void begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds) final;
+		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
-		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;
-		void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) final;
+		void bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports) final;
+		void bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects) final;
 
 		void push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values) final;
 		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update) final;
@@ -45,25 +45,24 @@ namespace reshade::d3d12
 
 		void copy_resource(api::resource source, api::resource dest) final;
 		void copy_buffer_region(api::resource source, uint64_t source_offset, api::resource dest, uint64_t dest_offset, uint64_t size) final;
-		void copy_buffer_to_texture(api::resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6]) final;
-		void copy_texture_region(api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6], api::filter_mode filter) final;
-		void copy_texture_to_buffer(api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint64_t dest_offset, uint32_t row_length, uint32_t slice_height) final;
-		void resolve_texture_region(api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], api::format format) final;
+		void copy_buffer_to_texture(api::resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box) final;
+		void copy_texture_region(api::resource source, uint32_t source_subresource, const api::subresource_box *source_box, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box, api::filter_mode filter) final;
+		void copy_texture_to_buffer(api::resource source, uint32_t source_subresource, const api::subresource_box *source_box, api::resource dest, uint64_t dest_offset, uint32_t row_length, uint32_t slice_height) final;
+		void resolve_texture_region(api::resource source, uint32_t source_subresource, const api::rect *source_rect, api::resource dest, uint32_t dest_subresource, int32_t dest_x, int32_t dest_y, api::format format) final;
 
-		void clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects) final;
-		void clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects) final;
-		void clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *rects) final;
-		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const int32_t *rects) final;
-		void clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const int32_t *rects) final;
+		void clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *rects) final;
+		void clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects) final;
+		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const api::rect *rects) final;
+		void clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const api::rect *rects) final;
 
 		void generate_mipmaps(api::resource_view srv) final;
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
+		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
-		void finish_debug_event() final;
+		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:
@@ -74,7 +73,5 @@ namespace reshade::d3d12
 		ID3D12RootSignature *_current_root_signature[2] = {};
 		// Currently bound descriptor heaps (there can only be one of each shader visible type, so a maximum of two)
 		ID3D12DescriptorHeap *_current_descriptor_heaps[2] = {};
-
-		struct framebuffer_impl *_current_fbo;
 	};
 }

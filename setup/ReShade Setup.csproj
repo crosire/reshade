@@ -62,34 +62,56 @@
     <Compile Include="Utilities\AeroGlass.cs" />
     <Compile Include="Utilities\FileOpenDialog.cs" />
     <Compile Include="Utilities\IniFile.cs" />
+    <Compile Include="Utilities\JsonFile.cs" />
     <Compile Include="Utilities\PEInfo.cs" />
-    <Page Include="Windows\SelectApp.xaml">
+    <Page Include="Pages\SelectApiPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Windows\SelectApp.xaml.cs">
-      <DependentUpon>SelectApp.xaml</DependentUpon>
+    <Compile Include="Pages\SelectApiPage.xaml.cs">
+      <DependentUpon>SelectApiPage.xaml</DependentUpon>
     </Compile>
-    <Page Include="Windows\SelectEffects.xaml">
+    <Page Include="Pages\SelectAppPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Windows\SelectEffects.xaml.cs">
-      <DependentUpon>SelectEffects.xaml</DependentUpon>
+    <Compile Include="Pages\SelectAppPage.xaml.cs">
+      <DependentUpon>SelectAppPage.xaml</DependentUpon>
     </Compile>
-    <Page Include="Windows\SelectPackages.xaml">
+    <Page Include="Pages\SelectEffectsPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Windows\SelectPackages.xaml.cs">
-      <DependentUpon>SelectPackages.xaml</DependentUpon>
+    <Compile Include="Pages\SelectEffectsPage.xaml.cs">
+      <DependentUpon>SelectEffectsPage.xaml</DependentUpon>
     </Compile>
-    <Page Include="Windows\Settings.xaml">
+    <Page Include="Pages\SelectPackagesPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Windows\Settings.xaml.cs">
-      <DependentUpon>Settings.xaml</DependentUpon>
+    <Compile Include="Pages\SelectPackagesPage.xaml.cs">
+      <DependentUpon>SelectPackagesPage.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Pages\SelectUninstallPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Pages\SelectUninstallPage.xaml.cs">
+      <DependentUpon>SelectUninstallPage.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Pages\SettingsDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Pages\SettingsDialog.xaml.cs">
+      <DependentUpon>SettingsDialog.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Pages\StatusPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Pages\StatusPage.xaml.cs">
+      <DependentUpon>StatusPage.xaml</DependentUpon>
     </Compile>
     <Page Include="MainWindow.xaml">
       <SubType>Designer</SubType>
@@ -114,9 +136,13 @@
     </None>
     <None Include="Properties\AssemblyInfo.cs.in" />
     <None Include="ReShade32.json" />
+    <None Include="ReShade32_override.json" />
     <None Include="ReShade64.json" />
-    <EmbeddedResource Condition="Exists('Config\Compatibility.ini')" Include="Config\Compatibility.ini" />
-    <EmbeddedResource Condition="Exists('Config\EffectPackages.ini')" Include="Config\EffectPackages.ini" />
+    <None Include="ReShade64_override.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Condition="Exists('Compatibility.ini')" Include="Compatibility.ini" />
+    <EmbeddedResource Condition="Exists('EffectPackages.ini')" Include="EffectPackages.ini" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
@@ -128,7 +154,7 @@ cl.exe /nologo /EP /C /I "$(SolutionDir)res" "$(ProjectDir)Properties\AssemblyIn
 
 echo Compiling ReShade setup tool ...</PreBuildEvent>
     <PostBuildEvent Condition=" '$(Configuration)' == 'Debug' ">echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" "$(ProjectDir)ReShade32.json" "$(SolutionDir)bin\x64\Debug\ReShade64.dll" "$(ProjectDir)ReShade64.json" &gt; nul
+"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(SolutionDir)bin\x64\Debug\ReShade64.dll" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
 
 echo Appending archive to setup executable ...
 copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
@@ -136,7 +162,7 @@ copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
 echo Cleaning up and deleting temporary archive ...
 del "$(TargetDir)ReShade Setup.zip"</PostBuildEvent>
     <PostBuildEvent Condition=" '$(Configuration)' == 'Release' ">echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(ProjectDir)ReShade32.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(ProjectDir)ReShade64.json" &gt; nul
+"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
 
 echo Appending archive to setup executable ...
 copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"

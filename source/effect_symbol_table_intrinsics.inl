@@ -1685,11 +1685,15 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 // ret tex2Dfetch(s, coords, lod)
 DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 1, float4, sampler, int2, int)
+DEFINE_INTRINSIC(tex2Dfetch, 2, float4, storage, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 0, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", 0)";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 1, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 2, {
+	code += "imageLoad(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ")";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
 	if (_shader_model >= 40)
@@ -1709,6 +1713,11 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 1, {
 			id_to_name(args[1].base) + " + 0.5) * " + id_to_name(args[0].base) + ".pixelsize * exp2(" + id_to_name(args[2].base) + "), 0, " +
 			id_to_name(args[2].base) + "))";
 	})
+IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 2, {
+	if (_shader_model >= 50) {
+		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']';
+	}
+	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
 		.add(args[0].base).result;
@@ -1727,6 +1736,12 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
 		.add(args[1].base)
 		.add(spv::ImageOperandsLodMask)
 		.add(args[2].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 2, {
+	return add_instruction(spv::OpImageRead, convert_type(res_type))
+		.add(args[0].base)
+		.add(args[1].base)
 		.result;
 	})
 
@@ -2182,6 +2197,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 2, {
 		.add(offsets)
 		.result;
 	})
+
 // tex2Dstore(s, coords, value)
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage, int2, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {

@@ -5,8 +5,15 @@
 
 #pragma once
 
+#include <d3d11_4.h>
+
 namespace reshade::d3d11
 {
+	static_assert(sizeof(D3D11_BOX) == sizeof(api::subresource_box));
+	static_assert(sizeof(D3D11_RECT) == sizeof(api::rect));
+	static_assert(sizeof(D3D11_VIEWPORT) == sizeof(api::viewport));
+	static_assert(sizeof(D3D11_SUBRESOURCE_DATA) == sizeof(api::subresource_data));
+
 	struct pipeline_impl
 	{
 		void apply(ID3D11DeviceContext *ctx) const;
@@ -28,29 +35,6 @@ namespace reshade::d3d11
 		FLOAT blend_constant[4];
 	};
 
-	struct pipeline_layout_impl
-	{
-		std::vector<UINT> shader_registers;
-		std::vector<api::pipeline_layout_param> params;
-	};
-
-	struct descriptor_set_layout_impl
-	{
-		api::descriptor_range range;
-	};
-
-	struct query_pool_impl
-	{
-		std::vector<com_ptr<ID3D11Query>> queries;
-	};
-
-	struct framebuffer_impl
-	{
-		UINT count;
-		ID3D11RenderTargetView *rtv[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		ID3D11DepthStencilView *dsv;
-	};
-
 	struct descriptor_set_impl
 	{
 		api::descriptor_type type;
@@ -58,8 +42,23 @@ namespace reshade::d3d11
 		std::vector<uint64_t> descriptors;
 	};
 
+	struct pipeline_layout_impl
+	{
+		std::vector<api::descriptor_range> ranges;
+	};
+
+	struct query_pool_impl
+	{
+		std::vector<com_ptr<ID3D11Query>> queries;
+	};
+
+	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
+
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
+
+	auto convert_access_flags(api::map_access access) -> D3D11_MAP;
+	api::map_access convert_access_flags(D3D11_MAP map_type);
 
 	void convert_sampler_desc(const api::sampler_desc &desc, D3D11_SAMPLER_DESC &internal_desc);
 	api::sampler_desc convert_sampler_desc(const D3D11_SAMPLER_DESC &internal_desc);
@@ -121,5 +120,21 @@ namespace reshade::d3d11
 	auto convert_compare_op(D3D11_COMPARISON_FUNC value) -> api::compare_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3D11_STENCIL_OP;
 	auto convert_stencil_op(D3D11_STENCIL_OP value) -> api::stencil_op;
+	auto convert_primitive_topology(api::primitive_topology value)-> D3D11_PRIMITIVE_TOPOLOGY;
+	auto convert_primitive_topology(D3D11_PRIMITIVE_TOPOLOGY value)-> api::primitive_topology;
 	auto convert_query_type(api::query_type value) -> D3D11_QUERY;
+
+	inline auto to_handle(ID3D11SamplerState *ptr) { return api::sampler { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11Resource *ptr) { return api::resource { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11View *ptr) { return api::resource_view { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11InputLayout *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11VertexShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11HullShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11DomainShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11GeometryShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11PixelShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11ComputeShader *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11BlendState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11RasterizerState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11DepthStencilState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 }

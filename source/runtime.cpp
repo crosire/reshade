@@ -25,8 +25,7 @@
 #include <malloc.h>
 #include <d3dcompiler.h>
 
-extern volatile long g_network_traffic;
-
+#if RESHADE_EFFECTS
 bool resolve_path(std::filesystem::path &path)
 {
 	std::error_code ec;
@@ -75,20 +74,45 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 	return files;
 }
 
+static inline int format_color_bit_depth(reshade::api::format value)
+{
+	// Only need to handle swap chain formats
+	switch (value)
+	{
+	default:
+		return 0;
+	case reshade::api::format::b5g6r5_unorm:
+	case reshade::api::format::b5g5r5a1_unorm:
+		return 5;
+	case reshade::api::format::r8g8b8a8_unorm:
+	case reshade::api::format::r8g8b8a8_unorm_srgb:
+	case reshade::api::format::r8g8b8x8_unorm:
+	case reshade::api::format::r8g8b8x8_unorm_srgb:
+	case reshade::api::format::b8g8r8a8_unorm:
+	case reshade::api::format::b8g8r8a8_unorm_srgb:
+	case reshade::api::format::b8g8r8x8_unorm:
+	case reshade::api::format::b8g8r8x8_unorm_srgb:
+		return 8;
+	case reshade::api::format::r10g10b10a2_unorm:
+	case reshade::api::format::r10g10b10a2_xr_bias:
+	case reshade::api::format::b10g10r10a2_unorm:
+		return 10;
+	case reshade::api::format::r16g16b16a16_float:
+		return 16;
+	}
+}
+#endif
+
 reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queue) :
 	_device(device),
 	_graphics_queue(graphics_queue),
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
+#if RESHADE_EFFECTS
 	_effect_search_paths({ L".\\" }),
 	_texture_search_paths({ L".\\" }),
-	_reload_key_data(),
-	_performance_mode_key_data(),
-	_effects_key_data(),
-	_screenshot_key_data(),
-	_prev_preset_key_data(),
-	_next_preset_key_data(),
+#endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path)
 {
@@ -108,18 +132,21 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 #if RESHADE_GUI
 	init_gui();
 #endif
+
 	load_config();
 }
 reshade::runtime::~runtime()
 {
+#if RESHADE_EFFECTS
 	assert(_worker_threads.empty());
 	assert(!_is_initialized && _techniques.empty());
+#endif
 
-	if (_d3d_compiler != nullptr)
-		FreeLibrary(static_cast<HMODULE>(_d3d_compiler));
+	// Save configuration before shutting down to ensure the current window state is written to disk
+	save_config();
 
 #if RESHADE_GUI
-	deinit_gui();
+	 deinit_gui();
 #endif
 }
 
@@ -127,21 +154,43 @@ bool reshade::runtime::on_init(input::window_handle window)
 {
 	assert(!_is_initialized);
 
+#if RESHADE_EFFECTS
+	// Create an empty texture, which is bound to shader resource view slots with an unknown semantic (since it is not valid to bind a zero handle in Vulkan, unless the 'VK_EXT_robustness2' extension is enabled)
+	if (_empty_tex == 0)
+	{
+		// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
+		if (!_device->create_resource(
+			api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
+			nullptr, api::resource_usage::shader_resource, &_empty_tex))
+		{
+			LOG(ERROR) << "Failed to create empty texture resource!";
+			goto exit_failure;
+		}
+
+		_device->set_resource_name(_empty_tex, "ReShade empty texture");
+
+		if (!_device->create_resource_view(_empty_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r16_float), &_empty_srv))
+		{
+			LOG(ERROR) << "Failed to create empty texture resource view!";
+			goto exit_failure;
+		}
+	}
+
 	// Create back buffer resource
-	if (_backbuffer_texture == 0)
+	if (_effect_color_tex == 0)
 	{
 		if (!_device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
-			nullptr, api::resource_usage::shader_resource, &_backbuffer_texture))
+			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
 		{
 			LOG(ERROR) << "Failed to create back buffer resource!";
 			goto exit_failure;
 		}
 
-		_device->set_resource_name(_backbuffer_texture, "ReShade back buffer");
+		_device->set_resource_name(_effect_color_tex, "ReShade back buffer");
 
-		if (!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format, 0)), &_backbuffer_texture_view[0]) ||
-			!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format, 1)), &_backbuffer_texture_view[1]))
+		if (!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 0)), &_effect_color_srv[0]) ||
+			!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)), &_effect_color_srv[1]))
 		{
 			LOG(ERROR) << "Failed to create back buffer resource view!";
 			goto exit_failure;
@@ -149,7 +198,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	}
 
 	// Create effect stencil resource
-	if (_effect_stencil == 0)
+	if (_effect_stencil_tex == 0)
 	{
 		// Find a supported stencil format with the smallest footprint (since the depth component is not used)
 		constexpr api::format possible_stencil_formats[] = {
@@ -172,89 +221,31 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 		if (!_device->create_resource(
 			api::resource_desc(_width, _height, 1, 1, _effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
-			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil))
+			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
 		{
 			LOG(ERROR) << "Failed to create effect stencil resource!";
 			goto exit_failure;
 		}
 
-		_device->set_resource_name(_effect_stencil, "ReShade effect stencil");
+		_device->set_resource_name(_effect_stencil_tex, "ReShade effect stencil");
 
-		if (!_device->create_resource_view(_effect_stencil, api::resource_usage::depth_stencil, api::resource_view_desc(_effect_stencil_format), &_effect_stencil_target))
+		if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(_effect_stencil_format), &_effect_stencil_dsv))
 		{
 			LOG(ERROR) << "Failed to create effect stencil resource view!";
 			goto exit_failure;
 		}
 	}
+#endif
 
-	// Create an empty texture, which is bound to shader resource view slots with an unknown semantic (since it is not valid to bind a zero handle in Vulkan)
-	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
-	if (_empty_texture == 0)
-	{
-		if (!_device->create_resource(
-			api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
-			nullptr, api::resource_usage::shader_resource, &_empty_texture))
-		{
-			LOG(ERROR) << "Failed to create empty texture resource!";
-			goto exit_failure;
-		}
-
-		_device->set_resource_name(_empty_texture, "ReShade empty texture");
-
-		if (!_device->create_resource_view(_empty_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r16_float), &_empty_texture_view))
-		{
-			LOG(ERROR) << "Failed to create empty texture resource view!";
-			goto exit_failure;
-		}
-	}
-
-	// Create render passes for the back buffer
+	// Create render targets for the back buffer resources
 	for (uint32_t i = 0; i < get_back_buffer_count(); ++i)
 	{
-		api::render_pass_desc pass_desc = {};
-		pass_desc.depth_stencil_format = _effect_stencil_format;
-		pass_desc.render_targets_format[0] = api::format_to_default_typed(_backbuffer_format, 0);
-		pass_desc.samples = 1;
-		api::render_pass_desc pass_desc_srgb = {};
-		pass_desc_srgb.depth_stencil_format = _effect_stencil_format;
-		pass_desc_srgb.render_targets_format[0] = api::format_to_default_typed(_backbuffer_format, 1);
-		pass_desc_srgb.samples = 1;
+		const api::resource back_buffer_resource = get_back_buffer_resolved(i);
 
-		if (!_device->create_render_pass(pass_desc, &_backbuffer_passes.emplace_back()) ||
-			!_device->create_render_pass(pass_desc_srgb, &_backbuffer_passes.emplace_back()))
+		if (!_device->create_resource_view(back_buffer_resource, api::resource_usage::render_target, api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 0)), &_back_buffer_targets.emplace_back()) ||
+			!_device->create_resource_view(back_buffer_resource, api::resource_usage::render_target, api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)), &_back_buffer_targets.emplace_back()))
 		{
-			LOG(ERROR) << "Failed to create back buffer render passes!";
-			goto exit_failure;
-		}
-
-		const api::resource backbuffer = get_back_buffer_resolved(i);
-
-		if (!_device->create_resource_view(backbuffer, api::resource_usage::render_target, api::resource_view_desc(pass_desc.render_targets_format[0]), &_backbuffer_targets.emplace_back()) ||
-			!_device->create_resource_view(backbuffer, api::resource_usage::render_target, api::resource_view_desc(pass_desc_srgb.render_targets_format[0]), &_backbuffer_targets.emplace_back()))
-		{
-			LOG(ERROR) << "Failed to create back buffer render target!";
-			goto exit_failure;
-		}
-
-		api::framebuffer_desc fbo_desc = {};
-		fbo_desc.depth_stencil = _effect_stencil_target;
-		fbo_desc.render_pass_template = _backbuffer_passes[i * 2];
-		fbo_desc.render_targets[0] = _backbuffer_targets[i * 2];
-		fbo_desc.width = _width;
-		fbo_desc.height = _height;
-		fbo_desc.layers = 1;
-		api::framebuffer_desc fbo_desc_srgb = {};
-		fbo_desc_srgb.depth_stencil = _effect_stencil_target;
-		fbo_desc_srgb.render_pass_template = _backbuffer_passes[i * 2 + 1];
-		fbo_desc_srgb.render_targets[0] = _backbuffer_targets[i * 2 + 1];
-		fbo_desc_srgb.width = _width;
-		fbo_desc_srgb.height = _height;
-		fbo_desc_srgb.layers = 1;
-
-		if (!_device->create_framebuffer(fbo_desc, &_backbuffer_fbos.emplace_back()) ||
-			!_device->create_framebuffer(fbo_desc_srgb, &_backbuffer_fbos.emplace_back()))
-		{
-			LOG(ERROR) << "Failed to create back buffer render passes!";
+			LOG(ERROR) << "Failed to create back buffer render targets!";
 			goto exit_failure;
 		}
 	}
@@ -286,34 +277,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	else
 		_input = std::make_shared<input>(nullptr);
 
-	// Only need to handle swap chain formats
-	switch (_backbuffer_format)
-	{
-	case api::format::b5g6r5_unorm:
-	case api::format::b5g5r5a1_unorm:
-		_color_bit_depth = 5;
-		break;
-	case api::format::r8g8b8a8_unorm:
-	case api::format::r8g8b8a8_unorm_srgb:
-	case api::format::r8g8b8x8_unorm:
-	case api::format::r8g8b8x8_unorm_srgb:
-	case api::format::b8g8r8a8_unorm:
-	case api::format::b8g8r8a8_unorm_srgb:
-	case api::format::b8g8r8x8_unorm:
-	case api::format::b8g8r8x8_unorm_srgb:
-		_color_bit_depth = 8;
-		break;
-	case api::format::r10g10b10a2_unorm:
-	case api::format::r10g10b10a2_xr_bias:
-	case api::format::b10g10r10a2_unorm:
-		_color_bit_depth = 10;
-		break;
-	case api::format::r16g16b16a16_float:
-		_color_bit_depth = 16;
-		break;
-	}
-
-	// Reset frame count to zero so effects are loaded in 'update_and_render_effects'
+	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_framecount = 0;
 
 	_is_initialized = true;
@@ -321,41 +285,40 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 	_preset_save_success = true;
 	_screenshot_save_success = true;
-#if RESHADE_ADDON
+
+#if RESHADE_EFFECTS && RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
 #endif
 
+#if RESHADE_EFFECTS && RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
+#endif
 
 	return true;
 
 exit_failure:
-	for (api::framebuffer fbo : _backbuffer_fbos)
-		_device->destroy_framebuffer(fbo);
-	_backbuffer_fbos.clear();
-	for (api::render_pass pass : _backbuffer_passes)
-		_device->destroy_render_pass(pass);
-	_backbuffer_passes.clear();
-	for (api::resource_view view : _backbuffer_targets)
+#if RESHADE_EFFECTS
+	_device->destroy_resource(_empty_tex);
+	_empty_tex = {};
+	_device->destroy_resource_view(_empty_srv);
+	_empty_srv = {};
+
+	_device->destroy_resource(_effect_color_tex);
+	_effect_color_tex = {};
+	_device->destroy_resource_view(_effect_color_srv[0]);
+	_effect_color_srv[0] = {};
+	_device->destroy_resource_view(_effect_color_srv[1]);
+	_effect_color_srv[1] = {};
+
+	_device->destroy_resource(_effect_stencil_tex);
+	_effect_stencil_tex = {};
+	_device->destroy_resource_view(_effect_stencil_dsv);
+	_effect_stencil_dsv = {};
+#endif
+
+	for (const auto view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
-	_backbuffer_targets.clear();
-
-	_device->destroy_resource(_backbuffer_texture);
-	_backbuffer_texture = {};
-	_device->destroy_resource_view(_backbuffer_texture_view[0]);
-	_backbuffer_texture_view[0] = {};
-	_device->destroy_resource_view(_backbuffer_texture_view[1]);
-	_backbuffer_texture_view[1] = {};
-
-	_device->destroy_resource(_effect_stencil);
-	_effect_stencil = {};
-	_device->destroy_resource_view(_effect_stencil_target);
-	_effect_stencil_target = {};
-
-	_device->destroy_resource(_empty_texture);
-	_empty_texture = {};
-	_device->destroy_resource_view(_empty_texture_view);
-	_empty_texture_view = {};
+	_back_buffer_targets.clear();
 
 #if RESHADE_GUI
 	if (_is_vr)
@@ -374,37 +337,33 @@ void reshade::runtime::on_reset()
 	else
 		return; // Nothing to do if the runtime was already destroyed or not successfully initialized in the first place
 
+#if RESHADE_EFFECTS
 	// Already performs a wait for idle, so no need to do it again before destroying resources below
 	destroy_effects();
 
-	_width = _height = 0;
+	_device->destroy_resource(_empty_tex);
+	_empty_tex = {};
+	_device->destroy_resource_view(_empty_srv);
+	_empty_srv = {};
 
-	for (api::framebuffer fbo : _backbuffer_fbos)
-		_device->destroy_framebuffer(fbo);
-	_backbuffer_fbos.clear();
-	for (api::render_pass pass : _backbuffer_passes)
-		_device->destroy_render_pass(pass);
-	_backbuffer_passes.clear();
-	for (api::resource_view view : _backbuffer_targets)
+	_device->destroy_resource(_effect_color_tex);
+	_effect_color_tex = {};
+	_device->destroy_resource_view(_effect_color_srv[0]);
+	_effect_color_srv[0] = {};
+	_device->destroy_resource_view(_effect_color_srv[1]);
+	_effect_color_srv[1] = {};
+
+	_device->destroy_resource(_effect_stencil_tex);
+	_effect_stencil_tex = {};
+	_device->destroy_resource_view(_effect_stencil_dsv);
+	_effect_stencil_dsv = {};
+#endif
+
+	for (const auto view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
-	_backbuffer_targets.clear();
+	_back_buffer_targets.clear();
 
-	_device->destroy_resource(_backbuffer_texture);
-	_backbuffer_texture = {};
-	_device->destroy_resource_view(_backbuffer_texture_view[0]);
-	_backbuffer_texture_view[0] = {};
-	_device->destroy_resource_view(_backbuffer_texture_view[1]);
-	_backbuffer_texture_view[1] = {};
-
-	_device->destroy_resource(_effect_stencil);
-	_effect_stencil = {};
-	_device->destroy_resource_view(_effect_stencil_target);
-	_effect_stencil_target = {};
-
-	_device->destroy_resource(_empty_texture);
-	_empty_texture = {};
-	_device->destroy_resource_view(_empty_texture_view);
-	_empty_texture_view = {};
+	_width = _height = 0;
 
 #if RESHADE_GUI
 	if (_is_vr)
@@ -413,22 +372,43 @@ void reshade::runtime::on_reset()
 	destroy_imgui_resources();
 #endif
 
-#if RESHADE_ADDON
+#if RESHADE_EFFECTS && RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_effect_runtime>(this);
 #endif
 
+#if RESHADE_EFFECTS && RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
+#endif
 }
 void reshade::runtime::on_present()
 {
 	assert(is_initialized());
 
-	update_and_render_effects();
+#if RESHADE_EFFECTS
+	update_effects();
+
+	if (_effects_enabled && !_effects_rendered_this_frame)
+	{
+		if (_should_save_screenshot && _screenshot_save_before)
+			save_screenshot(L" original");
+
+		uint32_t back_buffer_index = get_current_back_buffer_index();
+		const api::resource back_buffer_resource = get_back_buffer_resolved(back_buffer_index);
+
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+		cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
+		runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index * 2], _back_buffer_targets[back_buffer_index * 2 + 1]);
+		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
+	}
+#endif
+
+	if (_should_save_screenshot)
+		save_screenshot(std::wstring());
 
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
-	_last_frame_duration = current_time - _last_present_time;
-	_last_present_time = current_time;
+	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
+	_effects_rendered_this_frame = false;
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
@@ -456,8 +436,9 @@ void reshade::runtime::on_present()
 			_effects_enabled = !_effects_enabled;
 
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
-			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot next frame
+			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
 
+#if RESHADE_EFFECTS
 		// Do not allow the next shortcuts while effects are being loaded or initialized (since they affect that state)
 		if (!is_loading() && _reload_create_queue.empty())
 		{
@@ -487,6 +468,7 @@ void reshade::runtime::on_present()
 			if (_is_in_between_presets_transition)
 				load_current_preset();
 		}
+#endif
 	}
 
 	// Reset input status
@@ -498,6 +480,8 @@ void reshade::runtime::on_present()
 
 #if RESHADE_ADDON
 	// Detect high network traffic
+	extern volatile long g_network_traffic;
+
 	static int cooldown = 0, traffic = 0;
 	if (cooldown-- > 0)
 	{
@@ -510,6 +494,7 @@ void reshade::runtime::on_present()
 		traffic = 0;
 		cooldown = 60;
 
+#if RESHADE_EFFECTS
 		if (addon::enabled != was_enabled)
 		{
 			if (was_enabled)
@@ -520,11 +505,11 @@ void reshade::runtime::on_present()
 				update_texture_bindings(info.first.c_str(), addon::enabled ? info.second.first : api::resource_view { 0 }, addon::enabled ? info.second.second : api::resource_view { 0 });
 			}
 		}
-	}
 #endif
+	}
 
-	// Reset frame statistics
 	g_network_traffic = 0;
+#endif
 }
 
 void reshade::runtime::load_config()
@@ -532,12 +517,13 @@ void reshade::runtime::load_config()
 	const ini_file &config = ini_file::load_cache(_config_path);
 
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
+#if RESHADE_EFFECTS
 	config.get("INPUT", "KeyEffects", _effects_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyReload", _reload_key_data);
-	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoEffectCache", _no_effect_cache);
@@ -565,6 +551,7 @@ void reshade::runtime::load_config()
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
 		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
+#endif
 
 	config.get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
@@ -584,12 +571,13 @@ void reshade::runtime::save_config() const
 	ini_file &config = ini_file::load_cache(_config_path);
 
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
+#if RESHADE_EFFECTS
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyReload", _reload_key_data);
-	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.set("GENERAL", "NoEffectCache", _no_effect_cache);
@@ -611,6 +599,7 @@ void reshade::runtime::save_config() const
 		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
+#endif
 
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
@@ -626,6 +615,7 @@ void reshade::runtime::save_config() const
 #endif
 }
 
+#if RESHADE_EFFECTS
 void reshade::runtime::load_current_preset()
 {
 	_preset_save_success = true;
@@ -641,13 +631,13 @@ void reshade::runtime::load_current_preset()
 	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
 
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
-	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_and_render_effects'
+	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_effects'
 	{
 		if (_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions)
 		{
 			_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
 			reload_effects();
-			return; // Preset values are loaded in 'update_and_render_effects' during effect loading
+			return; // Preset values are loaded in 'update_effects' during effect loading
 		}
 
 		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string &technique_name) {
@@ -695,6 +685,7 @@ void reshade::runtime::load_current_preset()
 		{
 			if (variable.special != special_uniform::none)
 				continue;
+
 			const std::string section = effect.source_file.filename().u8string();
 
 			if (variable.supports_toggle_key())
@@ -903,40 +894,6 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	return true;
 }
 
-void reshade::runtime::enable_technique(technique &tech)
-{
-	assert(tech.effect_index < _effects.size());
-
-	if (!_effects[tech.effect_index].compiled)
-		return; // Cannot enable techniques that failed to compile
-
-	const bool status_changed = !tech.enabled;
-	tech.enabled = true;
-	tech.time_left = tech.annotation_as_int("timeout");
-
-	// Queue effect file for initialization if it was not fully loaded yet
-	if (tech.passes_data.empty() &&
-		// Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
-		std::find(_reload_create_queue.begin(), _reload_create_queue.end(), tech.effect_index) == _reload_create_queue.end())
-		_reload_create_queue.push_back(tech.effect_index);
-
-	if (status_changed) // Increase rendering reference count
-		_effects[tech.effect_index].rendering++;
-}
-void reshade::runtime::disable_technique(technique &tech)
-{
-	assert(tech.effect_index < _effects.size());
-
-	const bool status_changed = tech.enabled;
-	tech.enabled = false;
-	tech.time_left = 0;
-	tech.average_cpu_duration.clear();
-	tech.average_gpu_duration.clear();
-
-	if (status_changed) // Decrease rendering reference count
-		_effects[tech.effect_index].rendering--;
-}
-
 bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required)
 {
 	// Generate a unique string identifying this effect
@@ -944,7 +901,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';
 	attributes += "width=" + std::to_string(_width) + ';';
 	attributes += "height=" + std::to_string(_height) + ';';
-	attributes += "color_bit_depth=" + std::to_string(_color_bit_depth) + ';';
+	attributes += "color_bit_depth=" + std::to_string(format_color_bit_depth(_back_buffer_format)) + ';';
 	attributes += "version=" + std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION) + ';';
 	attributes += "performance_mode=" + std::string(_performance_mode ? "1" : "0") + ';';
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
@@ -1026,7 +983,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
-		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(_color_bit_depth));
+		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_back_buffer_format)));
 
 		for (const std::string &definition : preprocessor_definitions)
 		{
@@ -1133,7 +1090,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				reset_uniform_value(variable);
 
 				const std::string_view special = variable.annotation_as_string("source");
-				if (special.empty()) /* Ignore if annotation is missing */;
+				if (special.empty()) /* Ignore if annotation is missing */
+					variable.special = special_uniform::none;
 				else if (special == "frametime")
 					variable.special = special_uniform::frame_time;
 				else if (special == "framecount")
@@ -1158,25 +1116,25 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					variable.special = special_uniform::mouse_wheel;
 				else if (special == "freepie")
 					variable.special = special_uniform::freepie;
-				else if (special == "ui_open" ||special == "overlay_open")
+				else if (special == "ui_open" || special == "overlay_open")
 					variable.special = special_uniform::overlay_open;
 				else if (special == "ui_active" || special == "overlay_active")
 					variable.special = special_uniform::overlay_active;
 				else if (special == "ui_hovered" || special == "overlay_hovered")
 					variable.special = special_uniform::overlay_hovered;
+				else
+					variable.special = special_uniform::unknown;
 
 				effect.uniforms.push_back(std::move(variable));
 			}
 
 			// Fill all specialization constants with values from the current preset
-			if (_performance_mode && effect.module.spirv.empty())
+			if (_performance_mode)
 			{
 				std::string preamble;
 
 				for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 				{
-					preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
-
 					switch (constant.type.base)
 					{
 					case reshadefx::type::t_int:
@@ -1194,6 +1152,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					// Check if this is a split specialization constant and move data accordingly
 					if (constant.type.is_scalar() && constant.offset != 0)
 						constant.initializer_value.as_uint[0] = constant.initializer_value.as_uint[constant.offset];
+
+					if (effect.module.hlsl.empty())
+						continue;
+
+					preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
 
 					for (unsigned int i = 0; i < constant.type.components(); ++i)
 					{
@@ -1260,7 +1223,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 					switch (op)
 					{
-					case 15: // OpEntryPoint
+					case 15 /* OpEntryPoint */:
 						// Look for any non-matching entry points
 						if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
 						{
@@ -1275,14 +1238,14 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							continue;
 						}
 						break;
-					case 16: // OpExecutionMode
+					case 16 /* OpExecutionMode */:
 						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
 						{
 							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
 							continue;
 						}
 						break;
-					case 59: // OpVariable
+					case 59 /* OpVariable */:
 						// Remove all declarations of the interface variables for non-matching entry points
 						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
 						{
@@ -1290,7 +1253,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							continue;
 						}
 						break;
-					case 71: // OpDecorate
+					case 71 /* OpDecorate */:
 						// Remove all decorations targeting any of the interface variables for non-matching entry points
 						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
 						{
@@ -1298,11 +1261,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							continue;
 						}
 						break;
-					case 54: // OpFunction
+					case 54 /* OpFunction */:
 						current_function = spirv[inst + 2];
 						current_function_offset = inst;
 						break;
-					case 56: // OpFunctionEnd
+					case 56 /* OpFunctionEnd */:
 						// Remove all function definitions for non-matching entry points
 						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
 						{
@@ -1319,44 +1282,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				cso.resize(spirv.size() * sizeof(uint32_t));
 				std::memcpy(cso.data(), spirv.data(), cso.size());
 			}
-			else if (_renderer_id & 0x10000)
+			else if (_renderer_id < 0x10000)
 			{
-				cso = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
-
-				if (entry_point.type == reshadefx::shader_type::vs)
-				{
-					// OpenGL does not allow using 'discard' in the vertex shader profile
-					cso += "#define discard\n";
-					// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-					cso += "#define dFdx(x) x\n";
-					cso += "#define dFdy(y) y\n";
-					cso += "#define fwidth(p) p\n";
-				}
-				if (entry_point.type != reshadefx::shader_type::cs)
-				{
-					// OpenGL does not allow using 'shared' in vertex/fragment shader profile
-					cso += "#define shared\n";
-					cso += "#define atomicAdd(a, b) a\n";
-					cso += "#define atomicAnd(a, b) a\n";
-					cso += "#define atomicOr(a, b) a\n";
-					cso += "#define atomicXor(a, b) a\n";
-					cso += "#define atomicMin(a, b) a\n";
-					cso += "#define atomicMax(a, b) a\n";
-					cso += "#define atomicExchange(a, b) a\n";
-					cso += "#define atomicCompSwap(a, b, c) a\n";
-					// Barrier intrinsics are only available in compute shaders
-					cso += "#define barrier()\n";
-					cso += "#define memoryBarrier()\n";
-					cso += "#define groupMemoryBarrier()\n";
-				}
-
-				cso += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
-				cso += effect.module.hlsl;
-			}
-			else
-			{
-				assert(_d3d_compiler != nullptr);
-
 				// Add specialization constant defines to source code
 				const std::string hlsl =
 					"#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
@@ -1416,6 +1343,16 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				compile_flags |= D3DCOMPILE_DEBUG;
 #endif
 
+				HMODULE d3d_compiler_module = nullptr;
+				const auto ensure_d3d_compiler_loaded = [&d3d_compiler_module]() {
+					// Ensure HLSL compiler is loaded before trying to compile effects
+					if (nullptr == d3d_compiler_module)
+						d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll");
+					if (nullptr == d3d_compiler_module)
+						d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll");
+					return d3d_compiler_module != nullptr;
+				};
+
 				std::string hlsl_attributes;
 				hlsl_attributes += "entrypoint=" + entry_point.name + ';';
 				hlsl_attributes += "profile=" + profile + ';';
@@ -1427,7 +1364,14 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				if (load_effect_cache(cache_id, "cso", cso) == false)
 				{
-					const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler), "D3DCompile"));
+					if (!ensure_d3d_compiler_loaded())
+					{
+						effect.errors += "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!";
+						effect.compiled = false;
+						break;
+					}
+
+					const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(d3d_compiler_module, "D3DCompile"));
 
 					com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 					const HRESULT hr = D3DCompile(
@@ -1472,6 +1416,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					if (FAILED(hr))
 					{
 						effect.compiled = false;
+
+						d3d_errors.reset();
+						d3d_compiled.reset();
+						FreeLibrary(d3d_compiler_module);
 						break;
 					}
 
@@ -1481,15 +1429,52 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					save_effect_cache(cache_id, "cso", cso);
 				}
 
-				if (load_effect_cache(cache_id, "asm", cso_text) == false)
+				if (load_effect_cache(cache_id, "asm", cso_text) == false && ensure_d3d_compiler_loaded())
 				{
-					const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler), "D3DDisassemble"));
+					const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(d3d_compiler_module, "D3DDisassemble"));
 
 					if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 						cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
 
 					save_effect_cache(cache_id, "asm", cso_text);
 				}
+
+				if (d3d_compiler_module != nullptr)
+					FreeLibrary(d3d_compiler_module);
+			}
+			else
+			{
+				cso = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
+
+				if (entry_point.type == reshadefx::shader_type::vs)
+				{
+					// OpenGL does not allow using 'discard' in the vertex shader profile
+					cso += "#define discard\n";
+					// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
+					cso += "#define dFdx(x) x\n";
+					cso += "#define dFdy(y) y\n";
+					cso += "#define fwidth(p) p\n";
+				}
+				if (entry_point.type != reshadefx::shader_type::cs)
+				{
+					// OpenGL does not allow using 'shared' in vertex/fragment shader profile
+					cso += "#define shared\n";
+					cso += "#define atomicAdd(a, b) a\n";
+					cso += "#define atomicAnd(a, b) a\n";
+					cso += "#define atomicOr(a, b) a\n";
+					cso += "#define atomicXor(a, b) a\n";
+					cso += "#define atomicMin(a, b) a\n";
+					cso += "#define atomicMax(a, b) a\n";
+					cso += "#define atomicExchange(a, b) a\n";
+					cso += "#define atomicCompSwap(a, b, c) a\n";
+					// Barrier intrinsics are only available in compute shaders
+					cso += "#define barrier()\n";
+					cso += "#define memoryBarrier()\n";
+					cso += "#define groupMemoryBarrier()\n";
+				}
+
+				cso += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
+				cso += effect.module.hlsl;
 			}
 		}
 
@@ -1527,7 +1512,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					effect.errors += ") already created a texture with a different image file\n";
 				}
 
-				if (existing_texture->semantic == "COLOR" && _color_bit_depth != 8)
+				if (existing_texture->semantic == "COLOR" && format_color_bit_depth(_back_buffer_format) != 8)
 				{
 					for (const auto &sampler_info : effect.module.samplers)
 					{
@@ -1613,7 +1598,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 		_reload_remaining_effects--;
 	else
-		_reload_remaining_effects = 0; // Force effect initialization in 'update_and_render_effects'
+		_reload_remaining_effects = 0; // Force effect initialization in 'update_effects'
 
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
@@ -1641,14 +1626,14 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	// Create textures now, since they are referenced when building samplers below
 	for (texture &tex : _textures)
 	{
-		if (tex.resource != 0 || (
+		if (tex.resource != 0 || (tex.effect_index != effect_index &&
 			// Always create shared textures, since they may be in use by this effect already
-			tex.effect_index != effect_index && tex.shared.size() <= 1))
+			tex.shared.size() <= 1))
 			continue;
 
 		if (!create_texture(tex))
 		{
-			effect.errors += "Failed to create texture " + tex.unique_name;
+			effect.errors += "Failed to create texture " + tex.unique_name + '.';
 			effect.compiled = false;
 			_last_reload_successfull = false;
 			return false;
@@ -1666,7 +1651,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	}
 
 	// Create query pool for time measurements
-	if (!_device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_heap))
+	if (!_device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_pool))
 	{
 		effect.compiled = false;
 		_last_reload_successfull = false;
@@ -1678,9 +1663,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	api::descriptor_range layout_ranges[4];
-	api::pipeline_layout_param layout_params[4];
-
-	layout_ranges[0].offset = 0;
 	layout_ranges[0].binding = 0;
 	layout_ranges[0].dx_register_index = 0; // b0 (global constant buffer)
 	layout_ranges[0].dx_register_space = 0;
@@ -1689,7 +1671,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[0].type = api::descriptor_type::constant_buffer;
 	layout_ranges[0].visibility = api::shader_stage::all;
 
-	layout_ranges[1].offset = 0;
 	layout_ranges[1].binding = 0;
 	layout_ranges[1].dx_register_index = 0; // s#
 	layout_ranges[1].dx_register_space = 0;
@@ -1698,7 +1679,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[1].type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
 	layout_ranges[1].visibility = api::shader_stage::all;
 
-	layout_ranges[2].offset = 0;
 	layout_ranges[2].binding = 0;
 	layout_ranges[2].dx_register_index = 0; // t#
 	layout_ranges[2].dx_register_space = 0;
@@ -1707,7 +1687,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[2].type = api::descriptor_type::shader_resource_view;
 	layout_ranges[2].visibility = api::shader_stage::all;
 
-	layout_ranges[3].offset = 0;
 	layout_ranges[3].binding = 0;
 	layout_ranges[3].dx_register_index = 0; // u#
 	layout_ranges[3].dx_register_space = 0;
@@ -1716,28 +1695,29 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[3].type = api::descriptor_type::unordered_access_view;
 	layout_ranges[3].visibility = api::shader_stage::all;
 
-	_device->create_descriptor_set_layout(1, &layout_ranges[0], false, &effect.set_layouts[0]);
+	api::pipeline_layout_param layout_params[4];
 	layout_params[0].type = api::pipeline_layout_param_type::descriptor_set;
-	layout_params[0].descriptor_layout = effect.set_layouts[0];
+	layout_params[0].descriptor_set.count = 1;
+	layout_params[0].descriptor_set.ranges = &layout_ranges[0];
 
-	_device->create_descriptor_set_layout(1, &layout_ranges[1], false, &effect.set_layouts[1]);
 	layout_params[1].type = api::pipeline_layout_param_type::descriptor_set;
-	layout_params[1].descriptor_layout = effect.set_layouts[1];
+	layout_params[1].descriptor_set.count = 1;
+	layout_params[1].descriptor_set.ranges = &layout_ranges[1];
 
 	if (sampler_with_resource_view)
 	{
-		_device->create_descriptor_set_layout(1, &layout_ranges[3], false, &effect.set_layouts[3]);
 		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[2].descriptor_layout = effect.set_layouts[3];
+		layout_params[2].descriptor_set.count = 1;
+		layout_params[2].descriptor_set.ranges = &layout_ranges[3];
 	}
 	else
 	{
-		_device->create_descriptor_set_layout(1, &layout_ranges[2], false, &effect.set_layouts[2]);
 		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[2].descriptor_layout = effect.set_layouts[2];
-		_device->create_descriptor_set_layout(1, &layout_ranges[3], false, &effect.set_layouts[3]);
+		layout_params[2].descriptor_set.count = 1;
+		layout_params[2].descriptor_set.ranges = &layout_ranges[2];
 		layout_params[3].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[3].descriptor_layout = effect.set_layouts[3];
+		layout_params[3].descriptor_set.count = 1;
+		layout_params[3].descriptor_set.ranges = &layout_ranges[3];
 	}
 
 	// Create pipeline layout for this effect
@@ -1772,7 +1752,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		_device->set_resource_name(effect.cb, "ReShade constant buffer");
 
-		if (!_device->create_descriptor_sets(1, &effect.set_layouts[0], &effect.cb_set))
+		if (!_device->allocate_descriptor_set(effect.layout, 0, &effect.cb_set))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1785,24 +1765,23 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		api::descriptor_set_update &write = descriptor_writes.emplace_back();
 		write.set = effect.cb_set;
-		write.offset = write.binding = 0;
+		write.binding = 0;
 		write.type = api::descriptor_type::constant_buffer;
 		write.count = 1;
 		write.descriptors = &cb_range;
 	}
 
-	// Initialize sampler and storage bindings
-	size_t total_passes = 0, total_pass_index = 0;
+	// Initialize bindings
+	uint32_t total_pass_count = 0;
 	for (const reshadefx::technique_info &info : effect.module.techniques)
-		total_passes += info.passes.size();
+		total_pass_count += static_cast<uint32_t>(info.passes.size());
 
-	std::vector<api::descriptor_set> texture_tables(total_passes), storage_tables(total_passes);
+	std::vector<api::descriptor_set> texture_sets(total_pass_count);
+	std::vector<api::descriptor_set> storage_sets(total_pass_count);
 
 	if (effect.module.num_sampler_bindings != 0)
 	{
-		const std::vector<api::descriptor_set_layout> layouts(sampler_with_resource_view ? total_passes : 1, effect.set_layouts[1]);
-
-		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), sampler_with_resource_view ? texture_tables.data() : &effect.sampler_set))
+		if (!_device->allocate_descriptor_sets(sampler_with_resource_view ? total_pass_count : 1, effect.layout, 1, sampler_with_resource_view ? texture_sets.data() : &effect.sampler_set))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1829,38 +1808,27 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
 				desc.mip_lod_bias = info.lod_bias;
 				desc.max_anisotropy = 1;
+				desc.compare_op = api::compare_op::always;
+				desc.border_color[0] = 0.0f;
+				desc.border_color[1] = 0.0f;
+				desc.border_color[2] = 0.0f;
+				desc.border_color[3] = 0.0f;
 				desc.min_lod = info.min_lod;
 				desc.max_lod = info.max_lod;
 
-				// Generate hash for sampler description
-				size_t desc_hash = 2166136261;
-				for (int i = 0; i < sizeof(desc); ++i)
-					desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
-
 				api::sampler &sampler_handle = sampler_descriptors[info.binding].sampler;
-
-				if (const auto it = _effect_sampler_states.find(desc_hash);
-					it != _effect_sampler_states.end())
+				if (!create_effect_sampler_state(desc, sampler_handle))
 				{
-					sampler_handle = it->second;
-				}
-				else
-				{
-					if (!_device->create_sampler(desc, &sampler_handle))
-					{
-						effect.compiled = false;
-						_last_reload_successfull = false;
+					effect.compiled = false;
+					_last_reload_successfull = false;
 
-						LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
-						return false;
-					}
-
-					_effect_sampler_states.emplace(desc_hash, sampler_handle);
+					LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
+					return false;
 				}
 
 				api::descriptor_set_update &write = descriptor_writes.emplace_back();
 				write.set = effect.sampler_set;
-				write.offset = write.binding = info.binding;
+				write.binding = info.binding;
 				write.type = api::descriptor_type::sampler;
 				write.count = 1;
 				write.descriptors = &sampler_handle;
@@ -1872,9 +1840,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		assert(!sampler_with_resource_view);
 
-		const std::vector<api::descriptor_set_layout> layouts(total_passes, effect.set_layouts[2]);
-
-		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), texture_tables.data()))
+		if (!_device->allocate_descriptor_sets(total_pass_count, effect.layout, 2, texture_sets.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1886,9 +1852,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	if (effect.module.num_storage_bindings != 0)
 	{
-		const std::vector<api::descriptor_set_layout> layouts(total_passes, effect.set_layouts[3]);
-
-		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), storage_tables.data()))
+		if (!_device->allocate_descriptor_sets(total_pass_count, effect.layout, sampler_with_resource_view ? 2 : 3, storage_sets.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -1898,17 +1862,19 @@ bool reshade::runtime::create_effect(size_t effect_index)
 		}
 	}
 
-	for (size_t tech_index = 0, tech_index_in_effect = 0; tech_index < _techniques.size(); ++tech_index)
-	{
-		technique &tech = _techniques[tech_index];
+	// Initialize techniques and passes
+	size_t total_pass_index = 0;
+	size_t technique_index_in_effect = 0;
 
+	for (technique &tech : _techniques)
+	{
 		if (!tech.passes_data.empty() || tech.effect_index != effect_index)
 			continue;
 
 		tech.passes_data.resize(tech.passes.size());
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
-		tech.query_base_index = static_cast<uint32_t>(tech_index_in_effect++ * 2 * 4);
+		tech.query_base_index = static_cast<uint32_t>(technique_index_in_effect++ * 2 * 4);
 
 		for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index, ++total_pass_index)
 		{
@@ -1931,7 +1897,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					desc.compute.shader.spec_constant_values = spec_data.data();
 				}
 
-				if (!_device->create_pipeline(desc, &pass_data.pipeline))
+				if (!_device->create_pipeline(desc, 0, nullptr, &pass_data.pipeline))
 				{
 					effect.compiled = false;
 					_last_reload_successfull = false;
@@ -1972,65 +1938,37 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					pass_info.viewport_width = _width;
 					pass_info.viewport_height = _height;
 
-					desc.graphics.render_pass_template = _backbuffer_passes[pass_info.srgb_write_enable];
+					desc.graphics.depth_stencil_format = _effect_stencil_format;
+					desc.graphics.render_target_formats[0] = api::format_to_default_typed(_back_buffer_format, pass_info.srgb_write_enable);
 				}
 				else
 				{
-					api::framebuffer_desc fbo_desc = {};
-					fbo_desc.width = pass_info.viewport_width;
-					fbo_desc.height = pass_info.viewport_height;
-					fbo_desc.layers = 1;
-					api::render_pass_desc pass_desc = {};
-					pass_desc.samples = 1;
-
 					// Only need to attach stencil if stencil is actually used in this pass
 					if (pass_info.stencil_enable &&
 						pass_info.viewport_width == _width &&
 						pass_info.viewport_height == _height)
 					{
-						fbo_desc.depth_stencil = _effect_stencil_target;
-						pass_desc.depth_stencil_format = _effect_stencil_format;
+						desc.graphics.depth_stencil_format = _effect_stencil_format;
 					}
 
 					for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 					{
-						texture &texture = look_up_texture_by_name(pass_info.render_target_names[k]);
+						const auto texture = std::find_if(_textures.begin(), _textures.end(),
+							[&unique_name = pass_info.render_target_names[k]](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+						assert(texture != _textures.end());
 
-						pass_data.modified_resources.push_back(texture.resource);
+						pass_data.modified_resources.push_back(texture->resource);
 
-						if (texture.levels > 1)
-							pass_data.generate_mipmap_views.push_back(texture.srv[pass_info.srgb_write_enable]);
+						if (texture->levels > 1)
+							pass_data.generate_mipmap_views.push_back(texture->srv[pass_info.srgb_write_enable]);
 
-						const api::resource_desc res_desc = _device->get_resource_desc(texture.resource);
+						const api::resource_desc res_desc = _device->get_resource_desc(texture->resource);
 
-						fbo_desc.render_targets[k] = texture.rtv[pass_info.srgb_write_enable];
-						pass_desc.render_targets_format[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
-					}
-
-					if (!_device->create_render_pass(pass_desc, &pass_data.pass))
-					{
-						effect.compiled = false;
-						_last_reload_successfull = false;
-
-						LOG(ERROR) << "Failed to create render pass for pass " << pass_index << " in technique '" << tech.name << "' in " << effect.source_file << '!';
-						return false;
-					}
-
-					fbo_desc.render_pass_template = pass_data.pass;
-					desc.graphics.render_pass_template = pass_data.pass;
-
-					if (!_device->create_framebuffer(fbo_desc, &pass_data.fbo))
-					{
-						effect.compiled = false;
-						_last_reload_successfull = false;
-
-						LOG(ERROR) << "Failed to create framebuffer for pass " << pass_index << " in technique '" << tech.name << "' in " << effect.source_file << '!';
-						return false;
+						pass_data.render_target_views[k] = texture->rtv[pass_info.srgb_write_enable];
+						desc.graphics.render_target_formats[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
 					}
 				}
 
-				desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
-				desc.graphics.viewport_count = 1;
 				desc.graphics.topology = static_cast<api::primitive_topology>(pass_info.topology);
 
 				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
@@ -2039,7 +1977,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					default:
 					case reshadefx::pass_blend_op::add: return api::blend_op::add;
 					case reshadefx::pass_blend_op::subtract: return api::blend_op::subtract;
-					case reshadefx::pass_blend_op::rev_subtract: return api::blend_op::rev_subtract;
+					case reshadefx::pass_blend_op::rev_subtract: return api::blend_op::reverse_subtract;
 					case reshadefx::pass_blend_op::min: return api::blend_op::min;
 					case reshadefx::pass_blend_op::max: return api::blend_op::max;
 					}
@@ -2049,14 +1987,14 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					case reshadefx::pass_blend_func::zero: return api::blend_factor::zero;
 					default:
 					case reshadefx::pass_blend_func::one: return api::blend_factor::one;
-					case reshadefx::pass_blend_func::src_color: return api::blend_factor::src_color;
-					case reshadefx::pass_blend_func::src_alpha: return api::blend_factor::src_alpha;
-					case reshadefx::pass_blend_func::inv_src_color: return api::blend_factor::inv_src_color;
-					case reshadefx::pass_blend_func::inv_src_alpha: return api::blend_factor::inv_src_alpha;
-					case reshadefx::pass_blend_func::dst_color: return api::blend_factor::dst_color;
-					case reshadefx::pass_blend_func::dst_alpha: return api::blend_factor::dst_alpha;
-					case reshadefx::pass_blend_func::inv_dst_color: return api::blend_factor::inv_dst_color;
-					case reshadefx::pass_blend_func::inv_dst_alpha: return api::blend_factor::inv_dst_alpha;
+					case reshadefx::pass_blend_func::src_color: return api::blend_factor::source_color;
+					case reshadefx::pass_blend_func::src_alpha: return api::blend_factor::source_alpha;
+					case reshadefx::pass_blend_func::inv_src_color: return api::blend_factor::one_minus_source_color;
+					case reshadefx::pass_blend_func::inv_src_alpha: return api::blend_factor::one_minus_source_alpha;
+					case reshadefx::pass_blend_func::dst_color: return api::blend_factor::dest_color;
+					case reshadefx::pass_blend_func::dst_alpha: return api::blend_factor::dest_alpha;
+					case reshadefx::pass_blend_func::inv_dst_color: return api::blend_factor::one_minus_dest_color;
+					case reshadefx::pass_blend_func::inv_dst_alpha: return api::blend_factor::one_minus_dest_alpha;
 					}
 				};
 
@@ -2064,19 +2002,17 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				for (int i = 0; i < 8; ++i)
 				{
 					blend_state.blend_enable[i] = pass_info.blend_enable;
-					blend_state.src_color_blend_factor[i] = convert_blend_func(pass_info.src_blend);
-					blend_state.dst_color_blend_factor[i] = convert_blend_func(pass_info.dest_blend);
+					blend_state.source_color_blend_factor[i] = convert_blend_func(pass_info.src_blend);
+					blend_state.dest_color_blend_factor[i] = convert_blend_func(pass_info.dest_blend);
 					blend_state.color_blend_op[i] = convert_blend_op(pass_info.blend_op);
-					blend_state.src_alpha_blend_factor[i] = convert_blend_func(pass_info.src_blend_alpha);
-					blend_state.dst_alpha_blend_factor[i] = convert_blend_func(pass_info.dest_blend_alpha);
+					blend_state.source_alpha_blend_factor[i] = convert_blend_func(pass_info.src_blend_alpha);
+					blend_state.dest_alpha_blend_factor[i] = convert_blend_func(pass_info.dest_blend_alpha);
 					blend_state.alpha_blend_op[i] = convert_blend_op(pass_info.blend_op_alpha);
 					blend_state.render_target_write_mask[i] = pass_info.color_write_mask;
 				}
 
 				auto &rasterizer_state = desc.graphics.rasterizer_state;
-				rasterizer_state.fill_mode = api::fill_mode::solid;
 				rasterizer_state.cull_mode = api::cull_mode::none;
-				rasterizer_state.depth_clip_enable = true;
 
 				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
 					switch (value) {
@@ -2085,10 +2021,10 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					case reshadefx::pass_stencil_op::keep: return api::stencil_op::keep;
 					case reshadefx::pass_stencil_op::invert: return api::stencil_op::invert;
 					case reshadefx::pass_stencil_op::replace: return api::stencil_op::replace;
-					case reshadefx::pass_stencil_op::incr: return api::stencil_op::incr;
-					case reshadefx::pass_stencil_op::incr_sat: return api::stencil_op::incr_sat;
-					case reshadefx::pass_stencil_op::decr: return api::stencil_op::decr;
-					case reshadefx::pass_stencil_op::decr_sat: return api::stencil_op::decr_sat;
+					case reshadefx::pass_stencil_op::incr: return api::stencil_op::increment;
+					case reshadefx::pass_stencil_op::incr_sat: return api::stencil_op::increment_saturate;
+					case reshadefx::pass_stencil_op::decr: return api::stencil_op::decrement;
+					case reshadefx::pass_stencil_op::decr_sat: return api::stencil_op::decrement_saturate;
 					}
 				};
 				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {
@@ -2122,7 +2058,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				depth_stencil_state.front_stencil_pass_op = depth_stencil_state.back_stencil_pass_op;
 				depth_stencil_state.front_stencil_func = depth_stencil_state.back_stencil_func;
 
-				if (!_device->create_pipeline(desc, &pass_data.pipeline))
+				if (!_device->create_pipeline(desc, 0, nullptr, &pass_data.pipeline))
 				{
 					effect.compiled = false;
 					_last_reload_successfull = false;
@@ -2135,11 +2071,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			if (effect.module.num_sampler_bindings != 0 ||
 				effect.module.num_texture_bindings != 0)
 			{
-				pass_data.texture_set = texture_tables[total_pass_index];
+				pass_data.texture_set = texture_sets[total_pass_index];
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
-					const texture &texture = look_up_texture_by_name(info.texture_name);
+					const auto texture = std::find_if(_textures.begin(), _textures.end(),
+						[&unique_name = info.texture_name](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+					assert(texture != _textures.end());
 
 					api::resource_view &srv = sampler_descriptors[sampler_with_resource_view ? info.binding : effect.module.num_sampler_bindings + info.texture_binding].view;
 
@@ -2149,7 +2087,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 					if (sampler_with_resource_view)
 					{
-						write.offset = write.binding = info.binding;
+						write.binding = info.binding;
 						write.type = api::descriptor_type::sampler_with_resource_view;
 						write.descriptors = &sampler_descriptors[info.binding];
 
@@ -2160,61 +2098,48 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
 						desc.mip_lod_bias = info.lod_bias;
 						desc.max_anisotropy = 1;
-						desc.compare_op = api::compare_op::never;
+						desc.compare_op = api::compare_op::always;
+						desc.border_color[0] = 0.0f;
+						desc.border_color[1] = 0.0f;
+						desc.border_color[2] = 0.0f;
+						desc.border_color[3] = 0.0f;
 						desc.min_lod = info.min_lod;
 						desc.max_lod = info.max_lod;
 
-						// Generate hash for sampler description
-						size_t desc_hash = 2166136261;
-						for (int i = 0; i < sizeof(desc); ++i)
-							desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
-
-						api::sampler &sampler = sampler_descriptors[info.binding].sampler;
-
-						if (const auto it = _effect_sampler_states.find(desc_hash);
-							it != _effect_sampler_states.end())
+						if (!create_effect_sampler_state(desc, sampler_descriptors[info.binding].sampler))
 						{
-							sampler = it->second;
-						}
-						else
-						{
-							if (!_device->create_sampler(desc, &sampler))
-							{
-								effect.compiled = false;
-								_last_reload_successfull = false;
+							effect.compiled = false;
+							_last_reload_successfull = false;
 
-								LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
-								return false;
-							}
-
-							_effect_sampler_states.emplace(desc_hash, sampler);
+							LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
+							return false;
 						}
 					}
 					else
 					{
-						write.offset = write.binding = info.texture_binding;
+						write.binding = info.texture_binding;
 						write.type = api::descriptor_type::shader_resource_view;
 						write.descriptors = &srv;
 					}
 
-					if (texture.semantic == "COLOR")
+					if (texture->semantic == "COLOR")
 					{
-						srv = _backbuffer_texture_view[info.srgb];
+						srv = _effect_color_srv[info.srgb];
 					}
-					else if (!texture.semantic.empty())
+					else if (!texture->semantic.empty())
 					{
-						if (const auto it = _texture_semantic_bindings.find(texture.semantic);
+						if (const auto it = _texture_semantic_bindings.find(texture->semantic);
 							it != _texture_semantic_bindings.end())
 							srv = info.srgb ? it->second.second : it->second.first;
 						else
-							srv = _empty_texture_view;
+							srv = _empty_srv;
 
 						// Keep track of the texture descriptor to simplify updating it
-						effect.texture_semantic_to_binding.push_back({ texture.semantic, write.set, write.binding, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 }, !!info.srgb });
+						effect.texture_semantic_to_binding.push_back({ texture->semantic, write.set, write.binding, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 }, !!info.srgb });
 					}
 					else
 					{
-						srv = texture.srv[info.srgb];
+						srv = texture->srv[info.srgb];
 					}
 
 					assert(srv != 0);
@@ -2223,25 +2148,26 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 			if (effect.module.num_storage_bindings != 0)
 			{
-				pass_data.storage_set = storage_tables[total_pass_index];
+				pass_data.storage_set = storage_sets[total_pass_index];
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
-					const texture &texture = look_up_texture_by_name(info.texture_name);
+					const auto texture = std::find_if(_textures.begin(), _textures.end(),
+						[&unique_name = info.texture_name](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+					assert(texture != _textures.end());
+					assert(texture->semantic.empty() && texture->uav != 0);
 
-					assert(texture.semantic.empty() && texture.uav != 0);
+					pass_data.modified_resources.push_back(texture->resource);
 
-					pass_data.modified_resources.push_back(texture.resource);
-
-					if (texture.levels > 1)
-						pass_data.generate_mipmap_views.push_back(texture.srv[0]);
+					if (texture->levels > 1)
+						pass_data.generate_mipmap_views.push_back(texture->srv[0]);
 
 					api::descriptor_set_update &write = descriptor_writes.emplace_back();
 					write.set = pass_data.storage_set;
-					write.offset = write.binding = info.binding;
+					write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
-					write.descriptors = &texture.uav;
+					write.descriptors = &texture->uav;
 				}
 			}
 		}
@@ -2252,30 +2178,48 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	return true;
 }
+bool reshade::runtime::create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler)
+{
+	// Generate hash for sampler description
+	size_t desc_hash = 2166136261;
+	for (int i = 0; i < sizeof(desc); ++i)
+		desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
+
+	if (const auto it = _effect_sampler_states.find(desc_hash);
+		it != _effect_sampler_states.end())
+	{
+		sampler = it->second;
+		return true;
+	}
+
+	if (_device->create_sampler(desc, &sampler))
+	{
+		_effect_sampler_states.emplace(desc_hash, sampler);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
 void reshade::runtime::destroy_effect(size_t effect_index)
 {
 	assert(effect_index < _effects.size());
 
 	// Make sure no effect resources are currently in use
-	_device->wait_idle();
+	_graphics_queue->wait_idle();
 
 	for (technique &tech : _techniques)
 	{
 		if (tech.effect_index != effect_index)
 			continue;
 
-		size_t pass_index = 0;
-
 		for (const technique::pass_data &pass : tech.passes_data)
 		{
-			_device->destroy_framebuffer(pass.fbo);
-			_device->destroy_render_pass(pass.pass);
+			_device->destroy_pipeline(pass.pipeline);
 
-			const bool is_compute_pass = !tech.passes[pass_index++].cs_entry_point.empty();
-			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, pass.pipeline);
-
-			_device->destroy_descriptor_sets(1, &pass.texture_set);
-			_device->destroy_descriptor_sets(1, &pass.storage_set);
+			_device->free_descriptor_set(pass.texture_set);
+			_device->free_descriptor_set(pass.storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -2286,22 +2230,16 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		_device->destroy_resource(effect.cb);
 		effect.cb = {};
 
-		_device->destroy_descriptor_sets(1, &effect.cb_set);
+		_device->free_descriptor_set(effect.cb_set);
 		effect.cb_set = {};
-		_device->destroy_descriptor_sets(1, &effect.sampler_set);
+		_device->free_descriptor_set(effect.sampler_set);
 		effect.sampler_set = {};
 
 		_device->destroy_pipeline_layout(effect.layout);
 		effect.layout = {};
 
-		for (int i = 0; i < 4; ++i)
-		{
-			_device->destroy_descriptor_set_layout(effect.set_layouts[i]);
-			effect.set_layouts[i] = {};
-		}
-
-		_device->destroy_query_pool(effect.query_heap);
-		effect.query_heap = {};
+		_device->destroy_query_pool(effect.query_pool);
+		effect.query_pool = {};
 
 		effect.texture_semantic_to_binding.clear();
 	}
@@ -2496,23 +2434,42 @@ void reshade::runtime::destroy_texture(texture &tex)
 	tex.uav = {};
 }
 
+void reshade::runtime::enable_technique(technique &tech)
+{
+	assert(tech.effect_index < _effects.size());
+
+	if (!_effects[tech.effect_index].compiled)
+		return; // Cannot enable techniques that failed to compile
+
+	const bool status_changed = !tech.enabled;
+	tech.enabled = true;
+	tech.time_left = tech.annotation_as_int("timeout");
+
+	// Queue effect file for initialization if it was not fully loaded yet
+	if (tech.passes_data.empty() &&
+		// Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
+		std::find(_reload_create_queue.begin(), _reload_create_queue.end(), tech.effect_index) == _reload_create_queue.end())
+		_reload_create_queue.push_back(tech.effect_index);
+
+	if (status_changed) // Increase rendering reference count
+		_effects[tech.effect_index].rendering++;
+}
+void reshade::runtime::disable_technique(technique &tech)
+{
+	assert(tech.effect_index < _effects.size());
+
+	const bool status_changed = tech.enabled;
+	tech.enabled = false;
+	tech.time_left = 0;
+	tech.average_cpu_duration.clear();
+	tech.average_gpu_duration.clear();
+
+	if (status_changed) // Decrease rendering reference count
+		_effects[tech.effect_index].rendering--;
+}
+
 void reshade::runtime::load_effects()
 {
-	// Ensure HLSL compiler is loaded before trying to compile effects
-	if (_renderer_id < 0x10000)
-	{
-		if (_d3d_compiler == nullptr)
-			_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
-		if (_d3d_compiler == nullptr)
-			_d3d_compiler = LoadLibraryW(L"d3dcompiler_43.dll");
-
-		if (_d3d_compiler == nullptr)
-		{
-			LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!";
-			return;
-		}
-	}
-
 	// Reload preprocessor definitions from current preset before compiling
 	_preset_preprocessor_definitions.clear();
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
@@ -2571,7 +2528,7 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		unsigned char *filedata = nullptr;
+		stbi_uc *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
 		if (FILE *file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)
@@ -2594,7 +2551,7 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		set_texture_data({ reinterpret_cast<uintptr_t>(&texture) }, width, height, filedata);
+		update_texture({ reinterpret_cast<uintptr_t>(&texture) }, width, height, filedata);
 
 		stbi_image_free(filedata);
 
@@ -2652,7 +2609,7 @@ void reshade::runtime::destroy_effects()
 	_textures_loaded = false;
 }
 
-bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &source) const
+bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &data) const
 {
 	if (_no_effect_cache)
 		return false;
@@ -2664,13 +2621,13 @@ bool reshade::runtime::load_effect_cache(const std::string &id, const std::strin
 		if (file == INVALID_HANDLE_VALUE)
 			return false;
 		DWORD size = GetFileSize(file, nullptr);
-		source.resize(size);
-		const BOOL result = ReadFile(file, source.data(), size, &size, nullptr);
+		data.resize(size);
+		const BOOL result = ReadFile(file, data.data(), size, &size, nullptr);
 		CloseHandle(file);
 		return result != FALSE;
 	}
 }
-bool reshade::runtime::save_effect_cache(const std::string &id, const std::string &type, const std::string &source) const
+bool reshade::runtime::save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const
 {
 	if (_no_effect_cache)
 		return false;
@@ -2681,8 +2638,8 @@ bool reshade::runtime::save_effect_cache(const std::string &id, const std::strin
 	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 		if (file == INVALID_HANDLE_VALUE)
 			return false;
-		DWORD size = static_cast<DWORD>(source.size());
-		const BOOL result = WriteFile(file, source.data(), size, &size, nullptr);
+		DWORD size = static_cast<DWORD>(data.size());
+		const BOOL result = WriteFile(file, data.data(), size, &size, nullptr);
 		CloseHandle(file);
 		return result != FALSE;
 	}
@@ -2705,7 +2662,7 @@ void reshade::runtime::clear_effect_cache()
 	}
 }
 
-void reshade::runtime::update_and_render_effects()
+void reshade::runtime::update_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
 	if (_framecount == 0 && !_no_reload_on_init && !(_no_reload_for_non_vr && !_is_vr))
@@ -2787,21 +2744,33 @@ void reshade::runtime::update_and_render_effects()
 				open_code_editor(instance);
 		}
 #endif
+
+#if RESHADE_ADDON
+		if (_reload_create_queue.empty())
+			invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+#endif
 	}
 	else if (!_textures_loaded)
 	{
 		// Now that all effects were compiled, load all textures
 		load_textures();
 	}
+}
+void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	_effects_rendered_this_frame = true;
+
+	if (is_loading() || rtv == 0)
+		return;
+
+	if (rtv_srgb == 0)
+		rtv_srgb = rtv;
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	// TODO: This does not catch input happening between now and 'on_present'
 	const auto input_lock = _input->lock();
 #endif
-
-	if (_should_save_screenshot && (_screenshot_save_before || !_effects_enabled))
-		save_screenshot(_effects_enabled ? L" original" : std::wstring(), !_effects_enabled);
 
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled || _techniques.empty())
@@ -2825,7 +2794,7 @@ void reshade::runtime::update_and_render_effects()
 					case reshadefx::type::t_bool:
 					{
 						bool data;
-						get_uniform_value(variable, &data, 1);
+						get_uniform_value(variable, &data);
 						set_uniform_value(variable, !data);
 						break;
 					}
@@ -2927,7 +2896,7 @@ void reshade::runtime::update_and_render_effects()
 							mode == "toggle" || variable.annotation_as_int("toggle"))
 						{
 							bool current_value = false;
-							get_uniform_value(variable, &current_value, 1);
+							get_uniform_value(variable, &current_value);
 							if (_input->is_key_pressed(keycode))
 								set_uniform_value(variable, !current_value);
 						}
@@ -2966,7 +2935,7 @@ void reshade::runtime::update_and_render_effects()
 							mode == "toggle" || variable.annotation_as_int("toggle"))
 						{
 							bool current_value = false;
-							get_uniform_value(variable, &current_value, 1);
+							get_uniform_value(variable, &current_value);
 							if (_input->is_mouse_button_pressed(keycode))
 								set_uniform_value(variable, !current_value);
 						}
@@ -3023,13 +2992,8 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
-	const api::resource backbuffer = get_current_back_buffer_resolved();
-
-	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
-
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list);
+	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 
 	// Render all enabled techniques
@@ -3047,7 +3011,7 @@ void reshade::runtime::update_and_render_effects()
 			continue; // Ignore techniques that are not fully loaded or currently disabled
 
 		const auto time_technique_started = std::chrono::high_resolution_clock::now();
-		render_technique(tech);
+		render_technique(cmd_list, tech, rtv, rtv_srgb);
 		const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 
 		tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
@@ -3061,31 +3025,22 @@ void reshade::runtime::update_and_render_effects()
 	}
 
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list);
+	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
-
-	cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
-
-	if (_should_save_screenshot)
-		save_screenshot(std::wstring(), true);
 }
-void reshade::runtime::render_technique(technique &tech)
+void reshade::runtime::render_technique(api::command_list *cmd_list, technique &tech, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb)
 {
 	const effect &effect = _effects[tech.effect_index];
-
-	const api::resource backbuffer = get_current_back_buffer_resolved();
-
-	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
-			_device->get_query_pool_results(effect.query_heap, tech.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
+			_device->get_query_pool_results(effect.query_pool, tech.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
 			tech.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 
-		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2);
+		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2);
 	}
 #endif
 
@@ -3095,33 +3050,35 @@ void reshade::runtime::render_technique(technique &tech)
 #endif
 
 	// Update shader constants
-	if (api::subresource_data mapped_uniform_data; effect.cb != 0 &&
-		_device->map_resource(effect.cb, 0, api::map_access::write_discard, &mapped_uniform_data))
+	if (void *mapped_uniform_data; effect.cb != 0 &&
+		_device->map_buffer_region(effect.cb, 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_discard, &mapped_uniform_data))
 	{
-		std::memcpy(mapped_uniform_data.data, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
-		_device->unmap_resource(effect.cb, 0);
+		std::memcpy(mapped_uniform_data, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
+		_device->unmap_buffer_region(effect.cb);
 	}
 	else if (_renderer_id == 0x9000)
 	{
-		cmd_list->push_constants(api::shader_stage::all, effect.layout, 0, 0, static_cast<uint32_t>(effect.uniform_data_storage.size() / sizeof(uint32_t)), reinterpret_cast<const uint32_t *>(effect.uniform_data_storage.data()));
+		cmd_list->push_constants(api::shader_stage::all, effect.layout, 0, 0, static_cast<uint32_t>(effect.uniform_data_storage.size() / sizeof(uint32_t)), effect.uniform_data_storage.data());
 	}
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	bool is_effect_stencil_cleared = false;
-	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
+	bool needs_implicit_back_buffer_copy = true; // First pass always needs the back buffer updated
+
+	const api::resource back_buffer_resource = _device->get_resource_from_view(back_buffer_rtv);
 
 	for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index)
 	{
-		if (needs_implicit_backbuffer_copy)
+		if (needs_implicit_back_buffer_copy)
 		{
 			// Save back buffer of previous pass
-			const api::resource resources[2] = { backbuffer, _backbuffer_texture };
+			const api::resource resources[2] = { back_buffer_resource, _effect_color_tex };
 			const api::resource_usage state_old[2] = { api::resource_usage::render_target, api::resource_usage::shader_resource };
 			const api::resource_usage state_new[2] = { api::resource_usage::copy_source, api::resource_usage::copy_dest };
 
 			cmd_list->barrier(2, resources, state_old, state_new);
-			cmd_list->copy_resource(backbuffer, _backbuffer_texture);
+			cmd_list->copy_resource(back_buffer_resource, _effect_color_tex);
 			cmd_list->barrier(2, resources, state_new, state_old);
 		}
 
@@ -3137,7 +3094,7 @@ void reshade::runtime::render_technique(technique &tech)
 		if (!pass_info.cs_entry_point.empty())
 		{
 			// Compute shaders do not write to the back buffer, so no update necessary
-			needs_implicit_backbuffer_copy = false;
+			needs_implicit_back_buffer_copy = false;
 
 			cmd_list->bind_pipeline(api::pipeline_stage::all_compute, pass_data.pipeline);
 
@@ -3170,25 +3127,14 @@ void reshade::runtime::render_technique(technique &tech)
 			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_old.data(), state_new.data());
 
 			// Setup render targets
-			if (pass_info.render_target_names[0].empty())
-			{
-				needs_implicit_backbuffer_copy = true;
-
-				uint32_t index = get_current_back_buffer_index();
-				index = (index * 2) + pass_info.srgb_write_enable;
-				cmd_list->begin_render_pass(_backbuffer_passes[index], _backbuffer_fbos[index]);
-			}
-			else
-			{
-				needs_implicit_backbuffer_copy = false;
-
-				cmd_list->begin_render_pass(pass_data.pass, pass_data.fbo);
-			}
+			uint32_t render_target_count = 0;
+			api::render_pass_depth_stencil_desc depth_stencil = {};
+			api::render_pass_render_target_desc render_target[8] = {};
 
 			if (pass_info.clear_render_targets)
 			{
-				constexpr float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				cmd_list->clear_attachments(api::attachment_type::color, clear_color, 0, 0);
+				for (int i = 0; i < 8; ++i)
+					render_target[i].load_op = api::render_pass_load_op::clear;
 			}
 
 			// First pass to use the stencil buffer should clear it
@@ -3196,8 +3142,31 @@ void reshade::runtime::render_technique(technique &tech)
 			{
 				is_effect_stencil_cleared = true;
 
-				cmd_list->clear_attachments(api::attachment_type::stencil, nullptr, 1.0f, 0x0);
+				depth_stencil.stencil_load_op = api::render_pass_load_op::clear;
 			}
+
+			if (pass_info.render_target_names[0].empty())
+			{
+				needs_implicit_back_buffer_copy = true;
+
+				depth_stencil.view = _effect_stencil_dsv;
+				render_target[0].view = pass_info.srgb_write_enable ? back_buffer_rtv_srgb : back_buffer_rtv;
+				render_target_count = 1;
+			}
+			else
+			{
+				needs_implicit_back_buffer_copy = false;
+
+				if (pass_info.stencil_enable &&
+					pass_info.viewport_width == _width &&
+					pass_info.viewport_height == _height)
+					depth_stencil.view = _effect_stencil_dsv;
+
+				for (int i = 0; i < 8 && pass_data.render_target_views[i] != 0; ++i, ++render_target_count)
+					render_target[i].view = pass_data.render_target_views[i];
+			}
+
+			cmd_list->begin_render_pass(render_target_count, render_target, depth_stencil.view != 0 ? &depth_stencil : nullptr);
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
 			if (effect.cb != 0)
@@ -3209,19 +3178,19 @@ void reshade::runtime::render_technique(technique &tech)
 			if (pass_data.texture_set != 0)
 				cmd_list->bind_descriptor_set(api::shader_stage::all_graphics, effect.layout, sampler_with_resource_view ? 1 : 2, pass_data.texture_set);
 
-			const float viewport[6] = {
+			const api::viewport viewport = {
 				0.0f, 0.0f,
 				static_cast<float>(pass_info.viewport_width),
 				static_cast<float>(pass_info.viewport_height),
 				0.0f, 1.0f
 			};
-			cmd_list->bind_viewports(0, 1, viewport);
-			const int32_t scissor_rect[4] = {
+			cmd_list->bind_viewports(0, 1, &viewport);
+			const api::rect scissor_rect = {
 				0, 0,
 				static_cast<int32_t>(pass_info.viewport_width),
 				static_cast<int32_t>(pass_info.viewport_height)
 			};
-			cmd_list->bind_scissor_rects(0, 1, scissor_rect);
+			cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
 
 			if (_renderer_id == 0x9000)
 			{
@@ -3236,7 +3205,7 @@ void reshade::runtime::render_technique(technique &tech)
 			// Draw primitives
 			cmd_list->draw(pass_info.num_vertices, 1, 0, 0);
 
-			cmd_list->finish_render_pass();
+			cmd_list->end_render_pass();
 
 			// Transition resource state back to shader access
 			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_new.data(), state_old.data());
@@ -3247,17 +3216,17 @@ void reshade::runtime::render_technique(technique &tech)
 			cmd_list->generate_mipmaps(modified_texture);
 
 #ifndef NDEBUG
-		cmd_list->finish_debug_event();
+		cmd_list->end_debug_event();
 #endif
 	}
 
 #ifndef NDEBUG
-	cmd_list->finish_debug_event();
+	cmd_list->end_debug_event();
 #endif
 
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)
-		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
+		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
 #endif
 }
 
@@ -3303,7 +3272,9 @@ void reshade::runtime::save_texture(const texture &tex)
 	_last_screenshot_file = screenshot_path;
 	_last_screenshot_time = std::chrono::high_resolution_clock::now();
 }
-void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
+#endif
+
+void reshade::runtime::save_screenshot(const std::wstring &postfix)
 {
 	char timestamp[21];
 	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -3311,8 +3282,10 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	std::wstring filename = g_target_executable_path.stem().concat(timestamp);
+#if RESHADE_EFFECTS
 	if (_screenshot_naming == 1)
 		filename += L' ' + _current_preset_path.stem().wstring();
+#endif
 
 	filename += postfix;
 	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
@@ -3372,13 +3345,162 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 	{
 		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 	}
-	else if (_screenshot_include_preset && should_save_preset && ini_file::flush_cache(_current_preset_path))
+#if RESHADE_EFFECTS
+	else if (_screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path))
 	{
 		// Preset was flushed to disk, so can just copy it over to the new location
 		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
 	}
+#endif
 }
 
+bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)
+{
+	const api::resource_desc desc = _device->get_resource_desc(resource);
+	const api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
+
+	if (view_format != api::format::r8_unorm &&
+		view_format != api::format::r8g8_unorm &&
+		view_format != api::format::r8g8b8a8_unorm &&
+		view_format != api::format::b8g8r8a8_unorm &&
+		view_format != api::format::r8g8b8x8_unorm &&
+		view_format != api::format::b8g8r8x8_unorm &&
+		view_format != api::format::r10g10b10a2_unorm &&
+		view_format != api::format::b10g10r10a2_unorm)
+	{
+		LOG(ERROR) << "Screenshots are not supported for format " << static_cast<uint32_t>(desc.texture.format) << '!';
+		return false;
+	}
+
+	uint32_t row_pitch = api::format_row_pitch(view_format, desc.texture.width);
+	if (_device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
+		row_pitch = (row_pitch + 255) & ~255;
+	const uint32_t slice_pitch = api::format_slice_pitch(view_format, row_pitch, desc.texture.height);
+	const uint32_t pixels_row_pitch = desc.texture.width * 4;
+
+	// Copy back buffer data into system memory buffer
+	api::resource intermediate;
+	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
+	{
+		if (!_device->create_resource(api::resource_desc(slice_pitch, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		{
+			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
+			return false;
+		}
+
+		_device->set_resource_name(intermediate, "ReShade screenshot buffer");
+
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+		cmd_list->barrier(resource, state, api::resource_usage::copy_source);
+		cmd_list->copy_texture_to_buffer(resource, 0, nullptr, intermediate, 0, desc.texture.width, desc.texture.height);
+		cmd_list->barrier(resource, api::resource_usage::copy_source, state);
+	}
+	else
+	{
+		if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, view_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		{
+			LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
+			return false;
+		}
+
+		_device->set_resource_name(intermediate, "ReShade screenshot texture");
+
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+		cmd_list->barrier(resource, state, api::resource_usage::copy_source);
+		cmd_list->copy_texture_region(resource, 0, nullptr, intermediate, 0, nullptr);
+		cmd_list->barrier(resource, api::resource_usage::copy_source, state);
+	}
+
+	// Wait for any rendering by the application finish before submitting
+	// It may have submitted that to a different queue, so simply wait for all to idle here
+	_graphics_queue->wait_idle();
+
+	// Copy data from intermediate image into output buffer
+	api::subresource_data mapped_data = {};
+	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
+	{
+		_device->map_buffer_region(intermediate, 0, std::numeric_limits<uint64_t>::max(), api::map_access::read_only, &mapped_data.data);
+
+		mapped_data.row_pitch = row_pitch;
+		mapped_data.slice_pitch = slice_pitch;
+	}
+	else
+	{
+		_device->map_texture_region(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data);
+	}
+
+	if (mapped_data.data != nullptr)
+	{
+		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
+
+		for (uint32_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
+		{
+			switch (view_format)
+			{
+			case api::format::r8_unorm:
+				for (uint32_t x = 0; x < desc.texture.width; ++x)
+				{
+					pixels[x * 4 + 0] = mapped_pixels[x];
+					pixels[x * 4 + 1] = 0;
+					pixels[x * 4 + 2] = 0;
+					pixels[x * 4 + 3] = 0xFF;
+				}
+				break;
+			case api::format::r8g8_unorm:
+				for (uint32_t x = 0; x < desc.texture.width; ++x)
+				{
+					pixels[x * 4 + 0] = mapped_pixels[x * 2 + 0];
+					pixels[x * 4 + 1] = mapped_pixels[x * 2 + 1];
+					pixels[x * 4 + 2] = 0;
+					pixels[x * 4 + 3] = 0xFF;
+				}
+				break;
+			case api::format::r8g8b8a8_unorm:
+			case api::format::r8g8b8x8_unorm:
+				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
+				if (view_format == api::format::r8g8b8x8_unorm)
+					for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
+						pixels[x + 3] = 0xFF;
+				break;
+			case api::format::b8g8r8a8_unorm:
+			case api::format::b8g8r8x8_unorm:
+				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
+				// Format is BGRA, but output should be RGBA, so flip channels
+				for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
+					std::swap(pixels[x + 0], pixels[x + 2]);
+				if (view_format == api::format::b8g8r8x8_unorm)
+					for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
+						pixels[x + 3] = 0xFF;
+				break;
+			case api::format::r10g10b10a2_unorm:
+			case api::format::b10g10r10a2_unorm:
+				for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
+				{
+					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
+					// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
+					pixels[x + 0] = (( rgba & 0x000003FF)        /  4) & 0xFF;
+					pixels[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
+					pixels[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
+					pixels[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
+					if (view_format == api::format::b10g10r10a2_unorm)
+						std::swap(pixels[x + 0], pixels[x + 2]);
+				}
+				break;
+			}
+		}
+
+		if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
+			_device->unmap_buffer_region(intermediate);
+		else
+			_device->unmap_texture_region(intermediate, 0);
+	}
+
+	_device->destroy_resource(intermediate);
+
+	return mapped_data.data != nullptr;
+}
+
+#if RESHADE_EFFECTS
 void reshade::runtime::reset_uniform_value(uniform &variable)
 {
 	if (!variable.has_initializer_value)
@@ -3389,7 +3511,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 
 	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
 	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-		i < array_length; ++i)
+		 i < array_length; ++i)
 	{
 		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
 
@@ -3408,15 +3530,52 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 		}
 	}
 }
+#endif
+
+bool reshade::runtime::is_key_down(uint32_t keycode) const
+{
+	return _input != nullptr && _input->is_key_down(keycode);
+}
+bool reshade::runtime::is_key_pressed(uint32_t keycode) const
+{
+	return _input != nullptr && _input->is_key_pressed(keycode);
+}
+bool reshade::runtime::is_key_released(uint32_t keycode) const
+{
+	return _input != nullptr && _input->is_key_released(keycode);
+}
+bool reshade::runtime::is_mouse_button_down(uint32_t button) const
+{
+	return _input != nullptr && _input->is_mouse_button_down(button);
+}
+bool reshade::runtime::is_mouse_button_pressed(uint32_t button) const
+{
+	return _input != nullptr && _input->is_mouse_button_pressed(button);
+}
+bool reshade::runtime::is_mouse_button_released(uint32_t button) const
+{
+	return _input != nullptr && _input->is_mouse_button_released(button);
+}
+
+void reshade::runtime::get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const
+{
+	if (out_x != nullptr)
+		*out_x = (_input != nullptr) ? _input->mouse_position_x() : 0;
+	if (out_y != nullptr)
+		*out_y = (_input != nullptr) ? _input->mouse_position_y() : 0;
+	if (out_wheel_delta != nullptr)
+		*out_wheel_delta = (_input != nullptr) ? _input->mouse_wheel_delta() : 0;
+}
 
 void reshade::runtime::enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data)
 {
+#if RESHADE_EFFECTS
 	if (is_loading())
 		return;
 
 	for (const effect &effect : _effects)
 	{
-		if (effect_name != nullptr && effect.source_file.stem() != effect_name)
+		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
 			continue;
 
 		for (const uniform &variable : effect.uniforms)
@@ -3425,16 +3584,18 @@ void reshade::runtime::enumerate_uniform_variables(const char *effect_name, void
 		if (effect_name != nullptr)
 			break;
 	}
+#endif
 }
 
-reshade::api::effect_uniform_variable reshade::runtime::get_uniform_variable(const char *effect_name, const char *variable_name) const
+reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable(const char *effect_name, const char *variable_name) const
 {
+#if RESHADE_EFFECTS
 	if (is_loading())
 		return { 0 };
 
 	for (const effect &effect : _effects)
 	{
-		if (effect_name != nullptr && effect.source_file.stem() != effect_name)
+		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
 			continue;
 
 		for (const uniform &variable : effect.uniforms)
@@ -3446,70 +3607,99 @@ reshade::api::effect_uniform_variable reshade::runtime::get_uniform_variable(con
 		if (effect_name != nullptr)
 			break;
 	}
-
+#endif
 	return { 0 };
 }
 
-void reshade::runtime::get_uniform_binding(api::effect_uniform_variable variable, api::resource *out_buffer, uint64_t *out_offset) const
+void reshade::runtime::get_uniform_variable_name(api::effect_uniform_variable handle, char *value, size_t *length) const
 {
-	if (variable.handle == 0)
+#if RESHADE_EFFECTS
+	if (length == nullptr)
 		return;
 
-	if (out_buffer != nullptr)
-		*out_buffer = _effects[reinterpret_cast<const uniform *>(variable.handle)->effect_index].cb;
-	if (out_offset != nullptr)
-		*out_offset = reinterpret_cast<const uniform *>(variable.handle)->offset;
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	if (variable != nullptr)
+	{
+		if (value != nullptr && *length != 0)
+			value[variable->name.copy(value, *length - 1)] = '\0';
+
+		*length = variable->name.size();
+}
+	else
+	{
+		*length = 0;
+	}
+#endif
 }
 
-void reshade::runtime::get_uniform_annotation(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index) const
+void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, bool *values, size_t count, size_t array_index) const
 {
-	if (variable.handle == 0)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_uint(name, array_index + i) != 0;
-}
-void reshade::runtime::get_uniform_annotation(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index) const
-{
-	if (variable.handle == 0)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_float(name, array_index + i);
-}
-void reshade::runtime::get_uniform_annotation(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index) const
-{
-	if (variable.handle == 0)
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	if (variable == nullptr)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
-		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_int(name, array_index + i);
+		values[i] = variable->annotation_as_uint(name, array_index + i) != 0;
+#endif
 }
-void reshade::runtime::get_uniform_annotation(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index) const
+void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, float *values, size_t count, size_t array_index) const
 {
-	if (variable.handle == 0)
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	if (variable == nullptr)
 		return;
 
 	for (size_t i = 0; i < count; ++i)
-		values[i] = reinterpret_cast<const uniform *>(variable.handle)->annotation_as_uint(name, array_index + i);
+		values[i] = variable->annotation_as_float(name, array_index + i);
+#endif
 }
-
-const char *reshade::runtime::get_uniform_name(api::effect_uniform_variable variable) const
+void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, int32_t *values, size_t count, size_t array_index) const
 {
-	if (variable.handle == 0)
-		return nullptr;
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	if (variable == nullptr)
+		return;
 
-	return reinterpret_cast<const uniform *>(variable.handle)->name.c_str();
+	for (size_t i = 0; i < count; ++i)
+		values[i] = variable->annotation_as_int(name, array_index + i);
+#endif
 }
-
-const char *reshade::runtime::get_uniform_annotation(api::effect_uniform_variable variable, const char *name) const
+void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
 {
-	if (variable.handle == 0)
-		return nullptr;
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	if (variable == nullptr)
+		return;
 
-	return reinterpret_cast<const uniform *>(variable.handle)->annotation_as_string(name).data();
+	for (size_t i = 0; i < count; ++i)
+		values[i] = variable->annotation_as_uint(name, array_index + i);
+#endif
+}
+void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, char *value, size_t *length) const
+{
+#if RESHADE_EFFECTS
+	if (length == nullptr)
+		return;
+
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	std::string_view annotation;
+
+	if (variable != nullptr && !(annotation = variable->annotation_as_string(name)).empty())
+	{
+		if (value != nullptr && *length != 0)
+			value[annotation.copy(value, *length - 1)] = '\0';
+
+		*length = annotation.size();
+	}
+	else
+	{
+		*length = 0;
+	}
+#endif
 }
 
+#if RESHADE_EFFECTS
 static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
 {
 	if (renderer_id == 0x9000)
@@ -3519,7 +3709,7 @@ static inline bool force_floating_point_value(const reshadefx::type &type, uint3
 	return false;
 }
 
-void reshade::runtime::get_uniform_data(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const
+void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const
 {
 	size = std::min(size, static_cast<size_t>(variable.size));
 	assert(data != nullptr && (size % 4) == 0);
@@ -3555,72 +3745,83 @@ void reshade::runtime::get_uniform_data(const uniform &variable, uint8_t *data, 
 		std::memcpy(data, data_storage.data() + variable.offset, size);
 	}
 }
-void reshade::runtime::get_uniform_data(api::effect_uniform_variable handle, bool *values, size_t count, size_t array_index) const
-{
-	if (handle.handle == 0)
-		return;
-	auto &variable = *reinterpret_cast<const uniform *>(handle.handle);
+#endif
 
-	count = std::min(count, static_cast<size_t>(variable.size / 4));
+void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, bool *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	if (variable == nullptr)
+		return;
+
+	count = std::min(count, static_cast<size_t>(variable->size / 4));
 	assert(values != nullptr);
 
-	const auto data = static_cast<uint8_t *>(alloca(variable.size));
-	get_uniform_data(variable, data, variable.size, array_index);
+	const auto data = static_cast<uint8_t *>(alloca(variable->size));
+	get_uniform_value(*variable, data, variable->size, array_index);
 
 	for (size_t i = 0; i < count; i++)
 		values[i] = reinterpret_cast<const uint32_t *>(data)[i] != 0;
+#endif
 }
-void reshade::runtime::get_uniform_data(api::effect_uniform_variable handle, float *values, size_t count, size_t array_index) const
+void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, float *values, size_t count, size_t array_index) const
 {
-	if (handle.handle == 0)
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	if (variable == nullptr)
 		return;
-	auto &variable = *reinterpret_cast<const uniform *>(handle.handle);
 
-	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
 	{
-		get_uniform_data(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float), array_index);
+		get_uniform_value(*variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float), array_index);
 		return;
 	}
 
-	count = std::min(count, static_cast<size_t>(variable.size / 4));
+	count = std::min(count, static_cast<size_t>(variable->size / 4));
 	assert(values != nullptr);
 
-	const auto data = static_cast<uint8_t *>(alloca(variable.size));
-	get_uniform_data(variable, data, variable.size, array_index);
+	const auto data = static_cast<uint8_t *>(alloca(variable->size));
+	get_uniform_value(*variable, data, variable->size, array_index);
 
 	for (size_t i = 0; i < count; ++i)
-		if (variable.type.is_signed())
+		if (variable->type.is_signed())
 			values[i] = static_cast<float>(reinterpret_cast<const int32_t *>(data)[i]);
 		else
 			values[i] = static_cast<float>(reinterpret_cast<const uint32_t *>(data)[i]);
+#endif
 }
-void reshade::runtime::get_uniform_data(api::effect_uniform_variable handle, int32_t *values, size_t count, size_t array_index) const
+void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, int32_t *values, size_t count, size_t array_index) const
 {
-	if (handle.handle == 0)
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
+	if (variable == nullptr)
 		return;
-	auto &variable = *reinterpret_cast<const uniform *>(handle.handle);
 
-	if (variable.type.is_integral() && !force_floating_point_value(variable.type, _renderer_id))
+	if (variable->type.is_integral() && !force_floating_point_value(variable->type, _renderer_id))
 	{
-		get_uniform_data(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t), array_index);
+		get_uniform_value(*variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t), array_index);
 		return;
 	}
 
-	count = std::min(count, static_cast<size_t>(variable.size / 4));
+	count = std::min(count, static_cast<size_t>(variable->size / 4));
 	assert(values != nullptr);
 
-	const auto data = static_cast<uint8_t *>(alloca(variable.size));
-	get_uniform_data(variable, data, variable.size, array_index);
+	const auto data = static_cast<uint8_t *>(alloca(variable->size));
+	get_uniform_value(*variable, data, variable->size, array_index);
 
 	for (size_t i = 0; i < count; i++)
 		values[i] = static_cast<int32_t>(reinterpret_cast<const float *>(data)[i]);
+#endif
 }
-void reshade::runtime::get_uniform_data(api::effect_uniform_variable handle, uint32_t *values, size_t count, size_t array_index) const
+void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, uint32_t *values, size_t count, size_t array_index) const
 {
-	get_uniform_data(handle, reinterpret_cast<int32_t *>(values), count, array_index);
+#if RESHADE_EFFECTS
+	get_uniform_value(handle, reinterpret_cast<int32_t *>(values), count, array_index);
+#endif
 }
 
-void reshade::runtime::set_uniform_data(uniform &variable, const uint8_t *data, size_t size, size_t base_index)
+#if RESHADE_EFFECTS
+void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index)
 {
 	size = std::min(size, static_cast<size_t>(variable.size));
 	assert(data != nullptr && (size % 4) == 0);
@@ -3656,19 +3857,22 @@ void reshade::runtime::set_uniform_data(uniform &variable, const uint8_t *data, 
 		std::memcpy(data_storage.data() + variable.offset, data, size);
 	}
 }
-void reshade::runtime::set_uniform_data(api::effect_uniform_variable handle, const bool *values, size_t count, size_t array_index)
-{
-	if (handle.handle == 0)
-		return;
-	auto &variable = *reinterpret_cast<uniform *>(handle.handle);
+#endif
 
-	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const bool *values, size_t count, size_t array_index)
+{
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<uniform *>(handle.handle);
+	if (variable == nullptr)
+		return;
+
+	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
 	{
 		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 		for (size_t i = 0; i < count; ++i)
 			data[i] = values[i] ? 1.0f : 0.0f;
 
-		set_uniform_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
+		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
 	}
 	else
 	{
@@ -3676,18 +3880,20 @@ void reshade::runtime::set_uniform_data(api::effect_uniform_variable handle, con
 		for (size_t i = 0; i < count; ++i)
 			data[i] = values[i] ? 1 : 0;
 
-		set_uniform_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(uint32_t), array_index);
+		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(uint32_t), array_index);
 	}
+#endif
 }
-void reshade::runtime::set_uniform_data(api::effect_uniform_variable handle, const float *values, size_t count, size_t array_index)
+void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const float *values, size_t count, size_t array_index)
 {
-	if (handle == 0)
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<uniform *>(handle.handle);
+	if (variable == nullptr)
 		return;
-	auto &variable = *reinterpret_cast<uniform *>(handle.handle);
 
-	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
 	{
-		set_uniform_data(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float), array_index);
+		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float), array_index);
 	}
 	else
 	{
@@ -3695,304 +3901,187 @@ void reshade::runtime::set_uniform_data(api::effect_uniform_variable handle, con
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<int32_t>(values[i]);
 
-		set_uniform_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t), array_index);
+		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t), array_index);
 	}
+#endif
 }
-void reshade::runtime::set_uniform_data(api::effect_uniform_variable handle, const int32_t *values, size_t count, size_t array_index)
+void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const int32_t *values, size_t count, size_t array_index)
 {
-	if (handle.handle == 0)
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<uniform *>(handle.handle);
+	if (variable == nullptr)
 		return;
-	auto &variable = *reinterpret_cast<uniform *>(handle.handle);
 
-	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
 	{
 		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<float>(values[i]);
 
-		set_uniform_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
+		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
 	}
 	else
 	{
-		set_uniform_data(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int32_t), array_index);
+		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int32_t), array_index);
 	}
+#endif
 }
-void reshade::runtime::set_uniform_data(api::effect_uniform_variable handle, const uint32_t *values, size_t count, size_t array_index)
+void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const uint32_t *values, size_t count, size_t array_index)
 {
-	if (handle.handle == 0)
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<uniform *>(handle.handle);
+	if (variable == nullptr)
 		return;
-	auto &variable = *reinterpret_cast<uniform *>(handle.handle);
 
-	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
 	{
 		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 		for (size_t i = 0; i < count; ++i)
 			data[i] = static_cast<float>(values[i]);
 
-		set_uniform_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
+		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
 	}
 	else
 	{
-		set_uniform_data(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t), array_index);
+		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t), array_index);
 	}
+#endif
 }
 
 void reshade::runtime::enumerate_texture_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), void *user_data)
 {
-	if (is_loading())
+#if RESHADE_EFFECTS
+	if (is_loading() || !_reload_create_queue.empty())
 		return;
 
 	for (const texture &variable : _textures)
 	{
-		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.stem() != effect_name))
+		if (effect_name != nullptr &&
+			std::find_if(variable.shared.begin(), variable.shared.end(),
+				[this, effect_name](size_t effect_index) { return _effects[effect_index].source_file.filename() == effect_name; }) == variable.shared.end())
 			continue;
 
 		callback(this, { reinterpret_cast<uintptr_t>(&variable) }, user_data);
 	}
+#endif
 }
 
-reshade::api::effect_texture_variable reshade::runtime::get_texture_variable(const char *effect_name, const char *variable_name) const
+reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(const char *effect_name, const char *variable_name) const
 {
-	if (is_loading())
+#if RESHADE_EFFECTS
+	if (is_loading() || !_reload_create_queue.empty())
 		return { 0 };
 
 	for (const texture &variable : _textures)
 	{
-		if (effect_name != nullptr && (variable.shared.size() <= 1 && _effects[variable.effect_index].source_file.stem() != effect_name))
+		if (effect_name != nullptr &&
+			std::find_if(variable.shared.begin(), variable.shared.end(),
+				[this, effect_name](size_t effect_index) { return _effects[effect_index].source_file.filename() == effect_name; }) == variable.shared.end())
 			continue;
 
-		if (variable.unique_name == variable_name)
+		if (variable.name == variable_name || variable.unique_name == variable_name)
 			return { reinterpret_cast<uintptr_t>(&variable) };
 	}
-
+#endif
 	return { 0 };
 }
 
-void reshade::runtime::get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const
+void reshade::runtime::get_texture_variable_name(api::effect_texture_variable handle, char *value, size_t *length) const
 {
-	if (variable.handle == 0)
+#if RESHADE_EFFECTS
+	if (length == nullptr)
 		return;
 
-	if (out_srv != nullptr)
-		*out_srv = reinterpret_cast<const texture *>(variable.handle)->srv[0];
-	if (out_srv_srgb != nullptr)
-		*out_srv_srgb = reinterpret_cast<const texture *>(variable.handle)->srv[1];
-}
-
-void reshade::runtime::get_texture_annotation(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index) const
-{
-	if (variable.handle == 0)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_uint(name, array_index + i) != 0;
-}
-void reshade::runtime::get_texture_annotation(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index) const
-{
-	if (variable.handle == 0)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_float(name, array_index + i);
-}
-void reshade::runtime::get_texture_annotation(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index) const
-{
-	if (variable.handle == 0)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_int(name, array_index + i);
-}
-void reshade::runtime::get_texture_annotation(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index) const
-{
-	if (variable.handle == 0)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = reinterpret_cast<const texture *>(variable.handle)->annotation_as_uint(name, array_index + i);
-}
-
-const char *reshade::runtime::get_texture_name(api::effect_texture_variable variable) const
-{
-	if (variable.handle == 0)
-		return nullptr;
-
-	return reinterpret_cast<const texture *>(variable.handle)->unique_name.c_str();
-}
-
-const char *reshade::runtime::get_texture_annotation(api::effect_texture_variable variable, const char *name) const
-{
-	if (variable.handle == 0)
-		return nullptr;
-
-	return reinterpret_cast<const texture *>(variable.handle)->annotation_as_string(name).data();
-}
-
-bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)
-{
-	const api::resource_desc desc = _device->get_resource_desc(resource);
-	const api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
-
-	if (view_format != api::format::r8_unorm &&
-		view_format != api::format::r8g8_unorm &&
-		view_format != api::format::r8g8b8a8_unorm &&
-		view_format != api::format::b8g8r8a8_unorm &&
-		view_format != api::format::r8g8b8x8_unorm &&
-		view_format != api::format::b8g8r8x8_unorm &&
-		view_format != api::format::r10g10b10a2_unorm &&
-		view_format != api::format::b10g10r10a2_unorm)
+	const auto variable = reinterpret_cast<const texture *>(handle.handle);
+	if (variable != nullptr)
 	{
-		LOG(ERROR) << "Screenshots are not supported for format " << static_cast<uint32_t>(desc.texture.format) << '!';
-		return false;
+		if (value != nullptr && *length != 0)
+			value[variable->name.copy(value, *length - 1)] = '\0';
+
+		*length = variable->name.size();
+}
+	else
+	{
+		*length = 0;
 	}
+#endif
+}
 
-	uint32_t texture_pitch = desc.texture.width;
-	const uint32_t pixels_pitch = desc.texture.width * 4;
+void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, bool *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const texture *>(handle.handle);
+	if (variable == nullptr)
+		return;
 
-	switch (view_format)
+	for (size_t i = 0; i < count; ++i)
+		values[i] = variable->annotation_as_uint(name, array_index + i) != 0;
+#endif
+}
+void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, float *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const texture *>(handle.handle);
+	if (variable == nullptr)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = variable->annotation_as_float(name, array_index + i);
+#endif
+}
+void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, int32_t *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const texture *>(handle.handle);
+	if (variable == nullptr)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = variable->annotation_as_int(name, array_index + i);
+#endif
+}
+void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto variable = reinterpret_cast<const texture *>(handle.handle);
+	if (variable == nullptr)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = variable->annotation_as_uint(name, array_index + i);
+#endif
+}
+void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, char *value, size_t *length) const
+{
+#if RESHADE_EFFECTS
+	if (length == nullptr)
+		return;
+
+	const auto variable = reinterpret_cast<const texture *>(handle.handle);
+	std::string_view annotation;
+
+	if (variable != nullptr && !(annotation = variable->annotation_as_string(name)).empty())
 	{
-	case api::format::r8_unorm:
-		break;
-	case api::format::r8g8_unorm:
-		texture_pitch *= 2;
-		break;
-	default:
-		texture_pitch *= 4;
-		break;
-	}
+		if (value != nullptr && *length != 0)
+			value[annotation.copy(value, *length - 1)] = '\0';
 
-	if (_device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
-		texture_pitch = (texture_pitch + 255) & ~255;
-
-	// Copy back buffer data into system memory buffer
-	api::resource intermediate;
-	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
-	{
-		if (!_device->create_resource(api::resource_desc(texture_pitch * desc.texture.height, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
-		{
-			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
-			return false;
-		}
-
-		_device->set_resource_name(intermediate, "ReShade screenshot buffer");
-
-		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(resource, state, api::resource_usage::copy_source);
-		cmd_list->copy_texture_to_buffer(resource, 0, nullptr, intermediate, 0, desc.texture.width, desc.texture.height);
-		cmd_list->barrier(resource, api::resource_usage::copy_source, state);
+		*length = annotation.size();
 	}
 	else
 	{
-		if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, view_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
-		{
-			LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
-			return false;
-		}
-
-		_device->set_resource_name(intermediate, "ReShade screenshot texture");
-
-		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(resource, state, api::resource_usage::copy_source);
-		cmd_list->copy_texture_region(resource, 0, nullptr, intermediate, 0, nullptr);
-		cmd_list->barrier(resource, api::resource_usage::copy_source, state);
+		*length = 0;
 	}
-
-	// Wait for any rendering by the application finish before submitting
-	// It may have submitted that to a different queue, so simply wait for all to idle here
-	_graphics_queue->wait_idle();
-
-	// Copy data from intermediate image into output buffer
-	api::subresource_data mapped_data = {};
-	if (_device->map_resource(intermediate, 0, api::map_access::read_only, &mapped_data))
-	{
-		if (!_device->check_capability(api::device_caps::copy_buffer_to_texture))
-			texture_pitch = mapped_data.row_pitch;
-
-		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
-
-		for (uint32_t y = 0; y < desc.texture.height; ++y, pixels += pixels_pitch, mapped_pixels += texture_pitch)
-		{
-			switch (view_format)
-			{
-			case api::format::r8_unorm:
-				for (uint32_t x = 0; x < desc.texture.width; ++x)
-				{
-					pixels[x * 4 + 0] = mapped_pixels[x];
-					pixels[x * 4 + 1] = 0;
-					pixels[x * 4 + 2] = 0;
-					pixels[x * 4 + 3] = 0xFF;
-				}
-				break;
-			case api::format::r8g8_unorm:
-				for (uint32_t x = 0; x < desc.texture.width; ++x)
-				{
-					pixels[x * 4 + 0] = mapped_pixels[x * 2 + 0];
-					pixels[x * 4 + 1] = mapped_pixels[x * 2 + 1];
-					pixels[x * 4 + 2] = 0;
-					pixels[x * 4 + 3] = 0xFF;
-				}
-				break;
-			case api::format::r8g8b8a8_unorm:
-			case api::format::r8g8b8x8_unorm:
-				std::memcpy(pixels, mapped_pixels, pixels_pitch);
-				if (view_format == api::format::r8g8b8x8_unorm)
-					for (uint32_t x = 0; x < pixels_pitch; x += 4)
-						pixels[x + 3] = 0xFF;
-				break;
-			case api::format::b8g8r8a8_unorm:
-			case api::format::b8g8r8x8_unorm:
-				std::memcpy(pixels, mapped_pixels, pixels_pitch);
-				// Format is BGRA, but output should be RGBA, so flip channels
-				for (uint32_t x = 0; x < pixels_pitch; x += 4)
-					std::swap(pixels[x + 0], pixels[x + 2]);
-				if (view_format == api::format::b8g8r8x8_unorm)
-					for (uint32_t x = 0; x < pixels_pitch; x += 4)
-						pixels[x + 3] = 0xFF;
-				break;
-			case api::format::r10g10b10a2_unorm:
-			case api::format::b10g10r10a2_unorm:
-				for (uint32_t x = 0; x < pixels_pitch; x += 4)
-				{
-					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
-					// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-					pixels[x + 0] = (( rgba & 0x000003FF)        /  4) & 0xFF;
-					pixels[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
-					pixels[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
-					pixels[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
-					if (view_format == api::format::b10g10r10a2_unorm)
-						std::swap(pixels[x + 0], pixels[x + 2]);
-				}
-				break;
-			}
-		}
-
-		_device->unmap_resource(intermediate, 0);
-	}
-
-	_device->destroy_resource(intermediate);
-
-	return mapped_data.data != nullptr;
-}
-void reshade::runtime::get_texture_data(api::effect_texture_variable handle, uint32_t *out_width, uint32_t *out_height, uint8_t *pixels)
-{
-	if (handle.handle == 0)
-		return;
-	auto &variable = *reinterpret_cast<const texture *>(handle.handle);
-
-	if (out_width != nullptr)
-		*out_width = variable.width;
-	if (out_height != nullptr)
-		*out_height = variable.height;
-
-	if (pixels != nullptr)
-		get_texture_data(variable.resource, api::resource_usage::shader_resource, pixels);
+#endif
 }
 
-void reshade::runtime::set_texture_data(api::effect_texture_variable handle, const uint32_t width, const uint32_t height, const uint8_t *pixels)
+void reshade::runtime::update_texture(api::effect_texture_variable handle, const uint32_t width, const uint32_t height, const uint8_t *pixels)
 {
-	if (handle.handle == 0)
+#if RESHADE_EFFECTS
+	if (handle == 0)
 		return;
-	auto &variable = *reinterpret_cast<texture *>(handle.handle);
+	const auto &variable = *reinterpret_cast<texture *>(handle.handle);
+	if (variable.resource == 0)
+		return;
 
 	std::vector<uint8_t> resized(variable.width * variable.height * 4);
 	// Need to potentially resize image data to the texture dimensions
@@ -4036,12 +4125,27 @@ void reshade::runtime::set_texture_data(api::effect_texture_variable handle, con
 
 	if (variable.levels > 1)
 		cmd_list->generate_mipmaps(variable.srv[0]);
+#endif
+}
+
+void reshade::runtime::get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const
+{
+#if RESHADE_EFFECTS
+	if (variable == 0)
+		return;
+
+	if (out_srv != nullptr)
+		*out_srv = reinterpret_cast<const texture *>(variable.handle)->srv[0];
+	if (out_srv_srgb != nullptr)
+		*out_srv_srgb = reinterpret_cast<const texture *>(variable.handle)->srv[1];
+#endif
 }
 
 void reshade::runtime::update_texture_bindings(const char *semantic, api::resource_view srv, api::resource_view srv_srgb)
 {
+#if RESHADE_EFFECTS
 	if (srv_srgb == 0)
-		srv_srgb  = srv;
+		srv_srgb = srv;
 
 	if (srv != 0)
 	{
@@ -4052,11 +4156,11 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 		_texture_semantic_bindings.erase(semantic);
 
 		// Overwrite with empty texture, since it is not valid to bind a zero handle
-		srv = srv_srgb = _empty_texture_view;
+		srv = srv_srgb = _empty_srv;
 	}
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
-	_device->wait_idle();
+	_graphics_queue->wait_idle();
 
 	// Update texture bindings
 	size_t num_bindings = 0;
@@ -4073,9 +4177,11 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 			if (binding.semantic != semantic)
 				continue;
 
+			assert(num_bindings != 0);
+
 			api::descriptor_set_update &write = descriptor_writes.emplace_back();
 			write.set = binding.set;
-			write.offset = write.binding = binding.index;
+			write.binding = binding.index;
 			write.count = 1;
 
 			if (binding.sampler != 0)
@@ -4095,12 +4201,232 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	}
 
 	_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
+#endif
 }
 
-reshade::texture &reshade::runtime::look_up_texture_by_name(const std::string &unique_name)
+void reshade::runtime::enumerate_techniques(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_technique technique, void *user_data), void *user_data)
 {
-	const auto it = std::find_if(_textures.begin(), _textures.end(),
-		[&unique_name](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
-	assert(it != _textures.end());
-	return *it;
+#if RESHADE_EFFECTS
+	if (is_loading())
+		return;
+
+	for (const technique &technique : _techniques)
+	{
+		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
+			continue;
+
+		callback(this, { reinterpret_cast<uintptr_t>(&technique) }, user_data);
+	}
+#endif
+}
+
+reshade::api::effect_technique reshade::runtime::find_technique(const char *effect_name, const char *technique_name)
+{
+#if RESHADE_EFFECTS
+	if (is_loading())
+		return { 0 };
+
+	for (const technique &technique : _techniques)
+	{
+		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
+			continue;
+
+		if (technique.name == technique_name)
+			return { reinterpret_cast<uintptr_t>(&technique) };
+	}
+#endif
+	return { 0 };
+}
+
+void reshade::runtime::get_technique_name(api::effect_technique handle, char *value, size_t *length) const
+{
+#if RESHADE_EFFECTS
+	if (length == nullptr)
+		return;
+
+	const auto tech = reinterpret_cast<const technique *>(handle.handle);
+	if (tech != nullptr)
+	{
+		if (value != nullptr && *length != 0)
+			value[tech->name.copy(value, *length - 1)] = '\0';
+
+		*length = tech->name.size();
+	}
+	else
+	{
+		*length = 0;
+	}
+#endif
+}
+
+void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, bool *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto tech = reinterpret_cast<const technique *>(handle.handle);
+	if (tech == nullptr)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = tech->annotation_as_uint(name, array_index + i) != 0;
+#endif
+}
+void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, float *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto tech = reinterpret_cast<const technique *>(handle.handle);
+	if (tech == nullptr)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = tech->annotation_as_float(name, array_index + i);
+#endif
+}
+void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, int32_t *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto tech = reinterpret_cast<const technique *>(handle.handle);
+	if (tech == nullptr)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = tech->annotation_as_int(name, array_index + i);
+#endif
+}
+void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
+{
+#if RESHADE_EFFECTS
+	const auto tech = reinterpret_cast<const technique *>(handle.handle);
+	if (tech == nullptr)
+		return;
+
+	for (size_t i = 0; i < count; ++i)
+		values[i] = tech->annotation_as_uint(name, array_index + i);
+#endif
+}
+void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, char *value, size_t *length) const
+{
+#if RESHADE_EFFECTS
+	if (length == nullptr)
+		return;
+
+	const auto tech = reinterpret_cast<const technique *>(handle.handle);
+	std::string_view annotation;
+
+	if (tech != nullptr && !(annotation = tech->annotation_as_string(name)).empty())
+	{
+		if (value != nullptr && *length != 0)
+			value[annotation.copy(value, *length - 1)] = '\0';
+
+		*length = annotation.size();
+	}
+	else
+	{
+		*length = 0;
+	}
+#endif
+}
+
+bool reshade::runtime::get_technique_enabled(api::effect_technique handle) const
+{
+#if RESHADE_EFFECTS
+	const auto tech = reinterpret_cast<const technique *>(handle.handle);
+	if (tech == nullptr)
+		return false;
+
+	return tech->enabled;
+#else
+	return false;
+#endif
+}
+void reshade::runtime::set_technique_enabled(api::effect_technique handle, bool enabled)
+{
+#if RESHADE_EFFECTS
+	const auto tech = reinterpret_cast<technique *>(handle.handle);
+	if (tech == nullptr)
+		return;
+
+	if (enabled)
+		enable_technique(*tech);
+	else
+		disable_technique(*tech);
+#endif
+}
+
+void reshade::runtime::set_preprocessor_definition(const char *name, const char *value)
+{
+#if RESHADE_EFFECTS
+	if (name == nullptr)
+		return;
+
+	auto preset_it = _preset_preprocessor_definitions.begin();
+	for (; preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
+	{
+		char current_name[128] = "";
+		const size_t equals_index = preset_it->find('=');
+		preset_it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+
+		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+			break;
+	}
+
+	if (value == nullptr || value[0] == '\0') // An empty value removes the definition
+	{
+		if (preset_it != _preset_preprocessor_definitions.end())
+		{
+			_preset_preprocessor_definitions.erase(preset_it);
+		}
+	}
+	else
+	{
+		if (preset_it != _preset_preprocessor_definitions.end())
+		{
+			*preset_it = std::string(name) + '=' + value;
+		}
+		else
+		{
+			_preset_preprocessor_definitions.push_back(std::string(name) + '=' + value);
+		}
+	}
+
+	reload_effects();
+#endif
+}
+bool reshade::runtime::get_preprocessor_definition(const char *name, char *value, size_t *length) const
+{
+#if RESHADE_EFFECTS
+	if (name == nullptr || length == nullptr)
+		return false;
+
+	for (auto it = _preset_preprocessor_definitions.begin(); it != _preset_preprocessor_definitions.end(); ++it)
+	{
+		char current_name[128] = "";
+		const size_t equals_index = it->find('=');
+		it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+
+		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+		{
+			if (value != nullptr && *length != 0)
+				value[it->copy(value, *length - 1, equals_index + 1)] = '\0';
+
+			*length = it->size() - (equals_index + 1);
+			return true;
+		}
+	}
+	for (auto it = _global_preprocessor_definitions.begin(); it != _global_preprocessor_definitions.end(); ++it)
+	{
+		char current_name[128] = "";
+		const size_t equals_index = it->find('=');
+		it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+
+		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+		{
+			if (value != nullptr && *length != 0)
+				value[it->copy(value, *length - 1, equals_index + 1)] = '\0';
+
+			*length = it->size() - (equals_index + 1);
+			return true;
+		}
+	}
+#endif
+	return false;
 }

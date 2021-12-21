@@ -43,7 +43,7 @@ bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgraded ID3D12CommandQueue" << _interface_version << " object " << this << " to ID3D12CommandQueue" << version << '.';
+			LOG(DEBUG) << "Upgrading ID3D12CommandQueue" << _interface_version << " object " << this << " to ID3D12CommandQueue" << version << '.';
 #endif
 			_orig->Release();
 			_orig = static_cast<ID3D12CommandQueue *>(new_interface);
@@ -89,7 +89,10 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
-		return _orig->Release(), ref;
+	{
+		_orig->Release();
+		return ref;
+	}
 
 	if (_downlevel != nullptr)
 	{
@@ -110,7 +113,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for " << "ID3D12CommandQueue" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 
-	// Release the explicit reference to the device that was added in the D3D12CommandQueue constructor above now that the queue implementation was destroyed and is no longer referencing it
+	// Release the explicit reference to the device that was added in the 'D3D12CommandQueue' constructor above now that the queue implementation was destroyed and is no longer referencing it
 	device->Release();
 	return 0;
 }
@@ -147,7 +150,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
-	const auto command_lists = static_cast<ID3D12CommandList **>(_malloca(NumCommandLists * sizeof(ID3D12CommandList *)));
+	temp_mem<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; i++)
 	{
 		assert(ppCommandLists[i] != nullptr);
@@ -171,9 +174,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 
 	flush_immediate_command_list();
 
-	_orig->ExecuteCommandLists(NumCommandLists, command_lists);
-
-	_freea(command_lists);
+	_orig->ExecuteCommandLists(NumCommandLists, command_lists.p);
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::SetMarker(UINT Metadata, const void *pData, UINT Size)
 {

@@ -863,10 +863,6 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
 
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(runtime);
-#endif
-
 		uint32_t runtime_width = 0, runtime_height = 0;
 		runtime->get_screenshot_width_and_height(&runtime_width, &runtime_height);
 
@@ -889,12 +885,6 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 		// Assume that the correct OpenGL context is still current here
 		runtime->on_present();
-
-#if RESHADE_ADDON
-		GLint fbo = 0;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(runtime, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(fbo));
-#endif
 	}
 
 	return trampoline(hdc);
@@ -955,22 +945,22 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		return nullptr;
 #if RESHADE_ADDON
 	// Redirect some old extension functions to their modern variants in core OpenGL
-	else if (0 == strcmp(lpszProc, "glIsRenderbufferEXT")) // GL_EXT_framebuffer_object
-		lpszProc = "glIsRenderbuffer";
-	else if (0 == strcmp(lpszProc, "glBindRenderbufferEXT"))
-		lpszProc = "glBindRenderbuffer";
-	else if (0 == strcmp(lpszProc, "glGenRenderbuffersEXT"))
-		lpszProc = "glGenRenderbuffers";
-	else if (0 == strcmp(lpszProc, "glDeleteRenderbuffersEXT"))
-		lpszProc = "glDeleteRenderbuffers";
-	else if (0 == strcmp(lpszProc, "glRenderbufferStorageEXT"))
-		lpszProc = "glRenderbufferStorage";
-	else if (0 == strcmp(lpszProc, "glGetRenderbufferParameterivEXT"))
-		lpszProc = "glGetRenderbufferParameteriv";
+	#pragma region GL_ARB_draw_instanced
+	else if (0 == strcmp(lpszProc, "glDrawArraysInstancedARB"))
+		lpszProc = "glDrawArraysInstanced";
+	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedARB"))
+		lpszProc = "glDrawElementsInstanced";
+	#pragma endregion
+	#pragma region GL_EXT_draw_instanced
+	else if (0 == strcmp(lpszProc, "glDrawArraysInstancedEXT"))
+		lpszProc = "glDrawArraysInstanced";
+	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedEXT"))
+		lpszProc = "glDrawElementsInstanced";
+	#pragma endregion
+	#pragma region GL_EXT_framebuffer_object
 	else if (0 == strcmp(lpszProc, "glIsFramebufferEXT"))
 		lpszProc = "glIsFramebuffer";
-	else if (0 == strcmp(lpszProc, "glBindFramebufferEXT"))
-		lpszProc = "glBindFramebuffer";
+	// glBindFramebuffer and glBindFramebufferEXT have different semantics (core variant requires an existing FBO), so do not redirect
 	else if (0 == strcmp(lpszProc, "glGenFramebuffersEXT"))
 		lpszProc = "glGenFramebuffers";
 	else if (0 == strcmp(lpszProc, "glDeleteFramebuffersEXT"))
@@ -987,12 +977,20 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		lpszProc = "glFramebufferTexture3D";
 	else if (0 == strcmp(lpszProc, "glGetFramebufferAttachmentParameterivEXT"))
 		lpszProc = "glGetFramebufferAttachmentParameteriv";
+	else if (0 == strcmp(lpszProc, "glIsRenderbufferEXT"))
+		lpszProc = "glIsRenderbuffer";
+	// glBindRenderbuffer and glBindRenderbufferEXT have different semantics (core variant requires an existing RBO), so do not redirect
+	else if (0 == strcmp(lpszProc, "glGenRenderbuffersEXT"))
+		lpszProc = "glGenRenderbuffers";
+	else if (0 == strcmp(lpszProc, "glDeleteRenderbuffersEXT"))
+		lpszProc = "glDeleteRenderbuffers";
+	else if (0 == strcmp(lpszProc, "glRenderbufferStorageEXT"))
+		lpszProc = "glRenderbufferStorage";
+	else if (0 == strcmp(lpszProc, "glGetRenderbufferParameterivEXT"))
+		lpszProc = "glGetRenderbufferParameteriv";
 	else if (0 == strcmp(lpszProc, "glGenerateMipmapEXT"))
 		lpszProc = "glGenerateMipmap";
-	else if (0 == strcmp(lpszProc, "glDrawArraysInstancedARB") || 0 == strcmp(lpszProc, "glDrawArraysInstancedEXT")) // GL_ARB_draw_instanced and GL_EXT_draw_instanced
-		lpszProc = "glDrawArraysInstanced";
-	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedARB") || 0 == strcmp(lpszProc, "glDrawElementsInstancedEXT"))
-		lpszProc = "glDrawElementsInstanced";
+	#pragma endregion
 #endif
 
 	static const auto trampoline = reshade::hooks::call(wglGetProcAddress);
@@ -1135,111 +1133,37 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #endif
 
 #if RESHADE_ADDON
-		HOOK_PROC(glBindBuffer);
-		HOOK_PROC(glBindBufferBase);
-		HOOK_PROC(glBindBufferRange);
-		HOOK_PROC(glBindBuffersBase);
-		HOOK_PROC(glBindBuffersRange);
-		HOOK_PROC(glBindFramebuffer);
-		HOOK_PROC(glBindImageTexture);
-		HOOK_PROC(glBindImageTextures);
-		HOOK_PROC(glBindTextureUnit);
-		HOOK_PROC(glBindTextures);
-		HOOK_PROC(glBindVertexArray);
-		HOOK_PROC(glBindVertexBuffer);
-		HOOK_PROC(glBindVertexBuffers);
-		HOOK_PROC(glBlitFramebuffer);
-		HOOK_PROC(glBlitNamedFramebuffer);
-		HOOK_PROC(glBufferData);
-		HOOK_PROC(glBufferStorage);
-		HOOK_PROC(glBufferSubData);
-		HOOK_PROC(glClearBufferfv);
-		HOOK_PROC(glClearBufferfi);
-		HOOK_PROC(glClearNamedFramebufferfv);
-		HOOK_PROC(glClearNamedFramebufferfi);
+#ifdef GL_VERSION_1_2
+		HOOK_PROC(glTexImage3D);
+		HOOK_PROC(glTexSubImage3D);
+		HOOK_PROC(glCopyTexSubImage3D);
+		HOOK_PROC(glDrawRangeElements);
+#endif
+#ifdef GL_VERSION_1_3
 		HOOK_PROC(glCompressedTexImage1D);
 		HOOK_PROC(glCompressedTexImage2D);
 		HOOK_PROC(glCompressedTexImage3D);
 		HOOK_PROC(glCompressedTexSubImage1D);
 		HOOK_PROC(glCompressedTexSubImage2D);
 		HOOK_PROC(glCompressedTexSubImage3D);
-		HOOK_PROC(glCompressedTextureSubImage1D);
-		HOOK_PROC(glCompressedTextureSubImage2D);
-		HOOK_PROC(glCompressedTextureSubImage3D);
-		HOOK_PROC(glCopyBufferSubData);
-		HOOK_PROC(glCopyImageSubData);
-		HOOK_PROC(glCopyNamedBufferSubData);
-		HOOK_PROC(glCopyTexSubImage3D);
-		HOOK_PROC(glCopyTextureSubImage1D);
-		HOOK_PROC(glCopyTextureSubImage2D);
-		HOOK_PROC(glCopyTextureSubImage3D);
-		HOOK_PROC(glDeleteBuffers);
-		HOOK_PROC(glDeleteFramebuffers);
-		HOOK_PROC(glDeleteProgram);
-		HOOK_PROC(glDeleteSamplers);
-		HOOK_PROC(glDispatchCompute);
-		HOOK_PROC(glDispatchComputeIndirect);
-		HOOK_PROC(glDrawArraysIndirect);
-		HOOK_PROC(glDrawArraysInstanced);
-		HOOK_PROC(glDrawArraysInstancedBaseInstance);
-		HOOK_PROC(glDrawElementsBaseVertex);
-		HOOK_PROC(glDrawElementsIndirect);
-		HOOK_PROC(glDrawElementsInstanced);
-		HOOK_PROC(glDrawElementsInstancedBaseVertex);
-		HOOK_PROC(glDrawElementsInstancedBaseInstance);
-		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
-		HOOK_PROC(glDrawRangeElements);
-		HOOK_PROC(glDrawRangeElementsBaseVertex);
-		HOOK_PROC(glFramebufferRenderbuffer);
-		HOOK_PROC(glFramebufferTexture);
-		HOOK_PROC(glFramebufferTexture1D);
-		HOOK_PROC(glFramebufferTexture2D);
-		HOOK_PROC(glFramebufferTexture3D);
-		HOOK_PROC(glGenerateMipmap);
-		HOOK_PROC(glGenerateTextureMipmap);
-		HOOK_PROC(glLinkProgram);
+#endif
+#ifdef GL_VERSION_1_4
 		HOOK_PROC(glMultiDrawArrays);
-		HOOK_PROC(glMultiDrawArraysIndirect);
 		HOOK_PROC(glMultiDrawElements);
-		HOOK_PROC(glMultiDrawElementsBaseVertex);
-		HOOK_PROC(glMultiDrawElementsIndirect);
-		HOOK_PROC(glNamedBufferData);
-		HOOK_PROC(glNamedBufferStorage);
-		HOOK_PROC(glNamedBufferSubData);
-		HOOK_PROC(glNamedFramebufferRenderbuffer);
-		HOOK_PROC(glNamedFramebufferTexture);
-		HOOK_PROC(glNamedRenderbufferStorage);
-		HOOK_PROC(glNamedRenderbufferStorageMultisample);
-		HOOK_PROC(glRenderbufferStorage);
-		HOOK_PROC(glRenderbufferStorageMultisample);
-		HOOK_PROC(glScissorArrayv);
-		HOOK_PROC(glScissorIndexed);
-		HOOK_PROC(glScissorIndexedv);
+#endif
+#ifdef GL_VERSION_1_5
+		HOOK_PROC(glDeleteBuffers);
+		HOOK_PROC(glBufferData);
+		HOOK_PROC(glBufferSubData);
+		HOOK_PROC(glMapBuffer);
+		HOOK_PROC(glUnmapBuffer);
+		HOOK_PROC(glBindBuffer);
+#endif
+#ifdef GL_VERSION_2_0
+		HOOK_PROC(glDeleteProgram);
+		HOOK_PROC(glLinkProgram);
 		HOOK_PROC(glShaderSource);
-		HOOK_PROC(glTexBuffer);
-		HOOK_PROC(glTexBufferRange);
-		HOOK_PROC(glTextureBuffer);
-		HOOK_PROC(glTextureBufferRange);
-		HOOK_PROC(glTexImage2DMultisample);
-		HOOK_PROC(glTexImage3D);
-		HOOK_PROC(glTexImage3DMultisample);
-		HOOK_PROC(glTexStorage1D);
-		HOOK_PROC(glTexStorage2D);
-		HOOK_PROC(glTexStorage2DMultisample);
-		HOOK_PROC(glTexStorage3D);
-		HOOK_PROC(glTexStorage3DMultisample);
-		HOOK_PROC(glTexSubImage1D);
-		HOOK_PROC(glTexSubImage2D);
-		HOOK_PROC(glTexSubImage3D);
-		HOOK_PROC(glTextureStorage1D);
-		HOOK_PROC(glTextureStorage2D);
-		HOOK_PROC(glTextureStorage2DMultisample);
-		HOOK_PROC(glTextureStorage3D);
-		HOOK_PROC(glTextureStorage3DMultisample);
-		HOOK_PROC(glTextureSubImage1D);
-		HOOK_PROC(glTextureSubImage2D);
-		HOOK_PROC(glTextureSubImage3D);
-		HOOK_PROC(glTextureView);
+		HOOK_PROC(glUseProgram);
 		HOOK_PROC(glUniform1f);
 		HOOK_PROC(glUniform2f);
 		HOOK_PROC(glUniform3f);
@@ -1248,10 +1172,6 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2i);
 		HOOK_PROC(glUniform3i);
 		HOOK_PROC(glUniform4i);
-		HOOK_PROC(glUniform1ui);
-		HOOK_PROC(glUniform2ui);
-		HOOK_PROC(glUniform3ui);
-		HOOK_PROC(glUniform4ui);
 		HOOK_PROC(glUniform1fv);
 		HOOK_PROC(glUniform2fv);
 		HOOK_PROC(glUniform3fv);
@@ -1260,14 +1180,118 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2iv);
 		HOOK_PROC(glUniform3iv);
 		HOOK_PROC(glUniform4iv);
+#endif
+#ifdef GL_VERSION_3_0
+		HOOK_PROC(glMapBufferRange);
+		HOOK_PROC(glDeleteRenderbuffers);
+		HOOK_PROC(glRenderbufferStorage);
+		HOOK_PROC(glRenderbufferStorageMultisample);
+		HOOK_PROC(glClearBufferfv);
+		HOOK_PROC(glClearBufferfi);
+		HOOK_PROC(glBlitFramebuffer);
+		HOOK_PROC(glGenerateMipmap);
+		HOOK_PROC(glBindBufferBase);
+		HOOK_PROC(glBindBufferRange);
+		HOOK_PROC(glBindFramebuffer);
+		HOOK_PROC(glBindVertexArray);
+		HOOK_PROC(glUniform1ui);
+		HOOK_PROC(glUniform2ui);
+		HOOK_PROC(glUniform3ui);
+		HOOK_PROC(glUniform4ui);
 		HOOK_PROC(glUniform1uiv);
 		HOOK_PROC(glUniform2uiv);
 		HOOK_PROC(glUniform3uiv);
 		HOOK_PROC(glUniform4uiv);
-		HOOK_PROC(glUseProgram);
+#endif
+#ifdef GL_VERSION_3_1
+		HOOK_PROC(glTexBuffer);
+		HOOK_PROC(glCopyBufferSubData);
+		HOOK_PROC(glDrawArraysInstanced);
+		HOOK_PROC(glDrawElementsInstanced);
+#endif
+#ifdef GL_VERSION_3_2
+		HOOK_PROC(glTexImage2DMultisample);
+		HOOK_PROC(glTexImage3DMultisample);
+		HOOK_PROC(glDrawElementsBaseVertex);
+		HOOK_PROC(glDrawRangeElementsBaseVertex);
+		HOOK_PROC(glDrawElementsInstancedBaseVertex);
+		HOOK_PROC(glMultiDrawElementsBaseVertex);
+#endif
+#ifdef GL_VERSION_4_0
+		HOOK_PROC(glDrawArraysIndirect);
+		HOOK_PROC(glDrawElementsIndirect);
+#endif
+#ifdef GL_VERSION_4_1
+		HOOK_PROC(glScissorArrayv);
+		HOOK_PROC(glScissorIndexed);
+		HOOK_PROC(glScissorIndexedv);
 		HOOK_PROC(glViewportArrayv);
 		HOOK_PROC(glViewportIndexedf);
 		HOOK_PROC(glViewportIndexedfv);
+#endif
+#ifdef GL_VERSION_4_2
+		HOOK_PROC(glTexStorage1D);
+		HOOK_PROC(glTexStorage2D);
+		HOOK_PROC(glTexStorage3D);
+		HOOK_PROC(glBindImageTexture);
+		HOOK_PROC(glDrawArraysInstancedBaseInstance);
+		HOOK_PROC(glDrawElementsInstancedBaseInstance);
+		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
+#endif
+#ifdef GL_VERSION_4_3
+		HOOK_PROC(glTextureView);
+		HOOK_PROC(glTexBufferRange);
+		HOOK_PROC(glTexStorage2DMultisample);
+		HOOK_PROC(glTexStorage3DMultisample);
+		HOOK_PROC(glCopyImageSubData);
+		HOOK_PROC(glBindVertexBuffer);
+		HOOK_PROC(glDispatchCompute);
+		HOOK_PROC(glDispatchComputeIndirect);
+		HOOK_PROC(glMultiDrawArraysIndirect);
+		HOOK_PROC(glMultiDrawElementsIndirect);
+#endif
+#ifdef GL_VERSION_4_4
+		HOOK_PROC(glBufferStorage);
+		HOOK_PROC(glBindBuffersBase);
+		HOOK_PROC(glBindBuffersRange);
+		HOOK_PROC(glBindTextures);
+		HOOK_PROC(glBindImageTextures);
+		HOOK_PROC(glBindVertexBuffers);
+#endif
+#ifdef GL_VERSION_4_5
+		HOOK_PROC(glTextureBuffer);
+		HOOK_PROC(glTextureBufferRange);
+		HOOK_PROC(glNamedBufferData);
+		HOOK_PROC(glNamedBufferStorage);
+		HOOK_PROC(glTextureStorage1D);
+		HOOK_PROC(glTextureStorage2D);
+		HOOK_PROC(glTextureStorage2DMultisample);
+		HOOK_PROC(glTextureStorage3D);
+		HOOK_PROC(glTextureStorage3DMultisample);
+		HOOK_PROC(glNamedBufferSubData);
+		HOOK_PROC(glTextureSubImage1D);
+		HOOK_PROC(glTextureSubImage2D);
+		HOOK_PROC(glTextureSubImage3D);
+		HOOK_PROC(glCompressedTextureSubImage1D);
+		HOOK_PROC(glCompressedTextureSubImage2D);
+		HOOK_PROC(glCompressedTextureSubImage3D);
+		HOOK_PROC(glCopyTextureSubImage1D);
+		HOOK_PROC(glCopyTextureSubImage2D);
+		HOOK_PROC(glCopyTextureSubImage3D);
+		HOOK_PROC(glMapNamedBuffer);
+		HOOK_PROC(glMapNamedBufferRange);
+		HOOK_PROC(glUnmapNamedBuffer);
+		HOOK_PROC(glCopyNamedBufferSubData);
+		HOOK_PROC(glNamedRenderbufferStorage);
+		HOOK_PROC(glNamedRenderbufferStorageMultisample);
+		HOOK_PROC(glClearNamedFramebufferfv);
+		HOOK_PROC(glClearNamedFramebufferfi);
+		HOOK_PROC(glBlitNamedFramebuffer);
+		HOOK_PROC(glGenerateTextureMipmap);
+		HOOK_PROC(glBindTextureUnit);
+#endif
+		HOOK_PROC(glBindFramebufferEXT);
+		HOOK_PROC(glBindMultiTextureEXT);
 #endif
 
 		HOOK_PROC(wglChoosePixelFormatARB);

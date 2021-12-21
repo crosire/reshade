@@ -8,7 +8,8 @@
 #include <fstream>
 #include <sstream>
 
-static std::unordered_map<std::wstring, ini_file> g_ini_cache;
+// TODO: This is unsafe if there are multiple threads accessing the cache simultaneously
+static std::unordered_map<std::wstring, ini_file> s_ini_cache;
 
 ini_file::ini_file(const std::filesystem::path &path) : _path(path)
 {
@@ -59,6 +60,12 @@ void ini_file::load()
 			const std::string key = trim(line.substr(0, assign_index));
 			const std::string value = trim(line.substr(assign_index + 1));
 
+			if (value.empty())
+			{
+				_sections[section].insert({ key, {} });
+				continue;
+			}
+
 			// Append to key if it already exists
 			ini_file::value &elements = _sections[section][key];
 			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
@@ -83,7 +90,7 @@ void ini_file::load()
 							base++; // Skip second comma in a ",," escape sequence
 					}
 
-					base = offset = found + 1;
+					offset = base = found + 1;
 				}
 			}
 		}
@@ -190,7 +197,7 @@ bool ini_file::flush_cache()
 	bool success = true;
 
 	// Save all files that were modified in one second intervals
-	for (std::pair<const std::wstring, ini_file> &file : g_ini_cache)
+	for (std::pair<const std::wstring, ini_file> &file : s_ini_cache)
 	{
 		// Check modified status before requesting file time, since the latter is costly and therefore should be avoided when not necessary
 		if (file.second._modified && (std::filesystem::file_time_type::clock::now() - file.second._modified_at) > std::chrono::seconds(1))
@@ -201,13 +208,13 @@ bool ini_file::flush_cache()
 }
 bool ini_file::flush_cache(const std::filesystem::path &path)
 {
-	const auto it = g_ini_cache.find(path);
-	return it != g_ini_cache.end() && it->second.save();
+	const auto it = s_ini_cache.find(path);
+	return it != s_ini_cache.end() && it->second.save();
 }
 
 ini_file &ini_file::load_cache(const std::filesystem::path &path)
 {
-	const auto it = g_ini_cache.try_emplace(path, path);
+	const auto it = s_ini_cache.try_emplace(path, path);
 	std::pair<const std::wstring, ini_file> &file = *it.first;
 
 	// Don't reload file when it was just loaded or there are still modifications pending

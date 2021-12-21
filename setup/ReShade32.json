@@ -1,6 +1,6 @@
 {
-	"file_format_version" : "1.0.0",
-	"layer" : {
+	"file_format_version": "1.0.0",
+	"layer": {
 		"name": "VK_LAYER_reshade",
 		"type": "GLOBAL",
 		"library_path": ".\\ReShade32.dll",

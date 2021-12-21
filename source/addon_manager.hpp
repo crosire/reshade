@@ -57,10 +57,10 @@ namespace reshade
 			ev != addon_event::destroy_resource_view &&
 			ev != addon_event::init_pipeline &&
 			ev != addon_event::destroy_pipeline &&
-			ev != addon_event::init_render_pass &&
-			ev != addon_event::destroy_render_pass &&
-			ev != addon_event::init_framebuffer &&
-			ev != addon_event::destroy_framebuffer)
+			ev != addon_event::init_pipeline_layout &&
+			ev != addon_event::destroy_pipeline_layout &&
+			ev != addon_event::init_query_pool &&
+			ev != addon_event::destroy_query_pool)
 		if (!addon::enabled)
 			return;
 		std::vector<void *> &event_list = addon::event_list[static_cast<uint32_t>(ev)];
