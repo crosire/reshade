@@ -20,24 +20,24 @@
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
       <RadioButton x:Name="ApiD3D9">
         <StackPanel Orientation="Horizontal" Margin="8">
-          <Image Source="Resources/DirectX.png" Height="80" />
-          <Label Content="_9" VerticalAlignment="Center" />
+          <Image Source="Resources/DirectX.png" Height="65" />
+          <Label Content="_9" FontSize="18" VerticalAlignment="Center" />
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiDXGI">
         <StackPanel Orientation="Horizontal" Margin="8">
-          <Image Source="Resources/DirectX.png" Height="80" />
-          <Label Content="_10/11/12" VerticalAlignment="Center" />
+          <Image Source="Resources/DirectX.png" Height="65" />
+          <Label Content="_10/11/12" FontSize="18" VerticalAlignment="Center" />
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiOpenGL">
-        <Image Source="Resources/OpenGL.png" Margin="8" Height="80" />
+        <Image Source="Resources/OpenGL.png" Margin="8" Height="65" />
       </RadioButton>
       <RadioButton x:Name="ApiVulkan">
-        <Image Source="Resources/Vulkan.png" Margin="8" Height="80" />
+        <Image Source="Resources/Vulkan.png" Margin="8" Height="55" />
       </RadioButton>
       <CheckBox x:Name="AddonSupport" Margin="0,20,0,0">
-        <TextBlock Width="300" TextWrapping="Wrap">
+        <TextBlock Width="290" TextWrapping="Wrap">
           Install ReShade with add-on loading support<LineBreak/>This is recommended for single player games only and may be blocked or cause bans in multiplayer games.
         </TextBlock>
       </CheckBox>

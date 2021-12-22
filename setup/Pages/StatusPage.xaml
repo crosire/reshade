@@ -131,5 +131,6 @@
     <Path x:Name="StatusSuccess" Width="100" Height="100" Visibility="Collapsed" Stroke="Green" StrokeThickness="10" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Data="M 20,63 L 50,80 L 80,20" />
     <Path x:Name="StatusFailure" Width="100" Height="100" Visibility="Collapsed" Stroke="Red" StrokeThickness="10" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Data="M 20,20 L 80,80 M 20,80 L 80,20" />
     <TextBlock x:Name="ProgressText" Margin="10,5" TextAlignment="Center" TextWrapping="Wrap" />
+    <Button x:Name="SettingsButton" Margin="10" Width="120" Content="Edit settings" Visibility="Collapsed" />
   </StackPanel>
 </Page>

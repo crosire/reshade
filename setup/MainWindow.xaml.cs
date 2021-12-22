@@ -199,6 +199,8 @@ namespace ReShade.Setup
 				return;
 			}
 
+			status.SettingsButton.Click += (sender1, e1) => new SettingsDialog(configPath) { Owner = this }.ShowDialog();
+
 			NextButton.IsEnabled = false;
 
 			appPage.PathBox.TextChanged += (sender2, e2) => NextButton.IsEnabled = !string.IsNullOrEmpty(appPage.FileName) && Path.GetExtension(appPage.FileName) == ".exe" && File.Exists(appPage.FileName);
@@ -319,6 +321,8 @@ namespace ReShade.Setup
 			{
 				status.UpdateStatus(message);
 
+				status.SettingsButton.Visibility = Visibility.Collapsed;
+
 				if (CurrentPage.Content != status)
 				{
 					CurrentPage.Navigate(status);
@@ -339,6 +343,11 @@ namespace ReShade.Setup
 			Dispatcher.Invoke(() =>
 			{
 				status.UpdateStatus(message, success);
+
+				if (success)
+				{
+					status.SettingsButton.Visibility = Visibility.Visible;
+				}
 
 				CurrentPage.Navigate(status);
 
