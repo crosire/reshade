@@ -135,10 +135,12 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="Properties\AssemblyInfo.cs.in" />
-    <None Include="ReShade32.json" />
-    <None Include="ReShade32_override.json" />
-    <None Include="ReShade64.json" />
-    <None Include="ReShade64_override.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Archive Include="ReShade32_vk_layer.json" />
+    <Archive Include="ReShade32_vk_override_layer.json" />
+    <Archive Include="ReShade64_vk_layer.json" />
+    <Archive Include="ReShade64_vk_override_layer.json" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Condition="Exists('Compatibility.ini')" Include="Compatibility.ini" />
@@ -152,38 +154,28 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- Update assembly info file -->
+  <UsingTask TaskName="CL" AssemblyFile="$(VCTargetsPath)Microsoft.Build.CppTasks.Common.dll"/>
+  <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeCompile" Inputs="..\res\version.h" Outputs="Properties\AssemblyInfo.cs">
+    <Message Text="Generating assembly version ..." Importance="high" />
+    <CL SuppressStartupBanner="true" PreprocessSuppressLineNumbers="true" PreprocessKeepComments="true" PreprocessToFile="true" AdditionalIncludeDirectories="..\res" Sources="Properties\AssemblyInfo.cs.in" PreprocessOutputPath="Properties\AssemblyInfo.cs" ToolPath="$(VC_ExecutablePath_x86)" />
+  </Target>
+  <!-- Archive ReShade binaries and append them to the setup executable -->
+  <Target Name="BuildAndAppendSetupArchive" AfterTargets="CopyFilesToOutputDirectory">
+    <Message Text="Compressing ReShade DLLs ..." Importance="high" />
+    <ItemGroup>
+      <Archive Include="$(SolutionDir)bin\Win32\$(Configuration)\ReShade*.dll" />
+      <Archive Include="$(SolutionDir)bin\x64\$(Configuration)\ReShade*.dll" />
+    </ItemGroup>
+    <Exec Command="$(SolutionDir)tools\7za.exe a -y &quot;$(TargetDir)ReShade Setup.zip&quot; &quot;@(Archive, '&quot; &quot;')&quot;" />
+    <Message Text="Appending archive to setup executable ..." Importance="high" />
+    <Exec Command="copy /b &quot;$(TargetPath)&quot; + &quot;$(TargetDir)ReShade Setup.zip&quot; &quot;$(TargetPath)&quot;" EchoOff="true" />
+    <Delete Files="$(TargetDir)ReShade Setup.zip" />
+  </Target>
   <PropertyGroup>
-    <PreBuildEvent>echo Generating assembly version ...
-set PATH=%PATH%;$(VC_ExecutablePath_x86)
-cl.exe /nologo /EP /C /I "$(SolutionDir)res" "$(ProjectDir)Properties\AssemblyInfo.cs.in" &gt; "$(ProjectDir)Properties\AssemblyInfo.cs"
-
-echo Compiling ReShade setup tool ...</PreBuildEvent>
-    <PostBuildEvent Condition=" '$(Configuration)' == 'Debug' ">echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
-if exist "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" &gt; nul
-if exist "$(SolutionDir)bin\x64\Debug\ReShade64.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\x64\Debug\ReShade64.dll" &gt; nul
-
-echo Appending archive to setup executable ...
-copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
-
-echo Cleaning up and deleting temporary archive ...
-del "$(TargetDir)ReShade Setup.zip"</PostBuildEvent>
-    <PostBuildEvent Condition=" '$(Configuration)' == 'Release' ">echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
-if exist "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" &gt; nul
-if exist "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\x64\Release\ReShade64.dll" &gt; nul
-if exist "$(SolutionDir)bin\Win32\Release\ReShade32_official.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32_official.dll" &gt; nul
-if exist "$(SolutionDir)bin\x64\Release\ReShade64_official.dll" "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\x64\Release\ReShade64_official.dll" &gt; nul
-
-echo Appending archive to setup executable ...
-copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
-
-echo Cleaning up and deleting temporary archive ...
-del "$(TargetDir)ReShade Setup.zip"
-
-echo Signing executable ...
+    <PostBuildEvent Condition="'$(Configuration)'=='Release' and Exists('$(SolutionDir)\res\sign.pfx')">echo Signing executable ...
 set PATH=%PATH%;$(WindowsSDK_ExecutablePath)
-if exist "$(SolutionDir)res\sign.pfx" signtool.exe sign /f "$(SolutionDir)res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</PostBuildEvent>
+signtool.exe sign /f "$(SolutionDir)\res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</PostBuildEvent>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
 </Project>

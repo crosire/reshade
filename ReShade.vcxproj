@@ -33,6 +33,14 @@
       <Configuration>Release App</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release Signed|Win32">
+      <Configuration>Release Signed</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release Signed|x64">
+      <Configuration>Release Signed</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0401ADF5-D085-4A3D-95B2-D9B7896BB338}</ProjectGuid>
@@ -62,12 +70,11 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Release'">
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='Release Signed'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <LinkIncremental>false</LinkIncremental>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <TargetName Condition="Exists('res\sign.pfx')">$(TargetName)_official</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Release App'">
     <ConfigurationType>Application</ConfigurationType>
@@ -91,7 +98,11 @@
     <Import Project="deps\Windows.props" />
   </ImportGroup>
   <PropertyGroup>
-    <ExecutablePath>$(SolutionDir)tools;$(ExecutablePath)</ExecutablePath>
+    <ExecutablePath>tools;$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release Signed'">
+    <OutDir>$(OutDir)..\Release\</OutDir>
+    <TargetName>$(TargetName)_signed</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -104,7 +115,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -115,13 +126,13 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(TargetDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
       <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -135,7 +146,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -146,13 +157,13 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(TargetDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
       <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -166,7 +177,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -177,13 +188,13 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(TargetDir)\..\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
       <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -197,7 +208,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -208,13 +219,13 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(TargetDir)\..\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
       <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -229,8 +240,161 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="!Exists('res\sign.pfx')">RESHADE_ADDON_LOAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <StringPooling>true</StringPooling>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(TargetDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+    </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
+      <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <StringPooling>true</StringPooling>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(TargetDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+    </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
+      <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release App|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(TargetDir)\..\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
+      <Profile>true</Profile>
+      <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+    </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <PreBuildEvent>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release App|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(TargetDir)\..\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
+      <Profile>true</Profile>
+      <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+    </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <PreBuildEvent>
+      <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release Signed|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_GUI;RESHADE_ADDON;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -247,33 +411,32 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(TargetDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
-    <PreBuildEvent>
+    <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if exist "res\sign.pfx" signtool sign /f "res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</Command>
+      <Command>signtool sign /f "res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release Signed|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="!Exists('res\sign.pfx')">RESHADE_ADDON_LOAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_GUI;RESHADE_ADDON;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -290,100 +453,24 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(TargetDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <FxCompile>
       <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
-    <PreBuildEvent>
+    <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if exist "res\sign.pfx" signtool sign /f "res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</Command>
+      <Command>signtool sign /f "res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</Command>
     </PostBuildEvent>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release App|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <ExceptionHandling>false</ExceptionHandling>
-      <FloatingPointModel>Fast</FloatingPointModel>
-      <RuntimeTypeInfo>false</RuntimeTypeInfo>
-    </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
-      <EnableCOMDATFolding>false</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
-      <Profile>true</Profile>
-      <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-    </Link>
-    <FxCompile>
-      <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ResourceCompile>
-    <PreBuildEvent>
-      <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
-    </PreBuildEvent>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release App|x64'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_EFFECTS;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <ExceptionHandling>false</ExceptionHandling>
-      <FloatingPointModel>Fast</FloatingPointModel>
-      <RuntimeTypeInfo>false</RuntimeTypeInfo>
-    </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
-      <EnableCOMDATFolding>false</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
-      <Profile>true</Profile>
-      <DelayLoadDLLs>ws2_32.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-    </Link>
-    <FxCompile>
-      <ShaderModel>4.0</ShaderModel>
-      <ObjectFileOutput>$(SolutionDir)res\shaders\%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ResourceCompile>
-    <PreBuildEvent>
-      <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ProjectReference Include="deps\gl3w.vcxproj">
@@ -615,14 +702,14 @@
   <ItemGroup>
     <CustomBuild Include="res\shaders\imgui_ps.glsl">
       <FileType>Document</FileType>
-      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S frag "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
-      <Outputs>$(SolutionDir)res\shaders\%(Filename).spv</Outputs>
+      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S frag "%(FullPath)" -o "res\shaders\%(Filename).spv"</Command>
+      <Outputs>res\shaders\%(Filename).spv</Outputs>
       <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
     <CustomBuild Include="res\shaders\imgui_vs.glsl">
       <FileType>Document</FileType>
-      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S vert "%(FullPath)" -o "$(SolutionDir)res\shaders\%(Filename).spv"</Command>
-      <Outputs>$(SolutionDir)res\shaders\%(Filename).spv</Outputs>
+      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S vert "%(FullPath)" -o "res\shaders\%(Filename).spv"</Command>
+      <Outputs>res\shaders\%(Filename).spv</Outputs>
       <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
   </ItemGroup>

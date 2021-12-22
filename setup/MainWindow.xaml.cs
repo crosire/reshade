@@ -92,7 +92,7 @@ namespace ReShade.Setup
 					throw new InvalidDataException();
 				}
 
-				if (zip.GetEntry("ReShade32_official.dll") == null || zip.GetEntry("ReShade64_official.dll") == null)
+				if (zip.GetEntry("ReShade32_signed.dll") == null || zip.GetEntry("ReShade64_signed.dll") == null)
 				{
 					addonLoadSupport = null;
 				}
@@ -662,7 +662,7 @@ namespace ReShade.Setup
 					Directory.CreateDirectory(parentPath);
 				}
 
-				var module = zip.GetEntry(moduleName + (addonLoadSupport != false ? string.Empty : "_official") + ".dll");
+				var module = zip.GetEntry(moduleName + (addonLoadSupport != false ? string.Empty : "_signed") + ".dll");
 				if (module == null)
 				{
 					throw new FileFormatException("Setup archive is missing ReShade DLL file.");
@@ -680,7 +680,7 @@ namespace ReShade.Setup
 			{
 				try
 				{
-					var manifest = zip.GetEntry(moduleName + ".json");
+					var manifest = zip.GetEntry(moduleName + "_vk_layer.json");
 					if (manifest == null)
 					{
 						throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
@@ -694,7 +694,7 @@ namespace ReShade.Setup
 					return;
 				}
 
-				string overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_override.json");
+				string overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
 
 				if (!File.Exists(overrideMetaLayerPath))
 				{
