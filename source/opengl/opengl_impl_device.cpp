@@ -1716,30 +1716,30 @@ bool reshade::opengl::device_impl::allocate_descriptor_sets(uint32_t count, api:
 	{
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			const auto impl = new descriptor_set_impl();
-			impl->type = layout_impl->ranges[layout_param].type;
-			impl->count = layout_impl->ranges[layout_param].count;
+			const auto set_impl = new descriptor_set_impl();
+			set_impl->type = layout_impl->ranges[layout_param].type;
+			set_impl->count = layout_impl->ranges[layout_param].count;
 
-			switch (impl->type)
+			switch (set_impl->type)
 			{
 			case api::descriptor_type::sampler:
 			case api::descriptor_type::shader_resource_view:
 			case api::descriptor_type::unordered_access_view:
-				impl->descriptors.resize(impl->count * 1);
+				set_impl->descriptors.resize(set_impl->count * 1);
 				break;
 			case api::descriptor_type::sampler_with_resource_view:
-				impl->descriptors.resize(impl->count * 2);
+				set_impl->descriptors.resize(set_impl->count * 2);
 				break;
 			case api::descriptor_type::constant_buffer:
 			case api::descriptor_type::shader_storage_buffer:
-				impl->descriptors.resize(impl->count * 3);
+				set_impl->descriptors.resize(set_impl->count * 3);
 				break;
 			default:
 				assert(false);
 				break;
 			}
 
-			out_sets[i] = { reinterpret_cast<uintptr_t>(impl) };
+			out_sets[i] = { reinterpret_cast<uintptr_t>(set_impl) };
 		}
 
 		return true;

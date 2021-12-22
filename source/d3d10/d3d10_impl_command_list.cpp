@@ -260,8 +260,14 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 		push_constants->Unmap();
 	}
 
-	const UINT push_constants_slot = (layout.handle != 0 && layout != global_pipeline_layout) ?
-		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].dx_register_index : 0;
+	UINT push_constants_slot = 0;
+	if (layout.handle != 0 && layout != global_pipeline_layout)
+	{
+		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
+
+		push_constants_slot = range.dx_register_index;
+		stages &= range.visibility;
+	}
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetConstantBuffers(push_constants_slot, 1, &push_constants);
@@ -276,9 +282,16 @@ void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api
 
 	uint32_t first = 0;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
-		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].dx_register_index;
+	{
+		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
+
+		first = range.dx_register_index;
+		stages &= range.visibility;
+	}
 	else
+	{
 		assert(update.binding == 0);
+	}
 
 	switch (update.type)
 	{

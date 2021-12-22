@@ -1669,7 +1669,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[0].count = 1;
 	layout_ranges[0].array_size = 1;
 	layout_ranges[0].type = api::descriptor_type::constant_buffer;
-	layout_ranges[0].visibility = api::shader_stage::all;
+	layout_ranges[0].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
 	layout_ranges[1].binding = 0;
 	layout_ranges[1].dx_register_index = 0; // s#
@@ -1677,7 +1677,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[1].count = effect.module.num_sampler_bindings;
 	layout_ranges[1].array_size = 1;
 	layout_ranges[1].type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
-	layout_ranges[1].visibility = api::shader_stage::all;
+	layout_ranges[1].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
 	layout_ranges[2].binding = 0;
 	layout_ranges[2].dx_register_index = 0; // t#
@@ -1685,7 +1685,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[2].count = effect.module.num_texture_bindings;
 	layout_ranges[2].array_size = 1;
 	layout_ranges[2].type = api::descriptor_type::shader_resource_view;
-	layout_ranges[2].visibility = api::shader_stage::all;
+	layout_ranges[2].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
 	layout_ranges[3].binding = 0;
 	layout_ranges[3].dx_register_index = 0; // u#
@@ -1693,7 +1693,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[3].count = effect.module.num_storage_bindings;
 	layout_ranges[3].array_size = 1;
 	layout_ranges[3].type = api::descriptor_type::unordered_access_view;
-	layout_ranges[3].visibility = api::shader_stage::all;
+	layout_ranges[3].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
 	api::pipeline_layout_param layout_params[4];
 	layout_params[0].type = api::pipeline_layout_param_type::descriptor_set;

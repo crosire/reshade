@@ -198,9 +198,16 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 
 	uint32_t first = 0, count = update.count;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
-		first = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].dx_register_index;
+	{
+		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
+
+		first = range.dx_register_index;
+		stages &= range.visibility;
+	}
 	else
+	{
 		assert(update.binding == 0);
+	}
 
 	// Set for each individual shader stage (pixel stage first, since vertex stage modifies the binding offset)
 	constexpr api::shader_stage stages_to_iterate[] = { api::shader_stage::pixel, api::shader_stage::vertex };
