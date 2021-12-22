@@ -36,6 +36,7 @@ namespace reshade::d3d10
 		ID3D10SamplerState *_vs_sampler_states[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
 		ID3D10ShaderResourceView *_vs_shader_resources[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
 		ID3D10GeometryShader *_gs;
+		ID3D10ShaderResourceView *_gs_shader_resources[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
 		ID3D10RasterizerState *_rs_state;
 		UINT _rs_num_viewports;
 		D3D10_VIEWPORT _rs_viewports[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];

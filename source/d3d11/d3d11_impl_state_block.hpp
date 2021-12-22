@@ -47,6 +47,7 @@ namespace reshade::d3d11
 		ID3D11GeometryShader *_gs;
 		UINT _gs_num_class_instances;
 		ID3D11ClassInstance *_gs_class_instances[256];
+		ID3D11ShaderResourceView *_gs_shader_resources[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
 		ID3D11RasterizerState *_rs_state;
 		UINT _rs_num_viewports;
 		D3D11_VIEWPORT _rs_viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];

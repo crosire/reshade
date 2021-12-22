@@ -46,6 +46,7 @@ void reshade::d3d10::state_block::capture()
 	_device->VSGetShaderResources(0, ARRAYSIZE(_vs_shader_resources), _vs_shader_resources);
 
 	_device->GSGetShader(&_gs);
+	_device->GSGetShaderResources(0, ARRAYSIZE(_gs_shader_resources), _gs_shader_resources);
 
 	_device->PSGetShader(&_ps);
 	_device->PSGetConstantBuffers(0, ARRAYSIZE(_ps_constant_buffers), _ps_constant_buffers);
@@ -74,6 +75,7 @@ void reshade::d3d10::state_block::apply_and_release()
 	_device->VSSetShaderResources(0, ARRAYSIZE(_vs_shader_resources), _vs_shader_resources);
 
 	_device->GSSetShader(_gs);
+	_device->GSSetShaderResources(0, ARRAYSIZE(_gs_shader_resources), _gs_shader_resources);
 
 	_device->PSSetShader(_ps);
 	_device->PSSetConstantBuffers(0, ARRAYSIZE(_ps_constant_buffers), _ps_constant_buffers);
@@ -101,6 +103,8 @@ void reshade::d3d10::state_block::release_all_device_objects()
 	for (auto &shader_resource : _vs_shader_resources)
 		safe_release(shader_resource);
 	safe_release(_gs);
+	for (auto &shader_resource : _gs_shader_resources)
+		safe_release(shader_resource);
 	safe_release(_rs_state);
 	safe_release(_ps);
 	for (auto &constant_buffer : _ps_constant_buffers)

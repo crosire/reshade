@@ -65,6 +65,7 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 
 		_gs_num_class_instances = ARRAYSIZE(_gs_class_instances);
 		_device_context->GSGetShader(&_gs, _gs_class_instances, &_gs_num_class_instances);
+		_device_context->GSGetShaderResources(0, ARRAYSIZE(_gs_shader_resources), _gs_shader_resources);
 	}
 
 	_ps_num_class_instances = ARRAYSIZE(_ps_class_instances);
@@ -122,6 +123,7 @@ void reshade::d3d11::state_block::apply_and_release()
 		}
 
 		_device_context->GSSetShader(_gs, _gs_class_instances, _gs_num_class_instances);
+		_device_context->GSSetShaderResources(0, ARRAYSIZE(_gs_shader_resources), _gs_shader_resources);
 	}
 
 	_device_context->PSSetShader(_ps, _ps_class_instances, _ps_num_class_instances);
@@ -175,6 +177,8 @@ void reshade::d3d11::state_block::release_all_device_objects()
 	safe_release(_gs);
 	for (UINT i = 0; i < _gs_num_class_instances; i++)
 		safe_release(_gs_class_instances[i]);
+	for (auto &shader_resource : _gs_shader_resources)
+		safe_release(shader_resource);
 	safe_release(_rs_state);
 	safe_release(_ps);
 	for (UINT i = 0; i < _ps_num_class_instances; i++)
