@@ -117,7 +117,7 @@ namespace reshade::d3d12
 		mutable std::shared_mutex _device_mutex;
 #if RESHADE_ADDON
 		std::pair<std::atomic<D3D12DescriptorHeap **>, size_t> _descriptor_heaps;
-		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
+		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses; // TODO: Replace with interval tree
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;
 

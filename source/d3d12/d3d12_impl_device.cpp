@@ -362,7 +362,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 		return false;
 
 	// Cannot create a resource view with a typeless format
-	assert(desc.format != api::format_to_typeless(desc.format));
+	assert(desc.format != api::format_to_typeless(desc.format) || api::format_to_typeless(desc.format) == api::format_to_default_typed(desc.format));
 
 	switch (usage_type)
 	{
@@ -624,12 +624,12 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
 		return;
 
-	for (UINT z = 0; z < num_slices; ++z)
+	for (size_t z = 0; z < num_slices; ++z)
 	{
 		const auto dst_slice = mapped_data + z * slice_pitch;
 		const auto src_slice = static_cast<const uint8_t *>(data.data) + z * data.slice_pitch;
 
-		for (UINT y = 0; y < num_rows; ++y)
+		for (size_t y = 0; y < num_rows; ++y)
 		{
 			const size_t row_size = data.row_pitch < row_pitch ?
 				data.row_pitch : static_cast<size_t>(row_pitch);

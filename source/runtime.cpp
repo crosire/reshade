@@ -2343,7 +2343,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		flags |= api::resource_flags::generate_mipmaps;
 
 	// Clear texture to zero since by default its contents are undefined
-	std::vector<uint8_t> zero_data(tex.width * tex.height * 16);
+	std::vector<uint8_t> zero_data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 16);
 	std::vector<api::subresource_data> initial_data(tex.levels);
 	for (uint32_t level = 0, width = tex.width; level < tex.levels; ++level, width /= 2)
 	{
@@ -3244,7 +3244,8 @@ void reshade::runtime::save_texture(const texture &tex)
 
 	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
 
-	if (std::vector<uint8_t> data(tex.width * tex.height * 4); get_texture_data(tex.resource, api::resource_usage::shader_resource, data.data()))
+	if (std::vector<uint8_t> data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height * 4));
+		get_texture_data(tex.resource, api::resource_usage::shader_resource, data.data()))
 	{
 		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 		{
@@ -3296,18 +3297,19 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 
 	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
 
-	if (std::vector<uint8_t> data(_width * _height * 4); capture_screenshot(data.data()))
+	if (std::vector<uint8_t> data(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
+		capture_screenshot(data.data()))
 	{
 		// Remove alpha channel
 		int comp = 4;
 		if (_screenshot_clear_alpha)
 		{
 			comp = 3;
-			for (uint32_t h = 0; h < _height; ++h)
+			for (size_t h = 0; h < _height; ++h)
 			{
-				for (uint32_t w = 0; w < _width; ++w)
+				for (size_t w = 0; w < _width; ++w)
 				{
-					const uint32_t index = h * _width + w;
+					const size_t index = h * _width + w;
 					data[index * 3 + 0] = data[index * 4 + 0];
 					data[index * 3 + 1] = data[index * 4 + 1];
 					data[index * 3 + 2] = data[index * 4 + 2];

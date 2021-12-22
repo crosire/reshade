@@ -1806,7 +1806,7 @@ void reshade::runtime::draw_gui_statistics()
 
 			int64_t memory_size = 0;
 			for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
-				memory_size += width * height * pixel_sizes[static_cast<int>(tex.format)];
+				memory_size += static_cast<size_t>(width) * static_cast<size_t>(height) * pixel_sizes[static_cast<int>(tex.format)];
 
 			post_processing_memory_size += memory_size;
 
