@@ -321,8 +321,6 @@ namespace ReShade.Setup
 			{
 				status.UpdateStatus(message);
 
-				status.SettingsButton.Visibility = Visibility.Collapsed;
-
 				if (CurrentPage.Content != status)
 				{
 					CurrentPage.Navigate(status);
@@ -343,11 +341,6 @@ namespace ReShade.Setup
 			Dispatcher.Invoke(() =>
 			{
 				status.UpdateStatus(message, success);
-
-				if (success)
-				{
-					status.SettingsButton.Visibility = Visibility.Visible;
-				}
 
 				CurrentPage.Navigate(status);
 

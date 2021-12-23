@@ -156,7 +156,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Update assembly info file -->
   <UsingTask TaskName="CL" AssemblyFile="$(VCTargetsPath)Microsoft.Build.CppTasks.Common.dll"/>
-  <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeCompile" Inputs="..\res\version.h" Outputs="Properties\AssemblyInfo.cs">
+  <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeCompile" Inputs="..\res\version.h;Properties\AssemblyInfo.cs.in" Outputs="Properties\AssemblyInfo.cs">
     <Message Text="Generating assembly version ..." Importance="high" />
     <CL SuppressStartupBanner="true" PreprocessSuppressLineNumbers="true" PreprocessKeepComments="true" PreprocessToFile="true" AdditionalIncludeDirectories="..\res" Sources="Properties\AssemblyInfo.cs.in" PreprocessOutputPath="Properties\AssemblyInfo.cs" ToolPath="$(VC_ExecutablePath_x86)" />
   </Target>
@@ -164,13 +164,12 @@
   <Target Name="BuildAndAppendSetupArchive" AfterTargets="CopyFilesToOutputDirectory">
     <Message Text="Compressing ReShade DLLs ..." Importance="high" />
     <ItemGroup>
-      <Archive Include="$(SolutionDir)bin\Win32\$(Configuration)\ReShade*.dll" />
-      <Archive Include="$(SolutionDir)bin\x64\$(Configuration)\ReShade*.dll" />
+      <Archive Include="$(SolutionDir)bin\*\$(Configuration)\ReShade*.dll" />
     </ItemGroup>
-    <Exec Command="$(SolutionDir)tools\7za.exe a -y &quot;$(TargetDir)ReShade Setup.zip&quot; &quot;@(Archive, '&quot; &quot;')&quot;" />
+    <Exec Command="$(SolutionDir)tools\7za.exe a -y &quot;$(TargetPath).zip&quot; &quot;@(Archive, '&quot; &quot;')&quot;" />
     <Message Text="Appending archive to setup executable ..." Importance="high" />
-    <Exec Command="copy /b &quot;$(TargetPath)&quot; + &quot;$(TargetDir)ReShade Setup.zip&quot; &quot;$(TargetPath)&quot;" EchoOff="true" />
-    <Delete Files="$(TargetDir)ReShade Setup.zip" />
+    <Exec Command="copy /b &quot;$(TargetPath)&quot; + &quot;$(TargetPath).zip&quot; &quot;$(TargetPath)&quot;" EchoOff="true" />
+    <Delete Files="$(TargetPath).zip" />
   </Target>
   <PropertyGroup>
     <PostBuildEvent Condition="'$(Configuration)'=='Release' and Exists('$(SolutionDir)\res\sign.pfx')">echo Signing executable ...
