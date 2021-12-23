@@ -76,11 +76,13 @@ namespace reshade::d3d11
 
 		api::device *get_device() final;
 
-		api::command_list *get_immediate_command_list() final;
+		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::compute | api::command_queue_type::copy; }
 
 		void wait_idle() const final { /* no-op */ }
 
 		void flush_immediate_command_list() const final;
+
+		api::command_list *get_immediate_command_list() final;
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 

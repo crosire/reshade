@@ -867,6 +867,17 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// A list of flags that represent the available command queue types, as returned by <see cref="command_queue::get_type"/>.
+	/// </summary>
+	enum class command_queue_type
+	{
+		graphics = 0x1,
+		compute = 0x2,
+		copy = 0x4,
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(command_queue_type);
+
+	/// <summary>
 	/// A command queue, used to execute command lists on the GPU.
 	/// <para>Functionally equivalent to the immediate 'ID3D11DeviceContext' or a 'ID3D12CommandQueue' or 'VkQueue'.</para>
 	/// </summary>
@@ -877,9 +888,9 @@ namespace reshade { namespace api
 	{
 	public:
 		/// <summary>
-		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
+		/// Gets the type of the command queue, which specifies what commands can be executed on it.
 		/// </summary>
-		virtual command_list *get_immediate_command_list() = 0;
+		virtual command_queue_type get_type() const = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations on this queue to finish before returning.
@@ -892,6 +903,12 @@ namespace reshade { namespace api
 		/// This can be used to force commands to execute right away instead of waiting for the runtime to flush it automatically at some point.
 		/// </summary>
 		virtual void flush_immediate_command_list() const  = 0;
+
+		/// <summary>
+		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
+		/// This only exists on command queues that contain the <see cref="command_queue_type::graphics"/> flag, on other queues <see langword="nullptr"/> is returned.
+		/// </summary>
+		virtual command_list *get_immediate_command_list() = 0;
 
 		/// <summary>
 		/// Opens a debug event region in the command queue.

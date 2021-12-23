@@ -10,7 +10,7 @@
 #define vk _device_impl->_dispatch_table
 
 reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
-	api_object_impl(queue), _device_impl(device)
+	api_object_impl(queue), _device_impl(device), _queue_flags(queue_family.queueFlags)
 {
 	// Register queue to device (no need to lock, since all command queues are created single threaded in 'vkCreateDevice')
 	_device_impl->_queues.push_back(this);
@@ -50,16 +50,14 @@ reshade::api::device *reshade::vulkan::command_queue_impl::get_device()
 	return _device_impl;
 }
 
-void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
+reshade::api::command_queue_type reshade::vulkan::command_queue_impl::get_type() const
 {
-	std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
-	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_orig, wait_semaphores);
-}
-void reshade::vulkan::command_queue_impl::flush_immediate_command_list(std::vector<VkSemaphore> &wait_semaphores) const
-{
-	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_orig, wait_semaphores);
+	static_assert(
+		api::command_queue_type::graphics == VK_QUEUE_GRAPHICS_BIT &&
+		api::command_queue_type::compute == VK_QUEUE_COMPUTE_BIT &&
+		api::command_queue_type::copy == VK_QUEUE_TRANSFER_BIT);
+
+	return static_cast<api::command_queue_type>(_queue_flags);
 }
 
 void reshade::vulkan::command_queue_impl::wait_idle() const
@@ -71,6 +69,18 @@ void reshade::vulkan::command_queue_impl::wait_idle() const
 #ifndef NDEBUG
 	_device_impl->_wait_for_idle_happened = true;
 #endif
+}
+
+void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
+{
+	std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
+	if (_immediate_cmd_list != nullptr)
+		_immediate_cmd_list->flush(_orig, wait_semaphores);
+}
+void reshade::vulkan::command_queue_impl::flush_immediate_command_list(std::vector<VkSemaphore> &wait_semaphores) const
+{
+	if (_immediate_cmd_list != nullptr)
+		_immediate_cmd_list->flush(_orig, wait_semaphores);
 }
 
 void reshade::vulkan::command_queue_impl::begin_debug_event(const char *label, const float color[4])

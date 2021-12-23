@@ -74,11 +74,13 @@ namespace reshade::d3d9
 
 		api::device *get_device() final { return this; }
 
-		api::command_list *get_immediate_command_list() final { return this; }
+		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::copy; }
 
 		void wait_idle() const final { /* no-op */ }
 
 		void flush_immediate_command_list() const final;
+
+		api::command_list *get_immediate_command_list() final { return this; }
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 

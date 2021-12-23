@@ -62,10 +62,19 @@ reshade::api::device *reshade::d3d12::command_queue_impl::get_device()
 	return _device_impl;
 }
 
-void reshade::d3d12::command_queue_impl::flush_immediate_command_list() const
+reshade::api::command_queue_type reshade::d3d12::command_queue_impl::get_type() const
 {
-	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_orig);
+	switch (_orig->GetDesc().Type)
+	{
+	case D3D12_COMMAND_LIST_TYPE_DIRECT:
+		return api::command_queue_type::graphics | api::command_queue_type::compute | api::command_queue_type::copy;
+	case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+		return api::command_queue_type::compute;
+	case D3D12_COMMAND_LIST_TYPE_COPY:
+		return api::command_queue_type::copy;
+	default:
+		return static_cast<api::command_queue_type>(0);
+	}
 }
 
 void reshade::d3d12::command_queue_impl::wait_idle() const
@@ -84,6 +93,12 @@ void reshade::d3d12::command_queue_impl::wait_idle() const
 
 	if (SUCCEEDED(_wait_idle_fence->SetEventOnCompletion(_wait_idle_fence_value, _wait_idle_fence_event)))
 		WaitForSingleObject(_wait_idle_fence_event, INFINITE);
+}
+
+void reshade::d3d12::command_queue_impl::flush_immediate_command_list() const
+{
+	if (_immediate_cmd_list != nullptr)
+		_immediate_cmd_list->flush(_orig);
 }
 
 void reshade::d3d12::command_queue_impl::begin_debug_event(const char *label, const float color[4])

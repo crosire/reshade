@@ -10,17 +10,17 @@
 namespace reshade { namespace api
 {
 	/// <summary>
-	/// An opaque handle to a uniform variable in an effect.
+	/// An opaque handle to a technique in an effect.
 	/// </summary>
-	RESHADE_DEFINE_HANDLE(effect_uniform_variable);
+	RESHADE_DEFINE_HANDLE(effect_technique);
 	/// <summary>
 	/// An opaque handle to a texture variable in an effect.
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(effect_texture_variable);
 	/// <summary>
-	/// An opaque handle to a technique in an effect.
+	/// An opaque handle to a uniform variable in an effect.
 	/// </summary>
-	RESHADE_DEFINE_HANDLE(effect_technique);
+	RESHADE_DEFINE_HANDLE(effect_uniform_variable);
 
 	/// <summary>
 	/// A ReShade effect runtime, used to control effects.

@@ -17,12 +17,14 @@ namespace reshade::vulkan
 
 		api::device *get_device() final;
 
-		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
+		api::command_queue_type get_type() const final;
 
 		void wait_idle() const final;
 
 		void flush_immediate_command_list() const final;
 		void flush_immediate_command_list(std::vector<VkSemaphore> &wait_semaphores) const;
+
+		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;
@@ -31,5 +33,6 @@ namespace reshade::vulkan
 	private:
 		device_impl *const _device_impl;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
+		const VkQueueFlags _queue_flags;
 	};
 }
