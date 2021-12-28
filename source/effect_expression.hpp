@@ -120,9 +120,9 @@ namespace reshadefx
 		};
 
 		// Optional string associated with this constant
-		std::string string_data = {};
+		std::string string_data;
 		// Optional additional elements if this is an array constant
-		std::vector<constant> array_data = {};
+		std::vector<constant> array_data;
 	};
 
 	/// <summary>

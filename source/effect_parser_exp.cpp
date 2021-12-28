@@ -595,11 +595,11 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (peek('}'))
 				break;
 
-			// Parse the argument expression
-			if (!parse_expression_assignment(elements.emplace_back()))
-				return consume_until('}'), false;
+			expression &element = elements.emplace_back();
 
-			expression &element = elements.back();
+			// Parse the argument expression
+			if (!parse_expression_assignment(element))
+				return consume_until('}'), false;
 
 			if (element.type.is_array())
 				return error(element.location, 3119, "arrays cannot be multi-dimensional"), consume_until('}'), false;
@@ -700,11 +700,11 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (!arguments.empty() && !expect(','))
 				return false;
 
-			// Parse the argument expression
-			if (!parse_expression_assignment(arguments.emplace_back()))
-				return false;
+			expression &argument = arguments.emplace_back();
 
-			expression &argument = arguments.back();
+			// Parse the argument expression
+			if (!parse_expression_assignment(argument))
+				return false;
 
 			// Constructors are only defined for numeric base types
 			if (!argument.type.is_numeric())
@@ -805,8 +805,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (!arguments.empty() && !expect(','))
 					return false;
 
+				expression &argument = arguments.emplace_back();
+
 				// Parse the argument expression
-				if (!parse_expression_assignment(arguments.emplace_back()))
+				if (!parse_expression_assignment(argument))
 					return false;
 			}
 

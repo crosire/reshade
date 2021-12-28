@@ -192,13 +192,11 @@ private:
 			return;
 
 		spv::Id file;
+
 		if (const auto it = _string_lookup.find(loc.source);
 			it != _string_lookup.end())
-		{
 			file = it->second;
-		}
-		else
-		{
+		else {
 			add_instruction(spv::OpString, 0, _debug_a, file)
 				.add_string(loc.source.c_str());
 			_string_lookup.emplace(loc.source, file);
@@ -355,10 +353,14 @@ private:
 		if (!_enable_16bit_types && info.is_numeric() && info.precision() < 32)
 			info.base = static_cast<type::datatype>(info.base + 1); // min16int -> int, min16uint -> uint, min16float -> float
 
-		const type_lookup lookup = { info, is_ptr, array_stride, { storage, format } };
-		if (const auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
-			[&lookup](const auto &lookup_it) { return lookup_it.first == lookup; }); it != _type_lookup.end())
-			return it->second;
+		const type_lookup lookup { info, is_ptr, array_stride, { storage, format } };
+
+		{	const auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
+				[&lookup](const auto &lookup_it) {
+					return lookup_it.first == lookup; });
+			if (it != _type_lookup.end())
+				return it->second;
+		}
 
 		spv::Id type, elem_type;
 		if (is_ptr)
@@ -508,9 +510,12 @@ private:
 	}
 	spv::Id convert_type(const function_blocks &info)
 	{
-		if (auto it = std::find_if(_function_type_lookup.begin(), _function_type_lookup.end(),
-			[&info](const auto &lookup) { return lookup.first == info; }); it != _function_type_lookup.end())
-			return it->second;
+		{	const auto it = std::find_if(_function_type_lookup.begin(), _function_type_lookup.end(),
+				[&lookup = info](const auto &lookup_it) {
+					return lookup_it.first == lookup; });
+			if (it != _function_type_lookup.end())
+				return it->second;
+		}
 
 		auto return_type = convert_type(info.return_type);
 		assert(return_type != 0);
@@ -986,9 +991,12 @@ private:
 				'_' + std::to_string(num_threads[1]) +
 				'_' + std::to_string(num_threads[2]);
 
-		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
-			return;
+		{	const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+				[&func](const auto &ep) {
+					return ep.name == func.unique_name; });
+			if (it != _module.entry_points.end())
+				return;
+		}
 
 		_module.entry_points.push_back({ func.unique_name, stype });
 
@@ -1700,15 +1708,18 @@ private:
 	id   emit_constant(const type &type, const constant &data, bool spec_constant)
 	{
 		if (!spec_constant) // Specialization constants cannot reuse other constants
-			if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
-				if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
-					return false;
-				for (size_t i = 0; i < data.array_data.size(); ++i)
-					if (std::memcmp(&std::get<1>(x).array_data[i].as_uint[0], &data.array_data[i].as_uint[0], sizeof(uint32_t) * 16) != 0)
+		{
+			const auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(),
+				[&type, &data](auto &x) {
+					if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
 						return false;
-				return true;
-			}); it != _constant_lookup.end())
+					for (size_t i = 0; i < data.array_data.size(); ++i)
+						if (std::memcmp(&std::get<1>(x).array_data[i].as_uint[0], &data.array_data[i].as_uint[0], sizeof(uint32_t) * 16) != 0)
+							return false;
+					return true; });
+			if (it != _constant_lookup.end())
 				return std::get<2>(*it); // Re-use existing constant instead of duplicating the definition
+		}
 
 		spv::Id result;
 		if (type.is_array())

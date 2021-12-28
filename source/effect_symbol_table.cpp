@@ -7,6 +7,7 @@
 #include <cassert>
 #include <malloc.h> // alloca
 #include <algorithm> // std::upper_bound, std::sort
+#include <functional> // std::greater
 
 #pragma region Import intrinsic functions
 
@@ -24,7 +25,7 @@ struct intrinsic
 		function.return_type = ret_type;
 		function.parameter_list.reserve(arg_types.size());
 		for (const reshadefx::type &arg_type : arg_types)
-			function.parameter_list.push_back({ arg_type, {}, {}, {} });
+			function.parameter_list.push_back({ arg_type });
 	}
 
 	intrinsic_id id;

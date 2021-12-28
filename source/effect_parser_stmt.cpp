@@ -30,8 +30,11 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 	bool current_success = true;
 
 	while (!peek(tokenid::end_of_file))
-		if (parse_top(current_success); !current_success)
+	{
+		parse_top(current_success);
+		if (!current_success)
 			parse_success = false;
+	}
 
 	return parse_success;
 }
@@ -61,8 +64,11 @@ void reshadefx::parser::parse_top(bool &parse_success)
 
 		// Recursively parse top level statements until the namespace is closed again
 		while (!peek('}')) // Empty namespaces are valid
-			if (parse_top(current_success); !current_success)
+		{
+			parse_top(current_success);
+			if (!current_success)
 				parse_success_namespace = false;
+		}
 
 		leave_namespace();
 

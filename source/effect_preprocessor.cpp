@@ -76,25 +76,23 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 #endif
 
 	// Read file contents into memory
-	std::vector<char> file_mem(static_cast<size_t>(std::filesystem::file_size(path) + 1));
-	const size_t eof = fread(file_mem.data(), 1, file_mem.size() - 1, file);
+	std::string file_data(static_cast<size_t>(std::filesystem::file_size(path)), '\0');
+	const size_t eof = fread((char *)file_data.data(), 1, file_data.size(), file);
 
 	// Append a new line feed to the end of the input string to avoid issues with parsing
-	file_mem[eof] = '\n';
+	file_data[eof] = '\n';
 
 	// No longer need to have a handle open to the file, since all data was read, so can safely close it
 	fclose(file);
-
-	std::string_view file_data(file_mem.data(), file_mem.size());
 
 	// Remove BOM (0xefbbbf means 0xfeff)
 	if (file_data.size() >= 3 &&
 		static_cast<unsigned char>(file_data[0]) == 0xef &&
 		static_cast<unsigned char>(file_data[1]) == 0xbb &&
 		static_cast<unsigned char>(file_data[2]) == 0xbf)
-		file_data = std::string_view(file_data.data() + 3, file_data.size() - 3);
+		file_data.erase(0, 3);
 
-	data = file_data;
+	data = std::move(file_data);
 	return true;
 }
 

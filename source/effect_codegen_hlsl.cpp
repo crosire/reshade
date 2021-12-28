@@ -293,8 +293,10 @@ private:
 
 	std::string id_to_name(id id) const
 	{
-		if (const auto it = _names.find(id); it != _names.end())
-			return it->second;
+		assert(id != 0);
+		if (const auto names_it = _names.find(id);
+			names_it != _names.end())
+			return names_it->second;
 		return '_' + std::to_string(id);
 	}
 
@@ -428,7 +430,9 @@ private:
 		define_name<naming::unique>(info.id, info.unique_name);
 
 		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
-			[&info](const auto &it) { return it.unique_name == info.texture_name; });
+			[&info](const auto &it) {
+				return it.unique_name == info.texture_name;
+			});
 		assert(texture != _module.textures.end());
 
 		std::string &code = _blocks.at(_current_block);
@@ -437,7 +441,9 @@ private:
 		{
 			// Try and reuse a sampler binding with the same sampler description
 			const auto existing_sampler = std::find_if(_module.samplers.begin(), _module.samplers.end(),
-				[&info](const auto &it) { return it.filter == info.filter && it.address_u == info.address_u && it.address_v == info.address_v && it.address_w == info.address_w && it.min_lod == info.min_lod && it.max_lod == info.max_lod && it.lod_bias == info.lod_bias; });
+				[&info](const auto &it) {
+					return it.filter == info.filter && it.address_u == info.address_u && it.address_v == info.address_v && it.address_w == info.address_w && it.min_lod == info.min_lod && it.max_lod == info.max_lod && it.lod_bias == info.lod_bias;
+				});
 
 			if (existing_sampler != _module.samplers.end())
 			{
@@ -700,9 +706,13 @@ private:
 		else if (_shader_model < 40)
 			func.unique_name = 'E' + func.unique_name;
 
-		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
-			return;
+		{	const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+				[&func](const auto &ep) {
+					return ep.name == func.unique_name;
+				});
+			if (it != _module.entry_points.end())
+				return;
+		}
 
 		_module.entry_points.push_back({ func.unique_name, stype });
 
@@ -1399,7 +1409,9 @@ private:
 			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
 			bool use_break_statement_for_condition = (_shader_model < 40 && condition_name != "true") &&
 				std::find_if(_module.uniforms.begin(), _module.uniforms.end(),
-					[&](const uniform_info &info) { return condition_data.find(info.name) != std::string::npos || condition_name.find(info.name) != std::string::npos; }) != _module.uniforms.end();
+					[&](const uniform_info &info) {
+						return condition_data.find(info.name) != std::string::npos || condition_name.find(info.name) != std::string::npos;
+					}) != _module.uniforms.end();
 
 			// If the condition data is just a single line, then it is a simple expression, which we can just put into the loop condition as-is
 			if (!use_break_statement_for_condition && std::count(condition_data.begin(), condition_data.end(), '\n') == 1)

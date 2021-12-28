@@ -304,11 +304,14 @@ private:
 
 	std::string id_to_name(id id) const
 	{
-		if (const auto it = _remapped_sampler_variables.find(id); it != _remapped_sampler_variables.end())
+		if (const auto it = _remapped_sampler_variables.find(id);
+			it != _remapped_sampler_variables.end())
 			id = it->second;
+
 		assert(id != 0);
-		if (const auto it = _names.find(id); it != _names.end())
-			return it->second;
+		if (const auto names_it = _names.find(id);
+			names_it != _names.end())
+			return names_it->second;
 		return '_' + std::to_string(id);
 	}
 
@@ -725,9 +728,13 @@ private:
 				'_' + std::to_string(num_threads[1]) +
 				'_' + std::to_string(num_threads[2]);
 
-		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
-			return;
+		{	const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+				[&func](const auto &ep) {
+					return ep.name == func.unique_name;
+				});
+			if (it != _module.entry_points.end())
+				return;
+		}
 
 		_module.entry_points.push_back({ func.unique_name, stype });
 
