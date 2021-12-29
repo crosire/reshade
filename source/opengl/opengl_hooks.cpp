@@ -1553,7 +1553,7 @@ void APIENTRY glLinkProgram(GLuint program)
 				glGetShaderSource(shaders[i], size, nullptr, source.data());
 			}
 
-			reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::all_shader_stages };
+			reshade::api::pipeline_desc desc = {};
 			for (int i = 0; i < 16 && shaders[i] != GL_NONE; ++i)
 			{
 				GLint type = GL_NONE;
@@ -1563,27 +1563,29 @@ void APIENTRY glLinkProgram(GLuint program)
 				switch (type)
 				{
 				case GL_VERTEX_SHADER:
-					desc.type = reshade::api::pipeline_stage::vertex_shader;
+					desc.type |= reshade::api::pipeline_stage::vertex_shader;
 					shader_desc = &desc.graphics.vertex_shader;
 					break;
 				case GL_TESS_CONTROL_SHADER:
-					desc.type = reshade::api::pipeline_stage::hull_shader;
+					desc.type |= reshade::api::pipeline_stage::hull_shader;
 					shader_desc = &desc.graphics.hull_shader;
 					break;
 				case GL_TESS_EVALUATION_SHADER:
-					desc.type = reshade::api::pipeline_stage::domain_shader;
+					desc.type |= reshade::api::pipeline_stage::domain_shader;
 					shader_desc = &desc.graphics.domain_shader;
 					break;
 				case GL_GEOMETRY_SHADER:
-					desc.type = reshade::api::pipeline_stage::geometry_shader;
+					desc.type |= reshade::api::pipeline_stage::geometry_shader;
 					shader_desc = &desc.graphics.geometry_shader;
 					break;
 				case GL_FRAGMENT_SHADER:
-					desc.type = reshade::api::pipeline_stage::pixel_shader;
+					desc.type |= reshade::api::pipeline_stage::pixel_shader;
 					shader_desc = &desc.graphics.pixel_shader;
 					break;
 				case GL_COMPUTE_SHADER:
-					desc.type = reshade::api::pipeline_stage::compute_shader;
+					// Can't mix compute and graphics shaders in a single pipeline
+					assert((desc.type & (reshade::api::pipeline_stage::all_shader_stages ^ reshade::api::pipeline_stage::compute_shader)) == 0);
+					desc.type |= reshade::api::pipeline_stage::compute_shader;
 					shader_desc = &desc.compute.shader;
 					break;
 				default:
