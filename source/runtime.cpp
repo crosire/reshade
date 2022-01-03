@@ -18,7 +18,7 @@
 #include <set>
 #include <thread>
 #include <algorithm>
-#include <cstring> // _wcsnicmp
+#include <cstring>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
