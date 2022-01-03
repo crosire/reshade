@@ -82,6 +82,7 @@ namespace reshade
 		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
 		/// </summary>
 		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(get_back_buffer_resolved(get_current_back_buffer_index()), api::resource_usage::present, pixels); }
+		int execute_screenshot_postprocess(const std::filesystem::path &screenshot_path);
 
 		/// <summary>
 		/// Gets the current buffer dimensions of the swap chain as used with effect rendering.
@@ -403,6 +404,10 @@ namespace reshade
 		unsigned int _screenshot_jpeg_quality = 90;
 		unsigned int _screenshot_key_data[4] = {};
 		std::filesystem::path _screenshot_path;
+		std::filesystem::path _postprocess_application;
+		std::string _postprocess_arguments;
+		std::filesystem::path _postprocess_working_directory;
+		bool _postprocess_show_window;
 
 		bool _should_save_screenshot = false;
 		bool _screenshot_save_success = true;

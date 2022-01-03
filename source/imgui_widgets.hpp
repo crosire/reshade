@@ -54,10 +54,12 @@ namespace reshade::imgui
 	/// Adds a file selection widget which has both a text input box for the path and a button to open a file selection dialog.
 	/// </summary>
 	bool file_input_box(const char *label, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts);
+	bool file_input_box(const char* label, const char *hint, std::filesystem::path& path, std::filesystem::path& dialog_path, const std::vector<std::wstring>& exts);
 	/// <summary>
 	/// Adds a direction selection widget which has both a text input box for the path and a button to open a direction selection dialog.
 	/// </summary>
 	bool directory_input_box(const char *label, std::filesystem::path &path, std::filesystem::path &dialog_path);
+	bool directory_input_box(const char* label, const char *hint, std::filesystem::path& path, std::filesystem::path& dialog_path);
 
 	/// <summary>
 	/// Adds a widget which shows a vertical list of radio buttons plus a label to the right.

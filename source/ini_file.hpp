@@ -9,6 +9,7 @@
 #include <vector>
 #include <filesystem>
 #include <unordered_map>
+#include <utf8/unchecked.h>
 
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_reshade_base_path;
@@ -272,6 +273,23 @@ private:
 	static const std::filesystem::path convert(const std::vector<std::string> &values, size_t i)
 	{
 		return i < values.size() ? std::filesystem::u8path(values[i]) : std::filesystem::path();
+	}
+	template <>
+	static const std::wstring convert(const std::vector<std::string>& values, size_t i)
+	{
+		if (i < values.size())
+		{
+			std::wstring ret;
+			ret.reserve(values[i].size());
+
+			utf8::unchecked::utf8to16(values[i].data(), values[i].data() + values[i].size(), std::back_inserter(ret));
+
+			return ret;
+		}
+		else
+		{
+			return std::wstring();
+		}
 	}
 
 	/// <summary>

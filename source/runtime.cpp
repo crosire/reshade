@@ -18,6 +18,7 @@
 #include <set>
 #include <thread>
 #include <algorithm>
+#include <cstring> // _wcsnicmp
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
@@ -561,6 +562,10 @@ void reshade::runtime::load_config()
 	config.get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
 	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
+	config.get("SCREENSHOT", "PostProcessApplication", _postprocess_application);
+	config.get("SCREENSHOT", "PostProcessArguments", _postprocess_arguments);
+	config.get("SCREENSHOT", "PostProcessWorkingDirectory", _postprocess_working_directory);
+	config.get("SCREENSHOT", "PostProcessShowWindow", _postprocess_show_window);
 
 #if RESHADE_GUI
 	load_config_gui(config);
@@ -609,6 +614,10 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
+	config.set("SCREENSHOT", "PostProcessApplication", _postprocess_application);
+	config.set("SCREENSHOT", "PostProcessArguments", _postprocess_arguments);
+	config.set("SCREENSHOT", "PostProcessWorkingDirectory", _postprocess_working_directory);
+	config.set("SCREENSHOT", "PostProcessShowWindow", _postprocess_show_window);
 
 #if RESHADE_GUI
 	save_config_gui(config);
@@ -3337,6 +3346,7 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 			}
 
 			fclose(file);
+			execute_screenshot_postprocess(screenshot_path);
 		}
 	}
 
@@ -3354,6 +3364,212 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
 	}
 #endif
+}
+int reshade::runtime::execute_screenshot_postprocess(const std::filesystem::path &screenshot_path)
+{
+	int ec = 0;
+
+	if (_postprocess_application.empty())
+	{
+		ec = -1;
+		return ec;
+	}
+
+	if (_postprocess_application.extension() != L".exe" || !std::filesystem::is_regular_file(g_reshade_base_path / _postprocess_application))
+	{
+		LOG(ERROR) << "Executing the post-process program was blocked. Application path must be executable.";
+		ec = 1;
+		return ec;
+	}
+
+	std::string command_line;
+	command_line.append(1, '\"');
+	command_line.append((g_reshade_base_path / _postprocess_application).u8string());
+	command_line.append(1, '\"');
+
+	if (!_postprocess_arguments.empty())
+	{
+		command_line.append(1, ' ');
+
+		for (size_t cursor = 0; cursor < _postprocess_arguments.size();)
+		{
+			size_t brace_begin = _postprocess_arguments.find('<', cursor);
+			size_t brace_end = _postprocess_arguments.find('>', cursor + 1);
+
+			if (brace_begin == std::string::npos || brace_end == std::string::npos)
+			{
+				command_line.append(_postprocess_arguments.substr(cursor));
+				break;
+			}
+			else
+			{
+				command_line.append(_postprocess_arguments.substr(cursor, brace_begin - cursor));
+			}
+
+			std::string_view replacing = ((std::string_view)_postprocess_arguments).substr(brace_begin + 1, brace_end - (brace_begin + 1));
+			size_t colon_pos = replacing.find(":");
+
+			std::string name;
+			if (colon_pos == std::string::npos)
+				name = replacing;
+			else
+				name = replacing.substr(0, colon_pos);
+
+			static const auto stringicmp = [](const std::string_view& a, const std::string_view& b) {
+#ifdef _WIN32
+				return a.size() == b.size() && _strnicmp(a.data(), b.data(), a.size()) == 0;
+#else
+				return a.size() == b.size() && std::equal(a.cbegin(), a.cend(), b.cbegin(), b.cend(), [](std::string::value_type a, std::string::value_type b) { return tolower(a) == tolower(b); });
+#endif
+			};
+
+			std::string value;
+			if (stringicmp(name, "TargetScreenshotPath") || stringicmp(name, "PATH") || stringicmp(name, "TARGET"))
+			{
+				value = screenshot_path.u8string();
+			}
+			else if (stringicmp(name, "TargetScreenshotDir") || stringicmp(name, "DIR"))
+			{
+				value = screenshot_path.parent_path().u8string();
+			}
+			else if (stringicmp(name, "TargetScreenshotFileName") || stringicmp(name, "FILENAME"))
+			{
+				value = screenshot_path.filename().u8string();
+			}
+			else if (stringicmp(name, "TargetScreenshotFileNameWithoutExtension") || stringicmp(name, "STEM"))
+			{
+				value = screenshot_path.stem().u8string();
+			}
+
+			std::string parameter;
+			if (colon_pos == std::string::npos)
+			{
+				parameter = value;
+			}
+			else
+			{
+				parameter = replacing.substr(colon_pos + 1);
+				size_t insert_pos = parameter.find('$');
+
+				if (insert_pos != std::string::npos)
+					parameter = parameter.substr(0, insert_pos) + value + parameter.substr(insert_pos + 1);
+			}
+
+			command_line.append(parameter);
+			cursor = brace_end + 1;
+		}
+	}
+
+	std::wstring command_line_utf15;
+	utf8::unchecked::utf8to16(command_line.cbegin(), command_line.cend(), std::back_inserter(command_line_utf15));
+
+	std::wstring working_directory;
+	if (_postprocess_working_directory.empty() || !std::filesystem::is_directory(_postprocess_working_directory))
+		working_directory = g_reshade_base_path;
+	else
+		working_directory = _postprocess_working_directory;
+
+	DWORD process_creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP;
+	STARTUPINFO si = { 0 };
+	si.cb = sizeof(STARTUPINFO);
+
+	if (!_postprocess_show_window)
+	{
+		process_creation_flags |= CREATE_NO_WINDOW;
+
+		si.dwFlags |= STARTF_USESHOWWINDOW;
+		si.wShowWindow = SW_HIDE;
+	}
+
+	PROCESS_INFORMATION pi = { 0 };
+	if (HANDLE process_token_handle = nullptr;
+		!ec && (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &process_token_handle) != FALSE))
+	{
+		DWORD dwLength;
+		GetTokenInformation(process_token_handle, TOKEN_INFORMATION_CLASS::TokenPrivileges,  nullptr, 0, &dwLength);
+
+		PTOKEN_PRIVILEGES previous_state = (PTOKEN_PRIVILEGES)calloc(1, dwLength);
+		PTOKEN_PRIVILEGES new_state = (PTOKEN_PRIVILEGES)calloc(1, dwLength);
+		new_state->PrivilegeCount = 1;
+		new_state->Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+		if (LookupPrivilegeValueW(nullptr, SE_INCREASE_QUOTA_NAME, &new_state->Privileges[0].Luid) != FALSE
+		 && AdjustTokenPrivileges(process_token_handle, FALSE, new_state, dwLength, previous_state, &dwLength) != FALSE
+		 && GetLastError() != ERROR_NOT_ALL_ASSIGNED)
+		{
+			// Current process is elevated
+
+			HWND shell_window_handle = GetShellWindow();
+			if (!ec && (shell_window_handle == nullptr))
+			{
+				LOG(ERROR) << "Failed to execute post-process program, Application-user must have desktop shell.";
+				ec = 2;
+			}
+
+			DWORD shell_process_id = 0;
+			GetWindowThreadProcessId(shell_window_handle, &shell_process_id);
+
+			HANDLE shell_process_handle = nullptr;
+			if (!ec && (shell_process_id == 0 || (shell_process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, shell_process_id)) == nullptr))
+			{
+				LOG(ERROR) << "Failed to execute post-process program, Application-user must have desktop shell, error code " << GetLastError() << '.';
+				ec = 3;
+			}
+
+			HANDLE desktop_token_handle = nullptr;
+			if (!ec && (OpenProcessToken(shell_process_handle, TOKEN_DUPLICATE, &desktop_token_handle) == FALSE))
+			{
+				LOG(ERROR) << "Failed to execute post-process program, Application-user must have desktop shell, error code " << GetLastError() << '.';
+				ec = 4;
+			}
+
+			HANDLE duplicated_token_handle = nullptr;
+			if (!ec && (DuplicateTokenEx(desktop_token_handle, TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityImpersonation, TOKEN_TYPE::TokenPrimary, &duplicated_token_handle) == FALSE))
+			{
+				LOG(ERROR) << "Failed to execute post-process program, Application-user must have desktop shell, error code " << GetLastError() << '.';
+				ec = 5;
+			}
+
+			if (CreateProcessWithTokenW(duplicated_token_handle, 0, nullptr, command_line_utf15.data(), process_creation_flags, nullptr, working_directory.data(), &si, &pi) == FALSE)
+			{
+				LOG(ERROR) << "Failed to execute post-process program, Application-user must have desktop shell, error code " << GetLastError() << '.';
+				ec = 6;
+			}
+
+			if (duplicated_token_handle)
+				CloseHandle(duplicated_token_handle);
+
+			if (desktop_token_handle)
+				CloseHandle(desktop_token_handle);
+
+			if (shell_process_handle)
+				CloseHandle(shell_process_handle);
+		}
+		else
+		{
+			// Current process is not elevated
+
+			if (CreateProcessW(nullptr, command_line_utf15.data(), nullptr, nullptr, FALSE, process_creation_flags, nullptr, working_directory.data(), &si, &pi) == FALSE)
+			{
+				LOG(ERROR) << "Failed to execute post-process program, Application-user must have desktop shell, error code " << GetLastError() << '.';
+				ec = 7;
+			}
+		}
+
+		if (previous_state->PrivilegeCount > 0)
+			AdjustTokenPrivileges(process_token_handle, FALSE, previous_state, 0, nullptr, nullptr);
+
+		if (process_token_handle)
+			CloseHandle(process_token_handle);
+
+		if (previous_state)
+			free(previous_state);
+
+		if (new_state)
+			free(new_state);
+	}
+
+	return ec;
 }
 
 bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)

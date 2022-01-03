@@ -1394,6 +1394,9 @@ void reshade::runtime::draw_gui_home()
 #endif
 void reshade::runtime::draw_gui_settings()
 {
+	char path_buffer[260];
+	size_t copy_size = 0;
+
 	bool modified = false;
 	bool modified_custom_style = false;
 
@@ -1466,6 +1469,20 @@ void reshade::runtime::draw_gui_settings()
 #endif
 		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
 		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshot_save_gui);
+		modified |= imgui::file_input_box("Post process application path", _postprocess_application, _postprocess_application, {L".exe"});
+
+		copy_size = _postprocess_arguments.copy(path_buffer, sizeof(path_buffer) - 1);
+		path_buffer[copy_size] = '\0';
+
+		modified |= ImGui::InputText("Post process arguments", path_buffer, sizeof(path_buffer), ImGuiInputTextFlags_None);
+		if (modified)
+		{
+			_postprocess_arguments.clear();
+			_postprocess_arguments.append(path_buffer);
+		}
+
+		modified |= imgui::directory_input_box("Post process working directory", g_reshade_base_path.u8string().c_str(), _postprocess_working_directory, _postprocess_working_directory);
+		modified |= ImGui::Checkbox("Show post process window", &_postprocess_show_window);
 	}
 
 	if (ImGui::CollapsingHeader("Overlay & Styling", ImGuiTreeNodeFlags_DefaultOpen))
