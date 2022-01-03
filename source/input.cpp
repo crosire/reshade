@@ -23,7 +23,7 @@ reshade::input::input(window_handle window)
 #if RESHADE_UWP
 static bool is_uwp_app()
 {
-	const auto GetCurrentPackageFullName = reinterpret_cast<LONG(WINAPI*)(UINT32*, PWSTR)>(
+	const auto GetCurrentPackageFullName = reinterpret_cast<LONG(WINAPI *)(UINT32 *, PWSTR)>(
 		GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetCurrentPackageFullName"));
 	if (GetCurrentPackageFullName == nullptr)
 		return false;

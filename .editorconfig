@@ -15,7 +15,7 @@ trim_trailing_whitespace = true
 [*.{c,cpp,h,hpp,inl}]
 cpp_generate_documentation_comments = xml
 cpp_indent_braces = false
-cpp_indent_multi_line_relative_to = innermost_parenthesis
+cpp_indent_multi_line_relative_to = statement_begin
 cpp_indent_within_parentheses = indent
 cpp_indent_preserve_within_parentheses = true
 cpp_indent_case_contents = true
@@ -69,6 +69,6 @@ cpp_space_after_semicolon = true
 cpp_space_remove_around_unary_operator = true
 cpp_space_around_binary_operator = insert
 cpp_space_around_assignment_operator = insert
-cpp_space_pointer_reference_alignment = left
+cpp_space_pointer_reference_alignment = right
 cpp_space_around_ternary_operator = insert
 cpp_wrap_preserve_blocks = one_liners
