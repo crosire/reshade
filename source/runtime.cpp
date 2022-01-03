@@ -3460,8 +3460,8 @@ int reshade::runtime::execute_screenshot_postprocess(const std::filesystem::path
 		}
 	}
 
-	std::wstring command_line_utf15;
-	utf8::unchecked::utf8to16(command_line.cbegin(), command_line.cend(), std::back_inserter(command_line_utf15));
+	std::wstring command_line_wide;
+	utf8::unchecked::utf8to16(command_line.cbegin(), command_line.cend(), std::back_inserter(command_line_wide));
 
 	std::wstring working_directory;
 	if (_postprocess_working_directory.empty() || !std::filesystem::is_directory(_postprocess_working_directory))
@@ -3530,7 +3530,7 @@ int reshade::runtime::execute_screenshot_postprocess(const std::filesystem::path
 				ec = 5;
 			}
 
-			if (CreateProcessWithTokenW(duplicated_token_handle, 0, nullptr, command_line_utf15.data(), process_creation_flags, nullptr, working_directory.data(), &si, &pi) == FALSE)
+			if (CreateProcessWithTokenW(duplicated_token_handle, 0, nullptr, command_line_wide.data(), process_creation_flags, nullptr, working_directory.data(), &si, &pi) == FALSE)
 			{
 				LOG(ERROR) << "Failed to execute post-process program, Application-user must have desktop shell, error code " << GetLastError() << '.';
 				ec = 6;
@@ -3549,7 +3549,7 @@ int reshade::runtime::execute_screenshot_postprocess(const std::filesystem::path
 		{
 			// Current process is not elevated
 
-			if (CreateProcessW(nullptr, command_line_utf15.data(), nullptr, nullptr, FALSE, process_creation_flags, nullptr, working_directory.data(), &si, &pi) == FALSE)
+			if (CreateProcessW(nullptr, command_line_wide.data(), nullptr, nullptr, FALSE, process_creation_flags, nullptr, working_directory.data(), &si, &pi) == FALSE)
 			{
 				LOG(ERROR) << "Failed to execute post-process program, Application-user must have desktop shell, error code " << GetLastError() << '.';
 				ec = 7;
