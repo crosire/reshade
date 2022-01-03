@@ -410,6 +410,95 @@ IMPLEMENT_INTRINSIC_SPIRV(asfloat, 1, {
 		.result;
 	})
 
+// ret firstbitlow
+DEFINE_INTRINSIC(firstbitlow, 0, uint, uint)
+DEFINE_INTRINSIC(firstbitlow, 0, uint2, uint2)
+DEFINE_INTRINSIC(firstbitlow, 0, uint3, uint3)
+DEFINE_INTRINSIC(firstbitlow, 0, uint4, uint4)
+IMPLEMENT_INTRINSIC_GLSL(firstbitlow, 0, {
+	code += "findLSB(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(firstbitlow, 0, {
+	code += "firstbitlow(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(firstbitlow, 0, {
+	return add_instruction(spv::OpExtInst, convert_type(res_type))
+		.add(_glsl_ext)
+		.add(spv::GLSLstd450FindILsb)
+		.add(args[0].base)
+		.result;
+	})
+
+// ret firstbithigh
+DEFINE_INTRINSIC(firstbithigh, 0, int, int)
+DEFINE_INTRINSIC(firstbithigh, 0, int2, int2)
+DEFINE_INTRINSIC(firstbithigh, 0, int3, int3)
+DEFINE_INTRINSIC(firstbithigh, 0, int4, int4)
+DEFINE_INTRINSIC(firstbithigh, 1, uint, uint)
+DEFINE_INTRINSIC(firstbithigh, 1, uint2, uint2)
+DEFINE_INTRINSIC(firstbithigh, 1, uint3, uint3)
+DEFINE_INTRINSIC(firstbithigh, 1, uint4, uint4)
+IMPLEMENT_INTRINSIC_GLSL(firstbithigh, 0, {
+	code += "findMSB(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_GLSL(firstbithigh, 1, {
+	code += "findMSB(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(firstbithigh, 0, {
+	code += "firstbithigh(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(firstbithigh, 1, {
+	code += "firstbithigh(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(firstbithigh, 0, {
+	return add_instruction(spv::OpExtInst, convert_type(res_type))
+		.add(_glsl_ext)
+		.add(spv::GLSLstd450FindSMsb)
+		.add(args[0].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(firstbithigh, 1, {
+	return add_instruction(spv::OpExtInst, convert_type(res_type))
+		.add(_glsl_ext)
+		.add(spv::GLSLstd450FindUMsb)
+		.add(args[0].base)
+		.result;
+	})
+
+// ret countbits
+DEFINE_INTRINSIC(countbits, 0, uint, uint)
+DEFINE_INTRINSIC(countbits, 0, uint2, uint2)
+DEFINE_INTRINSIC(countbits, 0, uint3, uint3)
+DEFINE_INTRINSIC(countbits, 0, uint4, uint4)
+IMPLEMENT_INTRINSIC_GLSL(countbits, 0, {
+	code += "bitCount(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(countbits, 0, {
+	code += "countbits(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(countbits, 0, {
+	return add_instruction(spv::OpBitCount, convert_type(res_type))
+		.add(args[0].base)
+		.result;
+	})
+
+// ret reversebits
+DEFINE_INTRINSIC(reversebits, 0, uint, uint)
+DEFINE_INTRINSIC(reversebits, 0, uint2, uint2)
+DEFINE_INTRINSIC(reversebits, 0, uint3, uint3)
+DEFINE_INTRINSIC(reversebits, 0, uint4, uint4)
+IMPLEMENT_INTRINSIC_GLSL(reversebits, 0, {
+	code += "bitfieldReverse(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(reversebits, 0, {
+	code += "reversebits(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(reversebits, 0, {
+	return add_instruction(spv::OpBitReverse, convert_type(res_type))
+		.add(args[0].base)
+		.result;
+	})
+
 // ret ceil(x)
 DEFINE_INTRINSIC(ceil, 0, float, float)
 DEFINE_INTRINSIC(ceil, 0, float2, float2)
