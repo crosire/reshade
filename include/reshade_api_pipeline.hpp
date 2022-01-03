@@ -44,9 +44,9 @@ namespace reshade { namespace api
 		output_merger = 0x400,
 		depth_stencil = 0x200,
 
-		all = 0x10000,
+		all = 0x7FFFFFFF,
 		all_compute = compute_shader,
-		all_graphics = 0x8000,
+		all_graphics = 0x7FF,
 		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
@@ -590,7 +590,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Type of the pipeline state object.
 		/// </summary>
-		pipeline_stage type = pipeline_stage::all_graphics;
+		pipeline_stage type = static_cast<pipeline_stage>(0);
 		/// <summary>
 		/// Descriptor set and constant layout of the pipeline.
 		/// </summary>

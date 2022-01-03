@@ -40,17 +40,17 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, co
 	const device_api device_type = device->get_api();
 
 	// Go through all shader stages that are in this pipeline and dump the associated shader code
-	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::vertex_shader) == pipeline_stage::vertex_shader)
+	if ((desc.type & pipeline_stage::vertex_shader) != 0)
 		dump_shader_code(device_type, pipeline_stage::vertex_shader, desc.graphics.vertex_shader);
-	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::hull_shader) == pipeline_stage::hull_shader)
+	if ((desc.type & pipeline_stage::hull_shader) != 0)
 		dump_shader_code(device_type, pipeline_stage::hull_shader, desc.graphics.hull_shader);
-	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::domain_shader) == pipeline_stage::domain_shader)
+	if ((desc.type & pipeline_stage::domain_shader) != 0)
 		dump_shader_code(device_type, pipeline_stage::domain_shader, desc.graphics.domain_shader);
-	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::geometry_shader) == pipeline_stage::geometry_shader)
+	if ((desc.type & pipeline_stage::geometry_shader) != 0)
 		dump_shader_code(device_type, pipeline_stage::geometry_shader, desc.graphics.geometry_shader);
-	if (desc.type == pipeline_stage::all_graphics || (desc.type & pipeline_stage::pixel_shader) == pipeline_stage::pixel_shader)
+	if ((desc.type & pipeline_stage::pixel_shader) != 0)
 		dump_shader_code(device_type, pipeline_stage::pixel_shader, desc.graphics.pixel_shader);
-	if ((desc.type & pipeline_stage::compute_shader) == pipeline_stage::compute_shader)
+	if ((desc.type & pipeline_stage::compute_shader) != 0)
 		dump_shader_code(device_type, pipeline_stage::compute_shader, desc.compute.shader);
 
 	return false;
