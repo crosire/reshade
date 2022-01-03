@@ -300,7 +300,7 @@ bool reshade::imgui::search_input_box(char *filter, int filter_size, float width
 	return res;
 }
 
-bool reshade::imgui::file_input_box(const char* name, std::filesystem::path& path, std::filesystem::path& dialog_path, const std::vector<std::wstring>& exts)
+bool reshade::imgui::file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
 {
 	return file_input_box(name, nullptr, path, dialog_path, exts);
 }
@@ -349,7 +349,7 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 
 	return res;
 }
-bool reshade::imgui::directory_input_box(const char* name, std::filesystem::path& path, std::filesystem::path& dialog_path)
+bool reshade::imgui::directory_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path)
 {
 	return directory_input_box(name, nullptr, path, dialog_path);
 }
