@@ -294,6 +294,8 @@ namespace reshade
 		void render_technique(api::command_list *cmd_list, technique &technique, api::resource_view rtv, api::resource_view rtv_srgb);
 
 		void save_texture(const texture &texture);
+		
+		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path);
 
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
 		template <typename T>
@@ -403,6 +405,10 @@ namespace reshade
 		unsigned int _screenshot_jpeg_quality = 90;
 		unsigned int _screenshot_key_data[4] = {};
 		std::filesystem::path _screenshot_path;
+		std::filesystem::path _screenshot_post_save_command;
+		std::string _screenshot_post_save_command_arguments;
+		std::filesystem::path _screenshot_post_save_command_working_directory;
+		bool _screenshot_post_save_command_show_window;
 
 		bool _should_save_screenshot = false;
 		bool _screenshot_save_success = true;
