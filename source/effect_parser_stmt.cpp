@@ -1744,7 +1744,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			const unsigned int value = expression.constant.as_uint[0];
 
 #define SET_STATE_VALUE_INDEXED(name, info_name, value) \
-	else if (constexpr size_t name##_len = sizeof(#name) - 1; state.compare(0, name##_len, #name) == 0 && (state.size() == name##_len || (state[name##_len] >= '0' && state[name##_len] < ('0' + std::size(info.info_name))))) \
+	else if (constexpr size_t name##_len = sizeof(#name) - 1; state.compare(0, name##_len, #name) == 0 && (state.size() == name##_len || (state[name##_len] >= '0' && state[name##_len] < ('0' + static_cast<char>(std::size(info.info_name)))))) \
 	{ \
 		if (state.size() != name##_len) \
 			info.info_name[state[name##_len] - '0'] = (value); \
