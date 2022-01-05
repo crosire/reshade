@@ -37,6 +37,7 @@ namespace reshade
 	template <addon_event ev, typename... Args>
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
 	{
+#if RESHADE_ADDON_LOAD == 0
 		// Allow a subset of events even when add-ons are disabled, to ensure they continue working correctly
 		if constexpr (
 			ev != addon_event::init_device &&
@@ -63,6 +64,7 @@ namespace reshade
 			ev != addon_event::destroy_query_pool)
 		if (!addon::enabled)
 			return;
+#endif
 		std::vector<void *> &event_list = addon::event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
 			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
@@ -73,8 +75,10 @@ namespace reshade
 	template <addon_event ev, typename... Args>
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
+#if RESHADE_ADDON_LOAD == 0
 		if (!addon::enabled)
 			return false;
+#endif
 		std::vector<void *> &event_list = addon::event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 			if (reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))

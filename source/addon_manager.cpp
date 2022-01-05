@@ -106,7 +106,9 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 }
 #endif
 
+#if RESHADE_ADDON_LOAD == 0
 bool reshade::addon::enabled = true;
+#endif
 std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 static unsigned long s_reference_count = 0;

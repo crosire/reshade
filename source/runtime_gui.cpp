@@ -854,7 +854,9 @@ void reshade::runtime::draw_gui()
 		}
 
 #if RESHADE_ADDON
+#if RESHADE_ADDON_LOAD == 0
 		if (addon::enabled)
+#endif
 		{
 			for (const auto &info : addon::loaded_info)
 			{
@@ -2171,11 +2173,13 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 #if RESHADE_ADDON
 void reshade::runtime::draw_gui_addons()
 {
+#if RESHADE_ADDON_LOAD == 0
 	if (!addon::enabled)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
 		return;
 	}
+#endif
 
 	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
 

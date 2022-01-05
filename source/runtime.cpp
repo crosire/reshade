@@ -479,7 +479,7 @@ void reshade::runtime::on_present()
 	if (!ini_file::flush_cache())
 		_preset_save_success = false;
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON_LOAD == 0
 	// Detect high network traffic
 	extern volatile long g_network_traffic;
 
