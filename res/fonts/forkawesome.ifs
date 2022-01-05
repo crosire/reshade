@@ -17,22 +17,44 @@
 				<glyph orgId="61717" newId="61717" orgName="folder-open-o" newName="folder-open"/>
 				<glyph orgId="61893" newId="61893" orgName="file-image-o" newName="file-image"/>
 				<glyph orgId="61897" newId="61897" orgName="file-code-o" newName="file-code"/>
+				<glyph orgId="61914" newId="61914" orgName="history" newName="history"/>
 			</glyphs>
 			<prefix>FK</prefix>
+			<genmodeflags>793</genmodeflags>
 			<pathfilename>forkawesome-webfont.ttf</pathfilename>
 			<oversample>1</oversample>
-			<fontsize>32</fontsize>
+			<fontsize>14</fontsize>
+			<generatedfilename>forkawesome</generatedfilename>
+			<cardglyhpheight>40</cardglyhpheight>
+			<cardcountrowsmax>20</cardcountrowsmax>
+			<rasterizer>1</rasterizer>
+			<freetypeflag>259</freetypeflag>
+			<freetypemultiply>1.33333</freetypemultiply>
+			<padding>1</padding>
+			<filtering>9729</filtering>
+			<enabled>true</enabled>
+			<collapsed>false</collapsed>
 		</font>
 		<rangecoloring show="false" hash="10;15;35;0.5"/>
-		<previewcountglyph_x>20</previewcountglyph_x>
+		<previewglyphcount>20</previewglyphcount>
+		<previewglyphwidth>50</previewglyphwidth>
 		<mergedfontprefix></mergedfontprefix>
+		<mergedcardglyhpheight>40</mergedcardglyhpheight>
+		<mergedcardcountrowsmax>20</mergedcardcountrowsmax>
 		<curglyphtooltip>true</curglyphtooltip>
 		<srcglyphtooltip>true</srcglyphtooltip>
 		<dstglyphtooltip>true</dstglyphtooltip>
 		<glyphpreviewscale>1</glyphpreviewscale>
-		<glyphpreviewshowcontrollines>false</glyphpreviewshowcontrollines>
+		<glyphdrawingflags>1535</glyphdrawingflags>
 		<glyphpreviewquadbeziercounsegment>5</glyphpreviewquadbeziercounsegment>
-		<genmode>653</genmode>
+		<glyphpreviewzoomprecision>20</glyphpreviewzoomprecision>
+		<genmodeflags>793</genmodeflags>
 		<fonttomergein>forkawesome-webfont.ttf</fonttomergein>
+		<glyphdisplaytuningmode>1</glyphdisplaytuningmode>
+		<sourcefontpaneflags>1</sourcefontpaneflags>
+		<zoomglyphs>false</zoomglyphs>
+		<showbaseline>false</showbaseline>
+		<showadvancex>false</showadvancex>
+		<glyphdrawingflags>1535</glyphdrawingflags>
 	</project>
 </config>

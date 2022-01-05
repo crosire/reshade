@@ -905,6 +905,33 @@ void reshade::runtime::draw_gui()
 			ImGui::End();
 		}
 #endif
+
+#if RESHADE_EFFECTS
+		if (_show_edit_history)
+		{
+			if (ImGui::Begin("History", &_show_edit_history, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysVerticalScrollbar))
+			{
+				if (ImGui::IsWindowAppearing())
+				{
+					ImVec2 size = ImMax(ImGui::GetWindowSize(), ImVec2(260.0f, 160.0f));
+					ImGui::SetWindowSize(size);
+
+					ImGuiWindow *home_window = ImGui::FindWindowByName("Home");
+					if (home_window->Pos.x < _width / 2)
+					{
+						ImVec2 pos = ImVec2(ImMin(_width - size.x, home_window->Pos.x + home_window->Size.x + _imgui_context->Style.WindowPadding.x), _imgui_context->Style.WindowPadding.y);
+						ImGui::SetWindowPos(pos);
+					}
+					else
+					{
+						ImGui::SetWindowPos(_imgui_context->Style.WindowPadding);
+					}
+				}
+				draw_edit_history();
+			}
+			ImGui::End();
+		}
+#endif
 	}
 
 #if RESHADE_EFFECTS
@@ -982,6 +1009,9 @@ void reshade::runtime::draw_gui()
 #if RESHADE_EFFECTS
 void reshade::runtime::draw_gui_home()
 {
+	const float button_size = ImGui::GetFrameHeight();
+	const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
+
 	const char *tutorial_text =
 		"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
 		"If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
@@ -1007,13 +1037,12 @@ void reshade::runtime::draw_gui_home()
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
 		}
 
-		const float button_size = ImGui::GetFrameHeight();
-		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-		const float browse_button_width = ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size) * 4;
+		const float browse_button_width = ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size) * 5;
+		const bool is_loading_style = is_loading();
 
 		bool reload_preset = false;
 
-		if (is_loading())
+		if (is_loading_style)
 		{
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
@@ -1026,6 +1055,17 @@ void reshade::runtime::draw_gui_home()
 		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), false))
 				reload_preset = true;
+
+		ImGui::SameLine(0, button_spacing);
+		if (ImGui::Button(ICON_FK_REFRESH, ImVec2(button_size, 0)))
+		{
+			load_config(); // Reload configuration too
+
+			if (!_no_effect_cache && (_imgui_context->IO.KeyCtrl || _imgui_context->IO.KeyShift))
+				clear_effect_cache();
+
+			reload_effects();
+		}
 
 		ImGui::SameLine(0, button_spacing);
 		const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
@@ -1058,7 +1098,7 @@ void reshade::runtime::draw_gui_home()
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Add a new preset");
 
-		if (is_loading())
+		if (is_loading_style)
 		{
 			ImGui::PopStyleColor();
 			ImGui::PopItemFlag();
@@ -1327,20 +1367,10 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 3)
 	{
-		ImGui::Spacing();
+		if (ImGui::Button(_show_edit_history ? (ICON_FK_HISTORY " Hide edit history") : (ICON_FK_HISTORY " Show edit history"), ImVec2(-10.8f * _font_size, 0)))
+			_show_edit_history = !_show_edit_history;
 
-		if (ImGui::Button(ICON_FK_REFRESH " Reload", ImVec2(-11.5f * _font_size, 0)))
-		{
-			load_config(); // Reload configuration too
-
-			if (!_no_effect_cache && (_imgui_context->IO.KeyCtrl || _imgui_context->IO.KeyShift))
-				clear_effect_cache();
-
-			reload_effects();
-		}
-
-		ImGui::SameLine();
-
+		ImGui::SameLine(0, button_spacing);
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
 			save_config();
@@ -2267,6 +2297,13 @@ void reshade::runtime::draw_gui_addons()
 #if RESHADE_EFFECTS
 void reshade::runtime::draw_variable_editor()
 {
+	union value
+	{
+		bool as_bool;
+		float as_float[16];
+		int32_t as_int[16];
+	};
+
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
 	if (imgui::popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvail().x, ImGuiWindowFlags_NoMove))
@@ -2468,8 +2505,60 @@ void reshade::runtime::draw_variable_editor()
 			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 			{
 				// Reset all uniform variables
-				for (uniform &variable_it : effect.uniforms)
+				for (size_t variable_index = 0; effect.uniforms.size() > variable_index; variable_index++)
+				{
+					uniform &variable_it = effect.uniforms[variable_index];
+					value before{}, after{};
+
+					switch (variable_it.type.base)
+					{
+					case reshadefx::type::t_bool:
+						get_uniform_value(variable_it, &before.as_bool, 1);
+						break;
+					case reshadefx::type::t_int:
+					case reshadefx::type::t_uint:
+						get_uniform_value(variable_it, before.as_int, 16);
+						break;
+					case reshadefx::type::t_float:
+						get_uniform_value(variable_it, before.as_float, 16);
+						break;
+					}
+
 					reset_uniform_value(variable_it);
+
+					switch (variable_it.type.base)
+					{
+					case reshadefx::type::t_bool:
+						get_uniform_value(variable_it, &after.as_bool, 1);
+						break;
+					case reshadefx::type::t_int:
+					case reshadefx::type::t_uint:
+						get_uniform_value(variable_it, after.as_int, 16);
+						break;
+					case reshadefx::type::t_float:
+						get_uniform_value(variable_it, after.as_float, 16);
+						break;
+					}
+
+					if (std::memcmp(&before, &after, sizeof(after)) != 0)
+					{
+						history history;
+						history.kind = history::kind::variable;
+						history.effect_index = variable_it.effect_index;
+						history.variable_index = variable_index;
+
+						std::memcpy(&history.before, &before, sizeof(before));
+						std::memcpy(&history.after, &after, sizeof(after));
+
+						for (; _history_position > 0; --_history_position)
+							_histories.pop_front();
+						if (_histories.emplace_front(std::move(history)); _histories.size() > _history_limit)
+							_histories.resize(_history_limit);
+
+						_history_position = 0;
+						_history_updated = true;
+					}
+				}
 
 				// Reset all preprocessor definitions
 				for (const std::pair<std::string, std::string> &definition : effect.definitions)
@@ -2536,10 +2625,66 @@ void reshade::runtime::draw_variable_editor()
 						if (ImGui::Button(reset_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 						{
 							for (uniform &variable_it : effect.uniforms)
+							{
 								if (variable_it.annotation_as_string("ui_category") == category)
+								{
+									value before{}, after{};
+
+									switch (variable_it.type.base)
+									{
+									case reshadefx::type::t_bool:
+										get_uniform_value(variable_it, &before.as_bool, 1);
+										break;
+									case reshadefx::type::t_int:
+									case reshadefx::type::t_uint:
+										get_uniform_value(variable_it, before.as_int, 16);
+										break;
+									case reshadefx::type::t_float:
+										get_uniform_value(variable_it, before.as_float, 16);
+										break;
+									}
+
 									reset_uniform_value(variable_it);
 
+									switch (variable_it.type.base)
+									{
+									case reshadefx::type::t_bool:
+										get_uniform_value(variable_it, &after.as_bool, 1);
+										break;
+									case reshadefx::type::t_int:
+									case reshadefx::type::t_uint:
+										get_uniform_value(variable_it, after.as_int, 16);
+										break;
+									case reshadefx::type::t_float:
+										get_uniform_value(variable_it, after.as_float, 16);
+										break;
+									}
+
+									if (std::memcmp(&before, &after, sizeof(after)) != 0)
+									{
+										history history;
+										history.kind = history::kind::variable;
+										history.effect_index = variable_it.effect_index;
+										history.variable_index = variable_index;
+
+										std::memcpy(&history.before, &before, sizeof(before));
+										std::memcpy(&history.after, &after, sizeof(after));
+
+										for (; _history_position > 0; --_history_position)
+											_histories.pop_front();
+										if (_histories.emplace_front(std::move(history)); _histories.size() > _history_limit)
+											_histories.resize(_history_limit);
+
+										_history_position = 0;
+										_history_updated = true;
+									}
+								}
+							}
+
 							save_current_preset();
+
+							_variable_editor_modified = effect_index;
+							_variable_editor_condition = variable_editor_condition::variable;
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -2578,11 +2723,29 @@ void reshade::runtime::draw_variable_editor()
 
 			ImGui::PushID(static_cast<int>(id++));
 
+			value before{};
+
+			switch (variable.type.base)
+			{
+			case reshadefx::type::t_bool:
+				get_uniform_value(variable, &before.as_bool, 1);
+				break;
+			case reshadefx::type::t_int:
+			case reshadefx::type::t_uint:
+				get_uniform_value(variable, before.as_int, 16);
+				break;
+			case reshadefx::type::t_float:
+				get_uniform_value(variable, before.as_float, 16);
+				break;
+			}
+
+			value after = before;
+
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_bool:
 			{
-				bool data;
+				bool &data = after.as_bool;
 				get_uniform_value(variable, &data);
 
 				if (ui_type == "combo")
@@ -2597,7 +2760,7 @@ void reshade::runtime::draw_variable_editor()
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
 			{
-				int data[16];
+				int(&data)[16] = after.as_int;
 				get_uniform_value(variable, data, 16);
 
 				const auto ui_min_val = variable.annotation_as_int("ui_min", 0, ui_type == "slider" ? 0 : std::numeric_limits<int>::lowest());
@@ -2628,7 +2791,7 @@ void reshade::runtime::draw_variable_editor()
 			}
 			case reshadefx::type::t_float:
 			{
-				float data[16];
+				float(&data)[16] = after.as_float;
 				get_uniform_value(variable, data, 16);
 
 				const auto ui_min_val = variable.annotation_as_float("ui_min", 0, ui_type == "slider" ? 0.0f : std::numeric_limits<float>::lowest());
@@ -2685,8 +2848,23 @@ void reshade::runtime::draw_variable_editor()
 
 				if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(button_width, 0)))
 				{
-					modified = true;
 					reset_uniform_value(variable);
+
+					switch (variable.type.base)
+					{
+					case reshadefx::type::t_bool:
+						get_uniform_value(variable, &after.as_bool, 1);
+						break;
+					case reshadefx::type::t_int:
+					case reshadefx::type::t_uint:
+						get_uniform_value(variable, after.as_int, 16);
+						break;
+					case reshadefx::type::t_float:
+						get_uniform_value(variable, after.as_float, 16);
+						break;
+					}
+
+					modified = true;
 					ImGui::CloseCurrentPopup();
 				}
 
@@ -2703,8 +2881,65 @@ void reshade::runtime::draw_variable_editor()
 
 			// A value has changed, so save the current preset
 			if (modified)
+			{
+				auto it = std::next(_histories.begin(), _history_position);
+
+				enum class condition { pass, add, copy, backward };
+				condition condition = condition::pass;
+
+				if (std::memcmp(&before, &after, sizeof(after)) == 0)
+					condition = condition::pass;
+				else if (it == _histories.end())
+					condition = condition::add;
+				else if (it->kind != reshade::history::kind::variable)
+					condition = condition::add;
+				else if (it->effect_index != variable.effect_index || it->variable_index != variable_index)
+					condition = condition::add;
+				else if (std::memcmp(&it->before, &after, sizeof(after)) == 0)
+					condition = condition::backward;
+				else if (!it->confirmed)
+					condition = condition::copy;
+				else if (std::memcmp(&it->after, &after, sizeof(after)) == 0)
+					condition = condition::backward;
+				else
+					condition = condition::add;
+
+				if (condition == condition::add)
+				{
+					history history;
+					history.kind = history::kind::variable;
+					history.effect_index = variable.effect_index;
+					history.variable_index = variable_index;
+
+					std::memcpy(&history.before, &before, sizeof(before));
+					std::memcpy(&history.after, &after, sizeof(after));
+
+					for (; _history_position > 0; --_history_position)
+						_histories.pop_front();
+					if (_histories.emplace_front(std::move(history)); _histories.size() > _history_limit)
+						_histories.resize(_history_limit);
+
+					_history_position = 0;
+					_history_updated = true;
+				}
+				else if (condition == condition::copy)
+				{
+					std::memcpy(&it->after, &after, sizeof(after));
+				}
+				else if (condition == condition::backward)
+				{
+					++_history_position;
+				}
+
+				_variable_editor_modified = effect_index;
+				_variable_editor_edited = ImGui::GetActiveID();
 				save_current_preset();
+			}
 		}
+
+		const bool is_edited = _variable_editor_modified != std::numeric_limits<size_t>::max() && !ImGui::IsAnyMouseDown();
+		if (is_edited && !_histories.empty() && !_histories.front().confirmed)
+			_histories.front().confirmed = true;
 
 		if (active_variable_index < effect.uniforms.size())
 			set_uniform_value(effect.uniforms[active_variable_index], static_cast<uint32_t>(active_variable));
@@ -2764,6 +2999,10 @@ void reshade::runtime::draw_variable_editor()
 								modified_definition = _preset_preprocessor_definitions.end() - 1;
 							}
 						}
+
+						_variable_editor_modified = effect_index;
+						_variable_editor_edited = ImGui::GetActiveID();
+						_variable_editor_condition = variable_editor_condition::preset_definition;
 					}
 
 					if (!force_reload_effect && // Cannot compare iterators if definitions were just modified above
@@ -2779,6 +3018,9 @@ void reshade::runtime::draw_variable_editor()
 								_preset_preprocessor_definitions.erase(preset_it);
 							}
 
+							_variable_editor_modified = effect_index;
+							_variable_editor_edited = ImGui::GetActiveID();
+							_variable_editor_condition = variable_editor_condition::preset_definition;
 							ImGui::CloseCurrentPopup();
 						}
 
@@ -2977,10 +3219,46 @@ void reshade::runtime::draw_technique_editor()
 			else
 				disable_technique(technique);
 			save_current_preset();
+
+			auto it = std::next(_histories.begin(), _history_position);
+
+			enum class condition { pass, add, backward };
+			condition condition = condition::pass;
+
+			if (it == _histories.end())
+				condition = condition::add;
+			else if (it->kind != reshade::history::kind::technique_switch)
+				condition = condition::add;
+			else if (it->technique_name != technique.name)
+				condition = condition::add;
+			else if (status != it->technique_enabled)
+				condition = condition::backward;
+			else
+				condition = condition::add;
+
+			if (condition == condition::add)
+			{
+				history history{ history::kind::technique_switch, technique.effect_index, technique.name, std::numeric_limits<size_t>::max(), status };
+
+				for (; _history_position > 0; --_history_position)
+					_histories.pop_front();
+				if (_histories.emplace_front(std::move(history)); _histories.size() > _history_limit)
+					_histories.resize(_history_limit);
+			}
+			else if (condition == condition::backward)
+			{
+				++_history_position;
+			}
 		}
 
 		ImGui::PopStyleColor();
 		ImGui::PopItemFlag();
+
+		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+		{
+			_technique_names.clear();
+			std::transform(_techniques.cbegin(), _techniques.cend(), std::back_inserter(_technique_names), [](const reshade::technique &technique) { return technique.name; });
+		}
 
 		if (ImGui::IsItemActive())
 			_selected_technique = index;
@@ -3164,6 +3442,46 @@ void reshade::runtime::draw_technique_editor()
 			return;
 		}
 	}
+	else if (_selected_technique != std::numeric_limits<size_t>::max())
+	{
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+		{
+			history history{ history::kind::technique_reordering, std::numeric_limits<size_t>::max(), _techniques[_selected_technique].name };
+
+			history.technique_names_before = std::move(_technique_names);
+			std::transform(_techniques.cbegin(), _techniques.cend(), std::back_inserter(history.technique_names_after), [](const reshade::technique &technique) { return technique.name; });
+
+			auto it = std::next(_histories.begin(), _history_position);
+
+			enum class condition { pass, add, backward };
+			condition condition = condition::pass;
+
+			if (std::equal(history.technique_names_before.cbegin(), history.technique_names_before.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
+				condition = condition::pass;
+			else if (it == _histories.end())
+				condition = condition::add;
+			else if (it->kind != reshade::history::kind::technique_reordering)
+				condition = condition::add;
+			else if (std::equal(it->technique_names_after.cbegin(), it->technique_names_after.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
+				condition = condition::backward;
+			else if (std::equal(it->technique_names_before.cbegin(), it->technique_names_before.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
+				condition = condition::backward;
+			else
+				condition = condition::add;
+
+			if (condition == condition::add)
+			{
+				for (; _history_position > 0; --_history_position)
+					_histories.pop_front();
+				if (_histories.emplace_front(std::move(history)); _histories.size() > _history_limit)
+					_histories.resize(_history_limit);
+			}
+			else if (condition == condition::backward)
+			{
+				++_history_position;
+			}
+		}
+	}
 	else
 	{
 		_selected_technique = std::numeric_limits<size_t>::max();
@@ -3292,6 +3610,223 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
 	else // Enable navigation again if focus is lost
 		_imgui_context->IO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+}
+
+void reshade::runtime::draw_edit_history()
+{
+	if (_performance_mode)
+	{
+		const char text[] = "History is not available in Performance Mode";
+		ImGui::TextEx(text, text + std::size(text) - 1, ImGuiTextFlags_NoWidthForLargeClippedText);
+		return;
+	}
+
+	size_t selection = std::numeric_limits<size_t>::max();
+	if (ImGui::Selectable("End of Undo", _history_position == _histories.size()))
+		selection = _histories.size();
+
+	if (_histories.empty())
+		return;
+
+	bool modified = false;
+
+	std::string s; s.resize(80);
+	std::string str;
+
+	size_t position = _histories.size() - 1;
+	for (auto it = _histories.rbegin(); it != _histories.rend(); --position, ++it)
+	{
+		if (it->kind == reshade::history::kind::technique_reordering)
+		{
+			str = "Reorder " + it->technique_name;
+		}
+		else if (it->kind == reshade::history::kind::technique_switch)
+		{
+			str = it->technique_name + ' ' + (it->technique_enabled ? "True" : "False");
+		}
+		else
+		{
+			const uniform &variable = _effects[it->effect_index].uniforms[it->variable_index];
+			const std::string_view ui_type = variable.annotation_as_string("ui_type");
+
+			str.append(variable.name);
+
+			for (unsigned int i = 0; variable.type.rows > i; ++i)
+			{
+				if (variable.type.base == reshadefx::type::t_float)
+				{
+					if (ui_type == "color")
+					{
+						str.append(s.data(), ::_snprintf(s.data(), s.size(), " %c %+0.0f (%0.0f)", "RGBA"[i], (it->after.as_float[i] - it->before.as_float[i]) / (1.0f / 255.0f), it->after.as_float[i] / (1.0f / 255.0f)));
+					}
+					else
+					{
+						float ui_stp_val = variable.annotation_as_float("ui_step");
+						if (FLT_EPSILON > ui_stp_val)
+							ui_stp_val = 0.001f;
+
+						// Calculate display precision based on step value
+						size_t precision = 0;
+						for (float x = 1.0f; x * ui_stp_val < 1.0f && precision < 9; x *= 10.0f)
+							++precision;
+
+						str.append(s.data(), ::_snprintf(s.data(), s.size(), " %c %+0.*f (%0.*f)", "XYZW"[i], precision, it->after.as_float[i] - it->before.as_float[i], precision, it->after.as_float[i]));
+					}
+				}
+				else if (variable.type.base == reshadefx::type::t_int || variable.type.base == reshadefx::type::t_uint)
+				{
+					const std::string_view ui_items = variable.annotation_as_string("ui_items");
+					if (!ui_items.empty())
+					{
+						size_t pos = 0;
+						for (unsigned int k = 0; ui_items.size() > pos && k != it->after.as_uint[0];)
+							if (ui_items[pos++] == '\0')
+								++k;
+
+						str.append(s.data(), ::_snprintf(s.data(), s.size(), " %+lld (%s)", static_cast<int64_t>(it->after.as_uint[i]) - static_cast<int64_t>(it->before.as_uint[i]), ui_items.data() + pos));
+					}
+					else if (variable.type.base == reshadefx::type::t_int)
+						str.append(s.data(), ::_snprintf(s.data(), s.size(), " %c %+lld (%d)", (ui_type == "color" ? "RGBA" : "XYZW")[i], static_cast<int64_t>(it->after.as_int[i]) - static_cast<int64_t>(it->before.as_int[i]), it->after.as_int[i]));
+					else
+						str.append(s.data(), ::_snprintf(s.data(), s.size(), " %c %+lld (%u)", (ui_type == "color" ? "RGBA" : "XYZW")[i], static_cast<int64_t>(it->after.as_uint[i]) - static_cast<int64_t>(it->before.as_uint[i]), it->after.as_uint[i]));
+				}
+				else if (variable.type.base == reshadefx::type::t_bool)
+				{
+					if (ui_type == "combo")
+						str += it->after.as_bool ? " On" : " Off";
+					else
+						str += it->after.as_bool ? " True" : " False";
+				}
+			}
+		}
+
+		str.append(2, '#').append(std::to_string(position));
+		if (ImGui::Selectable(str.c_str(), position == _history_position))
+		{
+			modified = true;
+			selection = position;
+		}
+		str.clear();
+
+		if (_history_updated && position == _history_position)
+			_history_updated = false, ImGui::SetScrollHereY();
+	}
+
+	if (selection == std::numeric_limits<size_t>::max())
+		return;
+	else if (selection == _history_position)
+		return;
+
+	auto it = std::next(_histories.begin(), _history_position);
+	ptrdiff_t distance = static_cast<ptrdiff_t>(selection) - static_cast<ptrdiff_t>(_history_position);
+
+	_history_position = selection;
+
+	if (distance > 0)
+	{
+		while (distance-- > 0)
+		{
+			if (it->kind == reshade::history::kind::technique_reordering)
+			{
+				assert(_techniques.size() == it->technique_names_before.size());
+
+				for (size_t i = 0; _techniques.size() > i; ++i)
+				{
+					if (_techniques[i].name == it->technique_names_before[i])
+						continue;
+
+					auto kt = std::find_if(_techniques.begin(), _techniques.end(),
+						[&technique_name = it->technique_names_before[i]](const technique &technique) {
+						return technique_name == technique.name; });
+
+					std::iter_swap(kt, _techniques.begin() + i);
+				}
+			}
+			else if (it->kind == reshade::history::kind::technique_switch)
+			{
+				if (auto kt = std::find_if(_techniques.begin(), _techniques.end(), [&name = it->technique_name](const reshade::technique &technique) { return name == technique.name; }); kt != _techniques.end())
+					if (!it->technique_enabled)
+						enable_technique(*kt);
+					else
+						disable_technique(*kt);
+			}
+			else
+			{
+				effect &effect = _effects[it->effect_index];
+				uniform &variable = effect.uniforms[it->variable_index];
+
+				switch (variable.type.base)
+				{
+				case reshadefx::type::t_bool:
+					set_uniform_value(variable, &it->before.as_bool, 1);
+					break;
+				case reshadefx::type::t_int:
+				case reshadefx::type::t_uint:
+					set_uniform_value(variable, it->before.as_int, 16);
+					break;
+				case reshadefx::type::t_float:
+					set_uniform_value(variable, it->before.as_float, 16);
+					break;
+				}
+			}
+
+			++it;
+		}
+	}
+	else
+	{
+		while (distance++ < 0)
+		{
+			--it;
+
+			if (it->kind == reshade::history::kind::technique_reordering)
+			{
+				assert(_techniques.size() == it->technique_names_after.size());
+
+				for (size_t i = 0; _techniques.size() > i; ++i)
+				{
+					if (_techniques[i].name == it->technique_names_after[i])
+						continue;
+
+					auto kt = std::find_if(_techniques.begin(), _techniques.end(),
+						[&technique_name = it->technique_names_after[i]](const technique &technique) {
+						return technique_name == technique.name; });
+
+					std::iter_swap(kt, _techniques.begin() + i);
+				}
+			}
+			else if (it->kind == reshade::history::kind::technique_switch)
+			{
+				if (auto technique = std::find_if(_techniques.begin(), _techniques.end(), [&name = it->technique_name](const reshade::technique &technique) { return name == technique.name; }); technique != _techniques.end())
+					if (it->technique_enabled)
+						enable_technique(*technique);
+					else
+						disable_technique(*technique);
+			}
+			else
+			{
+				effect &effect = _effects[it->effect_index];
+				uniform &variable = effect.uniforms[it->variable_index];
+
+				switch (variable.type.base)
+				{
+				case reshadefx::type::t_bool:
+					set_uniform_value(variable, &it->after.as_bool, 1);
+					break;
+				case reshadefx::type::t_int:
+				case reshadefx::type::t_uint:
+					set_uniform_value(variable, it->after.as_int, 16);
+					break;
+				case reshadefx::type::t_float:
+					set_uniform_value(variable, it->after.as_float, 16);
+					break;
+				}
+			}
+		}
+	}
+
+	if (modified)
+		save_current_preset();
 }
 #endif
 

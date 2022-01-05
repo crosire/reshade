@@ -27,6 +27,7 @@ namespace reshade
 	struct uniform;
 	struct texture;
 	struct technique;
+	struct history;
 
 	/// <summary>
 	/// The main ReShade post-processing effect runtime.
@@ -511,6 +512,11 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		float _variable_editor_height = 300.0f;
+		size_t _variable_editor_modified = std::numeric_limits<size_t>::max();
+		unsigned int _variable_editor_edited = 0;
+
+		enum class variable_editor_condition { pass, variable, preset_definition, global_definition };
+		variable_editor_condition _variable_editor_condition = variable_editor_condition::pass;
 #endif
 		#pragma endregion
 
@@ -563,6 +569,20 @@ namespace reshade
 		std::vector<editor_instance> _editors;
 #endif
 		uint32_t _editor_palette[imgui::code_editor::color_palette_max];
+		#pragma endregion
+
+		#pragma region Variable Tweaks History
+#if RESHADE_EFFECTS
+		bool _show_edit_history = false;
+		std::vector<std::string> _technique_names;
+
+		size_t _history_limit = 100;
+		std::list<history> _histories;
+		bool _history_updated = false;
+		size_t _history_position = 0;
+
+		void reshade::runtime::draw_edit_history();
+#endif
 		#pragma endregion
 #endif
 	};

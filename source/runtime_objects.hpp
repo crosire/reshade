@@ -244,5 +244,23 @@ namespace reshade
 		api::query_pool query_pool = {};
 		std::vector<binding_data> texture_semantic_to_binding;
 	};
+
+	struct history final
+	{
+		enum class kind { variable = 0, technique_switch, technique_reordering } kind = history::kind::variable;
+		size_t effect_index = std::numeric_limits<size_t>::max();
+		std::string technique_name;
+		size_t variable_index = std::numeric_limits<size_t>::max();
+		bool technique_enabled = false;
+		union
+		{
+			bool as_bool;
+			float as_float[16];
+			int32_t as_int[16];
+			uint32_t as_uint[16];
+		} before, after;
+		bool confirmed = false;
+		std::vector<std::string> technique_names_before, technique_names_after;
+	};
 #endif
 }

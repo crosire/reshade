@@ -627,6 +627,9 @@ void reshade::runtime::save_config() const
 #if RESHADE_EFFECTS
 void reshade::runtime::load_current_preset()
 {
+#if RESHADE_GUI
+	_histories.clear(); _history_position = 0; _history_updated = false;
+#endif
 	_preset_save_success = true;
 
 	ini_file config = ini_file::load_cache(_config_path); // Copy config, because reference becomes invalid in the next line
@@ -2601,6 +2604,10 @@ void reshade::runtime::reload_effects()
 }
 void reshade::runtime::destroy_effects()
 {
+#if RESHADE_GUI
+	_histories.clear(); _history_position = 0; _history_updated = false;
+#endif
+
 	// Make sure no threads are still accessing effect data
 	for (std::thread &thread : _worker_threads)
 		if (thread.joinable())
