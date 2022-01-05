@@ -176,6 +176,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "TutorialProgress", _tutorial_index);
 	config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
+	config.get("OVERLAY", "HistoryLimit", _history_limit);
 #endif
 
 	auto &imgui_style = _imgui_context->Style;

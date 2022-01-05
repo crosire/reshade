@@ -576,7 +576,7 @@ namespace reshade
 		bool _show_edit_history = false;
 		std::vector<std::string> _technique_names;
 
-		size_t _history_limit = 100;
+		size_t _history_limit = 1000;
 		std::list<history> _histories;
 		bool _history_updated = false;
 		size_t _history_position = 0;
