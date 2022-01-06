@@ -2606,6 +2606,7 @@ void reshade::runtime::destroy_effects()
 {
 #if RESHADE_GUI
 	_histories.clear(); _history_position = 0; _history_updated = false;
+	_selected_technique = std::numeric_limits<size_t>::max();
 #endif
 
 	// Make sure no threads are still accessing effect data

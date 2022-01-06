@@ -3440,53 +3440,49 @@ void reshade::runtime::draw_technique_editor()
 
 			_selected_technique = hovered_technique_index;
 			save_current_preset();
-			return;
 		}
 	}
-	else if (_selected_technique != std::numeric_limits<size_t>::max())
+
+	if (_selected_technique < _techniques.size() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 	{
-		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+		history history{ history::kind::technique_reordering, std::numeric_limits<size_t>::max(), _techniques[_selected_technique].name };
+
+		history.technique_names_before = std::move(_technique_names);
+		std::transform(_techniques.cbegin(), _techniques.cend(), std::back_inserter(history.technique_names_after), [](const reshade::technique &technique) { return technique.name; });
+
+		auto it = std::next(_histories.begin(), _history_position);
+
+		enum class condition { pass, add, backward };
+		condition condition = condition::pass;
+
+		if (std::equal(history.technique_names_before.cbegin(), history.technique_names_before.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
+			condition = condition::pass;
+		else if (it == _histories.end())
+			condition = condition::add;
+		else if (it->kind != reshade::history::kind::technique_reordering)
+			condition = condition::add;
+		else if (std::equal(it->technique_names_after.cbegin(), it->technique_names_after.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
+			condition = condition::backward;
+		else if (std::equal(it->technique_names_before.cbegin(), it->technique_names_before.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
+			condition = condition::backward;
+		else
+			condition = condition::add;
+
+		if (condition == condition::add)
 		{
-			history history{ history::kind::technique_reordering, std::numeric_limits<size_t>::max(), _techniques[_selected_technique].name };
-
-			history.technique_names_before = std::move(_technique_names);
-			std::transform(_techniques.cbegin(), _techniques.cend(), std::back_inserter(history.technique_names_after), [](const reshade::technique &technique) { return technique.name; });
-
-			auto it = std::next(_histories.begin(), _history_position);
-
-			enum class condition { pass, add, backward };
-			condition condition = condition::pass;
-
-			if (std::equal(history.technique_names_before.cbegin(), history.technique_names_before.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
-				condition = condition::pass;
-			else if (it == _histories.end())
-				condition = condition::add;
-			else if (it->kind != reshade::history::kind::technique_reordering)
-				condition = condition::add;
-			else if (std::equal(it->technique_names_after.cbegin(), it->technique_names_after.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
-				condition = condition::backward;
-			else if (std::equal(it->technique_names_before.cbegin(), it->technique_names_before.cend(), history.technique_names_after.cbegin(), history.technique_names_after.cend()))
-				condition = condition::backward;
-			else
-				condition = condition::add;
-
-			if (condition == condition::add)
-			{
-				for (; _history_position > 0; --_history_position)
-					_histories.pop_front();
-				if (_histories.emplace_front(std::move(history)); _histories.size() > _history_limit)
-					_histories.resize(_history_limit);
-			}
-			else if (condition == condition::backward)
-			{
-				++_history_position;
-			}
+			for (; _history_position > 0; --_history_position)
+				_histories.pop_front();
+			if (_histories.emplace_front(std::move(history)); _histories.size() > _history_limit)
+				_histories.resize(_history_limit);
+		}
+		else if (condition == condition::backward)
+		{
+			++_history_position;
 		}
 	}
-	else
-	{
+
+	if (_selected_technique != std::numeric_limits<size_t>::max() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 		_selected_technique = std::numeric_limits<size_t>::max();
-	}
 
 	if (force_reload_effect != std::numeric_limits<size_t>::max())
 	{
