@@ -3667,7 +3667,7 @@ void reshade::runtime::draw_edit_history()
 							ui_stp_val = 0.001f;
 
 						// Calculate display precision based on step value
-						size_t precision = 0;
+						int precision = 0;
 						for (float x = 1.0f; x * ui_stp_val < 1.0f && precision < 9; x *= 10.0f)
 							++precision;
 
@@ -3798,11 +3798,11 @@ void reshade::runtime::draw_edit_history()
 			}
 			else if (it->kind == reshade::history::kind::technique_switch)
 			{
-				if (auto technique = std::find_if(_techniques.begin(), _techniques.end(), [&name = it->technique_name](const reshade::technique &technique) { return name == technique.name; }); technique != _techniques.end())
+				if (auto technique_it = std::find_if(_techniques.begin(), _techniques.end(), [&name = it->technique_name](const reshade::technique &technique) { return name == technique.name; }); technique_it != _techniques.end())
 					if (it->technique_enabled)
-						enable_technique(*technique);
+						enable_technique(*technique_it);
 					else
-						disable_technique(*technique);
+						disable_technique(*technique_it);
 			}
 			else
 			{
