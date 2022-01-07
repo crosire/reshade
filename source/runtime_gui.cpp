@@ -559,7 +559,7 @@ void reshade::runtime::draw_gui()
 
 	const bool show_stats_window = _show_clock || _show_fps || _show_frametime;
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
-	const bool show_screenshot_message = (_show_screenshot_message || !_screenshot_save_success) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
+	const bool show_screenshot_message = _last_screenshot_type < _screenshots.size() && (_show_screenshot_message || _screenshots[_last_screenshot_type].error_code != 0) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshots[_last_screenshot_type].error_code == 0 ? 3 : 5);
 	if (show_screenshot_message || !_preset_save_success)
 		show_splash = true;
 
@@ -591,7 +591,7 @@ void reshade::runtime::draw_gui()
 
 	auto &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
-	imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_gui);
+	imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshots[screenshot_::with_ui].enabled);
 	imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
 	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
@@ -650,13 +650,15 @@ void reshade::runtime::draw_gui()
 		}
 		else if (show_screenshot_message)
 		{
-			if (!_screenshot_save_success)
-				if (std::error_code ec; std::filesystem::exists(_screenshot_path, ec))
+			assert(_last_screenshot_type < _screenshots.size());
+
+			if (_screenshots[_last_screenshot_type].error_code != 0)
+				if (std::error_code ec; std::filesystem::exists(g_reshade_base_path / _screenshot_path, ec))
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported).");
 				else
-					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s.", _screenshot_path.u8string().c_str());
+					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s.", (g_reshade_base_path / _screenshot_path).u8string().c_str());
 			else
-				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.u8string().c_str());
+				ImGui::Text("Screenshot successfully saved to %s", _screenshots[_last_screenshot_type].path.u8string().c_str());
 		}
 		else
 		{
@@ -1465,10 +1467,11 @@ void reshade::runtime::draw_gui_settings()
 			modified |= ImGui::Checkbox("Clear alpha channel", &_screenshot_clear_alpha);
 
 #if RESHADE_EFFECTS
-		modified |= ImGui::Checkbox("Save current preset file", &_screenshot_include_preset);
+		modified |= ImGui::Checkbox("Save current preset file", &_screenshots[screenshot_::preset].enabled);
 #endif
-		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
-		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshot_save_gui);
+		modified |= ImGui::Checkbox("Save before and after images", &_screenshots[screenshot_::before].enabled);
+		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshots[screenshot_::with_ui].enabled);
+		modified |= ImGui::Checkbox("Ignore the next screenshot until completed the previous", &_dont_blocking);
 		modified |= imgui::file_input_box("Post-save command", _screenshot_post_save_command, _screenshot_post_save_command, {L".exe"});
 
 		copied_size = _screenshot_post_save_command_arguments.copy(path_buffer, sizeof(path_buffer) - 1);

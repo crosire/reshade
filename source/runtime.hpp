@@ -27,6 +27,7 @@ namespace reshade
 	struct uniform;
 	struct texture;
 	struct technique;
+	struct screenshot;
 
 	/// <summary>
 	/// The main ReShade post-processing effect runtime.
@@ -77,7 +78,7 @@ namespace reshade
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
-		void save_screenshot(const std::wstring &postfix = std::wstring());
+		void save_screenshot();
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
 		/// </summary>
@@ -294,7 +295,9 @@ namespace reshade
 		void render_technique(api::command_list *cmd_list, technique &technique, api::resource_view rtv, api::resource_view rtv_srgb);
 
 		void save_texture(const texture &texture);
-		
+
+		bool complete_screenshot(bool blocking);
+		void save_screenshot(reshade::screenshot &screenshot);
 		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path);
 
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
@@ -396,9 +399,22 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Screenshot
-		bool _screenshot_save_gui = false;
-		bool _screenshot_save_before = false;
-		bool _screenshot_include_preset = false;
+		enum screenshot_ : uint32_t
+		{
+			after = 0,
+#if RESHADE_EFFECTS
+			before,
+#endif
+			with_ui,
+#if RESHADE_EFFECTS
+			preset,
+#endif
+			tex,
+			max_
+		};
+		std::vector<screenshot> _screenshots;
+
+		bool _dont_blocking = false;
 		bool _screenshot_clear_alpha = true;
 		unsigned int _screenshot_format = 1;
 		unsigned int _screenshot_naming = 0;
@@ -410,10 +426,11 @@ namespace reshade
 		std::filesystem::path _screenshot_post_save_command_working_directory;
 		bool _screenshot_post_save_command_show_window;
 
-		bool _should_save_screenshot = false;
-		bool _screenshot_save_success = true;
-		std::filesystem::path _last_screenshot_file;
+		screenshot_ _last_screenshot_type = std::numeric_limits<screenshot_>::max();
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
+
+		std::atomic<bool> _should_save_screenshot = false;
+		std::atomic<bool> _is_saving_screenshot = false;
 		#pragma endregion
 
 		#pragma region Preset Switching

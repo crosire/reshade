@@ -245,4 +245,21 @@ namespace reshade
 		std::vector<binding_data> texture_semantic_to_binding;
 	};
 #endif
+
+	struct screenshot final
+	{
+		bool enabled = false;
+
+		int error_code = 0;
+		std::string error_message;
+		std::filesystem::path path;
+
+		bool running = false;
+		std::thread thread;
+
+		std::vector<uint8_t> data;
+		int color = 0;
+		unsigned int width = 0;
+		unsigned int height = 0;
+	};
 }

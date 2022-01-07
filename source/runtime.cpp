@@ -121,6 +121,9 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 
 	_needs_update = check_for_update(_latest_version);
 
+	_screenshots.resize(screenshot_::max_);
+	_screenshots[screenshot_::after].enabled = true;
+
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
@@ -147,7 +150,7 @@ reshade::runtime::~runtime()
 	save_config();
 
 #if RESHADE_GUI
-	 deinit_gui();
+	deinit_gui();
 #endif
 }
 
@@ -285,7 +288,6 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_last_reload_time = std::chrono::high_resolution_clock::now();
 
 	_preset_save_success = true;
-	_screenshot_save_success = true;
 
 #if RESHADE_EFFECTS && RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
@@ -390,8 +392,10 @@ void reshade::runtime::on_present()
 
 	if (_effects_enabled && !_effects_rendered_this_frame)
 	{
-		if (_should_save_screenshot && _screenshot_save_before)
-			save_screenshot(L" original");
+		if (_should_save_screenshot)
+			if (screenshot &screenshot = _screenshots[screenshot_::before];
+			  !(screenshot.enabled && (get_screenshot_width_and_height(&screenshot.width, &screenshot.height), screenshot.data.resize(screenshot.width * screenshot.height * 4), capture_screenshot(screenshot.data.data()))))
+				screenshot.data.clear();
 
 		uint32_t back_buffer_index = get_current_back_buffer_index();
 		const api::resource back_buffer_resource = get_back_buffer_resolved(back_buffer_index);
@@ -404,7 +408,9 @@ void reshade::runtime::on_present()
 #endif
 
 	if (_should_save_screenshot)
-		save_screenshot(std::wstring());
+		if (screenshot &screenshot = _screenshots[screenshot_::after];
+		  !(screenshot.enabled && (get_screenshot_width_and_height(&screenshot.width, &screenshot.height), screenshot.data.resize(screenshot.width * screenshot.height * 4), capture_screenshot(screenshot.data.data()))))
+			screenshot.data.clear();
 
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -423,12 +429,21 @@ void reshade::runtime::on_present()
 	else
 		draw_gui();
 
-	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != 0 && _effects_enabled)))
-		save_screenshot(L" overlay");
+	if (_should_save_screenshot)
+		if (screenshot &screenshot = _screenshots[screenshot_::with_ui];
+		  !(screenshot.enabled && (_show_overlay || (_preview_texture != 0 && _effects_enabled)) && (get_screenshot_width_and_height(&screenshot.width, &screenshot.height), screenshot.data.resize(screenshot.width * screenshot.height * 4), capture_screenshot(screenshot.data.data()))))
+			screenshot.data.clear();
 #endif
 
 	// All screenshots were created at this point, so reset request
-	_should_save_screenshot = false;
+	if (_should_save_screenshot)
+	{
+		_should_save_screenshot = false;
+		save_screenshot();
+	}
+
+	if (_is_saving_screenshot)
+		complete_screenshot(false);
 
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts)
@@ -436,7 +451,7 @@ void reshade::runtime::on_present()
 		if (_input->is_key_pressed(_effects_key_data, _force_shortcut_modifiers))
 			_effects_enabled = !_effects_enabled;
 
-		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
+		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers) && complete_screenshot(!_dont_blocking))
 			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
 
 #if RESHADE_EFFECTS
@@ -558,10 +573,15 @@ void reshade::runtime::load_config()
 	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.get("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
 	config.get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
-	config.get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
-	config.get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
+#if RESHADE_EFFECTS
+	config.get("SCREENSHOT", "SaveBeforeShot", _screenshots[screenshot_::before].enabled);
+#endif
+	config.get("SCREENSHOT", "SaveOverlayShot", _screenshots[screenshot_::with_ui].enabled);
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
-	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
+#if RESHADE_EFFECTS
+	config.get("SCREENSHOT", "SavePresetFile", _screenshots[screenshot_::preset].enabled);
+#endif
+	config.get("SCREENSHOT", "DontBlocking", _dont_blocking);
 	config.get("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
 	config.get("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
 	config.get("SCREENSHOT", "PostSaveCommandWorkingDirectory", _screenshot_post_save_command_working_directory);
@@ -610,10 +630,15 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.set("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
-	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
-	config.set("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
+#if RESHADE_EFFECTS
+	config.set("SCREENSHOT", "SaveBeforeShot", _screenshots[screenshot_::before].enabled);
+#endif
+	config.set("SCREENSHOT", "SaveOverlayShot", _screenshots[screenshot_::with_ui].enabled);
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
-	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
+#if RESHADE_EFFECTS
+	config.set("SCREENSHOT", "SavePresetFile", _screenshots[screenshot_::preset].enabled);
+#endif
+	config.set("SCREENSHOT", "DontBlocking", _dont_blocking);
 	config.set("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
 	config.set("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
 	config.set("SCREENSHOT", "PostSaveCommandWorkingDirectory", _screenshot_post_save_command_working_directory);
@@ -3248,129 +3273,177 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 
 void reshade::runtime::save_texture(const texture &tex)
 {
+	complete_screenshot(true);
+	_last_screenshot_type = screenshot_::tex;
+
+	screenshot &screenshot = _screenshots[screenshot_::tex];
+	screenshot.enabled = true;
+	screenshot.color = 4;
+	screenshot.width = tex.width;
+	screenshot.height = tex.height;
+
 	char timestamp[21];
 	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 	tm tm; localtime_s(&tm, &t);
 	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-	std::wstring filename = std::filesystem::path(tex.unique_name).concat(timestamp);
-	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
+	std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg";
 
-	std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
+	screenshot.path = g_reshade_base_path / _screenshot_path / (tex.unique_name + timestamp + extension);
+	screenshot.data.resize(screenshot.width * screenshot.height * 4);
 
-	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
+	if (get_texture_data(tex.resource, api::resource_usage::shader_resource, screenshot.data.data()))
+		save_screenshot(screenshot);
 
-	if (std::vector<uint8_t> data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height * 4));
-		get_texture_data(tex.resource, api::resource_usage::shader_resource, data.data()))
-	{
-		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
-		{
-			const auto write_callback = [](void *context, void *data, int size) {
-				fwrite(data, 1, size, static_cast<FILE *>(context));
-			};
-
-			switch (_screenshot_format)
-			{
-			case 0:
-				_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, tex.width, tex.height, 4, data.data()) != 0;
-				break;
-			case 1:
-				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, tex.width, tex.height, 4, data.data(), 0) != 0;
-				break;
-			case 2:
-				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, tex.width, tex.height, 4, data.data(), _screenshot_jpeg_quality) != 0;
-				break;
-			}
-
-			fclose(file);
-		}
-	}
-
-	_last_screenshot_file = screenshot_path;
-	_last_screenshot_time = std::chrono::high_resolution_clock::now();
+	screenshot.data.clear();
 }
 #endif
 
-void reshade::runtime::save_screenshot(const std::wstring &postfix)
+bool reshade::runtime::complete_screenshot(bool blocking)
+{
+	for (screenshot &screenshot : _screenshots)
+	{
+		if (screenshot.thread.joinable() && blocking)
+			screenshot.thread.join();
+		else if (screenshot.running)
+			return false;
+	}
+
+	if (_is_saving_screenshot)
+		_is_saving_screenshot = false;
+
+	return true;
+}
+
+void reshade::runtime::save_screenshot()
 {
 	char timestamp[21];
 	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 	tm tm; localtime_s(&tm, &t);
 	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-	std::wstring filename = g_target_executable_path.stem().concat(timestamp);
+	std::wstring least = g_reshade_base_path / _screenshot_path / g_target_executable_path.stem().concat(timestamp);
 #if RESHADE_EFFECTS
 	if (_screenshot_naming == 1)
-		filename += L' ' + _current_preset_path.stem().wstring();
+		least += L' ' + _current_preset_path.stem().wstring();
+#endif
+	std::wstring extension = _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
+
+	if (screenshot &screenshot = _screenshots[screenshot_::after]; screenshot.enabled)
+		screenshot.path = least + extension;
+#if RESHADE_EFFECTS
+	if (screenshot &screenshot = _screenshots[screenshot_::before]; screenshot.enabled)
+		screenshot.path = least + L" original" + extension;
+#endif
+	if (screenshot &screenshot = _screenshots[screenshot_::with_ui]; screenshot.enabled)
+		screenshot.path = least + L" ui" + extension;
+#if RESHADE_EFFECTS
+	if (screenshot &screenshot = _screenshots[screenshot_::preset]; screenshot.enabled)
+		screenshot.path = least + L".ini";
 #endif
 
-	filename += postfix;
-	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
+	complete_screenshot(true);
 
-	std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
+	_is_saving_screenshot = true;
+	_last_screenshot_type = screenshot_::after;
 
-	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
-
-	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
-
-	if (std::vector<uint8_t> data(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
-		capture_screenshot(data.data()))
+	for (screenshot &screenshot : _screenshots)
 	{
-		// Remove alpha channel
-		int comp = 4;
-		if (_screenshot_clear_alpha)
+		if (!screenshot.enabled || screenshot.data.empty())
+			continue;
+
+		screenshot.running = true;
+		screenshot.thread = std::thread([this, &screenshot]()
 		{
-			comp = 3;
-			for (size_t h = 0; h < _height; ++h)
+			if (screenshot.path.extension() == L".ini")
 			{
-				for (size_t w = 0; w < _width; ++w)
+#if RESHADE_EFFECTS
+				// Preset was flushed to disk, so can just copy it over to the new location
+				if (ini_file::flush_cache(_current_preset_path))
 				{
-					const size_t index = h * _width + w;
-					data[index * 3 + 0] = data[index * 4 + 0];
-					data[index * 3 + 1] = data[index * 4 + 1];
-					data[index * 3 + 2] = data[index * 4 + 2];
+					if (std::error_code ec;
+						std::filesystem::copy_file(_current_preset_path, screenshot.path, std::filesystem::copy_options::overwrite_existing, ec) || ec.value() == 0x2)
+					{
+						screenshot.error_code = 0;
+						screenshot.error_message.clear();
+					}
+					else
+					{
+						screenshot.error_code = ec.value();
+						screenshot.error_message = ec.message();
+					}
 				}
+#endif
 			}
-		}
-
-		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
-		{
-			const auto write_callback = [](void *context, void *data, int size) {
-				fwrite(data, 1, size, static_cast<FILE *>(context));
-			};
-
-			switch (_screenshot_format)
+			else
 			{
-			case 0:
-				_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, data.data()) != 0;
-				break;
-			case 1:
-				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, data.data(), 0) != 0;
-				break;
-			case 2:
-				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
-				break;
+				screenshot.color = 4;
+
+				// Remove alpha channel
+				if (_screenshot_clear_alpha)
+				{
+					screenshot.color = 3;
+					for (size_t i = 0; i < _width * _height; ++i)
+						*((uint32_t *)(screenshot.data.data() + 3 * i)) =
+						*((uint32_t *)(screenshot.data.data() + 4 * i));
+				}
+
+				LOG(INFO) << "Saving screenshot to " << screenshot.path << " ...";
+
+				save_screenshot(screenshot);
+
+				screenshot.data.clear();
 			}
 
-			fclose(file);
-			execute_screenshot_post_save_command(screenshot_path);
+			screenshot.running = false;
+		});
+	}
+}
+
+void reshade::runtime::save_screenshot(reshade::screenshot &screenshot)
+{
+	assert(screenshot.enabled);
+
+	errno_t error = 0;
+	if (FILE *file; (error = _wfopen_s(&file, screenshot.path.wstring().c_str(), L"wb")) == 0)
+	{
+		const auto write_callback = [](void *context, void *data, int size) {
+			fwrite(data, 1, size, static_cast<FILE *>(context));
+		};
+
+		switch (_screenshot_format)
+		{
+		case 0:
+			screenshot.error_code = stbi_write_bmp_to_func(write_callback, file, screenshot.width, screenshot.height, screenshot.color, screenshot.data.data()) != 0 ? 0 : 1;
+			screenshot.error_message = screenshot.error_code == 0 ? "" : "stbi_write() Invalid arguments";
+			break;
+		case 1:
+			screenshot.error_code = stbi_write_png_to_func(write_callback, file, screenshot.width, screenshot.height, screenshot.color, screenshot.data.data(), 0) != 0 ? 0 : 1;
+			screenshot.error_message = screenshot.error_code == 0 ? "" : "stbi_write() Invalid arguments";
+			break;
+		case 2:
+			screenshot.error_code = stbi_write_jpg_to_func(write_callback, file, screenshot.width, screenshot.height, screenshot.color, screenshot.data.data(), _screenshot_jpeg_quality) != 0 ? 0 : 1;
+			screenshot.error_message = screenshot.error_code == 0 ? "" : "stbi_write() Invalid arguments";
+			break;
 		}
+
+		fclose(file);
+		execute_screenshot_post_save_command(screenshot.path);
+	}
+	else
+	{
+		char errmsg[BUFSIZ];
+		errmsg[0] = '\0';
+		strerror_s(errmsg, error);
+
+		screenshot.error_code = error;
+		screenshot.error_message = errmsg;
 	}
 
-	_last_screenshot_file = screenshot_path;
 	_last_screenshot_time = std::chrono::high_resolution_clock::now();
 
-	if (!_screenshot_save_success)
-	{
-		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
-	}
-#if RESHADE_EFFECTS
-	else if (_screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path))
-	{
-		// Preset was flushed to disk, so can just copy it over to the new location
-		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
-	}
-#endif
+	if (screenshot.error_code != 0)
+		LOG(ERROR) << "Failed to write screenshot to " << screenshot.path << "! (" << screenshot.error_code << ':' << screenshot.error_message << ')';
 }
 bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path)
 {
@@ -3422,7 +3495,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 			else
 				name = replacing.substr(0, colon_pos);
 
-			static const auto stringicmp = [](const std::string_view& a, const std::string_view& b) {
+			static const auto stringicmp = [](const std::string_view &a, const std::string_view &b) {
 				return a.size() == b.size() && _strnicmp(a.data(), b.data(), a.size()) == 0;
 			};
 
@@ -3489,7 +3562,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		!ec && (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &process_token_handle) != FALSE))
 	{
 		DWORD state_buffer_size;
-		GetTokenInformation(process_token_handle, TOKEN_INFORMATION_CLASS::TokenPrivileges,  nullptr, 0, &state_buffer_size);
+		GetTokenInformation(process_token_handle, TOKEN_INFORMATION_CLASS::TokenPrivileges, nullptr, 0, &state_buffer_size);
 
 		PTOKEN_PRIVILEGES previous_state = (PTOKEN_PRIVILEGES)calloc(1, state_buffer_size);
 		PTOKEN_PRIVILEGES new_state = (PTOKEN_PRIVILEGES)calloc(1, state_buffer_size);
@@ -3845,7 +3918,7 @@ void reshade::runtime::get_uniform_variable_name(api::effect_uniform_variable ha
 			value[variable->name.copy(value, *length - 1)] = '\0';
 
 		*length = variable->name.size();
-}
+	}
 	else
 	{
 		*length = 0;
@@ -4220,7 +4293,7 @@ void reshade::runtime::get_texture_variable_name(api::effect_texture_variable ha
 			value[variable->name.copy(value, *length - 1)] = '\0';
 
 		*length = variable->name.size();
-}
+	}
 	else
 	{
 		*length = 0;
