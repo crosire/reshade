@@ -86,7 +86,8 @@ namespace ReShade.Setup.Pages
 		Thread UpdateThread = null;
 		AutoResetEvent SuspendUpdateThreadEvent = new AutoResetEvent(false);
 		bool SuspendUpdateThread = false;
-		public string FileName { get => PathBox.Text; private set => PathBox.Text = value; }
+		bool IgnorePathBoxChanged = false;
+		public string FileName { get => PathBox.Text; set => PathBox.Text = value; }
 		ObservableCollection<ProgramItem> ProgramListItems = new ObservableCollection<ProgramItem>();
 
 		public SelectAppPage()
@@ -316,6 +317,7 @@ namespace ReShade.Setup.Pages
 			{
 				UpdateThread.Abort();
 
+				PathBox.Focus();
 				FileName = dlg.FileName;
 			}
 			else
@@ -332,6 +334,11 @@ namespace ReShade.Setup.Pages
 
 		private void OnPathTextChanged(object sender, TextChangedEventArgs e)
 		{
+			if (IgnorePathBoxChanged)
+			{
+				return;
+			}
+
 			OnSortByChanged(sender, null);
 
 			if (PathBox.IsFocused)
@@ -372,7 +379,9 @@ namespace ReShade.Setup.Pages
 		{
 			if (ProgramList.SelectedItem is ProgramItem item)
 			{
+				IgnorePathBoxChanged = true;
 				FileName = item.Path;
+				IgnorePathBoxChanged = false;
 
 				ProgramList.ScrollIntoView(item);
 			}

@@ -92,19 +92,19 @@
     <Compile Include="Pages\SelectPackagesPage.xaml.cs">
       <DependentUpon>SelectPackagesPage.xaml</DependentUpon>
     </Compile>
+    <Page Include="Pages\SelectPresetPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Pages\SelectPresetPage.xaml.cs">
+      <DependentUpon>SelectPresetPage.xaml</DependentUpon>
+    </Compile>
     <Page Include="Pages\SelectUninstallPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Compile Include="Pages\SelectUninstallPage.xaml.cs">
       <DependentUpon>SelectUninstallPage.xaml</DependentUpon>
-    </Compile>
-    <Page Include="Pages\SettingsDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Compile Include="Pages\SettingsDialog.xaml.cs">
-      <DependentUpon>SettingsDialog.xaml</DependentUpon>
     </Compile>
     <Page Include="Pages\StatusPage.xaml">
       <SubType>Designer</SubType>
@@ -155,7 +155,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Update assembly info file -->
-  <UsingTask TaskName="CL" AssemblyFile="$(VCTargetsPath)Microsoft.Build.CppTasks.Common.dll"/>
+  <UsingTask TaskName="CL" AssemblyFile="$(VCTargetsPath)Microsoft.Build.CppTasks.Common.dll" />
   <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeCompile" Inputs="..\res\version.h;Properties\AssemblyInfo.cs.in" Outputs="Properties\AssemblyInfo.cs">
     <Message Text="Generating assembly version ..." Importance="high" />
     <CL SuppressStartupBanner="true" PreprocessSuppressLineNumbers="true" PreprocessKeepComments="true" PreprocessToFile="true" AdditionalIncludeDirectories="..\res" Sources="Properties\AssemblyInfo.cs.in" PreprocessOutputPath="Properties\AssemblyInfo.cs" ToolPath="$(VC_ExecutablePath_x86)" />

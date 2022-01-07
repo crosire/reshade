@@ -5,7 +5,8 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       mc:Ignorable="d" 
       d:DesignWidth="510" d:DesignHeight="638"
-      Width="Auto" Height="Auto">
+      Width="Auto" Height="Auto"
+      FocusManager.FocusedElement="{Binding ElementName=ApiD3D9}">
   <DockPanel>
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" HorizontalContentAlignment="Stretch" Foreground="#FF003399" FontSize="16">
       <StackPanel Orientation="Horizontal">
@@ -14,8 +15,8 @@
         <TextBlock Text=" uses:" />
       </StackPanel>
     </Label>
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
-      The preselected option is only a guess based on a quick analysis of the executable.<LineBreak />If you do not know which rendering API is used by the game, can search for the game on <Hyperlink NavigateUri="https://www.pcgamingwiki.com/" RequestNavigate="OnHyperlinkNavigate">PCGamingWiki</Hyperlink> and, on its page, look for a section with the title "API".
+    <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
+      The preselected option is a guess based on a quick analysis of the executable.<LineBreak />If you do not know which rendering API the game uses, can search for the game on <Hyperlink NavigateUri="https://www.pcgamingwiki.com/" RequestNavigate="OnHyperlinkNavigate">PCGamingWiki</Hyperlink> and look for a section with the title "API" on its page.
     </TextBlock>
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
       <RadioButton x:Name="ApiD3D9">
@@ -31,14 +32,21 @@
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiOpenGL">
-        <Image Source="Resources/OpenGL.png" Margin="8" Height="65" />
+        <StackPanel Orientation="Horizontal">
+          <Image Source="Resources/OpenGL.png" Margin="8" Height="65" />
+          <AccessText Text="_OpenGL" Width="0" Height="0" />
+        </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiVulkan">
-        <Image Source="Resources/Vulkan.png" Margin="8" Height="55" />
+        <StackPanel Orientation="Horizontal">
+          <Image Source="Resources/Vulkan.png" Margin="8" Height="55" />
+          <AccessText Text="_Vulkan" Width="0" Height="0" />
+        </StackPanel>
       </RadioButton>
-      <CheckBox x:Name="AddonSupport" Margin="0,20,0,0">
+      <Separator Margin="0,15" />
+      <CheckBox x:Name="AddonSupport" Margin="0,0,0,8">
         <TextBlock Width="290" TextWrapping="Wrap">
-          Install ReShade with add-on loading support<LineBreak/>This is recommended for single player games only and may be blocked or cause bans in multiplayer games.
+          Install ReShade with full add-on/modding support<LineBreak/>This is recommended for single player games only and may be blocked or cause bans in multiplayer games.
         </TextBlock>
       </CheckBox>
     </StackPanel>

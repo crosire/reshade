@@ -22,14 +22,12 @@ namespace ReShade.Setup.Pages
 				StatusSpin.Visibility = Visibility.Visible;
 				StatusSuccess.Visibility = Visibility.Collapsed;
 				StatusFailure.Visibility = Visibility.Collapsed;
-				SettingsButton.Visibility = Visibility.Collapsed;
 			}
 			else
 			{
 				StatusSpin.Visibility = Visibility.Collapsed;
 				StatusSuccess.Visibility = status == true ? Visibility.Visible : Visibility.Collapsed;
 				StatusFailure.Visibility = status == true ? Visibility.Collapsed : Visibility.Visible;
-				SettingsButton.Visibility = status == true && !message.Contains("uninstall") ? Visibility.Visible : Visibility.Collapsed;
 			}
 
 			ProgressText.Text = message;

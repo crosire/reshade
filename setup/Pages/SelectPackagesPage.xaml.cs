@@ -35,37 +35,29 @@ namespace ReShade.Setup.Pages
 		}
 	}
 
-	public class EffectPackageCheckBox : CheckBox
-	{
-		protected override void OnToggle()
-		{
-			// Change cycle order to show filled out box first
-			if (IsChecked != false)
-			{
-				IsChecked = new bool?(!IsChecked.HasValue);
-			}
-			else
-			{
-				IsChecked = IsThreeState ? null : new bool?(true);
-			}
-		}
-	}
-
 	public partial class SelectPackagesPage : Page
 	{
-		public SelectPackagesPage(Utilities.IniFile packagesIni)
+		public SelectPackagesPage(Utilities.IniFile packagesIni, List<string> effectFiles)
 		{
 			InitializeComponent();
 			DataContext = this;
 
 			foreach (var package in packagesIni.GetSections())
 			{
-				bool enabled = packagesIni.GetString(package, "Enabled") == "1";
 				bool required = packagesIni.GetString(package, "Required") == "1";
+				bool? enabled = required ? true : (packagesIni.GetString(package, "Enabled") == "1" && effectFiles.Count == 0 ? (bool?)null : false);
+
+				if (packagesIni.GetValue(package, "EffectFiles", out string[] packageEffectFiles))
+				{
+					if (packageEffectFiles.Intersect(effectFiles).Any())
+					{
+						enabled = true;
+					}
+				}
 
 				Items.Add(new EffectPackage
 				{
-					Enabled = required ? true : enabled ? (bool?)null : false,
+					Enabled = enabled,
 					Modifiable = !required,
 					PackageName = packagesIni.GetString(package, "PackageName"),
 					PackageDescription = packagesIni.GetString(package, "PackageDescription"),

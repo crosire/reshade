@@ -17,7 +17,9 @@
       </ComboBox>
       <Label DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Sort by:" />
     </DockPanel>
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Browse and select a game to manage its ReShade installation." />
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
+      Browse and select a game to manage its ReShade installation.
+    </TextBlock>
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
       <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="Can't find the desired game in the list?" />
       <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Content="_Browse..." Click="OnBrowseClick" />
