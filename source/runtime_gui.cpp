@@ -1817,7 +1817,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		for (const texture &tex : _textures)
 		{
-			if (tex.resource == 0 || !tex.semantic.empty() || (tex.shared.size() <= 1 && !_effects[tex.effect_index].rendering))
+			if (tex.resource == 0 || !tex.semantic.empty() || !std::any_of(tex.shared.begin(), tex.shared.end(), [this](size_t effect_index) { return _effects[effect_index].rendering; }))
 				continue;
 
 			ImGui::PushID(texture_index);

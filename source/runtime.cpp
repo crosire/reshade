@@ -1635,9 +1635,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	// Create textures now, since they are referenced when building samplers below
 	for (texture &tex : _textures)
 	{
-		if (tex.resource != 0 || (tex.effect_index != effect_index &&
-			// Always create shared textures, since they may be in use by this effect already
-			tex.shared.size() <= 1))
+		if (tex.resource != 0 || std::find(tex.shared.begin(), tex.shared.end(), effect_index) == tex.shared.end())
 			continue;
 
 		if (!create_texture(tex))
