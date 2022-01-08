@@ -369,12 +369,12 @@ namespace reshade
 		std::vector<size_t> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 		std::mutex _reload_mutex;
-		std::vector<std::thread> _worker_threads;
 
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
 #endif
+		std::vector<std::thread> _worker_threads;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		#pragma endregion
 

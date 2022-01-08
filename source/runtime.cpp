@@ -141,8 +141,8 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 }
 reshade::runtime::~runtime()
 {
-#if RESHADE_FX
 	assert(_worker_threads.empty());
+#if RESHADE_FX
 	assert(!_is_initialized && _techniques.empty());
 #endif
 
@@ -361,6 +361,11 @@ void reshade::runtime::on_reset()
 	_effect_stencil_tex = {};
 	_device->destroy_resource_view(_effect_stencil_dsv);
 	_effect_stencil_dsv = {};
+#else
+	for (std::thread &thread : _worker_threads)
+		if (thread.joinable())
+			thread.join();
+	_worker_threads.clear();
 #endif
 
 	for (const auto view : _back_buffer_targets)
@@ -3350,16 +3355,8 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 			if (_screenshot_clear_alpha)
 			{
 				comp = 3;
-				for (size_t h = 0; h < _height; ++h)
-				{
-					for (size_t w = 0; w < _width; ++w)
-					{
-						const size_t index = h * _width + w;
-						data[index * 3 + 0] = data[index * 4 + 0];
-						data[index * 3 + 1] = data[index * 4 + 1];
-						data[index * 3 + 2] = data[index * 4 + 2];
-					}
-				}
+				for (size_t i = 0; i < _width * _height; ++i)
+					*reinterpret_cast<uint32_t *>(data.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(data.data() + 4 * i);
 			}
 
 			// Create screenshot directory if it does not exist
