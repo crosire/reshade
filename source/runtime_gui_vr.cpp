@@ -226,9 +226,11 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 #if RESHADE_ADDON
+	if (!is_loading()
 #if RESHADE_ADDON && RESHADE_LITE
-	if (addon::enabled)
+		&& addon::enabled
 #endif
+		)
 	{
 		for (const auto &info : addon::loaded_info)
 		{

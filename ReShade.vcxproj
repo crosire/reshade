@@ -567,6 +567,7 @@
     <ClCompile Include="source\openvr\openvr.cpp" />
     <ClCompile Include="source\process_utils.cpp" />
     <ClCompile Include="source\runtime.cpp" />
+    <ClCompile Include="source\runtime_api.cpp" />
     <ClCompile Include="source\runtime_gui.cpp" />
     <ClCompile Include="source\runtime_gui_vr.cpp" />
     <ClCompile Include="source\runtime_update_check.cpp" />

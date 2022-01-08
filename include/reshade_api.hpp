@@ -12,14 +12,23 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a technique in an effect.
 	/// </summary>
+	/// <remarks>
+	/// This handle is only valid until effects are next reloaded again (<see cref="addon_event::reshade_reloaded_effects"/>).
+	/// </remarks>
 	RESHADE_DEFINE_HANDLE(effect_technique);
 	/// <summary>
 	/// An opaque handle to a texture variable in an effect.
 	/// </summary>
+	/// <remarks>
+	/// This handle is only valid until effects are next reloaded again (<see cref="addon_event::reshade_reloaded_effects"/>).
+	/// </remarks>
 	RESHADE_DEFINE_HANDLE(effect_texture_variable);
 	/// <summary>
 	/// An opaque handle to a uniform variable in an effect.
 	/// </summary>
+	/// <remarks>
+	/// This handle is only valid until effects are next reloaded again (<see cref="addon_event::reshade_reloaded_effects"/>).
+	/// </remarks>
 	RESHADE_DEFINE_HANDLE(effect_uniform_variable);
 
 	/// <summary>
@@ -125,13 +134,20 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Finds a specific uniform variable in the loaded effects and returns a handle to it.
 		/// </summary>
-		/// <remarks>
-		/// The returned handle is only valid until effects are next reloaded again.
-		/// </remarks>
 		/// <param name="effect_name">File name of the effect file the variable is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
 		/// <param name="variable_name">Name of the uniform variable declaration to find.</param>
 		/// <returns>Opaque handle to the uniform variable, or zero in case it was not found.</returns>
 		virtual effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const = 0;
+
+		/// <summary>
+		/// Gets information about the data type of a uniform <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="out_base_type">Optional pointer to a variable that is set to the base type of the uniform variable (<see cref="format::r32_typeless"/>, <see cref="format::r32_sint"/>, <see cref="format::r32_uint"/> or <see cref="format::r32_float"/>).</param>
+		/// <param name="out_rows">Optional pointer to a variable that is set to the number of vector rows of the uniform variable type.</param>
+		/// <param name="out_columns">Optional pointer to a variable that is set to the number of matrix column of the uniform variable type.</param>
+		/// <param name="out_array_size">Optional pointer to a variable that is set to the number of array elements of the uniform variable type.</param>
+		virtual void get_uniform_variable_type(effect_uniform_variable variable, format *out_base_type, uint32_t *out_rows = nullptr, uint32_t *out_columns = nullptr, uint32_t *out_array_length = nullptr) const = 0;
 
 		/// <summary>
 		/// Gets the name of a uniform <paramref name="variable"/>.
@@ -320,9 +336,6 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Finds a specific texture variable in the loaded effects and returns a handle to it.
 		/// </summary>
-		/// <remarks>
-		/// The returned handle is only valid until effects are next reloaded again.
-		/// </remarks>
 		/// <param name="effect_name">File name of the effect file the variable is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
 		/// <param name="variable_name">Name of the texture variable declaration to find.</param>
 		/// <returns>Opaque handle to the texture variable, or zero in case it was not found.</returns>
@@ -429,9 +442,6 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Finds a specific technique in the loaded effects and returns a handle to it.
 		/// </summary>
-		/// <remarks>
-		/// The returned handle is only valid until effects are next reloaded again.
-		/// </remarks>
 		/// <param name="effect_name">File name of the effect file the technique is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
 		/// <param name="technique_name">Name of the technique to find.</param>
 		/// <returns>Opaque handle to the technique, or zero in case it was not found.</returns>

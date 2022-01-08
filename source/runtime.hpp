@@ -129,6 +129,11 @@ namespace reshade
 		api::effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const final;
 
 		/// <summary>
+		/// Gets information about the data type of a uniform <paramref name="variable"/>.
+		/// </summary>
+		void get_uniform_variable_type(api::effect_uniform_variable variable, api::format *out_base_type, uint32_t *out_rows, uint32_t *out_columns, uint32_t *out_array_length) const final;
+
+		/// <summary>
 		/// Gets the name of a uniform <paramref name="variable"/>.
 		/// </summary>
 		void get_uniform_variable_name(api::effect_uniform_variable variable, char *name, size_t *length) const final;
@@ -294,36 +299,31 @@ namespace reshade
 		void render_technique(api::command_list *cmd_list, technique &technique, api::resource_view rtv, api::resource_view rtv_srgb);
 
 		void save_texture(const texture &texture);
-		
-		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path);
+		void update_texture(texture &texture, const uint32_t width, const uint32_t height, const uint8_t *pixels);
 
-		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
+		void reset_uniform_value(uniform &variable);
+
+		void get_uniform_value_data(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
 		template <typename T>
 		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
-		get_uniform_value(const uniform &variable, T *values, size_t count = 1, size_t array_index = 0) const
-		{
-			get_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
-		}
+		get_uniform_value(const uniform &variable, T *values, size_t count = 1, size_t array_index = 0) const;
 
-		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
+		void set_uniform_value_data(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		set_uniform_value(uniform &variable, const T *values, size_t count = 1, size_t array_index = 0);
 		template <typename T>
 		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
 		set_uniform_value(uniform &variable, T x, T y = T(0), T z = T(0), T w = T(0))
 		{
 			const T values[4] = { x, y, z, w };
-			set_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, 4, 0);
+			set_uniform_value(variable, values, 4, 0);
 		}
-		template <typename T>
-		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
-		set_uniform_value(uniform &variable, const T *values, size_t count = 1, size_t array_index = 0)
-		{
-			set_uniform_value({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
-		}
-
-		void reset_uniform_value(uniform &variable);
 #endif
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
+
+		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path);
 
 		#pragma region Status
 		bool _needs_update = false;
@@ -344,6 +344,10 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 		unsigned long long _framecount = 0;
+
+#if RESHADE_ADDON
+		bool _is_in_api_call = false;
+#endif
 		#pragma endregion
 
 		#pragma region Effect Loading
@@ -571,4 +575,16 @@ namespace reshade
 		#pragma endregion
 #endif
 	};
+
+#if RESHADE_FX
+	template <> void runtime::get_uniform_value<bool>(const uniform &variable, bool *values, size_t count, size_t array_index) const;
+	template <> void runtime::get_uniform_value<float>(const uniform &variable, float *values, size_t count, size_t array_index) const;
+	template <> void runtime::get_uniform_value<int32_t>(const uniform &variable, int32_t *values, size_t count, size_t array_index) const;
+	template <> void runtime::get_uniform_value<uint32_t>(const uniform &variable, uint32_t *values, size_t count, size_t array_index) const;
+
+	template <> void runtime::set_uniform_value<bool>(uniform &variable, const bool *values, size_t count, size_t array_index);
+	template <> void runtime::set_uniform_value<float>(uniform &variable, const float *values, size_t count, size_t array_index);
+	template <> void runtime::set_uniform_value<int32_t>(uniform &variable, const int32_t *values, size_t count, size_t array_index);
+	template <> void runtime::set_uniform_value<uint32_t>(uniform &variable, const uint32_t *values, size_t count, size_t array_index);
+#endif
 }

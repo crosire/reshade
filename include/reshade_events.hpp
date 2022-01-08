@@ -1408,6 +1408,23 @@ namespace reshade
 		/// </summary>
 		reshade_reloaded_effects,
 
+		/// <summary>
+		/// Called before a uniform variable is changed.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_uniform_variable variable, const void *data, size_t size)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent the variable from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		reshade_set_uniform_value,
+		/// <summary>
+		/// Called before a technique is enabled or disabled.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_technique technique, bool enabled)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent the technique from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		reshade_set_technique_enabled,
+
 #ifdef RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
 #endif
@@ -1525,4 +1542,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_begin_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_finish_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reloaded_effects, void, api::effect_runtime *runtime);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_uniform_value, bool, api::effect_runtime *runtime, api::effect_uniform_variable variable, const void *data, size_t size);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_technique_enabled, bool, api::effect_runtime *runtime, api::effect_technique technique, bool enabled);
 }

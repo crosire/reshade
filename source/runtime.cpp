@@ -2475,6 +2475,17 @@ void reshade::runtime::enable_technique(technique &tech)
 	if (!_effects[tech.effect_index].compiled)
 		return; // Cannot enable techniques that failed to compile
 
+#if RESHADE_ADDON
+	if (!_is_in_api_call)
+	{
+		_is_in_api_call = true;
+		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_enabled>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, true);
+		_is_in_api_call = false;
+		if (skip)
+			return;
+	}
+#endif
+
 	const bool status_changed = !tech.enabled;
 	tech.enabled = true;
 	tech.time_left = tech.annotation_as_int("timeout");
@@ -2491,6 +2502,17 @@ void reshade::runtime::enable_technique(technique &tech)
 void reshade::runtime::disable_technique(technique &tech)
 {
 	assert(tech.effect_index < _effects.size());
+
+#if RESHADE_ADDON
+	if (!_is_in_api_call)
+	{
+		_is_in_api_call = true;
+		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_enabled>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, false);
+		_is_in_api_call = false;
+		if (skip)
+			return;
+	}
+#endif
 
 	const bool status_changed = tech.enabled;
 	tech.enabled = false;
@@ -2734,6 +2756,10 @@ void reshade::runtime::update_effects()
 					instance.editor.clear_text();
 			}
 		}
+#endif
+
+#if RESHADE_ADDON
+		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
 #endif
 	}
 	else if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
@@ -3316,6 +3342,293 @@ void reshade::runtime::save_texture(const texture &tex)
 		});
 	}
 }
+void reshade::runtime::update_texture(texture &tex, const uint32_t width, const uint32_t height, const uint8_t *pixels)
+{
+	std::vector<uint8_t> resized(tex.width * tex.height * 4);
+	// Need to potentially resize image data to the texture dimensions
+	if (tex.width != width || tex.height != height)
+	{
+		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << " ...";
+
+		stbir_resize_uint8(pixels, width, height, 0, resized.data(), tex.width, tex.height, 0, 4);
+	}
+	else
+	{
+		std::memcpy(resized.data(), pixels, resized.size());
+	}
+
+	// Collapse data to the correct number of components per pixel based on the texture format
+	uint32_t row_pitch = tex.width;
+	switch (tex.format)
+	{
+	case reshadefx::texture_format::r8:
+		for (size_t i = 4, k = 1; i < resized.size(); i += 4, k += 1)
+			resized[k] = resized[i];
+		break;
+	case reshadefx::texture_format::rg8:
+		for (size_t i = 4, k = 2; i < resized.size(); i += 4, k += 2)
+			resized[k + 0] = resized[i + 0],
+			resized[k + 1] = resized[i + 1];
+		row_pitch *= 2;
+		break;
+	case reshadefx::texture_format::rgba8:
+		row_pitch *= 4;
+		break;
+	default:
+		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<int>(tex.format) << " of texture '" << tex.unique_name << "'!";
+		return;
+	}
+
+	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+	cmd_list->barrier(tex.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
+	_device->update_texture_region({ resized.data(), row_pitch, row_pitch * tex.height }, tex.resource, 0);
+	cmd_list->barrier(tex.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
+
+	if (tex.levels > 1)
+		cmd_list->generate_mipmaps(tex.srv[0]);
+}
+
+void reshade::runtime::reset_uniform_value(uniform &variable)
+{
+	if (!variable.has_initializer_value)
+	{
+		std::memset(_effects[variable.effect_index].uniform_data_storage.data() + variable.offset, 0, variable.size);
+		return;
+	}
+
+	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
+	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+		 i < array_length; ++i)
+	{
+		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
+
+		switch (variable.type.base)
+		{
+		case reshadefx::type::t_int:
+			set_uniform_value(variable, value.as_int, variable.type.components(), i);
+			break;
+		case reshadefx::type::t_bool:
+		case reshadefx::type::t_uint:
+			set_uniform_value(variable, value.as_uint, variable.type.components(), i);
+			break;
+		case reshadefx::type::t_float:
+			set_uniform_value(variable, value.as_float, variable.type.components(), i);
+			break;
+		}
+	}
+}
+
+static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
+{
+	if (renderer_id == 0x9000)
+		return true; // All uniform variables are floating-point in D3D9
+	if (type.is_matrix() && (renderer_id & 0x10000))
+		return true; // All matrices are floating-point in GLSL
+	return false;
+}
+
+void reshade::runtime::get_uniform_value_data(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const
+{
+	size = std::min(size, static_cast<size_t>(variable.size));
+	assert(data != nullptr && (size % 4) == 0);
+
+	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
+	assert(variable.offset + size <= data_storage.size());
+
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	if (assert(base_index < array_length); base_index >= array_length)
+		return;
+
+	if (variable.type.is_matrix())
+	{
+		for (size_t a = base_index, i = 0; a < array_length; ++a)
+			// Each row of a matrix is 16-byte aligned, so needs special handling
+			for (size_t row = 0; row < variable.type.rows; ++row)
+				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
+					std::memcpy(
+						data + ((a - base_index) * variable.type.components() + (row * variable.type.cols + col)) * 4,
+						data_storage.data() + variable.offset + (a * (variable.type.rows * 4) + (row * 4 + col)) * 4, 4);
+	}
+	else if (array_length > 1)
+	{
+		for (size_t a = base_index, i = 0; a < array_length; ++a)
+			// Each element in the array is 16-byte aligned, so needs special handling
+			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
+				std::memcpy(
+					data + ((a - base_index) * variable.type.components() + row) * 4,
+					data_storage.data() + variable.offset + (a * 4 + row) * 4, 4);
+	}
+	else
+	{
+		std::memcpy(data, data_storage.data() + variable.offset, size);
+	}
+}
+
+template <> void reshade::runtime::get_uniform_value<bool>(const uniform &variable, bool *values, size_t count, size_t array_index) const
+{
+	count = std::min(count, static_cast<size_t>(variable.size / 4));
+	assert(values != nullptr);
+
+	const auto data = static_cast<uint8_t *>(alloca(variable.size));
+	get_uniform_value_data(variable, data, variable.size, array_index);
+
+	for (size_t i = 0; i < count; i++)
+		values[i] = reinterpret_cast<const uint32_t *>(data)[i] != 0;
+}
+template <> void reshade::runtime::get_uniform_value<float>(const uniform &variable, float *values, size_t count, size_t array_index) const
+{
+	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	{
+		get_uniform_value_data(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float), array_index);
+		return;
+	}
+
+	count = std::min(count, static_cast<size_t>(variable.size / 4));
+	assert(values != nullptr);
+
+	const auto data = static_cast<uint8_t *>(alloca(variable.size));
+	get_uniform_value_data(variable, data, variable.size, array_index);
+
+	for (size_t i = 0; i < count; ++i)
+		if (variable.type.is_signed())
+			values[i] = static_cast<float>(reinterpret_cast<const int32_t *>(data)[i]);
+		else
+			values[i] = static_cast<float>(reinterpret_cast<const uint32_t *>(data)[i]);
+}
+template <> void reshade::runtime::get_uniform_value<int32_t>(const uniform &variable, int32_t *values, size_t count, size_t array_index) const
+{
+	if (variable.type.is_integral() && !force_floating_point_value(variable.type, _renderer_id))
+	{
+		get_uniform_value_data(variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t), array_index);
+		return;
+	}
+
+	count = std::min(count, static_cast<size_t>(variable.size / 4));
+	assert(values != nullptr);
+
+	const auto data = static_cast<uint8_t *>(alloca(variable.size));
+	get_uniform_value_data(variable, data, variable.size, array_index);
+
+	for (size_t i = 0; i < count; i++)
+		values[i] = static_cast<int32_t>(reinterpret_cast<const float *>(data)[i]);
+}
+template <> void reshade::runtime::get_uniform_value<uint32_t>(const uniform &variable, uint32_t *values, size_t count, size_t array_index) const
+{
+	get_uniform_value(variable, reinterpret_cast<int32_t *>(values), count, array_index);
+}
+
+void reshade::runtime::set_uniform_value_data(uniform &variable, const uint8_t *data, size_t size, size_t base_index)
+{
+#if RESHADE_ADDON
+	if (!_is_in_api_call)
+	{
+		_is_in_api_call = true;
+		const bool skip = invoke_addon_event<addon_event::reshade_set_uniform_value>(this, api::effect_uniform_variable { reinterpret_cast<uintptr_t>(&variable) }, data, size);
+		_is_in_api_call = false;
+		if (skip)
+			return;
+	}
+#endif
+
+	size = std::min(size, static_cast<size_t>(variable.size));
+	assert(data != nullptr && (size % 4) == 0);
+
+	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
+	assert(variable.offset + size <= data_storage.size());
+
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	if (assert(base_index < array_length); base_index >= array_length)
+		return;
+
+	if (variable.type.is_matrix())
+	{
+		for (size_t a = base_index, i = 0; a < array_length; ++a)
+			// Each row of a matrix is 16-byte aligned, so needs special handling
+			for (size_t row = 0; row < variable.type.rows; ++row)
+				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
+					std::memcpy(
+						data_storage.data() + variable.offset + (a * variable.type.rows * 4 + (row * 4 + col)) * 4,
+						data + ((a - base_index) * variable.type.components() + (row * variable.type.cols + col)) * 4, 4);
+	}
+	else if (array_length > 1)
+	{
+		for (size_t a = base_index, i = 0; a < array_length; ++a)
+			// Each element in the array is 16-byte aligned, so needs special handling
+			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
+				std::memcpy(
+					data_storage.data() + variable.offset + (a * 4 + row) * 4,
+					data + ((a - base_index) * variable.type.components() + row) * 4, 4);
+	}
+	else
+	{
+		std::memcpy(data_storage.data() + variable.offset, data, size);
+	}
+}
+
+template <> void reshade::runtime::set_uniform_value<bool>(uniform &variable, const bool *values, size_t count, size_t array_index)
+{
+	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	{
+		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
+		for (size_t i = 0; i < count; ++i)
+			data[i] = values[i] ? 1.0f : 0.0f;
+
+		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
+	}
+	else
+	{
+		const auto data = static_cast<uint32_t *>(alloca(count * sizeof(uint32_t)));
+		for (size_t i = 0; i < count; ++i)
+			data[i] = values[i] ? 1 : 0;
+
+		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(uint32_t), array_index);
+	}
+}
+template <> void reshade::runtime::set_uniform_value<float>(uniform &variable, const float *values, size_t count, size_t array_index)
+{
+	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	{
+		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float), array_index);
+	}
+	else
+	{
+		const auto data = static_cast<int32_t *>(alloca(count * sizeof(int32_t)));
+		for (size_t i = 0; i < count; ++i)
+			data[i] = static_cast<int32_t>(values[i]);
+
+		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t), array_index);
+	}
+}
+template <> void reshade::runtime::set_uniform_value<int32_t>(uniform &variable, const int32_t *values, size_t count, size_t array_index)
+{
+	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	{
+		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
+		for (size_t i = 0; i < count; ++i)
+			data[i] = static_cast<float>(values[i]);
+
+		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
+	}
+	else
+	{
+		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int32_t), array_index);
+	}
+}
+template <> void reshade::runtime::set_uniform_value<uint32_t>(uniform &variable, const uint32_t *values, size_t count, size_t array_index)
+{
+	if (variable.type.is_floating_point() || force_floating_point_value(variable.type, _renderer_id))
+	{
+		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
+		for (size_t i = 0; i < count; ++i)
+			data[i] = static_cast<float>(values[i]);
+
+		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
+	}
+	else
+	{
+		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t), array_index);
+	}
+}
 #endif
 
 void reshade::runtime::save_screenshot(const std::wstring &postfix)
@@ -3650,935 +3963,4 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	_device->destroy_resource(intermediate);
 
 	return mapped_data.data != nullptr;
-}
-
-#if RESHADE_FX
-void reshade::runtime::reset_uniform_value(uniform &variable)
-{
-	if (!variable.has_initializer_value)
-	{
-		std::memset(_effects[variable.effect_index].uniform_data_storage.data() + variable.offset, 0, variable.size);
-		return;
-	}
-
-	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
-	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-		 i < array_length; ++i)
-	{
-		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
-
-		switch (variable.type.base)
-		{
-		case reshadefx::type::t_int:
-			set_uniform_value(variable, value.as_int, variable.type.components(), i);
-			break;
-		case reshadefx::type::t_bool:
-		case reshadefx::type::t_uint:
-			set_uniform_value(variable, value.as_uint, variable.type.components(), i);
-			break;
-		case reshadefx::type::t_float:
-			set_uniform_value(variable, value.as_float, variable.type.components(), i);
-			break;
-		}
-	}
-}
-#endif
-
-bool reshade::runtime::is_key_down(uint32_t keycode) const
-{
-	return _input != nullptr && _input->is_key_down(keycode);
-}
-bool reshade::runtime::is_key_pressed(uint32_t keycode) const
-{
-	return _input != nullptr && _input->is_key_pressed(keycode);
-}
-bool reshade::runtime::is_key_released(uint32_t keycode) const
-{
-	return _input != nullptr && _input->is_key_released(keycode);
-}
-bool reshade::runtime::is_mouse_button_down(uint32_t button) const
-{
-	return _input != nullptr && _input->is_mouse_button_down(button);
-}
-bool reshade::runtime::is_mouse_button_pressed(uint32_t button) const
-{
-	return _input != nullptr && _input->is_mouse_button_pressed(button);
-}
-bool reshade::runtime::is_mouse_button_released(uint32_t button) const
-{
-	return _input != nullptr && _input->is_mouse_button_released(button);
-}
-
-void reshade::runtime::get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const
-{
-	if (out_x != nullptr)
-		*out_x = (_input != nullptr) ? _input->mouse_position_x() : 0;
-	if (out_y != nullptr)
-		*out_y = (_input != nullptr) ? _input->mouse_position_y() : 0;
-	if (out_wheel_delta != nullptr)
-		*out_wheel_delta = (_input != nullptr) ? _input->mouse_wheel_delta() : 0;
-}
-
-void reshade::runtime::enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data)
-{
-#if RESHADE_FX
-	if (is_loading())
-		return;
-
-	for (const effect &effect : _effects)
-	{
-		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
-			continue;
-
-		for (const uniform &variable : effect.uniforms)
-			callback(this, { reinterpret_cast<uintptr_t>(&variable) }, user_data);
-
-		if (effect_name != nullptr)
-			break;
-	}
-#endif
-}
-
-reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable(const char *effect_name, const char *variable_name) const
-{
-#if RESHADE_FX
-	if (is_loading())
-		return { 0 };
-
-	for (const effect &effect : _effects)
-	{
-		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
-			continue;
-
-		for (const uniform &variable : effect.uniforms)
-		{
-			if (variable.name == variable_name)
-				return { reinterpret_cast<uintptr_t>(&variable) };
-		}
-
-		if (effect_name != nullptr)
-			break;
-	}
-#endif
-	return { 0 };
-}
-
-void reshade::runtime::get_uniform_variable_name(api::effect_uniform_variable handle, char *value, size_t *length) const
-{
-#if RESHADE_FX
-	if (length == nullptr)
-		return;
-
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
-	{
-		if (value != nullptr && *length != 0)
-			value[variable->name.copy(value, *length - 1)] = '\0';
-
-		*length = variable->name.size();
-}
-	else
-	{
-		*length = 0;
-	}
-#endif
-}
-
-void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, bool *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = variable->annotation_as_uint(name, array_index + i) != 0;
-#endif
-}
-void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, float *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = variable->annotation_as_float(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, int32_t *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = variable->annotation_as_int(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = variable->annotation_as_uint(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_uniform_annotation_value(api::effect_uniform_variable handle, const char *name, char *value, size_t *length) const
-{
-#if RESHADE_FX
-	if (length == nullptr)
-		return;
-
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	std::string_view annotation;
-
-	if (variable != nullptr && !(annotation = variable->annotation_as_string(name)).empty())
-	{
-		if (value != nullptr && *length != 0)
-			value[annotation.copy(value, *length - 1)] = '\0';
-
-		*length = annotation.size();
-	}
-	else
-	{
-		*length = 0;
-	}
-#endif
-}
-
-#if RESHADE_FX
-static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
-{
-	if (renderer_id == 0x9000)
-		return true; // All uniform variables are floating-point in D3D9
-	if (type.is_matrix() && (renderer_id & 0x10000))
-		return true; // All matrices are floating-point in GLSL
-	return false;
-}
-
-void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const
-{
-	size = std::min(size, static_cast<size_t>(variable.size));
-	assert(data != nullptr && (size % 4) == 0);
-
-	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
-	assert(variable.offset + size <= data_storage.size());
-
-	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-	if (assert(base_index < array_length); base_index >= array_length)
-		return;
-
-	if (variable.type.is_matrix())
-	{
-		for (size_t a = base_index, i = 0; a < array_length; ++a)
-			// Each row of a matrix is 16-byte aligned, so needs special handling
-			for (size_t row = 0; row < variable.type.rows; ++row)
-				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
-					std::memcpy(
-						data + ((a - base_index) * variable.type.components() + (row * variable.type.cols + col)) * 4,
-						data_storage.data() + variable.offset + (a * (variable.type.rows * 4) + (row * 4 + col)) * 4, 4);
-	}
-	else if (array_length > 1)
-	{
-		for (size_t a = base_index, i = 0; a < array_length; ++a)
-			// Each element in the array is 16-byte aligned, so needs special handling
-			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
-				std::memcpy(
-					data + ((a - base_index) * variable.type.components() + row) * 4,
-					data_storage.data() + variable.offset + (a * 4 + row) * 4, 4);
-	}
-	else
-	{
-		std::memcpy(data, data_storage.data() + variable.offset, size);
-	}
-}
-#endif
-
-void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, bool *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	count = std::min(count, static_cast<size_t>(variable->size / 4));
-	assert(values != nullptr);
-
-	const auto data = static_cast<uint8_t *>(alloca(variable->size));
-	get_uniform_value(*variable, data, variable->size, array_index);
-
-	for (size_t i = 0; i < count; i++)
-		values[i] = reinterpret_cast<const uint32_t *>(data)[i] != 0;
-#endif
-}
-void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, float *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
-	{
-		get_uniform_value(*variable, reinterpret_cast<uint8_t *>(values), count * sizeof(float), array_index);
-		return;
-	}
-
-	count = std::min(count, static_cast<size_t>(variable->size / 4));
-	assert(values != nullptr);
-
-	const auto data = static_cast<uint8_t *>(alloca(variable->size));
-	get_uniform_value(*variable, data, variable->size, array_index);
-
-	for (size_t i = 0; i < count; ++i)
-		if (variable->type.is_signed())
-			values[i] = static_cast<float>(reinterpret_cast<const int32_t *>(data)[i]);
-		else
-			values[i] = static_cast<float>(reinterpret_cast<const uint32_t *>(data)[i]);
-#endif
-}
-void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, int32_t *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	if (variable->type.is_integral() && !force_floating_point_value(variable->type, _renderer_id))
-	{
-		get_uniform_value(*variable, reinterpret_cast<uint8_t *>(values), count * sizeof(int32_t), array_index);
-		return;
-	}
-
-	count = std::min(count, static_cast<size_t>(variable->size / 4));
-	assert(values != nullptr);
-
-	const auto data = static_cast<uint8_t *>(alloca(variable->size));
-	get_uniform_value(*variable, data, variable->size, array_index);
-
-	for (size_t i = 0; i < count; i++)
-		values[i] = static_cast<int32_t>(reinterpret_cast<const float *>(data)[i]);
-#endif
-}
-void reshade::runtime::get_uniform_value(api::effect_uniform_variable handle, uint32_t *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	get_uniform_value(handle, reinterpret_cast<int32_t *>(values), count, array_index);
-#endif
-}
-
-#if RESHADE_FX
-void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index)
-{
-	size = std::min(size, static_cast<size_t>(variable.size));
-	assert(data != nullptr && (size % 4) == 0);
-
-	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
-	assert(variable.offset + size <= data_storage.size());
-
-	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-	if (assert(base_index < array_length); base_index >= array_length)
-		return;
-
-	if (variable.type.is_matrix())
-	{
-		for (size_t a = base_index, i = 0; a < array_length; ++a)
-			// Each row of a matrix is 16-byte aligned, so needs special handling
-			for (size_t row = 0; row < variable.type.rows; ++row)
-				for (size_t col = 0; i < (size / 4) && col < variable.type.cols; ++col, ++i)
-					std::memcpy(
-						data_storage.data() + variable.offset + (a * variable.type.rows * 4 + (row * 4 + col)) * 4,
-						data + ((a - base_index) * variable.type.components() + (row * variable.type.cols + col)) * 4, 4);
-	}
-	else if (array_length > 1)
-	{
-		for (size_t a = base_index, i = 0; a < array_length; ++a)
-			// Each element in the array is 16-byte aligned, so needs special handling
-			for (size_t row = 0; i < (size / 4) && row < variable.type.rows; ++row, ++i)
-				std::memcpy(
-					data_storage.data() + variable.offset + (a * 4 + row) * 4,
-					data + ((a - base_index) * variable.type.components() + row) * 4, 4);
-	}
-	else
-	{
-		std::memcpy(data_storage.data() + variable.offset, data, size);
-	}
-}
-#endif
-
-void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const bool *values, size_t count, size_t array_index)
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
-	{
-		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
-		for (size_t i = 0; i < count; ++i)
-			data[i] = values[i] ? 1.0f : 0.0f;
-
-		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
-	}
-	else
-	{
-		const auto data = static_cast<uint32_t *>(alloca(count * sizeof(uint32_t)));
-		for (size_t i = 0; i < count; ++i)
-			data[i] = values[i] ? 1 : 0;
-
-		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(uint32_t), array_index);
-	}
-#endif
-}
-void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const float *values, size_t count, size_t array_index)
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
-	{
-		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(float), array_index);
-	}
-	else
-	{
-		const auto data = static_cast<int32_t *>(alloca(count * sizeof(int32_t)));
-		for (size_t i = 0; i < count; ++i)
-			data[i] = static_cast<int32_t>(values[i]);
-
-		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(int32_t), array_index);
-	}
-#endif
-}
-void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const int32_t *values, size_t count, size_t array_index)
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
-	{
-		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
-		for (size_t i = 0; i < count; ++i)
-			data[i] = static_cast<float>(values[i]);
-
-		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
-	}
-	else
-	{
-		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(int32_t), array_index);
-	}
-#endif
-}
-void reshade::runtime::set_uniform_value(api::effect_uniform_variable handle, const uint32_t *values, size_t count, size_t array_index)
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<uniform *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	if (variable->type.is_floating_point() || force_floating_point_value(variable->type, _renderer_id))
-	{
-		const auto data = static_cast<float *>(alloca(count * sizeof(float)));
-		for (size_t i = 0; i < count; ++i)
-			data[i] = static_cast<float>(values[i]);
-
-		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(data), count * sizeof(float), array_index);
-	}
-	else
-	{
-		set_uniform_value(*variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t), array_index);
-	}
-#endif
-}
-
-void reshade::runtime::enumerate_texture_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), void *user_data)
-{
-#if RESHADE_FX
-	if (is_loading() || !_reload_create_queue.empty())
-		return;
-
-	for (const texture &variable : _textures)
-	{
-		if (effect_name != nullptr &&
-			std::find_if(variable.shared.begin(), variable.shared.end(),
-				[this, effect_name](size_t effect_index) { return _effects[effect_index].source_file.filename() == effect_name; }) == variable.shared.end())
-			continue;
-
-		callback(this, { reinterpret_cast<uintptr_t>(&variable) }, user_data);
-	}
-#endif
-}
-
-reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(const char *effect_name, const char *variable_name) const
-{
-#if RESHADE_FX
-	if (is_loading() || !_reload_create_queue.empty())
-		return { 0 };
-
-	for (const texture &variable : _textures)
-	{
-		if (effect_name != nullptr &&
-			std::find_if(variable.shared.begin(), variable.shared.end(),
-				[this, effect_name](size_t effect_index) { return _effects[effect_index].source_file.filename() == effect_name; }) == variable.shared.end())
-			continue;
-
-		if (variable.name == variable_name || variable.unique_name == variable_name)
-			return { reinterpret_cast<uintptr_t>(&variable) };
-	}
-#endif
-	return { 0 };
-}
-
-void reshade::runtime::get_texture_variable_name(api::effect_texture_variable handle, char *value, size_t *length) const
-{
-#if RESHADE_FX
-	if (length == nullptr)
-		return;
-
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable != nullptr)
-	{
-		if (value != nullptr && *length != 0)
-			value[variable->name.copy(value, *length - 1)] = '\0';
-
-		*length = variable->name.size();
-}
-	else
-	{
-		*length = 0;
-	}
-#endif
-}
-
-void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, bool *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = variable->annotation_as_uint(name, array_index + i) != 0;
-#endif
-}
-void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, float *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = variable->annotation_as_float(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, int32_t *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = variable->annotation_as_int(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = variable->annotation_as_uint(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_texture_annotation_value(api::effect_texture_variable handle, const char *name, char *value, size_t *length) const
-{
-#if RESHADE_FX
-	if (length == nullptr)
-		return;
-
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	std::string_view annotation;
-
-	if (variable != nullptr && !(annotation = variable->annotation_as_string(name)).empty())
-	{
-		if (value != nullptr && *length != 0)
-			value[annotation.copy(value, *length - 1)] = '\0';
-
-		*length = annotation.size();
-	}
-	else
-	{
-		*length = 0;
-	}
-#endif
-}
-
-void reshade::runtime::update_texture(api::effect_texture_variable handle, const uint32_t width, const uint32_t height, const uint8_t *pixels)
-{
-#if RESHADE_FX
-	if (handle == 0)
-		return;
-	const auto &variable = *reinterpret_cast<texture *>(handle.handle);
-	if (variable.resource == 0)
-		return;
-
-	std::vector<uint8_t> resized(variable.width * variable.height * 4);
-	// Need to potentially resize image data to the texture dimensions
-	if (variable.width != width || variable.height != height)
-	{
-		LOG(INFO) << "Resizing image data for texture '" << variable.unique_name << "' from " << width << "x" << height << " to " << variable.width << "x" << variable.height << " ...";
-
-		stbir_resize_uint8(pixels, width, height, 0, resized.data(), variable.width, variable.height, 0, 4);
-	}
-	else
-	{
-		std::memcpy(resized.data(), pixels, resized.size());
-	}
-
-	// Collapse data to the correct number of components per pixel based on the texture format
-	uint32_t row_pitch = variable.width;
-	switch (variable.format)
-	{
-	case reshadefx::texture_format::r8:
-		for (size_t i = 4, k = 1; i < resized.size(); i += 4, k += 1)
-			resized[k] = resized[i];
-		break;
-	case reshadefx::texture_format::rg8:
-		for (size_t i = 4, k = 2; i < resized.size(); i += 4, k += 2)
-			resized[k + 0] = resized[i + 0],
-			resized[k + 1] = resized[i + 1];
-		row_pitch *= 2;
-		break;
-	case reshadefx::texture_format::rgba8:
-		row_pitch *= 4;
-		break;
-	default:
-		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<int>(variable.format) << " of texture '" << variable.unique_name << "'!";
-		return;
-	}
-
-	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-	cmd_list->barrier(variable.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
-	_device->update_texture_region({ resized.data(), row_pitch, row_pitch * variable.height }, variable.resource, 0);
-	cmd_list->barrier(variable.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
-
-	if (variable.levels > 1)
-		cmd_list->generate_mipmaps(variable.srv[0]);
-#endif
-}
-
-void reshade::runtime::get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const
-{
-#if RESHADE_FX
-	if (variable == 0)
-		return;
-
-	if (out_srv != nullptr)
-		*out_srv = reinterpret_cast<const texture *>(variable.handle)->srv[0];
-	if (out_srv_srgb != nullptr)
-		*out_srv_srgb = reinterpret_cast<const texture *>(variable.handle)->srv[1];
-#endif
-}
-
-void reshade::runtime::update_texture_bindings(const char *semantic, api::resource_view srv, api::resource_view srv_srgb)
-{
-#if RESHADE_FX
-	if (srv_srgb == 0)
-		srv_srgb = srv;
-
-	if (srv != 0)
-	{
-		_texture_semantic_bindings[semantic] = { srv, srv_srgb };
-	}
-	else
-	{
-		_texture_semantic_bindings.erase(semantic);
-
-		// Overwrite with empty texture, since it is not valid to bind a zero handle
-		srv = srv_srgb = _empty_srv;
-	}
-
-	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
-	_graphics_queue->wait_idle();
-
-	// Update texture bindings
-	size_t num_bindings = 0;
-	for (effect &effect_data : _effects)
-		num_bindings += effect_data.texture_semantic_to_binding.size();
-
-	std::vector<api::descriptor_set_update> descriptor_writes;
-	std::vector<api::sampler_with_resource_view> sampler_descriptors(num_bindings);
-
-	for (effect &effect_data : _effects)
-	{
-		for (const auto &binding : effect_data.texture_semantic_to_binding)
-		{
-			if (binding.semantic != semantic)
-				continue;
-
-			assert(num_bindings != 0);
-
-			api::descriptor_set_update &write = descriptor_writes.emplace_back();
-			write.set = binding.set;
-			write.binding = binding.index;
-			write.count = 1;
-
-			if (binding.sampler != 0)
-			{
-				write.type = api::descriptor_type::sampler_with_resource_view;
-				write.descriptors = &sampler_descriptors[--num_bindings];
-			}
-			else
-			{
-				write.type = api::descriptor_type::shader_resource_view;
-				write.descriptors = &sampler_descriptors[--num_bindings].view;
-			}
-
-			sampler_descriptors[num_bindings].sampler = binding.sampler;
-			sampler_descriptors[num_bindings].view = binding.srgb ? srv_srgb : srv;
-		}
-	}
-
-	_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
-#endif
-}
-
-void reshade::runtime::enumerate_techniques(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_technique technique, void *user_data), void *user_data)
-{
-#if RESHADE_FX
-	if (is_loading())
-		return;
-
-	for (const technique &technique : _techniques)
-	{
-		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
-			continue;
-
-		callback(this, { reinterpret_cast<uintptr_t>(&technique) }, user_data);
-	}
-#endif
-}
-
-reshade::api::effect_technique reshade::runtime::find_technique(const char *effect_name, const char *technique_name)
-{
-#if RESHADE_FX
-	if (is_loading())
-		return { 0 };
-
-	for (const technique &technique : _techniques)
-	{
-		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
-			continue;
-
-		if (technique.name == technique_name)
-			return { reinterpret_cast<uintptr_t>(&technique) };
-	}
-#endif
-	return { 0 };
-}
-
-void reshade::runtime::get_technique_name(api::effect_technique handle, char *value, size_t *length) const
-{
-#if RESHADE_FX
-	if (length == nullptr)
-		return;
-
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech != nullptr)
-	{
-		if (value != nullptr && *length != 0)
-			value[tech->name.copy(value, *length - 1)] = '\0';
-
-		*length = tech->name.size();
-	}
-	else
-	{
-		*length = 0;
-	}
-#endif
-}
-
-void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, bool *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = tech->annotation_as_uint(name, array_index + i) != 0;
-#endif
-}
-void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, float *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = tech->annotation_as_float(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, int32_t *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = tech->annotation_as_int(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
-{
-#if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech == nullptr)
-		return;
-
-	for (size_t i = 0; i < count; ++i)
-		values[i] = tech->annotation_as_uint(name, array_index + i);
-#endif
-}
-void reshade::runtime::get_technique_annotation_value(api::effect_technique handle, const char *name, char *value, size_t *length) const
-{
-#if RESHADE_FX
-	if (length == nullptr)
-		return;
-
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	std::string_view annotation;
-
-	if (tech != nullptr && !(annotation = tech->annotation_as_string(name)).empty())
-	{
-		if (value != nullptr && *length != 0)
-			value[annotation.copy(value, *length - 1)] = '\0';
-
-		*length = annotation.size();
-	}
-	else
-	{
-		*length = 0;
-	}
-#endif
-}
-
-bool reshade::runtime::get_technique_enabled(api::effect_technique handle) const
-{
-#if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech == nullptr)
-		return false;
-
-	return tech->enabled;
-#else
-	return false;
-#endif
-}
-void reshade::runtime::set_technique_enabled(api::effect_technique handle, bool enabled)
-{
-#if RESHADE_FX
-	const auto tech = reinterpret_cast<technique *>(handle.handle);
-	if (tech == nullptr)
-		return;
-
-	if (enabled)
-		enable_technique(*tech);
-	else
-		disable_technique(*tech);
-#endif
-}
-
-void reshade::runtime::set_preprocessor_definition(const char *name, const char *value)
-{
-#if RESHADE_FX
-	if (name == nullptr)
-		return;
-
-	auto preset_it = _preset_preprocessor_definitions.begin();
-	for (; preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
-	{
-		char current_name[128] = "";
-		const size_t equals_index = preset_it->find('=');
-		preset_it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
-
-		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
-			break;
-	}
-
-	if (value == nullptr || value[0] == '\0') // An empty value removes the definition
-	{
-		if (preset_it != _preset_preprocessor_definitions.end())
-		{
-			_preset_preprocessor_definitions.erase(preset_it);
-		}
-	}
-	else
-	{
-		if (preset_it != _preset_preprocessor_definitions.end())
-		{
-			*preset_it = std::string(name) + '=' + value;
-		}
-		else
-		{
-			_preset_preprocessor_definitions.push_back(std::string(name) + '=' + value);
-		}
-	}
-
-	reload_effects();
-#endif
-}
-bool reshade::runtime::get_preprocessor_definition(const char *name, char *value, size_t *length) const
-{
-#if RESHADE_FX
-	if (name == nullptr || length == nullptr)
-		return false;
-
-	for (auto it = _preset_preprocessor_definitions.begin(); it != _preset_preprocessor_definitions.end(); ++it)
-	{
-		char current_name[128] = "";
-		const size_t equals_index = it->find('=');
-		it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
-
-		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
-		{
-			if (value != nullptr && *length != 0)
-				value[it->copy(value, *length - 1, equals_index + 1)] = '\0';
-
-			*length = it->size() - (equals_index + 1);
-			return true;
-		}
-	}
-	for (auto it = _global_preprocessor_definitions.begin(); it != _global_preprocessor_definitions.end(); ++it)
-	{
-		char current_name[128] = "";
-		const size_t equals_index = it->find('=');
-		it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
-
-		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
-		{
-			if (value != nullptr && *length != 0)
-				value[it->copy(value, *length - 1, equals_index + 1)] = '\0';
-
-			*length = it->size() - (equals_index + 1);
-			return true;
-		}
-	}
-#endif
-	return false;
 }

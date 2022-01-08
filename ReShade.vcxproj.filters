@@ -99,6 +99,9 @@
     <ClCompile Include="source\runtime.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="source\runtime_api.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="source\runtime_gui.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>

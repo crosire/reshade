@@ -27,6 +27,8 @@ struct temp_mem
 
 	T &operator[](size_t element)
 	{
+		assert(element < STACK_ELEMENTS || p != stack);
+
 		return p[element];
 	}
 
