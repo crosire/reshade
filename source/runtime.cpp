@@ -3362,6 +3362,12 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 				}
 			}
 
+			// Create screenshot directory if it does not exist
+			if (std::error_code ec; !std::filesystem::exists(screenshot_path.parent_path(), ec))
+				_screenshot_directory_creation_successfull = std::filesystem::create_directories(screenshot_path.parent_path(), ec);
+			else
+				_screenshot_directory_creation_successfull = true;
+
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 

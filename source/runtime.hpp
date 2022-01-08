@@ -416,6 +416,7 @@ namespace reshade
 
 		bool _should_save_screenshot = false;
 		std::atomic<bool> _last_screenshot_save_successfull = true;
+		bool _screenshot_directory_creation_successfull = true;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 		#pragma endregion
