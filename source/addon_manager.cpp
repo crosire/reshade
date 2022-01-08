@@ -106,7 +106,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 }
 #endif
 
-#if RESHADE_ADDON_LOAD == 0
+#if RESHADE_LITE
 bool reshade::addon::enabled = true;
 #endif
 std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
@@ -144,7 +144,7 @@ void reshade::load_addons()
 		}
 	}
 
-#if RESHADE_ADDON_LOAD
+#if !RESHADE_LITE
 	// Get directory from where to load add-ons from
 	std::filesystem::path addon_search_path = g_reshade_base_path;
 	if (global_config().get("INSTALL", "AddonPath", addon_search_path))
@@ -176,7 +176,7 @@ void reshade::unload_addons()
 	if (--s_reference_count != 0)
 		return;
 
-#if RESHADE_ADDON_LOAD
+#if !RESHADE_LITE
 	// Create copy of add-on list before unloading, since add-ons call 'ReShadeUnregisterAddon' during 'FreeLibrary', which modifies the list
 	const std::vector<addon::info> loaded_info_copy = addon::loaded_info;
 	for (const addon::info &info : loaded_info_copy)
@@ -338,7 +338,7 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 	if (info == nullptr)
 		return;
 
-#if RESHADE_ADDON_LOAD == 0
+#if RESHADE_LITE
 	// Block all application events when building without add-on loading support
 	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
 		return;
@@ -362,7 +362,7 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 	if (info == nullptr)
 		return;
 
-#if RESHADE_ADDON_LOAD == 0
+#if RESHADE_LITE
 	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
 		return;
 #endif

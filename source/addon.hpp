@@ -128,7 +128,7 @@ namespace reshade::addon
 #endif
 	};
 
-#if RESHADE_ADDON_LOAD == 0
+#if RESHADE_LITE
 	/// <summary>
 	/// Global switch to enable or disable all loaded add-ons.
 	/// </summary>

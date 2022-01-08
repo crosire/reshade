@@ -37,7 +37,7 @@ namespace reshade
 	template <addon_event ev, typename... Args>
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
 	{
-#if RESHADE_ADDON_LOAD == 0
+#if RESHADE_LITE
 		// Allow a subset of events even when add-ons are disabled, to ensure they continue working correctly
 		if constexpr (
 			ev != addon_event::init_device &&
@@ -75,7 +75,7 @@ namespace reshade
 	template <addon_event ev, typename... Args>
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
-#if RESHADE_ADDON_LOAD == 0
+#if RESHADE_LITE
 		if (!addon::enabled)
 			return false;
 #endif

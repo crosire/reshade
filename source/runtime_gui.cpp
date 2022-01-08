@@ -172,7 +172,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "ShowFPS", _show_fps);
 	config.get("OVERLAY", "ShowFrameTime", _show_frametime);
 	config.get("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 	config.get("OVERLAY", "TutorialProgress", _tutorial_index);
 	config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
@@ -224,7 +224,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("OVERLAY", "ShowFPS", _show_fps);
 	config.set("OVERLAY", "ShowFrameTime", _show_frametime);
 	config.set("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 	config.set("OVERLAY", "TutorialProgress", _tutorial_index);
 	config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
@@ -551,7 +551,7 @@ void reshade::runtime::draw_gui()
 {
 	assert(_is_initialized);
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 	bool show_splash = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0));
 #else
 	bool show_splash = _show_splash && (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
@@ -570,7 +570,7 @@ void reshade::runtime::draw_gui()
 
 	_ignore_shortcuts = false;
 	_gather_gpu_statistics = false;
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 	_effects_expanded_state &= 2;
 #endif
 
@@ -642,7 +642,7 @@ void reshade::runtime::draw_gui()
 
 		if (!_preset_save_success)
 		{
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 			ImGui::TextColored(COLOR_RED, "Unable to save current preset. Make sure you have write permissions to %s.", _current_preset_path.u8string().c_str());
 #else
 			ImGui::TextColored(COLOR_RED, "Unable to save configuration.");
@@ -675,7 +675,7 @@ void reshade::runtime::draw_gui()
 
 			ImGui::Spacing();
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 			{
 				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
@@ -707,7 +707,7 @@ void reshade::runtime::draw_gui()
 				ImGui::TextUnformatted("' to open the configuration overlay.");
 			}
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 			if (!_last_reload_successfull)
 			{
 				ImGui::Spacing();
@@ -793,7 +793,7 @@ void reshade::runtime::draw_gui()
 		}
 
 		static constexpr std::pair<const char *, void(runtime::*)()> overlay_callbacks[] = {
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 			{ "Home", &runtime::draw_gui_home },
 #endif
 #if RESHADE_ADDON
@@ -854,7 +854,7 @@ void reshade::runtime::draw_gui()
 		}
 
 #if RESHADE_ADDON
-#if RESHADE_ADDON_LOAD == 0
+#if RESHADE_ADDON && RESHADE_LITE
 		if (addon::enabled)
 #endif
 		{
@@ -870,7 +870,7 @@ void reshade::runtime::draw_gui()
 		}
 #endif
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		if (!_editors.empty())
 		{
 			if (ImGui::Begin("Edit###editor", nullptr, ImGuiWindowFlags_NoFocusOnAppearing) &&
@@ -909,7 +909,7 @@ void reshade::runtime::draw_gui()
 #endif
 	}
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 	if (_preview_texture != 0 && _effects_enabled)
 	{
 		if (!_show_overlay)
@@ -981,7 +981,7 @@ void reshade::runtime::draw_gui()
 	ImGui::SetCurrentContext(backup_context);
 }
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 void reshade::runtime::draw_gui_home()
 {
 	const char *tutorial_text =
@@ -1406,7 +1406,7 @@ void reshade::runtime::draw_gui_settings()
 	{
 		modified |= imgui::key_input_box("Overlay key", _overlay_key_data, *_input);
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		modified |= imgui::key_input_box("Effect toggle key", _effects_key_data, *_input);
 		modified |= imgui::key_input_box("Effect reload key", _reload_key_data, *_input);
 
@@ -1427,7 +1427,7 @@ void reshade::runtime::draw_gui_settings()
 
 		ImGui::Spacing();
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 
@@ -1454,7 +1454,7 @@ void reshade::runtime::draw_gui_settings()
 
 		std::string screenshot_naming_items;
 		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss " + '\0';
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss " + _current_preset_path.stem().string() + '\0';
 #endif
 		modified |= ImGui::Combo("Screenshot name", reinterpret_cast<int *>(&_screenshot_naming), screenshot_naming_items.c_str());
@@ -1466,7 +1466,7 @@ void reshade::runtime::draw_gui_settings()
 		else
 			modified |= ImGui::Checkbox("Clear alpha channel", &_screenshot_clear_alpha);
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		modified |= ImGui::Checkbox("Save current preset file", &_screenshot_include_preset);
 #endif
 		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
@@ -1489,20 +1489,20 @@ void reshade::runtime::draw_gui_settings()
 
 	if (ImGui::CollapsingHeader("Overlay & Styling", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		if (ImGui::Button("Restart tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
 			_tutorial_index = 0;
 #endif
 
 		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		if (_effect_load_skipping)
 			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_show_force_load_effects_button);
 #endif
 
 		modified |= ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &_save_imgui_window_state);
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
 #endif
 
@@ -1663,7 +1663,7 @@ void reshade::runtime::draw_gui_settings()
 void reshade::runtime::draw_gui_statistics()
 {
 	unsigned int gpu_digits = 1;
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 	unsigned int cpu_digits = 1;
 	uint64_t post_processing_time_cpu = 0;
 	uint64_t post_processing_time_gpu = 0;
@@ -1702,7 +1702,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::TextUnformatted("Application:");
 		ImGui::TextUnformatted("Time:");
 		ImGui::Text("Frame %llu:", _framecount + 1);
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		ImGui::TextUnformatted("Post-Processing:");
 #endif
 
@@ -1717,7 +1717,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::TextUnformatted(g_target_executable_path.filename().u8string().c_str());
 		ImGui::Text("%d-%d-%d %d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		ImGui::Text("%*.3f ms CPU", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
 #endif
 
@@ -1732,7 +1732,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::Text("0x%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF);
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		if (_gather_gpu_statistics && post_processing_time_gpu != 0)
 			ImGui::Text("%*.3f ms GPU", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
 #endif
@@ -1740,7 +1740,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::EndGroup();
 	}
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) && !is_loading() && _effects_enabled)
 	{
 		_gather_gpu_statistics = true;
@@ -2173,7 +2173,7 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 #if RESHADE_ADDON
 void reshade::runtime::draw_gui_addons()
 {
-#if RESHADE_ADDON_LOAD == 0
+#if RESHADE_ADDON && RESHADE_LITE
 	if (!addon::enabled)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
@@ -2268,7 +2268,7 @@ void reshade::runtime::draw_gui_addons()
 }
 #endif
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 void reshade::runtime::draw_variable_editor()
 {
 	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());

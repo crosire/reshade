@@ -136,7 +136,7 @@ void reshade::d3d9::swapchain_impl::on_present()
 	device_impl->_orig->EndScene();
 }
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 void reshade::d3d9::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
 	const auto device_impl = static_cast<class device_impl *>(_device);

@@ -1746,7 +1746,7 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(UpdateDescriptorSets, device_impl);
 
-#if RESHADE_ADDON && RESHADE_ADDON_LOAD
+#if RESHADE_ADDON && !RESHADE_LITE
 	if (descriptorWriteCount != 0 && reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
 		temp_mem<reshade::api::descriptor_set_update> updates(descriptorWriteCount);

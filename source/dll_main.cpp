@@ -114,20 +114,20 @@ std::filesystem::path get_module_path(HMODULE module)
 
 #ifdef RESHADE_TEST_APPLICATION
 
-#  include "com_ptr.hpp"
-#  include <d3d9.h>
-#  include <d3d11.h>
-#  include <d3d12.h>
-#  include <D3D12Downlevel.h>
-#  include <GL/gl3w.h>
-#  include <vulkan/vulkan.h>
+#include "com_ptr.hpp"
+#include <d3d9.h>
+#include <d3d11.h>
+#include <d3d12.h>
+#include <D3D12Downlevel.h>
+#include <GL/gl3w.h>
+#include <vulkan/vulkan.h>
 
-#  define HR_CHECK(exp) { const HRESULT res = (exp); assert(SUCCEEDED(res)); }
-#  define VK_CHECK(exp) { const VkResult res = (exp); assert(res == VK_SUCCESS); }
+#define HR_CHECK(exp) { const HRESULT res = (exp); assert(SUCCEEDED(res)); }
+#define VK_CHECK(exp) { const VkResult res = (exp); assert(res == VK_SUCCESS); }
 
-#  define VK_CALL_CMD(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(__VA_ARGS__)
-#  define VK_CALL_DEVICE(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
-#  define VK_CALL_INSTANCE(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
+#define VK_CALL_CMD(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(__VA_ARGS__)
+#define VK_CALL_DEVICE(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
+#define VK_CALL_INSTANCE(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -252,11 +252,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			desc.Windowed = true;
 			desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
-#  ifndef NDEBUG
+#ifndef NDEBUG
 			const UINT flags = D3D11_CREATE_DEVICE_DEBUG;
-#  else
+#else
 			const UINT flags = 0;
-#  endif
+#endif
 			HR_CHECK(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, nullptr, 0, D3D11_SDK_VERSION, &desc, &swapchain, &device, nullptr, &immediate_context));
 		}
 
@@ -309,13 +309,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		reshade::hooks::register_module(L"dxgi.dll");
 		reshade::hooks::register_module(L"d3d12.dll");
 
-#  ifndef NDEBUG
+#ifndef NDEBUG
 		// Enable D3D debug layer if it is available
 		{   com_ptr<ID3D12Debug> debug_iface;
 			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_iface))))
 				debug_iface->EnableDebugLayer();
 		}
-#  endif
+#endif
 
 		// Initialize Direct3D 12
 		com_ptr<ID3D12Device> device;
@@ -569,11 +569,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			app_info.applicationVersion = VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION;
 
 			const char *const enabled_layers[] = {
-#  if VK_HEADER_VERSION >= 106
+#if VK_HEADER_VERSION >= 106
 				"VK_LAYER_KHRONOS_validation"
-#  else
+#else
 				"VK_LAYER_LUNARG_standard_validation"
-#  endif
+#endif
 			};
 			const char *const enabled_extensions[] = {
 				VK_KHR_SURFACE_EXTENSION_NAME,
@@ -582,10 +582,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 			VkInstanceCreateInfo create_info { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
 			create_info.pApplicationInfo = &app_info;
-#  ifndef NDEBUG
+#ifndef NDEBUG
 			create_info.enabledLayerCount = ARRAYSIZE(enabled_layers);
 			create_info.ppEnabledLayerNames = enabled_layers;
-#  endif
+#endif
 			create_info.enabledExtensionCount = ARRAYSIZE(enabled_extensions);
 			create_info.ppEnabledExtensionNames = enabled_extensions;
 
@@ -611,11 +611,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			queue_info.pQueuePriorities = &queue_priority;
 
 			const char *const enabled_layers[] = {
-#  if VK_HEADER_VERSION >= 106
+#if VK_HEADER_VERSION >= 106
 				"VK_LAYER_KHRONOS_validation"
-#  else
+#else
 				"VK_LAYER_LUNARG_standard_validation"
-#  endif
+#endif
 			};
 			const char *const enabled_extensions[] = {
 				VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -624,10 +624,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			VkDeviceCreateInfo create_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 			create_info.queueCreateInfoCount = 1;
 			create_info.pQueueCreateInfos = &queue_info;
-#  ifndef NDEBUG
+#ifndef NDEBUG
 			create_info.enabledLayerCount = ARRAYSIZE(enabled_layers);
 			create_info.ppEnabledLayerNames = enabled_layers;
-#  endif
+#endif
 			create_info.enabledExtensionCount = ARRAYSIZE(enabled_extensions);
 			create_info.ppEnabledExtensionNames = enabled_extensions;
 
@@ -850,13 +850,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			reshade::log::open_log_file(log_path);
 		}
 
-#  ifdef WIN64
+#ifdef WIN64
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
-#  else
+#else
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
-#  endif
+#endif
 
-#  ifndef NDEBUG
+#ifndef NDEBUG
 		// Disable exception handler for Java games, since it causing problems with the Java runtime
 		if (g_target_executable_path.filename() != L"java.exe" &&
 			g_target_executable_path.filename() != L"javaw.exe")
@@ -907,7 +907,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				return EXCEPTION_CONTINUE_SEARCH;
 			});
 		}
-#  endif
+#endif
 
 		// Check if another ReShade instance was already loaded into the process
 		if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
@@ -925,9 +925,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		// Register modules to hook
 		{
 			reshade::hooks::register_module(L"user32.dll");
-#  if RESHADE_ADDON_LOAD == 0
+#if RESHADE_LITE
 			reshade::hooks::register_module(L"ws2_32.dll");
-#  endif
+#endif
 
 			const std::filesystem::path module_name = g_reshade_dll_path.stem();
 
@@ -957,11 +957,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
-#  ifdef WIN64
+#ifdef WIN64
 			reshade::hooks::register_module(L"vrclient_x64.dll");
-#  else
+#else
 			reshade::hooks::register_module(L"vrclient.dll");
-#  endif
+#endif
 
 			// Register DirectInput module in case it was used to load ReShade (but ignore otherwise)
 			if (_wcsicmp(module_name.c_str(), L"dinput8") == 0)
@@ -986,10 +986,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		// It should also be large enough to cover any potential other calls to previous hooks that may still be in flight from other threads
 		Sleep(1000);
 
-#  ifndef NDEBUG
+#ifndef NDEBUG
 		if (s_exception_handler_handle != nullptr)
 			RemoveVectoredExceptionHandler(s_exception_handler_handle);
-#  endif
+#endif
 
 		LOG(INFO) << "Finished exiting.";
 		break;

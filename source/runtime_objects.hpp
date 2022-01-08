@@ -60,7 +60,7 @@ namespace reshade
 		T _average, _tick_sum, _tick_list[SAMPLES];
 	};
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 	struct texture final : reshadefx::texture_info
 	{
 		texture(const reshadefx::texture_info &init) : texture_info(init) {}

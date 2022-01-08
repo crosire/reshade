@@ -49,7 +49,7 @@ namespace reshade
 		/// </summary>
 		inline std::filesystem::path get_config_path() const { return _config_path; }
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		/// <summary>
 		/// Gets a boolean indicating whether effects are being loaded.
 		/// </summary>
@@ -65,7 +65,7 @@ namespace reshade
 		/// </summary>
 		virtual api::resource get_back_buffer_resolved(uint32_t index) = 0;
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		/// <summary>
 		/// Applies post-processing effects to the specified render targets.
 		/// </summary>
@@ -263,7 +263,7 @@ namespace reshade
 		void load_config();
 		void save_config() const;
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		void load_current_preset();
 		void save_current_preset() const;
 
@@ -347,7 +347,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Effect Loading
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		bool _no_debug_info = 0;
 		bool _no_effect_cache = false;
 		bool _no_reload_on_init = false;
@@ -379,7 +379,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Effect Rendering
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		api::resource _empty_tex = {};
 		api::resource_view _empty_srv = {};
 		api::resource _effect_color_tex = {};
@@ -417,7 +417,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Preset Switching
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		unsigned int _prev_preset_key_data[4] = {};
 		unsigned int _next_preset_key_data[4] = {};
 		unsigned int _preset_transition_delay = 1000;
@@ -444,7 +444,7 @@ namespace reshade
 		void draw_gui();
 		void draw_gui_vr();
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		void draw_gui_home();
 #endif
 		void draw_gui_settings();
@@ -454,7 +454,7 @@ namespace reshade
 #if RESHADE_ADDON
 		void draw_gui_addons();
 #endif
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		void draw_variable_editor();
 		void draw_technique_editor();
 #endif
@@ -501,7 +501,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Home
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		char _effect_filter[32] = {};
 		bool _variable_editor_tabs = false;
 		bool _duplicate_current_preset = false;
@@ -545,7 +545,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Code Editor
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		struct editor_instance
 		{
 			size_t effect_index;
