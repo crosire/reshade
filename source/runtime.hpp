@@ -331,7 +331,7 @@ namespace reshade
 		std::filesystem::path _config_path;
 
 		bool _is_initialized = false;
-		bool _preset_save_success = true;
+		bool _preset_save_successfull = true;
 		bool _effects_enabled = true;
 		bool _effects_rendered_this_frame = false;
 
@@ -396,9 +396,13 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Screenshot
-		bool _screenshot_save_gui = false;
+#if RESHADE_FX
 		bool _screenshot_save_before = false;
 		bool _screenshot_include_preset = false;
+#endif
+#if RESHADE_GUI
+		bool _screenshot_save_gui = false;
+#endif
 		bool _screenshot_clear_alpha = true;
 		unsigned int _screenshot_format = 1;
 		unsigned int _screenshot_naming = 0;
@@ -408,10 +412,10 @@ namespace reshade
 		std::filesystem::path _screenshot_post_save_command;
 		std::string _screenshot_post_save_command_arguments;
 		std::filesystem::path _screenshot_post_save_command_working_directory;
-		bool _screenshot_post_save_command_show_window;
+		bool _screenshot_post_save_command_no_window;
 
 		bool _should_save_screenshot = false;
-		bool _screenshot_save_success = true;
+		std::atomic<bool> _last_screenshot_save_successfull = true;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 		#pragma endregion

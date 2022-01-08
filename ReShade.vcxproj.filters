@@ -72,6 +72,9 @@
     <ClCompile Include="source\ini_file.cpp">
       <Filter>core</Filter>
     </ClCompile>
+    <ClCompile Include="source\process_utils.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
     <ClCompile Include="source\hook.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
@@ -342,6 +345,9 @@
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="source\lockfree_linear_map.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\process_utils.hpp">
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="include\reshade.hpp">

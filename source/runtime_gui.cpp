@@ -14,11 +14,11 @@
 #include "runtime_objects.hpp"
 #include "input.hpp"
 #include "imgui_widgets.hpp"
+#include "process_utils.hpp"
 #include "fonts/forkawesome.inl"
 #include <fstream>
 #include <algorithm>
-#include <Windows.h>
-#include <Shellapi.h>
+#include <Windows.h> // ClipCursor
 
 static bool filter_text(const std::string_view &text, const std::string_view &filter)
 {
@@ -559,8 +559,8 @@ void reshade::runtime::draw_gui()
 
 	const bool show_stats_window = _show_clock || _show_fps || _show_frametime;
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
-	const bool show_screenshot_message = (_show_screenshot_message || !_screenshot_save_success) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
-	if (show_screenshot_message || !_preset_save_success)
+	const bool show_screenshot_message = (_show_screenshot_message || !_last_screenshot_save_successfull) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_last_screenshot_save_successfull ? 3 : 5);
+	if (show_screenshot_message || !_preset_save_successfull)
 		show_splash = true;
 
 	if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
@@ -640,7 +640,7 @@ void reshade::runtime::draw_gui()
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
-		if (!_preset_save_success)
+		if (!_preset_save_successfull)
 		{
 #if RESHADE_FX
 			ImGui::TextColored(COLOR_RED, "Unable to save current preset. Make sure you have write permissions to %s.", _current_preset_path.u8string().c_str());
@@ -650,11 +650,11 @@ void reshade::runtime::draw_gui()
 		}
 		else if (show_screenshot_message)
 		{
-			if (!_screenshot_save_success)
-				if (std::error_code ec; std::filesystem::exists(_screenshot_path, ec))
+			if (!_last_screenshot_save_successfull)
+				if (std::error_code ec; std::filesystem::exists(g_reshade_base_path / _screenshot_path, ec))
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported).");
 				else
-					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s.", _screenshot_path.u8string().c_str());
+					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s.", (g_reshade_base_path / _screenshot_path).u8string().c_str());
 			else
 				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.u8string().c_str());
 		}
@@ -1043,7 +1043,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::SameLine(0, button_spacing);
 		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 		{
-			DeleteFileW(_current_preset_path.c_str());
+			std::error_code ec; std::filesystem::remove(_current_preset_path, ec);
 			save_current_preset();
 		}
 
@@ -1097,7 +1097,7 @@ void reshade::runtime::draw_gui_home()
 						ini_file::load_cache(new_preset_path).has({}, "Techniques");
 
 					if (_duplicate_current_preset && file_type == std::filesystem::file_type::not_found)
-						CopyFileW(_current_preset_path.c_str(), new_preset_path.c_str(), TRUE);
+						std::filesystem::copy_file(_current_preset_path, new_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
 				}
 
 				if (reload_preset)
@@ -1396,9 +1396,6 @@ void reshade::runtime::draw_gui_home()
 #endif
 void reshade::runtime::draw_gui_settings()
 {
-	char path_buffer[260];
-	size_t copied_size = 0;
-
 	bool modified = false;
 	bool modified_custom_style = false;
 
@@ -1468,23 +1465,22 @@ void reshade::runtime::draw_gui_settings()
 
 #if RESHADE_FX
 		modified |= ImGui::Checkbox("Save current preset file", &_screenshot_include_preset);
-#endif
 		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
+#endif
 		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshot_save_gui);
-		modified |= imgui::file_input_box("Post-save command", _screenshot_post_save_command, _screenshot_post_save_command, {L".exe"});
 
-		copied_size = _screenshot_post_save_command_arguments.copy(path_buffer, sizeof(path_buffer) - 1);
-		path_buffer[copied_size] = '\0';
+		modified |= imgui::file_input_box("Post-save command", _screenshot_post_save_command, _screenshot_post_save_command, { L".exe" });
 
-		modified |= ImGui::InputText("Post-save command arguments", path_buffer, sizeof(path_buffer), ImGuiInputTextFlags_None);
-		if (modified)
+		char arguments[260] = "";
+		_screenshot_post_save_command_arguments.copy(arguments, sizeof(arguments) - 1);
+		if (ImGui::InputText("Post-save command arguments", arguments, sizeof(arguments), ImGuiInputTextFlags_None))
 		{
-			_screenshot_post_save_command_arguments.clear();
-			_screenshot_post_save_command_arguments.append(path_buffer);
+			modified = true;
+			_screenshot_post_save_command_arguments = arguments;
 		}
 
-		modified |= imgui::directory_input_box("Post-save command working directory", g_reshade_base_path.u8string().c_str(), _screenshot_post_save_command_working_directory, _screenshot_post_save_command_working_directory);
-		modified |= ImGui::Checkbox("Show post-save command window", &_screenshot_post_save_command_show_window);
+		modified |= imgui::directory_input_box("Post-save command working directory", _screenshot_post_save_command_working_directory, _file_selection_path);
+		modified |= ImGui::Checkbox("Hide post-save command window", &_screenshot_post_save_command_no_window);
 	}
 
 	if (ImGui::CollapsingHeader("Overlay & Styling", ImGuiTreeNodeFlags_DefaultOpen))
@@ -2883,14 +2879,7 @@ void reshade::runtime::draw_technique_editor()
 			if (ImGui::BeginPopup("##context"))
 			{
 				if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
-				{
-					// Use absolute path to explorer to avoid potential security issues when executable is replaced
-					WCHAR explorer_path[260] = L"";
-					GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
-					wcscat_s(explorer_path, L"\\explorer.exe");
-
-					ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
-				}
+					open_explorer(effect.source_file);
 
 				ImGui::Separator();
 
@@ -3043,14 +3032,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 			if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
-			{
-				// Use absolute path to explorer to avoid potential security issues when executable is replaced
-				WCHAR explorer_path[260] = L"";
-				GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
-				wcscat_s(explorer_path, L"\\explorer.exe");
-
-				ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
-			}
+				open_explorer(effect.source_file);
 
 			ImGui::Separator();
 

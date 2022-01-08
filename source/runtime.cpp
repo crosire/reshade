@@ -15,6 +15,7 @@
 #include "input.hpp"
 #include "input_freepie.hpp"
 #include "com_ptr.hpp"
+#include "process_utils.hpp"
 #include <set>
 #include <thread>
 #include <algorithm>
@@ -115,7 +116,9 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	_texture_search_paths({ L".\\" }),
 #endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
-	_screenshot_path(g_reshade_base_path)
+	_screenshot_path(g_reshade_base_path),
+	_screenshot_post_save_command_arguments("\"<TARGET>\""),
+	_screenshot_post_save_command_working_directory(g_reshade_base_path)
 {
 	assert(device != nullptr && graphics_queue != nullptr);
 
@@ -284,8 +287,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_is_initialized = true;
 	_last_reload_time = std::chrono::high_resolution_clock::now();
 
-	_preset_save_success = true;
-	_screenshot_save_success = true;
+	_preset_save_successfull = true;
+	_last_screenshot_save_successfull = true;
 
 #if RESHADE_FX && RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
@@ -404,7 +407,7 @@ void reshade::runtime::on_present()
 #endif
 
 	if (_should_save_screenshot)
-		save_screenshot(std::wstring());
+		save_screenshot();
 
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -477,7 +480,7 @@ void reshade::runtime::on_present()
 
 	// Save modified INI files
 	if (!ini_file::flush_cache())
-		_preset_save_success = false;
+		_preset_save_successfull = false;
 
 #if RESHADE_LITE
 	// Detect high network traffic
@@ -558,14 +561,20 @@ void reshade::runtime::load_config()
 	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.get("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
 	config.get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
+#if RESHADE_FX
 	config.get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
+#endif
+#if RESHADE_GUI
 	config.get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
+#endif
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
+#if RESHADE_FX
 	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
+#endif
 	config.get("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
 	config.get("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
 	config.get("SCREENSHOT", "PostSaveCommandWorkingDirectory", _screenshot_post_save_command_working_directory);
-	config.get("SCREENSHOT", "PostSaveCommandShowWindow", _screenshot_post_save_command_show_window);
+	config.get("SCREENSHOT", "PostSaveCommandNoWindow", _screenshot_post_save_command_no_window);
 
 #if RESHADE_GUI
 	load_config_gui(config);
@@ -610,14 +619,20 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.set("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
+#if RESHADE_FX
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
+#endif
+#if RESHADE_GUI
 	config.set("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
+#endif
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
+#if RESHADE_FX
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
+#endif
 	config.set("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
 	config.set("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
 	config.set("SCREENSHOT", "PostSaveCommandWorkingDirectory", _screenshot_post_save_command_working_directory);
-	config.set("SCREENSHOT", "PostSaveCommandShowWindow", _screenshot_post_save_command_show_window);
+	config.set("SCREENSHOT", "PostSaveCommandNoWindow", _screenshot_post_save_command_no_window);
 
 #if RESHADE_GUI
 	save_config_gui(config);
@@ -627,7 +642,7 @@ void reshade::runtime::save_config() const
 #if RESHADE_FX
 void reshade::runtime::load_current_preset()
 {
-	_preset_save_success = true;
+	_preset_save_successfull = true;
 
 	ini_file config = ini_file::load_cache(_config_path); // Copy config, because reference becomes invalid in the next line
 	const ini_file &preset = ini_file::load_cache(_current_preset_path);
@@ -3254,38 +3269,47 @@ void reshade::runtime::save_texture(const texture &tex)
 	std::wstring filename = std::filesystem::path(tex.unique_name).concat(timestamp);
 	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
 
-	std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
+	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
 
-	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
+	_last_screenshot_save_successfull = true;
 
 	if (std::vector<uint8_t> data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height * 4));
 		get_texture_data(tex.resource, api::resource_usage::shader_resource, data.data()))
 	{
-		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
-		{
-			const auto write_callback = [](void *context, void *data, int size) {
-				fwrite(data, 1, size, static_cast<FILE *>(context));
-			};
+		_worker_threads.emplace_back([this, screenshot_path, data = std::move(data), width = tex.width, height = tex.height]() mutable {
+			// Default to a save failure unless it is reported to succeed below
+			bool save_success = false;
 
-			switch (_screenshot_format)
+			if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 			{
-			case 0:
-				_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, tex.width, tex.height, 4, data.data()) != 0;
-				break;
-			case 1:
-				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, tex.width, tex.height, 4, data.data(), 0) != 0;
-				break;
-			case 2:
-				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, tex.width, tex.height, 4, data.data(), _screenshot_jpeg_quality) != 0;
-				break;
+				const auto write_callback = [](void *context, void *data, int size) {
+					fwrite(data, 1, size, static_cast<FILE *>(context));
+				};
+
+				switch (_screenshot_format)
+				{
+				case 0:
+					save_success = stbi_write_bmp_to_func(write_callback, file, width, height, 4, data.data()) != 0;
+					break;
+				case 1:
+					save_success = stbi_write_png_to_func(write_callback, file, width, height, 4, data.data(), 0) != 0;
+					break;
+				case 2:
+					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, data.data(), _screenshot_jpeg_quality) != 0;
+					break;
+				}
+
+				fclose(file);
 			}
 
-			fclose(file);
-		}
+			if (_last_screenshot_save_successfull)
+			{
+				_last_screenshot_time = std::chrono::high_resolution_clock::now();
+				_last_screenshot_file = screenshot_path;
+				_last_screenshot_save_successfull = save_success;
+			}
+		});
 	}
-
-	_last_screenshot_file = screenshot_path;
-	_last_screenshot_time = std::chrono::high_resolution_clock::now();
 }
 #endif
 
@@ -3305,113 +3329,130 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 	filename += postfix;
 	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
 
-	std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
+	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
-	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
+	_last_screenshot_save_successfull = true;
 
 	if (std::vector<uint8_t> data(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
 		capture_screenshot(data.data()))
 	{
-		// Remove alpha channel
-		int comp = 4;
-		if (_screenshot_clear_alpha)
-		{
-			comp = 3;
-			for (size_t h = 0; h < _height; ++h)
+#if RESHADE_FX
+		const bool include_preset = _screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path);
+#else
+		const bool include_preset = false;
+#endif
+
+		_worker_threads.emplace_back([this, screenshot_path, data = std::move(data), include_preset]() mutable {
+			// Remove alpha channel
+			int comp = 4;
+			if (_screenshot_clear_alpha)
 			{
-				for (size_t w = 0; w < _width; ++w)
+				comp = 3;
+				for (size_t h = 0; h < _height; ++h)
 				{
-					const size_t index = h * _width + w;
-					data[index * 3 + 0] = data[index * 4 + 0];
-					data[index * 3 + 1] = data[index * 4 + 1];
-					data[index * 3 + 2] = data[index * 4 + 2];
+					for (size_t w = 0; w < _width; ++w)
+					{
+						const size_t index = h * _width + w;
+						data[index * 3 + 0] = data[index * 4 + 0];
+						data[index * 3 + 1] = data[index * 4 + 1];
+						data[index * 3 + 2] = data[index * 4 + 2];
+					}
 				}
 			}
-		}
 
-		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
-		{
-			const auto write_callback = [](void *context, void *data, int size) {
-				fwrite(data, 1, size, static_cast<FILE *>(context));
-			};
+			// Default to a save failure unless it is reported to succeed below
+			bool save_success = false;
 
-			switch (_screenshot_format)
+			if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 			{
-			case 0:
-				_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, data.data()) != 0;
-				break;
-			case 1:
-				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, data.data(), 0) != 0;
-				break;
-			case 2:
-				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
-				break;
+				const auto write_callback = [](void *context, void *data, int size) {
+					fwrite(data, 1, size, static_cast<FILE *>(context));
+				};
+
+				switch (_screenshot_format)
+				{
+				case 0:
+					save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, data.data()) != 0;
+					break;
+				case 1:
+					save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, data.data(), 0) != 0;
+					break;
+				case 2:
+					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
+					break;
+				}
+
+				fclose(file);
 			}
 
-			fclose(file);
-			execute_screenshot_post_save_command(screenshot_path);
-		}
-	}
+			if (save_success)
+			{
+				execute_screenshot_post_save_command(screenshot_path);
 
-	_last_screenshot_file = screenshot_path;
-	_last_screenshot_time = std::chrono::high_resolution_clock::now();
-
-	if (!_screenshot_save_success)
-	{
-		LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
-	}
 #if RESHADE_FX
-	else if (_screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path))
-	{
-		// Preset was flushed to disk, so can just copy it over to the new location
-		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
-	}
+				if (include_preset)
+				{
+					std::filesystem::path screenshot_preset_path = screenshot_path;
+					screenshot_preset_path.replace_extension(L".ini");
+
+					// Preset was flushed to disk, so can just copy it over to the new location
+					std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
+				}
 #endif
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
+			}
+
+			if (_last_screenshot_save_successfull)
+			{
+				_last_screenshot_time = std::chrono::high_resolution_clock::now();
+				_last_screenshot_file = screenshot_path;
+				_last_screenshot_save_successfull = save_success;
+			}
+		});
+	}
 }
 bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path)
 {
-	int ec = 0;
-
 	if (_screenshot_post_save_command.empty())
-	{
-		ec = -1;
 		return false;
-	}
 
-	if (_screenshot_post_save_command.extension() != L".exe" || !std::filesystem::is_regular_file(g_reshade_base_path / _screenshot_post_save_command))
+	std::error_code ec;
+	if (_screenshot_post_save_command.extension() != L".exe" || !std::filesystem::is_regular_file(g_reshade_base_path / _screenshot_post_save_command, ec))
 	{
-		ec = 1;
-		LOG(ERROR) << "Executing the post-save command was blocked. Application path must be executable.";
+		LOG(ERROR) << "Failed to execute screenshot post-save command, since path is not a valid executable.";
 		return false;
 	}
 
 	std::string command_line;
-	command_line.append(1, '\"');
-	command_line.append((g_reshade_base_path / _screenshot_post_save_command).u8string());
-	command_line.append(1, '\"');
+	command_line += '\"';
+	command_line += (g_reshade_base_path / _screenshot_post_save_command).u8string();
+	command_line += '\"';
 
 	if (!_screenshot_post_save_command_arguments.empty())
 	{
-		command_line.append(1, ' ');
+		command_line += ' ';
 
-		for (size_t cursor = 0; cursor < _screenshot_post_save_command_arguments.size();)
+		for (size_t offset = 0; offset < _screenshot_post_save_command_arguments.size();)
 		{
-			size_t brace_begin = _screenshot_post_save_command_arguments.find('<', cursor);
-			size_t brace_end = _screenshot_post_save_command_arguments.find('>', cursor + 1);
+			const size_t brace_beg = _screenshot_post_save_command_arguments.find('<', offset);
+			const size_t brace_end = _screenshot_post_save_command_arguments.find('>', offset + 1);
 
-			if (brace_begin == std::string::npos || brace_end == std::string::npos)
+			if (brace_beg == std::string::npos || brace_end == std::string::npos)
 			{
-				command_line.append(_screenshot_post_save_command_arguments.substr(cursor));
+				command_line += _screenshot_post_save_command_arguments.substr(offset);
 				break;
 			}
 			else
 			{
-				command_line.append(_screenshot_post_save_command_arguments.substr(cursor, brace_begin - cursor));
+				command_line += _screenshot_post_save_command_arguments.substr(offset, brace_beg - offset);
 			}
 
-			std::string_view replacing = ((std::string_view)_screenshot_post_save_command_arguments).substr(brace_begin + 1, brace_end - (brace_begin + 1));
+			std::string_view replacing = std::string_view(_screenshot_post_save_command_arguments).substr(brace_beg + 1, brace_end - (brace_beg + 1));
 			size_t colon_pos = replacing.find(':');
 
 			std::string name;
@@ -3420,157 +3461,46 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 			else
 				name = replacing.substr(0, colon_pos);
 
-			static const auto stringicmp = [](const std::string_view& a, const std::string_view& b) {
-				return a.size() == b.size() && _strnicmp(a.data(), b.data(), a.size()) == 0;
-			};
-
 			std::string value;
-			if (stringicmp(name, "TargetScreenshotPath") || stringicmp(name, "PATH") || stringicmp(name, "TARGET"))
-			{
+			if (_stricmp(name.c_str(), "TargetScreenshotPath") == 0 || _stricmp(name.c_str(), "PATH") == 0 || _stricmp(name.c_str(), "TARGET") == 0)
 				value = screenshot_path.u8string();
-			}
-			else if (stringicmp(name, "TargetScreenshotDir") || stringicmp(name, "DIR"))
-			{
+			else if (_stricmp(name.c_str(), "TargetScreenshotDir") == 0 || _stricmp(name.c_str(), "DIR") == 0)
 				value = screenshot_path.parent_path().u8string();
-			}
-			else if (stringicmp(name, "TargetScreenshotFileName") || stringicmp(name, "FILENAME"))
-			{
+			else if (_stricmp(name.c_str(), "TargetScreenshotFileName") == 0 || _stricmp(name.c_str(), "FILENAME") == 0)
 				value = screenshot_path.filename().u8string();
-			}
-			else if (stringicmp(name, "TargetScreenshotFileNameWithoutExtension") || stringicmp(name, "STEM"))
-			{
+			else if (_stricmp(name.c_str(), "TargetScreenshotFileNameWithoutExtension") == 0 || _stricmp(name.c_str(), "STEM") == 0)
 				value = screenshot_path.stem().u8string();
-			}
 
-			std::string parameter;
+			std::string param;
 			if (colon_pos == std::string::npos)
 			{
-				parameter = value;
+				param = value;
 			}
 			else
 			{
-				parameter = replacing.substr(colon_pos + 1);
-				size_t insert_pos = parameter.find('$');
+				param = replacing.substr(colon_pos + 1);
+				size_t insert_pos = param.find('$');
 
 				if (insert_pos != std::string::npos)
-					parameter = parameter.substr(0, insert_pos) + value + parameter.substr(insert_pos + 1);
+					param = param.substr(0, insert_pos) + value + param.substr(insert_pos + 1);
 			}
 
-			command_line.append(parameter);
-			cursor = brace_end + 1;
+			command_line += param;
+			offset = brace_end + 1;
 		}
 	}
 
-	std::wstring command_line_wide;
-	utf8::unchecked::utf8to16(command_line.cbegin(), command_line.cend(), std::back_inserter(command_line_wide));
-
-	std::wstring working_directory;
-	if (_screenshot_post_save_command_working_directory.empty() || !std::filesystem::is_directory(_screenshot_post_save_command_working_directory))
+	std::filesystem::path working_directory;
+	if (_screenshot_post_save_command_working_directory.empty() || !std::filesystem::is_directory(_screenshot_post_save_command_working_directory, ec))
 		working_directory = g_reshade_base_path;
 	else
 		working_directory = _screenshot_post_save_command_working_directory;
 
-	DWORD process_creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP;
-	STARTUPINFO si = { 0 };
-	si.cb = sizeof(STARTUPINFO);
+	if (execute_command(command_line, working_directory, _screenshot_post_save_command_no_window))
+		return true;
 
-	if (!_screenshot_post_save_command_show_window)
-	{
-		process_creation_flags |= CREATE_NO_WINDOW;
-
-		si.dwFlags |= STARTF_USESHOWWINDOW;
-		si.wShowWindow = SW_HIDE;
-	}
-
-	PROCESS_INFORMATION pi = { 0 };
-	if (HANDLE process_token_handle = nullptr;
-		!ec && (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &process_token_handle) != FALSE))
-	{
-		DWORD state_buffer_size;
-		GetTokenInformation(process_token_handle, TOKEN_INFORMATION_CLASS::TokenPrivileges,  nullptr, 0, &state_buffer_size);
-
-		PTOKEN_PRIVILEGES previous_state = (PTOKEN_PRIVILEGES)calloc(1, state_buffer_size);
-		PTOKEN_PRIVILEGES new_state = (PTOKEN_PRIVILEGES)calloc(1, state_buffer_size);
-		new_state->PrivilegeCount = 1;
-		new_state->Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-		if (LookupPrivilegeValueW(nullptr, SE_INCREASE_QUOTA_NAME, &new_state->Privileges[0].Luid) != FALSE
-		 && AdjustTokenPrivileges(process_token_handle, FALSE, new_state, state_buffer_size, previous_state, &state_buffer_size) != FALSE
-		 && GetLastError() != ERROR_NOT_ALL_ASSIGNED)
-		{
-			// Current process is elevated
-
-			HWND shell_window_handle = GetShellWindow();
-			if (!ec && (shell_window_handle == nullptr))
-			{
-				ec = 2;
-				LOG(ERROR) << "Failed to execute the post-save command, Application-user must have desktop shell.";
-			}
-
-			DWORD shell_process_id = 0;
-			GetWindowThreadProcessId(shell_window_handle, &shell_process_id);
-
-			HANDLE shell_process_handle = nullptr;
-			if (!ec && (shell_process_id == 0 || (shell_process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, shell_process_id)) == nullptr))
-			{
-				ec = 3;
-				LOG(ERROR) << "Failed to execute the post-save command, Application-user must have desktop shell, error code " << ec << ':' << GetLastError() << '.';
-			}
-
-			HANDLE desktop_token_handle = nullptr;
-			if (!ec && (OpenProcessToken(shell_process_handle, TOKEN_DUPLICATE, &desktop_token_handle) == FALSE))
-			{
-				ec = 4;
-				LOG(ERROR) << "Failed to execute the post-save command, Application-user must have desktop shell, error code " << ec << ':' << GetLastError() << '.';
-			}
-
-			HANDLE duplicated_token_handle = nullptr;
-			if (!ec && (DuplicateTokenEx(desktop_token_handle, TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityImpersonation, TOKEN_TYPE::TokenPrimary, &duplicated_token_handle) == FALSE))
-			{
-				ec = 5;
-				LOG(ERROR) << "Failed to execute the post-save command, Application-user must have desktop shell, error code " << ec << ':' << GetLastError() << '.';
-			}
-
-			if (CreateProcessWithTokenW(duplicated_token_handle, 0, nullptr, command_line_wide.data(), process_creation_flags, nullptr, working_directory.data(), &si, &pi) == FALSE)
-			{
-				ec = 6;
-				LOG(ERROR) << "Failed to execute the post-save command, Application-user must have desktop shell, error code " << ec << ':' << GetLastError() << '.';
-			}
-
-			if (duplicated_token_handle)
-				CloseHandle(duplicated_token_handle);
-
-			if (desktop_token_handle)
-				CloseHandle(desktop_token_handle);
-
-			if (shell_process_handle)
-				CloseHandle(shell_process_handle);
-		}
-		else
-		{
-			// Current process is not elevated
-
-			if (CreateProcessW(nullptr, command_line_wide.data(), nullptr, nullptr, FALSE, process_creation_flags, nullptr, working_directory.data(), &si, &pi) == FALSE)
-			{
-				ec = 7;
-				LOG(ERROR) << "Failed to execute the post-save command, Application-user must have desktop shell, error code " << ec << ':' << GetLastError() << '.';
-			}
-		}
-
-		if (previous_state->PrivilegeCount > 0)
-			AdjustTokenPrivileges(process_token_handle, FALSE, previous_state, 0, nullptr, nullptr);
-
-		if (process_token_handle)
-			CloseHandle(process_token_handle);
-
-		if (previous_state)
-			free(previous_state);
-
-		if (new_state)
-			free(new_state);
-	}
-
-	return ec == 0;
+	LOG(ERROR) << "Failed to execute screenshot post-save command.";
+	return false;
 }
 
 bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)
