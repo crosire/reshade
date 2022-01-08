@@ -214,7 +214,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 {
 	char buf[48]; buf[0] = '\0';
 	if (key[0] || key[1] || key[2] || key[3])
-		buf[reshade::input::key_name(key).copy(buf, sizeof(buf) - 1)] = '\0';
+		buf[input::key_name(key).copy(buf, sizeof(buf) - 1)] = '\0';
 
 	ImGui::InputTextWithHint(name, "Click to set keyboard shortcut", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
 

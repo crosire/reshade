@@ -1,11 +1,6 @@
 $function_list = @{}
 
 $function_table = @"
-/*
- * Copyright (C) 2021 Patrick Mours
- * License: https://github.com/crosire/reshade#license
- */
-
 #include <imgui.h>
 
 struct imgui_function_table
@@ -14,11 +9,6 @@ struct imgui_function_table
 "@
 
 $function_table_init = @"
-/*
- * Copyright (C) 2021 Patrick Mours
- * License: https://github.com/crosire/reshade#license
- */
-
 #include "imgui_function_table.hpp"
 
 imgui_function_table g_imgui_function_table = {
@@ -26,11 +16,6 @@ imgui_function_table g_imgui_function_table = {
 "@
 
 $function_header = @"
-/*
- * Copyright (C) 2021 Patrick Mours
- * License: https://github.com/crosire/reshade#license
- */
-
 #pragma once
 
 #if defined(IMGUI_VERSION)

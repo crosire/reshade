@@ -8,7 +8,6 @@
 #include "version.h"
 #include "dll_log.hpp"
 #include "runtime.hpp"
-#include "hook_manager.hpp"
 #include "dll_resources.hpp"
 #include "imgui_widgets.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
@@ -101,7 +100,7 @@ void reshade::runtime::draw_gui_vr()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
-	if (_font_atlas_srv.handle == 0)
+	if (_font_atlas_srv == 0)
 		return; // Cannot render GUI without font atlas
 
 	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
@@ -226,6 +225,7 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 #if RESHADE_ADDON
+	// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
 	if (!is_loading()
 #if RESHADE_ADDON && RESHADE_LITE
 		&& addon::enabled

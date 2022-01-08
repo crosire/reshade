@@ -902,7 +902,7 @@ namespace reshade { namespace api
 		/// Flushes and executes the special immediate command list returned by <see cref="get_immediate_command_list"/> immediately.
 		/// This can be used to force commands to execute right away instead of waiting for the runtime to flush it automatically at some point.
 		/// </summary>
-		virtual void flush_immediate_command_list() const  = 0;
+		virtual void flush_immediate_command_list() const = 0;
 
 		/// <summary>
 		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
@@ -953,10 +953,5 @@ namespace reshade { namespace api
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
-
-		/// <summary>
-		/// Gets the effect runtime associated with this swap chain.
-		/// </summary>
-		inline  class effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
 	};
 } }

@@ -212,7 +212,7 @@ namespace reshade
 		uint32_t query_base_index = 0;
 	};
 
-	struct effect final
+	struct effect
 	{
 		unsigned int rendering = 0;
 		bool skipped = false;

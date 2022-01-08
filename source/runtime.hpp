@@ -537,7 +537,9 @@ namespace reshade
 		std::filesystem::path _file_selection_path;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
+#if RESHADE_FX
 		bool  _show_force_load_effects_button = true;
+#endif
 		#pragma endregion
 
 		#pragma region Overlay Statistics

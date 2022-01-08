@@ -469,8 +469,9 @@ static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 
 static void on_present(command_queue *, swapchain *swapchain)
 {
-	effect_runtime *const runtime = swapchain->get_effect_runtime();
-	device *const device = runtime->get_device();
+	// Simply assume that every swap chain has an associated effect runtime
+	const auto runtime = static_cast<effect_runtime *>(swapchain);
+	device *const device = swapchain->get_device();
 	command_queue *const queue = runtime->get_command_queue();
 
 	state_tracking &queue_state = queue->get_private_data<state_tracking>();
@@ -664,7 +665,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 	bool modified = false;
 	if (device->get_api() == device_api::d3d9)
-		modified |= ImGui::Checkbox("Disable replacement with INTZ format (requires restart)", &s_disable_intz);
+		modified |= ImGui::Checkbox("Disable replacement with INTZ format (requires application restart)", &s_disable_intz);
 
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &device_state.use_aspect_ratio_heuristics);
 	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &device_state.preserve_depth_buffers);

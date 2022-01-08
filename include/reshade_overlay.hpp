@@ -1,8 +1,3 @@
-/*
- * Copyright (C) 2021 Patrick Mours
- * License: https://github.com/crosire/reshade#license
- */
-
 #pragma once
 
 #if defined(IMGUI_VERSION)

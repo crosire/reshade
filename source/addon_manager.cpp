@@ -100,6 +100,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reshade_begin_effects);
 		CASE(reshade_finish_effects);
 		CASE(reshade_reloaded_effects);
+		CASE(reshade_set_uniform_value);
+		CASE(reshade_set_technique_enabled);
 	}
 #undef  CASE
 	return "unknown";
@@ -226,8 +228,10 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterAddon(HMODULE module);
 extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback);
 extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback);
 
+#if RESHADE_GUI
 extern "C" __declspec(dllexport) void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
 extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
+#endif
 
 bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 {

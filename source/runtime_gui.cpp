@@ -143,8 +143,8 @@ void reshade::runtime::build_font_atlas()
 
 	// Create font atlas texture and upload it
 	if (!_device->create_resource(
-		api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
-		&initial_data, api::resource_usage::shader_resource, &_font_atlas_tex))
+			api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
+			&initial_data, api::resource_usage::shader_resource, &_font_atlas_tex))
 	{
 		LOG(ERROR) << "Failed to create front atlas resource!";
 		return;
@@ -168,7 +168,9 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
 	config.get("OVERLAY", "SaveWindowState", _save_imgui_window_state);
 	config.get("OVERLAY", "ShowClock", _show_clock);
+#if RESHADE_FX
 	config.get("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
+#endif
 	config.get("OVERLAY", "ShowFPS", _show_fps);
 	config.get("OVERLAY", "ShowFrameTime", _show_frametime);
 	config.get("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
@@ -198,7 +200,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 
 	// For compatibility with older versions, set the alpha value if it is missing
 	if (_fps_col[3] == 0.0f)
-		_fps_col[3] = 1.0f;
+		_fps_col[3]  = 1.0f;
 
 	load_custom_style();
 
@@ -220,7 +222,9 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
 	config.set("OVERLAY", "SaveWindowState", _save_imgui_window_state);
 	config.set("OVERLAY", "ShowClock", _show_clock);
+#if RESHADE_FX
 	config.set("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
+#endif
 	config.set("OVERLAY", "ShowFPS", _show_fps);
 	config.set("OVERLAY", "ShowFrameTime", _show_frametime);
 	config.set("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
@@ -518,8 +522,8 @@ void reshade::runtime::load_custom_style()
 		_editor_palette[imgui::code_editor::color_current_line_fill_inactive] = 0x7fd5e8ee;
 		_editor_palette[imgui::code_editor::color_current_line_edge] = 0x7fd5e8ee;
 		break;
-	default:
 	case 2:
+	default:
 		ImVec4 value;
 		for (ImGuiCol i = 0; i < imgui::code_editor::color_palette_max; i++)
 			value = ImGui::ColorConvertU32ToFloat4(_editor_palette[i]), // Get default value first
@@ -854,6 +858,7 @@ void reshade::runtime::draw_gui()
 		}
 
 #if RESHADE_ADDON
+		// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
 		if (!is_loading()
 #if RESHADE_ADDON && RESHADE_LITE
 			&& addon::enabled
@@ -1146,7 +1151,7 @@ void reshade::runtime::draw_gui_home()
 		const char *const loading_message = ICON_FK_REFRESH " Loading ... ";
 		ImGui::SetCursorPos((ImGui::GetWindowSize() - ImGui::CalcTextSize(loading_message)) * 0.5f);
 		ImGui::TextUnformatted(loading_message);
-		return; // Cannot show techniques and variables while effects are loading, since they are being modified in other different threads during that time
+		return; // Cannot show techniques and variables while effects are loading, since they are being modified in other threads during that time
 	}
 
 	if (!_effects_enabled)
@@ -1226,9 +1231,10 @@ void reshade::runtime::draw_gui_home()
 			}
 
 			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(),
-				[](const reshade::technique &a) { return a.enabled || a.toggle_key_data[0] != 0; }); it != _techniques.end())
+					[](const technique &a) { return a.enabled || a.toggle_key_data[0] != 0; }); it != _techniques.end())
 			{
-				std::stable_sort(it, _techniques.end(), [](const reshade::technique &lhs, const reshade::technique &rhs) {
+				std::stable_sort(it, _techniques.end(),
+					[](const technique &lhs, const technique &rhs) {
 						std::string lhs_label(lhs.annotation_as_string("ui_label"));
 						if (lhs_label.empty()) lhs_label = lhs.name;
 						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
@@ -1269,7 +1275,7 @@ void reshade::runtime::draw_gui_home()
 			if (_effect_load_skipping && _show_force_load_effects_button)
 			{
 				if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
-					[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
+						[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
 				{
 					char buf[60];
 					ImFormatString(buf, sizeof(buf), "Force load all effects (%zu remaining)", skipped_effects);
@@ -1424,9 +1430,9 @@ void reshade::runtime::draw_gui_settings()
 			"Block input when cursor is on overlay\0"
 			"Block all input when overlay is visible\0");
 
+#if RESHADE_FX
 		ImGui::Spacing();
 
-#if RESHADE_FX
 		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 
@@ -1523,7 +1529,8 @@ void reshade::runtime::draw_gui_settings()
 				modified_custom_style |= ImGui::ColorEdit3("Text", &colors[ImGuiCol_Text].x);
 				modified_custom_style |= ImGui::ColorEdit3("ActiveItem", &colors[ImGuiCol_ButtonActive].x);
 				ImGui::PopItemWidth();
-			} ImGui::EndChild();
+			}
+			ImGui::EndChild();
 
 			// Change all colors using the above as base
 			if (modified_custom_style)
@@ -1587,7 +1594,8 @@ void reshade::runtime::draw_gui_settings()
 					ImGui::PopID();
 				}
 				ImGui::PopItemWidth();
-			} ImGui::EndChild();
+			}
+			ImGui::EndChild();
 		}
 		#pragma endregion
 
@@ -1613,7 +1621,8 @@ void reshade::runtime::draw_gui_settings()
 					_editor_palette[i] = ImGui::ColorConvertFloat4ToU32(color);
 				}
 				ImGui::PopItemWidth();
-			} ImGui::EndChild();
+			}
+			ImGui::EndChild();
 		}
 		#pragma endregion
 
@@ -1741,6 +1750,7 @@ void reshade::runtime::draw_gui_statistics()
 #if RESHADE_FX
 	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) && !is_loading() && _effects_enabled)
 	{
+		// Only need to gather GPU statistics if the statistics are actually visible
 		_gather_gpu_statistics = true;
 
 		ImGui::BeginGroup();
@@ -1827,12 +1837,14 @@ void reshade::runtime::draw_gui_statistics()
 
 			post_processing_memory_size += memory_size;
 
-			if (memory_size >= 1024 * 1024) {
+			if (memory_size >= 1024 * 1024)
+			{
 				memory_view = std::lldiv(memory_size, 1024 * 1024);
 				memory_view.rem /= 1000;
 				memory_size_unit = "MiB";
 			}
-			else {
+			else
+			{
 				memory_view = std::lldiv(memory_size, 1024);
 				memory_size_unit = "KiB";
 			}
@@ -1924,6 +1936,7 @@ void reshade::runtime::draw_gui_statistics()
 			{
 				bool is_open = false;
 				size_t effect_index = std::numeric_limits<size_t>::max();
+
 				for (const auto &reference : references)
 				{
 					if (effect_index != reference.first)
@@ -1946,13 +1959,15 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::EndPopup();
 			}
 
-			if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
+			if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check))
+			{
 				_preview_size[0] = 0;
 				_preview_size[1] = 0;
 				_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
 			}
 			ImGui::SameLine();
-			if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check)) {
+			if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check))
+			{
 				_preview_size[0] = tex.width;
 				_preview_size[1] = tex.height;
 				_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
@@ -2000,12 +2015,14 @@ void reshade::runtime::draw_gui_statistics()
 
 		ImGui::Separator();
 
-		if (post_processing_memory_size >= 1024 * 1024) {
+		if (post_processing_memory_size >= 1024 * 1024)
+		{
 			memory_view = std::lldiv(post_processing_memory_size, 1024 * 1024);
 			memory_view.rem /= 1000;
 			memory_size_unit = "MiB";
 		}
-		else {
+		else
+		{
 			memory_view = std::lldiv(post_processing_memory_size, 1024);
 			memory_size_unit = "KiB";
 		}
@@ -2036,7 +2053,7 @@ void reshade::runtime::draw_gui_log()
 	if (ImGui::BeginChild("log", ImVec2(0, 0), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
 		// Limit number of log lines to read, to avoid stalling when log gets too big
-		const size_t line_limit = 1000;
+		constexpr size_t LINE_LIMIT = 1000;
 
 		std::error_code ec;
 		const auto last_log_size = std::filesystem::file_size(log_path, ec);
@@ -2044,12 +2061,12 @@ void reshade::runtime::draw_gui_log()
 		{
 			_log_lines.clear();
 			std::ifstream log_file(log_path);
-			for (std::string line; std::getline(log_file, line) && _log_lines.size() < line_limit;)
+			for (std::string line; std::getline(log_file, line) && _log_lines.size() < LINE_LIMIT;)
 				if (filter_text(line, _log_filter))
 					_log_lines.push_back(line);
 			_last_log_size = last_log_size;
 
-			if (_log_lines.size() == line_limit)
+			if (_log_lines.size() == LINE_LIMIT)
 				_log_lines.push_back("Log was truncated to reduce memory footprint!");
 		}
 
@@ -2063,7 +2080,7 @@ void reshade::runtime::draw_gui_log()
 
 				if (_log_lines[i].find("ERROR |") != std::string::npos || _log_lines[i].find("error") != std::string::npos)
 					textcol = COLOR_RED;
-				else if (_log_lines[i].find("WARN  |") != std::string::npos || _log_lines[i].find("warning") != std::string::npos || i == line_limit)
+				else if (_log_lines[i].find("WARN  |") != std::string::npos || _log_lines[i].find("warning") != std::string::npos || i == LINE_LIMIT)
 					textcol = COLOR_YELLOW;
 				else if (_log_lines[i].find("DEBUG |") != std::string::npos)
 					textcol = ImColor(100, 100, 255);
@@ -2077,7 +2094,8 @@ void reshade::runtime::draw_gui_log()
 				ImGui::PopStyleColor();
 			}
 		}
-	} ImGui::EndChild();
+	}
+	ImGui::EndChild();
 }
 void reshade::runtime::draw_gui_about()
 {
@@ -2092,17 +2110,17 @@ void reshade::runtime::draw_gui_about()
 
 	if (ImGui::CollapsingHeader("ReShade", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_RESHADE);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_RESHADE);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("MinHook"))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_MINHOOK);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_MINHOOK);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("Dear ImGui"))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_IMGUI);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_IMGUI);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("ImGuiColorTextEdit"))
@@ -2117,17 +2135,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	if (ImGui::CollapsingHeader("gl3w"))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_GL3W);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_GL3W);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("UTF8-CPP"))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_UTFCPP);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_UTFCPP);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("stb_image, stb_image_write"))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_STB);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_STB);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("DDS loading from SOIL"))
@@ -2136,17 +2154,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	if (ImGui::CollapsingHeader("SPIR-V"))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_SPIRV);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_SPIRV);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("Vulkan & Vulkan-Loader"))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_VULKAN);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_VULKAN);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("Vulkan Memory Allocator"))
 	{
-		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_VMA);
+		const auto resource = resources::load_data_resource(IDR_LICENSE_VMA);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("Solarized"))
@@ -2184,7 +2202,7 @@ void reshade::runtime::draw_gui_addons()
 	ImGui::Spacing();
 
 	std::vector<std::string> disabled_addons;
-	reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons);
+	global_config().get("ADDON", "DisabledAddons", disabled_addons);
 
 	const float child_window_width = ImGui::GetContentRegionAvail().x;
 
@@ -2211,8 +2229,8 @@ void reshade::runtime::draw_gui_addons()
 			else
 				disabled_addons.push_back(info.name);
 
-			reshade::global_config().set("ADDON", "DisabledAddons", disabled_addons);
-			reshade::global_config().save();
+			global_config().set("ADDON", "DisabledAddons", disabled_addons);
+			global_config().save();
 		}
 
 		ImGui::PopStyleColor();
@@ -2698,7 +2716,7 @@ void reshade::runtime::draw_variable_editor()
 			if (variable.toggle_key_data[0] != 0)
 			{
 				ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
-				ImGui::TextDisabled("%s", reshade::input::key_name(variable.toggle_key_data).c_str());
+				ImGui::TextDisabled("%s", input::key_name(variable.toggle_key_data).c_str());
 			}
 
 			ImGui::PopID();
@@ -2848,7 +2866,7 @@ void reshade::runtime::draw_technique_editor()
 		// Add fake items at the top for effects that failed to compile
 		for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
 		{
-			const effect &effect = _effects[effect_index];
+			const reshade::effect &effect = _effects[effect_index];
 
 			if (effect.compiled)
 				continue;
@@ -2936,16 +2954,16 @@ void reshade::runtime::draw_technique_editor()
 
 	for (size_t index = 0; index < _techniques.size(); ++index)
 	{
-		reshade::technique &technique = _techniques[index];
+		reshade::technique &tech = _techniques[index];
 
 		// Skip hidden techniques
-		if (technique.hidden || !_effects[technique.effect_index].compiled)
+		if (tech.hidden || !_effects[tech.effect_index].compiled)
 			continue;
 
 		ImGui::PushID(static_cast<int>(index));
 
 		// Look up effect that contains this technique
-		const reshade::effect &effect = _effects[technique.effect_index];
+		const reshade::effect &effect = _effects[tech.effect_index];
 
 		// Draw border around the item if it is selected
 		const bool draw_border = _selected_technique == index;
@@ -2953,24 +2971,24 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 		// Prevent user from disabling the technique when it is set to always be enabled via annotation
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, technique.annotation_as_int("enabled"));
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, tech.annotation_as_int("enabled"));
 		// Gray out disabled techniques and mark those with warnings yellow
 		ImGui::PushStyleColor(ImGuiCol_Text,
-			effect.errors.empty() || technique.enabled ?
-				_imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_YELLOW);
+			effect.errors.empty() || tech.enabled ?
+				_imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_YELLOW);
 
-		std::string label(technique.annotation_as_string("ui_label"));
+		std::string label(tech.annotation_as_string("ui_label"));
 		if (label.empty())
-			label = technique.name;
+			label = tech.name;
 		label += " [" + effect.source_file.filename().u8string() + ']';
 
-		if (bool status = technique.enabled;
+		if (bool status = tech.enabled;
 			ImGui::Checkbox(label.c_str(), &status))
 		{
 			if (status)
-				enable_technique(technique);
+				enable_technique(tech);
 			else
-				disable_technique(technique);
+				disable_technique(tech);
 			save_current_preset();
 		}
 
@@ -2980,12 +2998,12 @@ void reshade::runtime::draw_technique_editor()
 		if (ImGui::IsItemActive())
 			_selected_technique = index;
 		if (ImGui::IsItemClicked())
-			_focused_effect = technique.effect_index;
+			_focused_effect = tech.effect_index;
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
 			hovered_technique_index = index;
 
 		// Display tooltip
-		if (const std::string_view tooltip = technique.annotation_as_string("ui_tooltip");
+		if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
 			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && (!tooltip.empty() || !effect.errors.empty()))
 		{
 			ImGui::BeginTooltip();
@@ -3006,11 +3024,11 @@ void reshade::runtime::draw_technique_editor()
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))
 		{
-			ImGui::TextUnformatted(technique.name.c_str());
+			ImGui::TextUnformatted(tech.name.c_str());
 			ImGui::Separator();
 
 			ImGui::SetNextItemWidth(230.0f);
-			if (imgui::key_input_box("##toggle_key", technique.toggle_key_data, *_input))
+			if (imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input))
 				save_current_preset();
 
 			const bool is_not_top = index > 0;
@@ -3047,7 +3065,7 @@ void reshade::runtime::draw_technique_editor()
 				if (!effect.preprocessed)
 				{
 					// Force preprocessor to run to update included files
-					force_reload_effect = technique.effect_index;
+					force_reload_effect = tech.effect_index;
 				}
 				else if (!effect.included_files.empty())
 				{
@@ -3062,7 +3080,7 @@ void reshade::runtime::draw_technique_editor()
 
 				if (!source_file.empty())
 				{
-					open_code_editor(technique.effect_index, source_file);
+					open_code_editor(tech.effect_index, source_file);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -3088,7 +3106,7 @@ void reshade::runtime::draw_technique_editor()
 
 				if (!entry_point_name.empty())
 				{
-					open_code_editor(technique.effect_index, entry_point_name);
+					open_code_editor(tech.effect_index, entry_point_name);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -3096,10 +3114,10 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::EndPopup();
 		}
 
-		if (technique.toggle_key_data[0] != 0)
+		if (tech.toggle_key_data[0] != 0)
 		{
 			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
-			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
+			ImGui::TextDisabled("%s", input::key_name(tech.toggle_key_data).c_str());
 		}
 
 		if (draw_border)
@@ -3173,8 +3191,8 @@ void reshade::runtime::open_code_editor(size_t effect_index, const std::string &
 	assert(effect_index < _effects.size());
 	const std::filesystem::path path = _effects[effect_index].source_file;
 
-	auto it = std::find_if(_editors.begin(), _editors.end(),
-		[&](const auto &instance) { return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name == entry_point; });
+	auto it = std::find_if(_editors.begin(), _editors.end(), [&](const auto &instance) {
+		return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name == entry_point; });
 	if (it == _editors.end())
 	{
 		_editors.push_back({ effect_index, path, entry_point });
@@ -3189,8 +3207,8 @@ void reshade::runtime::open_code_editor(size_t effect_index, const std::filesyst
 {
 	assert(effect_index < _effects.size());
 
-	auto it = std::find_if(_editors.begin(), _editors.end(),
-		[&](const auto &instance) { return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name.empty(); });
+	auto it = std::find_if(_editors.begin(), _editors.end(), [&](const auto &instance) {
+		return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name.empty(); });
 	if (it == _editors.end())
 	{
 		_editors.push_back({ effect_index, path });
@@ -3369,7 +3387,7 @@ bool reshade::runtime::init_imgui_resources()
 	api::pipeline_desc pso_desc = { api::pipeline_stage::all_graphics };
 	pso_desc.layout = _imgui_pipeline_layout;
 
-	if ((_renderer_id & 0x30000) == 0)
+	if ((_renderer_id & 0xF0000) == 0)
 	{
 		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
 		pso_desc.graphics.vertex_shader.code = vs_res.data;
@@ -3379,7 +3397,7 @@ bool reshade::runtime::init_imgui_resources()
 		pso_desc.graphics.pixel_shader.code = ps_res.data;
 		pso_desc.graphics.pixel_shader.code_size = ps_res.data_size;
 	}
-	else if ((_renderer_id & 0x10000) != 0)
+	else if (_renderer_id < 0x20000)
 	{
 		// These need to be static so that the shader source memory doesn't fall out of scope before pipeline creation below
 		static constexpr char vertex_shader[] =
@@ -3485,6 +3503,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 			LOG(ERROR) << "Failed to create ImGui index buffer!";
 			return;
 		}
+
 		_device->set_resource_name(_imgui_indices[buffer_index], "ImGui index buffer");
 
 		_imgui_num_indices[buffer_index] = new_size;
@@ -3502,6 +3521,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 			LOG(ERROR) << "Failed to create ImGui vertex buffer!";
 			return;
 		}
+
 		_device->set_resource_name(_imgui_vertices[buffer_index], "ImGui vertex buffer");
 
 		_imgui_num_vertices[buffer_index] = new_size;

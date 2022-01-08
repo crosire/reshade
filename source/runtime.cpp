@@ -117,7 +117,7 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 #endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path),
-	_screenshot_post_save_command_arguments("\"<TARGET>\""),
+	_screenshot_post_save_command_arguments("\"%TARGET%\""),
 	_screenshot_post_save_command_working_directory(g_reshade_base_path)
 {
 	assert(device != nullptr && graphics_queue != nullptr);
@@ -448,7 +448,7 @@ void reshade::runtime::on_present()
 			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
 
 #if RESHADE_FX
-		// Do not allow the next shortcuts while effects are being loaded or initialized (since they affect that state)
+		// Do not allow the following shortcuts while effects are being loaded or initialized (since they affect that state)
 		if (!is_loading() && _reload_create_queue.empty())
 		{
 			if (_input->is_key_pressed(_reload_key_data, _force_shortcut_modifiers))
@@ -612,7 +612,7 @@ void reshade::runtime::save_config() const
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
 	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
-	if (relative_preset_path.wstring().rfind(L"..", 0) != std::wstring::npos)
+	if (relative_preset_path.native().rfind(L"..", 0) != std::wstring::npos)
 		relative_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
 	if (relative_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
 		relative_preset_path = L"." / relative_preset_path;
@@ -689,16 +689,18 @@ void reshade::runtime::load_current_preset()
 		sorted_technique_list = technique_list;
 
 	// Reorder techniques
-	std::sort(_techniques.begin(), _techniques.end(), [this, &sorted_technique_list](const technique &lhs, const technique &rhs) {
-		const std::string lhs_unique = lhs.name + '@' + _effects[lhs.effect_index].source_file.filename().u8string();
-		const std::string rhs_unique = rhs.name + '@' + _effects[rhs.effect_index].source_file.filename().u8string();
-		auto lhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs_unique);
-		auto rhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs_unique);
-		if (lhs_it == sorted_technique_list.end())
-			lhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name);
-		if (rhs_it == sorted_technique_list.end())
-			rhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name);
-		return lhs_it < rhs_it; });
+	std::sort(_techniques.begin(), _techniques.end(),
+		[this, &sorted_technique_list](const technique &lhs, const technique &rhs) {
+			const std::string lhs_unique = lhs.name + '@' + _effects[lhs.effect_index].source_file.filename().u8string();
+			const std::string rhs_unique = rhs.name + '@' + _effects[rhs.effect_index].source_file.filename().u8string();
+			auto lhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs_unique);
+			auto rhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs_unique);
+			if (lhs_it == sorted_technique_list.end())
+				lhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name);
+			if (rhs_it == sorted_technique_list.end())
+				rhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name);
+			return lhs_it < rhs_it;
+		});
 
 	// Compute times since the transition has started and how much is left till it should end
 	auto transition_time = std::chrono::duration_cast<std::chrono::microseconds>(_last_present_time - _last_preset_switching_time).count();
@@ -836,17 +838,18 @@ void reshade::runtime::save_current_preset() const
 				continue;
 
 			const std::string section = effect.source_file.filename().u8string();
-			const unsigned int components = variable.type.components();
-			reshadefx::constant values;
 
 			if (variable.supports_toggle_key())
 			{
-				// save the shortcut key into the preset files
+				// Save the shortcut key into the preset files
 				if (variable.toggle_key_data[0] != 0)
 					preset.set(section, "Key" + variable.name, variable.toggle_key_data);
 				else
 					preset.remove_key(section, "Key" + variable.name);
 			}
+
+			const unsigned int components = variable.type.components();
+			reshadefx::constant values;
 
 			switch (variable.type.base)
 			{
@@ -887,7 +890,8 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 			continue;
 
 		// Keep track of the index of the current preset in the list of found preset files that is being build
-		if (std::filesystem::equivalent(preset_path, _current_preset_path, ec)) {
+		if (std::filesystem::equivalent(preset_path, _current_preset_path, ec))
+		{
 			current_preset_index = preset_paths.size();
 			preset_paths.push_back(std::move(preset_path));
 			continue;
@@ -946,6 +950,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	for (const std::filesystem::path &include_path : include_paths)
 	{
 		std::error_code ec;
+
 		attributes += include_path.u8string();
 		for (const auto &entry : std::filesystem::directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
 		{
@@ -1224,7 +1229,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			if (entry_point.type == reshadefx::shader_type::cs && !_device->check_capability(api::device_caps::compute_shader))
 			{
-				effect.errors += "Compute shaders are not supported in D3D9.";
+				effect.errors += "Compute shaders are not supported in D3D9/D3D10.";
 				effect.compiled = false;
 				break;
 			}
@@ -1233,85 +1238,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			std::string &cso = assembly.first;
 			std::string &cso_text = assembly.second;
 
-			if (!effect.module.spirv.empty())
-			{
-				assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
-
-				// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
-				// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
-				// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
-				uint32_t current_function = 0, current_function_offset = 0;
-				std::vector<uint32_t> spirv = effect.module.spirv;
-				std::vector<uint32_t> functions_to_remove, variables_to_remove;
-
-				for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
-				{
-					const uint32_t op = spirv[inst] & 0xFFFF;
-					const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
-					assert(len != 0);
-
-					switch (op)
-					{
-					case 15 /* OpEntryPoint */:
-						// Look for any non-matching entry points
-						if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
-						{
-							functions_to_remove.push_back(spirv[inst + 2]);
-
-							// Get interface variables
-							for (uint32_t k = inst + 3 + static_cast<uint32_t>((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
-								variables_to_remove.push_back(spirv[k]);
-
-							// Remove this entry point from the module
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 16 /* OpExecutionMode */:
-						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 59 /* OpVariable */:
-						// Remove all declarations of the interface variables for non-matching entry points
-						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 71 /* OpDecorate */:
-						// Remove all decorations targeting any of the interface variables for non-matching entry points
-						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 54 /* OpFunction */:
-						current_function = spirv[inst + 2];
-						current_function_offset = inst;
-						break;
-					case 56 /* OpFunctionEnd */:
-						// Remove all function definitions for non-matching entry points
-						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
-							inst = current_function_offset;
-							continue;
-						}
-						break;
-					}
-
-					inst += len;
-				}
-
-				cso.resize(spirv.size() * sizeof(uint32_t));
-				std::memcpy(cso.data(), spirv.data(), cso.size());
-			}
-			else if (_renderer_id < 0x10000)
+			if ((_renderer_id & 0xF0000) == 0)
 			{
 				// Add specialization constant defines to source code
 				const std::string hlsl =
@@ -1471,7 +1398,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				if (d3d_compiler_module != nullptr)
 					FreeLibrary(d3d_compiler_module);
 			}
-			else
+			else if (effect.module.spirv.empty())
 			{
 				cso = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
 
@@ -1504,6 +1431,84 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				cso += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
 				cso += effect.module.hlsl;
+			}
+			else
+			{
+				assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
+
+				// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
+				// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
+				// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
+				uint32_t current_function = 0, current_function_offset = 0;
+				std::vector<uint32_t> spirv = effect.module.spirv; // Copy SPIR-V, so that all but the current entry point are only removed from that copy
+				std::vector<uint32_t> functions_to_remove, variables_to_remove;
+
+				for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
+				{
+					const uint32_t op = spirv[inst] & 0xFFFF;
+					const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
+					assert(len != 0);
+
+					switch (op)
+					{
+					case 15 /* OpEntryPoint */:
+						// Look for any non-matching entry points
+						if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
+						{
+							functions_to_remove.push_back(spirv[inst + 2]);
+
+							// Get interface variables
+							for (uint32_t k = inst + 3 + static_cast<uint32_t>((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
+								variables_to_remove.push_back(spirv[k]);
+
+							// Remove this entry point from the module
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 16 /* OpExecutionMode */:
+						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 59 /* OpVariable */:
+						// Remove all declarations of the interface variables for non-matching entry points
+						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 71 /* OpDecorate */:
+						// Remove all decorations targeting any of the interface variables for non-matching entry points
+						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 54 /* OpFunction */:
+						current_function = spirv[inst + 2];
+						current_function_offset = inst;
+						break;
+					case 56 /* OpFunctionEnd */:
+						// Remove all function definitions for non-matching entry points
+						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
+							inst = current_function_offset;
+							continue;
+						}
+						break;
+					}
+
+					inst += len;
+				}
+
+				cso.resize(spirv.size() * sizeof(uint32_t));
+				std::memcpy(cso.data(), spirv.data(), cso.size());
 			}
 		}
 
@@ -1980,8 +1985,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 					for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 					{
-						const auto texture = std::find_if(_textures.begin(), _textures.end(),
-							[&unique_name = pass_info.render_target_names[k]](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+						const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = pass_info.render_target_names[k]](const auto &item) {
+							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
 						assert(texture != _textures.end());
 
 						if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), texture->resource) == pass_data.modified_resources.end())
@@ -2106,8 +2111,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
-					const auto texture = std::find_if(_textures.begin(), _textures.end(),
-						[&unique_name = info.texture_name](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+					const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = info.texture_name](const auto &item) {
+						return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
 					assert(texture != _textures.end());
 
 					api::resource_view &srv = sampler_descriptors[sampler_with_resource_view ? info.binding : effect.module.num_sampler_bindings + info.texture_binding].view;
@@ -2159,8 +2164,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					}
 					else if (!texture->semantic.empty())
 					{
-						if (const auto it = _texture_semantic_bindings.find(texture->semantic);
-							it != _texture_semantic_bindings.end())
+						if (const auto it = _texture_semantic_bindings.find(texture->semantic); it != _texture_semantic_bindings.end())
 							srv = info.srgb ? it->second.second : it->second.first;
 						else
 							srv = _empty_srv;
@@ -2183,8 +2187,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
-					const auto texture = std::find_if(_textures.begin(), _textures.end(),
-						[&unique_name = info.texture_name](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+					const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = info.texture_name](const auto &item) {
+						return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
 					assert(texture != _textures.end());
 					assert(texture->semantic.empty() && texture->uav != 0);
 
@@ -2607,7 +2611,7 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		update_texture({ reinterpret_cast<uintptr_t>(&texture) }, width, height, filedata);
+		update_texture(texture, width, height, filedata);
 
 		stbi_image_free(filedata);
 
@@ -2702,8 +2706,9 @@ bool reshade::runtime::save_effect_cache(const std::string &id, const std::strin
 }
 void reshade::runtime::clear_effect_cache()
 {
-	// Find all cached effect files and delete them
 	std::error_code ec;
+
+	// Find all cached effect files and delete them
 	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(g_reshade_base_path / _intermediate_cache_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		if (entry.is_directory(ec))
@@ -2714,7 +2719,7 @@ void reshade::runtime::clear_effect_cache()
 		if (filename.native().compare(0, 8, L"reshade-") != 0 || (extension != L".i" && extension != L".cso" && extension != L".asm"))
 			continue;
 
-		DeleteFileW(entry.path().c_str());
+		std::filesystem::remove(entry.path());
 	}
 }
 
@@ -2745,8 +2750,9 @@ void reshade::runtime::update_effects()
 		// Update all editors after a reload
 		for (editor_instance &instance : _editors)
 		{
-			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-				[this, &instance](const auto &effect) { return effect.source_file == instance.file_path; }); it != _effects.end())
+			const auto it = std::find_if(_effects.begin(), _effects.end(), [this, &instance](const auto &effect) {
+				return effect.source_file == instance.file_path; });
+			if (it != _effects.end())
 			{
 				instance.effect_index = std::distance(_effects.begin(), it);
 
@@ -2872,6 +2878,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 						break;
 					}
 				}
+
 				save_current_preset();
 			}
 
@@ -3245,6 +3252,7 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 				0.0f, 1.0f
 			};
 			cmd_list->bind_viewports(0, 1, &viewport);
+
 			const api::rect scissor_rect = {
 				0, 0,
 				static_cast<int32_t>(pass_info.viewport_width),
@@ -3734,10 +3742,11 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 }
 bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path)
 {
+	std::error_code ec;
+
 	if (_screenshot_post_save_command.empty())
 		return false;
 
-	std::error_code ec;
 	if (_screenshot_post_save_command.extension() != L".exe" || !std::filesystem::is_regular_file(g_reshade_base_path / _screenshot_post_save_command, ec))
 	{
 		LOG(ERROR) << "Failed to execute screenshot post-save command, since path is not a valid executable.";
@@ -3755,8 +3764,8 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 
 		for (size_t offset = 0; offset < _screenshot_post_save_command_arguments.size();)
 		{
-			const size_t brace_beg = _screenshot_post_save_command_arguments.find('<', offset);
-			const size_t brace_end = _screenshot_post_save_command_arguments.find('>', offset + 1);
+			const size_t brace_beg = _screenshot_post_save_command_arguments.find('%', offset);
+			const size_t brace_end = _screenshot_post_save_command_arguments.find('%', offset + 1);
 
 			if (brace_beg == std::string::npos || brace_end == std::string::npos)
 			{
@@ -3813,10 +3822,14 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		working_directory = _screenshot_post_save_command_working_directory;
 
 	if (execute_command(command_line, working_directory, _screenshot_post_save_command_no_window))
+	{
 		return true;
-
-	LOG(ERROR) << "Failed to execute screenshot post-save command.";
-	return false;
+	}
+	else
+	{
+		LOG(ERROR) << "Failed to execute screenshot post-save command.";
+		return false;
+	}
 }
 
 bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)
