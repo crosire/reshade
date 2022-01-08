@@ -296,10 +296,6 @@ namespace reshade
 
 		void save_texture(const texture &texture);
 
-		bool complete_screenshot(bool blocking);
-		void save_screenshot(reshade::screenshot &screenshot);
-		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path);
-
 		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
 		template <typename T>
 		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
@@ -327,6 +323,9 @@ namespace reshade
 #endif
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
+		bool complete_screenshot(bool blocking);
+		void save_screenshot(reshade::screenshot &screenshot);
+		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path);
 
 		#pragma region Status
 		bool _needs_update = false;
@@ -405,11 +404,13 @@ namespace reshade
 #if RESHADE_FX
 			before,
 #endif
+#if RESHADE_GUI
 			with_ui,
+#endif
 #if RESHADE_FX
 			preset,
-#endif
 			tex,
+#endif
 			max_
 		};
 		std::vector<screenshot> _screenshots;

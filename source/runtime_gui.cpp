@@ -1470,8 +1470,8 @@ void reshade::runtime::draw_gui_settings()
 
 #if RESHADE_FX
 		modified |= ImGui::Checkbox("Save current preset file", &_screenshots[screenshot_::preset].enabled);
-#endif
 		modified |= ImGui::Checkbox("Save before and after images", &_screenshots[screenshot_::before].enabled);
+#endif
 		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshots[screenshot_::with_ui].enabled);
 		modified |= ImGui::Checkbox("Ignore the next screenshot until completed the previous", &_dont_blocking);
 		modified |= imgui::file_input_box("Post-save command", _screenshot_post_save_command, _screenshot_post_save_command, {L".exe"});

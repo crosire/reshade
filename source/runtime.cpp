@@ -576,7 +576,9 @@ void reshade::runtime::load_config()
 #if RESHADE_FX
 	config.get("SCREENSHOT", "SaveBeforeShot", _screenshots[screenshot_::before].enabled);
 #endif
+#if RESHADE_GUI
 	config.get("SCREENSHOT", "SaveOverlayShot", _screenshots[screenshot_::with_ui].enabled);
+#endif
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
 #if RESHADE_FX
 	config.get("SCREENSHOT", "SavePresetFile", _screenshots[screenshot_::preset].enabled);
@@ -633,7 +635,9 @@ void reshade::runtime::save_config() const
 #if RESHADE_FX
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshots[screenshot_::before].enabled);
 #endif
+#if RESHADE_GUI
 	config.set("SCREENSHOT", "SaveOverlayShot", _screenshots[screenshot_::with_ui].enabled);
+#endif
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
 #if RESHADE_FX
 	config.set("SCREENSHOT", "SavePresetFile", _screenshots[screenshot_::preset].enabled);
@@ -3333,8 +3337,10 @@ void reshade::runtime::save_screenshot()
 	if (screenshot &screenshot = _screenshots[screenshot_::before]; screenshot.enabled)
 		screenshot.path = least + L" original" + extension;
 #endif
+#if RESHADE_GUI
 	if (screenshot &screenshot = _screenshots[screenshot_::with_ui]; screenshot.enabled)
 		screenshot.path = least + L" ui" + extension;
+#endif
 #if RESHADE_FX
 	if (screenshot &screenshot = _screenshots[screenshot_::preset]; screenshot.enabled)
 		screenshot.path = least + L".ini";
