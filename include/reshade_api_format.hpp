@@ -436,9 +436,9 @@ namespace reshade { namespace api
 	/// </summary>
 	inline const uint32_t format_slice_pitch(format value, uint32_t row_pitch, uint32_t height)
 	{
-		if (value < format::bc1_typeless || value > format::bc7_unorm_srgb)
-			return row_pitch * height;
-		else
+		if ((value >= format::bc1_typeless && value <= format::bc5_snorm) || (value >= format::bc6h_typeless && value <= format::bc7_unorm_srgb))
 			return row_pitch * ((height + 3) / 4);
+
+		return row_pitch * height;
 	}
 } }
