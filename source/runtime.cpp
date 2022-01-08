@@ -3305,13 +3305,22 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 	filename += postfix;
 	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
 
-	std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
+	std::filesystem::path screenshot_dir = g_reshade_base_path / _screenshot_path;
+	std::filesystem::path screenshot_path = screenshot_dir / filename;
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
 	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
+	_failed_to_create_screenshot_dir = false;
 
-	if (std::vector<uint8_t> data(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
+	std::error_code _;
+	std::filesystem::create_directories(screenshot_dir, _);
+
+	if (!std::filesystem::exists(screenshot_dir, _))
+	{
+		_failed_to_create_screenshot_dir = true;
+	}
+	else if (std::vector<uint8_t> data(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
 		capture_screenshot(data.data()))
 	{
 		// Remove alpha channel

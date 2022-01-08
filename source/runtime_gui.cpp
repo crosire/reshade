@@ -651,10 +651,12 @@ void reshade::runtime::draw_gui()
 		else if (show_screenshot_message)
 		{
 			if (!_screenshot_save_success)
-				if (std::error_code ec; std::filesystem::exists(_screenshot_path, ec))
-					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported).");
+			{
+				if (_failed_to_create_screenshot_dir)
+					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path \"%s\" could not be created.", _screenshot_path.u8string().c_str());
 				else
-					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path doesn't exist: %s.", _screenshot_path.u8string().c_str());
+					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported).");
+			}
 			else
 				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.u8string().c_str());
 		}

@@ -412,6 +412,7 @@ namespace reshade
 
 		bool _should_save_screenshot = false;
 		bool _screenshot_save_success = true;
+		bool _failed_to_create_screenshot_dir = false;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 		#pragma endregion
