@@ -8,6 +8,7 @@
 #include <Winsock2.h>
 #include <ws2ipdef.h>
 
+#if RESHADE_LITE
 // Do not count network traffic for local sockets (localhost), so to avoid blocking occuring in games running local servers in single player too
 static bool is_local_socket(SOCKET s)
 {
@@ -40,15 +41,18 @@ static bool is_local_socket(SOCKET s)
 }
 
 volatile long g_network_traffic = 0;
+#endif
 
 HOOK_EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
 	static const auto trampoline = reshade::hooks::call(HookWSASend);
 	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 
+#if RESHADE_LITE
 	if (status == 0 && !is_local_socket(s))
 		for (DWORD i = 0; i < dwBufferCount; ++i)
 			InterlockedAdd(&g_network_traffic, lpBuffers[i].len);
+#endif
 
 	return status;
 }
@@ -57,9 +61,11 @@ HOOK_EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBuffe
 	static const auto trampoline = reshade::hooks::call(HookWSASendTo);
 	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
 
+#if RESHADE_LITE
 	if (status == 0 && !is_local_socket(s))
 		for (DWORD i = 0; i < dwBufferCount; ++i)
 			InterlockedAdd(&g_network_traffic, lpBuffers[i].len);
+#endif
 
 	return status;
 }
@@ -68,8 +74,10 @@ HOOK_EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferC
 	static const auto trampoline = reshade::hooks::call(HookWSARecv);
 	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, lpFlags, lpOverlapped, lpCompletionRoutine);
 
+#if RESHADE_LITE
 	if (status == 0 && lpNumberOfBytesRecvd != nullptr && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, *lpNumberOfBytesRecvd);
+#endif
 
 	return status;
 }
@@ -78,8 +86,10 @@ HOOK_EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBuf
 	static const auto trampoline = reshade::hooks::call(HookWSARecvFrom);
 	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, lpFlags, lpFrom, lpFromlen, lpOverlapped, lpCompletionRoutine);
 
+#if RESHADE_LITE
 	if (status == 0 && lpNumberOfBytesRecvd != nullptr && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, *lpNumberOfBytesRecvd);
+#endif
 
 	return status;
 }
@@ -89,8 +99,10 @@ HOOK_EXPORT int WSAAPI HookSend(SOCKET s, const char *buf, int len, int flags)
 	static const auto trampoline = reshade::hooks::call(HookSend);
 	const auto num_bytes_sent = trampoline(s, buf, len, flags);
 
+#if RESHADE_LITE
 	if (num_bytes_sent != SOCKET_ERROR && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, num_bytes_sent);
+#endif
 
 	return num_bytes_sent;
 }
@@ -99,8 +111,10 @@ HOOK_EXPORT int WSAAPI HookSendTo(SOCKET s, const char *buf, int len, int flags,
 	static const auto trampoline = reshade::hooks::call(HookSendTo);
 	const auto num_bytes_sent = trampoline(s, buf, len, flags, to, tolen);
 
+#if RESHADE_LITE
 	if (num_bytes_sent != SOCKET_ERROR && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, num_bytes_sent);
+#endif
 
 	return num_bytes_sent;
 }
@@ -109,8 +123,10 @@ HOOK_EXPORT int WSAAPI HookRecv(SOCKET s, char *buf, int len, int flags)
 	static const auto trampoline = reshade::hooks::call(HookRecv);
 	const auto num_bytes_recieved = trampoline(s, buf, len, flags);
 
+#if RESHADE_LITE
 	if (num_bytes_recieved != SOCKET_ERROR && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, num_bytes_recieved);
+#endif
 
 	return num_bytes_recieved;
 }
@@ -119,8 +135,10 @@ HOOK_EXPORT int WSAAPI HookRecvFrom(SOCKET s, char *buf, int len, int flags, str
 	static const auto trampoline = reshade::hooks::call(HookRecvFrom);
 	const auto num_bytes_recieved = trampoline(s, buf, len, flags, from, fromlen);
 
+#if RESHADE_LITE
 	if (num_bytes_recieved != SOCKET_ERROR && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, num_bytes_recieved);
+#endif
 
 	return num_bytes_recieved;
 }

@@ -34,7 +34,7 @@ namespace reshade::opengl
 		void on_present(bool default_fbo = true);
 		bool on_vr_submit(uint32_t eye, GLenum source_target, GLuint source_object, const float bounds[4], GLuint *target_rbo);
 
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 #endif
 

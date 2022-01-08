@@ -18,7 +18,6 @@ using System.Security.Principal;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Navigation;
 
 namespace ReShade.Setup
@@ -38,10 +37,12 @@ namespace ReShade.Setup
 
 		Api targetApi = Api.Unknown;
 		bool is64Bit;
+		bool isUpdate;
 		string targetPath;
 		string targetName;
 		string configPath;
 		string modulePath;
+		string presetPath;
 		static readonly string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReShade");
 		string tempPath;
 		string tempPathEffects;
@@ -59,6 +60,7 @@ namespace ReShade.Setup
 			InitializeComponent();
 
 			var assembly = Assembly.GetExecutingAssembly();
+			Title = "ReShade Setup v" + assembly.GetName().Version.ToString(3);
 
 			try
 			{
@@ -178,7 +180,7 @@ namespace ReShade.Setup
 			{
 				if (isFinished)
 				{
-					InstallStep7();
+					InstallStep8();
 				}
 				else if (targetApi != Api.Unknown)
 				{
@@ -191,21 +193,19 @@ namespace ReShade.Setup
 				{
 					InstallStep1();
 				}
-				return;
 			}
 			else if (isHeadless)
 			{
 				UpdateStatusAndFinish(false, "No target application was provided.");
-				return;
 			}
+			else
+			{
+				NextButton.IsEnabled = false;
 
-			status.SettingsButton.Click += (sender1, e1) => new SettingsDialog(configPath) { Owner = this }.ShowDialog();
+				appPage.PathBox.TextChanged += (sender2, e2) => NextButton.IsEnabled = !string.IsNullOrEmpty(appPage.FileName) && Path.GetExtension(appPage.FileName) == ".exe" && File.Exists(appPage.FileName);
 
-			NextButton.IsEnabled = false;
-
-			appPage.PathBox.TextChanged += (sender2, e2) => NextButton.IsEnabled = !string.IsNullOrEmpty(appPage.FileName) && Path.GetExtension(appPage.FileName) == ".exe" && File.Exists(appPage.FileName);
-
-			ResetStatus();
+				ResetStatus();
+			}
 		}
 
 		static void MoveFiles(string sourcePath, string targetPath)
@@ -302,17 +302,22 @@ namespace ReShade.Setup
 
 		void ResetStatus()
 		{
+			isUpdate = false;
 			isFinished = false;
 
 			targetApi = Api.Unknown;
-			targetPath = targetName = configPath = modulePath = tempPath = tempPathEffects = tempPathTextures = targetPathEffects = targetPathTextures = downloadPath = null;
+			targetPath = targetName = configPath = modulePath = presetPath = tempPath = tempPathEffects = tempPathTextures = targetPathEffects = targetPathTextures = downloadPath = null;
 			packages = null; effects = null; package = null;
 
 			Dispatcher.Invoke(() =>
 			{
 				CurrentPage.Navigate(appPage);
 
-				Title = "ReShade Setup v" + Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+				int statusTitleIndex = Title.IndexOf(" was");
+				if (statusTitleIndex > 0)
+				{
+					Title = Title.Remove(statusTitleIndex);
+				}
 			});
 		}
 		void UpdateStatus(string message)
@@ -366,24 +371,20 @@ namespace ReShade.Setup
 				Arguments = $"\"{targetPath}\" --elevated --left {Left} --top {Top}"
 			};
 
-			if (targetApi == Api.D3D9)
+			switch (targetApi)
 			{
-				startInfo.Arguments += " --api d3d9";
-			}
-			
-			if (targetApi == Api.DXGI)
-			{
-				startInfo.Arguments += " --api dxgi";
-			}
-			
-			if (targetApi == Api.OpenGL)
-			{
-				startInfo.Arguments += " --api opengl";
-			}
-			
-			if (targetApi == Api.Vulkan)
-			{
-				startInfo.Arguments += " --api vulkan";
+				case Api.D3D9:
+					startInfo.Arguments += " --api d3d9";
+					break;
+				case Api.DXGI:
+					startInfo.Arguments += " --api dxgi";
+					break;
+				case Api.OpenGL:
+					startInfo.Arguments += " --api opengl";
+					break;
+				case Api.Vulkan:
+					startInfo.Arguments += " --api vulkan";
+					break;
 			}
 
 			if (isFinished)
@@ -548,22 +549,20 @@ namespace ReShade.Setup
 
 			if (targetApi != Api.Vulkan)
 			{
-				if (targetApi == Api.D3D9)
+				switch (targetApi)
 				{
-					modulePath = "d3d9.dll";
-				}
-				else if (targetApi == Api.DXGI)
-				{
-					modulePath = "dxgi.dll";
-				}
-				else if (targetApi == Api.OpenGL)
-				{
-					modulePath = "opengl32.dll";
-				}
-				else // No API selected, abort immediately
-				{
-					UpdateStatusAndFinish(false, "Could not detect the rendering API used by the application.");
-					return;
+					case Api.D3D9:
+						modulePath = "d3d9.dll";
+						break;
+					case Api.DXGI:
+						modulePath = "dxgi.dll";
+						break;
+					case Api.OpenGL:
+						modulePath = "opengl32.dll";
+						break;
+					default: // No API selected, abort immediately
+						UpdateStatusAndFinish(false, "Could not detect the rendering API used by the application.");
+						return;
 				}
 
 				modulePath = Path.Combine(targetDir, modulePath);
@@ -587,8 +586,6 @@ namespace ReShade.Setup
 						Dispatcher.Invoke(() =>
 						{
 							var page = new SelectUninstallPage();
-							page.UpdateButton.Click += (sender, e) => Task.Run(InstallStep3);
-							page.UninstallButton.Click += (sender, e) => Task.Run(UninstallStep0);
 
 							CurrentPage.Navigate(page);
 						});
@@ -617,8 +614,6 @@ namespace ReShade.Setup
 						Dispatcher.Invoke(() =>
 						{
 							var page = new SelectUninstallPage();
-							page.UpdateButton.Click += (sender, e) => Task.Run(InstallStep3);
-							page.UninstallButton.Click += (sender, e) => Task.Run(UninstallStep0);
 
 							CurrentPage.Navigate(page);
 						});
@@ -940,12 +935,22 @@ In that event here are some steps you can try to resolve this:
 			// Only show the selection dialog if there are actually packages to choose
 			if (!isHeadless && packagesIni != null && packagesIni.GetSections().Length != 0)
 			{
-				Dispatcher.Invoke(() =>
-				{
-					var page = new SelectPackagesPage(packagesIni);
+				presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
 
-					CurrentPage.Navigate(page);
-				});
+				if (isUpdate)
+				{
+					InstallStep4();
+				}
+				else
+				{
+					Dispatcher.Invoke(() =>
+					{
+						var page = new SelectPresetPage();
+						page.FileName = presetPath;
+
+						CurrentPage.Navigate(page);
+					});
+				}
 				return;
 			}
 
@@ -955,9 +960,43 @@ In that event here are some steps you can try to resolve this:
 				WriteSearchPaths(".\\", ".\\");
 			}
 
-			InstallStep7();
+			InstallStep8();
 		}
 		void InstallStep4()
+		{
+			var effectFiles = new List<string>();
+
+			if (!string.IsNullOrEmpty(presetPath) && File.Exists(presetPath))
+			{
+				var config = new IniFile(configPath);
+				config.SetValue("GENERAL", "PresetPath", presetPath);
+				config.SaveFile();
+
+				var preset = new IniFile(presetPath);
+
+				if (preset.GetValue(string.Empty, "Techniques", out string[] techniques))
+				{
+					foreach (string technique in techniques)
+					{
+						var filenameIndex = technique.IndexOf('@');
+						if (filenameIndex > 0)
+						{
+							string filename = technique.Substring(filenameIndex + 1);
+
+							effectFiles.Add(filename);
+						}
+					}
+				}
+			}
+
+			Dispatcher.Invoke(() =>
+			{
+				var page = new SelectPackagesPage(packagesIni, effectFiles);
+
+				CurrentPage.Navigate(page);
+			});
+		}
+		void InstallStep5()
 		{
 			package = packages.Dequeue();
 			downloadPath = Path.GetTempFileName();
@@ -977,7 +1016,7 @@ In that event here are some steps you can try to resolve this:
 				}
 				else
 				{
-					InstallStep5();
+					InstallStep6();
 				}
 			};
 
@@ -999,7 +1038,7 @@ In that event here are some steps you can try to resolve this:
 				UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ":\n" + ex.Message);
 			}
 		}
-		void InstallStep5()
+		void InstallStep6()
 		{
 			UpdateStatus("Extracting " + package.PackageName + " ...");
 
@@ -1063,9 +1102,9 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
-			InstallStep6();
+			InstallStep7();
 		}
-		void InstallStep6()
+		void InstallStep7()
 		{
 			try
 			{
@@ -1092,29 +1131,16 @@ In that event here are some steps you can try to resolve this:
 
 			if (packages.Count != 0)
 			{
-				InstallStep4();
+				InstallStep5();
 			}
 			else
 			{
-				InstallStep7();
+				InstallStep8();
 			}
 		}
-		void InstallStep7()
+		void InstallStep8()
 		{
 			UpdateStatusAndFinish(true, "Successfully installed ReShade." + (isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool."));
-
-			if (!isHeadless)
-			{
-				Dispatcher.Invoke(() =>
-				{
-					if (Keyboard.Modifiers != 0)
-					{
-						var dlg = new SettingsDialog(configPath) { Owner = this };
-
-						dlg.ShowDialog();
-					}
-				});
-			}
 		}
 
 		void UninstallStep0()
@@ -1171,6 +1197,11 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(configPath);
 				}
 
+				if (File.Exists(Path.Combine(basePath, "ReShadeGUI.ini")))
+				{
+					File.Delete(Path.Combine(basePath, "ReShadeGUI.ini"));
+				}
+
 				if (File.Exists(Path.ChangeExtension(modulePath, ".log")))
 				{
 					File.Delete(Path.ChangeExtension(modulePath, ".log"));
@@ -1208,70 +1239,93 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
-			if (CurrentPage.Content is SelectAppPage page0)
+			if (CurrentPage.Content is SelectAppPage appPage)
 			{
-				page0.Cancel();
+				appPage.Cancel();
 
-				targetPath = page0.FileName;
+				targetPath = appPage.FileName;
 
 				Task.Run(InstallStep0);
 				return;
 			}
 
-			if (CurrentPage.Content is SelectApiPage page1)
+			if (CurrentPage.Content is SelectApiPage apiPage)
 			{
-				if (page1.ApiD3D9.IsChecked == true)
+				if (apiPage.ApiD3D9.IsChecked == true)
 				{
 					targetApi = Api.D3D9;
 				}
-				if (page1.ApiDXGI.IsChecked == true)
+				if (apiPage.ApiDXGI.IsChecked == true)
 				{
 					targetApi = Api.DXGI;
 				}
-				if (page1.ApiOpenGL.IsChecked == true)
+				if (apiPage.ApiOpenGL.IsChecked == true)
 				{
 					targetApi = Api.OpenGL;
 				}
-				if (page1.ApiVulkan.IsChecked == true)
+				if (apiPage.ApiVulkan.IsChecked == true)
 				{
 					targetApi = Api.Vulkan;
 				}
 
-				if (page1.AddonSupport.IsEnabled)
+				if (apiPage.AddonSupport.IsEnabled)
 				{
-					addonLoadSupport = page1.AddonSupport.IsChecked == true;
+					addonLoadSupport = apiPage.AddonSupport.IsChecked == true;
 				}
 
 				Task.Run(InstallStep2);
 				return;
 			}
 
-			if (CurrentPage.Content is SelectPackagesPage page2)
+			if (CurrentPage.Content is SelectUninstallPage uninstallPage)
 			{
-				packages = new Queue<EffectPackage>(page2.EnabledItems);
-
-				if (packages.Count != 0)
+				if (uninstallPage.UpdateButton.IsChecked == true)
 				{
-					Task.Run(InstallStep4);
+					isUpdate = true;
+
+					Task.Run(InstallStep3);
 				}
 				else
 				{
-					Task.Run(InstallStep7);
+					Task.Run(UninstallStep0);
 				}
 				return;
 			}
 
-			if (CurrentPage.Content is SelectEffectsPage page3)
+			if (CurrentPage.Content is SelectPresetPage presetPage)
+			{
+				presetPath = presetPage.FileName;
+
+				Task.Run(InstallStep4);
+				return;
+			}
+
+			if (CurrentPage.Content is SelectPackagesPage packagesPage)
+			{
+				packages = new Queue<EffectPackage>(packagesPage.EnabledItems);
+
+				if (packages.Count != 0)
+				{
+					Task.Run(InstallStep5);
+				}
+				else
+				{
+					Task.Run(InstallStep8);
+				}
+				return;
+			}
+
+			if (CurrentPage.Content is SelectEffectsPage effectsPage)
 			{
 				Task.Run(() =>
 				{
 					// Delete all unselected effect files before moving
-					foreach (string filePath in effects.Except(page3.EnabledItems.Select(x => x.FilePath)))
+					foreach (string filePath in effects.Except(effectsPage.EnabledItems.Select(x => x.FilePath)))
 					{
 						File.Delete(tempPathEffects + filePath.Remove(0, targetPathEffects.Length));
 					}
 
-					InstallStep6();
+					InstallStep7();
 				});
 				return;
 			}
@@ -1279,20 +1333,28 @@ In that event here are some steps you can try to resolve this:
 
 		void OnCancelButtonClick(object sender, RoutedEventArgs e)
 		{
-			if (CurrentPage.Content is SelectAppPage page0)
+			if (CurrentPage.Content is SelectAppPage appPage)
 			{
-				page0.Cancel();
+				appPage.Cancel();
 			}
 
-			if (CurrentPage.Content is SelectPackagesPage page2)
+			if (CurrentPage.Content is SelectPresetPage)
 			{
-				Task.Run(InstallStep7);
+				presetPath = null;
+
+				Task.Run(InstallStep4);
 				return;
 			}
 
-			if (CurrentPage.Content is SelectEffectsPage page3)
+			if (CurrentPage.Content is SelectPackagesPage)
 			{
-				Task.Run(InstallStep6);
+				Task.Run(InstallStep8);
+				return;
+			}
+
+			if (CurrentPage.Content is SelectEffectsPage)
+			{
+				Task.Run(InstallStep7);
 				return;
 			}
 
@@ -1308,13 +1370,13 @@ In that event here are some steps you can try to resolve this:
 		void OnCurrentPageNavigated(object sender, NavigationEventArgs e)
 		{
 			NextButton.Content = isFinished ? "_Finish" : "_Next";
-			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : "_Cancel";
+			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPresetPage || e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : "_Cancel";
 
 			CancelButton.IsEnabled = !(e.Content is StatusPage) || isFinished;
 
 			if (!(e.Content is SelectAppPage))
 			{
-				NextButton.IsEnabled = isFinished || (!(e.Content is StatusPage) && !(e.Content is SelectUninstallPage));
+				NextButton.IsEnabled = isFinished || !(e.Content is StatusPage);
 			}
 		}
 	}

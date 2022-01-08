@@ -122,7 +122,7 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final :
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-#if RESHADE_ADDON && RESHADE_ADDON_LOAD
+#if RESHADE_ADDON && !RESHADE_LITE
 	static void invoke_map_buffer_region_event(ID3D10Buffer *resource, D3D10_MAP map_type, void **data);
 	static void invoke_unmap_buffer_region_event(ID3D10Buffer *resource);
 	static void invoke_map_texture_region_event(ID3D10Resource *resource, UINT subresource, D3D10_MAP map_type, reshade::api::subresource_data *data);

@@ -128,10 +128,12 @@ namespace reshade::addon
 #endif
 	};
 
+#if RESHADE_LITE
 	/// <summary>
 	/// Global switch to enable or disable all loaded add-ons.
 	/// </summary>
 	extern bool enabled;
+#endif
 
 	/// <summary>
 	/// List of add-on event callbacks.

@@ -187,7 +187,7 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 	static constexpr std::pair<const char *, void(runtime::*)()> overlay_callbacks[] = {
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		{ "Home", &runtime::draw_gui_home },
 #endif
 #if RESHADE_ADDON
@@ -226,7 +226,9 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 #if RESHADE_ADDON
+#if RESHADE_ADDON && RESHADE_LITE
 	if (addon::enabled)
+#endif
 	{
 		for (const auto &info : addon::loaded_info)
 		{
@@ -253,7 +255,9 @@ void reshade::runtime::draw_gui_vr()
 #if RESHADE_ADDON
 	else if (selected_overlay_index < overlay_index)
 	{
+#if RESHADE_ADDON && RESHADE_LITE
 		assert(addon::enabled);
+#endif
 
 		overlay_index = static_cast<int>(std::size(overlay_callbacks));
 

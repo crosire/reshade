@@ -1,0 +1,24 @@
+﻿<Page x:Class="ReShade.Setup.Pages.SelectPresetPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      mc:Ignorable="d"
+      d:DesignWidth="510" d:DesignHeight="638"
+      Width="Auto" Height="Auto">
+  <DockPanel LastChildFill="False">
+    <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select preset to install:" />
+    <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
+      Choose a preset file to configure ReShade to use it and install all used effect packages or click on "Skip" to use a default preset and manually select the effect packages to install.
+    </TextBlock>
+    <Grid DockPanel.Dock="Bottom" Margin="10,5">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="10" /> <!-- Margin -->
+        <ColumnDefinition Width="100" />
+      </Grid.ColumnDefinitions>
+      <TextBox x:Name="PathBox" Grid.Column="0" Text="" />
+      <Button Grid.Column="2" Content="_Browse..." Click="OnBrowseClick" />
+    </Grid>
+  </DockPanel>
+</Page>

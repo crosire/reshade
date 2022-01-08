@@ -13,8 +13,8 @@
       <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effect packages to install:" />
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
-      Check all effect packages you want to install/update or click on "Skip" to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).<LineBreak />You will get prompted to select individual effects for packages with a filled out checkbox. Those with a checkmark will instead have all effects installed.
+    <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
+      Check all effect packages you want to install/update or click on "Skip" to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).
     </TextBlock>
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
       <Grid.ColumnDefinitions>
@@ -42,7 +42,7 @@
               <ColumnDefinition Width="35" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <local:EffectPackageCheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" IsEnabled="{Binding Modifiable}" IsThreeState="True" />
+            <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" IsEnabled="{Binding Modifiable}" IsThreeState="True" />
             <TextBlock Grid.Column="1" VerticalAlignment="Center">
               <Hyperlink NavigateUri="{Binding RepositoryUrl}" RequestNavigate="OnHyperlinkRequestNavigate">
                 <TextBlock Text="{Binding PackageName}" />
