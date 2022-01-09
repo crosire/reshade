@@ -134,6 +134,9 @@ void reshade::runtime::build_font_atlas()
 	unsigned char *pixels;
 	atlas->GetTexDataAsRGBA32(&pixels, &width, &height);
 
+	// Make sure font atlas is not currently in use before destroying it
+	_graphics_queue->wait_idle();
+
 	_device->destroy_resource(_font_atlas_tex);
 	_font_atlas_tex = {};
 	_device->destroy_resource_view(_font_atlas_srv);
