@@ -2492,7 +2492,8 @@ void reshade::runtime::draw_variable_editor()
 			{
 				// Reset all uniform variables
 				for (uniform &variable_it : effect.uniforms)
-					reset_uniform_value(variable_it);
+					if (variable_it.special == special_uniform::none)
+						reset_uniform_value(variable_it);
 
 				// Reset all preprocessor definitions
 				for (const std::pair<std::string, std::string> &definition : effect.definitions)
@@ -2559,7 +2560,8 @@ void reshade::runtime::draw_variable_editor()
 						if (ImGui::Button(reset_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 						{
 							for (uniform &variable_it : effect.uniforms)
-								if (variable_it.annotation_as_string("ui_category") == category)
+								if (variable_it.special == special_uniform::none &&
+									variable_it.annotation_as_string("ui_category") == category)
 									reset_uniform_value(variable_it);
 
 							save_current_preset();
