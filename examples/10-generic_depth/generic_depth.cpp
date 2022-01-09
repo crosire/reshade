@@ -19,6 +19,7 @@ struct draw_stats
 {
 	uint32_t vertices = 0;
 	uint32_t drawcalls = 0;
+	uint32_t drawcalls_indirect = 0;
 	viewport last_viewport = {};
 };
 struct clear_stats : public draw_stats
@@ -47,7 +48,6 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 {
 	draw_stats best_copy_stats;
 	bool first_empty_stats = true;
-	bool has_indirect_drawcalls = false;
 	viewport current_viewport = {};
 	resource current_depth_stencil = { 0 };
 	std::unordered_map<resource, depth_stencil_info, depth_stencil_hash> counters_per_used_depth_stencil;
@@ -67,7 +67,6 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 	{
 		best_copy_stats = { 0, 0 };
 		first_empty_stats = true;
-		has_indirect_drawcalls = false;
 		counters_per_used_depth_stencil.clear();
 	}
 
@@ -78,7 +77,6 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 
 		if (first_empty_stats)
 			first_empty_stats = source.first_empty_stats;
-		has_indirect_drawcalls |= source.has_indirect_drawcalls;
 
 		if (source.best_copy_stats.vertices > best_copy_stats.vertices)
 			best_copy_stats = source.best_copy_stats;
@@ -92,8 +90,10 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 			depth_stencil_info &target_snapshot = counters_per_used_depth_stencil[depth_stencil_handle];
 			target_snapshot.total_stats.vertices += snapshot.total_stats.vertices;
 			target_snapshot.total_stats.drawcalls += snapshot.total_stats.drawcalls;
+			target_snapshot.total_stats.drawcalls_indirect += snapshot.total_stats.drawcalls_indirect;
 			target_snapshot.current_stats.vertices += snapshot.current_stats.vertices;
 			target_snapshot.current_stats.drawcalls += snapshot.current_stats.drawcalls;
+			target_snapshot.current_stats.drawcalls_indirect += snapshot.current_stats.drawcalls_indirect;
 
 			target_snapshot.clears.insert(target_snapshot.clears.end(), snapshot.clears.begin(), snapshot.clears.end());
 
@@ -396,11 +396,16 @@ static bool on_draw_indirect(command_list *cmd_list, indirect_command type, reso
 	if (type == indirect_command::dispatch)
 		return false;
 
-	for (uint32_t i = 0; i < draw_count; ++i)
-		on_draw(cmd_list, 0, 0, 0, 0);
-
 	auto &state = cmd_list->get_private_data<state_tracking>();
-	state.has_indirect_drawcalls = true;
+	if (state.current_depth_stencil == 0)
+		return false; // This is a draw call with no depth-stencil bound
+
+	depth_stencil_info &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
+	counters.total_stats.drawcalls += draw_count;
+	counters.total_stats.drawcalls_indirect += draw_count;
+	counters.current_stats.drawcalls += draw_count;
+	counters.current_stats.last_viewport = state.current_viewport;
+	counters.current_stats.drawcalls_indirect += draw_count;
 
 	return false;
 }
@@ -506,11 +511,11 @@ static void on_present(command_queue *, swapchain *swapchain)
 		if (device_state.use_aspect_ratio_heuristics && !device_state.check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
 			continue; // Not a good fit
 
-		if (!queue_state.has_indirect_drawcalls ?
-			// Choose snapshot with the most vertices, since that is likely to contain the main scene
-			snapshot.total_stats.vertices > best_snapshot.total_stats.vertices :
-			// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
-			snapshot.total_stats.drawcalls > best_snapshot.total_stats.drawcalls)
+		if (snapshot.total_stats.drawcalls_indirect < (snapshot.total_stats.drawcalls / 3) ?
+				// Choose snapshot with the most vertices, since that is likely to contain the main scene
+				snapshot.total_stats.vertices > best_snapshot.total_stats.vertices :
+				// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
+				snapshot.total_stats.drawcalls > best_snapshot.total_stats.drawcalls)
 		{
 			best_match = resource;
 			best_match_desc = desc;
@@ -733,14 +738,22 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		}
 
 		ImGui::SameLine();
-		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-			item.desc.texture.width, item.desc.texture.height, item.snapshot.total_stats.drawcalls, item.snapshot.total_stats.vertices, (item.desc.texture.samples > 1 ? " MSAA" : ""));
+		ImGui::Text("| %4ux%-4u | %5u draw calls (%5u indirect) ==> %8u vertices |%s",
+			item.desc.texture.width, item.desc.texture.height, item.snapshot.total_stats.drawcalls, item.snapshot.total_stats.drawcalls_indirect, item.snapshot.total_stats.vertices, (item.desc.texture.samples > 1 ? " MSAA" : ""));
 
 		if (device_state.preserve_depth_buffers && item.resource == device_state.selected_depth_stencil)
 		{
 			for (size_t clear_index = 1; clear_index <= item.snapshot.clears.size(); ++clear_index)
 			{
 				sprintf_s(label, "%s  CLEAR %2zu", (clear_index == device_state.force_clear_index ? "> " : "  "), clear_index);
+
+				const auto &clear_stats = item.snapshot.clears[clear_index - 1];
+
+				if (clear_stats.rect)
+				{
+					ImGui::BeginDisabled();
+					ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+				}
 
 				if (bool value = (device_state.force_clear_index == clear_index);
 					ImGui::Checkbox(label, &value))
@@ -750,9 +763,14 @@ static void draw_settings_overlay(effect_runtime *runtime)
 				}
 
 				ImGui::SameLine();
-				ImGui::Text("        |           | %5u draw calls ==> %8u vertices |%s",
-					item.snapshot.clears[clear_index - 1].drawcalls, item.snapshot.clears[clear_index - 1].vertices,
-					item.snapshot.clears[clear_index - 1].rect ? " RECT" : "");
+				ImGui::Text("        |           | %5u draw calls (%5u indirect) ==> %8u vertices |%s",
+					clear_stats.drawcalls, clear_stats.drawcalls_indirect, clear_stats.vertices, clear_stats.rect ? " RECT" : "");
+
+				if (clear_stats.rect)
+				{
+					ImGui::PopStyleColor();
+					ImGui::EndDisabled();
+				}
 			}
 		}
 
