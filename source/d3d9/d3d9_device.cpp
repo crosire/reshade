@@ -1253,9 +1253,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSu
 		}
 		else
 		{
+			reshade::api::subresource_box src_box;
+
 			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
-					src_resource, src_subresource, reinterpret_cast<const reshade::api::rect *>(pSrcRect),
-					dst_resource, dst_subresource, pDstRect != nullptr ? pDstRect->left : 0, pDstRect != nullptr ? pDstRect->top : 0,
+					src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box),
+					dst_resource, dst_subresource, pDstRect != nullptr ? pDstRect->left : 0, pDstRect != nullptr ? pDstRect->top : 0, 0,
 					reshade::d3d9::convert_format(desc.Format)))
 				return D3D_OK;
 		}

@@ -727,21 +727,21 @@ void VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImag
 		{
 			const VkImageResolve &region = pRegions[i];
 
-			assert(region.srcOffset.z == 0 && region.dstOffset.z == 0 && region.extent.depth == 1);
-
-			const reshade::api::rect src_rect = {
+			const reshade::api::subresource_box src_box = {
 				region.srcOffset.x,
 				region.srcOffset.y,
+				region.srcOffset.z,
 				region.srcOffset.x + static_cast<int32_t>(region.extent.width),
-				region.srcOffset.y + static_cast<int32_t>(region.extent.height)
+				region.srcOffset.y + static_cast<int32_t>(region.extent.height),
+				region.srcOffset.z + static_cast<int32_t>(region.extent.depth)
 			};
 
 			for (uint32_t layer = 0; layer < region.srcSubresource.layerCount; ++layer)
 			{
 				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 						cmd_impl,
-						reshade::api::resource { (uint64_t)srcImage }, calc_subresource_index(device_impl, srcImage, region.srcSubresource, layer), &src_rect,
-						reshade::api::resource { (uint64_t)dstImage }, calc_subresource_index(device_impl, dstImage, region.dstSubresource, layer), region.dstOffset.x, region.dstOffset.y, reshade::api::format::unknown))
+						reshade::api::resource { (uint64_t)srcImage }, calc_subresource_index(device_impl, srcImage, region.srcSubresource, layer), &src_box,
+						reshade::api::resource { (uint64_t)dstImage }, calc_subresource_index(device_impl, dstImage, region.dstSubresource, layer), region.dstOffset.x, region.dstOffset.y, region.dstOffset.z, reshade::api::format::unknown))
 					return; // TODO: This skips resolve of all regions, rather than just the one specified to this event call
 			}
 		}
@@ -1474,21 +1474,21 @@ void VKAPI_CALL vkCmdResolveImage2KHR(VkCommandBuffer commandBuffer, const VkRes
 		{
 			const VkImageResolve2KHR &region = pResolveImageInfo->pRegions[i];
 
-			assert(region.srcOffset.z == 0 && region.dstOffset.z == 0 && region.extent.depth == 1);
-
-			const reshade::api::rect src_rect = {
+			const reshade::api::subresource_box src_box = {
 				region.srcOffset.x,
 				region.srcOffset.y,
+				region.srcOffset.z,
 				region.srcOffset.x + static_cast<int32_t>(region.extent.width),
-				region.srcOffset.y + static_cast<int32_t>(region.extent.height)
+				region.srcOffset.y + static_cast<int32_t>(region.extent.height),
+				region.srcOffset.z + static_cast<int32_t>(region.extent.depth)
 			};
 
 			for (uint32_t layer = 0; layer < region.srcSubresource.layerCount; ++layer)
 			{
 				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 						cmd_impl,
-						reshade::api::resource { (uint64_t)pResolveImageInfo->srcImage }, calc_subresource_index(device_impl, pResolveImageInfo->srcImage, region.srcSubresource, layer), &src_rect,
-						reshade::api::resource { (uint64_t)pResolveImageInfo->dstImage }, calc_subresource_index(device_impl, pResolveImageInfo->dstImage, region.dstSubresource, layer), region.dstOffset.x, region.dstOffset.y, reshade::api::format::unknown))
+						reshade::api::resource { (uint64_t)pResolveImageInfo->srcImage }, calc_subresource_index(device_impl, pResolveImageInfo->srcImage, region.srcSubresource, layer), &src_box,
+						reshade::api::resource { (uint64_t)pResolveImageInfo->dstImage }, calc_subresource_index(device_impl, pResolveImageInfo->dstImage, region.dstSubresource, layer), region.dstOffset.x, region.dstOffset.y, region.dstOffset.z, reshade::api::format::unknown))
 					return; // TODO: This skips resolve of all regions, rather than just the one specified to this event call
 			}
 		}

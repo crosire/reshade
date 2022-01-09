@@ -549,7 +549,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 		&dst_copy_location, 0, 0, 0,
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
-void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::rect *src_rect, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, api::format format)
+void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format format)
 {
 	_has_commands = true;
 
@@ -558,13 +558,26 @@ void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src
 	com_ptr<ID3D12GraphicsCommandList1> cmd_list1;
 	if (SUCCEEDED(_orig->QueryInterface(&cmd_list1)))
 	{
+		assert(dst_z == 0);
+
+		D3D12_RECT src_rect;
+		if (src_box != nullptr)
+		{
+			src_rect.left = src_box->left;
+			src_rect.top = src_box->top;
+			src_rect.right = src_box->right;
+			src_rect.bottom = src_box->back;
+
+			assert((src_box->back - src_box->front) <= 1);
+		}
+
 		cmd_list1->ResolveSubresourceRegion(
 			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource, dst_x, dst_y,
-			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, reinterpret_cast<D3D12_RECT *>(const_cast<api::rect *>(src_rect)), convert_format(format), D3D12_RESOLVE_MODE_MIN);
+			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, src_box != nullptr ? &src_rect : nullptr, convert_format(format), D3D12_RESOLVE_MODE_MIN);
 	}
 	else
 	{
-		assert(src_rect == nullptr && dst_x == 0 && dst_y == 0);
+		assert(src_box == nullptr && dst_x == 0 && dst_y == 0 && dst_z == 0);
 
 		_orig->ResolveSubresource(
 			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource,

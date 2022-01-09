@@ -300,7 +300,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTiles(ID3D12Resource *pTile
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresource(ID3D12Resource *pDstResource, UINT DstSubresource, ID3D12Resource *pSrcResource, UINT SrcSubresource, DXGI_FORMAT Format)
 {
 #if RESHADE_ADDON && !RESHADE_LITE
-	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, nullptr, to_handle(pDstResource), DstSubresource, 0, 0, reshade::d3d12::convert_format(Format)))
+	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, nullptr, to_handle(pDstResource), DstSubresource, 0, 0, 0, reshade::d3d12::convert_format(Format)))
 		return;
 #endif
 	_orig->ResolveSubresource(pDstResource, DstSubresource, pSrcResource, SrcSubresource, Format);
@@ -782,7 +782,20 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetSamplePositions(UINT NumSamp
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresourceRegion(ID3D12Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, ID3D12Resource *pSrcResource, UINT SrcSubresource, D3D12_RECT *pSrcRect, DXGI_FORMAT Format, D3D12_RESOLVE_MODE ResolveMode)
 {
 #if RESHADE_ADDON && !RESHADE_LITE
-	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, reinterpret_cast<const reshade::api::rect *>(pSrcRect), to_handle(pDstResource), DstSubresource, DstX, DstY, reshade::d3d12::convert_format(Format)))
+	const bool use_src_box = pSrcRect != nullptr;
+	reshade::api::subresource_box src_box;
+
+	if (use_src_box)
+	{
+		src_box.left = pSrcRect->left;
+		src_box.top = pSrcRect->top;
+		src_box.front = 0;
+		src_box.right = pSrcRect->right;
+		src_box.bottom = pSrcRect->bottom;
+		src_box.back = 1;
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, use_src_box ? &src_box : nullptr, to_handle(pDstResource), DstSubresource, DstX, DstY, 0, reshade::d3d12::convert_format(Format)))
 		return;
 #endif
 
