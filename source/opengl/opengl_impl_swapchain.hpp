@@ -31,8 +31,7 @@ namespace reshade::opengl
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
 
-		void on_present(bool default_fbo = true);
-		bool on_vr_submit(uint32_t eye, GLenum source_target, GLuint source_object, const float bounds[4], GLuint *target_rbo);
+		void on_present();
 
 #if RESHADE_FX
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
@@ -41,6 +40,6 @@ namespace reshade::opengl
 	private:
 		state_block _app_state;
 		GLuint _rbo = 0;
-		GLuint _fbo[2] = {};
+		GLuint _fbo = 0;
 	};
 }

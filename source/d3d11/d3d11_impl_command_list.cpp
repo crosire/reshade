@@ -61,6 +61,7 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 		ID3D11ShaderResourceView *null_srv[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
 		_orig->VSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
 #if 0
+		// Not currently covered by state block (see d3d11_impl_state_block.cpp)
 		_orig->HSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
 		_orig->DSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
 #endif

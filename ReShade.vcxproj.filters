@@ -291,6 +291,9 @@
     <ClCompile Include="source\openvr\openvr.cpp">
       <Filter>hooks\openvr</Filter>
     </ClCompile>
+    <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp">
+      <Filter>hooks\openvr</Filter>
+    </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
@@ -529,6 +532,9 @@
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp">
       <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp">
+      <Filter>hooks\openvr</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp">
       <Filter>hooks\vulkan</Filter>

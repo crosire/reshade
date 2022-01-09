@@ -561,6 +561,7 @@
     <ClCompile Include="source\opengl\opengl_impl_swapchain.cpp" />
     <ClCompile Include="source\opengl\opengl_impl_type_convert.cpp" />
     <ClCompile Include="source\openvr\openvr.cpp" />
+    <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp" />
     <ClCompile Include="source\process_utils.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_api.cpp" />
@@ -650,6 +651,7 @@
     <ClInclude Include="source\opengl\opengl_impl_state_block.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_swapchain.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp" />
+    <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp" />
     <ClInclude Include="source\process_utils.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />

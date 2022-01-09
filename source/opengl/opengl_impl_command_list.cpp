@@ -863,10 +863,11 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
 	if (src_target != GL_FRAMEBUFFER_DEFAULT && dst_target != GL_FRAMEBUFFER_DEFAULT &&
-		(src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
+		((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
 			(src_box->right - src_box->left) == (dst_box->right - dst_box->left) &&
 			(src_box->bottom - src_box->top) == (dst_box->bottom - dst_box->top) &&
-			(src_box->back - src_box->front) == (dst_box->back - dst_box->front)))
+			(src_box->back - src_box->front) == (dst_box->back - dst_box->front))) &&
+		src_desc.texture.samples == dst_desc.texture.samples)
 	{
 		GLint src_region[6] = {};
 		if (src_box != nullptr)
