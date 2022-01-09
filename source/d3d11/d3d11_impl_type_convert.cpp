@@ -161,6 +161,11 @@ static void convert_resource_flags_to_misc_flags(reshade::api::resource_flags fl
 	else
 		misc_flags &= ~D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
+	if ((flags & api::resource_flags::structured) != 0)
+		misc_flags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	else
+		misc_flags &= ~D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+
 	if ((flags & api::resource_flags::sparse_binding) != 0)
 		misc_flags |= D3D11_RESOURCE_MISC_TILED;
 	else
@@ -178,6 +183,8 @@ static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::
 		flags |= api::resource_flags::cube_compatible;
 	if ((misc_flags & D3D11_RESOURCE_MISC_GENERATE_MIPS) != 0)
 		flags |= api::resource_flags::generate_mipmaps;
+	if ((misc_flags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) != 0)
+		flags |= api::resource_flags::structured;
 	if ((misc_flags & D3D11_RESOURCE_MISC_TILED) != 0)
 		flags |= api::resource_flags::sparse_binding;
 }
@@ -252,7 +259,11 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
+	assert(desc.buffer.stride == 0 || (desc.flags & api::resource_flags::structured) != 0);
 	internal_desc.StructureByteStride = desc.buffer.stride;
+
+	if ((desc.usage & api::resource_usage::indirect_argument) != 0)
+		internal_desc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
 }
 void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE1D_DESC &internal_desc)
 {
@@ -323,6 +334,8 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BU
 
 	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	if ((internal_desc.MiscFlags & D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS) != 0)
+		desc.usage |= api::resource_usage::indirect_argument;
 
 	return desc;
 }

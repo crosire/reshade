@@ -580,6 +580,11 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
+	if ((usage & api::resource_usage::indirect_argument) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+
 	if ((usage & api::resource_usage::shader_resource) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
 	else
@@ -610,6 +615,8 @@ void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFla
 		usage |= api::resource_usage::vertex_buffer;
 	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::constant_buffer;
+	if ((buffer_flags & VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) != 0)
+		usage |= api::resource_usage::indirect_argument;
 	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::shader_resource;
 	if ((buffer_flags & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) != 0)

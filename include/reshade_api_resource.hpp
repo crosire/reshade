@@ -179,11 +179,12 @@ namespace reshade { namespace api
 	enum class resource_flags : uint32_t
 	{
 		none = 0,
-		dynamic = (1 << 1),
+		dynamic = (1 << 3),
 		cube_compatible = (1 << 2),
 		generate_mipmaps = (1 << 0),
-		shared = (1 << 9),
+		shared = (1 << 1),
 		shared_nt_handle = (1 << 11),
+		structured = (1 << 6),
 		sparse_binding = (1 << 18)
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_flags);
