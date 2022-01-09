@@ -862,7 +862,21 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		pipeline_layout_extra_data extra_data;
 		extra_data.ranges = set_ranges;
 
-		signature->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+		// D3D12 runtime returns the same root signature object for identical input blobs, just with the reference count increased
+		// Do not overwrite the existing attached extra data in this case
+		if (UINT extra_data_size = sizeof(extra_data);
+			signature.ref_count() == 1 || FAILED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+		{
+			signature->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+		}
+		else
+		{
+#ifndef NDEBUG
+			for (uint32_t i = 0; i < param_count; ++i)
+				assert(extra_data.ranges[i] == set_ranges[i]);
+#endif
+			delete[] set_ranges;
+		}
 
 		*out_handle = to_handle(signature.release());
 		return true;
@@ -880,16 +894,16 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 	if (handle.handle == 0)
 		return;
 
-	const auto signature = reinterpret_cast<ID3D12RootSignature *>(handle.handle);
+	const com_ptr<ID3D12RootSignature> signature(reinterpret_cast<ID3D12RootSignature *>(handle.handle), true);
 
 	pipeline_layout_extra_data extra_data;
-	UINT extra_data_size = sizeof(extra_data);
-	if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+
+	// Only destroy attached extra data when this is the last reference to the root signature object
+	if (UINT extra_data_size = sizeof(extra_data);
+		signature.ref_count() == 1 && SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		delete[] extra_data.ranges;
 	}
-
-	signature->Release();
 }
 
 bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
@@ -897,13 +911,14 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::
 	uint32_t total_count = 0;
 	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 
-	const auto signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+	const com_ptr<ID3D12RootSignature> signature(reinterpret_cast<ID3D12RootSignature *>(layout.handle), false);
 
 	if (signature != nullptr)
 	{
 		pipeline_layout_extra_data extra_data;
-		UINT extra_data_size = sizeof(extra_data);
-		if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+
+		if (UINT extra_data_size = sizeof(extra_data);
+			SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			heap_type = extra_data.ranges[layout_param].first;
 			total_count = extra_data.ranges[layout_param].second;
