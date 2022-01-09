@@ -33,6 +33,8 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D
 		usage = D3D10_USAGE_DEFAULT;
 		break;
 	case api::memory_heap::cpu_to_gpu:
+		if (usage == D3D10_USAGE_DEFAULT && cpu_access_flags == D3D10_CPU_ACCESS_WRITE)
+			break;
 		usage = D3D10_USAGE_DYNAMIC;
 		cpu_access_flags |= D3D10_CPU_ACCESS_WRITE;
 		break;
@@ -54,6 +56,12 @@ static void convert_d3d_usage_to_memory_heap(D3D10_USAGE usage, UINT cpu_access_
 	switch (usage)
 	{
 	case D3D10_USAGE_DEFAULT:
+		if (cpu_access_flags == D3D10_CPU_ACCESS_WRITE)
+		{
+			heap = api::memory_heap::cpu_to_gpu;
+			break;
+		}
+		[[fallthrough]];
 	case D3D10_USAGE_IMMUTABLE:
 		assert(cpu_access_flags == 0);
 		heap = api::memory_heap::gpu_only;
