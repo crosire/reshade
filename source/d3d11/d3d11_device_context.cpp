@@ -1114,7 +1114,6 @@ UINT    STDMETHODCALLTYPE D3D11DeviceContext::GetContextFlags()
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList)
 {
-	// TODO: Call events with cleared state if 'RestoreDeferredContextState' is false
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
 	if (SUCCEEDED(hr))
 	{
@@ -1127,6 +1126,14 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 		reshade::invoke_addon_event<reshade::addon_event::execute_secondary_command_list>(command_list_proxy, this);
 #endif
 	}
+
+#if RESHADE_ADDON
+	if (!RestoreDeferredContextState)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(this);
+		// TODO: Call events with cleared state
+	}
+#endif
 
 	return hr;
 }
