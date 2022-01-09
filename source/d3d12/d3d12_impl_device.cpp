@@ -925,11 +925,11 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::
 		}
 	}
 
-	if (total_count != 0)
+	if (total_count != 0 && total_count <= 0xFF)
 	{
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			UINT heap_index;
+			size_t heap_index;
 			D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 			D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 
@@ -948,7 +948,7 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::
 			out_sets[i] = { 0 };
 			out_sets[i].handle |= (heap_index << 24) | (heap_type << 20);
 			out_sets[i].handle |= (base_handle.ptr - _descriptor_heaps.first[heap_index]->_orig_base_cpu_handle.ptr) / _descriptor_handle_size[heap_type];
-			out_sets[i].handle |= static_cast<uint64_t>(total_count) << 32;
+			out_sets[i].handle |= static_cast<uint64_t>(total_count) << 56;
 #else
 			out_sets[i] = { base_handle_gpu.ptr };
 #endif
@@ -973,7 +973,7 @@ void reshade::d3d12::device_impl::free_descriptor_sets(uint32_t count, const api
 		if (sets[i].handle == 0)
 			continue;
 
-		const uint32_t total_count = sets[i].handle >> 32;
+		const uint32_t total_count = sets[i].handle >> 56;
 		_gpu_view_heap.free(convert_to_original_gpu_descriptor_handle(sets[i]), total_count);
 		_gpu_sampler_heap.free(convert_to_original_gpu_descriptor_handle(sets[i]), total_count);
 	}
@@ -984,11 +984,13 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 	assert(set.handle != 0 && array_offset == 0);
 
 #if RESHADE_ADDON && !RESHADE_LITE
-	const SIZE_T heap_index = (set.handle >> 24) & 0xFF;
+	const D3D12_GPU_DESCRIPTOR_HANDLE handle = { static_cast<UINT64>(set.handle & 0xFFFFFFFFFFFFFF) };
+
+	const size_t heap_index = static_cast<size_t>(handle.ptr >> 24);
+	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3);
 	assert(heap_index < _descriptor_heaps.second && _descriptor_heaps.first[heap_index] != nullptr);
 
 	D3D12DescriptorHeap *const heap = _descriptor_heaps.first[heap_index];
-	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((set.handle >> 20) & 0x3);
 
 	*pool = to_handle(heap->_orig);
 	// Increment size is 1 (see 'D3D12Device::GetDescriptorHandleIncrementSize'), so can just subtract to get offset
@@ -1249,7 +1251,7 @@ void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *
 	_descriptor_heaps.first.store(new_heaps);
 	delete[] old_heaps;
 
-	heap->initialize_descriptor_base_handle(static_cast<UINT>(heap_index));
+	heap->initialize_descriptor_base_handle(heap_index);
 #else
 	UNREFERENCED_PARAMETER(heap);
 #endif
@@ -1295,7 +1297,7 @@ void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap
 D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(api::descriptor_set set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const
 {
 #if RESHADE_ADDON && !RESHADE_LITE
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = { static_cast<SIZE_T>(set.handle & 0xFFFFFFFF) };
+	const D3D12_CPU_DESCRIPTOR_HANDLE handle = { static_cast<SIZE_T>(set.handle & 0xFFFFFFFFFFFFFF) };
 	type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3);
 
 	return convert_to_original_cpu_descriptor_handle(handle, type);
@@ -1320,7 +1322,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu_descriptor_handle(api::descriptor_set set) const
 {
 #if RESHADE_ADDON && !RESHADE_LITE
-	D3D12_GPU_DESCRIPTOR_HANDLE handle = { static_cast<UINT64>(set.handle & 0xFFFFFFFF) };
+	const D3D12_GPU_DESCRIPTOR_HANDLE handle = { static_cast<UINT64>(set.handle & 0xFFFFFFFFFFFFFF) };
 
 	return convert_to_original_gpu_descriptor_handle(handle);
 #else
@@ -1331,7 +1333,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu
 D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 {
 #if RESHADE_ADDON && !RESHADE_LITE
-	const SIZE_T heap_index = (handle.ptr >> 24) & 0xFF;
+	const size_t heap_index = (handle.ptr >> 24);
 	assert(type == static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3));
 	assert(heap_index < _descriptor_heaps.second && _descriptor_heaps.first[heap_index] != nullptr);
 
@@ -1345,7 +1347,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle) const
 {
 #if RESHADE_ADDON && !RESHADE_LITE
-	const SIZE_T heap_index = (handle.ptr >> 24) & 0xFF;
+	const size_t heap_index = static_cast<size_t>(handle.ptr >> 24);
 	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3);
 	assert(heap_index < _descriptor_heaps.second && _descriptor_heaps.first[heap_index] != nullptr);
 

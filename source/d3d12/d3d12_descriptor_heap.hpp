@@ -37,7 +37,7 @@ struct DECLSPEC_UUID("8628AD68-6047-4D27-9D87-3E5F386E0231") D3D12DescriptorHeap
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-	void initialize_descriptor_base_handle(UINT heap_index);
+	void initialize_descriptor_base_handle(size_t heap_index);
 
 	ID3D12DescriptorHeap *_orig;
 	ULONG _ref = 1;

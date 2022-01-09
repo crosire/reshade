@@ -105,14 +105,21 @@ D3D12_GPU_DESCRIPTOR_HANDLE STDMETHODCALLTYPE D3D12DescriptorHeap::GetGPUDescrip
 	return _internal_base_gpu_handle;
 }
 
-void D3D12DescriptorHeap::initialize_descriptor_base_handle(UINT heap_index)
+void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 {
+	// Generate a descriptor handle of the following format:
+	//   Bit  0 - 19: Descriptor Index
+	//   Bit 20 - 22: Heap Type
+	//   Bit 23 - 23: Heap Flags
+	//   Bit 24 - 55: Heap Index
+
 	_orig_base_cpu_handle = _orig->GetCPUDescriptorHandleForHeapStart();
 	_internal_base_cpu_handle = { 0 };
 
-	assert(heap_index < (1 << (32 - 24)));
-	static_assert(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 < (1 << 24));
-	_internal_base_cpu_handle.ptr |= heap_index << 24;
+	static_assert(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 < (1 << 20));
+
+	assert(heap_index < (1ull << std::min(sizeof(SIZE_T) * 8 - 24ull, 32ull)));
+	_internal_base_cpu_handle.ptr |= static_cast<SIZE_T>(heap_index) << 24;
 
 	const D3D12_DESCRIPTOR_HEAP_DESC heap_desc = _orig->GetDesc();
 	assert(heap_desc.Type <= 0x3);
