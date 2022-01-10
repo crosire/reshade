@@ -112,7 +112,7 @@ namespace reshade::api
 		/// <param name="out_x">Pointer to a variable that is set to the X coordinate of the current cursor position.</param>
 		/// <param name="out_y">Pointer to a variable that is set to the Y coordinate of the current cursor position.</param>
 		/// <param name="out_wheel_delta">Optional pointer to a variable that is set to the mouse wheel delta since the last frame.</param>
-		virtual void get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta = nullptr) const = 0;
+		virtual void get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta = nullptr) const = 0;
 
 		/// <summary>
 		/// Enumerates all uniform variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.

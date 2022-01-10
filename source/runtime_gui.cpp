@@ -1461,9 +1461,9 @@ void reshade::runtime::draw_gui_settings()
 		modified |= imgui::directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
 		std::string screenshot_naming_items;
-		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss " + '\0';
+		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss" + '\0';
 #if RESHADE_FX
-		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss " + _current_preset_path.stem().string() + '\0';
+		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss" + ' ' + _current_preset_path.stem().string() + '\0';
 #endif
 		modified |= ImGui::Combo("Screenshot name", reinterpret_cast<int *>(&_screenshot_naming), screenshot_naming_items.c_str());
 
@@ -1482,12 +1482,33 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= imgui::file_input_box("Post-save command", _screenshot_post_save_command, _screenshot_post_save_command, { L".exe" });
 
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Executable that is called after saving a screenshot.\nThis can be used to perform additional processing on the image (e.g. compressing it with an image optimizer).");
+
 		char arguments[260] = "";
 		_screenshot_post_save_command_arguments.copy(arguments, sizeof(arguments) - 1);
 		if (ImGui::InputText("Post-save command arguments", arguments, sizeof(arguments), ImGuiInputTextFlags_None))
 		{
 			modified = true;
 			_screenshot_post_save_command_arguments = arguments;
+		}
+
+		if (ImGui::IsItemHovered())
+		{
+			const std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg";
+
+			ImGui::SetTooltip(
+				"Macros you can add that are resolved during command execution:\n"
+				"  %%TargetPath%%      Full path to the screenshot file (%s%s%s)\n"
+				"  %%TargetDir%%       Full path to the screenshot directory (%s)\n"
+				"  %%TargetFileName%%  File name of the screenshot file (%s%s)\n"
+				"  %%TargetExt%%       File extension of the screenshot file (%s)\n"
+				"  %%TargetName%%      File name without extension of the screenshot file (%s)",
+				_screenshot_path.u8string().c_str(), screenshot_naming_items.c_str(), extension.c_str(),
+				_screenshot_path.u8string().c_str(),
+				screenshot_naming_items.c_str(), extension.c_str(),
+				extension.c_str(),
+				screenshot_naming_items.c_str());
 		}
 
 		modified |= imgui::directory_input_box("Post-save command working directory", _screenshot_post_save_command_working_directory, _file_selection_path);

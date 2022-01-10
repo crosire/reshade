@@ -116,7 +116,7 @@ namespace reshade
 		/// <summary>
 		/// Gets the current absolute position of the mouse cursor in screen coordinates.
 		/// </summary>
-		void get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const final;
+		void get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const final;
 
 		/// <summary>
 		/// Enumerates all uniform variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
@@ -416,7 +416,7 @@ namespace reshade
 		std::filesystem::path _screenshot_post_save_command;
 		std::string _screenshot_post_save_command_arguments;
 		std::filesystem::path _screenshot_post_save_command_working_directory;
-		bool _screenshot_post_save_command_no_window;
+		bool _screenshot_post_save_command_no_window = false;
 
 		bool _should_save_screenshot = false;
 		std::atomic<bool> _last_screenshot_save_successfull = true;

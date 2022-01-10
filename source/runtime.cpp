@@ -117,7 +117,7 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 #endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path),
-	_screenshot_post_save_command_arguments("\"%TARGET%\""),
+	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(g_reshade_base_path)
 {
 	assert(device != nullptr && graphics_queue != nullptr);
@@ -3787,13 +3787,15 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 				name = replacing.substr(0, colon_pos);
 
 			std::string value;
-			if (_stricmp(name.c_str(), "TargetScreenshotPath") == 0 || _stricmp(name.c_str(), "PATH") == 0 || _stricmp(name.c_str(), "TARGET") == 0)
+			if (_stricmp(name.c_str(), "TargetPath") == 0)
 				value = screenshot_path.u8string();
-			else if (_stricmp(name.c_str(), "TargetScreenshotDir") == 0 || _stricmp(name.c_str(), "DIR") == 0)
+			else if (_stricmp(name.c_str(), "TargetDir") == 0)
 				value = screenshot_path.parent_path().u8string();
-			else if (_stricmp(name.c_str(), "TargetScreenshotFileName") == 0 || _stricmp(name.c_str(), "FILENAME") == 0)
+			else if (_stricmp(name.c_str(), "TargetFileName") == 0)
 				value = screenshot_path.filename().u8string();
-			else if (_stricmp(name.c_str(), "TargetScreenshotFileNameWithoutExtension") == 0 || _stricmp(name.c_str(), "STEM") == 0)
+			else if (_stricmp(name.c_str(), "TargetExt") == 0)
+				value = screenshot_path.extension().u8string();
+			else if (_stricmp(name.c_str(), "TargetName") == 0)
 				value = screenshot_path.stem().u8string();
 
 			std::string param;

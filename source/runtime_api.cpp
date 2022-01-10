@@ -33,7 +33,7 @@ bool reshade::runtime::is_mouse_button_released(uint32_t button) const
 	return _input != nullptr && _input->is_mouse_button_released(button);
 }
 
-void reshade::runtime::get_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const
+void reshade::runtime::get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const
 {
 	if (out_x != nullptr)
 		*out_x = (_input != nullptr) ? _input->mouse_position_x() : 0;
