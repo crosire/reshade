@@ -2176,6 +2176,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	{
 		ImGui::TextUnformatted("Jonathan \"lonesock\" Dummer");
 	}
+	if (ImGui::CollapsingHeader("fpng"))
+	{
+		ImGui::TextUnformatted("Public Domain (https://github.com/richgel999/fpng)");
+	}
 	if (ImGui::CollapsingHeader("SPIR-V"))
 	{
 		const auto resource = resources::load_data_resource(IDR_LICENSE_SPIRV);

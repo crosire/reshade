@@ -87,6 +87,7 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="Common.props" />
     <Import Project="deps\D3D12On7.props" />
+    <Import Project="deps\fpng.props" />
     <Import Project="deps\gl3w.props" />
     <Import Project="deps\ImGui.props" />
     <Import Project="deps\MinHook.props" />
@@ -469,6 +470,9 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="deps\fpng.vcxproj">
+      <Project>{79f676af-1a25-49bb-9549-e533d162fb0a}</Project>
+    </ProjectReference>
     <ProjectReference Include="deps\gl3w.vcxproj">
       <Project>{09c0d610-9b82-40d8-b37e-0d26e3bff77f}</Project>
     </ProjectReference>

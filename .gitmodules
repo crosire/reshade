@@ -23,3 +23,6 @@
 [submodule "vulkan"]
 	path = deps/vulkan
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "fpng"]
+	path = deps/fpng
+	url = https://github.com/richgel999/fpng

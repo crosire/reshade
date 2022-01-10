@@ -20,6 +20,7 @@
 #include <thread>
 #include <algorithm>
 #include <cstring>
+#include <fpng.h>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
@@ -138,6 +139,8 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 #endif
 
 	load_config();
+
+	fpng::fpng_init();
 }
 reshade::runtime::~runtime()
 {
@@ -3331,8 +3334,16 @@ void reshade::runtime::save_texture(const texture &tex)
 					save_success = stbi_write_bmp_to_func(write_callback, file, width, height, 4, data.data()) != 0;
 					break;
 				case 1:
+				{
+#if 1
+					std::vector<uint8_t> encoded_data;
+					save_success = fpng::fpng_encode_image_to_memory(data.data(), width, height, 4, encoded_data);
+					fwrite(encoded_data.data(), 1, encoded_data.size(), file);
+#else
 					save_success = stbi_write_png_to_func(write_callback, file, width, height, 4, data.data(), 0) != 0;
+#endif
 					break;
+				}
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, data.data(), _screenshot_jpeg_quality) != 0;
 					break;
@@ -3701,8 +3712,16 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix)
 					save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, data.data()) != 0;
 					break;
 				case 1:
+				{
+#if 1
+					std::vector<uint8_t> encoded_data;
+					save_success = fpng::fpng_encode_image_to_memory(data.data(), _width, _height, comp, encoded_data);
+					fwrite(encoded_data.data(), 1, encoded_data.size(), file);
+#else
 					save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, data.data(), 0) != 0;
+#endif
 					break;
+				}
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
 					break;
