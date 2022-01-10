@@ -636,7 +636,7 @@ static bool on_copy_texture_to_buffer(reshade::api::command_list *, reshade::api
 
 	return false;
 }
-static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const reshade::api::rect *, reshade::api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, reshade::api::format format)
+static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api::resource src, uint32_t src_subresource, const reshade::api::subresource_box *, reshade::api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, reshade::api::format format)
 {
 	if (!s_do_capture)
 		return false;
@@ -647,7 +647,7 @@ static bool on_resolve_texture_region(reshade::api::command_list *, reshade::api
 		assert(s_resources.find(dst.handle) != s_resources.end());
 	}
 
-	std::stringstream s; s << "resolve_texture_region(" << (void *)src.handle << ", " << src_subresource << ", { ... }, " << (void *)dst.handle << ", " << dst_subresource << ", " << dst_x << ", " << dst_y << ", " << (uint32_t)format << ")";
+	std::stringstream s; s << "resolve_texture_region(" << (void *)src.handle << ", " << src_subresource << ", { ... }, " << (void *)dst.handle << ", " << dst_subresource << ", " << dst_x << ", " << dst_y << ", " << dst_z << ", " << (uint32_t)format << ")";
 	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
 
 	return false;

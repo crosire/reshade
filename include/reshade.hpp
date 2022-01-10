@@ -7,11 +7,13 @@
 
 #include "reshade_events.hpp"
 #include "reshade_overlay.hpp"
-#include <Windows.h>
-#include <Psapi.h>
 #include <charconv>
+#include <Windows.h>
 
 #define RESHADE_API_VERSION 1
+
+ // Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
+extern "C" BOOL WINAPI K32EnumProcessModules(HANDLE hProcess, HMODULE *lphModule, DWORD cb, LPDWORD lpcbNeeded);
 
 namespace reshade
 {
@@ -25,7 +27,6 @@ namespace reshade
 			static HMODULE handle = nullptr;
 			if (handle == nullptr)
 			{
-				// Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
 				HMODULE modules[1024]; DWORD num = 0;
 				if (K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &num))
 				{
@@ -91,25 +92,25 @@ namespace reshade
 	/// <param name="value">Pointer to a string buffer that is filled with the config value.</param>
 	/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 	/// <returns><see langword="true"/> if the specified config value exists, <see cref="false"/> otherwise.</returns>
-	inline bool get_config_value(api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)
+	inline bool config_get_value(api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)
 	{
 		static const auto func = reinterpret_cast<bool(*)(HMODULE, api::effect_runtime *, const char *, const char *, char *, size_t *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetConfigValue"));
 		return func(internal::get_current_module_handle(), runtime, section, key, value, length);
 	}
 	template <typename T>
-	inline bool get_config_value(api::effect_runtime *runtime, const char *section, const char *key, T &value)
+	inline bool config_get_value(api::effect_runtime *runtime, const char *section, const char *key, T &value)
 	{
 		char value_string[32] = ""; size_t value_length = sizeof(value_string) - 1;
-		if (!get_config_value(runtime, section, key, value_string, &value_length))
+		if (!config_get_value(runtime, section, key, value_string, &value_length))
 			return false;
 		return std::from_chars(value_string, value_string + value_length, value).ec != std::errc();
 	}
 	template <>
-	inline bool get_config_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, bool &value)
+	inline bool config_get_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, bool &value)
 	{
 		int value_int = 0;
-		return get_config_value<int>(runtime, section, key, value_int) ? value = value_int != 0, true : false;
+		return config_get_value<int>(runtime, section, key, value_int) ? value = value_int != 0, true : false;
 	}
 
 	/// <summary>
@@ -119,23 +120,23 @@ namespace reshade
 	/// <param name="section">Name of the config section.</param>
 	/// <param name="key">Name of the config value.</param>
 	/// <param name="value">Config value to set.</param>
-	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const char *value)
+	inline void config_set_value(api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 	{
 		static const auto func = reinterpret_cast<void(*)(HMODULE, api::effect_runtime *, const char *, const char *, const char *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeSetConfigValue"));
 		func(internal::get_current_module_handle(), runtime, section, key, value);
 	}
 	template <typename T>
-	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const T &value)
+	inline void config_set_value(api::effect_runtime *runtime, const char *section, const char *key, const T &value)
 	{
 		char value_string[32] = "";
 		std::to_chars(value_string, value_string + sizeof(value_string) - 1, value);
-		set_config_value(runtime, section, key, static_cast<const char *>(value_string));
+		config_set_value(runtime, section, key, static_cast<const char *>(value_string));
 	}
 	template <>
-	inline void set_config_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, const bool &value)
+	inline void config_set_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, const bool &value)
 	{
-		set_config_value<int>(runtime, section, key, value ? 1 : 0);
+		config_set_value<int>(runtime, section, key, value ? 1 : 0);
 	}
 
 	/// <summary>

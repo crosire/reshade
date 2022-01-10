@@ -8,7 +8,7 @@
 #include <cfloat>
 #include <cstdint>
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// The available data and texture formats.
@@ -441,4 +441,4 @@ namespace reshade { namespace api
 
 		return row_pitch * height;
 	}
-} }
+}

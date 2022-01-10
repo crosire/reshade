@@ -9,7 +9,7 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "ini_file.hpp"
-#include "addon.hpp"
+#include "addon_manager.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
@@ -864,11 +864,11 @@ void reshade::runtime::draw_gui()
 		// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
 		if (!is_loading()
 #if RESHADE_ADDON && RESHADE_LITE
-			&& addon::enabled
+			&& addon_enabled
 #endif
 			)
 		{
-			for (const auto &info : addon::loaded_info)
+			for (const addon_info &info : addon_loaded_info)
 			{
 				for (const auto &widget : info.overlay_callbacks)
 				{
@@ -2193,7 +2193,7 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 void reshade::runtime::draw_gui_addons()
 {
 #if RESHADE_ADDON && RESHADE_LITE
-	if (!addon::enabled)
+	if (!addon_enabled)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
 		return;
@@ -2209,7 +2209,7 @@ void reshade::runtime::draw_gui_addons()
 
 	const float child_window_width = ImGui::GetContentRegionAvail().x;
 
-	for (addon::info &info : addon::loaded_info)
+	for (addon_info &info : addon_loaded_info)
 	{
 		if (!filter_text(info.name, _addons_filter))
 			continue;

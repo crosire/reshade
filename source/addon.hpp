@@ -110,9 +110,9 @@ namespace reshade::api
 
 #if RESHADE_ADDON
 
-namespace reshade::addon
+namespace reshade
 {
-	struct info
+	struct addon_info
 	{
 		void *handle = nullptr;
 
@@ -129,23 +129,6 @@ namespace reshade::addon
 		std::vector<std::pair<std::string, void(*)(api::effect_runtime *)>> overlay_callbacks;
 #endif
 	};
-
-#if RESHADE_LITE
-	/// <summary>
-	/// Global switch to enable or disable all loaded add-ons.
-	/// </summary>
-	extern bool enabled;
-#endif
-
-	/// <summary>
-	/// List of add-on event callbacks.
-	/// </summary>
-	extern std::vector<void *> event_list[];
-
-	/// <summary>
-	/// List of currently loaded add-ons.
-	/// </summary>
-	extern std::vector<addon::info> loaded_info;
 }
 
 #endif

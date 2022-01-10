@@ -109,10 +109,10 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 #endif
 
 #if RESHADE_LITE
-bool reshade::addon::enabled = true;
+bool reshade::addon_enabled = true;
 #endif
-std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
-std::vector<reshade::addon::info> reshade::addon::loaded_info;
+std::vector<void *> reshade::addon_event_list[static_cast<uint32_t>(reshade::addon_event::max)];
+std::vector<reshade::addon_info> reshade::addon_loaded_info;
 static unsigned long s_reference_count = 0;
 
 void reshade::load_addons()
@@ -131,7 +131,7 @@ void reshade::load_addons()
 	std::vector<std::string> disabled_addons;
 	global_config().get("ADDON", "DisabledAddons", disabled_addons);
 
-	{	addon::info &info = addon::loaded_info.emplace_back();
+	{	addon_info &info = addon_loaded_info.emplace_back();
 		info.name = "Generic Depth";
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
 		info.file = g_reshade_dll_path.u8string();
@@ -180,8 +180,8 @@ void reshade::unload_addons()
 
 #if !RESHADE_LITE
 	// Create copy of add-on list before unloading, since add-ons call 'ReShadeUnregisterAddon' during 'FreeLibrary', which modifies the list
-	const std::vector<addon::info> loaded_info_copy = addon::loaded_info;
-	for (const addon::info &info : loaded_info_copy)
+	const std::vector<addon_info> loaded_info_copy = addon_loaded_info;
+	for (const addon_info &info : loaded_info_copy)
 	{
 		if (info.handle == nullptr || info.handle == g_module_handle)
 			continue; // Skip disabled and built-in add-ons
@@ -198,19 +198,10 @@ void reshade::unload_addons()
 
 	unregister_addon_depth();
 
-	addon::loaded_info.clear();
+	addon_loaded_info.clear();
 }
 
-#if RESHADE_ADDON
-
-reshade::addon::info *find_addon(HMODULE module)
-{
-	for (auto it = reshade::addon::loaded_info.rbegin(); it != reshade::addon::loaded_info.rend(); ++it)
-		if (it->handle == module)
-			return &(*it);
-	return nullptr;
-}
-reshade::addon::info *find_addon_from_address(void *address)
+reshade::addon_info *reshade::find_addon(void *address)
 {
 	if (address == nullptr)
 		return nullptr;
@@ -219,7 +210,10 @@ reshade::addon::info *find_addon_from_address(void *address)
 	if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(address), &module))
 		return nullptr;
 
-	return find_addon(module);
+	for (auto it = reshade::addon_loaded_info.rbegin(); it != reshade::addon_loaded_info.rend(); ++it)
+		if (it->handle == module)
+			return &(*it);
+	return nullptr;
 }
 
 extern "C" __declspec(dllexport) bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version);
@@ -236,7 +230,7 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title
 bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 {
 	// Can only register an add-on module once
-	if (module == nullptr || module == g_module_handle || find_addon(module) != nullptr)
+	if (module == nullptr || module == g_module_handle || reshade::find_addon(module))
 		return false;
 
 	// Check that the requested API version is supported
@@ -245,7 +239,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	const std::filesystem::path path = get_module_path(module);
 
-	reshade::addon::info info;
+	reshade::addon_info info;
 	info.name = path.stem().u8string();
 	info.file = path.u8string();
 	info.handle = module;
@@ -281,8 +275,8 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 	if (info.version.empty())
 		info.version = "1.0.0.0";
 
-	if (std::find_if(reshade::addon::loaded_info.begin(), reshade::addon::loaded_info.end(),
-		[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon::loaded_info.end())
+	if (std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
+		[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
 	{
 		// Prevent registration if another add-on with the same name already exists
 		return false;
@@ -293,13 +287,13 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		std::find(disabled_addons.begin(), disabled_addons.end(), info.name) != disabled_addons.end())
 	{
 		info.handle = nullptr;
-		reshade::addon::loaded_info.push_back(std::move(info));
+		reshade::addon_loaded_info.push_back(std::move(info));
 		return false; // Disable this add-on
 	}
 
 	LOG(INFO) << "Registered add-on \"" << info.name << "\" v" << info.version << '.';
 
-	reshade::addon::loaded_info.push_back(std::move(info));
+	reshade::addon_loaded_info.push_back(std::move(info));
 
 	return true;
 }
@@ -308,7 +302,7 @@ void ReShadeUnregisterAddon(HMODULE module)
 	if (module == nullptr || module == g_module_handle)
 		return;
 
-	reshade::addon::info *const info = find_addon(module);
+	reshade::addon_info *const info = reshade::find_addon(module);
 	if (info == nullptr)
 		return;
 
@@ -330,7 +324,7 @@ void ReShadeUnregisterAddon(HMODULE module)
 
 	LOG(INFO) << "Unregistered add-on \"" << info->name << "\".";
 
-	reshade::addon::loaded_info.erase(reshade::addon::loaded_info.begin() + (info - reshade::addon::loaded_info.data()));
+	reshade::addon_loaded_info.erase(reshade::addon_loaded_info.begin() + (info - reshade::addon_loaded_info.data()));
 }
 
 void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
@@ -338,9 +332,12 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 	if (ev >= reshade::addon_event::max)
 		return;
 
-	reshade::addon::info *const info = find_addon_from_address(callback);
+	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
+	{
+		LOG(ERROR) << "Could not find associated add-on and therefore failed to register an event.";
 		return;
+	}
 
 #if RESHADE_LITE
 	// Block all application events when building without add-on loading support
@@ -348,7 +345,7 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 		return;
 #endif
 
-	auto &event_list = reshade::addon::event_list[static_cast<uint32_t>(ev)];
+	auto &event_list = reshade::addon_event_list[static_cast<uint32_t>(ev)];
 	event_list.push_back(callback);
 
 	info->event_callbacks.emplace_back(static_cast<uint32_t>(ev), callback);
@@ -362,16 +359,19 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 	if (ev >= reshade::addon_event::max)
 		return;
 
-	reshade::addon::info *const info = find_addon_from_address(callback);
+	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
+	{
+		LOG(ERROR) << "Could not find associated add-on and therefore failed to unregister an event.";
 		return;
+	}
 
 #if RESHADE_LITE
 	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
 		return;
 #endif
 
-	auto &event_list = reshade::addon::event_list[static_cast<uint32_t>(ev)];
+	auto &event_list = reshade::addon_event_list[static_cast<uint32_t>(ev)];
 	event_list.erase(std::remove(event_list.begin(), event_list.end(), callback), event_list.end());
 
 	info->event_callbacks.erase(std::remove(info->event_callbacks.begin(), info->event_callbacks.end(), std::make_pair(static_cast<uint32_t>(ev), callback)), info->event_callbacks.end());
@@ -384,9 +384,12 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 #if RESHADE_GUI
 void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
-	reshade::addon::info *const info = find_addon_from_address(callback);
+	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
+	{
+		LOG(ERROR) << "Could not find associated add-on and therefore failed to register overlay with title \"" << title << "\".";
 		return;
+	}
 
 	if (title == nullptr)
 	{
@@ -402,9 +405,12 @@ void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::eff
 }
 void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
-	reshade::addon::info *const info = find_addon_from_address(callback);
+	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
+	{
+		LOG(ERROR) << "Could not find associated add-on and therefore failed to unregister overlay with title \"" << title << "\".";
 		return;
+	}
 
 	if (title == nullptr)
 	{
@@ -419,8 +425,6 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 	LOG(DEBUG) << "Unregistered overlay with title \"" << title << "\" and callback " << callback << '.';
 #endif
 }
-#endif
-
 #endif
 
 #endif

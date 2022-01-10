@@ -498,20 +498,20 @@ void reshade::runtime::on_present()
 	}
 	else
 	{
-		const bool was_enabled = addon::enabled;
-		addon::enabled = traffic < 10;
+		const bool was_enabled = addon_enabled;
+		addon_enabled = traffic < 10;
 		traffic = 0;
 		cooldown = 60;
 
 #if RESHADE_FX
-		if (addon::enabled != was_enabled)
+		if (addon_enabled != was_enabled)
 		{
 			if (was_enabled)
 				_backup_texture_semantic_bindings = _texture_semantic_bindings;
 
 			for (const auto &info : _backup_texture_semantic_bindings)
 			{
-				update_texture_bindings(info.first.c_str(), addon::enabled ? info.second.first : api::resource_view { 0 }, addon::enabled ? info.second.second : api::resource_view { 0 });
+				update_texture_bindings(info.first.c_str(), addon_enabled ? info.second.first : api::resource_view { 0 }, addon_enabled ? info.second.second : api::resource_view { 0 });
 			}
 		}
 #endif

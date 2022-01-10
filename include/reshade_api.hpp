@@ -7,7 +7,7 @@
 
 #include "reshade_api_device.hpp"
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// An opaque handle to a technique in an effect.
@@ -526,4 +526,4 @@ namespace reshade { namespace api
 		/// <param name="value">Value of the definition.</param>
 		virtual void set_preprocessor_definition(const char *name, const char *value) = 0;
 	};
-} }
+}

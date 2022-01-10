@@ -255,10 +255,10 @@ static void on_init_device(device *device)
 {
 	state_tracking_context &device_state = device->create_private_data<state_tracking_context>();
 
-	reshade::get_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
-	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
-	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
-	reshade::get_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
+	reshade::config_get_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
+	reshade::config_get_value(nullptr, "DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
+	reshade::config_get_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
+	reshade::config_get_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
 
 	if (device_state.force_clear_index == std::numeric_limits<uint32_t>::max())
 		device_state.force_clear_index  = 0;
@@ -355,7 +355,7 @@ static void on_destroy_resource(device *device, resource resource)
 	if (&device_state == nullptr)
 		return;
 
-	std::lock_guard<std::mutex> lock(s_mutex);
+	std::unique_lock<std::mutex> lock(s_mutex);
 	device_state.destroyed_resources.push_back(resource);
 }
 
@@ -476,6 +476,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 {
 	// Simply assume that every swap chain has an associated effect runtime
 	const auto runtime = static_cast<effect_runtime *>(swapchain);
+
 	device *const device = swapchain->get_device();
 	command_queue *const queue = runtime->get_command_queue();
 
@@ -494,7 +495,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 
 	for (const auto &[resource, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
-		if (std::lock_guard<std::mutex> lock(s_mutex);
+		if (std::unique_lock<std::mutex> lock(s_mutex);
 			std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application
 
@@ -523,7 +524,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 		}
 	}
 
-	if (std::lock_guard<std::mutex> lock(s_mutex);
+	if (std::unique_lock<std::mutex> lock(s_mutex);
 		device_state.override_depth_stencil != 0 &&
 		std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), device_state.override_depth_stencil) == device_state.destroyed_resources.end())
 	{
@@ -618,7 +619,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 
 	queue_state.reset_on_present();
 
-	std::lock_guard<std::mutex> lock(s_mutex);
+	std::unique_lock<std::mutex> lock(s_mutex);
 	device_state.destroyed_resources.clear();
 }
 
@@ -795,10 +796,10 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 		update_effect_runtime(runtime);
 
-		reshade::set_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
-		reshade::set_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
-		reshade::set_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
-		reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
+		reshade::config_set_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
+		reshade::config_set_value(nullptr, "DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
+		reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
+		reshade::config_set_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
 	}
 }
 

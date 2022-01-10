@@ -5,21 +5,17 @@
 
 #if RESHADE_ADDON
 
-#include "addon.hpp"
 #include "runtime.hpp"
+#include "addon_manager.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
-typedef struct HINSTANCE__ *HMODULE;
-
-extern reshade::addon::info *find_addon(HMODULE module);
-
-extern "C" __declspec(dllexport) void ReShadeLogMessage(HMODULE module, int level, const char *message)
+extern "C" __declspec(dllexport) void ReShadeLogMessage(void *module, int level, const char *message)
 {
 	std::string prefix;
 	if (module != nullptr)
 	{
-		reshade::addon::info *const info = find_addon(module);
+		reshade::addon_info *const info = reshade::find_addon(module);
 		if (info != nullptr)
 			prefix = "[" + info->name + "] ";
 	}
@@ -27,7 +23,7 @@ extern "C" __declspec(dllexport) void ReShadeLogMessage(HMODULE module, int leve
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
 }
 
-extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)
+extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)
 {
 	if (key == nullptr || length == nullptr)
 		return false;
@@ -44,7 +40,7 @@ extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(HMODULE, reshade::ap
 	*length = value_string.size();
 	return true;
 }
-extern "C" __declspec(dllexport) void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
+extern "C" __declspec(dllexport) void ReShadeSetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 

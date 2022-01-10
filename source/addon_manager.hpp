@@ -12,6 +12,23 @@
 
 namespace reshade
 {
+#if RESHADE_LITE
+	/// <summary>
+	/// Global switch to enable or disable all loaded add-ons.
+	/// </summary>
+	extern bool addon_enabled;
+#endif
+
+	/// <summary>
+	/// List of add-on event callbacks.
+	/// </summary>
+	extern std::vector<void *> addon_event_list[];
+
+	/// <summary>
+	/// List of currently loaded add-ons.
+	/// </summary>
+	extern std::vector<addon_info> addon_loaded_info;
+
 	/// <summary>
 	/// Loads any add-ons found in the configured search paths.
 	/// </summary>
@@ -23,12 +40,17 @@ namespace reshade
 	void unload_addons();
 
 	/// <summary>
+	/// Gets the add-on that was loaded at the specified address.
+	/// </summary>
+	addon_info *find_addon(void *address);
+
+	/// <summary>
 	/// Checks whether any callbacks were registered for the specified <paramref name="ev"/>ent.
 	/// </summary>
 	template <addon_event ev>
 	__forceinline bool has_addon_event()
 	{
-		return !addon::event_list[static_cast<uint32_t>(ev)].empty();
+		return !addon_event_list[static_cast<uint32_t>(ev)].empty();
 	}
 
 	/// <summary>
@@ -62,12 +84,12 @@ namespace reshade
 			ev != addon_event::destroy_pipeline_layout &&
 			ev != addon_event::init_query_pool &&
 			ev != addon_event::destroy_query_pool)
-		if (!addon::enabled)
+		if (!addon_enabled)
 			return;
 #endif
-		std::vector<void *> &event_list = addon::event_list[static_cast<uint32_t>(ev)];
+		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
-			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
+			reinterpret_cast<typename addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
 	}
 	/// <summary>
 	/// Invokes registered callbacks for the specified <typeparamref name="ev"/>ent until a callback reports back as having handled this event by returning <see langword="true"/>.
@@ -76,12 +98,12 @@ namespace reshade
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
 #if RESHADE_LITE
-		if (!addon::enabled)
+		if (!addon_enabled)
 			return false;
 #endif
-		std::vector<void *> &event_list = addon::event_list[static_cast<uint32_t>(ev)];
+		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
-			if (reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))
+			if (reinterpret_cast<typename addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))
 				return true;
 		return false;
 	}

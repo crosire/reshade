@@ -862,33 +862,42 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 	const GLenum dst_target = dst.handle >> 40;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
-	if (src_target != GL_FRAMEBUFFER_DEFAULT && dst_target != GL_FRAMEBUFFER_DEFAULT &&
-		((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-			(src_box->right - src_box->left) == (dst_box->right - dst_box->left) &&
-			(src_box->bottom - src_box->top) == (dst_box->bottom - dst_box->top) &&
-			(src_box->back - src_box->front) == (dst_box->back - dst_box->front))) &&
-		src_desc.texture.samples == dst_desc.texture.samples)
+	GLint src_region[6] = {};
+	if (src_box != nullptr)
 	{
-		GLint src_region[6] = {};
+		std::copy_n(&src_box->left, 6, src_region);
+	}
+	else
+	{
+		src_region[3] = static_cast<GLint>(std::max(1u, src_desc.texture.width >> (src_subresource % src_desc.texture.levels)));
+		src_region[4] = static_cast<GLint>(std::max(1u, src_desc.texture.height >> (src_subresource % src_desc.texture.levels)));
+		src_region[5] = static_cast<GLint>(src_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(src_desc.texture.depth_or_layers) >> (src_subresource % src_desc.texture.levels)) : 1u);
+	}
+
+	GLint dst_region[6] = {};
+	if (dst_box != nullptr)
+	{
+		std::copy_n(&dst_box->left, 6, dst_region);
+	}
+	else
+	{
+		dst_region[3] = static_cast<GLint>(std::max(1u, dst_desc.texture.width >> (dst_subresource % dst_desc.texture.levels)));
+		dst_region[4] = static_cast<GLint>(std::max(1u, dst_desc.texture.height >> (dst_subresource % dst_desc.texture.levels)));
+		dst_region[5] = static_cast<GLint>(dst_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(dst_desc.texture.depth_or_layers) >> (dst_subresource % dst_desc.texture.levels)) : 1u);
+	}
+
+	if (src_target != GL_FRAMEBUFFER_DEFAULT &&
+		dst_target != GL_FRAMEBUFFER_DEFAULT &&
+		src_desc.texture.samples == dst_desc.texture.samples &&
+		(src_region[3] - src_region[0]) == (dst_region[3] - dst_region[0]) &&
+		(src_region[4] - src_region[1]) == (dst_region[4] - dst_region[1]) &&
+		(src_region[5] - src_region[0]) == (dst_region[5] - dst_region[2]))
+	{
 		if (src_box != nullptr)
 		{
-			std::copy_n(&src_box->left, 3, src_region);
-
-			src_region[3] = src_box->right - src_box->left;
-			src_region[4] = src_box->bottom - src_box->top;
-			src_region[5] = src_box->back - src_box->front;
-		}
-		else
-		{
-			src_region[3] = std::max(1u, src_desc.texture.width >> (src_subresource % src_desc.texture.levels));
-			src_region[4] = std::max(1u, src_desc.texture.height >> (src_subresource % src_desc.texture.levels));
-			src_region[5] = (src_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(src_desc.texture.depth_or_layers) >> (src_subresource % src_desc.texture.levels)) : 1u);
-		}
-
-		GLint dst_region[3] = {};
-		if (dst_box != nullptr)
-		{
-			std::copy_n(&dst_box->left, 3, dst_region);
+			src_region[3] -= src_box->left;
+			src_region[4] -= src_box->top;
+			src_region[5] -= src_box->front;
 		}
 
 		glCopyImageSubData(
@@ -898,30 +907,6 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 	}
 	else
 	{
-		GLint src_region[6] = {};
-		if (src_box != nullptr)
-		{
-			std::copy_n(&src_box->left, 6, src_region);
-		}
-		else
-		{
-			src_region[3] = static_cast<GLint>(std::max(1u, src_desc.texture.width >> (src_subresource % src_desc.texture.levels)));
-			src_region[4] = static_cast<GLint>(std::max(1u, src_desc.texture.height >> (src_subresource % src_desc.texture.levels)));
-			src_region[5] = static_cast<GLint>((src_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(src_desc.texture.depth_or_layers) >> (src_subresource % src_desc.texture.levels)) : 1u));
-		}
-
-		GLint dst_region[6] = {};
-		if (dst_box != nullptr)
-		{
-			std::copy_n(&dst_box->left, 6, dst_region);
-		}
-		else
-		{
-			dst_region[3] = static_cast<GLint>(std::max(1u, dst_desc.texture.width >> (dst_subresource % dst_desc.texture.levels)));
-			dst_region[4] = static_cast<GLint>(std::max(1u, dst_desc.texture.height >> (dst_subresource % dst_desc.texture.levels)));
-			dst_region[5] = static_cast<GLint>((dst_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(dst_desc.texture.depth_or_layers) >> (dst_subresource % dst_desc.texture.levels)) : 1u));
-		}
-
 		GLint prev_read_fbo = 0;
 		GLint prev_draw_fbo = 0;
 		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);

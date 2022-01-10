@@ -134,6 +134,7 @@ void reshade::d3d12::swapchain_impl::on_present()
 
 	runtime::on_present();
 }
+
 bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwnd)
 {
 	assert(source != nullptr);

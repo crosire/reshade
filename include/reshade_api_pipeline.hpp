@@ -7,7 +7,7 @@
 
 #include "reshade_api_resource.hpp"
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// A list of flags that represent the available shader stages in the render pipeline.
@@ -129,8 +129,8 @@ namespace reshade { namespace api
 		shader_stage visibility = shader_stage::all;
 		/// <summary>
 		/// Size of the array in case this is an array binding.
-		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 1 (since each GLSL array element gets a separate binding index there).
-		/// If this is less than the total number of descriptors specified in <see cref="count"/>, then the remaining descriptors are assigned a separate binding index (with an array size of 1), incrementing with each additional descriptor.
+		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 1 (since each array element is a separate binding there).
+		/// If this is less than the total number of descriptors specified in <see cref="count"/>, then the remaining descriptors are assigned a separate binding (with an array size of 1), with the binding index incrementing with each additional descriptor.
 		/// </summary>
 		uint32_t array_size = 1;
 		/// <summary>
@@ -957,4 +957,4 @@ namespace reshade { namespace api
 		float min_depth = 0.0f;
 		float max_depth = 1.0f;
 	};
-} }
+}

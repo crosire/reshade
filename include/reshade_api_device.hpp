@@ -7,7 +7,7 @@
 
 #include "reshade_api_pipeline.hpp"
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// The underlying render API a device is using, as returned by <see cref="device::get_api"/>.
@@ -955,4 +955,4 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
 	};
-} }
+}

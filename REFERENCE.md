@@ -178,7 +178,7 @@ static bool on_create_swapchain(reshade::api::resource_desc &buffer_desc, void *
 }
 ```
 
-ReShade associates an independent post-processing effect runtime with every swap chain (can be retrieved by calling `reshade::api::swapchain::get_effect_runtime()`). This is the runtime one usually controls via the ReShade overlay, but it can also be controlled programatically via the ReShade API using the methods of the `reshade::api::effect_runtime` object.
+ReShade associates an independent post-processing effect runtime with every swap chain. This is the runtime one usually controls via the ReShade overlay, but it can also be controlled programatically via the ReShade API using the methods of the `reshade::api::effect_runtime` object.
 
 In contrast to the described basic API abstraction objects, any buffers, textures, pipelines, etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_resource`, `reshade::addon_event::init_pipeline`, ...) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_resource()`, `reshade::api::device::create_pipeline()`, ...).
 

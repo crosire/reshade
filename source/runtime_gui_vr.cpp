@@ -7,11 +7,10 @@
 
 #include "version.h"
 #include "dll_log.hpp"
-#include "runtime.hpp"
 #include "dll_resources.hpp"
+#include "runtime.hpp"
 #include "imgui_widgets.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
-#include <cassert>
 #include <openvr.h>
 #include <ivrclientcore.h>
 #include <stb_image.h>
@@ -228,11 +227,11 @@ void reshade::runtime::draw_gui_vr()
 	// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
 	if (!is_loading()
 #if RESHADE_ADDON && RESHADE_LITE
-		&& addon::enabled
+		&& addon_enabled
 #endif
 		)
 	{
-		for (const auto &info : addon::loaded_info)
+		for (const addon_info &info : addon_loaded_info)
 		{
 			for (const auto &widget : info.overlay_callbacks)
 			{
@@ -258,12 +257,12 @@ void reshade::runtime::draw_gui_vr()
 	else if (selected_overlay_index < overlay_index)
 	{
 #if RESHADE_ADDON && RESHADE_LITE
-		assert(addon::enabled);
+		assert(addon_enabled);
 #endif
 
 		overlay_index = static_cast<int>(std::size(overlay_callbacks));
 
-		for (const auto &info : addon::loaded_info)
+		for (const addon_info &info : addon_loaded_info)
 		{
 			for (const auto &widget : info.overlay_callbacks)
 			{
