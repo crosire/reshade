@@ -10,7 +10,7 @@
 
 using namespace reshade::api;
 
-static void dump_shader_code(device_api device_type, pipeline_stage, const shader_desc &desc, const std::filesystem::path &file_prefix = L"shader_")
+static void dump_shader_code(device_api device_type, shader_stage, const shader_desc &desc)
 {
 	if (desc.code_size == 0)
 		return;
@@ -24,10 +24,16 @@ static void dump_shader_code(device_api device_type, pipeline_stage, const shade
 	else if (device_type == device_api::opengl)
 		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
 
+	// Prepend executable file name to image files
+	WCHAR file_prefix[MAX_PATH] = L"";
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
 	char hash_string[11];
 	sprintf_s(hash_string, "0x%08X", shader_hash);
 
 	std::filesystem::path dump_path = file_prefix;
+	dump_path += L'_';
+	dump_path += L"shader_";
 	dump_path += hash_string;
 	dump_path += extension;
 
@@ -41,22 +47,22 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, co
 
 	// Go through all shader stages that are in this pipeline and dump the associated shader code
 	if ((desc.type & pipeline_stage::vertex_shader) != 0)
-		dump_shader_code(device_type, pipeline_stage::vertex_shader, desc.graphics.vertex_shader);
+		dump_shader_code(device_type, shader_stage::vertex, desc.graphics.vertex_shader);
 	if ((desc.type & pipeline_stage::hull_shader) != 0)
-		dump_shader_code(device_type, pipeline_stage::hull_shader, desc.graphics.hull_shader);
+		dump_shader_code(device_type, shader_stage::hull, desc.graphics.hull_shader);
 	if ((desc.type & pipeline_stage::domain_shader) != 0)
-		dump_shader_code(device_type, pipeline_stage::domain_shader, desc.graphics.domain_shader);
+		dump_shader_code(device_type, shader_stage::domain, desc.graphics.domain_shader);
 	if ((desc.type & pipeline_stage::geometry_shader) != 0)
-		dump_shader_code(device_type, pipeline_stage::geometry_shader, desc.graphics.geometry_shader);
+		dump_shader_code(device_type, shader_stage::geometry, desc.graphics.geometry_shader);
 	if ((desc.type & pipeline_stage::pixel_shader) != 0)
-		dump_shader_code(device_type, pipeline_stage::pixel_shader, desc.graphics.pixel_shader);
+		dump_shader_code(device_type, shader_stage::pixel, desc.graphics.pixel_shader);
 	if ((desc.type & pipeline_stage::compute_shader) != 0)
-		dump_shader_code(device_type, pipeline_stage::compute_shader, desc.compute.shader);
+		dump_shader_code(device_type, shader_stage::compute, desc.compute.shader);
 
 	return false;
 }
 
-extern "C" __declspec(dllexport) const char *NAME = "ShaderMod Dump";
+extern "C" __declspec(dllexport) const char *NAME = "Shader Dump";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that dumps all shaders used by the application to disk.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
@@ -69,7 +75,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
 		break;
 	case DLL_PROCESS_DETACH:
-		reshade::unregister_event<reshade::addon_event::create_pipeline>(on_create_pipeline);
 		reshade::unregister_addon(hModule);
 		break;
 	}

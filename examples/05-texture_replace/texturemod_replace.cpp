@@ -15,7 +15,7 @@ using namespace reshade::api;
 
 static thread_local std::vector<std::vector<uint8_t>> data_to_delete;
 
-static bool replace_texture(const resource_desc &desc, subresource_data &data, const std::filesystem::path &file_prefix)
+static bool replace_texture(const resource_desc &desc, subresource_data &data)
 {
 	if (desc.texture.format != format::r8g8b8a8_typeless && desc.texture.format != format::r8g8b8a8_unorm && desc.texture.format != format::r8g8b8a8_unorm_srgb &&
 		desc.texture.format != format::b8g8r8a8_typeless && desc.texture.format != format::b8g8r8a8_unorm && desc.texture.format != format::b8g8r8a8_unorm_srgb &&
@@ -41,32 +41,38 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data, c
 	char hash_string[11];
 	sprintf_s(hash_string, "0x%08X", hash);
 
+	// Prepend executable file name to image files
+	WCHAR file_prefix[MAX_PATH] = L"";
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
 	std::filesystem::path replace_path = file_prefix;
+	replace_path += L'_';
 	replace_path += hash_string;
 	replace_path += L".bmp";
 
-	if (FILE *file; _wfopen_s(&file, replace_path.c_str(), L"rb") == 0)
+	// Check if a replacement file for this texture hash exists and if so, overwrite the texture data with its contents
+	if (std::filesystem::exists(replace_path))
 	{
-		// Read texture data into memory in one go since that is faster than reading chunk by chunk
-		std::vector<uint8_t> mem(static_cast<size_t>(std::filesystem::file_size(replace_path)));
-		fread(mem.data(), 1, mem.size(), file);
-		fclose(file);
+		std::ifstream file(replace_path, std::ios::binary);
+		file.seekg(0, std::ios::end);
+		std::vector<uint8_t> file_data(static_cast<size_t>(file.tellg()));
+		file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(file_data.data()), file_data.size());
 
 		int width = 0, height = 0, channels = 0;
-		stbi_uc *const filedata = stbi_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
-		if (filedata != nullptr)
+		stbi_uc *const texture_data = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+		if (texture_data != nullptr)
 		{
 			// Only support changing pixel data, but not texture dimensions
 			if (desc.texture.width != static_cast<uint32_t>(width) ||
 				desc.texture.height != static_cast<uint32_t>(height))
 			{
-				stbi_image_free(filedata);
+				stbi_image_free(texture_data);
 				return false;
 			}
 
-			data_to_delete.emplace_back(filedata, filedata + width * height * 4);
+			data_to_delete.emplace_back(texture_data, texture_data + width * height * 4);
 
-			stbi_image_free(filedata);
+			stbi_image_free(texture_data);
 
 			data.data = data_to_delete.back().data();
 			data.row_pitch = 4 * width;
@@ -76,15 +82,6 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data, c
 	}
 
 	return false;
-}
-
-static bool replace_texture(const resource_desc &desc, subresource_data &data)
-{
-	// Prepend executable file name to image files
-	WCHAR file_prefix[MAX_PATH] = L"";
-	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
-
-	return replace_texture(desc, data, std::wstring(file_prefix) + L'_');
 }
 
 static inline bool filter_texture(device *device, const resource_desc &desc, const subresource_box *box)
@@ -150,7 +147,9 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 		// Update texture with the new data
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
 
-		stbi_image_free(new_data.data);
+		// Free the memory allocated in 'replace_texture' above
+		data_to_delete.clear();
+
 		return true; // Texture was already updated now, so skip the original copy command from the application
 	}
 
@@ -171,7 +170,9 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 		// Update texture with the new data
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
 
-		stbi_image_free(new_data.data);
+		// Free the memory allocated in 'replace_texture' above
+		data_to_delete.clear();
+
 		return true; // Texture was already updated now, so skip the original update command from the application
 	}
 
@@ -211,29 +212,9 @@ static void on_unmap_texture(device *, resource resource, uint32_t subresource)
 	{
 		std::memcpy(mapped_data, s_current_mapping.data.data, s_current_mapping.data.slice_pitch);
 
-		stbi_image_free(s_current_mapping.data.data);
+		// Free the memory allocated in 'replace_texture' above
+		data_to_delete.clear();
 	}
-}
-
-void register_addon_texmod_replace()
-{
-	reshade::register_event<reshade::addon_event::create_resource>(on_create_texture);
-	reshade::register_event<reshade::addon_event::init_resource>(on_after_create_texture);
-
-	reshade::register_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
-	reshade::register_event<reshade::addon_event::update_texture_region>(on_update_texture);
-	reshade::register_event<reshade::addon_event::map_texture_region>(on_map_texture);
-	reshade::register_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
-}
-void unregister_addon_texmod_replace()
-{
-	reshade::unregister_event<reshade::addon_event::create_resource>(on_create_texture);
-	reshade::unregister_event<reshade::addon_event::init_resource>(on_after_create_texture);
-
-	reshade::unregister_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
-	reshade::unregister_event<reshade::addon_event::update_texture_region>(on_update_texture);
-	reshade::unregister_event<reshade::addon_event::map_texture_region>(on_map_texture);
-	reshade::unregister_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "TextureMod Replace";
@@ -246,10 +227,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_ATTACH:
 		if (!reshade::register_addon(hModule))
 			return FALSE;
-		register_addon_texmod_replace();
+		reshade::register_event<reshade::addon_event::create_resource>(on_create_texture);
+		reshade::register_event<reshade::addon_event::init_resource>(on_after_create_texture);
+		reshade::register_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
+		reshade::register_event<reshade::addon_event::update_texture_region>(on_update_texture);
+		reshade::register_event<reshade::addon_event::map_texture_region>(on_map_texture);
+		reshade::register_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 		break;
 	case DLL_PROCESS_DETACH:
-		unregister_addon_texmod_replace();
 		reshade::unregister_addon(hModule);
 		break;
 	}

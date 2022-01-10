@@ -9,16 +9,7 @@
 using namespace reshade::api;
 
 // See implementation in 'dump_texture.cpp'
-extern bool dump_texture(const resource_desc &desc, const subresource_data &data, const std::filesystem::path &file_prefix);
-
-static bool dump_texture(const resource_desc &desc, const subresource_data &data)
-{
-	// Prepend executable file name to image files
-	WCHAR file_prefix[MAX_PATH] = L"";
-	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
-
-	return dump_texture(desc, data, std::wstring(file_prefix) + L'_');
-}
+extern bool dump_texture(const resource_desc &desc, const subresource_data &data);
 
 // There are multiple different ways textures can be initialized, so try and intercept them all
 // - Via initial data provided during texture creation (e.g. for immutable textures, common in D3D11 and OpenGL): See 'on_init_texture' implementation below
@@ -155,11 +146,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 		break;
 	case DLL_PROCESS_DETACH:
-		reshade::unregister_event<reshade::addon_event::init_resource>(on_init_texture);
-		reshade::unregister_event<reshade::addon_event::update_texture_region>(on_update_texture);
-		reshade::unregister_event<reshade::addon_event::copy_buffer_to_texture>(on_copy_buffer_to_texture);
-		reshade::unregister_event<reshade::addon_event::map_texture_region>(on_map_texture);
-		reshade::unregister_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 		reshade::unregister_addon(hModule);
 		break;
 	}

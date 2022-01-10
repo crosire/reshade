@@ -819,50 +819,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::present>(on_present);
 		break;
 	case DLL_PROCESS_DETACH:
-		reshade::unregister_overlay("API Trace", draw_overlay);
-
-		reshade::unregister_event<reshade::addon_event::init_swapchain>(on_init_swapchain);
-		reshade::unregister_event<reshade::addon_event::destroy_swapchain>(on_destroy_swapchain);
-		reshade::unregister_event<reshade::addon_event::init_sampler>(on_init_sampler);
-		reshade::unregister_event<reshade::addon_event::destroy_sampler>(on_destroy_sampler);
-		reshade::unregister_event<reshade::addon_event::init_resource>(on_init_resource);
-		reshade::unregister_event<reshade::addon_event::destroy_resource>(on_destroy_resource);
-		reshade::unregister_event<reshade::addon_event::init_resource_view>(on_init_resource_view);
-		reshade::unregister_event<reshade::addon_event::destroy_resource_view>(on_destroy_resource_view);
-		reshade::unregister_event<reshade::addon_event::init_pipeline>(on_init_pipeline);
-		reshade::unregister_event<reshade::addon_event::destroy_pipeline>(on_destroy_pipeline);
-
-		reshade::unregister_event<reshade::addon_event::barrier>(on_barrier);
-		reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
-		reshade::unregister_event<reshade::addon_event::end_render_pass>(on_end_render_pass);
-		reshade::unregister_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_render_targets_and_depth_stencil);
-		reshade::unregister_event<reshade::addon_event::bind_pipeline>(on_bind_pipeline);
-		reshade::unregister_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);
-		reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewports);
-		reshade::unregister_event<reshade::addon_event::bind_scissor_rects>(on_bind_scissor_rects);
-		reshade::unregister_event<reshade::addon_event::push_constants>(on_push_constants);
-		reshade::unregister_event<reshade::addon_event::push_descriptors>(on_push_descriptors);
-		reshade::unregister_event<reshade::addon_event::bind_descriptor_sets>(on_bind_descriptor_sets);
-		reshade::unregister_event<reshade::addon_event::bind_index_buffer>(on_bind_index_buffer);
-		reshade::unregister_event<reshade::addon_event::bind_vertex_buffers>(on_bind_vertex_buffers);
-		reshade::unregister_event<reshade::addon_event::draw>(on_draw);
-		reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
-		reshade::unregister_event<reshade::addon_event::dispatch>(on_dispatch);
-		reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_or_dispatch_indirect);
-		reshade::unregister_event<reshade::addon_event::copy_resource>(on_copy_resource);
-		reshade::unregister_event<reshade::addon_event::copy_buffer_region>(on_copy_buffer_region);
-		reshade::unregister_event<reshade::addon_event::copy_buffer_to_texture>(on_copy_buffer_to_texture);
-		reshade::unregister_event<reshade::addon_event::copy_texture_region>(on_copy_texture_region);
-		reshade::unregister_event<reshade::addon_event::copy_texture_to_buffer>(on_copy_texture_to_buffer);
-		reshade::unregister_event<reshade::addon_event::resolve_texture_region>(on_resolve_texture_region);
-		reshade::unregister_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil_view);
-		reshade::unregister_event<reshade::addon_event::clear_render_target_view>(on_clear_render_target_view);
-		reshade::unregister_event<reshade::addon_event::clear_unordered_access_view_uint>(on_clear_unordered_access_view_uint);
-		reshade::unregister_event<reshade::addon_event::clear_unordered_access_view_float>(on_clear_unordered_access_view_float);
-		reshade::unregister_event<reshade::addon_event::generate_mipmaps>(on_generate_mipmaps);
-
-		reshade::unregister_event<reshade::addon_event::present>(on_present);
-
 		reshade::unregister_addon(hModule);
 		break;
 	}

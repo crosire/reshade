@@ -11,11 +11,11 @@ Simply logs all graphics API calls done by the application to an overlay (can be
 
 ## [02-shader_dump](/examples/02-shader_dump)
 
-Dumps all shader binaries used by the application to disk (into `shader_0x[CRC-32 hash].cso/spv/glsl` files).
+Dumps all shader binaries used by the application to disk (into `[executable name]_shader_0x[CRC-32 hash].cso/spv/glsl` files).
 
 ## [03-shader_replace](/examples/03-shader_replace)
 
-Replaces shader binaries before they are used by the application with binaries from disk (looks for a matching `shader_0x[CRC-32 hash].cso/spv/glsl` file and will then load it and overwrite the data from the application before shader creation).\
+Replaces shader binaries before they are used by the application with binaries from disk (looks for a matching `[executable name]_shader_0x[CRC-32 hash].cso/spv/glsl` file and will then load it and overwrite the data from the application before shader creation).\
 Can use the [shader_dump](#02-shader_dump) add-on to dump all shader binaries, then modify some and use [shader_replace](#03-shader_replace) to inject those modifications back into the application.
 
 ## [04-texture_dump](/examples/04-texture_dump)

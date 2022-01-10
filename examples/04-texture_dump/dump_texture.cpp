@@ -82,7 +82,7 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 	}
 }
 
-bool dump_texture(const resource_desc &desc, const subresource_data &data, const std::filesystem::path &file_prefix)
+bool dump_texture(const resource_desc &desc, const subresource_data &data)
 {
 	uint8_t *data_p = static_cast<uint8_t *>(data.data);
 	std::vector<uint8_t> rgba_pixel_data(desc.texture.width * desc.texture.height * 4);
@@ -389,90 +389,14 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data, const
 	char hash_string[11];
 	sprintf_s(hash_string, "0x%08X", hash);
 
+	// Prepend executable file name to image files
+	WCHAR file_prefix[MAX_PATH] = L"";
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
 	std::filesystem::path dump_path = file_prefix;
+	dump_path += L'_';
 	dump_path += hash_string;
 	dump_path += L".bmp";
 
 	return stbi_write_bmp(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;
-}
-
-bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc, const std::filesystem::path &file_prefix)
-{
-	device *const device = queue->get_device();
-
-	uint32_t row_pitch = format_row_pitch(desc.texture.format, desc.texture.width);
-	if (device->get_api() == device_api::d3d12) // Align row pitch to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT (256)
-		row_pitch = (row_pitch + 255) & ~255;
-	const uint32_t slice_pitch = format_slice_pitch(desc.texture.format, row_pitch, desc.texture.height);
-
-	resource intermediate;
-	if (desc.heap != memory_heap::gpu_only)
-	{
-		// Avoid copying to temporary system memory resource if texture is accessible directly
-		intermediate = tex;
-	}
-	else if (device->check_capability(device_caps::copy_buffer_to_texture))
-	{
-		if ((desc.usage & resource_usage::copy_source) != resource_usage::copy_source)
-			return false;
-
-		if (!device->create_resource(resource_desc(slice_pitch, memory_heap::gpu_to_cpu, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
-		{
-			reshade::log_message(1, "Failed to create system memory buffer for texture dumping!");
-			return false;
-		}
-
-		command_list *const cmd_list = queue->get_immediate_command_list();
-		cmd_list->barrier(tex, resource_usage::shader_resource, resource_usage::copy_source);
-		cmd_list->copy_texture_to_buffer(tex, 0, nullptr, intermediate, 0, desc.texture.width, desc.texture.height);
-		cmd_list->barrier(tex, resource_usage::copy_source, resource_usage::shader_resource);
-	}
-	else
-	{
-		if ((desc.usage & resource_usage::copy_source) != resource_usage::copy_source)
-			return false;
-
-		if (!device->create_resource(resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_default_typed(desc.texture.format), 1, memory_heap::gpu_to_cpu, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
-		{
-			reshade::log_message(1, "Failed to create system memory texture for texture dumping!");
-			return false;
-		}
-
-		command_list *const cmd_list = queue->get_immediate_command_list();
-		cmd_list->barrier(tex, resource_usage::shader_resource, resource_usage::copy_source);
-		cmd_list->copy_texture_region(tex, 0, nullptr, intermediate, 0, nullptr);
-		cmd_list->barrier(tex, resource_usage::copy_source, resource_usage::shader_resource);
-	}
-
-	queue->wait_idle();
-
-	subresource_data mapped_data = {};
-	if (desc.heap == memory_heap::gpu_only &&
-		device->check_capability(device_caps::copy_buffer_to_texture))
-	{
-		device->map_buffer_region(intermediate, 0, std::numeric_limits<uint64_t>::max(), map_access::read_only, &mapped_data.data);
-
-		mapped_data.row_pitch = row_pitch;
-		mapped_data.slice_pitch = slice_pitch;
-	}
-	else
-	{
-		device->map_texture_region(intermediate, 0, nullptr, map_access::read_only, &mapped_data);
-	}
-
-	if (mapped_data.data != nullptr)
-	{
-		dump_texture(desc, mapped_data, file_prefix);
-
-		if (desc.heap == memory_heap::gpu_only &&
-			device->check_capability(device_caps::copy_buffer_to_texture))
-			device->unmap_buffer_region(intermediate);
-		else
-			device->unmap_texture_region(intermediate, 0);
-	}
-
-	if (intermediate != tex)
-		device->destroy_resource(intermediate);
-
-	return true;
 }

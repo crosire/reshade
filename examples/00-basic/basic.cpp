@@ -1,8 +1,3 @@
-/*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
-
 #include <reshade.hpp>
 
 extern "C" __declspec(dllexport) const char *NAME = "Basic Add-on Template";
