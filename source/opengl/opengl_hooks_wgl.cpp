@@ -875,7 +875,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 			runtime->on_reset();
 
-			if (width != 0 || height != 0)
+			if (width != 0 && height != 0)
 				runtime->on_init(hwnd, width, height);
 		}
 

@@ -3626,9 +3626,9 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 
 			const api::rect scissor_rect = {
 				static_cast<int32_t>(cmd.ClipRect.x - draw_data->DisplayPos.x),
-				static_cast<int32_t>(cmd.ClipRect.y - draw_data->DisplayPos.y),
+				flip_y ? static_cast<int32_t>(_height - cmd.ClipRect.w + draw_data->DisplayPos.y) : static_cast<int32_t>(cmd.ClipRect.y - draw_data->DisplayPos.y),
 				static_cast<int32_t>(cmd.ClipRect.z - draw_data->DisplayPos.x),
-				static_cast<int32_t>(cmd.ClipRect.w - draw_data->DisplayPos.y)
+				flip_y ? static_cast<int32_t>(_height - cmd.ClipRect.y + draw_data->DisplayPos.y) : static_cast<int32_t>(cmd.ClipRect.w - draw_data->DisplayPos.y)
 			};
 
 			cmd_list->bind_scissor_rects(0, 1, &scissor_rect);

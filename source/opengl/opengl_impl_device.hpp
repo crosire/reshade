@@ -57,6 +57,7 @@ namespace reshade::opengl
 		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
 		api::resource_view get_framebuffer_attachment(GLuint framebuffer, GLenum type, uint32_t index) const;
+		void update_current_window_height(GLuint framebuffer);
 
 		bool create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle) final;
 		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
@@ -146,6 +147,7 @@ namespace reshade::opengl
 		GLenum _current_prim_mode = GL_NONE;
 		GLenum _current_index_type = GL_UNSIGNED_INT;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside 'glBegin'/'glEnd' pairs
+		GLuint _current_window_height = 0; // Current height of the window coordinate system
 
 	protected:
 		// Cached context information for quick access

@@ -910,16 +910,34 @@ HOOK_EXPORT void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
+HOOK_EXPORT void APIENTRY glScissor(GLint left, GLint bottom, GLsizei width, GLsizei height)
 {
 	static const auto trampoline = reshade::hooks::call(glScissor);
-	trampoline(x, y, width, height);
+	trampoline(left, bottom, width, height);
 
 #if RESHADE_ADDON
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
-		const reshade::api::rect rect_data = { x, y, x + width, y + height };
+		GLint clip_origin = GL_LOWER_LEFT;
+		if (gl3wProcs.gl.ClipControl != nullptr)
+			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+
+		reshade::api::rect rect_data;
+		rect_data.left = left;
+		rect_data.right = left + width;
+
+		if (clip_origin == GL_UPPER_LEFT)
+		{
+			rect_data.top = bottom;
+			rect_data.bottom = bottom + height;
+		}
+		else
+		{
+			assert(g_current_context->_current_window_height != 0);
+			rect_data.top = g_current_context->_current_window_height - (bottom + height);
+			rect_data.bottom = g_current_context->_current_window_height - bottom;
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, 0, 1, &rect_data);
 	}
@@ -2197,25 +2215,29 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 
 #if RESHADE_ADDON
 	if (g_current_context && (
-		target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) &&
-		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
-		// Only interested in existing framebuffers that are were bound to the render pipeline
-		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
+		target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER))
 	{
-		uint32_t count = 0;
-		reshade::api::resource_view rtvs[8], dsv;
-		for (; count < 8; ++count)
+		g_current_context->update_current_window_height(framebuffer);
+
+		if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
+			// Only interested in existing framebuffers that are were bound to the render pipeline
+			glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
 		{
-			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-			if (rtvs[count].handle == 0)
-				break;
+			uint32_t count = 0;
+			reshade::api::resource_view rtvs[8], dsv;
+			for (; count < 8; ++count)
+			{
+				rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+				if (rtvs[count].handle == 0)
+					break;
+			}
+
+			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
+			if (dsv.handle == 0)
+				dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
+
+			reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 		}
-
-		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
-		if (dsv.handle == 0)
-			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 	}
 #endif
 }
@@ -2625,13 +2647,27 @@ void APIENTRY glScissorArrayv(GLuint first, GLsizei count, const GLint *v)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
+		GLint clip_origin = GL_LOWER_LEFT;
+		if (gl3wProcs.gl.ClipControl != nullptr)
+			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+
 		temp_mem<reshade::api::rect> rect_data(count);
 		for (GLsizei i = 0; i < count; ++i, v += 4)
 		{
 			rect_data[i].left = v[0];
-			rect_data[i].top = v[1];
 			rect_data[i].right = v[0] + v[2];
-			rect_data[i].bottom = v[1] + v[3];
+
+			if (clip_origin == GL_UPPER_LEFT)
+			{
+				rect_data[i].top = v[1];
+				rect_data[i].bottom = v[1] + v[3];
+			}
+			else
+			{
+				assert(g_current_context->_current_window_height != 0);
+				rect_data[i].top = g_current_context->_current_window_height - (v[1] + v[3]);
+				rect_data[i].bottom = g_current_context->_current_window_height - v[1];
+			}
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, first, count, rect_data.p);
@@ -2647,7 +2683,25 @@ void APIENTRY glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei w
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
-		const reshade::api::rect rect_data = { left, bottom, left + width, bottom + height };
+		GLint clip_origin = GL_LOWER_LEFT;
+		if (gl3wProcs.gl.ClipControl != nullptr)
+			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+
+		reshade::api::rect rect_data;
+		rect_data.left = left;
+		rect_data.right = left + width;
+
+		if (clip_origin == GL_UPPER_LEFT)
+		{
+			rect_data.top = bottom;
+			rect_data.bottom = bottom + height;
+		}
+		else
+		{
+			assert(g_current_context->_current_window_height != 0);
+			rect_data.top = g_current_context->_current_window_height - (bottom + height);
+			rect_data.bottom = g_current_context->_current_window_height - bottom;
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, index, 1, &rect_data);
 	}
@@ -2662,7 +2716,25 @@ void APIENTRY glScissorIndexedv(GLuint index, const GLint *v)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
-		const reshade::api::rect rect_data = { v[0], v[1], v[0] + v[2], v[1] + v[3] };
+		GLint clip_origin = GL_LOWER_LEFT;
+		if (gl3wProcs.gl.ClipControl != nullptr)
+			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+
+		reshade::api::rect rect_data;
+		rect_data.left = v[0];
+		rect_data.right = v[0] + v[2];
+
+		if (clip_origin == GL_UPPER_LEFT)
+		{
+			rect_data.top = v[1];
+			rect_data.bottom = v[1] + v[3];
+		}
+		else
+		{
+			assert(g_current_context->_current_window_height != 0);
+			rect_data.top = g_current_context->_current_window_height - (v[1] + v[3]);
+			rect_data.bottom = g_current_context->_current_window_height - v[1];
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, index, 1, &rect_data);
 	}
@@ -3955,25 +4027,29 @@ void APIENTRY glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 
 #if RESHADE_ADDON
 	if (g_current_context && (
-		target == 0x8D40 /* GL_FRAMEBUFFER_EXT */ || target == 0x8CA9 /* GL_DRAW_FRAMEBUFFER_EXT */) &&
-		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
-		// Only interested in existing framebuffers that are were bound to the render pipeline
-		glCheckFramebufferStatus(target) == 0x8CD5 /* GL_FRAMEBUFFER_COMPLETE_EXT */)
+		target == 0x8D40 /* GL_FRAMEBUFFER_EXT */ || target == 0x8CA9 /* GL_DRAW_FRAMEBUFFER_EXT */))
 	{
-		uint32_t count = 0;
-		reshade::api::resource_view rtvs[8], dsv;
-		for (; count < 8; ++count)
+		g_current_context->update_current_window_height(framebuffer);
+
+		if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
+			// Only interested in existing framebuffers that are were bound to the render pipeline
+			glCheckFramebufferStatus(target) == 0x8CD5 /* GL_FRAMEBUFFER_COMPLETE_EXT */)
 		{
-			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-			if (rtvs[count].handle == 0)
-				break;
+			uint32_t count = 0;
+			reshade::api::resource_view rtvs[8], dsv;
+			for (; count < 8; ++count)
+			{
+				rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+				if (rtvs[count].handle == 0)
+					break;
+			}
+
+			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
+			if (dsv.handle == 0)
+				dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
+
+			reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 		}
-
-		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
-		if (dsv.handle == 0)
-			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 	}
 #endif
 }

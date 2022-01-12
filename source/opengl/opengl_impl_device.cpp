@@ -927,8 +927,37 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 {
 	assert(view.handle != 0);
 
-	// Remove extra bits from view
-	return { view.handle & 0xFFFFFF00FFFFFFFF };
+	const GLenum target = view.handle >> 40;
+	const GLuint object = view.handle & 0xFFFFFFFF;
+
+	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+		return make_resource_handle(GL_TEXTURE_2D, object);
+
+	if (target != GL_TEXTURE_BUFFER)
+	{
+		return make_resource_handle(target, object);
+	}
+	else
+	{
+		GLint binding = 0;
+
+		if (_supports_dsa)
+		{
+			glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &binding);
+		}
+		else
+		{
+			GLint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+			glBindTexture(target, object);
+
+			glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &binding);
+
+			glBindTexture(target, prev_binding);
+		}
+
+		return make_resource_handle(GL_BUFFER, binding);
+	}
 }
 reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view_desc(api::resource_view view) const
 {
@@ -1360,7 +1389,78 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 	const bool has_srgb_attachment = convert_format(format) != api::format_to_default_typed(convert_format(format), 0);
 
 	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
-	return make_resource_view_handle(target, object, (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT) && has_srgb_attachment ? 0x2 : 0);
+	return make_resource_view_handle(target, object, target != GL_NONE && (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT) && has_srgb_attachment ? 0x2 : 0);
+}
+
+void reshade::opengl::device_impl::update_current_window_height(GLuint fbo_object)
+{
+	const api::resource default_attachment = get_resource_from_view(get_framebuffer_attachment(fbo_object, GL_COLOR, 0));
+
+	const GLenum default_attachment_target = default_attachment.handle >> 40;
+	const GLuint default_attachment_object = default_attachment.handle & 0xFFFFFFFF;
+
+	switch (default_attachment_target)
+	{
+		case GL_TEXTURE_BUFFER:
+		case GL_TEXTURE_1D:
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		case GL_TEXTURE_3D:
+		case GL_TEXTURE_CUBE_MAP:
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
+		case GL_TEXTURE_RECTANGLE:
+		{
+			GLint height = 0;
+
+			if (_supports_dsa)
+			{
+				glGetTextureLevelParameteriv(default_attachment_object, 0, GL_TEXTURE_HEIGHT, &height);
+			}
+			else
+			{
+				GLint prev_binding = 0;
+				glGetIntegerv(reshade::opengl::get_binding_for_target(default_attachment_target), &prev_binding);
+				glBindTexture(default_attachment_target, default_attachment_object);
+
+				glGetTexLevelParameteriv(default_attachment_target, 0, GL_TEXTURE_HEIGHT, &height);
+
+				glBindTexture(default_attachment_target, prev_binding);
+			}
+
+			_current_window_height = height;
+			break;
+		}
+		case GL_RENDERBUFFER:
+		{
+			GLint height = 0;
+
+			if (_supports_dsa)
+			{
+				glGetNamedRenderbufferParameteriv(default_attachment_object, GL_RENDERBUFFER_HEIGHT, &height);
+			}
+			else
+			{
+				GLint prev_binding = 0;
+				glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
+				glBindRenderbuffer(GL_RENDERBUFFER, default_attachment_object);
+
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
+
+				glBindRenderbuffer(GL_RENDERBUFFER, prev_binding);
+			}
+
+			_current_window_height = height;
+			break;
+		}
+		case GL_FRAMEBUFFER_DEFAULT:
+		{
+			_current_window_height = _default_fbo_height;
+			break;
+		}
+	}
 }
 
 static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
@@ -1401,7 +1501,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 		GLint log_size = 0;
 		glGetShaderiv(shader_object, GL_INFO_LOG_LENGTH, &log_size);
 
-		if (0 != log_size)
+		if (0 < log_size)
 		{
 			std::vector<char> log(log_size);
 			glGetShaderInfoLog(shader_object, log_size, nullptr, log.data());
@@ -1535,10 +1635,14 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 	{
 		GLint log_size = 0;
 		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
-		std::vector<char> log(log_size);
-		glGetProgramInfoLog(program, log_size, nullptr, log.data());
 
-		LOG(ERROR) << "Failed to link GLSL program: " << log.data();
+		if (0 < log_size)
+		{
+			std::vector<char> log(log_size);
+			glGetProgramInfoLog(program, log_size, nullptr, log.data());
+
+			LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
+		}
 
 		glDeleteProgram(program);
 		return false;

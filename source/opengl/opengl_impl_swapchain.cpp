@@ -33,7 +33,11 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compa
 
 	_back_buffer_format = convert_format(_default_color_format);
 
-	on_init(nullptr, 0, 0);
+	GLint scissor_box[4] = {};
+	glGetIntegerv(GL_SCISSOR_BOX, scissor_box);
+	assert(scissor_box[0] == 0 && scissor_box[1] == 0);
+
+	on_init(WindowFromDC(hdc), scissor_box[2], scissor_box[3]);
 }
 reshade::opengl::swapchain_impl::~swapchain_impl()
 {
@@ -55,11 +59,9 @@ reshade::api::resource reshade::opengl::swapchain_impl::get_back_buffer_resolved
 
 bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
-	if (hwnd != nullptr)
-	{
-		_default_fbo_width = width;
-		_default_fbo_height = height;
-	}
+	_default_fbo_width = width;
+	_default_fbo_height = height;
+	_current_window_height = height;
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
@@ -79,9 +81,6 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 
 	_width = width;
 	_height = height;
-
-	if (_width == 0 || _height == 0)
-		return true;
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture(_compatibility_context);
@@ -132,7 +131,7 @@ void reshade::opengl::swapchain_impl::on_present()
 
 	// Set clip space to something consistent
 	if (gl3wProcs.gl.ClipControl != nullptr)
-		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+		glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
 
 	// Copy back buffer to RBO (and flip it vertically)
 	glDisable(GL_SCISSOR_TEST);
@@ -165,7 +164,7 @@ void reshade::opengl::swapchain_impl::render_effects(api::command_list *cmd_list
 
 	// Set clip space to something consistent
 	if (gl3wProcs.gl.ClipControl != nullptr)
-		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+		glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
 
 	runtime::render_effects(cmd_list, rtv, rtv_srgb);
 

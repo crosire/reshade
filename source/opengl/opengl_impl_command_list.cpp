@@ -242,6 +242,7 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 	if ((count == 0 || ((count == 1) && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT)) && (dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT))
 	{
 		glBindFramebuffer(target, 0);
+		update_current_window_height(0);
 		return;
 	}
 
@@ -254,13 +255,12 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 		it != _fbo_lookup.end())
 	{
 		glBindFramebuffer(target, it->second);
+		update_current_window_height(it->second);
 		return;
 	}
 
 	GLuint fbo = 0;
 	glGenFramebuffers(1, &fbo);
-	_fbo_lookup.emplace(hash, fbo);
-
 	glBindFramebuffer(target, fbo);
 
 	for (uint32_t i = 0; i < count; ++i)
@@ -282,6 +282,8 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 			break;
 		default:
 			assert(false);
+			glBindFramebuffer(target, 0);
+			glDeleteFramebuffers(1, &fbo);
 			return;
 		}
 	}
@@ -305,11 +307,17 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 			break;
 		default:
 			assert(false);
+			glBindFramebuffer(target, 0);
+			glDeleteFramebuffers(1, &fbo);
 			return;
 		}
 	}
 
 	assert(glCheckFramebufferStatus(target));
+
+	_fbo_lookup.emplace(hash, fbo);
+
+	update_current_window_height(fbo);
 }
 
 void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
@@ -409,9 +417,21 @@ void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count
 }
 void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
+	GLint clip_origin = GL_LOWER_LEFT;
+	if (gl3wProcs.gl.ClipControl != nullptr)
+		glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		glScissorIndexed(first + i, rects[i].left, rects[i].top, rects[i].right - rects[i].left, rects[i].bottom - rects[i].top);
+		if (clip_origin == GL_UPPER_LEFT)
+		{
+			glScissorIndexed(first + i, rects[i].left, rects[i].top, rects[i].right - rects[i].left, rects[i].bottom - rects[i].top);
+		}
+		else
+		{
+			assert(_current_window_height != 0);
+			glScissorIndexed(first + i, rects[i].left, _current_window_height - rects[i].bottom, rects[i].right - rects[i].left, rects[i].bottom - rects[i].top);
+		}
 	}
 }
 
