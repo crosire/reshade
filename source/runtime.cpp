@@ -293,7 +293,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_preset_save_successfull = true;
 	_last_screenshot_save_successfull = true;
 
-#if RESHADE_FX && RESHADE_ADDON
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
 #endif
 
@@ -384,7 +384,7 @@ void reshade::runtime::on_reset()
 	destroy_imgui_resources();
 #endif
 
-#if RESHADE_FX && RESHADE_ADDON
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_effect_runtime>(this);
 #endif
 
@@ -490,7 +490,7 @@ void reshade::runtime::on_present()
 	if (!ini_file::flush_cache())
 		_preset_save_successfull = false;
 
-#if RESHADE_LITE
+#if RESHADE_ADDON_LITE
 	// Detect high network traffic
 	extern volatile long g_network_traffic;
 

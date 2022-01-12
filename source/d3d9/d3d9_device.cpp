@@ -129,7 +129,7 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	return 0;
 }
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 #include "hook_manager.hpp"
 
 #undef IDirect3DSurface9_LockRect
@@ -644,7 +644,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 
 		Levels = resource->GetLevelCount();
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -747,7 +747,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 
 		Levels = resource->GetLevelCount();
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -828,7 +828,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 
 		Levels = resource->GetLevelCount();
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -939,7 +939,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 #if RESHADE_ADDON
 		IDirect3DVertexBuffer9 *const resource = *ppVertexBuffer;
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -993,7 +993,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 #if RESHADE_ADDON
 		IDirect3DIndexBuffer9 *const resource = *ppIndexBuffer;
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -1046,7 +1046,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 #endif
@@ -1111,7 +1111,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 #endif
@@ -1156,7 +1156,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrcSurface, const RECT *pSrcRect, IDirect3DSurface9 *pDstSurface, const POINT *pDstPoint)
 {
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
 
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
@@ -1189,7 +1189,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrc
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *pSrcTexture, IDirect3DBaseTexture9 *pDstTexture)
 {
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, to_handle(pSrcTexture), to_handle(pDstTexture)))
 		return D3D_OK;
 #endif
@@ -1198,7 +1198,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pSrcSurface, IDirect3DSurface9 *pDstSurface)
 {
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
 
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
@@ -1227,7 +1227,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSurface, const RECT *pSrcRect, IDirect3DSurface9 *pDstSurface, const RECT *pDstRect, D3DTEXTUREFILTERTYPE Filter)
 {
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
 
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>() ||
@@ -1296,7 +1296,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -1542,7 +1542,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetClipPlane(DWORD Index, float *pPla
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE State, DWORD Value)
 {
 	const HRESULT hr = _orig->SetRenderState(State, Value);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr) &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
@@ -1619,7 +1619,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetTexture(DWORD Stage, IDirect3DBase
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBaseTexture9 *pTexture)
 {
 	const HRESULT hr = _orig->SetTexture(Stage, pTexture);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr) &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
@@ -1825,7 +1825,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexDeclaration(IDirect3DVertexDeclaration9 *pDecl)
 {
 	const HRESULT hr = _orig->SetVertexDeclaration(pDecl);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, to_handle(pDecl));
@@ -1890,7 +1890,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShader(IDirect3DVertexShader9 *pShader)
 {
 	const HRESULT hr = _orig->SetVertexShader(pShader);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::vertex_shader, to_handle(pShader));
@@ -1906,7 +1906,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShader(IDirect3DVertexShader
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4fCount)
 {
 	const HRESULT hr = _orig->SetVertexShaderConstantF(StartRegister, pConstantData, Vector4fCount);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -1929,7 +1929,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantF(UINT StartRe
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantI(UINT StartRegister, const int *pConstantData, UINT Vector4iCount)
 {
 	const HRESULT hr = _orig->SetVertexShaderConstantI(StartRegister, pConstantData, Vector4iCount);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -1952,7 +1952,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantI(UINT StartRe
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantB(UINT StartRegister, const BOOL *pConstantData, UINT BoolCount)
 {
 	const HRESULT hr = _orig->SetVertexShaderConstantB(StartRegister, pConstantData, BoolCount);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -1975,7 +1975,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantB(UINT StartRe
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer9 *pStreamData, UINT OffsetInBytes, UINT Stride)
 {
 	const HRESULT hr = _orig->SetStreamSource(StreamNumber, pStreamData, OffsetInBytes, Stride);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr) &&
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 	{
@@ -2003,7 +2003,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetStreamSourceFreq(UINT StreamNumber
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetIndices(IDirect3DIndexBuffer9 *pIndexData)
 {
 	const HRESULT hr = _orig->SetIndices(pIndexData);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr) &&
 		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>())
 	{
@@ -2069,7 +2069,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShader(IDirect3DPixelShader9 *pShader)
 {
 	const HRESULT hr = _orig->SetPixelShader(pShader);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::pixel_shader, to_handle(pShader));
@@ -2085,7 +2085,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetPixelShader(IDirect3DPixelShader9 
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4fCount)
 {
 	const HRESULT hr = _orig->SetPixelShaderConstantF(StartRegister, pConstantData, Vector4fCount);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2108,7 +2108,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetPixelShaderConstantF(UINT StartReg
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantI(UINT StartRegister, const int *pConstantData, UINT Vector4iCount)
 {
 	const HRESULT hr = _orig->SetPixelShaderConstantI(StartRegister, pConstantData, Vector4iCount);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2131,7 +2131,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetPixelShaderConstantI(UINT StartReg
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantB(UINT StartRegister, const BOOL *pConstantData, UINT BoolCount)
 {
 	const HRESULT hr = _orig->SetPixelShaderConstantB(StartRegister, pConstantData, BoolCount);
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2256,7 +2256,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 #endif
@@ -2321,7 +2321,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
@@ -2392,7 +2392,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 #endif

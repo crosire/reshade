@@ -262,7 +262,6 @@ static void on_destroy_swapchain(reshade::api::swapchain *swapchain)
 	for (uint32_t i = 0; i < swapchain->get_back_buffer_count(); ++i)
 	{
 		const reshade::api::resource buffer = swapchain->get_back_buffer(i);
-		assert(s_resources.find(buffer.handle) != s_resources.end());
 
 		s_resources.erase(buffer.handle);
 		if (device->get_api() == reshade::api::device_api::d3d9 || device->get_api() == reshade::api::device_api::opengl)

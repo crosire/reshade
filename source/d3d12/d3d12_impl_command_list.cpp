@@ -339,7 +339,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 
 	// Change descriptor heaps to internal ones if descriptor sets were allocated from them
 	if ((_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() || _current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get()) &&
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		((sets[0].handle >> 24) & 0xFF) < 2) // Heap index 0 or 1
 #else
 		(_device_impl->_gpu_sampler_heap.contains(_device_impl->convert_to_original_gpu_descriptor_handle(sets[0])) || _device_impl->_gpu_view_heap.contains(_device_impl->convert_to_original_gpu_descriptor_handle(sets[0]))))

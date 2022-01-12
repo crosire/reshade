@@ -141,7 +141,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::SetName(LPCWSTR Name)
 	return _orig->SetName(Name);
 }
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 #include "hook_manager.hpp"
 
 static HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pReadRange, void **ppData)
@@ -413,7 +413,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 	const HRESULT hr = _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (ppvHeap != nullptr && pDescriptorHeapDesc->Type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
 		{
 			const auto descriptor_heap_proxy = new D3D12DescriptorHeap(this, static_cast<ID3D12DescriptorHeap *>(*ppvHeap));
@@ -450,7 +450,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 }
 UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType)
 {
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (DescriptorHeapType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
 		return 0x1; // See 'D3D12DescriptorHeap::initialize_descriptor_base_handle'
 #endif
@@ -645,7 +645,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
 #endif
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::api::buffer_range buffer_range;
 	if (!resolve_gpu_address(pDesc->BufferLocation, &buffer_range.buffer, &buffer_range.offset))
 		return;
@@ -687,7 +687,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
 #endif
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::api::descriptor_set_update update;
 	update.set = { DestDescriptor.ptr };
 	update.binding = 0;
@@ -724,7 +724,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 	_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
 #endif
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::api::descriptor_set_update update;
 	update.set = { DestDescriptor.ptr };
 	update.binding = 0;
@@ -805,7 +805,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 	_orig->CreateSampler(pDesc, DestDescriptor);
 #endif
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::api::descriptor_set_update update;
 	update.set = { DestDescriptor.ptr };
 	update.binding = 0;
@@ -819,7 +819,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts, const UINT *pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts, const UINT *pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// All elements in the source ranges must be in a non shader-visible descriptor heap, so can treat this like an update
 	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
 		reshade::has_addon_event<reshade::addon_event::copy_descriptor_sets>())
@@ -889,7 +889,7 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart, D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
 		reshade::has_addon_event<reshade::addon_event::copy_descriptor_sets>())
 	{
@@ -948,7 +948,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 		{
 			const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
 				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 				reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
@@ -1012,7 +1012,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 		{
 			const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
 				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 				reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
@@ -1320,7 +1320,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 		{
 			const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-#if RESHADE_ADDON && !RESHADE_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
 				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 				reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));

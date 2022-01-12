@@ -226,7 +226,7 @@ void reshade::runtime::draw_gui_vr()
 #if RESHADE_ADDON
 	// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
 	if (!is_loading()
-#if RESHADE_ADDON && RESHADE_LITE
+#if RESHADE_ADDON_LITE
 		&& addon_enabled
 #endif
 		)
@@ -256,7 +256,7 @@ void reshade::runtime::draw_gui_vr()
 #if RESHADE_ADDON
 	else if (selected_overlay_index < overlay_index)
 	{
-#if RESHADE_ADDON && RESHADE_LITE
+#if RESHADE_ADDON_LITE
 		assert(addon_enabled);
 #endif
 

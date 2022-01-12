@@ -925,7 +925,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		// Register modules to hook
 		{
 			reshade::hooks::register_module(L"user32.dll");
-#if RESHADE_LITE
+#if RESHADE_ADDON_LITE
 			reshade::hooks::register_module(L"ws2_32.dll");
 #endif
 

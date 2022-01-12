@@ -561,7 +561,7 @@ void reshade::runtime::draw_gui()
 #if RESHADE_FX
 	bool show_splash = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0));
 #else
-	bool show_splash = _show_splash && (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5));
+	bool show_splash = _show_splash && (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
 #endif
 
 	const bool show_stats_window = _show_clock || _show_fps || _show_frametime;
@@ -863,7 +863,7 @@ void reshade::runtime::draw_gui()
 #if RESHADE_ADDON
 		// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
 		if (!is_loading()
-#if RESHADE_ADDON && RESHADE_LITE
+#if RESHADE_ADDON_LITE
 			&& addon_enabled
 #endif
 			)
@@ -2217,10 +2217,10 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 #if RESHADE_ADDON
 void reshade::runtime::draw_gui_addons()
 {
-#if RESHADE_ADDON && RESHADE_LITE
+#if RESHADE_ADDON_LITE
 	if (!addon_enabled)
 	{
-		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
+		ImGui::TextColored(COLOR_YELLOW, "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
 		return;
 	}
 #endif
@@ -2228,6 +2228,11 @@ void reshade::runtime::draw_gui_addons()
 	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
 
 	ImGui::Spacing();
+
+#if RESHADE_ADDON_LITE
+	ImGui::TextColored(COLOR_YELLOW, "Only limited add-on functionality is available.");
+	ImGui::Spacing();
+#endif
 
 	std::vector<std::string> disabled_addons;
 	global_config().get("ADDON", "DisabledAddons", disabled_addons);

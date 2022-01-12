@@ -90,7 +90,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 
 	// Create mipmap generation program used in the 'generate_mipmaps' function
 	{
-		const GLchar *mipmap_shader[] = {
+		static const char *const mipmap_shader =
 			"#version 430\n"
 			"layout(binding = 0) uniform sampler2D src;\n"
 			"layout(binding = 1) uniform writeonly image2D dest;\n"
@@ -100,11 +100,10 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 			"{\n"
 			"	vec2 uv = info.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
 			"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(info.z)));\n"
-			"}\n"
-		};
+			"}\n";
 
 		const GLuint mipmap_cs = glCreateShader(GL_COMPUTE_SHADER);
-		glShaderSource(mipmap_cs, 1, mipmap_shader, 0);
+		glShaderSource(mipmap_cs, 1, &mipmap_shader, 0);
 		glCompileShader(mipmap_cs);
 
 		_mipmap_program = glCreateProgram();

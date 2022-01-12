@@ -54,6 +54,8 @@ namespace reshade
 		/// Gets a boolean indicating whether effects are being loaded.
 		/// </summary>
 		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max(); }
+#else
+		bool is_loading() const { return false; }
 #endif
 		/// <summary>
 		/// Gets a boolean indicating whether the runtime is initialized.
@@ -482,7 +484,9 @@ namespace reshade
 		bool _show_frametime = false;
 		bool _show_screenshot_message = true;
 		bool _rebuild_font_atlas = true;
+#if RESHADE_FX
 		unsigned int _reload_count = 0;
+#endif
 		unsigned int _window_width = 0;
 		unsigned int _window_height = 0;
 
