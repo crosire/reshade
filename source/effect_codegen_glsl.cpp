@@ -16,8 +16,8 @@ using namespace reshadefx;
 class codegen_glsl final : public codegen
 {
 public:
-	codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
-		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants), _enable_16bit_types(enable_16bit_types), _flip_vert_y(flip_vert_y)
+	codegen_glsl(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
+		: _debug_info(debug_info), _vulkan_semantics(vulkan_semantics), _uniforms_to_spec_constants(uniforms_to_spec_constants), _enable_16bit_types(enable_16bit_types), _flip_vert_y(flip_vert_y)
 	{
 		// Create default block and reserve a memory block to avoid frequent reallocations
 		std::string &block = _blocks.emplace(0, std::string()).first->second;
@@ -42,6 +42,7 @@ private:
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
+	bool _vulkan_semantics = false;
 	bool _uniforms_to_spec_constants = false;
 	bool _enable_16bit_types = false;
 	bool _enable_control_flow_attributes = false;
@@ -358,7 +359,7 @@ private:
 		return location + base_index;
 	}
 
-	static std::string escape_name(std::string name)
+	std::string escape_name(std::string name) const
 	{
 		static const std::unordered_set<std::string> s_reserverd_names = {
 			"common", "partition", "input", "output", "active", "filter", "superp", "invariant",
@@ -398,7 +399,7 @@ private:
 
 		return name;
 	}
-	static std::string semantic_to_builtin(std::string name, const std::string &semantic, shader_type stype)
+	std::string semantic_to_builtin(std::string name, const std::string &semantic, shader_type stype) const
 	{
 		if (semantic == "SV_POSITION")
 			return stype == shader_type::ps ? "gl_FragCoord" : "gl_Position";
@@ -407,7 +408,7 @@ private:
 		if (semantic == "SV_DEPTH")
 			return "gl_FragDepth";
 		if (semantic == "SV_VERTEXID")
-			return "gl_VertexID";
+			return _vulkan_semantics ? "gl_VertexIndex" : "gl_VertexID";
 		if (semantic == "SV_ISFRONTFACE")
 			return "gl_FrontFacing";
 		if (semantic == "SV_GROUPID")
@@ -1953,7 +1954,7 @@ private:
 	}
 };
 
-codegen *reshadefx::create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
+codegen *reshadefx::create_codegen_glsl(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
 {
-	return new codegen_glsl(debug_info, uniforms_to_spec_constants, enable_16bit_types, flip_vert_y);
+	return new codegen_glsl(vulkan_semantics, debug_info, uniforms_to_spec_constants, enable_16bit_types, flip_vert_y);
 }

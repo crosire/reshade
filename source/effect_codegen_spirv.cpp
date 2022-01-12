@@ -562,7 +562,7 @@ private:
 		return location + base_index;
 	}
 
-	const spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype)
+	const spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype) const
 	{
 		if (semantic == "SV_POSITION")
 			return stype == shader_type::ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
