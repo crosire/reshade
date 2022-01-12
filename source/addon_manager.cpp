@@ -276,7 +276,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		info.version = "1.0.0.0";
 
 	if (std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
-		[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
+			[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
 	{
 		// Prevent registration if another add-on with the same name already exists
 		return false;
@@ -361,10 +361,7 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 
 	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
-	{
-		LOG(ERROR) << "Could not find associated add-on and therefore failed to unregister an event.";
-		return;
-	}
+		return; // Do not log an error here, since this may be called if an add-on failed to load
 
 #if RESHADE_ADDON_LITE
 	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
@@ -407,10 +404,7 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 {
 	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
-	{
-		LOG(ERROR) << "Could not find associated add-on and therefore failed to unregister overlay with title \"" << title << "\".";
-		return;
-	}
+		return; // Do not log an error here, since this may be called if an add-on failed to load
 
 	if (title == nullptr)
 	{
@@ -419,11 +413,12 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 		return;
 	}
 
-	info->overlay_callbacks.erase(std::remove(info->overlay_callbacks.begin(), info->overlay_callbacks.end(), std::make_pair<std::string>(title, callback)), info->overlay_callbacks.end());
-
 #if RESHADE_VERBOSE_LOG
+	// Log before removing from overlay list below, since pointer to title string may become invalid by the removal
 	LOG(DEBUG) << "Unregistered overlay with title \"" << title << "\" and callback " << callback << '.';
 #endif
+
+	info->overlay_callbacks.erase(std::remove(info->overlay_callbacks.begin(), info->overlay_callbacks.end(), std::make_pair<std::string>(title, callback)), info->overlay_callbacks.end());
 }
 #endif
 
