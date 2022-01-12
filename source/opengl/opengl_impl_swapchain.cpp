@@ -59,6 +59,8 @@ reshade::api::resource reshade::opengl::swapchain_impl::get_back_buffer_resolved
 
 bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
+	assert(width != 0 && height != 0);
+
 	_default_fbo_width = width;
 	_default_fbo_height = height;
 	_current_window_height = height;
@@ -100,8 +102,10 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 }
 void reshade::opengl::swapchain_impl::on_reset()
 {
-	if (_width != 0 && _height != 0)
-		runtime::on_reset();
+	if (_width == 0 && _height == 0)
+		return;
+
+	runtime::on_reset();
 
 #if RESHADE_ADDON
 	api::resource_view default_dsv = make_resource_view_handle(0, 0);
