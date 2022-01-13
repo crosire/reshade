@@ -39,6 +39,8 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 	}
 	else // Do not hook object if we do not support the requested interface
 	{
+		LOG(WARN) << "Unknown interface " << riid << " in " << "D3D12CreateDevice" << '.';
+
 		delete device_proxy; // Delete instead of release to keep reference count untouched
 	}
 

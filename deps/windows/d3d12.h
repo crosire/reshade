@@ -8,7 +8,7 @@
 /* this ALWAYS GENERATED file contains the definitions for the interfaces */
 
 
- /* File created by MIDL compiler version 8.01.0622 */
+ /* File created by MIDL compiler version 8.01.0626 */
 
 
 
@@ -39,6 +39,14 @@
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
+#endif
+
+#ifndef DECLSPEC_XFGVIRT
+#if _CONTROL_FLOW_GUARD_XFG
+#define DECLSPEC_XFGVIRT(base, func) __declspec(xfg_virtual(base, func))
+#else
+#define DECLSPEC_XFGVIRT(base, func)
+#endif
 #endif
 
 /* Forward Declarations */ 
@@ -295,11 +303,32 @@ typedef interface ID3D12DeviceRemovedExtendedDataSettings ID3D12DeviceRemovedExt
 #endif 	/* __ID3D12DeviceRemovedExtendedDataSettings_FWD_DEFINED__ */
 
 
+#ifndef __ID3D12DeviceRemovedExtendedDataSettings1_FWD_DEFINED__
+#define __ID3D12DeviceRemovedExtendedDataSettings1_FWD_DEFINED__
+typedef interface ID3D12DeviceRemovedExtendedDataSettings1 ID3D12DeviceRemovedExtendedDataSettings1;
+
+#endif 	/* __ID3D12DeviceRemovedExtendedDataSettings1_FWD_DEFINED__ */
+
+
 #ifndef __ID3D12DeviceRemovedExtendedData_FWD_DEFINED__
 #define __ID3D12DeviceRemovedExtendedData_FWD_DEFINED__
 typedef interface ID3D12DeviceRemovedExtendedData ID3D12DeviceRemovedExtendedData;
 
 #endif 	/* __ID3D12DeviceRemovedExtendedData_FWD_DEFINED__ */
+
+
+#ifndef __ID3D12DeviceRemovedExtendedData1_FWD_DEFINED__
+#define __ID3D12DeviceRemovedExtendedData1_FWD_DEFINED__
+typedef interface ID3D12DeviceRemovedExtendedData1 ID3D12DeviceRemovedExtendedData1;
+
+#endif 	/* __ID3D12DeviceRemovedExtendedData1_FWD_DEFINED__ */
+
+
+#ifndef __ID3D12DeviceRemovedExtendedData2_FWD_DEFINED__
+#define __ID3D12DeviceRemovedExtendedData2_FWD_DEFINED__
+typedef interface ID3D12DeviceRemovedExtendedData2 ID3D12DeviceRemovedExtendedData2;
+
+#endif 	/* __ID3D12DeviceRemovedExtendedData2_FWD_DEFINED__ */
 
 
 #ifndef __ID3D12Device6_FWD_DEFINED__
@@ -309,11 +338,39 @@ typedef interface ID3D12Device6 ID3D12Device6;
 #endif 	/* __ID3D12Device6_FWD_DEFINED__ */
 
 
+#ifndef __ID3D12ProtectedResourceSession1_FWD_DEFINED__
+#define __ID3D12ProtectedResourceSession1_FWD_DEFINED__
+typedef interface ID3D12ProtectedResourceSession1 ID3D12ProtectedResourceSession1;
+
+#endif 	/* __ID3D12ProtectedResourceSession1_FWD_DEFINED__ */
+
+
+#ifndef __ID3D12Device7_FWD_DEFINED__
+#define __ID3D12Device7_FWD_DEFINED__
+typedef interface ID3D12Device7 ID3D12Device7;
+
+#endif 	/* __ID3D12Device7_FWD_DEFINED__ */
+
+
+#ifndef __ID3D12Device8_FWD_DEFINED__
+#define __ID3D12Device8_FWD_DEFINED__
+typedef interface ID3D12Device8 ID3D12Device8;
+
+#endif 	/* __ID3D12Device8_FWD_DEFINED__ */
+
+
 #ifndef __ID3D12Resource1_FWD_DEFINED__
 #define __ID3D12Resource1_FWD_DEFINED__
 typedef interface ID3D12Resource1 ID3D12Resource1;
 
 #endif 	/* __ID3D12Resource1_FWD_DEFINED__ */
+
+
+#ifndef __ID3D12Resource2_FWD_DEFINED__
+#define __ID3D12Resource2_FWD_DEFINED__
+typedef interface ID3D12Resource2 ID3D12Resource2;
+
+#endif 	/* __ID3D12Resource2_FWD_DEFINED__ */
 
 
 #ifndef __ID3D12Heap1_FWD_DEFINED__
@@ -344,6 +401,20 @@ typedef interface ID3D12GraphicsCommandList4 ID3D12GraphicsCommandList4;
 #endif 	/* __ID3D12GraphicsCommandList4_FWD_DEFINED__ */
 
 
+#ifndef __ID3D12ShaderCacheSession_FWD_DEFINED__
+#define __ID3D12ShaderCacheSession_FWD_DEFINED__
+typedef interface ID3D12ShaderCacheSession ID3D12ShaderCacheSession;
+
+#endif 	/* __ID3D12ShaderCacheSession_FWD_DEFINED__ */
+
+
+#ifndef __ID3D12Device9_FWD_DEFINED__
+#define __ID3D12Device9_FWD_DEFINED__
+typedef interface ID3D12Device9 ID3D12Device9;
+
+#endif 	/* __ID3D12Device9_FWD_DEFINED__ */
+
+
 #ifndef __ID3D12Tools_FWD_DEFINED__
 #define __ID3D12Tools_FWD_DEFINED__
 typedef interface ID3D12Tools ID3D12Tools;
@@ -351,11 +422,25 @@ typedef interface ID3D12Tools ID3D12Tools;
 #endif 	/* __ID3D12Tools_FWD_DEFINED__ */
 
 
+#ifndef __ID3D12SDKConfiguration_FWD_DEFINED__
+#define __ID3D12SDKConfiguration_FWD_DEFINED__
+typedef interface ID3D12SDKConfiguration ID3D12SDKConfiguration;
+
+#endif 	/* __ID3D12SDKConfiguration_FWD_DEFINED__ */
+
+
 #ifndef __ID3D12GraphicsCommandList5_FWD_DEFINED__
 #define __ID3D12GraphicsCommandList5_FWD_DEFINED__
 typedef interface ID3D12GraphicsCommandList5 ID3D12GraphicsCommandList5;
 
 #endif 	/* __ID3D12GraphicsCommandList5_FWD_DEFINED__ */
+
+
+#ifndef __ID3D12GraphicsCommandList6_FWD_DEFINED__
+#define __ID3D12GraphicsCommandList6_FWD_DEFINED__
+typedef interface ID3D12GraphicsCommandList6 ID3D12GraphicsCommandList6;
+
+#endif 	/* __ID3D12GraphicsCommandList6_FWD_DEFINED__ */
 
 
 /* header files for imported files */
@@ -1021,6 +1106,8 @@ extern "C"{
 
 #define	D3D12_RS_SET_SHADING_RATE_COMBINER_COUNT	( 2 )
 
+#define	D3D12_SDK_VERSION	( 3 )
+
 #define	D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES	( 32 )
 
 #define	D3D12_SHADER_MAJOR_VERSION	( 5 )
@@ -1510,34 +1597,41 @@ EXTERN_C const IID IID_ID3D12Object;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Object * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Object * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Object * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Object * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Object * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Object * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Object * This,
             _In_z_  LPCWSTR Name);
@@ -1616,38 +1710,46 @@ EXTERN_C const IID IID_ID3D12DeviceChild;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12DeviceChild * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12DeviceChild * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12DeviceChild * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12DeviceChild * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12DeviceChild * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12DeviceChild * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12DeviceChild * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12DeviceChild * This,
             REFIID riid,
@@ -1727,38 +1829,46 @@ EXTERN_C const IID IID_ID3D12RootSignature;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12RootSignature * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12RootSignature * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12RootSignature * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12RootSignature * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12RootSignature * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12RootSignature * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12RootSignature * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12RootSignature * This,
             REFIID riid,
@@ -1932,7 +2042,9 @@ enum D3D12_PIPELINE_STATE_SUBOBJECT_TYPE
         D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS	= ( D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CACHED_PSO + 1 ) ,
         D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL1	= ( D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS + 1 ) ,
         D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING	= ( D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL1 + 1 ) ,
-        D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MAX_VALID	= ( D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING + 1 ) 
+        D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS	= 24,
+        D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS	= 25,
+        D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MAX_VALID	= ( D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS + 1 ) 
     } 	D3D12_PIPELINE_STATE_SUBOBJECT_TYPE;
 
 typedef 
@@ -1960,7 +2072,13 @@ enum D3D12_FEATURE
         D3D12_FEATURE_CROSS_NODE	= 25,
         D3D12_FEATURE_D3D12_OPTIONS5	= 27,
         D3D12_FEATURE_D3D12_OPTIONS6	= 30,
-        D3D12_FEATURE_QUERY_META_COMMAND	= 31
+        D3D12_FEATURE_QUERY_META_COMMAND	= 31,
+        D3D12_FEATURE_D3D12_OPTIONS7	= 32,
+        D3D12_FEATURE_PROTECTED_RESOURCE_SESSION_TYPE_COUNT	= 33,
+        D3D12_FEATURE_PROTECTED_RESOURCE_SESSION_TYPES	= 34,
+        D3D12_FEATURE_D3D12_OPTIONS8	= 36,
+        D3D12_FEATURE_D3D12_OPTIONS9	= 37,
+        D3D12_FEATURE_WAVE_MMA	= 38
     } 	D3D12_FEATURE;
 
 typedef 
@@ -2049,7 +2167,8 @@ enum D3D12_FORMAT_SUPPORT2
         D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE	= 0x80,
         D3D12_FORMAT_SUPPORT2_OUTPUT_MERGER_LOGIC_OP	= 0x100,
         D3D12_FORMAT_SUPPORT2_TILED	= 0x200,
-        D3D12_FORMAT_SUPPORT2_MULTIPLANE_OVERLAY	= 0x4000
+        D3D12_FORMAT_SUPPORT2_MULTIPLANE_OVERLAY	= 0x4000,
+        D3D12_FORMAT_SUPPORT2_SAMPLER_FEEDBACK	= 0x8000
     } 	D3D12_FORMAT_SUPPORT2;
 
 DEFINE_ENUM_FLAG_OPERATORS( D3D12_FORMAT_SUPPORT2 );
@@ -2176,7 +2295,9 @@ enum D3D_SHADER_MODEL
         D3D_SHADER_MODEL_6_2	= 0x62,
         D3D_SHADER_MODEL_6_3	= 0x63,
         D3D_SHADER_MODEL_6_4	= 0x64,
-        D3D_SHADER_MODEL_6_5	= 0x65
+        D3D_SHADER_MODEL_6_5	= 0x65,
+        D3D_SHADER_MODEL_6_6	= 0x66,
+        D3D_SHADER_MODEL_6_7	= 0x67
     } 	D3D_SHADER_MODEL;
 
 typedef struct D3D12_FEATURE_DATA_SHADER_MODEL
@@ -2218,7 +2339,8 @@ enum D3D12_SHADER_CACHE_SUPPORT_FLAGS
         D3D12_SHADER_CACHE_SUPPORT_SINGLE_PSO	= 0x1,
         D3D12_SHADER_CACHE_SUPPORT_LIBRARY	= 0x2,
         D3D12_SHADER_CACHE_SUPPORT_AUTOMATIC_INPROC_CACHE	= 0x4,
-        D3D12_SHADER_CACHE_SUPPORT_AUTOMATIC_DISK_CACHE	= 0x8
+        D3D12_SHADER_CACHE_SUPPORT_AUTOMATIC_DISK_CACHE	= 0x8,
+        D3D12_SHADER_CACHE_SUPPORT_DRIVER_MANAGED_CACHE	= 0x10
     } 	D3D12_SHADER_CACHE_SUPPORT_FLAGS;
 
 DEFINE_ENUM_FLAG_OPERATORS( D3D12_SHADER_CACHE_SUPPORT_FLAGS );
@@ -2266,7 +2388,8 @@ typedef
 enum D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER
     {
         D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_0	= 0,
-        D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_1	= ( D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_0 + 1 ) 
+        D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_1	= ( D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_0 + 1 ) ,
+        D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_2	= ( D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_1 + 1 ) 
     } 	D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER;
 
 typedef struct D3D12_FEATURE_DATA_D3D12_OPTIONS4
@@ -2307,7 +2430,8 @@ typedef
 enum D3D12_RAYTRACING_TIER
     {
         D3D12_RAYTRACING_TIER_NOT_SUPPORTED	= 0,
-        D3D12_RAYTRACING_TIER_1_0	= 10
+        D3D12_RAYTRACING_TIER_1_0	= 10,
+        D3D12_RAYTRACING_TIER_1_1	= 11
     } 	D3D12_RAYTRACING_TIER;
 
 typedef struct D3D12_FEATURE_DATA_D3D12_OPTIONS5
@@ -2334,6 +2458,27 @@ typedef struct D3D12_FEATURE_DATA_D3D12_OPTIONS6
     _Out_  BOOL BackgroundProcessingSupported;
     } 	D3D12_FEATURE_DATA_D3D12_OPTIONS6;
 
+typedef 
+enum D3D12_MESH_SHADER_TIER
+    {
+        D3D12_MESH_SHADER_TIER_NOT_SUPPORTED	= 0,
+        D3D12_MESH_SHADER_TIER_1	= 10
+    } 	D3D12_MESH_SHADER_TIER;
+
+typedef 
+enum D3D12_SAMPLER_FEEDBACK_TIER
+    {
+        D3D12_SAMPLER_FEEDBACK_TIER_NOT_SUPPORTED	= 0,
+        D3D12_SAMPLER_FEEDBACK_TIER_0_9	= 90,
+        D3D12_SAMPLER_FEEDBACK_TIER_1_0	= 100
+    } 	D3D12_SAMPLER_FEEDBACK_TIER;
+
+typedef struct D3D12_FEATURE_DATA_D3D12_OPTIONS7
+    {
+    _Out_  D3D12_MESH_SHADER_TIER MeshShaderTier;
+    _Out_  D3D12_SAMPLER_FEEDBACK_TIER SamplerFeedbackTier;
+    } 	D3D12_FEATURE_DATA_D3D12_OPTIONS7;
+
 typedef struct D3D12_FEATURE_DATA_QUERY_META_COMMAND
     {
     _In_  GUID CommandId;
@@ -2343,6 +2488,67 @@ typedef struct D3D12_FEATURE_DATA_QUERY_META_COMMAND
     _Field_size_bytes_full_( QueryOutputDataSizeInBytes )  void *pQueryOutputData;
     _In_  SIZE_T QueryOutputDataSizeInBytes;
     } 	D3D12_FEATURE_DATA_QUERY_META_COMMAND;
+
+typedef struct D3D12_FEATURE_DATA_D3D12_OPTIONS8
+    {
+    _Out_  BOOL UnalignedBlockTexturesSupported;
+    } 	D3D12_FEATURE_DATA_D3D12_OPTIONS8;
+
+typedef 
+enum D3D12_WAVE_MMA_TIER
+    {
+        D3D12_WAVE_MMA_TIER_NOT_SUPPORTED	= 0,
+        D3D12_WAVE_MMA_TIER_1_0	= 10
+    } 	D3D12_WAVE_MMA_TIER;
+
+typedef struct D3D12_FEATURE_DATA_D3D12_OPTIONS9
+    {
+    _Out_  BOOL MeshShaderPipelineStatsSupported;
+    _Out_  BOOL MeshShaderSupportsFullRangeRenderTargetArrayIndex;
+    _Out_  BOOL AtomicInt64OnTypedResourceSupported;
+    _Out_  BOOL AtomicInt64OnGroupSharedSupported;
+    _Out_  BOOL DerivativesInMeshAndAmplificationShadersSupported;
+    _Out_  D3D12_WAVE_MMA_TIER WaveMMATier;
+    } 	D3D12_FEATURE_DATA_D3D12_OPTIONS9;
+
+typedef 
+enum D3D12_WAVE_MMA_INPUT_DATATYPE
+    {
+        D3D12_WAVE_MMA_INPUT_DATATYPE_INVALID	= 0,
+        D3D12_WAVE_MMA_INPUT_DATATYPE_BYTE	= ( D3D12_WAVE_MMA_INPUT_DATATYPE_INVALID + 1 ) ,
+        D3D12_WAVE_MMA_INPUT_DATATYPE_FLOAT16	= ( D3D12_WAVE_MMA_INPUT_DATATYPE_BYTE + 1 ) ,
+        D3D12_WAVE_MMA_INPUT_DATATYPE_FLOAT	= ( D3D12_WAVE_MMA_INPUT_DATATYPE_FLOAT16 + 1 ) 
+    } 	D3D12_WAVE_MMA_INPUT_DATATYPE;
+
+typedef 
+enum D3D12_WAVE_MMA_DIMENSION
+    {
+        D3D12_WAVE_MMA_DIMENSION_INVALID	= 0,
+        D3D12_WAVE_MMA_DIMENSION_16	= ( D3D12_WAVE_MMA_DIMENSION_INVALID + 1 ) ,
+        D3D12_WAVE_MMA_DIMENSION_64	= ( D3D12_WAVE_MMA_DIMENSION_16 + 1 ) 
+    } 	D3D12_WAVE_MMA_DIMENSION;
+
+typedef 
+enum D3D12_WAVE_MMA_ACCUM_DATATYPE
+    {
+        D3D12_WAVE_MMA_ACCUM_DATATYPE_NONE	= 0,
+        D3D12_WAVE_MMA_ACCUM_DATATYPE_INT32	= 0x1,
+        D3D12_WAVE_MMA_ACCUM_DATATYPE_FLOAT16	= 0x2,
+        D3D12_WAVE_MMA_ACCUM_DATATYPE_FLOAT	= 0x4
+    } 	D3D12_WAVE_MMA_ACCUM_DATATYPE;
+
+DEFINE_ENUM_FLAG_OPERATORS( D3D12_WAVE_MMA_ACCUM_DATATYPE );
+typedef struct D3D12_FEATURE_DATA_WAVE_MMA
+    {
+    _In_  D3D12_WAVE_MMA_INPUT_DATATYPE InputDataType;
+    _In_  D3D12_WAVE_MMA_DIMENSION M;
+    _In_  D3D12_WAVE_MMA_DIMENSION N;
+    _Out_  BOOL Supported;
+    _Out_  UINT K;
+    _Out_  D3D12_WAVE_MMA_ACCUM_DATATYPE AccumDataTypes;
+    _Out_  UINT RequiredWaveLaneCountMin;
+    _Out_  UINT RequiredWaveLaneCountMax;
+    } 	D3D12_FEATURE_DATA_WAVE_MMA;
 
 typedef struct D3D12_RESOURCE_ALLOCATION_INFO
     {
@@ -2405,6 +2611,8 @@ enum D3D12_HEAP_FLAGS
         D3D12_HEAP_FLAG_HARDWARE_PROTECTED	= 0x100,
         D3D12_HEAP_FLAG_ALLOW_WRITE_WATCH	= 0x200,
         D3D12_HEAP_FLAG_ALLOW_SHADER_ATOMICS	= 0x400,
+        D3D12_HEAP_FLAG_CREATE_NOT_RESIDENT	= 0x800,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED	= 0x1000,
         D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES	= 0,
         D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS	= 0xc0,
         D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES	= 0x44,
@@ -2449,10 +2657,18 @@ enum D3D12_RESOURCE_FLAGS
         D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE	= 0x8,
         D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER	= 0x10,
         D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS	= 0x20,
-        D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY	= 0x40
+        D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY	= 0x40,
+        D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY	= 0x80
     } 	D3D12_RESOURCE_FLAGS;
 
 DEFINE_ENUM_FLAG_OPERATORS( D3D12_RESOURCE_FLAGS );
+typedef struct D3D12_MIP_REGION
+    {
+    UINT Width;
+    UINT Height;
+    UINT Depth;
+    } 	D3D12_MIP_REGION;
+
 typedef struct D3D12_RESOURCE_DESC
     {
     D3D12_RESOURCE_DIMENSION Dimension;
@@ -2466,6 +2682,21 @@ typedef struct D3D12_RESOURCE_DESC
     D3D12_TEXTURE_LAYOUT Layout;
     D3D12_RESOURCE_FLAGS Flags;
     } 	D3D12_RESOURCE_DESC;
+
+typedef struct D3D12_RESOURCE_DESC1
+    {
+    D3D12_RESOURCE_DIMENSION Dimension;
+    UINT64 Alignment;
+    UINT64 Width;
+    UINT Height;
+    UINT16 DepthOrArraySize;
+    UINT16 MipLevels;
+    DXGI_FORMAT Format;
+    DXGI_SAMPLE_DESC SampleDesc;
+    D3D12_TEXTURE_LAYOUT Layout;
+    D3D12_RESOURCE_FLAGS Flags;
+    D3D12_MIP_REGION SamplerFeedbackMipRegion;
+    } 	D3D12_RESOURCE_DESC1;
 
 typedef struct D3D12_DEPTH_STENCIL_VALUE
     {
@@ -2596,6 +2827,7 @@ enum D3D12_RESOURCE_STATES
         D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE	= 0x400000,
         D3D12_RESOURCE_STATE_SHADING_RATE_SOURCE	= 0x1000000,
         D3D12_RESOURCE_STATE_GENERIC_READ	= ( ( ( ( ( 0x1 | 0x2 )  | 0x40 )  | 0x80 )  | 0x200 )  | 0x800 ) ,
+        D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE	= ( 0x40 | 0x80 ) ,
         D3D12_RESOURCE_STATE_PRESENT	= 0,
         D3D12_RESOURCE_STATE_PREDICATION	= 0x200,
         D3D12_RESOURCE_STATE_VIDEO_DECODE_READ	= 0x10000,
@@ -2695,7 +2927,9 @@ enum D3D12_RESOLVE_MODE
         D3D12_RESOLVE_MODE_DECOMPRESS	= 0,
         D3D12_RESOLVE_MODE_MIN	= 1,
         D3D12_RESOLVE_MODE_MAX	= 2,
-        D3D12_RESOLVE_MODE_AVERAGE	= 3
+        D3D12_RESOLVE_MODE_AVERAGE	= 3,
+        D3D12_RESOLVE_MODE_ENCODE_SAMPLER_FEEDBACK	= 4,
+        D3D12_RESOLVE_MODE_DECODE_SAMPLER_FEEDBACK	= 5
     } 	D3D12_RESOLVE_MODE;
 
 typedef struct D3D12_SAMPLE_POSITION
@@ -3325,7 +3559,9 @@ enum D3D12_SHADER_VISIBILITY
         D3D12_SHADER_VISIBILITY_HULL	= 2,
         D3D12_SHADER_VISIBILITY_DOMAIN	= 3,
         D3D12_SHADER_VISIBILITY_GEOMETRY	= 4,
-        D3D12_SHADER_VISIBILITY_PIXEL	= 5
+        D3D12_SHADER_VISIBILITY_PIXEL	= 5,
+        D3D12_SHADER_VISIBILITY_AMPLIFICATION	= 6,
+        D3D12_SHADER_VISIBILITY_MESH	= 7
     } 	D3D12_SHADER_VISIBILITY;
 
 typedef 
@@ -3361,7 +3597,11 @@ enum D3D12_ROOT_SIGNATURE_FLAGS
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS	= 0x10,
         D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS	= 0x20,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT	= 0x40,
-        D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE	= 0x80
+        D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE	= 0x80,
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS	= 0x100,
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS	= 0x200,
+        D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED	= 0x400,
+        D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED	= 0x800
     } 	D3D12_ROOT_SIGNATURE_FLAGS;
 
 DEFINE_ENUM_FLAG_OPERATORS( D3D12_ROOT_SIGNATURE_FLAGS );
@@ -3506,17 +3746,21 @@ EXTERN_C const IID IID_ID3D12RootSignatureDeserializer;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12RootSignatureDeserializer * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12RootSignatureDeserializer * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12RootSignatureDeserializer * This);
         
+        DECLSPEC_XFGVIRT(ID3D12RootSignatureDeserializer, GetRootSignatureDesc)
         const D3D12_ROOT_SIGNATURE_DESC *( STDMETHODCALLTYPE *GetRootSignatureDesc )( 
             ID3D12RootSignatureDeserializer * This);
         
@@ -3587,22 +3831,27 @@ EXTERN_C const IID IID_ID3D12VersionedRootSignatureDeserializer;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12VersionedRootSignatureDeserializer * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12VersionedRootSignatureDeserializer * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12VersionedRootSignatureDeserializer * This);
         
+        DECLSPEC_XFGVIRT(ID3D12VersionedRootSignatureDeserializer, GetRootSignatureDescAtVersion)
         HRESULT ( STDMETHODCALLTYPE *GetRootSignatureDescAtVersion )( 
             ID3D12VersionedRootSignatureDeserializer * This,
             D3D_ROOT_SIGNATURE_VERSION convertToVersion,
             _Out_  const D3D12_VERSIONED_ROOT_SIGNATURE_DESC **ppDesc);
         
+        DECLSPEC_XFGVIRT(ID3D12VersionedRootSignatureDeserializer, GetUnconvertedRootSignatureDesc)
         const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *( STDMETHODCALLTYPE *GetUnconvertedRootSignatureDesc )( 
             ID3D12VersionedRootSignatureDeserializer * This);
         
@@ -3723,7 +3972,8 @@ enum D3D12_QUERY_HEAP_TYPE
         D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS	= 2,
         D3D12_QUERY_HEAP_TYPE_SO_STATISTICS	= 3,
         D3D12_QUERY_HEAP_TYPE_VIDEO_DECODE_STATISTICS	= 4,
-        D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP	= 5
+        D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP	= 5,
+        D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS1	= 7
     } 	D3D12_QUERY_HEAP_TYPE;
 
 typedef struct D3D12_QUERY_HEAP_DESC
@@ -3744,7 +3994,8 @@ enum D3D12_QUERY_TYPE
         D3D12_QUERY_TYPE_SO_STATISTICS_STREAM1	= 5,
         D3D12_QUERY_TYPE_SO_STATISTICS_STREAM2	= 6,
         D3D12_QUERY_TYPE_SO_STATISTICS_STREAM3	= 7,
-        D3D12_QUERY_TYPE_VIDEO_DECODE_STATISTICS	= 8
+        D3D12_QUERY_TYPE_VIDEO_DECODE_STATISTICS	= 8,
+        D3D12_QUERY_TYPE_PIPELINE_STATISTICS1	= 10
     } 	D3D12_QUERY_TYPE;
 
 typedef 
@@ -3768,6 +4019,24 @@ typedef struct D3D12_QUERY_DATA_PIPELINE_STATISTICS
     UINT64 DSInvocations;
     UINT64 CSInvocations;
     } 	D3D12_QUERY_DATA_PIPELINE_STATISTICS;
+
+typedef struct D3D12_QUERY_DATA_PIPELINE_STATISTICS1
+    {
+    UINT64 IAVertices;
+    UINT64 IAPrimitives;
+    UINT64 VSInvocations;
+    UINT64 GSInvocations;
+    UINT64 GSPrimitives;
+    UINT64 CInvocations;
+    UINT64 CPrimitives;
+    UINT64 PSInvocations;
+    UINT64 HSInvocations;
+    UINT64 DSInvocations;
+    UINT64 CSInvocations;
+    UINT64 ASInvocations;
+    UINT64 MSInvocations;
+    UINT64 MSPrimitives;
+    } 	D3D12_QUERY_DATA_PIPELINE_STATISTICS1;
 
 typedef struct D3D12_QUERY_DATA_SO_STATISTICS
     {
@@ -3831,7 +4100,9 @@ enum D3D12_INDIRECT_ARGUMENT_TYPE
         D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT	= ( D3D12_INDIRECT_ARGUMENT_TYPE_INDEX_BUFFER_VIEW + 1 ) ,
         D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW	= ( D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT + 1 ) ,
         D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW	= ( D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW + 1 ) ,
-        D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW	= ( D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW + 1 ) 
+        D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW	= ( D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW + 1 ) ,
+        D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS	= ( D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW + 1 ) ,
+        D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH	= ( D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS + 1 ) 
     } 	D3D12_INDIRECT_ARGUMENT_TYPE;
 
 typedef struct D3D12_INDIRECT_ARGUMENT_DESC
@@ -3902,38 +4173,46 @@ EXTERN_C const IID IID_ID3D12Pageable;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Pageable * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Pageable * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Pageable * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Pageable * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Pageable * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Pageable * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Pageable * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12Pageable * This,
             REFIID riid,
@@ -4016,45 +4295,55 @@ EXTERN_C const IID IID_ID3D12Heap;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Heap * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Heap * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Heap * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Heap * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Heap * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Heap * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Heap * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12Heap * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
-        D3D12_HEAP_DESC ( STDMETHODCALLTYPE *GetDesc )( 
-            ID3D12Heap * This);
+        DECLSPEC_XFGVIRT(ID3D12Heap, GetDesc)
+        D3D12_HEAP_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12Heap * This,
+            D3D12_HEAP_DESC * RetVal);
         
         END_INTERFACE
     } ID3D12HeapVtbl;
@@ -4097,8 +4386,8 @@ EXTERN_C const IID IID_ID3D12Heap;
 
 
 
-#define ID3D12Heap_GetDesc(This)	\
-    ( (This)->lpVtbl -> GetDesc(This) ) 
+#define ID3D12Heap_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
 
 #endif /* COBJMACROS */
 
@@ -4170,60 +4459,74 @@ EXTERN_C const IID IID_ID3D12Resource;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Resource * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Resource * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Resource * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Resource * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Resource * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Resource * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Resource * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12Resource * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, Map)
         HRESULT ( STDMETHODCALLTYPE *Map )( 
             ID3D12Resource * This,
             UINT Subresource,
             _In_opt_  const D3D12_RANGE *pReadRange,
             _Outptr_opt_result_bytebuffer_(_Inexpressible_("Dependent on resource"))  void **ppData);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, Unmap)
         void ( STDMETHODCALLTYPE *Unmap )( 
             ID3D12Resource * This,
             UINT Subresource,
             _In_opt_  const D3D12_RANGE *pWrittenRange);
         
-        D3D12_RESOURCE_DESC ( STDMETHODCALLTYPE *GetDesc )( 
-            ID3D12Resource * This);
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetDesc)
+        D3D12_RESOURCE_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12Resource * This,
+            D3D12_RESOURCE_DESC * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetGPUVirtualAddress)
         D3D12_GPU_VIRTUAL_ADDRESS ( STDMETHODCALLTYPE *GetGPUVirtualAddress )( 
             ID3D12Resource * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, WriteToSubresource)
         HRESULT ( STDMETHODCALLTYPE *WriteToSubresource )( 
             ID3D12Resource * This,
             UINT DstSubresource,
@@ -4232,6 +4535,7 @@ EXTERN_C const IID IID_ID3D12Resource;
             UINT SrcRowPitch,
             UINT SrcDepthPitch);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, ReadFromSubresource)
         HRESULT ( STDMETHODCALLTYPE *ReadFromSubresource )( 
             ID3D12Resource * This,
             _Out_  void *pDstData,
@@ -4240,6 +4544,7 @@ EXTERN_C const IID IID_ID3D12Resource;
             UINT SrcSubresource,
             _In_opt_  const D3D12_BOX *pSrcBox);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetHeapProperties)
         HRESULT ( STDMETHODCALLTYPE *GetHeapProperties )( 
             ID3D12Resource * This,
             _Out_opt_  D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -4292,8 +4597,8 @@ EXTERN_C const IID IID_ID3D12Resource;
 #define ID3D12Resource_Unmap(This,Subresource,pWrittenRange)	\
     ( (This)->lpVtbl -> Unmap(This,Subresource,pWrittenRange) ) 
 
-#define ID3D12Resource_GetDesc(This)	\
-    ( (This)->lpVtbl -> GetDesc(This) ) 
+#define ID3D12Resource_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
 
 #define ID3D12Resource_GetGPUVirtualAddress(This)	\
     ( (This)->lpVtbl -> GetGPUVirtualAddress(This) ) 
@@ -4348,43 +4653,52 @@ EXTERN_C const IID IID_ID3D12CommandAllocator;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12CommandAllocator * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12CommandAllocator * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12CommandAllocator * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12CommandAllocator * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12CommandAllocator * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12CommandAllocator * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12CommandAllocator * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12CommandAllocator * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandAllocator, Reset)
         HRESULT ( STDMETHODCALLTYPE *Reset )( 
             ID3D12CommandAllocator * This);
         
@@ -4476,51 +4790,62 @@ EXTERN_C const IID IID_ID3D12Fence;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Fence * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Fence * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Fence * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Fence * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Fence * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Fence * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Fence * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12Fence * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12Fence, GetCompletedValue)
         UINT64 ( STDMETHODCALLTYPE *GetCompletedValue )( 
             ID3D12Fence * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Fence, SetEventOnCompletion)
         HRESULT ( STDMETHODCALLTYPE *SetEventOnCompletion )( 
             ID3D12Fence * This,
             UINT64 Value,
             HANDLE hEvent);
         
+        DECLSPEC_XFGVIRT(ID3D12Fence, Signal)
         HRESULT ( STDMETHODCALLTYPE *Signal )( 
             ID3D12Fence * This,
             UINT64 Value);
@@ -4612,55 +4937,67 @@ EXTERN_C const IID IID_ID3D12Fence1;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Fence1 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Fence1 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Fence1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Fence1 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Fence1 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Fence1 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Fence1 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12Fence1 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12Fence, GetCompletedValue)
         UINT64 ( STDMETHODCALLTYPE *GetCompletedValue )( 
             ID3D12Fence1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Fence, SetEventOnCompletion)
         HRESULT ( STDMETHODCALLTYPE *SetEventOnCompletion )( 
             ID3D12Fence1 * This,
             UINT64 Value,
             HANDLE hEvent);
         
+        DECLSPEC_XFGVIRT(ID3D12Fence, Signal)
         HRESULT ( STDMETHODCALLTYPE *Signal )( 
             ID3D12Fence1 * This,
             UINT64 Value);
         
+        DECLSPEC_XFGVIRT(ID3D12Fence1, GetCreationFlags)
         D3D12_FENCE_FLAGS ( STDMETHODCALLTYPE *GetCreationFlags )( 
             ID3D12Fence1 * This);
         
@@ -4756,43 +5093,52 @@ EXTERN_C const IID IID_ID3D12PipelineState;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12PipelineState * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12PipelineState * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12PipelineState * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12PipelineState * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12PipelineState * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12PipelineState * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12PipelineState * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12PipelineState * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineState, GetCachedBlob)
         HRESULT ( STDMETHODCALLTYPE *GetCachedBlob )( 
             ID3D12PipelineState * This,
             _COM_Outptr_  ID3DBlob **ppBlob);
@@ -4882,51 +5228,65 @@ EXTERN_C const IID IID_ID3D12DescriptorHeap;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12DescriptorHeap * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12DescriptorHeap * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12DescriptorHeap * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12DescriptorHeap * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12DescriptorHeap * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12DescriptorHeap * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12DescriptorHeap * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12DescriptorHeap * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
-        D3D12_DESCRIPTOR_HEAP_DESC ( STDMETHODCALLTYPE *GetDesc )( 
-            ID3D12DescriptorHeap * This);
+        DECLSPEC_XFGVIRT(ID3D12DescriptorHeap, GetDesc)
+        D3D12_DESCRIPTOR_HEAP_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12DescriptorHeap * This,
+            D3D12_DESCRIPTOR_HEAP_DESC * RetVal);
         
-        D3D12_CPU_DESCRIPTOR_HANDLE ( STDMETHODCALLTYPE *GetCPUDescriptorHandleForHeapStart )( 
-            ID3D12DescriptorHeap * This);
+        DECLSPEC_XFGVIRT(ID3D12DescriptorHeap, GetCPUDescriptorHandleForHeapStart)
+        D3D12_CPU_DESCRIPTOR_HANDLE *( STDMETHODCALLTYPE *GetCPUDescriptorHandleForHeapStart )( 
+            ID3D12DescriptorHeap * This,
+            D3D12_CPU_DESCRIPTOR_HANDLE * RetVal);
         
-        D3D12_GPU_DESCRIPTOR_HANDLE ( STDMETHODCALLTYPE *GetGPUDescriptorHandleForHeapStart )( 
-            ID3D12DescriptorHeap * This);
+        DECLSPEC_XFGVIRT(ID3D12DescriptorHeap, GetGPUDescriptorHandleForHeapStart)
+        D3D12_GPU_DESCRIPTOR_HANDLE *( STDMETHODCALLTYPE *GetGPUDescriptorHandleForHeapStart )( 
+            ID3D12DescriptorHeap * This,
+            D3D12_GPU_DESCRIPTOR_HANDLE * RetVal);
         
         END_INTERFACE
     } ID3D12DescriptorHeapVtbl;
@@ -4969,14 +5329,14 @@ EXTERN_C const IID IID_ID3D12DescriptorHeap;
 
 
 
-#define ID3D12DescriptorHeap_GetDesc(This)	\
-    ( (This)->lpVtbl -> GetDesc(This) ) 
+#define ID3D12DescriptorHeap_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
 
-#define ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(This)	\
-    ( (This)->lpVtbl -> GetCPUDescriptorHandleForHeapStart(This) ) 
+#define ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(This,RetVal)	\
+    ( (This)->lpVtbl -> GetCPUDescriptorHandleForHeapStart(This,RetVal) ) 
 
-#define ID3D12DescriptorHeap_GetGPUDescriptorHandleForHeapStart(This)	\
-    ( (This)->lpVtbl -> GetGPUDescriptorHandleForHeapStart(This) ) 
+#define ID3D12DescriptorHeap_GetGPUDescriptorHandleForHeapStart(This,RetVal)	\
+    ( (This)->lpVtbl -> GetGPUDescriptorHandleForHeapStart(This,RetVal) ) 
 
 #endif /* COBJMACROS */
 
@@ -5025,38 +5385,46 @@ EXTERN_C const IID IID_ID3D12QueryHeap;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12QueryHeap * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12QueryHeap * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12QueryHeap * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12QueryHeap * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12QueryHeap * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12QueryHeap * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12QueryHeap * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12QueryHeap * This,
             REFIID riid,
@@ -5138,38 +5506,46 @@ EXTERN_C const IID IID_ID3D12CommandSignature;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12CommandSignature * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12CommandSignature * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12CommandSignature * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12CommandSignature * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12CommandSignature * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12CommandSignature * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12CommandSignature * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12CommandSignature * This,
             REFIID riid,
@@ -5253,43 +5629,52 @@ EXTERN_C const IID IID_ID3D12CommandList;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12CommandList * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12CommandList * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12CommandList * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12CommandList * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12CommandList * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12CommandList * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12CommandList * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12CommandList * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandList, GetType)
         D3D12_COMMAND_LIST_TYPE ( STDMETHODCALLTYPE *GetType )( 
             ID3D12CommandList * This);
         
@@ -5619,58 +6004,71 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12GraphicsCommandList * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12GraphicsCommandList * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12GraphicsCommandList * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12GraphicsCommandList * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12GraphicsCommandList * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12GraphicsCommandList * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12GraphicsCommandList * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12GraphicsCommandList * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandList, GetType)
         D3D12_COMMAND_LIST_TYPE ( STDMETHODCALLTYPE *GetType )( 
             ID3D12GraphicsCommandList * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Close)
         HRESULT ( STDMETHODCALLTYPE *Close )( 
             ID3D12GraphicsCommandList * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Reset)
         HRESULT ( STDMETHODCALLTYPE *Reset )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12CommandAllocator *pAllocator,
             _In_opt_  ID3D12PipelineState *pInitialState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearState)
         void ( STDMETHODCALLTYPE *ClearState )( 
             ID3D12GraphicsCommandList * This,
             _In_opt_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawInstanced)
         void ( STDMETHODCALLTYPE *DrawInstanced )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT VertexCountPerInstance,
@@ -5678,6 +6076,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  UINT StartVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawIndexedInstanced)
         void ( STDMETHODCALLTYPE *DrawIndexedInstanced )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT IndexCountPerInstance,
@@ -5686,12 +6085,14 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  INT BaseVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Dispatch)
         void ( STDMETHODCALLTYPE *Dispatch )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT ThreadGroupCountX,
             _In_  UINT ThreadGroupCountY,
             _In_  UINT ThreadGroupCountZ);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyBufferRegion)
         void ( STDMETHODCALLTYPE *CopyBufferRegion )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -5700,6 +6101,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             UINT64 SrcOffset,
             UINT64 NumBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTextureRegion)
         void ( STDMETHODCALLTYPE *CopyTextureRegion )( 
             ID3D12GraphicsCommandList * This,
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pDst,
@@ -5709,11 +6111,13 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pSrc,
             _In_opt_  const D3D12_BOX *pSrcBox);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyResource)
         void ( STDMETHODCALLTYPE *CopyResource )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12Resource *pDstResource,
             _In_  ID3D12Resource *pSrcResource);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTiles)
         void ( STDMETHODCALLTYPE *CopyTiles )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -5723,6 +6127,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             UINT64 BufferStartOffsetInBytes,
             D3D12_TILE_COPY_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveSubresource)
         void ( STDMETHODCALLTYPE *ResolveSubresource )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12Resource *pDstResource,
@@ -5731,76 +6136,92 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  UINT SrcSubresource,
             _In_  DXGI_FORMAT Format);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetPrimitiveTopology)
         void ( STDMETHODCALLTYPE *IASetPrimitiveTopology )( 
             ID3D12GraphicsCommandList * This,
             _In_  D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetViewports)
         void ( STDMETHODCALLTYPE *RSSetViewports )( 
             ID3D12GraphicsCommandList * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumViewports,
             _In_reads_( NumViewports)  const D3D12_VIEWPORT *pViewports);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetScissorRects)
         void ( STDMETHODCALLTYPE *RSSetScissorRects )( 
             ID3D12GraphicsCommandList * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumRects,
             _In_reads_( NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetBlendFactor)
         void ( STDMETHODCALLTYPE *OMSetBlendFactor )( 
             ID3D12GraphicsCommandList * This,
             _In_reads_opt_(4)  const FLOAT BlendFactor[ 4 ]);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetStencilRef)
         void ( STDMETHODCALLTYPE *OMSetStencilRef )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT StencilRef);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPipelineState)
         void ( STDMETHODCALLTYPE *SetPipelineState )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResourceBarrier)
         void ( STDMETHODCALLTYPE *ResourceBarrier )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT NumBarriers,
             _In_reads_(NumBarriers)  const D3D12_RESOURCE_BARRIER *pBarriers);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteBundle)
         void ( STDMETHODCALLTYPE *ExecuteBundle )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12GraphicsCommandList *pCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetDescriptorHeaps)
         void ( STDMETHODCALLTYPE *SetDescriptorHeaps )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT NumDescriptorHeaps,
             _In_reads_(NumDescriptorHeaps)  ID3D12DescriptorHeap *const *ppDescriptorHeaps);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootSignature)
         void ( STDMETHODCALLTYPE *SetComputeRootSignature )( 
             ID3D12GraphicsCommandList * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootSignature)
         void ( STDMETHODCALLTYPE *SetGraphicsRootSignature )( 
             ID3D12GraphicsCommandList * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetComputeRootDescriptorTable )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetGraphicsRootDescriptorTable )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstant )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstant )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstants )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
@@ -5808,6 +6229,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstants )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
@@ -5815,52 +6237,62 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetComputeRootConstantBufferView )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootConstantBufferView )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetComputeRootShaderResourceView )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootShaderResourceView )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetComputeRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetIndexBuffer)
         void ( STDMETHODCALLTYPE *IASetIndexBuffer )( 
             ID3D12GraphicsCommandList * This,
             _In_opt_  const D3D12_INDEX_BUFFER_VIEW *pView);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetVertexBuffers)
         void ( STDMETHODCALLTYPE *IASetVertexBuffers )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_VERTEX_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SOSetTargets)
         void ( STDMETHODCALLTYPE *SOSetTargets )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetRenderTargets)
         void ( STDMETHODCALLTYPE *OMSetRenderTargets )( 
             ID3D12GraphicsCommandList * This,
             _In_  UINT NumRenderTargetDescriptors,
@@ -5868,6 +6300,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  BOOL RTsSingleHandleToDescriptorRange,
             _In_opt_  const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearDepthStencilView)
         void ( STDMETHODCALLTYPE *ClearDepthStencilView )( 
             ID3D12GraphicsCommandList * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
@@ -5877,6 +6310,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearRenderTargetView)
         void ( STDMETHODCALLTYPE *ClearRenderTargetView )( 
             ID3D12GraphicsCommandList * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView,
@@ -5884,6 +6318,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewUint)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewUint )( 
             ID3D12GraphicsCommandList * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -5893,6 +6328,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewFloat)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewFloat )( 
             ID3D12GraphicsCommandList * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -5902,23 +6338,27 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DiscardResource)
         void ( STDMETHODCALLTYPE *DiscardResource )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DISCARD_REGION *pRegion);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginQuery)
         void ( STDMETHODCALLTYPE *BeginQuery )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndQuery)
         void ( STDMETHODCALLTYPE *EndQuery )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveQueryData)
         void ( STDMETHODCALLTYPE *ResolveQueryData )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
@@ -5928,27 +6368,32 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList;
             _In_  ID3D12Resource *pDestinationBuffer,
             _In_  UINT64 AlignedDestinationBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPredication)
         void ( STDMETHODCALLTYPE *SetPredication )( 
             ID3D12GraphicsCommandList * This,
             _In_opt_  ID3D12Resource *pBuffer,
             _In_  UINT64 AlignedBufferOffset,
             _In_  D3D12_PREDICATION_OP Operation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetMarker)
         void ( STDMETHODCALLTYPE *SetMarker )( 
             ID3D12GraphicsCommandList * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginEvent)
         void ( STDMETHODCALLTYPE *BeginEvent )( 
             ID3D12GraphicsCommandList * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndEvent)
         void ( STDMETHODCALLTYPE *EndEvent )( 
             ID3D12GraphicsCommandList * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteIndirect)
         void ( STDMETHODCALLTYPE *ExecuteIndirect )( 
             ID3D12GraphicsCommandList * This,
             _In_  ID3D12CommandSignature *pCommandSignature,
@@ -6231,58 +6676,71 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12GraphicsCommandList1 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12GraphicsCommandList1 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12GraphicsCommandList1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12GraphicsCommandList1 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12GraphicsCommandList1 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandList, GetType)
         D3D12_COMMAND_LIST_TYPE ( STDMETHODCALLTYPE *GetType )( 
             ID3D12GraphicsCommandList1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Close)
         HRESULT ( STDMETHODCALLTYPE *Close )( 
             ID3D12GraphicsCommandList1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Reset)
         HRESULT ( STDMETHODCALLTYPE *Reset )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12CommandAllocator *pAllocator,
             _In_opt_  ID3D12PipelineState *pInitialState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearState)
         void ( STDMETHODCALLTYPE *ClearState )( 
             ID3D12GraphicsCommandList1 * This,
             _In_opt_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawInstanced)
         void ( STDMETHODCALLTYPE *DrawInstanced )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT VertexCountPerInstance,
@@ -6290,6 +6748,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  UINT StartVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawIndexedInstanced)
         void ( STDMETHODCALLTYPE *DrawIndexedInstanced )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT IndexCountPerInstance,
@@ -6298,12 +6757,14 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  INT BaseVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Dispatch)
         void ( STDMETHODCALLTYPE *Dispatch )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT ThreadGroupCountX,
             _In_  UINT ThreadGroupCountY,
             _In_  UINT ThreadGroupCountZ);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyBufferRegion)
         void ( STDMETHODCALLTYPE *CopyBufferRegion )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -6312,6 +6773,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             UINT64 SrcOffset,
             UINT64 NumBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTextureRegion)
         void ( STDMETHODCALLTYPE *CopyTextureRegion )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pDst,
@@ -6321,11 +6783,13 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pSrc,
             _In_opt_  const D3D12_BOX *pSrcBox);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyResource)
         void ( STDMETHODCALLTYPE *CopyResource )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12Resource *pDstResource,
             _In_  ID3D12Resource *pSrcResource);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTiles)
         void ( STDMETHODCALLTYPE *CopyTiles )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -6335,6 +6799,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             UINT64 BufferStartOffsetInBytes,
             D3D12_TILE_COPY_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveSubresource)
         void ( STDMETHODCALLTYPE *ResolveSubresource )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -6343,76 +6808,92 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  UINT SrcSubresource,
             _In_  DXGI_FORMAT Format);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetPrimitiveTopology)
         void ( STDMETHODCALLTYPE *IASetPrimitiveTopology )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetViewports)
         void ( STDMETHODCALLTYPE *RSSetViewports )( 
             ID3D12GraphicsCommandList1 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumViewports,
             _In_reads_( NumViewports)  const D3D12_VIEWPORT *pViewports);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetScissorRects)
         void ( STDMETHODCALLTYPE *RSSetScissorRects )( 
             ID3D12GraphicsCommandList1 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumRects,
             _In_reads_( NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetBlendFactor)
         void ( STDMETHODCALLTYPE *OMSetBlendFactor )( 
             ID3D12GraphicsCommandList1 * This,
             _In_reads_opt_(4)  const FLOAT BlendFactor[ 4 ]);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetStencilRef)
         void ( STDMETHODCALLTYPE *OMSetStencilRef )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT StencilRef);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPipelineState)
         void ( STDMETHODCALLTYPE *SetPipelineState )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResourceBarrier)
         void ( STDMETHODCALLTYPE *ResourceBarrier )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT NumBarriers,
             _In_reads_(NumBarriers)  const D3D12_RESOURCE_BARRIER *pBarriers);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteBundle)
         void ( STDMETHODCALLTYPE *ExecuteBundle )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12GraphicsCommandList *pCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetDescriptorHeaps)
         void ( STDMETHODCALLTYPE *SetDescriptorHeaps )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT NumDescriptorHeaps,
             _In_reads_(NumDescriptorHeaps)  ID3D12DescriptorHeap *const *ppDescriptorHeaps);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootSignature)
         void ( STDMETHODCALLTYPE *SetComputeRootSignature )( 
             ID3D12GraphicsCommandList1 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootSignature)
         void ( STDMETHODCALLTYPE *SetGraphicsRootSignature )( 
             ID3D12GraphicsCommandList1 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetComputeRootDescriptorTable )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetGraphicsRootDescriptorTable )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstant )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstant )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstants )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
@@ -6420,6 +6901,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstants )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
@@ -6427,52 +6909,62 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetComputeRootConstantBufferView )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootConstantBufferView )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetComputeRootShaderResourceView )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootShaderResourceView )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetComputeRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetIndexBuffer)
         void ( STDMETHODCALLTYPE *IASetIndexBuffer )( 
             ID3D12GraphicsCommandList1 * This,
             _In_opt_  const D3D12_INDEX_BUFFER_VIEW *pView);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetVertexBuffers)
         void ( STDMETHODCALLTYPE *IASetVertexBuffers )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_VERTEX_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SOSetTargets)
         void ( STDMETHODCALLTYPE *SOSetTargets )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetRenderTargets)
         void ( STDMETHODCALLTYPE *OMSetRenderTargets )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT NumRenderTargetDescriptors,
@@ -6480,6 +6972,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  BOOL RTsSingleHandleToDescriptorRange,
             _In_opt_  const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearDepthStencilView)
         void ( STDMETHODCALLTYPE *ClearDepthStencilView )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
@@ -6489,6 +6982,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearRenderTargetView)
         void ( STDMETHODCALLTYPE *ClearRenderTargetView )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView,
@@ -6496,6 +6990,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewUint)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewUint )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -6505,6 +7000,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewFloat)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewFloat )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -6514,23 +7010,27 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DiscardResource)
         void ( STDMETHODCALLTYPE *DiscardResource )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DISCARD_REGION *pRegion);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginQuery)
         void ( STDMETHODCALLTYPE *BeginQuery )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndQuery)
         void ( STDMETHODCALLTYPE *EndQuery )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveQueryData)
         void ( STDMETHODCALLTYPE *ResolveQueryData )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
@@ -6540,27 +7040,32 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  ID3D12Resource *pDestinationBuffer,
             _In_  UINT64 AlignedDestinationBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPredication)
         void ( STDMETHODCALLTYPE *SetPredication )( 
             ID3D12GraphicsCommandList1 * This,
             _In_opt_  ID3D12Resource *pBuffer,
             _In_  UINT64 AlignedBufferOffset,
             _In_  D3D12_PREDICATION_OP Operation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetMarker)
         void ( STDMETHODCALLTYPE *SetMarker )( 
             ID3D12GraphicsCommandList1 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginEvent)
         void ( STDMETHODCALLTYPE *BeginEvent )( 
             ID3D12GraphicsCommandList1 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndEvent)
         void ( STDMETHODCALLTYPE *EndEvent )( 
             ID3D12GraphicsCommandList1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteIndirect)
         void ( STDMETHODCALLTYPE *ExecuteIndirect )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12CommandSignature *pCommandSignature,
@@ -6570,6 +7075,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_opt_  ID3D12Resource *pCountBuffer,
             _In_  UINT64 CountBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -6580,6 +7086,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT64)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT64 )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -6590,17 +7097,20 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, OMSetDepthBounds)
         void ( STDMETHODCALLTYPE *OMSetDepthBounds )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  FLOAT Min,
             _In_  FLOAT Max);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetSamplePositions)
         void ( STDMETHODCALLTYPE *SetSamplePositions )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT NumSamplesPerPixel,
             _In_  UINT NumPixels,
             _In_reads_(NumSamplesPerPixel*NumPixels)  D3D12_SAMPLE_POSITION *pSamplePositions);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, ResolveSubresourceRegion)
         void ( STDMETHODCALLTYPE *ResolveSubresourceRegion )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -6613,6 +7123,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList1;
             _In_  DXGI_FORMAT Format,
             _In_  D3D12_RESOLVE_MODE ResolveMode);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetViewInstanceMask)
         void ( STDMETHODCALLTYPE *SetViewInstanceMask )( 
             ID3D12GraphicsCommandList1 * This,
             _In_  UINT Mask);
@@ -6895,58 +7406,71 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12GraphicsCommandList2 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12GraphicsCommandList2 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12GraphicsCommandList2 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12GraphicsCommandList2 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12GraphicsCommandList2 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandList, GetType)
         D3D12_COMMAND_LIST_TYPE ( STDMETHODCALLTYPE *GetType )( 
             ID3D12GraphicsCommandList2 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Close)
         HRESULT ( STDMETHODCALLTYPE *Close )( 
             ID3D12GraphicsCommandList2 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Reset)
         HRESULT ( STDMETHODCALLTYPE *Reset )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12CommandAllocator *pAllocator,
             _In_opt_  ID3D12PipelineState *pInitialState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearState)
         void ( STDMETHODCALLTYPE *ClearState )( 
             ID3D12GraphicsCommandList2 * This,
             _In_opt_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawInstanced)
         void ( STDMETHODCALLTYPE *DrawInstanced )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT VertexCountPerInstance,
@@ -6954,6 +7478,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  UINT StartVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawIndexedInstanced)
         void ( STDMETHODCALLTYPE *DrawIndexedInstanced )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT IndexCountPerInstance,
@@ -6962,12 +7487,14 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  INT BaseVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Dispatch)
         void ( STDMETHODCALLTYPE *Dispatch )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT ThreadGroupCountX,
             _In_  UINT ThreadGroupCountY,
             _In_  UINT ThreadGroupCountZ);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyBufferRegion)
         void ( STDMETHODCALLTYPE *CopyBufferRegion )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -6976,6 +7503,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             UINT64 SrcOffset,
             UINT64 NumBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTextureRegion)
         void ( STDMETHODCALLTYPE *CopyTextureRegion )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pDst,
@@ -6985,11 +7513,13 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pSrc,
             _In_opt_  const D3D12_BOX *pSrcBox);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyResource)
         void ( STDMETHODCALLTYPE *CopyResource )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12Resource *pDstResource,
             _In_  ID3D12Resource *pSrcResource);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTiles)
         void ( STDMETHODCALLTYPE *CopyTiles )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -6999,6 +7529,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             UINT64 BufferStartOffsetInBytes,
             D3D12_TILE_COPY_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveSubresource)
         void ( STDMETHODCALLTYPE *ResolveSubresource )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -7007,76 +7538,92 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  UINT SrcSubresource,
             _In_  DXGI_FORMAT Format);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetPrimitiveTopology)
         void ( STDMETHODCALLTYPE *IASetPrimitiveTopology )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetViewports)
         void ( STDMETHODCALLTYPE *RSSetViewports )( 
             ID3D12GraphicsCommandList2 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumViewports,
             _In_reads_( NumViewports)  const D3D12_VIEWPORT *pViewports);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetScissorRects)
         void ( STDMETHODCALLTYPE *RSSetScissorRects )( 
             ID3D12GraphicsCommandList2 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumRects,
             _In_reads_( NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetBlendFactor)
         void ( STDMETHODCALLTYPE *OMSetBlendFactor )( 
             ID3D12GraphicsCommandList2 * This,
             _In_reads_opt_(4)  const FLOAT BlendFactor[ 4 ]);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetStencilRef)
         void ( STDMETHODCALLTYPE *OMSetStencilRef )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT StencilRef);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPipelineState)
         void ( STDMETHODCALLTYPE *SetPipelineState )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResourceBarrier)
         void ( STDMETHODCALLTYPE *ResourceBarrier )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT NumBarriers,
             _In_reads_(NumBarriers)  const D3D12_RESOURCE_BARRIER *pBarriers);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteBundle)
         void ( STDMETHODCALLTYPE *ExecuteBundle )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12GraphicsCommandList *pCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetDescriptorHeaps)
         void ( STDMETHODCALLTYPE *SetDescriptorHeaps )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT NumDescriptorHeaps,
             _In_reads_(NumDescriptorHeaps)  ID3D12DescriptorHeap *const *ppDescriptorHeaps);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootSignature)
         void ( STDMETHODCALLTYPE *SetComputeRootSignature )( 
             ID3D12GraphicsCommandList2 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootSignature)
         void ( STDMETHODCALLTYPE *SetGraphicsRootSignature )( 
             ID3D12GraphicsCommandList2 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetComputeRootDescriptorTable )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetGraphicsRootDescriptorTable )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstant )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstant )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstants )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
@@ -7084,6 +7631,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstants )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
@@ -7091,52 +7639,62 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetComputeRootConstantBufferView )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootConstantBufferView )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetComputeRootShaderResourceView )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootShaderResourceView )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetComputeRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetIndexBuffer)
         void ( STDMETHODCALLTYPE *IASetIndexBuffer )( 
             ID3D12GraphicsCommandList2 * This,
             _In_opt_  const D3D12_INDEX_BUFFER_VIEW *pView);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetVertexBuffers)
         void ( STDMETHODCALLTYPE *IASetVertexBuffers )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_VERTEX_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SOSetTargets)
         void ( STDMETHODCALLTYPE *SOSetTargets )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetRenderTargets)
         void ( STDMETHODCALLTYPE *OMSetRenderTargets )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT NumRenderTargetDescriptors,
@@ -7144,6 +7702,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  BOOL RTsSingleHandleToDescriptorRange,
             _In_opt_  const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearDepthStencilView)
         void ( STDMETHODCALLTYPE *ClearDepthStencilView )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
@@ -7153,6 +7712,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearRenderTargetView)
         void ( STDMETHODCALLTYPE *ClearRenderTargetView )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView,
@@ -7160,6 +7720,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewUint)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewUint )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -7169,6 +7730,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewFloat)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewFloat )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -7178,23 +7740,27 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DiscardResource)
         void ( STDMETHODCALLTYPE *DiscardResource )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DISCARD_REGION *pRegion);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginQuery)
         void ( STDMETHODCALLTYPE *BeginQuery )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndQuery)
         void ( STDMETHODCALLTYPE *EndQuery )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveQueryData)
         void ( STDMETHODCALLTYPE *ResolveQueryData )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
@@ -7204,27 +7770,32 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  ID3D12Resource *pDestinationBuffer,
             _In_  UINT64 AlignedDestinationBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPredication)
         void ( STDMETHODCALLTYPE *SetPredication )( 
             ID3D12GraphicsCommandList2 * This,
             _In_opt_  ID3D12Resource *pBuffer,
             _In_  UINT64 AlignedBufferOffset,
             _In_  D3D12_PREDICATION_OP Operation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetMarker)
         void ( STDMETHODCALLTYPE *SetMarker )( 
             ID3D12GraphicsCommandList2 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginEvent)
         void ( STDMETHODCALLTYPE *BeginEvent )( 
             ID3D12GraphicsCommandList2 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndEvent)
         void ( STDMETHODCALLTYPE *EndEvent )( 
             ID3D12GraphicsCommandList2 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteIndirect)
         void ( STDMETHODCALLTYPE *ExecuteIndirect )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12CommandSignature *pCommandSignature,
@@ -7234,6 +7805,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_opt_  ID3D12Resource *pCountBuffer,
             _In_  UINT64 CountBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -7244,6 +7816,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT64)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT64 )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -7254,17 +7827,20 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, OMSetDepthBounds)
         void ( STDMETHODCALLTYPE *OMSetDepthBounds )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  FLOAT Min,
             _In_  FLOAT Max);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetSamplePositions)
         void ( STDMETHODCALLTYPE *SetSamplePositions )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT NumSamplesPerPixel,
             _In_  UINT NumPixels,
             _In_reads_(NumSamplesPerPixel*NumPixels)  D3D12_SAMPLE_POSITION *pSamplePositions);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, ResolveSubresourceRegion)
         void ( STDMETHODCALLTYPE *ResolveSubresourceRegion )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -7277,10 +7853,12 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList2;
             _In_  DXGI_FORMAT Format,
             _In_  D3D12_RESOLVE_MODE ResolveMode);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetViewInstanceMask)
         void ( STDMETHODCALLTYPE *SetViewInstanceMask )( 
             ID3D12GraphicsCommandList2 * This,
             _In_  UINT Mask);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList2, WriteBufferImmediate)
         void ( STDMETHODCALLTYPE *WriteBufferImmediate )( 
             ID3D12GraphicsCommandList2 * This,
             UINT Count,
@@ -7595,43 +8173,52 @@ EXTERN_C const IID IID_ID3D12CommandQueue;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12CommandQueue * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12CommandQueue * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12CommandQueue * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12CommandQueue * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12CommandQueue * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12CommandQueue * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12CommandQueue * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12CommandQueue * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, UpdateTileMappings)
         void ( STDMETHODCALLTYPE *UpdateTileMappings )( 
             ID3D12CommandQueue * This,
             _In_  ID3D12Resource *pResource,
@@ -7645,6 +8232,7 @@ EXTERN_C const IID IID_ID3D12CommandQueue;
             _In_reads_opt_(NumRanges)  const UINT *pRangeTileCounts,
             D3D12_TILE_MAPPING_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, CopyTileMappings)
         void ( STDMETHODCALLTYPE *CopyTileMappings )( 
             ID3D12CommandQueue * This,
             _In_  ID3D12Resource *pDstResource,
@@ -7654,47 +8242,57 @@ EXTERN_C const IID IID_ID3D12CommandQueue;
             _In_  const D3D12_TILE_REGION_SIZE *pRegionSize,
             D3D12_TILE_MAPPING_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, ExecuteCommandLists)
         void ( STDMETHODCALLTYPE *ExecuteCommandLists )( 
             ID3D12CommandQueue * This,
             _In_  UINT NumCommandLists,
             _In_reads_(NumCommandLists)  ID3D12CommandList *const *ppCommandLists);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, SetMarker)
         void ( STDMETHODCALLTYPE *SetMarker )( 
             ID3D12CommandQueue * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, BeginEvent)
         void ( STDMETHODCALLTYPE *BeginEvent )( 
             ID3D12CommandQueue * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, EndEvent)
         void ( STDMETHODCALLTYPE *EndEvent )( 
             ID3D12CommandQueue * This);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, Signal)
         HRESULT ( STDMETHODCALLTYPE *Signal )( 
             ID3D12CommandQueue * This,
             ID3D12Fence *pFence,
             UINT64 Value);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, Wait)
         HRESULT ( STDMETHODCALLTYPE *Wait )( 
             ID3D12CommandQueue * This,
             ID3D12Fence *pFence,
             UINT64 Value);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, GetTimestampFrequency)
         HRESULT ( STDMETHODCALLTYPE *GetTimestampFrequency )( 
             ID3D12CommandQueue * This,
             _Out_  UINT64 *pFrequency);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, GetClockCalibration)
         HRESULT ( STDMETHODCALLTYPE *GetClockCalibration )( 
             ID3D12CommandQueue * This,
             _Out_  UINT64 *pGpuTimestamp,
             _Out_  UINT64 *pCpuTimestamp);
         
-        D3D12_COMMAND_QUEUE_DESC ( STDMETHODCALLTYPE *GetDesc )( 
-            ID3D12CommandQueue * This);
+        DECLSPEC_XFGVIRT(ID3D12CommandQueue, GetDesc)
+        D3D12_COMMAND_QUEUE_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12CommandQueue * This,
+            D3D12_COMMAND_QUEUE_DESC * RetVal);
         
         END_INTERFACE
     } ID3D12CommandQueueVtbl;
@@ -7767,8 +8365,8 @@ EXTERN_C const IID IID_ID3D12CommandQueue;
 #define ID3D12CommandQueue_GetClockCalibration(This,pGpuTimestamp,pCpuTimestamp)	\
     ( (This)->lpVtbl -> GetClockCalibration(This,pGpuTimestamp,pCpuTimestamp) ) 
 
-#define ID3D12CommandQueue_GetDesc(This)	\
-    ( (This)->lpVtbl -> GetDesc(This) ) 
+#define ID3D12CommandQueue_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
 
 #endif /* COBJMACROS */
 
@@ -8032,65 +8630,78 @@ EXTERN_C const IID IID_ID3D12Device;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Device * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Device * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Device * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Device * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Device * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Device * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Device * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
         UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
             ID3D12Device * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
             ID3D12Device * This,
             _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppCommandQueue);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
             ID3D12Device * This,
             _In_  D3D12_COMMAND_LIST_TYPE type,
             REFIID riid,
             _COM_Outptr_  void **ppCommandAllocator);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
             ID3D12Device * This,
             _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
             ID3D12Device * This,
             _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
             ID3D12Device * This,
             _In_  UINT nodeMask,
@@ -8100,22 +8711,26 @@ EXTERN_C const IID IID_ID3D12Device;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
         HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
             ID3D12Device * This,
             D3D12_FEATURE Feature,
             _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
             UINT FeatureSupportDataSize);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
             ID3D12Device * This,
             _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
         UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
             ID3D12Device * This,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
             ID3D12Device * This,
             _In_  UINT nodeMask,
@@ -8124,17 +8739,20 @@ EXTERN_C const IID IID_ID3D12Device;
             REFIID riid,
             _COM_Outptr_  void **ppvRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
         void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
             ID3D12Device * This,
             _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
         void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
             ID3D12Device * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
         void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
             ID3D12Device * This,
             _In_opt_  ID3D12Resource *pResource,
@@ -8142,23 +8760,27 @@ EXTERN_C const IID IID_ID3D12Device;
             _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
         void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
             ID3D12Device * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
         void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
             ID3D12Device * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
         void ( STDMETHODCALLTYPE *CreateSampler )( 
             ID3D12Device * This,
             _In_  const D3D12_SAMPLER_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
         void ( STDMETHODCALLTYPE *CopyDescriptors )( 
             ID3D12Device * This,
             _In_  UINT NumDestDescriptorRanges,
@@ -8169,6 +8791,7 @@ EXTERN_C const IID IID_ID3D12Device;
             _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
         void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
             ID3D12Device * This,
             _In_  UINT NumDescriptors,
@@ -8176,17 +8799,22 @@ EXTERN_C const IID IID_ID3D12Device;
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
             ID3D12Device * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             _In_  UINT visibleMask,
             _In_  UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
         
-        D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
             ID3D12Device * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
             _In_  UINT nodeMask,
             D3D12_HEAP_TYPE heapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
             ID3D12Device * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -8197,12 +8825,14 @@ EXTERN_C const IID IID_ID3D12Device;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
             ID3D12Device * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
         HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
             ID3D12Device * This,
             _In_  ID3D12Heap *pHeap,
@@ -8213,6 +8843,7 @@ EXTERN_C const IID IID_ID3D12Device;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
             ID3D12Device * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -8221,6 +8852,7 @@ EXTERN_C const IID IID_ID3D12Device;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
             ID3D12Device * This,
             _In_  ID3D12DeviceChild *pObject,
@@ -8229,12 +8861,14 @@ EXTERN_C const IID IID_ID3D12Device;
             _In_opt_  LPCWSTR Name,
             _Out_  HANDLE *pHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
             ID3D12Device * This,
             _In_  HANDLE NTHandle,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvObj);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
             ID3D12Device * This,
             _In_  LPCWSTR Name,
@@ -8242,16 +8876,19 @@ EXTERN_C const IID IID_ID3D12Device;
             /* [annotation][out] */ 
             _Out_  HANDLE *pNTHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
         HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
             ID3D12Device * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
         HRESULT ( STDMETHODCALLTYPE *Evict )( 
             ID3D12Device * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
         HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
             ID3D12Device * This,
             UINT64 InitialValue,
@@ -8259,9 +8896,11 @@ EXTERN_C const IID IID_ID3D12Device;
             REFIID riid,
             _COM_Outptr_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
         HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
             ID3D12Device * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
         void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
             ID3D12Device * This,
             _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
@@ -8273,16 +8912,19 @@ EXTERN_C const IID IID_ID3D12Device;
             _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
             _Out_opt_  UINT64 *pTotalBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
             ID3D12Device * This,
             _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
         HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
             ID3D12Device * This,
             BOOL Enable);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
             ID3D12Device * This,
             _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
@@ -8290,6 +8932,7 @@ EXTERN_C const IID IID_ID3D12Device;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvCommandSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
         void ( STDMETHODCALLTYPE *GetResourceTiling )( 
             ID3D12Device * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -8300,8 +8943,10 @@ EXTERN_C const IID IID_ID3D12Device;
             _In_  UINT FirstSubresourceTilingToGet,
             _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
         
-        LUID ( STDMETHODCALLTYPE *GetAdapterLuid )( 
-            ID3D12Device * This);
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device * This,
+            LUID * RetVal);
         
         END_INTERFACE
     } ID3D12DeviceVtbl;
@@ -8393,11 +9038,11 @@ EXTERN_C const IID IID_ID3D12Device;
 #define ID3D12Device_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
     ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
 
-#define ID3D12Device_GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs) ) 
+#define ID3D12Device_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
 
-#define ID3D12Device_GetCustomHeapProperties(This,nodeMask,heapType)	\
-    ( (This)->lpVtbl -> GetCustomHeapProperties(This,nodeMask,heapType) ) 
+#define ID3D12Device_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
 
 #define ID3D12Device_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
     ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
@@ -8447,8 +9092,8 @@ EXTERN_C const IID IID_ID3D12Device;
 #define ID3D12Device_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
     ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
 
-#define ID3D12Device_GetAdapterLuid(This)	\
-    ( (This)->lpVtbl -> GetAdapterLuid(This) ) 
+#define ID3D12Device_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
 
 #endif /* COBJMACROS */
 
@@ -8519,48 +9164,58 @@ EXTERN_C const IID IID_ID3D12PipelineLibrary;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12PipelineLibrary * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12PipelineLibrary * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12PipelineLibrary * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12PipelineLibrary * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12PipelineLibrary * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12PipelineLibrary * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12PipelineLibrary * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12PipelineLibrary * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, StorePipeline)
         HRESULT ( STDMETHODCALLTYPE *StorePipeline )( 
             ID3D12PipelineLibrary * This,
             _In_opt_  LPCWSTR pName,
             _In_  ID3D12PipelineState *pPipeline);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, LoadGraphicsPipeline)
         HRESULT ( STDMETHODCALLTYPE *LoadGraphicsPipeline )( 
             ID3D12PipelineLibrary * This,
             _In_  LPCWSTR pName,
@@ -8568,6 +9223,7 @@ EXTERN_C const IID IID_ID3D12PipelineLibrary;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, LoadComputePipeline)
         HRESULT ( STDMETHODCALLTYPE *LoadComputePipeline )( 
             ID3D12PipelineLibrary * This,
             _In_  LPCWSTR pName,
@@ -8575,9 +9231,11 @@ EXTERN_C const IID IID_ID3D12PipelineLibrary;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, GetSerializedSize)
         SIZE_T ( STDMETHODCALLTYPE *GetSerializedSize )( 
             ID3D12PipelineLibrary * This);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, Serialize)
         HRESULT ( STDMETHODCALLTYPE *Serialize )( 
             ID3D12PipelineLibrary * This,
             _Out_writes_(DataSizeInBytes)  void *pData,
@@ -8679,48 +9337,58 @@ EXTERN_C const IID IID_ID3D12PipelineLibrary1;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12PipelineLibrary1 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12PipelineLibrary1 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12PipelineLibrary1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12PipelineLibrary1 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12PipelineLibrary1 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12PipelineLibrary1 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12PipelineLibrary1 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12PipelineLibrary1 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, StorePipeline)
         HRESULT ( STDMETHODCALLTYPE *StorePipeline )( 
             ID3D12PipelineLibrary1 * This,
             _In_opt_  LPCWSTR pName,
             _In_  ID3D12PipelineState *pPipeline);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, LoadGraphicsPipeline)
         HRESULT ( STDMETHODCALLTYPE *LoadGraphicsPipeline )( 
             ID3D12PipelineLibrary1 * This,
             _In_  LPCWSTR pName,
@@ -8728,6 +9396,7 @@ EXTERN_C const IID IID_ID3D12PipelineLibrary1;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, LoadComputePipeline)
         HRESULT ( STDMETHODCALLTYPE *LoadComputePipeline )( 
             ID3D12PipelineLibrary1 * This,
             _In_  LPCWSTR pName,
@@ -8735,14 +9404,17 @@ EXTERN_C const IID IID_ID3D12PipelineLibrary1;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, GetSerializedSize)
         SIZE_T ( STDMETHODCALLTYPE *GetSerializedSize )( 
             ID3D12PipelineLibrary1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary, Serialize)
         HRESULT ( STDMETHODCALLTYPE *Serialize )( 
             ID3D12PipelineLibrary1 * This,
             _Out_writes_(DataSizeInBytes)  void *pData,
             SIZE_T DataSizeInBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12PipelineLibrary1, LoadPipeline)
         HRESULT ( STDMETHODCALLTYPE *LoadPipeline )( 
             ID3D12PipelineLibrary1 * This,
             _In_  LPCWSTR pName,
@@ -8889,65 +9561,78 @@ EXTERN_C const IID IID_ID3D12Device1;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Device1 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Device1 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Device1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Device1 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Device1 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Device1 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Device1 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
         UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
             ID3D12Device1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
             ID3D12Device1 * This,
             _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppCommandQueue);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
             ID3D12Device1 * This,
             _In_  D3D12_COMMAND_LIST_TYPE type,
             REFIID riid,
             _COM_Outptr_  void **ppCommandAllocator);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
             ID3D12Device1 * This,
             _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
             ID3D12Device1 * This,
             _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
             ID3D12Device1 * This,
             _In_  UINT nodeMask,
@@ -8957,22 +9642,26 @@ EXTERN_C const IID IID_ID3D12Device1;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
         HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
             ID3D12Device1 * This,
             D3D12_FEATURE Feature,
             _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
             UINT FeatureSupportDataSize);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
             ID3D12Device1 * This,
             _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
         UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
             ID3D12Device1 * This,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
             ID3D12Device1 * This,
             _In_  UINT nodeMask,
@@ -8981,17 +9670,20 @@ EXTERN_C const IID IID_ID3D12Device1;
             REFIID riid,
             _COM_Outptr_  void **ppvRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
         void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
             ID3D12Device1 * This,
             _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
         void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
             ID3D12Device1 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
         void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
             ID3D12Device1 * This,
             _In_opt_  ID3D12Resource *pResource,
@@ -8999,23 +9691,27 @@ EXTERN_C const IID IID_ID3D12Device1;
             _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
         void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
             ID3D12Device1 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
         void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
             ID3D12Device1 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
         void ( STDMETHODCALLTYPE *CreateSampler )( 
             ID3D12Device1 * This,
             _In_  const D3D12_SAMPLER_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
         void ( STDMETHODCALLTYPE *CopyDescriptors )( 
             ID3D12Device1 * This,
             _In_  UINT NumDestDescriptorRanges,
@@ -9026,6 +9722,7 @@ EXTERN_C const IID IID_ID3D12Device1;
             _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
         void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
             ID3D12Device1 * This,
             _In_  UINT NumDescriptors,
@@ -9033,17 +9730,22 @@ EXTERN_C const IID IID_ID3D12Device1;
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
             ID3D12Device1 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             _In_  UINT visibleMask,
             _In_  UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
         
-        D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
             ID3D12Device1 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
             _In_  UINT nodeMask,
             D3D12_HEAP_TYPE heapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
             ID3D12Device1 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -9054,12 +9756,14 @@ EXTERN_C const IID IID_ID3D12Device1;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
             ID3D12Device1 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
         HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
             ID3D12Device1 * This,
             _In_  ID3D12Heap *pHeap,
@@ -9070,6 +9774,7 @@ EXTERN_C const IID IID_ID3D12Device1;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
             ID3D12Device1 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -9078,6 +9783,7 @@ EXTERN_C const IID IID_ID3D12Device1;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
             ID3D12Device1 * This,
             _In_  ID3D12DeviceChild *pObject,
@@ -9086,12 +9792,14 @@ EXTERN_C const IID IID_ID3D12Device1;
             _In_opt_  LPCWSTR Name,
             _Out_  HANDLE *pHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
             ID3D12Device1 * This,
             _In_  HANDLE NTHandle,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvObj);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
             ID3D12Device1 * This,
             _In_  LPCWSTR Name,
@@ -9099,16 +9807,19 @@ EXTERN_C const IID IID_ID3D12Device1;
             /* [annotation][out] */ 
             _Out_  HANDLE *pNTHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
         HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
             ID3D12Device1 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
         HRESULT ( STDMETHODCALLTYPE *Evict )( 
             ID3D12Device1 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
         HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
             ID3D12Device1 * This,
             UINT64 InitialValue,
@@ -9116,9 +9827,11 @@ EXTERN_C const IID IID_ID3D12Device1;
             REFIID riid,
             _COM_Outptr_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
         HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
             ID3D12Device1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
         void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
             ID3D12Device1 * This,
             _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
@@ -9130,16 +9843,19 @@ EXTERN_C const IID IID_ID3D12Device1;
             _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
             _Out_opt_  UINT64 *pTotalBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
             ID3D12Device1 * This,
             _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
         HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
             ID3D12Device1 * This,
             BOOL Enable);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
             ID3D12Device1 * This,
             _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
@@ -9147,6 +9863,7 @@ EXTERN_C const IID IID_ID3D12Device1;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvCommandSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
         void ( STDMETHODCALLTYPE *GetResourceTiling )( 
             ID3D12Device1 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -9157,9 +9874,12 @@ EXTERN_C const IID IID_ID3D12Device1;
             _In_  UINT FirstSubresourceTilingToGet,
             _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
         
-        LUID ( STDMETHODCALLTYPE *GetAdapterLuid )( 
-            ID3D12Device1 * This);
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device1 * This,
+            LUID * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
             ID3D12Device1 * This,
             _In_reads_(BlobLength)  const void *pLibraryBlob,
@@ -9167,6 +9887,7 @@ EXTERN_C const IID IID_ID3D12Device1;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineLibrary);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
         HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
             ID3D12Device1 * This,
             _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
@@ -9175,6 +9896,7 @@ EXTERN_C const IID IID_ID3D12Device1;
             D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
             HANDLE hEvent);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
         HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
             ID3D12Device1 * This,
             UINT NumObjects,
@@ -9271,11 +9993,11 @@ EXTERN_C const IID IID_ID3D12Device1;
 #define ID3D12Device1_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
     ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
 
-#define ID3D12Device1_GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs) ) 
+#define ID3D12Device1_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
 
-#define ID3D12Device1_GetCustomHeapProperties(This,nodeMask,heapType)	\
-    ( (This)->lpVtbl -> GetCustomHeapProperties(This,nodeMask,heapType) ) 
+#define ID3D12Device1_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
 
 #define ID3D12Device1_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
     ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
@@ -9325,8 +10047,8 @@ EXTERN_C const IID IID_ID3D12Device1;
 #define ID3D12Device1_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
     ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
 
-#define ID3D12Device1_GetAdapterLuid(This)	\
-    ( (This)->lpVtbl -> GetAdapterLuid(This) ) 
+#define ID3D12Device1_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
 
 
 #define ID3D12Device1_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
@@ -9378,65 +10100,78 @@ EXTERN_C const IID IID_ID3D12Device2;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Device2 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Device2 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Device2 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Device2 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Device2 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Device2 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Device2 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
         UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
             ID3D12Device2 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
             ID3D12Device2 * This,
             _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppCommandQueue);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
             ID3D12Device2 * This,
             _In_  D3D12_COMMAND_LIST_TYPE type,
             REFIID riid,
             _COM_Outptr_  void **ppCommandAllocator);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
             ID3D12Device2 * This,
             _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
             ID3D12Device2 * This,
             _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
             ID3D12Device2 * This,
             _In_  UINT nodeMask,
@@ -9446,22 +10181,26 @@ EXTERN_C const IID IID_ID3D12Device2;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
         HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
             ID3D12Device2 * This,
             D3D12_FEATURE Feature,
             _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
             UINT FeatureSupportDataSize);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
             ID3D12Device2 * This,
             _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
         UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
             ID3D12Device2 * This,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
             ID3D12Device2 * This,
             _In_  UINT nodeMask,
@@ -9470,17 +10209,20 @@ EXTERN_C const IID IID_ID3D12Device2;
             REFIID riid,
             _COM_Outptr_  void **ppvRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
         void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
             ID3D12Device2 * This,
             _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
         void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
             ID3D12Device2 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
         void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
             ID3D12Device2 * This,
             _In_opt_  ID3D12Resource *pResource,
@@ -9488,23 +10230,27 @@ EXTERN_C const IID IID_ID3D12Device2;
             _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
         void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
             ID3D12Device2 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
         void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
             ID3D12Device2 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
         void ( STDMETHODCALLTYPE *CreateSampler )( 
             ID3D12Device2 * This,
             _In_  const D3D12_SAMPLER_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
         void ( STDMETHODCALLTYPE *CopyDescriptors )( 
             ID3D12Device2 * This,
             _In_  UINT NumDestDescriptorRanges,
@@ -9515,6 +10261,7 @@ EXTERN_C const IID IID_ID3D12Device2;
             _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
         void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
             ID3D12Device2 * This,
             _In_  UINT NumDescriptors,
@@ -9522,17 +10269,22 @@ EXTERN_C const IID IID_ID3D12Device2;
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
             ID3D12Device2 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             _In_  UINT visibleMask,
             _In_  UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
         
-        D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
             ID3D12Device2 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
             _In_  UINT nodeMask,
             D3D12_HEAP_TYPE heapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
             ID3D12Device2 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -9543,12 +10295,14 @@ EXTERN_C const IID IID_ID3D12Device2;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
             ID3D12Device2 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
         HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
             ID3D12Device2 * This,
             _In_  ID3D12Heap *pHeap,
@@ -9559,6 +10313,7 @@ EXTERN_C const IID IID_ID3D12Device2;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
             ID3D12Device2 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -9567,6 +10322,7 @@ EXTERN_C const IID IID_ID3D12Device2;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
             ID3D12Device2 * This,
             _In_  ID3D12DeviceChild *pObject,
@@ -9575,12 +10331,14 @@ EXTERN_C const IID IID_ID3D12Device2;
             _In_opt_  LPCWSTR Name,
             _Out_  HANDLE *pHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
             ID3D12Device2 * This,
             _In_  HANDLE NTHandle,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvObj);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
             ID3D12Device2 * This,
             _In_  LPCWSTR Name,
@@ -9588,16 +10346,19 @@ EXTERN_C const IID IID_ID3D12Device2;
             /* [annotation][out] */ 
             _Out_  HANDLE *pNTHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
         HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
             ID3D12Device2 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
         HRESULT ( STDMETHODCALLTYPE *Evict )( 
             ID3D12Device2 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
         HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
             ID3D12Device2 * This,
             UINT64 InitialValue,
@@ -9605,9 +10366,11 @@ EXTERN_C const IID IID_ID3D12Device2;
             REFIID riid,
             _COM_Outptr_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
         HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
             ID3D12Device2 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
         void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
             ID3D12Device2 * This,
             _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
@@ -9619,16 +10382,19 @@ EXTERN_C const IID IID_ID3D12Device2;
             _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
             _Out_opt_  UINT64 *pTotalBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
             ID3D12Device2 * This,
             _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
         HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
             ID3D12Device2 * This,
             BOOL Enable);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
             ID3D12Device2 * This,
             _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
@@ -9636,6 +10402,7 @@ EXTERN_C const IID IID_ID3D12Device2;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvCommandSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
         void ( STDMETHODCALLTYPE *GetResourceTiling )( 
             ID3D12Device2 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -9646,9 +10413,12 @@ EXTERN_C const IID IID_ID3D12Device2;
             _In_  UINT FirstSubresourceTilingToGet,
             _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
         
-        LUID ( STDMETHODCALLTYPE *GetAdapterLuid )( 
-            ID3D12Device2 * This);
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device2 * This,
+            LUID * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
             ID3D12Device2 * This,
             _In_reads_(BlobLength)  const void *pLibraryBlob,
@@ -9656,6 +10426,7 @@ EXTERN_C const IID IID_ID3D12Device2;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineLibrary);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
         HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
             ID3D12Device2 * This,
             _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
@@ -9664,12 +10435,14 @@ EXTERN_C const IID IID_ID3D12Device2;
             D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
             HANDLE hEvent);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
         HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
             ID3D12Device2 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
             _In_reads_(NumObjects)  const D3D12_RESIDENCY_PRIORITY *pPriorities);
         
+        DECLSPEC_XFGVIRT(ID3D12Device2, CreatePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineState )( 
             ID3D12Device2 * This,
             const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc,
@@ -9766,11 +10539,11 @@ EXTERN_C const IID IID_ID3D12Device2;
 #define ID3D12Device2_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
     ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
 
-#define ID3D12Device2_GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs) ) 
+#define ID3D12Device2_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
 
-#define ID3D12Device2_GetCustomHeapProperties(This,nodeMask,heapType)	\
-    ( (This)->lpVtbl -> GetCustomHeapProperties(This,nodeMask,heapType) ) 
+#define ID3D12Device2_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
 
 #define ID3D12Device2_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
     ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
@@ -9820,8 +10593,8 @@ EXTERN_C const IID IID_ID3D12Device2;
 #define ID3D12Device2_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
     ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
 
-#define ID3D12Device2_GetAdapterLuid(This)	\
-    ( (This)->lpVtbl -> GetAdapterLuid(This) ) 
+#define ID3D12Device2_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
 
 
 #define ID3D12Device2_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
@@ -9905,65 +10678,78 @@ EXTERN_C const IID IID_ID3D12Device3;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Device3 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Device3 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Device3 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Device3 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Device3 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Device3 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Device3 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
         UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
             ID3D12Device3 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
             ID3D12Device3 * This,
             _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppCommandQueue);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
             ID3D12Device3 * This,
             _In_  D3D12_COMMAND_LIST_TYPE type,
             REFIID riid,
             _COM_Outptr_  void **ppCommandAllocator);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
             ID3D12Device3 * This,
             _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
             ID3D12Device3 * This,
             _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
             ID3D12Device3 * This,
             _In_  UINT nodeMask,
@@ -9973,22 +10759,26 @@ EXTERN_C const IID IID_ID3D12Device3;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
         HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
             ID3D12Device3 * This,
             D3D12_FEATURE Feature,
             _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
             UINT FeatureSupportDataSize);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
             ID3D12Device3 * This,
             _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
         UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
             ID3D12Device3 * This,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
             ID3D12Device3 * This,
             _In_  UINT nodeMask,
@@ -9997,17 +10787,20 @@ EXTERN_C const IID IID_ID3D12Device3;
             REFIID riid,
             _COM_Outptr_  void **ppvRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
         void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
             ID3D12Device3 * This,
             _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
         void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
             ID3D12Device3 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
         void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
             ID3D12Device3 * This,
             _In_opt_  ID3D12Resource *pResource,
@@ -10015,23 +10808,27 @@ EXTERN_C const IID IID_ID3D12Device3;
             _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
         void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
             ID3D12Device3 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
         void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
             ID3D12Device3 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
         void ( STDMETHODCALLTYPE *CreateSampler )( 
             ID3D12Device3 * This,
             _In_  const D3D12_SAMPLER_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
         void ( STDMETHODCALLTYPE *CopyDescriptors )( 
             ID3D12Device3 * This,
             _In_  UINT NumDestDescriptorRanges,
@@ -10042,6 +10839,7 @@ EXTERN_C const IID IID_ID3D12Device3;
             _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
         void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
             ID3D12Device3 * This,
             _In_  UINT NumDescriptors,
@@ -10049,17 +10847,22 @@ EXTERN_C const IID IID_ID3D12Device3;
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
             ID3D12Device3 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             _In_  UINT visibleMask,
             _In_  UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
         
-        D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
             ID3D12Device3 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
             _In_  UINT nodeMask,
             D3D12_HEAP_TYPE heapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
             ID3D12Device3 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -10070,12 +10873,14 @@ EXTERN_C const IID IID_ID3D12Device3;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
             ID3D12Device3 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
         HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
             ID3D12Device3 * This,
             _In_  ID3D12Heap *pHeap,
@@ -10086,6 +10891,7 @@ EXTERN_C const IID IID_ID3D12Device3;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
             ID3D12Device3 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -10094,6 +10900,7 @@ EXTERN_C const IID IID_ID3D12Device3;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
             ID3D12Device3 * This,
             _In_  ID3D12DeviceChild *pObject,
@@ -10102,12 +10909,14 @@ EXTERN_C const IID IID_ID3D12Device3;
             _In_opt_  LPCWSTR Name,
             _Out_  HANDLE *pHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
             ID3D12Device3 * This,
             _In_  HANDLE NTHandle,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvObj);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
             ID3D12Device3 * This,
             _In_  LPCWSTR Name,
@@ -10115,16 +10924,19 @@ EXTERN_C const IID IID_ID3D12Device3;
             /* [annotation][out] */ 
             _Out_  HANDLE *pNTHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
         HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
             ID3D12Device3 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
         HRESULT ( STDMETHODCALLTYPE *Evict )( 
             ID3D12Device3 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
         HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
             ID3D12Device3 * This,
             UINT64 InitialValue,
@@ -10132,9 +10944,11 @@ EXTERN_C const IID IID_ID3D12Device3;
             REFIID riid,
             _COM_Outptr_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
         HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
             ID3D12Device3 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
         void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
             ID3D12Device3 * This,
             _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
@@ -10146,16 +10960,19 @@ EXTERN_C const IID IID_ID3D12Device3;
             _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
             _Out_opt_  UINT64 *pTotalBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
             ID3D12Device3 * This,
             _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
         HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
             ID3D12Device3 * This,
             BOOL Enable);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
             ID3D12Device3 * This,
             _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
@@ -10163,6 +10980,7 @@ EXTERN_C const IID IID_ID3D12Device3;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvCommandSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
         void ( STDMETHODCALLTYPE *GetResourceTiling )( 
             ID3D12Device3 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -10173,9 +10991,12 @@ EXTERN_C const IID IID_ID3D12Device3;
             _In_  UINT FirstSubresourceTilingToGet,
             _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
         
-        LUID ( STDMETHODCALLTYPE *GetAdapterLuid )( 
-            ID3D12Device3 * This);
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device3 * This,
+            LUID * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
             ID3D12Device3 * This,
             _In_reads_(BlobLength)  const void *pLibraryBlob,
@@ -10183,6 +11004,7 @@ EXTERN_C const IID IID_ID3D12Device3;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineLibrary);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
         HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
             ID3D12Device3 * This,
             _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
@@ -10191,30 +11013,35 @@ EXTERN_C const IID IID_ID3D12Device3;
             D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
             HANDLE hEvent);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
         HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
             ID3D12Device3 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
             _In_reads_(NumObjects)  const D3D12_RESIDENCY_PRIORITY *pPriorities);
         
+        DECLSPEC_XFGVIRT(ID3D12Device2, CreatePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineState )( 
             ID3D12Device3 * This,
             const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromAddress)
         HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromAddress )( 
             ID3D12Device3 * This,
             _In_  const void *pAddress,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromFileMapping)
         HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromFileMapping )( 
             ID3D12Device3 * This,
             _In_  HANDLE hFileMapping,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, EnqueueMakeResident)
         HRESULT ( STDMETHODCALLTYPE *EnqueueMakeResident )( 
             ID3D12Device3 * This,
             D3D12_RESIDENCY_FLAGS Flags,
@@ -10313,11 +11140,11 @@ EXTERN_C const IID IID_ID3D12Device3;
 #define ID3D12Device3_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
     ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
 
-#define ID3D12Device3_GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs) ) 
+#define ID3D12Device3_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
 
-#define ID3D12Device3_GetCustomHeapProperties(This,nodeMask,heapType)	\
-    ( (This)->lpVtbl -> GetCustomHeapProperties(This,nodeMask,heapType) ) 
+#define ID3D12Device3_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
 
 #define ID3D12Device3_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
     ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
@@ -10367,8 +11194,8 @@ EXTERN_C const IID IID_ID3D12Device3;
 #define ID3D12Device3_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
     ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
 
-#define ID3D12Device3_GetAdapterLuid(This)	\
-    ( (This)->lpVtbl -> GetAdapterLuid(This) ) 
+#define ID3D12Device3_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
 
 
 #define ID3D12Device3_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
@@ -10471,48 +11298,58 @@ EXTERN_C const IID IID_ID3D12ProtectedSession;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12ProtectedSession * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12ProtectedSession * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12ProtectedSession * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12ProtectedSession * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12ProtectedSession * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12ProtectedSession * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12ProtectedSession * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12ProtectedSession * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12ProtectedSession, GetStatusFence)
         HRESULT ( STDMETHODCALLTYPE *GetStatusFence )( 
             ID3D12ProtectedSession * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12ProtectedSession, GetSessionStatus)
         D3D12_PROTECTED_SESSION_STATUS ( STDMETHODCALLTYPE *GetSessionStatus )( 
             ID3D12ProtectedSession * This);
         
@@ -10634,53 +11471,65 @@ EXTERN_C const IID IID_ID3D12ProtectedResourceSession;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12ProtectedResourceSession * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12ProtectedResourceSession * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12ProtectedResourceSession * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12ProtectedResourceSession * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12ProtectedResourceSession * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12ProtectedResourceSession * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12ProtectedResourceSession * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12ProtectedResourceSession * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12ProtectedSession, GetStatusFence)
         HRESULT ( STDMETHODCALLTYPE *GetStatusFence )( 
             ID3D12ProtectedResourceSession * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12ProtectedSession, GetSessionStatus)
         D3D12_PROTECTED_SESSION_STATUS ( STDMETHODCALLTYPE *GetSessionStatus )( 
             ID3D12ProtectedResourceSession * This);
         
-        D3D12_PROTECTED_RESOURCE_SESSION_DESC ( STDMETHODCALLTYPE *GetDesc )( 
-            ID3D12ProtectedResourceSession * This);
+        DECLSPEC_XFGVIRT(ID3D12ProtectedResourceSession, GetDesc)
+        D3D12_PROTECTED_RESOURCE_SESSION_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12ProtectedResourceSession * This,
+            D3D12_PROTECTED_RESOURCE_SESSION_DESC * RetVal);
         
         END_INTERFACE
     } ID3D12ProtectedResourceSessionVtbl;
@@ -10729,8 +11578,8 @@ EXTERN_C const IID IID_ID3D12ProtectedResourceSession;
     ( (This)->lpVtbl -> GetSessionStatus(This) ) 
 
 
-#define ID3D12ProtectedResourceSession_GetDesc(This)	\
-    ( (This)->lpVtbl -> GetDesc(This) ) 
+#define ID3D12ProtectedResourceSession_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
 
 #endif /* COBJMACROS */
 
@@ -10813,65 +11662,78 @@ EXTERN_C const IID IID_ID3D12Device4;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Device4 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Device4 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Device4 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Device4 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Device4 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Device4 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Device4 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
         UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
             ID3D12Device4 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
             ID3D12Device4 * This,
             _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppCommandQueue);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
             ID3D12Device4 * This,
             _In_  D3D12_COMMAND_LIST_TYPE type,
             REFIID riid,
             _COM_Outptr_  void **ppCommandAllocator);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
             ID3D12Device4 * This,
             _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
             ID3D12Device4 * This,
             _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
             ID3D12Device4 * This,
             _In_  UINT nodeMask,
@@ -10881,22 +11743,26 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
         HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
             ID3D12Device4 * This,
             D3D12_FEATURE Feature,
             _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
             UINT FeatureSupportDataSize);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
             ID3D12Device4 * This,
             _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
         UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
             ID3D12Device4 * This,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
             ID3D12Device4 * This,
             _In_  UINT nodeMask,
@@ -10905,17 +11771,20 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_  void **ppvRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
         void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
             ID3D12Device4 * This,
             _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
         void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
             ID3D12Device4 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
         void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
             ID3D12Device4 * This,
             _In_opt_  ID3D12Resource *pResource,
@@ -10923,23 +11792,27 @@ EXTERN_C const IID IID_ID3D12Device4;
             _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
         void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
             ID3D12Device4 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
         void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
             ID3D12Device4 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
         void ( STDMETHODCALLTYPE *CreateSampler )( 
             ID3D12Device4 * This,
             _In_  const D3D12_SAMPLER_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
         void ( STDMETHODCALLTYPE *CopyDescriptors )( 
             ID3D12Device4 * This,
             _In_  UINT NumDestDescriptorRanges,
@@ -10950,6 +11823,7 @@ EXTERN_C const IID IID_ID3D12Device4;
             _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
         void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
             ID3D12Device4 * This,
             _In_  UINT NumDescriptors,
@@ -10957,17 +11831,22 @@ EXTERN_C const IID IID_ID3D12Device4;
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
             ID3D12Device4 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             _In_  UINT visibleMask,
             _In_  UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
         
-        D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
             ID3D12Device4 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
             _In_  UINT nodeMask,
             D3D12_HEAP_TYPE heapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
             ID3D12Device4 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -10978,12 +11857,14 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
             ID3D12Device4 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
         HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
             ID3D12Device4 * This,
             _In_  ID3D12Heap *pHeap,
@@ -10994,6 +11875,7 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
             ID3D12Device4 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -11002,6 +11884,7 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
             ID3D12Device4 * This,
             _In_  ID3D12DeviceChild *pObject,
@@ -11010,12 +11893,14 @@ EXTERN_C const IID IID_ID3D12Device4;
             _In_opt_  LPCWSTR Name,
             _Out_  HANDLE *pHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
             ID3D12Device4 * This,
             _In_  HANDLE NTHandle,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvObj);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
             ID3D12Device4 * This,
             _In_  LPCWSTR Name,
@@ -11023,16 +11908,19 @@ EXTERN_C const IID IID_ID3D12Device4;
             /* [annotation][out] */ 
             _Out_  HANDLE *pNTHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
         HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
             ID3D12Device4 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
         HRESULT ( STDMETHODCALLTYPE *Evict )( 
             ID3D12Device4 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
         HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
             ID3D12Device4 * This,
             UINT64 InitialValue,
@@ -11040,9 +11928,11 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
         HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
             ID3D12Device4 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
         void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
             ID3D12Device4 * This,
             _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
@@ -11054,16 +11944,19 @@ EXTERN_C const IID IID_ID3D12Device4;
             _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
             _Out_opt_  UINT64 *pTotalBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
             ID3D12Device4 * This,
             _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
         HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
             ID3D12Device4 * This,
             BOOL Enable);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
             ID3D12Device4 * This,
             _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
@@ -11071,6 +11964,7 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvCommandSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
         void ( STDMETHODCALLTYPE *GetResourceTiling )( 
             ID3D12Device4 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -11081,9 +11975,12 @@ EXTERN_C const IID IID_ID3D12Device4;
             _In_  UINT FirstSubresourceTilingToGet,
             _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
         
-        LUID ( STDMETHODCALLTYPE *GetAdapterLuid )( 
-            ID3D12Device4 * This);
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device4 * This,
+            LUID * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
             ID3D12Device4 * This,
             _In_reads_(BlobLength)  const void *pLibraryBlob,
@@ -11091,6 +11988,7 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineLibrary);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
         HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
             ID3D12Device4 * This,
             _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
@@ -11099,30 +11997,35 @@ EXTERN_C const IID IID_ID3D12Device4;
             D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
             HANDLE hEvent);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
         HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
             ID3D12Device4 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
             _In_reads_(NumObjects)  const D3D12_RESIDENCY_PRIORITY *pPriorities);
         
+        DECLSPEC_XFGVIRT(ID3D12Device2, CreatePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineState )( 
             ID3D12Device4 * This,
             const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromAddress)
         HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromAddress )( 
             ID3D12Device4 * This,
             _In_  const void *pAddress,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromFileMapping)
         HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromFileMapping )( 
             ID3D12Device4 * This,
             _In_  HANDLE hFileMapping,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, EnqueueMakeResident)
         HRESULT ( STDMETHODCALLTYPE *EnqueueMakeResident )( 
             ID3D12Device4 * This,
             D3D12_RESIDENCY_FLAGS Flags,
@@ -11131,6 +12034,7 @@ EXTERN_C const IID IID_ID3D12Device4;
             _In_  ID3D12Fence *pFenceToSignal,
             UINT64 FenceValueToSignal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommandList1)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList1 )( 
             ID3D12Device4 * This,
             _In_  UINT nodeMask,
@@ -11139,12 +12043,14 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession )( 
             ID3D12Device4 * This,
             _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc,
             _In_  REFIID riid,
             _COM_Outptr_  void **ppSession);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommittedResource1)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource1 )( 
             ID3D12Device4 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -11156,6 +12062,7 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateHeap1)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap1 )( 
             ID3D12Device4 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
@@ -11163,6 +12070,7 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateReservedResource1)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource1 )( 
             ID3D12Device4 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -11172,8 +12080,10 @@ EXTERN_C const IID IID_ID3D12Device4;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
+        DECLSPEC_XFGVIRT(ID3D12Device4, GetResourceAllocationInfo1)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
             ID3D12Device4 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             UINT visibleMask,
             UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs,
@@ -11269,11 +12179,11 @@ EXTERN_C const IID IID_ID3D12Device4;
 #define ID3D12Device4_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
     ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
 
-#define ID3D12Device4_GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs) ) 
+#define ID3D12Device4_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
 
-#define ID3D12Device4_GetCustomHeapProperties(This,nodeMask,heapType)	\
-    ( (This)->lpVtbl -> GetCustomHeapProperties(This,nodeMask,heapType) ) 
+#define ID3D12Device4_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
 
 #define ID3D12Device4_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
     ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
@@ -11323,8 +12233,8 @@ EXTERN_C const IID IID_ID3D12Device4;
 #define ID3D12Device4_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
     ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
 
-#define ID3D12Device4_GetAdapterLuid(This)	\
-    ( (This)->lpVtbl -> GetAdapterLuid(This) ) 
+#define ID3D12Device4_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
 
 
 #define ID3D12Device4_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
@@ -11366,8 +12276,8 @@ EXTERN_C const IID IID_ID3D12Device4;
 #define ID3D12Device4_CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource)	\
     ( (This)->lpVtbl -> CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource) ) 
 
-#define ID3D12Device4_GetResourceAllocationInfo1(This,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
+#define ID3D12Device4_GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
 
 #endif /* COBJMACROS */
 
@@ -11427,17 +12337,21 @@ EXTERN_C const IID IID_ID3D12LifetimeOwner;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12LifetimeOwner * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12LifetimeOwner * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12LifetimeOwner * This);
         
+        DECLSPEC_XFGVIRT(ID3D12LifetimeOwner, LifetimeStateUpdated)
         void ( STDMETHODCALLTYPE *LifetimeStateUpdated )( 
             ID3D12LifetimeOwner * This,
             D3D12_LIFETIME_STATE NewState);
@@ -11517,25 +12431,32 @@ EXTERN_C const IID IID_ID3D12SwapChainAssistant;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12SwapChainAssistant * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12SwapChainAssistant * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12SwapChainAssistant * This);
         
-        LUID ( STDMETHODCALLTYPE *GetLUID )( 
-            ID3D12SwapChainAssistant * This);
+        DECLSPEC_XFGVIRT(ID3D12SwapChainAssistant, GetLUID)
+        LUID *( STDMETHODCALLTYPE *GetLUID )( 
+            ID3D12SwapChainAssistant * This,
+            LUID * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12SwapChainAssistant, GetSwapChainObject)
         HRESULT ( STDMETHODCALLTYPE *GetSwapChainObject )( 
             ID3D12SwapChainAssistant * This,
             REFIID riid,
             _COM_Outptr_  void **ppv);
         
+        DECLSPEC_XFGVIRT(ID3D12SwapChainAssistant, GetCurrentResourceAndCommandQueue)
         HRESULT ( STDMETHODCALLTYPE *GetCurrentResourceAndCommandQueue )( 
             ID3D12SwapChainAssistant * This,
             REFIID riidResource,
@@ -11543,6 +12464,7 @@ EXTERN_C const IID IID_ID3D12SwapChainAssistant;
             REFIID riidQueue,
             _COM_Outptr_  void **ppvQueue);
         
+        DECLSPEC_XFGVIRT(ID3D12SwapChainAssistant, InsertImplicitSync)
         HRESULT ( STDMETHODCALLTYPE *InsertImplicitSync )( 
             ID3D12SwapChainAssistant * This);
         
@@ -11569,8 +12491,8 @@ EXTERN_C const IID IID_ID3D12SwapChainAssistant;
     ( (This)->lpVtbl -> Release(This) ) 
 
 
-#define ID3D12SwapChainAssistant_GetLUID(This)	\
-    ( (This)->lpVtbl -> GetLUID(This) ) 
+#define ID3D12SwapChainAssistant_GetLUID(This,RetVal)	\
+    ( (This)->lpVtbl -> GetLUID(This,RetVal) ) 
 
 #define ID3D12SwapChainAssistant_GetSwapChainObject(This,riid,ppv)	\
     ( (This)->lpVtbl -> GetSwapChainObject(This,riid,ppv) ) 
@@ -11623,43 +12545,52 @@ EXTERN_C const IID IID_ID3D12LifetimeTracker;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12LifetimeTracker * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12LifetimeTracker * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12LifetimeTracker * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12LifetimeTracker * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12LifetimeTracker * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12LifetimeTracker * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12LifetimeTracker * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12LifetimeTracker * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12LifetimeTracker, DestroyOwnedObject)
         HRESULT ( STDMETHODCALLTYPE *DestroyOwnedObject )( 
             ID3D12LifetimeTracker * This,
             _In_  ID3D12DeviceChild *pObject);
@@ -11817,38 +12748,46 @@ EXTERN_C const IID IID_ID3D12StateObject;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12StateObject * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12StateObject * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12StateObject * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12StateObject * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12StateObject * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12StateObject * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12StateObject * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12StateObject * This,
             REFIID riid,
@@ -11941,28 +12880,35 @@ EXTERN_C const IID IID_ID3D12StateObjectProperties;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12StateObjectProperties * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12StateObjectProperties * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12StateObjectProperties * This);
         
+        DECLSPEC_XFGVIRT(ID3D12StateObjectProperties, GetShaderIdentifier)
         void *( STDMETHODCALLTYPE *GetShaderIdentifier )( 
             ID3D12StateObjectProperties * This,
             _In_  LPCWSTR pExportName);
         
+        DECLSPEC_XFGVIRT(ID3D12StateObjectProperties, GetShaderStackSize)
         UINT64 ( STDMETHODCALLTYPE *GetShaderStackSize )( 
             ID3D12StateObjectProperties * This,
             _In_  LPCWSTR pExportName);
         
+        DECLSPEC_XFGVIRT(ID3D12StateObjectProperties, GetPipelineStackSize)
         UINT64 ( STDMETHODCALLTYPE *GetPipelineStackSize )( 
             ID3D12StateObjectProperties * This);
         
+        DECLSPEC_XFGVIRT(ID3D12StateObjectProperties, SetPipelineStackSize)
         void ( STDMETHODCALLTYPE *SetPipelineStackSize )( 
             ID3D12StateObjectProperties * This,
             UINT64 PipelineStackSizeInBytes);
@@ -12030,7 +12976,8 @@ enum D3D12_STATE_SUBOBJECT_TYPE
         D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG	= 9,
         D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG	= 10,
         D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP	= 11,
-        D3D12_STATE_SUBOBJECT_TYPE_MAX_VALID	= ( D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP + 1 ) 
+        D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1	= 12,
+        D3D12_STATE_SUBOBJECT_TYPE_MAX_VALID	= ( D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1 + 1 ) 
     } 	D3D12_STATE_SUBOBJECT_TYPE;
 
 typedef struct D3D12_STATE_SUBOBJECT
@@ -12044,7 +12991,8 @@ enum D3D12_STATE_OBJECT_FLAGS
     {
         D3D12_STATE_OBJECT_FLAG_NONE	= 0,
         D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS	= 0x1,
-        D3D12_STATE_OBJECT_FLAG_ALLOW_EXTERNAL_DEPENDENCIES_ON_LOCAL_DEFINITIONS	= 0x2
+        D3D12_STATE_OBJECT_FLAG_ALLOW_EXTERNAL_DEPENDENCIES_ON_LOCAL_DEFINITIONS	= 0x2,
+        D3D12_STATE_OBJECT_FLAG_ALLOW_STATE_OBJECT_ADDITIONS	= 0x4
     } 	D3D12_STATE_OBJECT_FLAGS;
 
 DEFINE_ENUM_FLAG_OPERATORS( D3D12_STATE_OBJECT_FLAGS );
@@ -12136,6 +13084,21 @@ typedef struct D3D12_RAYTRACING_PIPELINE_CONFIG
     {
     UINT MaxTraceRecursionDepth;
     } 	D3D12_RAYTRACING_PIPELINE_CONFIG;
+
+typedef 
+enum D3D12_RAYTRACING_PIPELINE_FLAGS
+    {
+        D3D12_RAYTRACING_PIPELINE_FLAG_NONE	= 0,
+        D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_TRIANGLES	= 0x100,
+        D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_PROCEDURAL_PRIMITIVES	= 0x200
+    } 	D3D12_RAYTRACING_PIPELINE_FLAGS;
+
+DEFINE_ENUM_FLAG_OPERATORS( D3D12_RAYTRACING_PIPELINE_FLAGS );
+typedef struct D3D12_RAYTRACING_PIPELINE_CONFIG1
+    {
+    UINT MaxTraceRecursionDepth;
+    D3D12_RAYTRACING_PIPELINE_FLAGS Flags;
+    } 	D3D12_RAYTRACING_PIPELINE_CONFIG1;
 
 typedef 
 enum D3D12_STATE_OBJECT_TYPE
@@ -12400,7 +13363,9 @@ enum D3D12_RAY_FLAGS
         D3D12_RAY_FLAG_CULL_BACK_FACING_TRIANGLES	= 0x10,
         D3D12_RAY_FLAG_CULL_FRONT_FACING_TRIANGLES	= 0x20,
         D3D12_RAY_FLAG_CULL_OPAQUE	= 0x40,
-        D3D12_RAY_FLAG_CULL_NON_OPAQUE	= 0x80
+        D3D12_RAY_FLAG_CULL_NON_OPAQUE	= 0x80,
+        D3D12_RAY_FLAG_SKIP_TRIANGLES	= 0x100,
+        D3D12_RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES	= 0x200
     } 	D3D12_RAY_FLAGS;
 
 DEFINE_ENUM_FLAG_OPERATORS( D3D12_RAY_FLAGS );
@@ -12479,65 +13444,78 @@ EXTERN_C const IID IID_ID3D12Device5;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Device5 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Device5 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Device5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Device5 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Device5 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Device5 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Device5 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
         UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
             ID3D12Device5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
             ID3D12Device5 * This,
             _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppCommandQueue);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
             ID3D12Device5 * This,
             _In_  D3D12_COMMAND_LIST_TYPE type,
             REFIID riid,
             _COM_Outptr_  void **ppCommandAllocator);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
             ID3D12Device5 * This,
             _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
             ID3D12Device5 * This,
             _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
             ID3D12Device5 * This,
             _In_  UINT nodeMask,
@@ -12547,22 +13525,26 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
         HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
             ID3D12Device5 * This,
             D3D12_FEATURE Feature,
             _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
             UINT FeatureSupportDataSize);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
             ID3D12Device5 * This,
             _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
         UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
             ID3D12Device5 * This,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
             ID3D12Device5 * This,
             _In_  UINT nodeMask,
@@ -12571,17 +13553,20 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_  void **ppvRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
         void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
             ID3D12Device5 * This,
             _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
         void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
             ID3D12Device5 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
         void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
             ID3D12Device5 * This,
             _In_opt_  ID3D12Resource *pResource,
@@ -12589,23 +13574,27 @@ EXTERN_C const IID IID_ID3D12Device5;
             _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
         void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
             ID3D12Device5 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
         void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
             ID3D12Device5 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
         void ( STDMETHODCALLTYPE *CreateSampler )( 
             ID3D12Device5 * This,
             _In_  const D3D12_SAMPLER_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
         void ( STDMETHODCALLTYPE *CopyDescriptors )( 
             ID3D12Device5 * This,
             _In_  UINT NumDestDescriptorRanges,
@@ -12616,6 +13605,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
         void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
             ID3D12Device5 * This,
             _In_  UINT NumDescriptors,
@@ -12623,17 +13613,22 @@ EXTERN_C const IID IID_ID3D12Device5;
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
             ID3D12Device5 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             _In_  UINT visibleMask,
             _In_  UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
         
-        D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
             ID3D12Device5 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
             _In_  UINT nodeMask,
             D3D12_HEAP_TYPE heapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
             ID3D12Device5 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -12644,12 +13639,14 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
             ID3D12Device5 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
         HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
             ID3D12Device5 * This,
             _In_  ID3D12Heap *pHeap,
@@ -12660,6 +13657,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
             ID3D12Device5 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -12668,6 +13666,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
             ID3D12Device5 * This,
             _In_  ID3D12DeviceChild *pObject,
@@ -12676,12 +13675,14 @@ EXTERN_C const IID IID_ID3D12Device5;
             _In_opt_  LPCWSTR Name,
             _Out_  HANDLE *pHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
             ID3D12Device5 * This,
             _In_  HANDLE NTHandle,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvObj);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
             ID3D12Device5 * This,
             _In_  LPCWSTR Name,
@@ -12689,16 +13690,19 @@ EXTERN_C const IID IID_ID3D12Device5;
             /* [annotation][out] */ 
             _Out_  HANDLE *pNTHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
         HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
             ID3D12Device5 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
         HRESULT ( STDMETHODCALLTYPE *Evict )( 
             ID3D12Device5 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
         HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
             ID3D12Device5 * This,
             UINT64 InitialValue,
@@ -12706,9 +13710,11 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
         HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
             ID3D12Device5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
         void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
             ID3D12Device5 * This,
             _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
@@ -12720,16 +13726,19 @@ EXTERN_C const IID IID_ID3D12Device5;
             _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
             _Out_opt_  UINT64 *pTotalBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
             ID3D12Device5 * This,
             _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
         HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
             ID3D12Device5 * This,
             BOOL Enable);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
             ID3D12Device5 * This,
             _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
@@ -12737,6 +13746,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvCommandSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
         void ( STDMETHODCALLTYPE *GetResourceTiling )( 
             ID3D12Device5 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -12747,9 +13757,12 @@ EXTERN_C const IID IID_ID3D12Device5;
             _In_  UINT FirstSubresourceTilingToGet,
             _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
         
-        LUID ( STDMETHODCALLTYPE *GetAdapterLuid )( 
-            ID3D12Device5 * This);
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device5 * This,
+            LUID * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
             ID3D12Device5 * This,
             _In_reads_(BlobLength)  const void *pLibraryBlob,
@@ -12757,6 +13770,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineLibrary);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
         HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
             ID3D12Device5 * This,
             _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
@@ -12765,30 +13779,35 @@ EXTERN_C const IID IID_ID3D12Device5;
             D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
             HANDLE hEvent);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
         HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
             ID3D12Device5 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
             _In_reads_(NumObjects)  const D3D12_RESIDENCY_PRIORITY *pPriorities);
         
+        DECLSPEC_XFGVIRT(ID3D12Device2, CreatePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineState )( 
             ID3D12Device5 * This,
             const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromAddress)
         HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromAddress )( 
             ID3D12Device5 * This,
             _In_  const void *pAddress,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromFileMapping)
         HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromFileMapping )( 
             ID3D12Device5 * This,
             _In_  HANDLE hFileMapping,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, EnqueueMakeResident)
         HRESULT ( STDMETHODCALLTYPE *EnqueueMakeResident )( 
             ID3D12Device5 * This,
             D3D12_RESIDENCY_FLAGS Flags,
@@ -12797,6 +13816,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             _In_  ID3D12Fence *pFenceToSignal,
             UINT64 FenceValueToSignal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommandList1)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList1 )( 
             ID3D12Device5 * This,
             _In_  UINT nodeMask,
@@ -12805,12 +13825,14 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession )( 
             ID3D12Device5 * This,
             _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc,
             _In_  REFIID riid,
             _COM_Outptr_  void **ppSession);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommittedResource1)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource1 )( 
             ID3D12Device5 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -12822,6 +13844,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateHeap1)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap1 )( 
             ID3D12Device5 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
@@ -12829,6 +13852,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateReservedResource1)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource1 )( 
             ID3D12Device5 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -12838,27 +13862,33 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
+        DECLSPEC_XFGVIRT(ID3D12Device4, GetResourceAllocationInfo1)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
             ID3D12Device5 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             UINT visibleMask,
             UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs,
             _Out_writes_opt_(numResourceDescs)  D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateLifetimeTracker)
         HRESULT ( STDMETHODCALLTYPE *CreateLifetimeTracker )( 
             ID3D12Device5 * This,
             _In_  ID3D12LifetimeOwner *pOwner,
             REFIID riid,
             _COM_Outptr_  void **ppvTracker);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, RemoveDevice)
         void ( STDMETHODCALLTYPE *RemoveDevice )( 
             ID3D12Device5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommands)
         HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommands )( 
             ID3D12Device5 * This,
             _Inout_  UINT *pNumMetaCommands,
             _Out_writes_opt_(*pNumMetaCommands)  D3D12_META_COMMAND_DESC *pDescs);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommandParameters)
         HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommandParameters )( 
             ID3D12Device5 * This,
             _In_  REFGUID CommandId,
@@ -12867,6 +13897,7 @@ EXTERN_C const IID IID_ID3D12Device5;
             _Inout_  UINT *pParameterCount,
             _Out_writes_opt_(*pParameterCount)  D3D12_META_COMMAND_PARAMETER_DESC *pParameterDescs);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateMetaCommand)
         HRESULT ( STDMETHODCALLTYPE *CreateMetaCommand )( 
             ID3D12Device5 * This,
             _In_  REFGUID CommandId,
@@ -12876,17 +13907,20 @@ EXTERN_C const IID IID_ID3D12Device5;
             REFIID riid,
             _COM_Outptr_  void **ppMetaCommand);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateStateObject)
         HRESULT ( STDMETHODCALLTYPE *CreateStateObject )( 
             ID3D12Device5 * This,
             const D3D12_STATE_OBJECT_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppStateObject);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, GetRaytracingAccelerationStructurePrebuildInfo)
         void ( STDMETHODCALLTYPE *GetRaytracingAccelerationStructurePrebuildInfo )( 
             ID3D12Device5 * This,
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
             _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, CheckDriverMatchingIdentifier)
         D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS ( STDMETHODCALLTYPE *CheckDriverMatchingIdentifier )( 
             ID3D12Device5 * This,
             _In_  D3D12_SERIALIZED_DATA_TYPE SerializedDataType,
@@ -12982,11 +14016,11 @@ EXTERN_C const IID IID_ID3D12Device5;
 #define ID3D12Device5_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
     ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
 
-#define ID3D12Device5_GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs) ) 
+#define ID3D12Device5_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
 
-#define ID3D12Device5_GetCustomHeapProperties(This,nodeMask,heapType)	\
-    ( (This)->lpVtbl -> GetCustomHeapProperties(This,nodeMask,heapType) ) 
+#define ID3D12Device5_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
 
 #define ID3D12Device5_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
     ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
@@ -13036,8 +14070,8 @@ EXTERN_C const IID IID_ID3D12Device5;
 #define ID3D12Device5_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
     ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
 
-#define ID3D12Device5_GetAdapterLuid(This)	\
-    ( (This)->lpVtbl -> GetAdapterLuid(This) ) 
+#define ID3D12Device5_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
 
 
 #define ID3D12Device5_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
@@ -13079,8 +14113,8 @@ EXTERN_C const IID IID_ID3D12Device5;
 #define ID3D12Device5_CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource)	\
     ( (This)->lpVtbl -> CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource) ) 
 
-#define ID3D12Device5_GetResourceAllocationInfo1(This,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
+#define ID3D12Device5_GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
 
 
 #define ID3D12Device5_CreateLifetimeTracker(This,pOwner,riid,ppvTracker)	\
@@ -13165,7 +14199,10 @@ enum D3D12_AUTO_BREADCRUMB_OP
         D3D12_AUTO_BREADCRUMB_OP_RESOLVEMOTIONVECTORHEAP	= 38,
         D3D12_AUTO_BREADCRUMB_OP_SETPIPELINESTATE1	= 39,
         D3D12_AUTO_BREADCRUMB_OP_INITIALIZEEXTENSIONCOMMAND	= 40,
-        D3D12_AUTO_BREADCRUMB_OP_EXECUTEEXTENSIONCOMMAND	= 41
+        D3D12_AUTO_BREADCRUMB_OP_EXECUTEEXTENSIONCOMMAND	= 41,
+        D3D12_AUTO_BREADCRUMB_OP_DISPATCHMESH	= 42,
+        D3D12_AUTO_BREADCRUMB_OP_ENCODEFRAME	= 43,
+        D3D12_AUTO_BREADCRUMB_OP_RESOLVEENCODEROUTPUTMETADATA	= 44
     } 	D3D12_AUTO_BREADCRUMB_OP;
 
 typedef struct D3D12_AUTO_BREADCRUMB_NODE
@@ -13182,11 +14219,35 @@ typedef struct D3D12_AUTO_BREADCRUMB_NODE
     const struct D3D12_AUTO_BREADCRUMB_NODE *pNext;
     } 	D3D12_AUTO_BREADCRUMB_NODE;
 
+typedef struct D3D12_DRED_BREADCRUMB_CONTEXT
+    {
+    UINT BreadcrumbIndex;
+    const wchar_t *pContextString;
+    } 	D3D12_DRED_BREADCRUMB_CONTEXT;
+
+typedef struct D3D12_AUTO_BREADCRUMB_NODE1
+    {
+    const char *pCommandListDebugNameA;
+    const wchar_t *pCommandListDebugNameW;
+    const char *pCommandQueueDebugNameA;
+    const wchar_t *pCommandQueueDebugNameW;
+    ID3D12GraphicsCommandList *pCommandList;
+    ID3D12CommandQueue *pCommandQueue;
+    UINT BreadcrumbCount;
+    const UINT *pLastBreadcrumbValue;
+    const D3D12_AUTO_BREADCRUMB_OP *pCommandHistory;
+    const struct D3D12_AUTO_BREADCRUMB_NODE1 *pNext;
+    UINT BreadcrumbContextsCount;
+    D3D12_DRED_BREADCRUMB_CONTEXT *pBreadcrumbContexts;
+    } 	D3D12_AUTO_BREADCRUMB_NODE1;
+
 typedef 
 enum D3D12_DRED_VERSION
     {
         D3D12_DRED_VERSION_1_0	= 0x1,
-        D3D12_DRED_VERSION_1_1	= 0x2
+        D3D12_DRED_VERSION_1_1	= 0x2,
+        D3D12_DRED_VERSION_1_2	= 0x3,
+        D3D12_DRED_VERSION_1_3	= 0x4
     } 	D3D12_DRED_VERSION;
 
 typedef 
@@ -13241,6 +14302,8 @@ enum D3D12_DRED_ALLOCATION_TYPE
         D3D12_DRED_ALLOCATION_TYPE_VIDEO_MOTION_ESTIMATOR	= 45,
         D3D12_DRED_ALLOCATION_TYPE_VIDEO_MOTION_VECTOR_HEAP	= 46,
         D3D12_DRED_ALLOCATION_TYPE_VIDEO_EXTENSION_COMMAND	= 47,
+        D3D12_DRED_ALLOCATION_TYPE_VIDEO_ENCODER	= 48,
+        D3D12_DRED_ALLOCATION_TYPE_VIDEO_ENCODER_HEAP	= 49,
         D3D12_DRED_ALLOCATION_TYPE_INVALID	= 0xffffffff
     } 	D3D12_DRED_ALLOCATION_TYPE;
 
@@ -13252,10 +14315,24 @@ typedef struct D3D12_DRED_ALLOCATION_NODE
     const struct D3D12_DRED_ALLOCATION_NODE *pNext;
     } 	D3D12_DRED_ALLOCATION_NODE;
 
+typedef struct D3D12_DRED_ALLOCATION_NODE1
+    {
+    const char *ObjectNameA;
+    const wchar_t *ObjectNameW;
+    D3D12_DRED_ALLOCATION_TYPE AllocationType;
+    const struct D3D12_DRED_ALLOCATION_NODE1 *pNext;
+    const IUnknown *pObject;
+    } 	D3D12_DRED_ALLOCATION_NODE1;
+
 typedef struct D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT
     {
     _Out_  const D3D12_AUTO_BREADCRUMB_NODE *pHeadAutoBreadcrumbNode;
     } 	D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT;
+
+typedef struct D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1
+    {
+    _Out_  const D3D12_AUTO_BREADCRUMB_NODE1 *pHeadAutoBreadcrumbNode;
+    } 	D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1;
 
 typedef struct D3D12_DRED_PAGE_FAULT_OUTPUT
     {
@@ -13264,12 +14341,58 @@ typedef struct D3D12_DRED_PAGE_FAULT_OUTPUT
     _Out_  const D3D12_DRED_ALLOCATION_NODE *pHeadRecentFreedAllocationNode;
     } 	D3D12_DRED_PAGE_FAULT_OUTPUT;
 
+typedef struct D3D12_DRED_PAGE_FAULT_OUTPUT1
+    {
+    D3D12_GPU_VIRTUAL_ADDRESS PageFaultVA;
+    _Out_  const D3D12_DRED_ALLOCATION_NODE1 *pHeadExistingAllocationNode;
+    _Out_  const D3D12_DRED_ALLOCATION_NODE1 *pHeadRecentFreedAllocationNode;
+    } 	D3D12_DRED_PAGE_FAULT_OUTPUT1;
+
+typedef 
+enum D3D12_DRED_PAGE_FAULT_FLAGS
+    {
+        D3D12_DRED_PAGE_FAULT_FLAGS_NONE	= 0
+    } 	D3D12_DRED_PAGE_FAULT_FLAGS;
+
+DEFINE_ENUM_FLAG_OPERATORS( D3D12_DRED_PAGE_FAULT_FLAGS );
+typedef 
+enum D3D12_DRED_DEVICE_STATE
+    {
+        D3D12_DRED_DEVICE_STATE_UNKNOWN	= 0,
+        D3D12_DRED_DEVICE_STATE_HUNG	= 3,
+        D3D12_DRED_DEVICE_STATE_FAULT	= 6,
+        D3D12_DRED_DEVICE_STATE_PAGEFAULT	= 7
+    } 	D3D12_DRED_DEVICE_STATE;
+
+typedef struct D3D12_DRED_PAGE_FAULT_OUTPUT2
+    {
+    D3D12_GPU_VIRTUAL_ADDRESS PageFaultVA;
+    _Out_  const D3D12_DRED_ALLOCATION_NODE1 *pHeadExistingAllocationNode;
+    _Out_  const D3D12_DRED_ALLOCATION_NODE1 *pHeadRecentFreedAllocationNode;
+    D3D12_DRED_PAGE_FAULT_FLAGS PageFaultFlags;
+    } 	D3D12_DRED_PAGE_FAULT_OUTPUT2;
+
 typedef struct D3D12_DEVICE_REMOVED_EXTENDED_DATA1
     {
     HRESULT DeviceRemovedReason;
     D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT AutoBreadcrumbsOutput;
     D3D12_DRED_PAGE_FAULT_OUTPUT PageFaultOutput;
     } 	D3D12_DEVICE_REMOVED_EXTENDED_DATA1;
+
+typedef struct D3D12_DEVICE_REMOVED_EXTENDED_DATA2
+    {
+    HRESULT DeviceRemovedReason;
+    D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 AutoBreadcrumbsOutput;
+    D3D12_DRED_PAGE_FAULT_OUTPUT1 PageFaultOutput;
+    } 	D3D12_DEVICE_REMOVED_EXTENDED_DATA2;
+
+typedef struct D3D12_DEVICE_REMOVED_EXTENDED_DATA3
+    {
+    HRESULT DeviceRemovedReason;
+    D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 AutoBreadcrumbsOutput;
+    D3D12_DRED_PAGE_FAULT_OUTPUT2 PageFaultOutput;
+    D3D12_DRED_DEVICE_STATE DeviceState;
+    } 	D3D12_DEVICE_REMOVED_EXTENDED_DATA3;
 
 typedef struct D3D12_VERSIONED_DEVICE_REMOVED_EXTENDED_DATA
     {
@@ -13278,6 +14401,8 @@ typedef struct D3D12_VERSIONED_DEVICE_REMOVED_EXTENDED_DATA
         {
         D3D12_DEVICE_REMOVED_EXTENDED_DATA Dred_1_0;
         D3D12_DEVICE_REMOVED_EXTENDED_DATA1 Dred_1_1;
+        D3D12_DEVICE_REMOVED_EXTENDED_DATA2 Dred_1_2;
+        D3D12_DEVICE_REMOVED_EXTENDED_DATA3 Dred_1_3;
         } 	;
     } 	D3D12_VERSIONED_DEVICE_REMOVED_EXTENDED_DATA;
 
@@ -13302,13 +14427,13 @@ EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedDataSettings;
     {
     public:
         virtual void STDMETHODCALLTYPE SetAutoBreadcrumbsEnablement( 
-            D3D12_DRED_ENABLEMENT __MIDL__ID3D12DeviceRemovedExtendedDataSettings0000) = 0;
+            D3D12_DRED_ENABLEMENT Enablement) = 0;
         
         virtual void STDMETHODCALLTYPE SetPageFaultEnablement( 
-            D3D12_DRED_ENABLEMENT __MIDL__ID3D12DeviceRemovedExtendedDataSettings0001) = 0;
+            D3D12_DRED_ENABLEMENT Enablement) = 0;
         
         virtual void STDMETHODCALLTYPE SetWatsonDumpEnablement( 
-            D3D12_DRED_ENABLEMENT __MIDL__ID3D12DeviceRemovedExtendedDataSettings0002) = 0;
+            D3D12_DRED_ENABLEMENT Enablement) = 0;
         
     };
     
@@ -13319,28 +14444,34 @@ EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedDataSettings;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12DeviceRemovedExtendedDataSettings * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12DeviceRemovedExtendedDataSettings * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12DeviceRemovedExtendedDataSettings * This);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedDataSettings, SetAutoBreadcrumbsEnablement)
         void ( STDMETHODCALLTYPE *SetAutoBreadcrumbsEnablement )( 
             ID3D12DeviceRemovedExtendedDataSettings * This,
-            D3D12_DRED_ENABLEMENT __MIDL__ID3D12DeviceRemovedExtendedDataSettings0000);
+            D3D12_DRED_ENABLEMENT Enablement);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedDataSettings, SetPageFaultEnablement)
         void ( STDMETHODCALLTYPE *SetPageFaultEnablement )( 
             ID3D12DeviceRemovedExtendedDataSettings * This,
-            D3D12_DRED_ENABLEMENT __MIDL__ID3D12DeviceRemovedExtendedDataSettings0001);
+            D3D12_DRED_ENABLEMENT Enablement);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedDataSettings, SetWatsonDumpEnablement)
         void ( STDMETHODCALLTYPE *SetWatsonDumpEnablement )( 
             ID3D12DeviceRemovedExtendedDataSettings * This,
-            D3D12_DRED_ENABLEMENT __MIDL__ID3D12DeviceRemovedExtendedDataSettings0002);
+            D3D12_DRED_ENABLEMENT Enablement);
         
         END_INTERFACE
     } ID3D12DeviceRemovedExtendedDataSettingsVtbl;
@@ -13365,14 +14496,14 @@ EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedDataSettings;
     ( (This)->lpVtbl -> Release(This) ) 
 
 
-#define ID3D12DeviceRemovedExtendedDataSettings_SetAutoBreadcrumbsEnablement(This,__MIDL__ID3D12DeviceRemovedExtendedDataSettings0000)	\
-    ( (This)->lpVtbl -> SetAutoBreadcrumbsEnablement(This,__MIDL__ID3D12DeviceRemovedExtendedDataSettings0000) ) 
+#define ID3D12DeviceRemovedExtendedDataSettings_SetAutoBreadcrumbsEnablement(This,Enablement)	\
+    ( (This)->lpVtbl -> SetAutoBreadcrumbsEnablement(This,Enablement) ) 
 
-#define ID3D12DeviceRemovedExtendedDataSettings_SetPageFaultEnablement(This,__MIDL__ID3D12DeviceRemovedExtendedDataSettings0001)	\
-    ( (This)->lpVtbl -> SetPageFaultEnablement(This,__MIDL__ID3D12DeviceRemovedExtendedDataSettings0001) ) 
+#define ID3D12DeviceRemovedExtendedDataSettings_SetPageFaultEnablement(This,Enablement)	\
+    ( (This)->lpVtbl -> SetPageFaultEnablement(This,Enablement) ) 
 
-#define ID3D12DeviceRemovedExtendedDataSettings_SetWatsonDumpEnablement(This,__MIDL__ID3D12DeviceRemovedExtendedDataSettings0002)	\
-    ( (This)->lpVtbl -> SetWatsonDumpEnablement(This,__MIDL__ID3D12DeviceRemovedExtendedDataSettings0002) ) 
+#define ID3D12DeviceRemovedExtendedDataSettings_SetWatsonDumpEnablement(This,Enablement)	\
+    ( (This)->lpVtbl -> SetWatsonDumpEnablement(This,Enablement) ) 
 
 #endif /* COBJMACROS */
 
@@ -13383,6 +14514,114 @@ EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedDataSettings;
 
 
 #endif 	/* __ID3D12DeviceRemovedExtendedDataSettings_INTERFACE_DEFINED__ */
+
+
+#ifndef __ID3D12DeviceRemovedExtendedDataSettings1_INTERFACE_DEFINED__
+#define __ID3D12DeviceRemovedExtendedDataSettings1_INTERFACE_DEFINED__
+
+/* interface ID3D12DeviceRemovedExtendedDataSettings1 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedDataSettings1;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("DBD5AE51-3317-4F0A-ADF9-1D7CEDCAAE0B")
+    ID3D12DeviceRemovedExtendedDataSettings1 : public ID3D12DeviceRemovedExtendedDataSettings
+    {
+    public:
+        virtual void STDMETHODCALLTYPE SetBreadcrumbContextEnablement( 
+            D3D12_DRED_ENABLEMENT Enablement) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12DeviceRemovedExtendedDataSettings1Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12DeviceRemovedExtendedDataSettings1 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12DeviceRemovedExtendedDataSettings1 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12DeviceRemovedExtendedDataSettings1 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedDataSettings, SetAutoBreadcrumbsEnablement)
+        void ( STDMETHODCALLTYPE *SetAutoBreadcrumbsEnablement )( 
+            ID3D12DeviceRemovedExtendedDataSettings1 * This,
+            D3D12_DRED_ENABLEMENT Enablement);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedDataSettings, SetPageFaultEnablement)
+        void ( STDMETHODCALLTYPE *SetPageFaultEnablement )( 
+            ID3D12DeviceRemovedExtendedDataSettings1 * This,
+            D3D12_DRED_ENABLEMENT Enablement);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedDataSettings, SetWatsonDumpEnablement)
+        void ( STDMETHODCALLTYPE *SetWatsonDumpEnablement )( 
+            ID3D12DeviceRemovedExtendedDataSettings1 * This,
+            D3D12_DRED_ENABLEMENT Enablement);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedDataSettings1, SetBreadcrumbContextEnablement)
+        void ( STDMETHODCALLTYPE *SetBreadcrumbContextEnablement )( 
+            ID3D12DeviceRemovedExtendedDataSettings1 * This,
+            D3D12_DRED_ENABLEMENT Enablement);
+        
+        END_INTERFACE
+    } ID3D12DeviceRemovedExtendedDataSettings1Vtbl;
+
+    interface ID3D12DeviceRemovedExtendedDataSettings1
+    {
+        CONST_VTBL struct ID3D12DeviceRemovedExtendedDataSettings1Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12DeviceRemovedExtendedDataSettings1_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12DeviceRemovedExtendedDataSettings1_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12DeviceRemovedExtendedDataSettings1_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12DeviceRemovedExtendedDataSettings1_SetAutoBreadcrumbsEnablement(This,Enablement)	\
+    ( (This)->lpVtbl -> SetAutoBreadcrumbsEnablement(This,Enablement) ) 
+
+#define ID3D12DeviceRemovedExtendedDataSettings1_SetPageFaultEnablement(This,Enablement)	\
+    ( (This)->lpVtbl -> SetPageFaultEnablement(This,Enablement) ) 
+
+#define ID3D12DeviceRemovedExtendedDataSettings1_SetWatsonDumpEnablement(This,Enablement)	\
+    ( (This)->lpVtbl -> SetWatsonDumpEnablement(This,Enablement) ) 
+
+
+#define ID3D12DeviceRemovedExtendedDataSettings1_SetBreadcrumbContextEnablement(This,Enablement)	\
+    ( (This)->lpVtbl -> SetBreadcrumbContextEnablement(This,Enablement) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ID3D12DeviceRemovedExtendedDataSettings1_INTERFACE_DEFINED__ */
 
 
 #ifndef __ID3D12DeviceRemovedExtendedData_INTERFACE_DEFINED__
@@ -13401,10 +14640,10 @@ EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedData;
     {
     public:
         virtual HRESULT STDMETHODCALLTYPE GetAutoBreadcrumbsOutput( 
-            D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT *pOutput) = 0;
+            _Out_  D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT *pOutput) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetPageFaultAllocationOutput( 
-            D3D12_DRED_PAGE_FAULT_OUTPUT *pOutput) = 0;
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT *pOutput) = 0;
         
     };
     
@@ -13415,24 +14654,29 @@ EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedData;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12DeviceRemovedExtendedData * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12DeviceRemovedExtendedData * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12DeviceRemovedExtendedData * This);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData, GetAutoBreadcrumbsOutput)
         HRESULT ( STDMETHODCALLTYPE *GetAutoBreadcrumbsOutput )( 
             ID3D12DeviceRemovedExtendedData * This,
-            D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT *pOutput);
+            _Out_  D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT *pOutput);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData, GetPageFaultAllocationOutput)
         HRESULT ( STDMETHODCALLTYPE *GetPageFaultAllocationOutput )( 
             ID3D12DeviceRemovedExtendedData * This,
-            D3D12_DRED_PAGE_FAULT_OUTPUT *pOutput);
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT *pOutput);
         
         END_INTERFACE
     } ID3D12DeviceRemovedExtendedDataVtbl;
@@ -13474,7 +14718,244 @@ EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedData;
 #endif 	/* __ID3D12DeviceRemovedExtendedData_INTERFACE_DEFINED__ */
 
 
-/* interface __MIDL_itf_d3d12_0000_0037 */
+#ifndef __ID3D12DeviceRemovedExtendedData1_INTERFACE_DEFINED__
+#define __ID3D12DeviceRemovedExtendedData1_INTERFACE_DEFINED__
+
+/* interface ID3D12DeviceRemovedExtendedData1 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedData1;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("9727A022-CF1D-4DDA-9EBA-EFFA653FC506")
+    ID3D12DeviceRemovedExtendedData1 : public ID3D12DeviceRemovedExtendedData
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE GetAutoBreadcrumbsOutput1( 
+            _Out_  D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 *pOutput) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetPageFaultAllocationOutput1( 
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT1 *pOutput) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12DeviceRemovedExtendedData1Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12DeviceRemovedExtendedData1 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12DeviceRemovedExtendedData1 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12DeviceRemovedExtendedData1 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData, GetAutoBreadcrumbsOutput)
+        HRESULT ( STDMETHODCALLTYPE *GetAutoBreadcrumbsOutput )( 
+            ID3D12DeviceRemovedExtendedData1 * This,
+            _Out_  D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT *pOutput);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData, GetPageFaultAllocationOutput)
+        HRESULT ( STDMETHODCALLTYPE *GetPageFaultAllocationOutput )( 
+            ID3D12DeviceRemovedExtendedData1 * This,
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT *pOutput);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData1, GetAutoBreadcrumbsOutput1)
+        HRESULT ( STDMETHODCALLTYPE *GetAutoBreadcrumbsOutput1 )( 
+            ID3D12DeviceRemovedExtendedData1 * This,
+            _Out_  D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 *pOutput);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData1, GetPageFaultAllocationOutput1)
+        HRESULT ( STDMETHODCALLTYPE *GetPageFaultAllocationOutput1 )( 
+            ID3D12DeviceRemovedExtendedData1 * This,
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT1 *pOutput);
+        
+        END_INTERFACE
+    } ID3D12DeviceRemovedExtendedData1Vtbl;
+
+    interface ID3D12DeviceRemovedExtendedData1
+    {
+        CONST_VTBL struct ID3D12DeviceRemovedExtendedData1Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12DeviceRemovedExtendedData1_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12DeviceRemovedExtendedData1_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12DeviceRemovedExtendedData1_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12DeviceRemovedExtendedData1_GetAutoBreadcrumbsOutput(This,pOutput)	\
+    ( (This)->lpVtbl -> GetAutoBreadcrumbsOutput(This,pOutput) ) 
+
+#define ID3D12DeviceRemovedExtendedData1_GetPageFaultAllocationOutput(This,pOutput)	\
+    ( (This)->lpVtbl -> GetPageFaultAllocationOutput(This,pOutput) ) 
+
+
+#define ID3D12DeviceRemovedExtendedData1_GetAutoBreadcrumbsOutput1(This,pOutput)	\
+    ( (This)->lpVtbl -> GetAutoBreadcrumbsOutput1(This,pOutput) ) 
+
+#define ID3D12DeviceRemovedExtendedData1_GetPageFaultAllocationOutput1(This,pOutput)	\
+    ( (This)->lpVtbl -> GetPageFaultAllocationOutput1(This,pOutput) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ID3D12DeviceRemovedExtendedData1_INTERFACE_DEFINED__ */
+
+
+#ifndef __ID3D12DeviceRemovedExtendedData2_INTERFACE_DEFINED__
+#define __ID3D12DeviceRemovedExtendedData2_INTERFACE_DEFINED__
+
+/* interface ID3D12DeviceRemovedExtendedData2 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12DeviceRemovedExtendedData2;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("67FC5816-E4CA-4915-BF18-42541272DA54")
+    ID3D12DeviceRemovedExtendedData2 : public ID3D12DeviceRemovedExtendedData1
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE GetPageFaultAllocationOutput2( 
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT2 *pOutput) = 0;
+        
+        virtual D3D12_DRED_DEVICE_STATE STDMETHODCALLTYPE GetDeviceState( void) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12DeviceRemovedExtendedData2Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12DeviceRemovedExtendedData2 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12DeviceRemovedExtendedData2 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12DeviceRemovedExtendedData2 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData, GetAutoBreadcrumbsOutput)
+        HRESULT ( STDMETHODCALLTYPE *GetAutoBreadcrumbsOutput )( 
+            ID3D12DeviceRemovedExtendedData2 * This,
+            _Out_  D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT *pOutput);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData, GetPageFaultAllocationOutput)
+        HRESULT ( STDMETHODCALLTYPE *GetPageFaultAllocationOutput )( 
+            ID3D12DeviceRemovedExtendedData2 * This,
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT *pOutput);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData1, GetAutoBreadcrumbsOutput1)
+        HRESULT ( STDMETHODCALLTYPE *GetAutoBreadcrumbsOutput1 )( 
+            ID3D12DeviceRemovedExtendedData2 * This,
+            _Out_  D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 *pOutput);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData1, GetPageFaultAllocationOutput1)
+        HRESULT ( STDMETHODCALLTYPE *GetPageFaultAllocationOutput1 )( 
+            ID3D12DeviceRemovedExtendedData2 * This,
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT1 *pOutput);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData2, GetPageFaultAllocationOutput2)
+        HRESULT ( STDMETHODCALLTYPE *GetPageFaultAllocationOutput2 )( 
+            ID3D12DeviceRemovedExtendedData2 * This,
+            _Out_  D3D12_DRED_PAGE_FAULT_OUTPUT2 *pOutput);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceRemovedExtendedData2, GetDeviceState)
+        D3D12_DRED_DEVICE_STATE ( STDMETHODCALLTYPE *GetDeviceState )( 
+            ID3D12DeviceRemovedExtendedData2 * This);
+        
+        END_INTERFACE
+    } ID3D12DeviceRemovedExtendedData2Vtbl;
+
+    interface ID3D12DeviceRemovedExtendedData2
+    {
+        CONST_VTBL struct ID3D12DeviceRemovedExtendedData2Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12DeviceRemovedExtendedData2_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12DeviceRemovedExtendedData2_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12DeviceRemovedExtendedData2_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12DeviceRemovedExtendedData2_GetAutoBreadcrumbsOutput(This,pOutput)	\
+    ( (This)->lpVtbl -> GetAutoBreadcrumbsOutput(This,pOutput) ) 
+
+#define ID3D12DeviceRemovedExtendedData2_GetPageFaultAllocationOutput(This,pOutput)	\
+    ( (This)->lpVtbl -> GetPageFaultAllocationOutput(This,pOutput) ) 
+
+
+#define ID3D12DeviceRemovedExtendedData2_GetAutoBreadcrumbsOutput1(This,pOutput)	\
+    ( (This)->lpVtbl -> GetAutoBreadcrumbsOutput1(This,pOutput) ) 
+
+#define ID3D12DeviceRemovedExtendedData2_GetPageFaultAllocationOutput1(This,pOutput)	\
+    ( (This)->lpVtbl -> GetPageFaultAllocationOutput1(This,pOutput) ) 
+
+
+#define ID3D12DeviceRemovedExtendedData2_GetPageFaultAllocationOutput2(This,pOutput)	\
+    ( (This)->lpVtbl -> GetPageFaultAllocationOutput2(This,pOutput) ) 
+
+#define ID3D12DeviceRemovedExtendedData2_GetDeviceState(This)	\
+    ( (This)->lpVtbl -> GetDeviceState(This) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ID3D12DeviceRemovedExtendedData2_INTERFACE_DEFINED__ */
+
+
+/* interface __MIDL_itf_d3d12_0000_0040 */
 /* [local] */ 
 
 typedef 
@@ -13497,8 +14978,8 @@ enum D3D12_MEASUREMENTS_ACTION
 
 
 
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0037_v0_0_c_ifspec;
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0037_v0_0_s_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0040_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0040_v0_0_s_ifspec;
 
 #ifndef __ID3D12Device6_INTERFACE_DEFINED__
 #define __ID3D12Device6_INTERFACE_DEFINED__
@@ -13530,65 +15011,78 @@ EXTERN_C const IID IID_ID3D12Device6;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Device6 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Device6 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Device6 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Device6 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Device6 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Device6 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Device6 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
         UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
             ID3D12Device6 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
             ID3D12Device6 * This,
             _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppCommandQueue);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
             ID3D12Device6 * This,
             _In_  D3D12_COMMAND_LIST_TYPE type,
             REFIID riid,
             _COM_Outptr_  void **ppCommandAllocator);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
             ID3D12Device6 * This,
             _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
             ID3D12Device6 * This,
             _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
             ID3D12Device6 * This,
             _In_  UINT nodeMask,
@@ -13598,22 +15092,26 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
         HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
             ID3D12Device6 * This,
             D3D12_FEATURE Feature,
             _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
             UINT FeatureSupportDataSize);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
             ID3D12Device6 * This,
             _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
         UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
             ID3D12Device6 * This,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
             ID3D12Device6 * This,
             _In_  UINT nodeMask,
@@ -13622,17 +15120,20 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_  void **ppvRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
         void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
             ID3D12Device6 * This,
             _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
         void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
             ID3D12Device6 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
         void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
             ID3D12Device6 * This,
             _In_opt_  ID3D12Resource *pResource,
@@ -13640,23 +15141,27 @@ EXTERN_C const IID IID_ID3D12Device6;
             _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
         void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
             ID3D12Device6 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
         void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
             ID3D12Device6 * This,
             _In_opt_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
         void ( STDMETHODCALLTYPE *CreateSampler )( 
             ID3D12Device6 * This,
             _In_  const D3D12_SAMPLER_DESC *pDesc,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
         void ( STDMETHODCALLTYPE *CopyDescriptors )( 
             ID3D12Device6 * This,
             _In_  UINT NumDestDescriptorRanges,
@@ -13667,6 +15172,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
         void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
             ID3D12Device6 * This,
             _In_  UINT NumDescriptors,
@@ -13674,17 +15180,22 @@ EXTERN_C const IID IID_ID3D12Device6;
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
             _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
             ID3D12Device6 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             _In_  UINT visibleMask,
             _In_  UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
         
-        D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
             ID3D12Device6 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
             _In_  UINT nodeMask,
             D3D12_HEAP_TYPE heapType);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
             ID3D12Device6 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -13695,12 +15206,14 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
             ID3D12Device6 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
         HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
             ID3D12Device6 * This,
             _In_  ID3D12Heap *pHeap,
@@ -13711,6 +15224,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
             ID3D12Device6 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -13719,6 +15233,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
             ID3D12Device6 * This,
             _In_  ID3D12DeviceChild *pObject,
@@ -13727,12 +15242,14 @@ EXTERN_C const IID IID_ID3D12Device6;
             _In_opt_  LPCWSTR Name,
             _Out_  HANDLE *pHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
             ID3D12Device6 * This,
             _In_  HANDLE NTHandle,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvObj);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
         HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
             ID3D12Device6 * This,
             _In_  LPCWSTR Name,
@@ -13740,16 +15257,19 @@ EXTERN_C const IID IID_ID3D12Device6;
             /* [annotation][out] */ 
             _Out_  HANDLE *pNTHandle);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
         HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
             ID3D12Device6 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
         HRESULT ( STDMETHODCALLTYPE *Evict )( 
             ID3D12Device6 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
         HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
             ID3D12Device6 * This,
             UINT64 InitialValue,
@@ -13757,9 +15277,11 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_  void **ppFence);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
         HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
             ID3D12Device6 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
         void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
             ID3D12Device6 * This,
             _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
@@ -13771,16 +15293,19 @@ EXTERN_C const IID IID_ID3D12Device6;
             _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
             _Out_opt_  UINT64 *pTotalBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
         HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
             ID3D12Device6 * This,
             _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
         HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
             ID3D12Device6 * This,
             BOOL Enable);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
             ID3D12Device6 * This,
             _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
@@ -13788,6 +15313,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvCommandSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
         void ( STDMETHODCALLTYPE *GetResourceTiling )( 
             ID3D12Device6 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -13798,9 +15324,12 @@ EXTERN_C const IID IID_ID3D12Device6;
             _In_  UINT FirstSubresourceTilingToGet,
             _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
         
-        LUID ( STDMETHODCALLTYPE *GetAdapterLuid )( 
-            ID3D12Device6 * This);
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device6 * This,
+            LUID * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
             ID3D12Device6 * This,
             _In_reads_(BlobLength)  const void *pLibraryBlob,
@@ -13808,6 +15337,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_  void **ppPipelineLibrary);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
         HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
             ID3D12Device6 * This,
             _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
@@ -13816,30 +15346,35 @@ EXTERN_C const IID IID_ID3D12Device6;
             D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
             HANDLE hEvent);
         
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
         HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
             ID3D12Device6 * This,
             UINT NumObjects,
             _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
             _In_reads_(NumObjects)  const D3D12_RESIDENCY_PRIORITY *pPriorities);
         
+        DECLSPEC_XFGVIRT(ID3D12Device2, CreatePipelineState)
         HRESULT ( STDMETHODCALLTYPE *CreatePipelineState )( 
             ID3D12Device6 * This,
             const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromAddress)
         HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromAddress )( 
             ID3D12Device6 * This,
             _In_  const void *pAddress,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromFileMapping)
         HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromFileMapping )( 
             ID3D12Device6 * This,
             _In_  HANDLE hFileMapping,
             REFIID riid,
             _COM_Outptr_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device3, EnqueueMakeResident)
         HRESULT ( STDMETHODCALLTYPE *EnqueueMakeResident )( 
             ID3D12Device6 * This,
             D3D12_RESIDENCY_FLAGS Flags,
@@ -13848,6 +15383,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             _In_  ID3D12Fence *pFenceToSignal,
             UINT64 FenceValueToSignal);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommandList1)
         HRESULT ( STDMETHODCALLTYPE *CreateCommandList1 )( 
             ID3D12Device6 * This,
             _In_  UINT nodeMask,
@@ -13856,12 +15392,14 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_  void **ppCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession )( 
             ID3D12Device6 * This,
             _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc,
             _In_  REFIID riid,
             _COM_Outptr_  void **ppSession);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommittedResource1)
         HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource1 )( 
             ID3D12Device6 * This,
             _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
@@ -13873,6 +15411,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riidResource,
             _COM_Outptr_opt_  void **ppvResource);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateHeap1)
         HRESULT ( STDMETHODCALLTYPE *CreateHeap1 )( 
             ID3D12Device6 * This,
             _In_  const D3D12_HEAP_DESC *pDesc,
@@ -13880,6 +15419,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvHeap);
         
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateReservedResource1)
         HRESULT ( STDMETHODCALLTYPE *CreateReservedResource1 )( 
             ID3D12Device6 * This,
             _In_  const D3D12_RESOURCE_DESC *pDesc,
@@ -13889,27 +15429,33 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_opt_  void **ppvResource);
         
-        D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
+        DECLSPEC_XFGVIRT(ID3D12Device4, GetResourceAllocationInfo1)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
             ID3D12Device6 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
             UINT visibleMask,
             UINT numResourceDescs,
             _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs,
             _Out_writes_opt_(numResourceDescs)  D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateLifetimeTracker)
         HRESULT ( STDMETHODCALLTYPE *CreateLifetimeTracker )( 
             ID3D12Device6 * This,
             _In_  ID3D12LifetimeOwner *pOwner,
             REFIID riid,
             _COM_Outptr_  void **ppvTracker);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, RemoveDevice)
         void ( STDMETHODCALLTYPE *RemoveDevice )( 
             ID3D12Device6 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommands)
         HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommands )( 
             ID3D12Device6 * This,
             _Inout_  UINT *pNumMetaCommands,
             _Out_writes_opt_(*pNumMetaCommands)  D3D12_META_COMMAND_DESC *pDescs);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommandParameters)
         HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommandParameters )( 
             ID3D12Device6 * This,
             _In_  REFGUID CommandId,
@@ -13918,6 +15464,7 @@ EXTERN_C const IID IID_ID3D12Device6;
             _Inout_  UINT *pParameterCount,
             _Out_writes_opt_(*pParameterCount)  D3D12_META_COMMAND_PARAMETER_DESC *pParameterDescs);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateMetaCommand)
         HRESULT ( STDMETHODCALLTYPE *CreateMetaCommand )( 
             ID3D12Device6 * This,
             _In_  REFGUID CommandId,
@@ -13927,22 +15474,26 @@ EXTERN_C const IID IID_ID3D12Device6;
             REFIID riid,
             _COM_Outptr_  void **ppMetaCommand);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateStateObject)
         HRESULT ( STDMETHODCALLTYPE *CreateStateObject )( 
             ID3D12Device6 * This,
             const D3D12_STATE_OBJECT_DESC *pDesc,
             REFIID riid,
             _COM_Outptr_  void **ppStateObject);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, GetRaytracingAccelerationStructurePrebuildInfo)
         void ( STDMETHODCALLTYPE *GetRaytracingAccelerationStructurePrebuildInfo )( 
             ID3D12Device6 * This,
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
             _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo);
         
+        DECLSPEC_XFGVIRT(ID3D12Device5, CheckDriverMatchingIdentifier)
         D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS ( STDMETHODCALLTYPE *CheckDriverMatchingIdentifier )( 
             ID3D12Device6 * This,
             _In_  D3D12_SERIALIZED_DATA_TYPE SerializedDataType,
             _In_  const D3D12_SERIALIZED_DATA_DRIVER_MATCHING_IDENTIFIER *pIdentifierToCheck);
         
+        DECLSPEC_XFGVIRT(ID3D12Device6, SetBackgroundProcessingMode)
         HRESULT ( STDMETHODCALLTYPE *SetBackgroundProcessingMode )( 
             ID3D12Device6 * This,
             D3D12_BACKGROUND_PROCESSING_MODE Mode,
@@ -14040,11 +15591,11 @@ EXTERN_C const IID IID_ID3D12Device6;
 #define ID3D12Device6_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
     ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
 
-#define ID3D12Device6_GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,visibleMask,numResourceDescs,pResourceDescs) ) 
+#define ID3D12Device6_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
 
-#define ID3D12Device6_GetCustomHeapProperties(This,nodeMask,heapType)	\
-    ( (This)->lpVtbl -> GetCustomHeapProperties(This,nodeMask,heapType) ) 
+#define ID3D12Device6_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
 
 #define ID3D12Device6_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
     ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
@@ -14094,8 +15645,8 @@ EXTERN_C const IID IID_ID3D12Device6;
 #define ID3D12Device6_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
     ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
 
-#define ID3D12Device6_GetAdapterLuid(This)	\
-    ( (This)->lpVtbl -> GetAdapterLuid(This) ) 
+#define ID3D12Device6_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
 
 
 #define ID3D12Device6_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
@@ -14137,8 +15688,8 @@ EXTERN_C const IID IID_ID3D12Device6;
 #define ID3D12Device6_CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource)	\
     ( (This)->lpVtbl -> CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource) ) 
 
-#define ID3D12Device6_GetResourceAllocationInfo1(This,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
-    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
+#define ID3D12Device6_GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
 
 
 #define ID3D12Device6_CreateLifetimeTracker(This,pOwner,riid,ppvTracker)	\
@@ -14180,6 +15731,1849 @@ EXTERN_C const IID IID_ID3D12Device6;
 #endif 	/* __ID3D12Device6_INTERFACE_DEFINED__ */
 
 
+/* interface __MIDL_itf_d3d12_0000_0041 */
+/* [local] */ 
+
+DEFINE_GUID(D3D12_PROTECTED_RESOURCES_SESSION_HARDWARE_PROTECTED,                           0x62B0084E, 0xC70E, 0x4DAA, 0xA1, 0x09, 0x30, 0xFF, 0x8D, 0x5A, 0x04, 0x82); 
+typedef struct D3D12_FEATURE_DATA_PROTECTED_RESOURCE_SESSION_TYPE_COUNT
+    {
+    UINT NodeIndex;
+    UINT Count;
+    } 	D3D12_FEATURE_DATA_PROTECTED_RESOURCE_SESSION_TYPE_COUNT;
+
+typedef struct D3D12_FEATURE_DATA_PROTECTED_RESOURCE_SESSION_TYPES
+    {
+    UINT NodeIndex;
+    UINT Count;
+    GUID *pTypes;
+    } 	D3D12_FEATURE_DATA_PROTECTED_RESOURCE_SESSION_TYPES;
+
+typedef struct D3D12_PROTECTED_RESOURCE_SESSION_DESC1
+    {
+    UINT NodeMask;
+    D3D12_PROTECTED_RESOURCE_SESSION_FLAGS Flags;
+    GUID ProtectionType;
+    } 	D3D12_PROTECTED_RESOURCE_SESSION_DESC1;
+
+
+
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0041_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0041_v0_0_s_ifspec;
+
+#ifndef __ID3D12ProtectedResourceSession1_INTERFACE_DEFINED__
+#define __ID3D12ProtectedResourceSession1_INTERFACE_DEFINED__
+
+/* interface ID3D12ProtectedResourceSession1 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12ProtectedResourceSession1;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("D6F12DD6-76FB-406E-8961-4296EEFC0409")
+    ID3D12ProtectedResourceSession1 : public ID3D12ProtectedResourceSession
+    {
+    public:
+        virtual D3D12_PROTECTED_RESOURCE_SESSION_DESC1 STDMETHODCALLTYPE GetDesc1( void) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12ProtectedResourceSession1Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12ProtectedResourceSession1 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12ProtectedResourceSession1 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12ProtectedResourceSession1 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
+            ID3D12ProtectedResourceSession1 * This,
+            _In_  REFGUID guid,
+            _Inout_  UINT *pDataSize,
+            _Out_writes_bytes_opt_( *pDataSize )  void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
+            ID3D12ProtectedResourceSession1 * This,
+            _In_  REFGUID guid,
+            _In_  UINT DataSize,
+            _In_reads_bytes_opt_( DataSize )  const void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
+            ID3D12ProtectedResourceSession1 * This,
+            _In_  REFGUID guid,
+            _In_opt_  const IUnknown *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
+        HRESULT ( STDMETHODCALLTYPE *SetName )( 
+            ID3D12ProtectedResourceSession1 * This,
+            _In_z_  LPCWSTR Name);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
+        HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
+            ID3D12ProtectedResourceSession1 * This,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvDevice);
+        
+        DECLSPEC_XFGVIRT(ID3D12ProtectedSession, GetStatusFence)
+        HRESULT ( STDMETHODCALLTYPE *GetStatusFence )( 
+            ID3D12ProtectedResourceSession1 * This,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppFence);
+        
+        DECLSPEC_XFGVIRT(ID3D12ProtectedSession, GetSessionStatus)
+        D3D12_PROTECTED_SESSION_STATUS ( STDMETHODCALLTYPE *GetSessionStatus )( 
+            ID3D12ProtectedResourceSession1 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12ProtectedResourceSession, GetDesc)
+        D3D12_PROTECTED_RESOURCE_SESSION_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12ProtectedResourceSession1 * This,
+            D3D12_PROTECTED_RESOURCE_SESSION_DESC * RetVal);
+        
+        DECLSPEC_XFGVIRT(ID3D12ProtectedResourceSession1, GetDesc1)
+        D3D12_PROTECTED_RESOURCE_SESSION_DESC1 *( STDMETHODCALLTYPE *GetDesc1 )( 
+            ID3D12ProtectedResourceSession1 * This,
+            D3D12_PROTECTED_RESOURCE_SESSION_DESC1 * RetVal);
+        
+        END_INTERFACE
+    } ID3D12ProtectedResourceSession1Vtbl;
+
+    interface ID3D12ProtectedResourceSession1
+    {
+        CONST_VTBL struct ID3D12ProtectedResourceSession1Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12ProtectedResourceSession1_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12ProtectedResourceSession1_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12ProtectedResourceSession1_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12ProtectedResourceSession1_GetPrivateData(This,guid,pDataSize,pData)	\
+    ( (This)->lpVtbl -> GetPrivateData(This,guid,pDataSize,pData) ) 
+
+#define ID3D12ProtectedResourceSession1_SetPrivateData(This,guid,DataSize,pData)	\
+    ( (This)->lpVtbl -> SetPrivateData(This,guid,DataSize,pData) ) 
+
+#define ID3D12ProtectedResourceSession1_SetPrivateDataInterface(This,guid,pData)	\
+    ( (This)->lpVtbl -> SetPrivateDataInterface(This,guid,pData) ) 
+
+#define ID3D12ProtectedResourceSession1_SetName(This,Name)	\
+    ( (This)->lpVtbl -> SetName(This,Name) ) 
+
+
+#define ID3D12ProtectedResourceSession1_GetDevice(This,riid,ppvDevice)	\
+    ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
+
+
+#define ID3D12ProtectedResourceSession1_GetStatusFence(This,riid,ppFence)	\
+    ( (This)->lpVtbl -> GetStatusFence(This,riid,ppFence) ) 
+
+#define ID3D12ProtectedResourceSession1_GetSessionStatus(This)	\
+    ( (This)->lpVtbl -> GetSessionStatus(This) ) 
+
+
+#define ID3D12ProtectedResourceSession1_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+
+
+#define ID3D12ProtectedResourceSession1_GetDesc1(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc1(This,RetVal) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+
+
+
+
+#endif 	/* __ID3D12ProtectedResourceSession1_INTERFACE_DEFINED__ */
+
+
+#ifndef __ID3D12Device7_INTERFACE_DEFINED__
+#define __ID3D12Device7_INTERFACE_DEFINED__
+
+/* interface ID3D12Device7 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12Device7;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("5c014b53-68a1-4b9b-8bd1-dd6046b9358b")
+    ID3D12Device7 : public ID3D12Device6
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE AddToStateObject( 
+            const D3D12_STATE_OBJECT_DESC *pAddition,
+            ID3D12StateObject *pStateObjectToGrowFrom,
+            REFIID riid,
+            _COM_Outptr_  void **ppNewStateObject) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CreateProtectedResourceSession1( 
+            _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC1 *pDesc,
+            _In_  REFIID riid,
+            _COM_Outptr_  void **ppSession) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12Device7Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12Device7 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12Device7 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12Device7 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
+            ID3D12Device7 * This,
+            _In_  REFGUID guid,
+            _Inout_  UINT *pDataSize,
+            _Out_writes_bytes_opt_( *pDataSize )  void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
+            ID3D12Device7 * This,
+            _In_  REFGUID guid,
+            _In_  UINT DataSize,
+            _In_reads_bytes_opt_( DataSize )  const void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
+            ID3D12Device7 * This,
+            _In_  REFGUID guid,
+            _In_opt_  const IUnknown *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
+        HRESULT ( STDMETHODCALLTYPE *SetName )( 
+            ID3D12Device7 * This,
+            _In_z_  LPCWSTR Name);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
+        UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
+            ID3D12Device7 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandQueue);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
+            ID3D12Device7 * This,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandAllocator);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
+            ID3D12Device7 * This,
+            _In_  UINT nodeMask,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            _In_  ID3D12CommandAllocator *pCommandAllocator,
+            _In_opt_  ID3D12PipelineState *pInitialState,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandList);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
+        HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
+            ID3D12Device7 * This,
+            D3D12_FEATURE Feature,
+            _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
+            UINT FeatureSupportDataSize);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
+        UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
+            ID3D12Device7 * This,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
+        HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
+            ID3D12Device7 * This,
+            _In_  UINT nodeMask,
+            _In_reads_(blobLengthInBytes)  const void *pBlobWithRootSignature,
+            _In_  SIZE_T blobLengthInBytes,
+            REFIID riid,
+            _COM_Outptr_  void **ppvRootSignature);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
+        void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
+            ID3D12Device7 * This,
+            _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
+        void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
+            ID3D12Device7 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
+        void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
+            ID3D12Device7 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  ID3D12Resource *pCounterResource,
+            _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
+        void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
+            ID3D12Device7 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
+        void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
+            ID3D12Device7 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
+        void ( STDMETHODCALLTYPE *CreateSampler )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_SAMPLER_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
+        void ( STDMETHODCALLTYPE *CopyDescriptors )( 
+            ID3D12Device7 * This,
+            _In_  UINT NumDestDescriptorRanges,
+            _In_reads_(NumDestDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts,
+            _In_reads_opt_(NumDestDescriptorRanges)  const UINT *pDestDescriptorRangeSizes,
+            _In_  UINT NumSrcDescriptorRanges,
+            _In_reads_(NumSrcDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts,
+            _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
+        void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
+            ID3D12Device7 * This,
+            _In_  UINT NumDescriptors,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+            ID3D12Device7 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
+            _In_  UINT visibleMask,
+            _In_  UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+            ID3D12Device7 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
+            _In_  UINT nodeMask,
+            D3D12_HEAP_TYPE heapType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_HEAP_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
+            ID3D12Device7 * This,
+            _In_  ID3D12Heap *pHeap,
+            UINT64 HeapOffset,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
+        HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
+            ID3D12Device7 * This,
+            _In_  ID3D12DeviceChild *pObject,
+            _In_opt_  const SECURITY_ATTRIBUTES *pAttributes,
+            DWORD Access,
+            _In_opt_  LPCWSTR Name,
+            _Out_  HANDLE *pHandle);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
+        HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
+            ID3D12Device7 * This,
+            _In_  HANDLE NTHandle,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvObj);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
+        HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
+            ID3D12Device7 * This,
+            _In_  LPCWSTR Name,
+            DWORD Access,
+            /* [annotation][out] */ 
+            _Out_  HANDLE *pNTHandle);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
+        HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
+            ID3D12Device7 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
+        HRESULT ( STDMETHODCALLTYPE *Evict )( 
+            ID3D12Device7 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
+        HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
+            ID3D12Device7 * This,
+            UINT64 InitialValue,
+            D3D12_FENCE_FLAGS Flags,
+            REFIID riid,
+            _COM_Outptr_  void **ppFence);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
+        HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
+            ID3D12Device7 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
+        void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES)  UINT FirstSubresource,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES-FirstSubresource)  UINT NumSubresources,
+            UINT64 BaseOffset,
+            _Out_writes_opt_(NumSubresources)  D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts,
+            _Out_writes_opt_(NumSubresources)  UINT *pNumRows,
+            _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
+            _Out_opt_  UINT64 *pTotalBytes);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
+        HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
+            ID3D12Device7 * This,
+            BOOL Enable);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
+            _In_opt_  ID3D12RootSignature *pRootSignature,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvCommandSignature);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
+        void ( STDMETHODCALLTYPE *GetResourceTiling )( 
+            ID3D12Device7 * This,
+            _In_  ID3D12Resource *pTiledResource,
+            _Out_opt_  UINT *pNumTilesForEntireResource,
+            _Out_opt_  D3D12_PACKED_MIP_INFO *pPackedMipDesc,
+            _Out_opt_  D3D12_TILE_SHAPE *pStandardTileShapeForNonPackedMips,
+            _Inout_opt_  UINT *pNumSubresourceTilings,
+            _In_  UINT FirstSubresourceTilingToGet,
+            _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device7 * This,
+            LUID * RetVal);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
+        HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
+            ID3D12Device7 * This,
+            _In_reads_(BlobLength)  const void *pLibraryBlob,
+            SIZE_T BlobLength,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineLibrary);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
+        HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
+            ID3D12Device7 * This,
+            _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
+            _In_reads_(NumFences)  const UINT64 *pFenceValues,
+            UINT NumFences,
+            D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
+            HANDLE hEvent);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
+        HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
+            ID3D12Device7 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
+            _In_reads_(NumObjects)  const D3D12_RESIDENCY_PRIORITY *pPriorities);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device2, CreatePipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreatePipelineState )( 
+            ID3D12Device7 * This,
+            const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromAddress)
+        HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromAddress )( 
+            ID3D12Device7 * This,
+            _In_  const void *pAddress,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromFileMapping)
+        HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromFileMapping )( 
+            ID3D12Device7 * This,
+            _In_  HANDLE hFileMapping,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, EnqueueMakeResident)
+        HRESULT ( STDMETHODCALLTYPE *EnqueueMakeResident )( 
+            ID3D12Device7 * This,
+            D3D12_RESIDENCY_FLAGS Flags,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
+            _In_  ID3D12Fence *pFenceToSignal,
+            UINT64 FenceValueToSignal);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommandList1)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandList1 )( 
+            ID3D12Device7 * This,
+            _In_  UINT nodeMask,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            _In_  D3D12_COMMAND_LIST_FLAGS flags,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandList);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateProtectedResourceSession)
+        HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc,
+            _In_  REFIID riid,
+            _COM_Outptr_  void **ppSession);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommittedResource1)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource1 )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateHeap1)
+        HRESULT ( STDMETHODCALLTYPE *CreateHeap1 )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_HEAP_DESC *pDesc,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateReservedResource1)
+        HRESULT ( STDMETHODCALLTYPE *CreateReservedResource1 )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, GetResourceAllocationInfo1)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
+            ID3D12Device7 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
+            UINT visibleMask,
+            UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs,
+            _Out_writes_opt_(numResourceDescs)  D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateLifetimeTracker)
+        HRESULT ( STDMETHODCALLTYPE *CreateLifetimeTracker )( 
+            ID3D12Device7 * This,
+            _In_  ID3D12LifetimeOwner *pOwner,
+            REFIID riid,
+            _COM_Outptr_  void **ppvTracker);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, RemoveDevice)
+        void ( STDMETHODCALLTYPE *RemoveDevice )( 
+            ID3D12Device7 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommands)
+        HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommands )( 
+            ID3D12Device7 * This,
+            _Inout_  UINT *pNumMetaCommands,
+            _Out_writes_opt_(*pNumMetaCommands)  D3D12_META_COMMAND_DESC *pDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommandParameters)
+        HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommandParameters )( 
+            ID3D12Device7 * This,
+            _In_  REFGUID CommandId,
+            _In_  D3D12_META_COMMAND_PARAMETER_STAGE Stage,
+            _Out_opt_  UINT *pTotalStructureSizeInBytes,
+            _Inout_  UINT *pParameterCount,
+            _Out_writes_opt_(*pParameterCount)  D3D12_META_COMMAND_PARAMETER_DESC *pParameterDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateMetaCommand)
+        HRESULT ( STDMETHODCALLTYPE *CreateMetaCommand )( 
+            ID3D12Device7 * This,
+            _In_  REFGUID CommandId,
+            _In_  UINT NodeMask,
+            _In_reads_bytes_opt_(CreationParametersDataSizeInBytes)  const void *pCreationParametersData,
+            _In_  SIZE_T CreationParametersDataSizeInBytes,
+            REFIID riid,
+            _COM_Outptr_  void **ppMetaCommand);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateStateObject)
+        HRESULT ( STDMETHODCALLTYPE *CreateStateObject )( 
+            ID3D12Device7 * This,
+            const D3D12_STATE_OBJECT_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppStateObject);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, GetRaytracingAccelerationStructurePrebuildInfo)
+        void ( STDMETHODCALLTYPE *GetRaytracingAccelerationStructurePrebuildInfo )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
+            _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CheckDriverMatchingIdentifier)
+        D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS ( STDMETHODCALLTYPE *CheckDriverMatchingIdentifier )( 
+            ID3D12Device7 * This,
+            _In_  D3D12_SERIALIZED_DATA_TYPE SerializedDataType,
+            _In_  const D3D12_SERIALIZED_DATA_DRIVER_MATCHING_IDENTIFIER *pIdentifierToCheck);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device6, SetBackgroundProcessingMode)
+        HRESULT ( STDMETHODCALLTYPE *SetBackgroundProcessingMode )( 
+            ID3D12Device7 * This,
+            D3D12_BACKGROUND_PROCESSING_MODE Mode,
+            D3D12_MEASUREMENTS_ACTION MeasurementsAction,
+            _In_opt_  HANDLE hEventToSignalUponCompletion,
+            _Out_opt_  BOOL *pbFurtherMeasurementsDesired);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device7, AddToStateObject)
+        HRESULT ( STDMETHODCALLTYPE *AddToStateObject )( 
+            ID3D12Device7 * This,
+            const D3D12_STATE_OBJECT_DESC *pAddition,
+            ID3D12StateObject *pStateObjectToGrowFrom,
+            REFIID riid,
+            _COM_Outptr_  void **ppNewStateObject);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device7, CreateProtectedResourceSession1)
+        HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession1 )( 
+            ID3D12Device7 * This,
+            _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC1 *pDesc,
+            _In_  REFIID riid,
+            _COM_Outptr_  void **ppSession);
+        
+        END_INTERFACE
+    } ID3D12Device7Vtbl;
+
+    interface ID3D12Device7
+    {
+        CONST_VTBL struct ID3D12Device7Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12Device7_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12Device7_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12Device7_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12Device7_GetPrivateData(This,guid,pDataSize,pData)	\
+    ( (This)->lpVtbl -> GetPrivateData(This,guid,pDataSize,pData) ) 
+
+#define ID3D12Device7_SetPrivateData(This,guid,DataSize,pData)	\
+    ( (This)->lpVtbl -> SetPrivateData(This,guid,DataSize,pData) ) 
+
+#define ID3D12Device7_SetPrivateDataInterface(This,guid,pData)	\
+    ( (This)->lpVtbl -> SetPrivateDataInterface(This,guid,pData) ) 
+
+#define ID3D12Device7_SetName(This,Name)	\
+    ( (This)->lpVtbl -> SetName(This,Name) ) 
+
+
+#define ID3D12Device7_GetNodeCount(This)	\
+    ( (This)->lpVtbl -> GetNodeCount(This) ) 
+
+#define ID3D12Device7_CreateCommandQueue(This,pDesc,riid,ppCommandQueue)	\
+    ( (This)->lpVtbl -> CreateCommandQueue(This,pDesc,riid,ppCommandQueue) ) 
+
+#define ID3D12Device7_CreateCommandAllocator(This,type,riid,ppCommandAllocator)	\
+    ( (This)->lpVtbl -> CreateCommandAllocator(This,type,riid,ppCommandAllocator) ) 
+
+#define ID3D12Device7_CreateGraphicsPipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreateGraphicsPipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+#define ID3D12Device7_CreateComputePipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreateComputePipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+#define ID3D12Device7_CreateCommandList(This,nodeMask,type,pCommandAllocator,pInitialState,riid,ppCommandList)	\
+    ( (This)->lpVtbl -> CreateCommandList(This,nodeMask,type,pCommandAllocator,pInitialState,riid,ppCommandList) ) 
+
+#define ID3D12Device7_CheckFeatureSupport(This,Feature,pFeatureSupportData,FeatureSupportDataSize)	\
+    ( (This)->lpVtbl -> CheckFeatureSupport(This,Feature,pFeatureSupportData,FeatureSupportDataSize) ) 
+
+#define ID3D12Device7_CreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device7_GetDescriptorHandleIncrementSize(This,DescriptorHeapType)	\
+    ( (This)->lpVtbl -> GetDescriptorHandleIncrementSize(This,DescriptorHeapType) ) 
+
+#define ID3D12Device7_CreateRootSignature(This,nodeMask,pBlobWithRootSignature,blobLengthInBytes,riid,ppvRootSignature)	\
+    ( (This)->lpVtbl -> CreateRootSignature(This,nodeMask,pBlobWithRootSignature,blobLengthInBytes,riid,ppvRootSignature) ) 
+
+#define ID3D12Device7_CreateConstantBufferView(This,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateConstantBufferView(This,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device7_CreateShaderResourceView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateShaderResourceView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device7_CreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device7_CreateRenderTargetView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateRenderTargetView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device7_CreateDepthStencilView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateDepthStencilView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device7_CreateSampler(This,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateSampler(This,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device7_CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType)	\
+    ( (This)->lpVtbl -> CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType) ) 
+
+#define ID3D12Device7_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
+    ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
+
+#define ID3D12Device7_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
+
+#define ID3D12Device7_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
+
+#define ID3D12Device7_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
+    ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
+
+#define ID3D12Device7_CreateHeap(This,pDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateHeap(This,pDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device7_CreatePlacedResource(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreatePlacedResource(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource) ) 
+
+#define ID3D12Device7_CreateReservedResource(This,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreateReservedResource(This,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource) ) 
+
+#define ID3D12Device7_CreateSharedHandle(This,pObject,pAttributes,Access,Name,pHandle)	\
+    ( (This)->lpVtbl -> CreateSharedHandle(This,pObject,pAttributes,Access,Name,pHandle) ) 
+
+#define ID3D12Device7_OpenSharedHandle(This,NTHandle,riid,ppvObj)	\
+    ( (This)->lpVtbl -> OpenSharedHandle(This,NTHandle,riid,ppvObj) ) 
+
+#define ID3D12Device7_OpenSharedHandleByName(This,Name,Access,pNTHandle)	\
+    ( (This)->lpVtbl -> OpenSharedHandleByName(This,Name,Access,pNTHandle) ) 
+
+#define ID3D12Device7_MakeResident(This,NumObjects,ppObjects)	\
+    ( (This)->lpVtbl -> MakeResident(This,NumObjects,ppObjects) ) 
+
+#define ID3D12Device7_Evict(This,NumObjects,ppObjects)	\
+    ( (This)->lpVtbl -> Evict(This,NumObjects,ppObjects) ) 
+
+#define ID3D12Device7_CreateFence(This,InitialValue,Flags,riid,ppFence)	\
+    ( (This)->lpVtbl -> CreateFence(This,InitialValue,Flags,riid,ppFence) ) 
+
+#define ID3D12Device7_GetDeviceRemovedReason(This)	\
+    ( (This)->lpVtbl -> GetDeviceRemovedReason(This) ) 
+
+#define ID3D12Device7_GetCopyableFootprints(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes)	\
+    ( (This)->lpVtbl -> GetCopyableFootprints(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes) ) 
+
+#define ID3D12Device7_CreateQueryHeap(This,pDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateQueryHeap(This,pDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device7_SetStablePowerState(This,Enable)	\
+    ( (This)->lpVtbl -> SetStablePowerState(This,Enable) ) 
+
+#define ID3D12Device7_CreateCommandSignature(This,pDesc,pRootSignature,riid,ppvCommandSignature)	\
+    ( (This)->lpVtbl -> CreateCommandSignature(This,pDesc,pRootSignature,riid,ppvCommandSignature) ) 
+
+#define ID3D12Device7_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
+    ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
+
+#define ID3D12Device7_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
+
+
+#define ID3D12Device7_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
+    ( (This)->lpVtbl -> CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary) ) 
+
+#define ID3D12Device7_SetEventOnMultipleFenceCompletion(This,ppFences,pFenceValues,NumFences,Flags,hEvent)	\
+    ( (This)->lpVtbl -> SetEventOnMultipleFenceCompletion(This,ppFences,pFenceValues,NumFences,Flags,hEvent) ) 
+
+#define ID3D12Device7_SetResidencyPriority(This,NumObjects,ppObjects,pPriorities)	\
+    ( (This)->lpVtbl -> SetResidencyPriority(This,NumObjects,ppObjects,pPriorities) ) 
+
+
+#define ID3D12Device7_CreatePipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreatePipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+
+#define ID3D12Device7_OpenExistingHeapFromAddress(This,pAddress,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> OpenExistingHeapFromAddress(This,pAddress,riid,ppvHeap) ) 
+
+#define ID3D12Device7_OpenExistingHeapFromFileMapping(This,hFileMapping,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> OpenExistingHeapFromFileMapping(This,hFileMapping,riid,ppvHeap) ) 
+
+#define ID3D12Device7_EnqueueMakeResident(This,Flags,NumObjects,ppObjects,pFenceToSignal,FenceValueToSignal)	\
+    ( (This)->lpVtbl -> EnqueueMakeResident(This,Flags,NumObjects,ppObjects,pFenceToSignal,FenceValueToSignal) ) 
+
+
+#define ID3D12Device7_CreateCommandList1(This,nodeMask,type,flags,riid,ppCommandList)	\
+    ( (This)->lpVtbl -> CreateCommandList1(This,nodeMask,type,flags,riid,ppCommandList) ) 
+
+#define ID3D12Device7_CreateProtectedResourceSession(This,pDesc,riid,ppSession)	\
+    ( (This)->lpVtbl -> CreateProtectedResourceSession(This,pDesc,riid,ppSession) ) 
+
+#define ID3D12Device7_CreateCommittedResource1(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource)	\
+    ( (This)->lpVtbl -> CreateCommittedResource1(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource) ) 
+
+#define ID3D12Device7_CreateHeap1(This,pDesc,pProtectedSession,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateHeap1(This,pDesc,pProtectedSession,riid,ppvHeap) ) 
+
+#define ID3D12Device7_CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource) ) 
+
+#define ID3D12Device7_GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
+
+
+#define ID3D12Device7_CreateLifetimeTracker(This,pOwner,riid,ppvTracker)	\
+    ( (This)->lpVtbl -> CreateLifetimeTracker(This,pOwner,riid,ppvTracker) ) 
+
+#define ID3D12Device7_RemoveDevice(This)	\
+    ( (This)->lpVtbl -> RemoveDevice(This) ) 
+
+#define ID3D12Device7_EnumerateMetaCommands(This,pNumMetaCommands,pDescs)	\
+    ( (This)->lpVtbl -> EnumerateMetaCommands(This,pNumMetaCommands,pDescs) ) 
+
+#define ID3D12Device7_EnumerateMetaCommandParameters(This,CommandId,Stage,pTotalStructureSizeInBytes,pParameterCount,pParameterDescs)	\
+    ( (This)->lpVtbl -> EnumerateMetaCommandParameters(This,CommandId,Stage,pTotalStructureSizeInBytes,pParameterCount,pParameterDescs) ) 
+
+#define ID3D12Device7_CreateMetaCommand(This,CommandId,NodeMask,pCreationParametersData,CreationParametersDataSizeInBytes,riid,ppMetaCommand)	\
+    ( (This)->lpVtbl -> CreateMetaCommand(This,CommandId,NodeMask,pCreationParametersData,CreationParametersDataSizeInBytes,riid,ppMetaCommand) ) 
+
+#define ID3D12Device7_CreateStateObject(This,pDesc,riid,ppStateObject)	\
+    ( (This)->lpVtbl -> CreateStateObject(This,pDesc,riid,ppStateObject) ) 
+
+#define ID3D12Device7_GetRaytracingAccelerationStructurePrebuildInfo(This,pDesc,pInfo)	\
+    ( (This)->lpVtbl -> GetRaytracingAccelerationStructurePrebuildInfo(This,pDesc,pInfo) ) 
+
+#define ID3D12Device7_CheckDriverMatchingIdentifier(This,SerializedDataType,pIdentifierToCheck)	\
+    ( (This)->lpVtbl -> CheckDriverMatchingIdentifier(This,SerializedDataType,pIdentifierToCheck) ) 
+
+
+#define ID3D12Device7_SetBackgroundProcessingMode(This,Mode,MeasurementsAction,hEventToSignalUponCompletion,pbFurtherMeasurementsDesired)	\
+    ( (This)->lpVtbl -> SetBackgroundProcessingMode(This,Mode,MeasurementsAction,hEventToSignalUponCompletion,pbFurtherMeasurementsDesired) ) 
+
+
+#define ID3D12Device7_AddToStateObject(This,pAddition,pStateObjectToGrowFrom,riid,ppNewStateObject)	\
+    ( (This)->lpVtbl -> AddToStateObject(This,pAddition,pStateObjectToGrowFrom,riid,ppNewStateObject) ) 
+
+#define ID3D12Device7_CreateProtectedResourceSession1(This,pDesc,riid,ppSession)	\
+    ( (This)->lpVtbl -> CreateProtectedResourceSession1(This,pDesc,riid,ppSession) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ID3D12Device7_INTERFACE_DEFINED__ */
+
+
+#ifndef __ID3D12Device8_INTERFACE_DEFINED__
+#define __ID3D12Device8_INTERFACE_DEFINED__
+
+/* interface ID3D12Device8 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12Device8;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("9218E6BB-F944-4F7E-A75C-B1B2C7B701F3")
+    ID3D12Device8 : public ID3D12Device7
+    {
+    public:
+        virtual D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE GetResourceAllocationInfo2( 
+            UINT visibleMask,
+            UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC1 *pResourceDescs,
+            _Out_writes_opt_(numResourceDescs)  D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CreateCommittedResource2( 
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC1 *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CreatePlacedResource1( 
+            _In_  ID3D12Heap *pHeap,
+            UINT64 HeapOffset,
+            _In_  const D3D12_RESOURCE_DESC1 *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource) = 0;
+        
+        virtual void STDMETHODCALLTYPE CreateSamplerFeedbackUnorderedAccessView( 
+            _In_opt_  ID3D12Resource *pTargetedResource,
+            _In_opt_  ID3D12Resource *pFeedbackResource,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor) = 0;
+        
+        virtual void STDMETHODCALLTYPE GetCopyableFootprints1( 
+            _In_  const D3D12_RESOURCE_DESC1 *pResourceDesc,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES)  UINT FirstSubresource,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES-FirstSubresource)  UINT NumSubresources,
+            UINT64 BaseOffset,
+            _Out_writes_opt_(NumSubresources)  D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts,
+            _Out_writes_opt_(NumSubresources)  UINT *pNumRows,
+            _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
+            _Out_opt_  UINT64 *pTotalBytes) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12Device8Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12Device8 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12Device8 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12Device8 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
+            ID3D12Device8 * This,
+            _In_  REFGUID guid,
+            _Inout_  UINT *pDataSize,
+            _Out_writes_bytes_opt_( *pDataSize )  void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
+            ID3D12Device8 * This,
+            _In_  REFGUID guid,
+            _In_  UINT DataSize,
+            _In_reads_bytes_opt_( DataSize )  const void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
+            ID3D12Device8 * This,
+            _In_  REFGUID guid,
+            _In_opt_  const IUnknown *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
+        HRESULT ( STDMETHODCALLTYPE *SetName )( 
+            ID3D12Device8 * This,
+            _In_z_  LPCWSTR Name);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
+        UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
+            ID3D12Device8 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandQueue);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
+            ID3D12Device8 * This,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandAllocator);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
+            ID3D12Device8 * This,
+            _In_  UINT nodeMask,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            _In_  ID3D12CommandAllocator *pCommandAllocator,
+            _In_opt_  ID3D12PipelineState *pInitialState,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandList);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
+        HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
+            ID3D12Device8 * This,
+            D3D12_FEATURE Feature,
+            _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
+            UINT FeatureSupportDataSize);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
+        UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
+            ID3D12Device8 * This,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
+        HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
+            ID3D12Device8 * This,
+            _In_  UINT nodeMask,
+            _In_reads_(blobLengthInBytes)  const void *pBlobWithRootSignature,
+            _In_  SIZE_T blobLengthInBytes,
+            REFIID riid,
+            _COM_Outptr_  void **ppvRootSignature);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
+        void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
+            ID3D12Device8 * This,
+            _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
+        void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
+            ID3D12Device8 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
+        void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
+            ID3D12Device8 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  ID3D12Resource *pCounterResource,
+            _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
+        void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
+            ID3D12Device8 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
+        void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
+            ID3D12Device8 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
+        void ( STDMETHODCALLTYPE *CreateSampler )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_SAMPLER_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
+        void ( STDMETHODCALLTYPE *CopyDescriptors )( 
+            ID3D12Device8 * This,
+            _In_  UINT NumDestDescriptorRanges,
+            _In_reads_(NumDestDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts,
+            _In_reads_opt_(NumDestDescriptorRanges)  const UINT *pDestDescriptorRangeSizes,
+            _In_  UINT NumSrcDescriptorRanges,
+            _In_reads_(NumSrcDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts,
+            _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
+        void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
+            ID3D12Device8 * This,
+            _In_  UINT NumDescriptors,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+            ID3D12Device8 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
+            _In_  UINT visibleMask,
+            _In_  UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+            ID3D12Device8 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
+            _In_  UINT nodeMask,
+            D3D12_HEAP_TYPE heapType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_HEAP_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
+            ID3D12Device8 * This,
+            _In_  ID3D12Heap *pHeap,
+            UINT64 HeapOffset,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
+        HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
+            ID3D12Device8 * This,
+            _In_  ID3D12DeviceChild *pObject,
+            _In_opt_  const SECURITY_ATTRIBUTES *pAttributes,
+            DWORD Access,
+            _In_opt_  LPCWSTR Name,
+            _Out_  HANDLE *pHandle);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
+        HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
+            ID3D12Device8 * This,
+            _In_  HANDLE NTHandle,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvObj);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
+        HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
+            ID3D12Device8 * This,
+            _In_  LPCWSTR Name,
+            DWORD Access,
+            /* [annotation][out] */ 
+            _Out_  HANDLE *pNTHandle);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
+        HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
+            ID3D12Device8 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
+        HRESULT ( STDMETHODCALLTYPE *Evict )( 
+            ID3D12Device8 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
+        HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
+            ID3D12Device8 * This,
+            UINT64 InitialValue,
+            D3D12_FENCE_FLAGS Flags,
+            REFIID riid,
+            _COM_Outptr_  void **ppFence);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
+        HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
+            ID3D12Device8 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
+        void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES)  UINT FirstSubresource,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES-FirstSubresource)  UINT NumSubresources,
+            UINT64 BaseOffset,
+            _Out_writes_opt_(NumSubresources)  D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts,
+            _Out_writes_opt_(NumSubresources)  UINT *pNumRows,
+            _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
+            _Out_opt_  UINT64 *pTotalBytes);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
+        HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
+            ID3D12Device8 * This,
+            BOOL Enable);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
+            _In_opt_  ID3D12RootSignature *pRootSignature,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvCommandSignature);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
+        void ( STDMETHODCALLTYPE *GetResourceTiling )( 
+            ID3D12Device8 * This,
+            _In_  ID3D12Resource *pTiledResource,
+            _Out_opt_  UINT *pNumTilesForEntireResource,
+            _Out_opt_  D3D12_PACKED_MIP_INFO *pPackedMipDesc,
+            _Out_opt_  D3D12_TILE_SHAPE *pStandardTileShapeForNonPackedMips,
+            _Inout_opt_  UINT *pNumSubresourceTilings,
+            _In_  UINT FirstSubresourceTilingToGet,
+            _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device8 * This,
+            LUID * RetVal);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
+        HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
+            ID3D12Device8 * This,
+            _In_reads_(BlobLength)  const void *pLibraryBlob,
+            SIZE_T BlobLength,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineLibrary);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
+        HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
+            ID3D12Device8 * This,
+            _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
+            _In_reads_(NumFences)  const UINT64 *pFenceValues,
+            UINT NumFences,
+            D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
+            HANDLE hEvent);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
+        HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
+            ID3D12Device8 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
+            _In_reads_(NumObjects)  const D3D12_RESIDENCY_PRIORITY *pPriorities);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device2, CreatePipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreatePipelineState )( 
+            ID3D12Device8 * This,
+            const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromAddress)
+        HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromAddress )( 
+            ID3D12Device8 * This,
+            _In_  const void *pAddress,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromFileMapping)
+        HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromFileMapping )( 
+            ID3D12Device8 * This,
+            _In_  HANDLE hFileMapping,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, EnqueueMakeResident)
+        HRESULT ( STDMETHODCALLTYPE *EnqueueMakeResident )( 
+            ID3D12Device8 * This,
+            D3D12_RESIDENCY_FLAGS Flags,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
+            _In_  ID3D12Fence *pFenceToSignal,
+            UINT64 FenceValueToSignal);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommandList1)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandList1 )( 
+            ID3D12Device8 * This,
+            _In_  UINT nodeMask,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            _In_  D3D12_COMMAND_LIST_FLAGS flags,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandList);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateProtectedResourceSession)
+        HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc,
+            _In_  REFIID riid,
+            _COM_Outptr_  void **ppSession);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommittedResource1)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource1 )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateHeap1)
+        HRESULT ( STDMETHODCALLTYPE *CreateHeap1 )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_HEAP_DESC *pDesc,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateReservedResource1)
+        HRESULT ( STDMETHODCALLTYPE *CreateReservedResource1 )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, GetResourceAllocationInfo1)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
+            ID3D12Device8 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
+            UINT visibleMask,
+            UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs,
+            _Out_writes_opt_(numResourceDescs)  D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateLifetimeTracker)
+        HRESULT ( STDMETHODCALLTYPE *CreateLifetimeTracker )( 
+            ID3D12Device8 * This,
+            _In_  ID3D12LifetimeOwner *pOwner,
+            REFIID riid,
+            _COM_Outptr_  void **ppvTracker);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, RemoveDevice)
+        void ( STDMETHODCALLTYPE *RemoveDevice )( 
+            ID3D12Device8 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommands)
+        HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommands )( 
+            ID3D12Device8 * This,
+            _Inout_  UINT *pNumMetaCommands,
+            _Out_writes_opt_(*pNumMetaCommands)  D3D12_META_COMMAND_DESC *pDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommandParameters)
+        HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommandParameters )( 
+            ID3D12Device8 * This,
+            _In_  REFGUID CommandId,
+            _In_  D3D12_META_COMMAND_PARAMETER_STAGE Stage,
+            _Out_opt_  UINT *pTotalStructureSizeInBytes,
+            _Inout_  UINT *pParameterCount,
+            _Out_writes_opt_(*pParameterCount)  D3D12_META_COMMAND_PARAMETER_DESC *pParameterDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateMetaCommand)
+        HRESULT ( STDMETHODCALLTYPE *CreateMetaCommand )( 
+            ID3D12Device8 * This,
+            _In_  REFGUID CommandId,
+            _In_  UINT NodeMask,
+            _In_reads_bytes_opt_(CreationParametersDataSizeInBytes)  const void *pCreationParametersData,
+            _In_  SIZE_T CreationParametersDataSizeInBytes,
+            REFIID riid,
+            _COM_Outptr_  void **ppMetaCommand);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateStateObject)
+        HRESULT ( STDMETHODCALLTYPE *CreateStateObject )( 
+            ID3D12Device8 * This,
+            const D3D12_STATE_OBJECT_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppStateObject);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, GetRaytracingAccelerationStructurePrebuildInfo)
+        void ( STDMETHODCALLTYPE *GetRaytracingAccelerationStructurePrebuildInfo )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
+            _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CheckDriverMatchingIdentifier)
+        D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS ( STDMETHODCALLTYPE *CheckDriverMatchingIdentifier )( 
+            ID3D12Device8 * This,
+            _In_  D3D12_SERIALIZED_DATA_TYPE SerializedDataType,
+            _In_  const D3D12_SERIALIZED_DATA_DRIVER_MATCHING_IDENTIFIER *pIdentifierToCheck);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device6, SetBackgroundProcessingMode)
+        HRESULT ( STDMETHODCALLTYPE *SetBackgroundProcessingMode )( 
+            ID3D12Device8 * This,
+            D3D12_BACKGROUND_PROCESSING_MODE Mode,
+            D3D12_MEASUREMENTS_ACTION MeasurementsAction,
+            _In_opt_  HANDLE hEventToSignalUponCompletion,
+            _Out_opt_  BOOL *pbFurtherMeasurementsDesired);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device7, AddToStateObject)
+        HRESULT ( STDMETHODCALLTYPE *AddToStateObject )( 
+            ID3D12Device8 * This,
+            const D3D12_STATE_OBJECT_DESC *pAddition,
+            ID3D12StateObject *pStateObjectToGrowFrom,
+            REFIID riid,
+            _COM_Outptr_  void **ppNewStateObject);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device7, CreateProtectedResourceSession1)
+        HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession1 )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC1 *pDesc,
+            _In_  REFIID riid,
+            _COM_Outptr_  void **ppSession);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, GetResourceAllocationInfo2)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo2 )( 
+            ID3D12Device8 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
+            UINT visibleMask,
+            UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC1 *pResourceDescs,
+            _Out_writes_opt_(numResourceDescs)  D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, CreateCommittedResource2)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource2 )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC1 *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, CreatePlacedResource1)
+        HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource1 )( 
+            ID3D12Device8 * This,
+            _In_  ID3D12Heap *pHeap,
+            UINT64 HeapOffset,
+            _In_  const D3D12_RESOURCE_DESC1 *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, CreateSamplerFeedbackUnorderedAccessView)
+        void ( STDMETHODCALLTYPE *CreateSamplerFeedbackUnorderedAccessView )( 
+            ID3D12Device8 * This,
+            _In_opt_  ID3D12Resource *pTargetedResource,
+            _In_opt_  ID3D12Resource *pFeedbackResource,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, GetCopyableFootprints1)
+        void ( STDMETHODCALLTYPE *GetCopyableFootprints1 )( 
+            ID3D12Device8 * This,
+            _In_  const D3D12_RESOURCE_DESC1 *pResourceDesc,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES)  UINT FirstSubresource,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES-FirstSubresource)  UINT NumSubresources,
+            UINT64 BaseOffset,
+            _Out_writes_opt_(NumSubresources)  D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts,
+            _Out_writes_opt_(NumSubresources)  UINT *pNumRows,
+            _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
+            _Out_opt_  UINT64 *pTotalBytes);
+        
+        END_INTERFACE
+    } ID3D12Device8Vtbl;
+
+    interface ID3D12Device8
+    {
+        CONST_VTBL struct ID3D12Device8Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12Device8_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12Device8_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12Device8_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12Device8_GetPrivateData(This,guid,pDataSize,pData)	\
+    ( (This)->lpVtbl -> GetPrivateData(This,guid,pDataSize,pData) ) 
+
+#define ID3D12Device8_SetPrivateData(This,guid,DataSize,pData)	\
+    ( (This)->lpVtbl -> SetPrivateData(This,guid,DataSize,pData) ) 
+
+#define ID3D12Device8_SetPrivateDataInterface(This,guid,pData)	\
+    ( (This)->lpVtbl -> SetPrivateDataInterface(This,guid,pData) ) 
+
+#define ID3D12Device8_SetName(This,Name)	\
+    ( (This)->lpVtbl -> SetName(This,Name) ) 
+
+
+#define ID3D12Device8_GetNodeCount(This)	\
+    ( (This)->lpVtbl -> GetNodeCount(This) ) 
+
+#define ID3D12Device8_CreateCommandQueue(This,pDesc,riid,ppCommandQueue)	\
+    ( (This)->lpVtbl -> CreateCommandQueue(This,pDesc,riid,ppCommandQueue) ) 
+
+#define ID3D12Device8_CreateCommandAllocator(This,type,riid,ppCommandAllocator)	\
+    ( (This)->lpVtbl -> CreateCommandAllocator(This,type,riid,ppCommandAllocator) ) 
+
+#define ID3D12Device8_CreateGraphicsPipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreateGraphicsPipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+#define ID3D12Device8_CreateComputePipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreateComputePipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+#define ID3D12Device8_CreateCommandList(This,nodeMask,type,pCommandAllocator,pInitialState,riid,ppCommandList)	\
+    ( (This)->lpVtbl -> CreateCommandList(This,nodeMask,type,pCommandAllocator,pInitialState,riid,ppCommandList) ) 
+
+#define ID3D12Device8_CheckFeatureSupport(This,Feature,pFeatureSupportData,FeatureSupportDataSize)	\
+    ( (This)->lpVtbl -> CheckFeatureSupport(This,Feature,pFeatureSupportData,FeatureSupportDataSize) ) 
+
+#define ID3D12Device8_CreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device8_GetDescriptorHandleIncrementSize(This,DescriptorHeapType)	\
+    ( (This)->lpVtbl -> GetDescriptorHandleIncrementSize(This,DescriptorHeapType) ) 
+
+#define ID3D12Device8_CreateRootSignature(This,nodeMask,pBlobWithRootSignature,blobLengthInBytes,riid,ppvRootSignature)	\
+    ( (This)->lpVtbl -> CreateRootSignature(This,nodeMask,pBlobWithRootSignature,blobLengthInBytes,riid,ppvRootSignature) ) 
+
+#define ID3D12Device8_CreateConstantBufferView(This,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateConstantBufferView(This,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device8_CreateShaderResourceView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateShaderResourceView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device8_CreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device8_CreateRenderTargetView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateRenderTargetView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device8_CreateDepthStencilView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateDepthStencilView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device8_CreateSampler(This,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateSampler(This,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device8_CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType)	\
+    ( (This)->lpVtbl -> CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType) ) 
+
+#define ID3D12Device8_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
+    ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
+
+#define ID3D12Device8_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
+
+#define ID3D12Device8_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
+
+#define ID3D12Device8_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
+    ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
+
+#define ID3D12Device8_CreateHeap(This,pDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateHeap(This,pDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device8_CreatePlacedResource(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreatePlacedResource(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource) ) 
+
+#define ID3D12Device8_CreateReservedResource(This,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreateReservedResource(This,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource) ) 
+
+#define ID3D12Device8_CreateSharedHandle(This,pObject,pAttributes,Access,Name,pHandle)	\
+    ( (This)->lpVtbl -> CreateSharedHandle(This,pObject,pAttributes,Access,Name,pHandle) ) 
+
+#define ID3D12Device8_OpenSharedHandle(This,NTHandle,riid,ppvObj)	\
+    ( (This)->lpVtbl -> OpenSharedHandle(This,NTHandle,riid,ppvObj) ) 
+
+#define ID3D12Device8_OpenSharedHandleByName(This,Name,Access,pNTHandle)	\
+    ( (This)->lpVtbl -> OpenSharedHandleByName(This,Name,Access,pNTHandle) ) 
+
+#define ID3D12Device8_MakeResident(This,NumObjects,ppObjects)	\
+    ( (This)->lpVtbl -> MakeResident(This,NumObjects,ppObjects) ) 
+
+#define ID3D12Device8_Evict(This,NumObjects,ppObjects)	\
+    ( (This)->lpVtbl -> Evict(This,NumObjects,ppObjects) ) 
+
+#define ID3D12Device8_CreateFence(This,InitialValue,Flags,riid,ppFence)	\
+    ( (This)->lpVtbl -> CreateFence(This,InitialValue,Flags,riid,ppFence) ) 
+
+#define ID3D12Device8_GetDeviceRemovedReason(This)	\
+    ( (This)->lpVtbl -> GetDeviceRemovedReason(This) ) 
+
+#define ID3D12Device8_GetCopyableFootprints(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes)	\
+    ( (This)->lpVtbl -> GetCopyableFootprints(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes) ) 
+
+#define ID3D12Device8_CreateQueryHeap(This,pDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateQueryHeap(This,pDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device8_SetStablePowerState(This,Enable)	\
+    ( (This)->lpVtbl -> SetStablePowerState(This,Enable) ) 
+
+#define ID3D12Device8_CreateCommandSignature(This,pDesc,pRootSignature,riid,ppvCommandSignature)	\
+    ( (This)->lpVtbl -> CreateCommandSignature(This,pDesc,pRootSignature,riid,ppvCommandSignature) ) 
+
+#define ID3D12Device8_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
+    ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
+
+#define ID3D12Device8_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
+
+
+#define ID3D12Device8_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
+    ( (This)->lpVtbl -> CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary) ) 
+
+#define ID3D12Device8_SetEventOnMultipleFenceCompletion(This,ppFences,pFenceValues,NumFences,Flags,hEvent)	\
+    ( (This)->lpVtbl -> SetEventOnMultipleFenceCompletion(This,ppFences,pFenceValues,NumFences,Flags,hEvent) ) 
+
+#define ID3D12Device8_SetResidencyPriority(This,NumObjects,ppObjects,pPriorities)	\
+    ( (This)->lpVtbl -> SetResidencyPriority(This,NumObjects,ppObjects,pPriorities) ) 
+
+
+#define ID3D12Device8_CreatePipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreatePipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+
+#define ID3D12Device8_OpenExistingHeapFromAddress(This,pAddress,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> OpenExistingHeapFromAddress(This,pAddress,riid,ppvHeap) ) 
+
+#define ID3D12Device8_OpenExistingHeapFromFileMapping(This,hFileMapping,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> OpenExistingHeapFromFileMapping(This,hFileMapping,riid,ppvHeap) ) 
+
+#define ID3D12Device8_EnqueueMakeResident(This,Flags,NumObjects,ppObjects,pFenceToSignal,FenceValueToSignal)	\
+    ( (This)->lpVtbl -> EnqueueMakeResident(This,Flags,NumObjects,ppObjects,pFenceToSignal,FenceValueToSignal) ) 
+
+
+#define ID3D12Device8_CreateCommandList1(This,nodeMask,type,flags,riid,ppCommandList)	\
+    ( (This)->lpVtbl -> CreateCommandList1(This,nodeMask,type,flags,riid,ppCommandList) ) 
+
+#define ID3D12Device8_CreateProtectedResourceSession(This,pDesc,riid,ppSession)	\
+    ( (This)->lpVtbl -> CreateProtectedResourceSession(This,pDesc,riid,ppSession) ) 
+
+#define ID3D12Device8_CreateCommittedResource1(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource)	\
+    ( (This)->lpVtbl -> CreateCommittedResource1(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource) ) 
+
+#define ID3D12Device8_CreateHeap1(This,pDesc,pProtectedSession,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateHeap1(This,pDesc,pProtectedSession,riid,ppvHeap) ) 
+
+#define ID3D12Device8_CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource) ) 
+
+#define ID3D12Device8_GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
+
+
+#define ID3D12Device8_CreateLifetimeTracker(This,pOwner,riid,ppvTracker)	\
+    ( (This)->lpVtbl -> CreateLifetimeTracker(This,pOwner,riid,ppvTracker) ) 
+
+#define ID3D12Device8_RemoveDevice(This)	\
+    ( (This)->lpVtbl -> RemoveDevice(This) ) 
+
+#define ID3D12Device8_EnumerateMetaCommands(This,pNumMetaCommands,pDescs)	\
+    ( (This)->lpVtbl -> EnumerateMetaCommands(This,pNumMetaCommands,pDescs) ) 
+
+#define ID3D12Device8_EnumerateMetaCommandParameters(This,CommandId,Stage,pTotalStructureSizeInBytes,pParameterCount,pParameterDescs)	\
+    ( (This)->lpVtbl -> EnumerateMetaCommandParameters(This,CommandId,Stage,pTotalStructureSizeInBytes,pParameterCount,pParameterDescs) ) 
+
+#define ID3D12Device8_CreateMetaCommand(This,CommandId,NodeMask,pCreationParametersData,CreationParametersDataSizeInBytes,riid,ppMetaCommand)	\
+    ( (This)->lpVtbl -> CreateMetaCommand(This,CommandId,NodeMask,pCreationParametersData,CreationParametersDataSizeInBytes,riid,ppMetaCommand) ) 
+
+#define ID3D12Device8_CreateStateObject(This,pDesc,riid,ppStateObject)	\
+    ( (This)->lpVtbl -> CreateStateObject(This,pDesc,riid,ppStateObject) ) 
+
+#define ID3D12Device8_GetRaytracingAccelerationStructurePrebuildInfo(This,pDesc,pInfo)	\
+    ( (This)->lpVtbl -> GetRaytracingAccelerationStructurePrebuildInfo(This,pDesc,pInfo) ) 
+
+#define ID3D12Device8_CheckDriverMatchingIdentifier(This,SerializedDataType,pIdentifierToCheck)	\
+    ( (This)->lpVtbl -> CheckDriverMatchingIdentifier(This,SerializedDataType,pIdentifierToCheck) ) 
+
+
+#define ID3D12Device8_SetBackgroundProcessingMode(This,Mode,MeasurementsAction,hEventToSignalUponCompletion,pbFurtherMeasurementsDesired)	\
+    ( (This)->lpVtbl -> SetBackgroundProcessingMode(This,Mode,MeasurementsAction,hEventToSignalUponCompletion,pbFurtherMeasurementsDesired) ) 
+
+
+#define ID3D12Device8_AddToStateObject(This,pAddition,pStateObjectToGrowFrom,riid,ppNewStateObject)	\
+    ( (This)->lpVtbl -> AddToStateObject(This,pAddition,pStateObjectToGrowFrom,riid,ppNewStateObject) ) 
+
+#define ID3D12Device8_CreateProtectedResourceSession1(This,pDesc,riid,ppSession)	\
+    ( (This)->lpVtbl -> CreateProtectedResourceSession1(This,pDesc,riid,ppSession) ) 
+
+
+#define ID3D12Device8_GetResourceAllocationInfo2(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo2(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
+
+#define ID3D12Device8_CreateCommittedResource2(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource)	\
+    ( (This)->lpVtbl -> CreateCommittedResource2(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource) ) 
+
+#define ID3D12Device8_CreatePlacedResource1(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreatePlacedResource1(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource) ) 
+
+#define ID3D12Device8_CreateSamplerFeedbackUnorderedAccessView(This,pTargetedResource,pFeedbackResource,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateSamplerFeedbackUnorderedAccessView(This,pTargetedResource,pFeedbackResource,DestDescriptor) ) 
+
+#define ID3D12Device8_GetCopyableFootprints1(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes)	\
+    ( (This)->lpVtbl -> GetCopyableFootprints1(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+
+
+
+
+#endif 	/* __ID3D12Device8_INTERFACE_DEFINED__ */
+
+
 #ifndef __ID3D12Resource1_INTERFACE_DEFINED__
 #define __ID3D12Resource1_INTERFACE_DEFINED__
 
@@ -14208,60 +17602,74 @@ EXTERN_C const IID IID_ID3D12Resource1;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Resource1 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Resource1 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Resource1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Resource1 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Resource1 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Resource1 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Resource1 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12Resource1 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, Map)
         HRESULT ( STDMETHODCALLTYPE *Map )( 
             ID3D12Resource1 * This,
             UINT Subresource,
             _In_opt_  const D3D12_RANGE *pReadRange,
             _Outptr_opt_result_bytebuffer_(_Inexpressible_("Dependent on resource"))  void **ppData);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, Unmap)
         void ( STDMETHODCALLTYPE *Unmap )( 
             ID3D12Resource1 * This,
             UINT Subresource,
             _In_opt_  const D3D12_RANGE *pWrittenRange);
         
-        D3D12_RESOURCE_DESC ( STDMETHODCALLTYPE *GetDesc )( 
-            ID3D12Resource1 * This);
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetDesc)
+        D3D12_RESOURCE_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12Resource1 * This,
+            D3D12_RESOURCE_DESC * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetGPUVirtualAddress)
         D3D12_GPU_VIRTUAL_ADDRESS ( STDMETHODCALLTYPE *GetGPUVirtualAddress )( 
             ID3D12Resource1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, WriteToSubresource)
         HRESULT ( STDMETHODCALLTYPE *WriteToSubresource )( 
             ID3D12Resource1 * This,
             UINT DstSubresource,
@@ -14270,6 +17678,7 @@ EXTERN_C const IID IID_ID3D12Resource1;
             UINT SrcRowPitch,
             UINT SrcDepthPitch);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, ReadFromSubresource)
         HRESULT ( STDMETHODCALLTYPE *ReadFromSubresource )( 
             ID3D12Resource1 * This,
             _Out_  void *pDstData,
@@ -14278,11 +17687,13 @@ EXTERN_C const IID IID_ID3D12Resource1;
             UINT SrcSubresource,
             _In_opt_  const D3D12_BOX *pSrcBox);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetHeapProperties)
         HRESULT ( STDMETHODCALLTYPE *GetHeapProperties )( 
             ID3D12Resource1 * This,
             _Out_opt_  D3D12_HEAP_PROPERTIES *pHeapProperties,
             _Out_opt_  D3D12_HEAP_FLAGS *pHeapFlags);
         
+        DECLSPEC_XFGVIRT(ID3D12Resource1, GetProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
             ID3D12Resource1 * This,
             REFIID riid,
@@ -14335,8 +17746,8 @@ EXTERN_C const IID IID_ID3D12Resource1;
 #define ID3D12Resource1_Unmap(This,Subresource,pWrittenRange)	\
     ( (This)->lpVtbl -> Unmap(This,Subresource,pWrittenRange) ) 
 
-#define ID3D12Resource1_GetDesc(This)	\
-    ( (This)->lpVtbl -> GetDesc(This) ) 
+#define ID3D12Resource1_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
 
 #define ID3D12Resource1_GetGPUVirtualAddress(This)	\
     ( (This)->lpVtbl -> GetGPUVirtualAddress(This) ) 
@@ -14363,6 +17774,219 @@ EXTERN_C const IID IID_ID3D12Resource1;
 
 
 #endif 	/* __ID3D12Resource1_INTERFACE_DEFINED__ */
+
+
+#ifndef __ID3D12Resource2_INTERFACE_DEFINED__
+#define __ID3D12Resource2_INTERFACE_DEFINED__
+
+/* interface ID3D12Resource2 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12Resource2;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("BE36EC3B-EA85-4AEB-A45A-E9D76404A495")
+    ID3D12Resource2 : public ID3D12Resource1
+    {
+    public:
+        virtual D3D12_RESOURCE_DESC1 STDMETHODCALLTYPE GetDesc1( void) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12Resource2Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12Resource2 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12Resource2 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12Resource2 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
+            ID3D12Resource2 * This,
+            _In_  REFGUID guid,
+            _Inout_  UINT *pDataSize,
+            _Out_writes_bytes_opt_( *pDataSize )  void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
+            ID3D12Resource2 * This,
+            _In_  REFGUID guid,
+            _In_  UINT DataSize,
+            _In_reads_bytes_opt_( DataSize )  const void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
+            ID3D12Resource2 * This,
+            _In_  REFGUID guid,
+            _In_opt_  const IUnknown *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
+        HRESULT ( STDMETHODCALLTYPE *SetName )( 
+            ID3D12Resource2 * This,
+            _In_z_  LPCWSTR Name);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
+        HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
+            ID3D12Resource2 * This,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvDevice);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource, Map)
+        HRESULT ( STDMETHODCALLTYPE *Map )( 
+            ID3D12Resource2 * This,
+            UINT Subresource,
+            _In_opt_  const D3D12_RANGE *pReadRange,
+            _Outptr_opt_result_bytebuffer_(_Inexpressible_("Dependent on resource"))  void **ppData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource, Unmap)
+        void ( STDMETHODCALLTYPE *Unmap )( 
+            ID3D12Resource2 * This,
+            UINT Subresource,
+            _In_opt_  const D3D12_RANGE *pWrittenRange);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetDesc)
+        D3D12_RESOURCE_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12Resource2 * This,
+            D3D12_RESOURCE_DESC * RetVal);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetGPUVirtualAddress)
+        D3D12_GPU_VIRTUAL_ADDRESS ( STDMETHODCALLTYPE *GetGPUVirtualAddress )( 
+            ID3D12Resource2 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource, WriteToSubresource)
+        HRESULT ( STDMETHODCALLTYPE *WriteToSubresource )( 
+            ID3D12Resource2 * This,
+            UINT DstSubresource,
+            _In_opt_  const D3D12_BOX *pDstBox,
+            _In_  const void *pSrcData,
+            UINT SrcRowPitch,
+            UINT SrcDepthPitch);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource, ReadFromSubresource)
+        HRESULT ( STDMETHODCALLTYPE *ReadFromSubresource )( 
+            ID3D12Resource2 * This,
+            _Out_  void *pDstData,
+            UINT DstRowPitch,
+            UINT DstDepthPitch,
+            UINT SrcSubresource,
+            _In_opt_  const D3D12_BOX *pSrcBox);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource, GetHeapProperties)
+        HRESULT ( STDMETHODCALLTYPE *GetHeapProperties )( 
+            ID3D12Resource2 * This,
+            _Out_opt_  D3D12_HEAP_PROPERTIES *pHeapProperties,
+            _Out_opt_  D3D12_HEAP_FLAGS *pHeapFlags);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource1, GetProtectedResourceSession)
+        HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
+            ID3D12Resource2 * This,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppProtectedSession);
+        
+        DECLSPEC_XFGVIRT(ID3D12Resource2, GetDesc1)
+        D3D12_RESOURCE_DESC1 *( STDMETHODCALLTYPE *GetDesc1 )( 
+            ID3D12Resource2 * This,
+            D3D12_RESOURCE_DESC1 * RetVal);
+        
+        END_INTERFACE
+    } ID3D12Resource2Vtbl;
+
+    interface ID3D12Resource2
+    {
+        CONST_VTBL struct ID3D12Resource2Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12Resource2_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12Resource2_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12Resource2_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12Resource2_GetPrivateData(This,guid,pDataSize,pData)	\
+    ( (This)->lpVtbl -> GetPrivateData(This,guid,pDataSize,pData) ) 
+
+#define ID3D12Resource2_SetPrivateData(This,guid,DataSize,pData)	\
+    ( (This)->lpVtbl -> SetPrivateData(This,guid,DataSize,pData) ) 
+
+#define ID3D12Resource2_SetPrivateDataInterface(This,guid,pData)	\
+    ( (This)->lpVtbl -> SetPrivateDataInterface(This,guid,pData) ) 
+
+#define ID3D12Resource2_SetName(This,Name)	\
+    ( (This)->lpVtbl -> SetName(This,Name) ) 
+
+
+#define ID3D12Resource2_GetDevice(This,riid,ppvDevice)	\
+    ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
+
+
+
+#define ID3D12Resource2_Map(This,Subresource,pReadRange,ppData)	\
+    ( (This)->lpVtbl -> Map(This,Subresource,pReadRange,ppData) ) 
+
+#define ID3D12Resource2_Unmap(This,Subresource,pWrittenRange)	\
+    ( (This)->lpVtbl -> Unmap(This,Subresource,pWrittenRange) ) 
+
+#define ID3D12Resource2_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+
+#define ID3D12Resource2_GetGPUVirtualAddress(This)	\
+    ( (This)->lpVtbl -> GetGPUVirtualAddress(This) ) 
+
+#define ID3D12Resource2_WriteToSubresource(This,DstSubresource,pDstBox,pSrcData,SrcRowPitch,SrcDepthPitch)	\
+    ( (This)->lpVtbl -> WriteToSubresource(This,DstSubresource,pDstBox,pSrcData,SrcRowPitch,SrcDepthPitch) ) 
+
+#define ID3D12Resource2_ReadFromSubresource(This,pDstData,DstRowPitch,DstDepthPitch,SrcSubresource,pSrcBox)	\
+    ( (This)->lpVtbl -> ReadFromSubresource(This,pDstData,DstRowPitch,DstDepthPitch,SrcSubresource,pSrcBox) ) 
+
+#define ID3D12Resource2_GetHeapProperties(This,pHeapProperties,pHeapFlags)	\
+    ( (This)->lpVtbl -> GetHeapProperties(This,pHeapProperties,pHeapFlags) ) 
+
+
+#define ID3D12Resource2_GetProtectedResourceSession(This,riid,ppProtectedSession)	\
+    ( (This)->lpVtbl -> GetProtectedResourceSession(This,riid,ppProtectedSession) ) 
+
+
+#define ID3D12Resource2_GetDesc1(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc1(This,RetVal) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+
+
+
+
+#endif 	/* __ID3D12Resource2_INTERFACE_DEFINED__ */
 
 
 #ifndef __ID3D12Heap1_INTERFACE_DEFINED__
@@ -14393,46 +18017,57 @@ EXTERN_C const IID IID_ID3D12Heap1;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Heap1 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Heap1 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Heap1 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12Heap1 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12Heap1 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12Heap1 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12Heap1 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12Heap1 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
-        D3D12_HEAP_DESC ( STDMETHODCALLTYPE *GetDesc )( 
-            ID3D12Heap1 * This);
+        DECLSPEC_XFGVIRT(ID3D12Heap, GetDesc)
+        D3D12_HEAP_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12Heap1 * This,
+            D3D12_HEAP_DESC * RetVal);
         
+        DECLSPEC_XFGVIRT(ID3D12Heap1, GetProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
             ID3D12Heap1 * This,
             REFIID riid,
@@ -14479,8 +18114,8 @@ EXTERN_C const IID IID_ID3D12Heap1;
 
 
 
-#define ID3D12Heap1_GetDesc(This)	\
-    ( (This)->lpVtbl -> GetDesc(This) ) 
+#define ID3D12Heap1_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
 
 
 #define ID3D12Heap1_GetProtectedResourceSession(This,riid,ppProtectedSession)	\
@@ -14524,58 +18159,71 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12GraphicsCommandList3 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12GraphicsCommandList3 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12GraphicsCommandList3 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12GraphicsCommandList3 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12GraphicsCommandList3 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandList, GetType)
         D3D12_COMMAND_LIST_TYPE ( STDMETHODCALLTYPE *GetType )( 
             ID3D12GraphicsCommandList3 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Close)
         HRESULT ( STDMETHODCALLTYPE *Close )( 
             ID3D12GraphicsCommandList3 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Reset)
         HRESULT ( STDMETHODCALLTYPE *Reset )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12CommandAllocator *pAllocator,
             _In_opt_  ID3D12PipelineState *pInitialState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearState)
         void ( STDMETHODCALLTYPE *ClearState )( 
             ID3D12GraphicsCommandList3 * This,
             _In_opt_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawInstanced)
         void ( STDMETHODCALLTYPE *DrawInstanced )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT VertexCountPerInstance,
@@ -14583,6 +18231,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  UINT StartVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawIndexedInstanced)
         void ( STDMETHODCALLTYPE *DrawIndexedInstanced )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT IndexCountPerInstance,
@@ -14591,12 +18240,14 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  INT BaseVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Dispatch)
         void ( STDMETHODCALLTYPE *Dispatch )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT ThreadGroupCountX,
             _In_  UINT ThreadGroupCountY,
             _In_  UINT ThreadGroupCountZ);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyBufferRegion)
         void ( STDMETHODCALLTYPE *CopyBufferRegion )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -14605,6 +18256,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             UINT64 SrcOffset,
             UINT64 NumBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTextureRegion)
         void ( STDMETHODCALLTYPE *CopyTextureRegion )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pDst,
@@ -14614,11 +18266,13 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pSrc,
             _In_opt_  const D3D12_BOX *pSrcBox);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyResource)
         void ( STDMETHODCALLTYPE *CopyResource )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12Resource *pDstResource,
             _In_  ID3D12Resource *pSrcResource);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTiles)
         void ( STDMETHODCALLTYPE *CopyTiles )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -14628,6 +18282,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             UINT64 BufferStartOffsetInBytes,
             D3D12_TILE_COPY_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveSubresource)
         void ( STDMETHODCALLTYPE *ResolveSubresource )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -14636,76 +18291,92 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  UINT SrcSubresource,
             _In_  DXGI_FORMAT Format);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetPrimitiveTopology)
         void ( STDMETHODCALLTYPE *IASetPrimitiveTopology )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetViewports)
         void ( STDMETHODCALLTYPE *RSSetViewports )( 
             ID3D12GraphicsCommandList3 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumViewports,
             _In_reads_( NumViewports)  const D3D12_VIEWPORT *pViewports);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetScissorRects)
         void ( STDMETHODCALLTYPE *RSSetScissorRects )( 
             ID3D12GraphicsCommandList3 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumRects,
             _In_reads_( NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetBlendFactor)
         void ( STDMETHODCALLTYPE *OMSetBlendFactor )( 
             ID3D12GraphicsCommandList3 * This,
             _In_reads_opt_(4)  const FLOAT BlendFactor[ 4 ]);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetStencilRef)
         void ( STDMETHODCALLTYPE *OMSetStencilRef )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT StencilRef);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPipelineState)
         void ( STDMETHODCALLTYPE *SetPipelineState )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResourceBarrier)
         void ( STDMETHODCALLTYPE *ResourceBarrier )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT NumBarriers,
             _In_reads_(NumBarriers)  const D3D12_RESOURCE_BARRIER *pBarriers);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteBundle)
         void ( STDMETHODCALLTYPE *ExecuteBundle )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12GraphicsCommandList *pCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetDescriptorHeaps)
         void ( STDMETHODCALLTYPE *SetDescriptorHeaps )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT NumDescriptorHeaps,
             _In_reads_(NumDescriptorHeaps)  ID3D12DescriptorHeap *const *ppDescriptorHeaps);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootSignature)
         void ( STDMETHODCALLTYPE *SetComputeRootSignature )( 
             ID3D12GraphicsCommandList3 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootSignature)
         void ( STDMETHODCALLTYPE *SetGraphicsRootSignature )( 
             ID3D12GraphicsCommandList3 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetComputeRootDescriptorTable )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetGraphicsRootDescriptorTable )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstant )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstant )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstants )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
@@ -14713,6 +18384,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstants )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
@@ -14720,52 +18392,62 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetComputeRootConstantBufferView )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootConstantBufferView )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetComputeRootShaderResourceView )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootShaderResourceView )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetComputeRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetIndexBuffer)
         void ( STDMETHODCALLTYPE *IASetIndexBuffer )( 
             ID3D12GraphicsCommandList3 * This,
             _In_opt_  const D3D12_INDEX_BUFFER_VIEW *pView);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetVertexBuffers)
         void ( STDMETHODCALLTYPE *IASetVertexBuffers )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_VERTEX_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SOSetTargets)
         void ( STDMETHODCALLTYPE *SOSetTargets )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetRenderTargets)
         void ( STDMETHODCALLTYPE *OMSetRenderTargets )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT NumRenderTargetDescriptors,
@@ -14773,6 +18455,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  BOOL RTsSingleHandleToDescriptorRange,
             _In_opt_  const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearDepthStencilView)
         void ( STDMETHODCALLTYPE *ClearDepthStencilView )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
@@ -14782,6 +18465,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearRenderTargetView)
         void ( STDMETHODCALLTYPE *ClearRenderTargetView )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView,
@@ -14789,6 +18473,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewUint)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewUint )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -14798,6 +18483,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewFloat)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewFloat )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -14807,23 +18493,27 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DiscardResource)
         void ( STDMETHODCALLTYPE *DiscardResource )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DISCARD_REGION *pRegion);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginQuery)
         void ( STDMETHODCALLTYPE *BeginQuery )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndQuery)
         void ( STDMETHODCALLTYPE *EndQuery )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveQueryData)
         void ( STDMETHODCALLTYPE *ResolveQueryData )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
@@ -14833,27 +18523,32 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  ID3D12Resource *pDestinationBuffer,
             _In_  UINT64 AlignedDestinationBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPredication)
         void ( STDMETHODCALLTYPE *SetPredication )( 
             ID3D12GraphicsCommandList3 * This,
             _In_opt_  ID3D12Resource *pBuffer,
             _In_  UINT64 AlignedBufferOffset,
             _In_  D3D12_PREDICATION_OP Operation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetMarker)
         void ( STDMETHODCALLTYPE *SetMarker )( 
             ID3D12GraphicsCommandList3 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginEvent)
         void ( STDMETHODCALLTYPE *BeginEvent )( 
             ID3D12GraphicsCommandList3 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndEvent)
         void ( STDMETHODCALLTYPE *EndEvent )( 
             ID3D12GraphicsCommandList3 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteIndirect)
         void ( STDMETHODCALLTYPE *ExecuteIndirect )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12CommandSignature *pCommandSignature,
@@ -14863,6 +18558,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_opt_  ID3D12Resource *pCountBuffer,
             _In_  UINT64 CountBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -14873,6 +18569,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT64)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT64 )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -14883,17 +18580,20 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, OMSetDepthBounds)
         void ( STDMETHODCALLTYPE *OMSetDepthBounds )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  FLOAT Min,
             _In_  FLOAT Max);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetSamplePositions)
         void ( STDMETHODCALLTYPE *SetSamplePositions )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT NumSamplesPerPixel,
             _In_  UINT NumPixels,
             _In_reads_(NumSamplesPerPixel*NumPixels)  D3D12_SAMPLE_POSITION *pSamplePositions);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, ResolveSubresourceRegion)
         void ( STDMETHODCALLTYPE *ResolveSubresourceRegion )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -14906,16 +18606,19 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
             _In_  DXGI_FORMAT Format,
             _In_  D3D12_RESOLVE_MODE ResolveMode);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetViewInstanceMask)
         void ( STDMETHODCALLTYPE *SetViewInstanceMask )( 
             ID3D12GraphicsCommandList3 * This,
             _In_  UINT Mask);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList2, WriteBufferImmediate)
         void ( STDMETHODCALLTYPE *WriteBufferImmediate )( 
             ID3D12GraphicsCommandList3 * This,
             UINT Count,
             _In_reads_(Count)  const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER *pParams,
             _In_reads_opt_(Count)  const D3D12_WRITEBUFFERIMMEDIATE_MODE *pModes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList3, SetProtectedResourceSession)
         void ( STDMETHODCALLTYPE *SetProtectedResourceSession )( 
             ID3D12GraphicsCommandList3 * This,
             _In_opt_  ID3D12ProtectedResourceSession *pProtectedResourceSession);
@@ -15155,7 +18858,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList3;
 #endif 	/* __ID3D12GraphicsCommandList3_INTERFACE_DEFINED__ */
 
 
-/* interface __MIDL_itf_d3d12_0000_0041 */
+/* interface __MIDL_itf_d3d12_0000_0048 */
 /* [local] */ 
 
 typedef 
@@ -15247,8 +18950,8 @@ enum D3D12_RENDER_PASS_FLAGS
 DEFINE_ENUM_FLAG_OPERATORS( D3D12_RENDER_PASS_FLAGS );
 
 
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0041_v0_0_c_ifspec;
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0041_v0_0_s_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0048_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0048_v0_0_s_ifspec;
 
 #ifndef __ID3D12MetaCommand_INTERFACE_DEFINED__
 #define __ID3D12MetaCommand_INTERFACE_DEFINED__
@@ -15278,43 +18981,52 @@ EXTERN_C const IID IID_ID3D12MetaCommand;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12MetaCommand * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12MetaCommand * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12MetaCommand * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12MetaCommand * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12MetaCommand * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12MetaCommand * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12MetaCommand * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12MetaCommand * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12MetaCommand, GetRequiredParameterResourceSize)
         UINT64 ( STDMETHODCALLTYPE *GetRequiredParameterResourceSize )( 
             ID3D12MetaCommand * This,
             _In_  D3D12_META_COMMAND_PARAMETER_STAGE Stage,
@@ -15375,7 +19087,7 @@ EXTERN_C const IID IID_ID3D12MetaCommand;
 #endif 	/* __ID3D12MetaCommand_INTERFACE_DEFINED__ */
 
 
-/* interface __MIDL_itf_d3d12_0000_0042 */
+/* interface __MIDL_itf_d3d12_0000_0049 */
 /* [local] */ 
 
 typedef struct D3D12_DISPATCH_RAYS_DESC
@@ -15391,8 +19103,8 @@ typedef struct D3D12_DISPATCH_RAYS_DESC
 
 
 
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0042_v0_0_c_ifspec;
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0042_v0_0_s_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0049_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0049_v0_0_s_ifspec;
 
 #ifndef __ID3D12GraphicsCommandList4_INTERFACE_DEFINED__
 #define __ID3D12GraphicsCommandList4_INTERFACE_DEFINED__
@@ -15457,58 +19169,71 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12GraphicsCommandList4 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12GraphicsCommandList4 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12GraphicsCommandList4 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12GraphicsCommandList4 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12GraphicsCommandList4 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandList, GetType)
         D3D12_COMMAND_LIST_TYPE ( STDMETHODCALLTYPE *GetType )( 
             ID3D12GraphicsCommandList4 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Close)
         HRESULT ( STDMETHODCALLTYPE *Close )( 
             ID3D12GraphicsCommandList4 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Reset)
         HRESULT ( STDMETHODCALLTYPE *Reset )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12CommandAllocator *pAllocator,
             _In_opt_  ID3D12PipelineState *pInitialState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearState)
         void ( STDMETHODCALLTYPE *ClearState )( 
             ID3D12GraphicsCommandList4 * This,
             _In_opt_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawInstanced)
         void ( STDMETHODCALLTYPE *DrawInstanced )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT VertexCountPerInstance,
@@ -15516,6 +19241,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  UINT StartVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawIndexedInstanced)
         void ( STDMETHODCALLTYPE *DrawIndexedInstanced )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT IndexCountPerInstance,
@@ -15524,12 +19250,14 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  INT BaseVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Dispatch)
         void ( STDMETHODCALLTYPE *Dispatch )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT ThreadGroupCountX,
             _In_  UINT ThreadGroupCountY,
             _In_  UINT ThreadGroupCountZ);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyBufferRegion)
         void ( STDMETHODCALLTYPE *CopyBufferRegion )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -15538,6 +19266,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             UINT64 SrcOffset,
             UINT64 NumBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTextureRegion)
         void ( STDMETHODCALLTYPE *CopyTextureRegion )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pDst,
@@ -15547,11 +19276,13 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pSrc,
             _In_opt_  const D3D12_BOX *pSrcBox);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyResource)
         void ( STDMETHODCALLTYPE *CopyResource )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12Resource *pDstResource,
             _In_  ID3D12Resource *pSrcResource);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTiles)
         void ( STDMETHODCALLTYPE *CopyTiles )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -15561,6 +19292,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             UINT64 BufferStartOffsetInBytes,
             D3D12_TILE_COPY_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveSubresource)
         void ( STDMETHODCALLTYPE *ResolveSubresource )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -15569,76 +19301,92 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  UINT SrcSubresource,
             _In_  DXGI_FORMAT Format);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetPrimitiveTopology)
         void ( STDMETHODCALLTYPE *IASetPrimitiveTopology )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetViewports)
         void ( STDMETHODCALLTYPE *RSSetViewports )( 
             ID3D12GraphicsCommandList4 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumViewports,
             _In_reads_( NumViewports)  const D3D12_VIEWPORT *pViewports);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetScissorRects)
         void ( STDMETHODCALLTYPE *RSSetScissorRects )( 
             ID3D12GraphicsCommandList4 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumRects,
             _In_reads_( NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetBlendFactor)
         void ( STDMETHODCALLTYPE *OMSetBlendFactor )( 
             ID3D12GraphicsCommandList4 * This,
             _In_reads_opt_(4)  const FLOAT BlendFactor[ 4 ]);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetStencilRef)
         void ( STDMETHODCALLTYPE *OMSetStencilRef )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT StencilRef);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPipelineState)
         void ( STDMETHODCALLTYPE *SetPipelineState )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResourceBarrier)
         void ( STDMETHODCALLTYPE *ResourceBarrier )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT NumBarriers,
             _In_reads_(NumBarriers)  const D3D12_RESOURCE_BARRIER *pBarriers);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteBundle)
         void ( STDMETHODCALLTYPE *ExecuteBundle )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12GraphicsCommandList *pCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetDescriptorHeaps)
         void ( STDMETHODCALLTYPE *SetDescriptorHeaps )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT NumDescriptorHeaps,
             _In_reads_(NumDescriptorHeaps)  ID3D12DescriptorHeap *const *ppDescriptorHeaps);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootSignature)
         void ( STDMETHODCALLTYPE *SetComputeRootSignature )( 
             ID3D12GraphicsCommandList4 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootSignature)
         void ( STDMETHODCALLTYPE *SetGraphicsRootSignature )( 
             ID3D12GraphicsCommandList4 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetComputeRootDescriptorTable )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetGraphicsRootDescriptorTable )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstant )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstant )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstants )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
@@ -15646,6 +19394,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstants )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
@@ -15653,52 +19402,62 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetComputeRootConstantBufferView )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootConstantBufferView )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetComputeRootShaderResourceView )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootShaderResourceView )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetComputeRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetIndexBuffer)
         void ( STDMETHODCALLTYPE *IASetIndexBuffer )( 
             ID3D12GraphicsCommandList4 * This,
             _In_opt_  const D3D12_INDEX_BUFFER_VIEW *pView);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetVertexBuffers)
         void ( STDMETHODCALLTYPE *IASetVertexBuffers )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_VERTEX_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SOSetTargets)
         void ( STDMETHODCALLTYPE *SOSetTargets )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetRenderTargets)
         void ( STDMETHODCALLTYPE *OMSetRenderTargets )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT NumRenderTargetDescriptors,
@@ -15706,6 +19465,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  BOOL RTsSingleHandleToDescriptorRange,
             _In_opt_  const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearDepthStencilView)
         void ( STDMETHODCALLTYPE *ClearDepthStencilView )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
@@ -15715,6 +19475,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearRenderTargetView)
         void ( STDMETHODCALLTYPE *ClearRenderTargetView )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView,
@@ -15722,6 +19483,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewUint)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewUint )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -15731,6 +19493,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewFloat)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewFloat )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -15740,23 +19503,27 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DiscardResource)
         void ( STDMETHODCALLTYPE *DiscardResource )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DISCARD_REGION *pRegion);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginQuery)
         void ( STDMETHODCALLTYPE *BeginQuery )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndQuery)
         void ( STDMETHODCALLTYPE *EndQuery )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveQueryData)
         void ( STDMETHODCALLTYPE *ResolveQueryData )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
@@ -15766,27 +19533,32 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  ID3D12Resource *pDestinationBuffer,
             _In_  UINT64 AlignedDestinationBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPredication)
         void ( STDMETHODCALLTYPE *SetPredication )( 
             ID3D12GraphicsCommandList4 * This,
             _In_opt_  ID3D12Resource *pBuffer,
             _In_  UINT64 AlignedBufferOffset,
             _In_  D3D12_PREDICATION_OP Operation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetMarker)
         void ( STDMETHODCALLTYPE *SetMarker )( 
             ID3D12GraphicsCommandList4 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginEvent)
         void ( STDMETHODCALLTYPE *BeginEvent )( 
             ID3D12GraphicsCommandList4 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndEvent)
         void ( STDMETHODCALLTYPE *EndEvent )( 
             ID3D12GraphicsCommandList4 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteIndirect)
         void ( STDMETHODCALLTYPE *ExecuteIndirect )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12CommandSignature *pCommandSignature,
@@ -15796,6 +19568,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_opt_  ID3D12Resource *pCountBuffer,
             _In_  UINT64 CountBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -15806,6 +19579,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT64)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT64 )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -15816,17 +19590,20 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, OMSetDepthBounds)
         void ( STDMETHODCALLTYPE *OMSetDepthBounds )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  FLOAT Min,
             _In_  FLOAT Max);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetSamplePositions)
         void ( STDMETHODCALLTYPE *SetSamplePositions )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT NumSamplesPerPixel,
             _In_  UINT NumPixels,
             _In_reads_(NumSamplesPerPixel*NumPixels)  D3D12_SAMPLE_POSITION *pSamplePositions);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, ResolveSubresourceRegion)
         void ( STDMETHODCALLTYPE *ResolveSubresourceRegion )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -15839,20 +19616,24 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_  DXGI_FORMAT Format,
             _In_  D3D12_RESOLVE_MODE ResolveMode);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetViewInstanceMask)
         void ( STDMETHODCALLTYPE *SetViewInstanceMask )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT Mask);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList2, WriteBufferImmediate)
         void ( STDMETHODCALLTYPE *WriteBufferImmediate )( 
             ID3D12GraphicsCommandList4 * This,
             UINT Count,
             _In_reads_(Count)  const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER *pParams,
             _In_reads_opt_(Count)  const D3D12_WRITEBUFFERIMMEDIATE_MODE *pModes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList3, SetProtectedResourceSession)
         void ( STDMETHODCALLTYPE *SetProtectedResourceSession )( 
             ID3D12GraphicsCommandList4 * This,
             _In_opt_  ID3D12ProtectedResourceSession *pProtectedResourceSession);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, BeginRenderPass)
         void ( STDMETHODCALLTYPE *BeginRenderPass )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  UINT NumRenderTargets,
@@ -15860,43 +19641,51 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
             _In_opt_  const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil,
             D3D12_RENDER_PASS_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, EndRenderPass)
         void ( STDMETHODCALLTYPE *EndRenderPass )( 
             ID3D12GraphicsCommandList4 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, InitializeMetaCommand)
         void ( STDMETHODCALLTYPE *InitializeMetaCommand )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12MetaCommand *pMetaCommand,
             _In_reads_bytes_opt_(InitializationParametersDataSizeInBytes)  const void *pInitializationParametersData,
             _In_  SIZE_T InitializationParametersDataSizeInBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, ExecuteMetaCommand)
         void ( STDMETHODCALLTYPE *ExecuteMetaCommand )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12MetaCommand *pMetaCommand,
             _In_reads_bytes_opt_(ExecutionParametersDataSizeInBytes)  const void *pExecutionParametersData,
             _In_  SIZE_T ExecutionParametersDataSizeInBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, BuildRaytracingAccelerationStructure)
         void ( STDMETHODCALLTYPE *BuildRaytracingAccelerationStructure )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
             _In_  UINT NumPostbuildInfoDescs,
             _In_reads_opt_(NumPostbuildInfoDescs)  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, EmitRaytracingAccelerationStructurePostbuildInfo)
         void ( STDMETHODCALLTYPE *EmitRaytracingAccelerationStructurePostbuildInfo )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
             _In_  UINT NumSourceAccelerationStructures,
             _In_reads_( NumSourceAccelerationStructures )  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, CopyRaytracingAccelerationStructure)
         void ( STDMETHODCALLTYPE *CopyRaytracingAccelerationStructure )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
             _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, SetPipelineState1)
         void ( STDMETHODCALLTYPE *SetPipelineState1 )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  ID3D12StateObject *pStateObject);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, DispatchRays)
         void ( STDMETHODCALLTYPE *DispatchRays )( 
             ID3D12GraphicsCommandList4 * This,
             _In_  const D3D12_DISPATCH_RAYS_DESC *pDesc);
@@ -16164,6 +19953,1132 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList4;
 #endif 	/* __ID3D12GraphicsCommandList4_INTERFACE_DEFINED__ */
 
 
+/* interface __MIDL_itf_d3d12_0000_0050 */
+/* [local] */ 
+
+typedef 
+enum D3D12_SHADER_CACHE_MODE
+    {
+        D3D12_SHADER_CACHE_MODE_MEMORY	= 0,
+        D3D12_SHADER_CACHE_MODE_DISK	= ( D3D12_SHADER_CACHE_MODE_MEMORY + 1 ) 
+    } 	D3D12_SHADER_CACHE_MODE;
+
+typedef 
+enum D3D12_SHADER_CACHE_FLAGS
+    {
+        D3D12_SHADER_CACHE_FLAG_NONE	= 0,
+        D3D12_SHADER_CACHE_FLAG_DRIVER_VERSIONED	= 0x1,
+        D3D12_SHADER_CACHE_FLAG_USE_WORKING_DIR	= 0x2
+    } 	D3D12_SHADER_CACHE_FLAGS;
+
+DEFINE_ENUM_FLAG_OPERATORS( D3D12_SHADER_CACHE_FLAGS );
+typedef struct D3D12_SHADER_CACHE_SESSION_DESC
+    {
+    GUID Identifier;
+    D3D12_SHADER_CACHE_MODE Mode;
+    D3D12_SHADER_CACHE_FLAGS Flags;
+    UINT MaximumInMemoryCacheSizeBytes;
+    UINT MaximumInMemoryCacheEntries;
+    UINT MaximumValueFileSizeBytes;
+    UINT64 Version;
+    } 	D3D12_SHADER_CACHE_SESSION_DESC;
+
+
+
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0050_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0050_v0_0_s_ifspec;
+
+#ifndef __ID3D12ShaderCacheSession_INTERFACE_DEFINED__
+#define __ID3D12ShaderCacheSession_INTERFACE_DEFINED__
+
+/* interface ID3D12ShaderCacheSession */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12ShaderCacheSession;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("28e2495d-0f64-4ae4-a6ec-129255dc49a8")
+    ID3D12ShaderCacheSession : public ID3D12DeviceChild
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE FindValue( 
+            /* [annotation][in] */ 
+            _In_reads_bytes_(KeySize)  const void *pKey,
+            UINT KeySize,
+            /* [annotation][out] */ 
+            _Out_writes_bytes_(*pValueSize)  void *pValue,
+            _Inout_  UINT *pValueSize) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE StoreValue( 
+            /* [annotation][in] */ 
+            _In_reads_bytes_(KeySize)  const void *pKey,
+            UINT KeySize,
+            /* [annotation][in] */ 
+            _In_reads_bytes_(ValueSize)  const void *pValue,
+            UINT ValueSize) = 0;
+        
+        virtual void STDMETHODCALLTYPE SetDeleteOnDestroy( void) = 0;
+        
+        virtual D3D12_SHADER_CACHE_SESSION_DESC STDMETHODCALLTYPE GetDesc( void) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12ShaderCacheSessionVtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12ShaderCacheSession * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12ShaderCacheSession * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12ShaderCacheSession * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
+            ID3D12ShaderCacheSession * This,
+            _In_  REFGUID guid,
+            _Inout_  UINT *pDataSize,
+            _Out_writes_bytes_opt_( *pDataSize )  void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
+            ID3D12ShaderCacheSession * This,
+            _In_  REFGUID guid,
+            _In_  UINT DataSize,
+            _In_reads_bytes_opt_( DataSize )  const void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
+            ID3D12ShaderCacheSession * This,
+            _In_  REFGUID guid,
+            _In_opt_  const IUnknown *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
+        HRESULT ( STDMETHODCALLTYPE *SetName )( 
+            ID3D12ShaderCacheSession * This,
+            _In_z_  LPCWSTR Name);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
+        HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
+            ID3D12ShaderCacheSession * This,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvDevice);
+        
+        DECLSPEC_XFGVIRT(ID3D12ShaderCacheSession, FindValue)
+        HRESULT ( STDMETHODCALLTYPE *FindValue )( 
+            ID3D12ShaderCacheSession * This,
+            /* [annotation][in] */ 
+            _In_reads_bytes_(KeySize)  const void *pKey,
+            UINT KeySize,
+            /* [annotation][out] */ 
+            _Out_writes_bytes_(*pValueSize)  void *pValue,
+            _Inout_  UINT *pValueSize);
+        
+        DECLSPEC_XFGVIRT(ID3D12ShaderCacheSession, StoreValue)
+        HRESULT ( STDMETHODCALLTYPE *StoreValue )( 
+            ID3D12ShaderCacheSession * This,
+            /* [annotation][in] */ 
+            _In_reads_bytes_(KeySize)  const void *pKey,
+            UINT KeySize,
+            /* [annotation][in] */ 
+            _In_reads_bytes_(ValueSize)  const void *pValue,
+            UINT ValueSize);
+        
+        DECLSPEC_XFGVIRT(ID3D12ShaderCacheSession, SetDeleteOnDestroy)
+        void ( STDMETHODCALLTYPE *SetDeleteOnDestroy )( 
+            ID3D12ShaderCacheSession * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12ShaderCacheSession, GetDesc)
+        D3D12_SHADER_CACHE_SESSION_DESC *( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12ShaderCacheSession * This,
+            D3D12_SHADER_CACHE_SESSION_DESC * RetVal);
+        
+        END_INTERFACE
+    } ID3D12ShaderCacheSessionVtbl;
+
+    interface ID3D12ShaderCacheSession
+    {
+        CONST_VTBL struct ID3D12ShaderCacheSessionVtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12ShaderCacheSession_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12ShaderCacheSession_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12ShaderCacheSession_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12ShaderCacheSession_GetPrivateData(This,guid,pDataSize,pData)	\
+    ( (This)->lpVtbl -> GetPrivateData(This,guid,pDataSize,pData) ) 
+
+#define ID3D12ShaderCacheSession_SetPrivateData(This,guid,DataSize,pData)	\
+    ( (This)->lpVtbl -> SetPrivateData(This,guid,DataSize,pData) ) 
+
+#define ID3D12ShaderCacheSession_SetPrivateDataInterface(This,guid,pData)	\
+    ( (This)->lpVtbl -> SetPrivateDataInterface(This,guid,pData) ) 
+
+#define ID3D12ShaderCacheSession_SetName(This,Name)	\
+    ( (This)->lpVtbl -> SetName(This,Name) ) 
+
+
+#define ID3D12ShaderCacheSession_GetDevice(This,riid,ppvDevice)	\
+    ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
+
+
+#define ID3D12ShaderCacheSession_FindValue(This,pKey,KeySize,pValue,pValueSize)	\
+    ( (This)->lpVtbl -> FindValue(This,pKey,KeySize,pValue,pValueSize) ) 
+
+#define ID3D12ShaderCacheSession_StoreValue(This,pKey,KeySize,pValue,ValueSize)	\
+    ( (This)->lpVtbl -> StoreValue(This,pKey,KeySize,pValue,ValueSize) ) 
+
+#define ID3D12ShaderCacheSession_SetDeleteOnDestroy(This)	\
+    ( (This)->lpVtbl -> SetDeleteOnDestroy(This) ) 
+
+#define ID3D12ShaderCacheSession_GetDesc(This,RetVal)	\
+    ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+
+
+
+
+#endif 	/* __ID3D12ShaderCacheSession_INTERFACE_DEFINED__ */
+
+
+/* interface __MIDL_itf_d3d12_0000_0051 */
+/* [local] */ 
+
+typedef 
+enum D3D12_SHADER_CACHE_KIND_FLAGS
+    {
+        D3D12_SHADER_CACHE_KIND_FLAG_IMPLICIT_D3D_CACHE_FOR_DRIVER	= 0x1,
+        D3D12_SHADER_CACHE_KIND_FLAG_IMPLICIT_D3D_CONVERSIONS	= 0x2,
+        D3D12_SHADER_CACHE_KIND_FLAG_IMPLICIT_DRIVER_MANAGED	= 0x4,
+        D3D12_SHADER_CACHE_KIND_FLAG_APPLICATION_MANAGED	= 0x8
+    } 	D3D12_SHADER_CACHE_KIND_FLAGS;
+
+DEFINE_ENUM_FLAG_OPERATORS( D3D12_SHADER_CACHE_KIND_FLAGS );
+typedef 
+enum D3D12_SHADER_CACHE_CONTROL_FLAGS
+    {
+        D3D12_SHADER_CACHE_CONTROL_FLAG_DISABLE	= 0x1,
+        D3D12_SHADER_CACHE_CONTROL_FLAG_ENABLE	= 0x2,
+        D3D12_SHADER_CACHE_CONTROL_FLAG_CLEAR	= 0x4
+    } 	D3D12_SHADER_CACHE_CONTROL_FLAGS;
+
+DEFINE_ENUM_FLAG_OPERATORS( D3D12_SHADER_CACHE_CONTROL_FLAGS );
+
+
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0051_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0051_v0_0_s_ifspec;
+
+#ifndef __ID3D12Device9_INTERFACE_DEFINED__
+#define __ID3D12Device9_INTERFACE_DEFINED__
+
+/* interface ID3D12Device9 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12Device9;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("4c80e962-f032-4f60-bc9e-ebc2cfa1d83c")
+    ID3D12Device9 : public ID3D12Device8
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE CreateShaderCacheSession( 
+            _In_  const D3D12_SHADER_CACHE_SESSION_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvSession) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE ShaderCacheControl( 
+            D3D12_SHADER_CACHE_KIND_FLAGS Kinds,
+            D3D12_SHADER_CACHE_CONTROL_FLAGS Control) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CreateCommandQueue1( 
+            _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
+            REFIID CreatorID,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandQueue) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12Device9Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12Device9 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12Device9 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12Device9 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
+            ID3D12Device9 * This,
+            _In_  REFGUID guid,
+            _Inout_  UINT *pDataSize,
+            _Out_writes_bytes_opt_( *pDataSize )  void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
+            ID3D12Device9 * This,
+            _In_  REFGUID guid,
+            _In_  UINT DataSize,
+            _In_reads_bytes_opt_( DataSize )  const void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
+            ID3D12Device9 * This,
+            _In_  REFGUID guid,
+            _In_opt_  const IUnknown *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
+        HRESULT ( STDMETHODCALLTYPE *SetName )( 
+            ID3D12Device9 * This,
+            _In_z_  LPCWSTR Name);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetNodeCount)
+        UINT ( STDMETHODCALLTYPE *GetNodeCount )( 
+            ID3D12Device9 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandQueue)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandQueue);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandAllocator)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandAllocator )( 
+            ID3D12Device9 * This,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandAllocator);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateGraphicsPipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreateGraphicsPipelineState )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateComputePipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreateComputePipelineState )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandList)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandList )( 
+            ID3D12Device9 * This,
+            _In_  UINT nodeMask,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            _In_  ID3D12CommandAllocator *pCommandAllocator,
+            _In_opt_  ID3D12PipelineState *pInitialState,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandList);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CheckFeatureSupport)
+        HRESULT ( STDMETHODCALLTYPE *CheckFeatureSupport )( 
+            ID3D12Device9 * This,
+            D3D12_FEATURE Feature,
+            _Inout_updates_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
+            UINT FeatureSupportDataSize);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDescriptorHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateDescriptorHeap )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDescriptorHandleIncrementSize)
+        UINT ( STDMETHODCALLTYPE *GetDescriptorHandleIncrementSize )( 
+            ID3D12Device9 * This,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRootSignature)
+        HRESULT ( STDMETHODCALLTYPE *CreateRootSignature )( 
+            ID3D12Device9 * This,
+            _In_  UINT nodeMask,
+            _In_reads_(blobLengthInBytes)  const void *pBlobWithRootSignature,
+            _In_  SIZE_T blobLengthInBytes,
+            REFIID riid,
+            _COM_Outptr_  void **ppvRootSignature);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateConstantBufferView)
+        void ( STDMETHODCALLTYPE *CreateConstantBufferView )( 
+            ID3D12Device9 * This,
+            _In_opt_  const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateShaderResourceView)
+        void ( STDMETHODCALLTYPE *CreateShaderResourceView )( 
+            ID3D12Device9 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateUnorderedAccessView)
+        void ( STDMETHODCALLTYPE *CreateUnorderedAccessView )( 
+            ID3D12Device9 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  ID3D12Resource *pCounterResource,
+            _In_opt_  const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateRenderTargetView)
+        void ( STDMETHODCALLTYPE *CreateRenderTargetView )( 
+            ID3D12Device9 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_RENDER_TARGET_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateDepthStencilView)
+        void ( STDMETHODCALLTYPE *CreateDepthStencilView )( 
+            ID3D12Device9 * This,
+            _In_opt_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSampler)
+        void ( STDMETHODCALLTYPE *CreateSampler )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_SAMPLER_DESC *pDesc,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptors)
+        void ( STDMETHODCALLTYPE *CopyDescriptors )( 
+            ID3D12Device9 * This,
+            _In_  UINT NumDestDescriptorRanges,
+            _In_reads_(NumDestDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts,
+            _In_reads_opt_(NumDestDescriptorRanges)  const UINT *pDestDescriptorRangeSizes,
+            _In_  UINT NumSrcDescriptorRanges,
+            _In_reads_(NumSrcDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts,
+            _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CopyDescriptorsSimple)
+        void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
+            ID3D12Device9 * This,
+            _In_  UINT NumDescriptors,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
+            _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceAllocationInfo)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
+            ID3D12Device9 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
+            _In_  UINT visibleMask,
+            _In_  UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCustomHeapProperties)
+        D3D12_HEAP_PROPERTIES *( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+            ID3D12Device9 * This,
+            D3D12_HEAP_PROPERTIES * RetVal,
+            _In_  UINT nodeMask,
+            D3D12_HEAP_TYPE heapType);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommittedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateHeap )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_HEAP_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreatePlacedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource )( 
+            ID3D12Device9 * This,
+            _In_  ID3D12Heap *pHeap,
+            UINT64 HeapOffset,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateReservedResource)
+        HRESULT ( STDMETHODCALLTYPE *CreateReservedResource )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateSharedHandle)
+        HRESULT ( STDMETHODCALLTYPE *CreateSharedHandle )( 
+            ID3D12Device9 * This,
+            _In_  ID3D12DeviceChild *pObject,
+            _In_opt_  const SECURITY_ATTRIBUTES *pAttributes,
+            DWORD Access,
+            _In_opt_  LPCWSTR Name,
+            _Out_  HANDLE *pHandle);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandle)
+        HRESULT ( STDMETHODCALLTYPE *OpenSharedHandle )( 
+            ID3D12Device9 * This,
+            _In_  HANDLE NTHandle,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvObj);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, OpenSharedHandleByName)
+        HRESULT ( STDMETHODCALLTYPE *OpenSharedHandleByName )( 
+            ID3D12Device9 * This,
+            _In_  LPCWSTR Name,
+            DWORD Access,
+            /* [annotation][out] */ 
+            _Out_  HANDLE *pNTHandle);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, MakeResident)
+        HRESULT ( STDMETHODCALLTYPE *MakeResident )( 
+            ID3D12Device9 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, Evict)
+        HRESULT ( STDMETHODCALLTYPE *Evict )( 
+            ID3D12Device9 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateFence)
+        HRESULT ( STDMETHODCALLTYPE *CreateFence )( 
+            ID3D12Device9 * This,
+            UINT64 InitialValue,
+            D3D12_FENCE_FLAGS Flags,
+            REFIID riid,
+            _COM_Outptr_  void **ppFence);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetDeviceRemovedReason)
+        HRESULT ( STDMETHODCALLTYPE *GetDeviceRemovedReason )( 
+            ID3D12Device9 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetCopyableFootprints)
+        void ( STDMETHODCALLTYPE *GetCopyableFootprints )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_RESOURCE_DESC *pResourceDesc,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES)  UINT FirstSubresource,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES-FirstSubresource)  UINT NumSubresources,
+            UINT64 BaseOffset,
+            _Out_writes_opt_(NumSubresources)  D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts,
+            _Out_writes_opt_(NumSubresources)  UINT *pNumRows,
+            _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
+            _Out_opt_  UINT64 *pTotalBytes);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateQueryHeap)
+        HRESULT ( STDMETHODCALLTYPE *CreateQueryHeap )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_QUERY_HEAP_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, SetStablePowerState)
+        HRESULT ( STDMETHODCALLTYPE *SetStablePowerState )( 
+            ID3D12Device9 * This,
+            BOOL Enable);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, CreateCommandSignature)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
+            _In_opt_  ID3D12RootSignature *pRootSignature,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvCommandSignature);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetResourceTiling)
+        void ( STDMETHODCALLTYPE *GetResourceTiling )( 
+            ID3D12Device9 * This,
+            _In_  ID3D12Resource *pTiledResource,
+            _Out_opt_  UINT *pNumTilesForEntireResource,
+            _Out_opt_  D3D12_PACKED_MIP_INFO *pPackedMipDesc,
+            _Out_opt_  D3D12_TILE_SHAPE *pStandardTileShapeForNonPackedMips,
+            _Inout_opt_  UINT *pNumSubresourceTilings,
+            _In_  UINT FirstSubresourceTilingToGet,
+            _Out_writes_(*pNumSubresourceTilings)  D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device, GetAdapterLuid)
+        LUID *( STDMETHODCALLTYPE *GetAdapterLuid )( 
+            ID3D12Device9 * This,
+            LUID * RetVal);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, CreatePipelineLibrary)
+        HRESULT ( STDMETHODCALLTYPE *CreatePipelineLibrary )( 
+            ID3D12Device9 * This,
+            _In_reads_(BlobLength)  const void *pLibraryBlob,
+            SIZE_T BlobLength,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineLibrary);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetEventOnMultipleFenceCompletion)
+        HRESULT ( STDMETHODCALLTYPE *SetEventOnMultipleFenceCompletion )( 
+            ID3D12Device9 * This,
+            _In_reads_(NumFences)  ID3D12Fence *const *ppFences,
+            _In_reads_(NumFences)  const UINT64 *pFenceValues,
+            UINT NumFences,
+            D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags,
+            HANDLE hEvent);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device1, SetResidencyPriority)
+        HRESULT ( STDMETHODCALLTYPE *SetResidencyPriority )( 
+            ID3D12Device9 * This,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
+            _In_reads_(NumObjects)  const D3D12_RESIDENCY_PRIORITY *pPriorities);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device2, CreatePipelineState)
+        HRESULT ( STDMETHODCALLTYPE *CreatePipelineState )( 
+            ID3D12Device9 * This,
+            const D3D12_PIPELINE_STATE_STREAM_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromAddress)
+        HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromAddress )( 
+            ID3D12Device9 * This,
+            _In_  const void *pAddress,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, OpenExistingHeapFromFileMapping)
+        HRESULT ( STDMETHODCALLTYPE *OpenExistingHeapFromFileMapping )( 
+            ID3D12Device9 * This,
+            _In_  HANDLE hFileMapping,
+            REFIID riid,
+            _COM_Outptr_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device3, EnqueueMakeResident)
+        HRESULT ( STDMETHODCALLTYPE *EnqueueMakeResident )( 
+            ID3D12Device9 * This,
+            D3D12_RESIDENCY_FLAGS Flags,
+            UINT NumObjects,
+            _In_reads_(NumObjects)  ID3D12Pageable *const *ppObjects,
+            _In_  ID3D12Fence *pFenceToSignal,
+            UINT64 FenceValueToSignal);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommandList1)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandList1 )( 
+            ID3D12Device9 * This,
+            _In_  UINT nodeMask,
+            _In_  D3D12_COMMAND_LIST_TYPE type,
+            _In_  D3D12_COMMAND_LIST_FLAGS flags,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandList);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateProtectedResourceSession)
+        HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc,
+            _In_  REFIID riid,
+            _COM_Outptr_  void **ppSession);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateCommittedResource1)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource1 )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateHeap1)
+        HRESULT ( STDMETHODCALLTYPE *CreateHeap1 )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_HEAP_DESC *pDesc,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvHeap);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, CreateReservedResource1)
+        HRESULT ( STDMETHODCALLTYPE *CreateReservedResource1 )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_RESOURCE_DESC *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device4, GetResourceAllocationInfo1)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo1 )( 
+            ID3D12Device9 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
+            UINT visibleMask,
+            UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs,
+            _Out_writes_opt_(numResourceDescs)  D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateLifetimeTracker)
+        HRESULT ( STDMETHODCALLTYPE *CreateLifetimeTracker )( 
+            ID3D12Device9 * This,
+            _In_  ID3D12LifetimeOwner *pOwner,
+            REFIID riid,
+            _COM_Outptr_  void **ppvTracker);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, RemoveDevice)
+        void ( STDMETHODCALLTYPE *RemoveDevice )( 
+            ID3D12Device9 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommands)
+        HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommands )( 
+            ID3D12Device9 * This,
+            _Inout_  UINT *pNumMetaCommands,
+            _Out_writes_opt_(*pNumMetaCommands)  D3D12_META_COMMAND_DESC *pDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, EnumerateMetaCommandParameters)
+        HRESULT ( STDMETHODCALLTYPE *EnumerateMetaCommandParameters )( 
+            ID3D12Device9 * This,
+            _In_  REFGUID CommandId,
+            _In_  D3D12_META_COMMAND_PARAMETER_STAGE Stage,
+            _Out_opt_  UINT *pTotalStructureSizeInBytes,
+            _Inout_  UINT *pParameterCount,
+            _Out_writes_opt_(*pParameterCount)  D3D12_META_COMMAND_PARAMETER_DESC *pParameterDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateMetaCommand)
+        HRESULT ( STDMETHODCALLTYPE *CreateMetaCommand )( 
+            ID3D12Device9 * This,
+            _In_  REFGUID CommandId,
+            _In_  UINT NodeMask,
+            _In_reads_bytes_opt_(CreationParametersDataSizeInBytes)  const void *pCreationParametersData,
+            _In_  SIZE_T CreationParametersDataSizeInBytes,
+            REFIID riid,
+            _COM_Outptr_  void **ppMetaCommand);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CreateStateObject)
+        HRESULT ( STDMETHODCALLTYPE *CreateStateObject )( 
+            ID3D12Device9 * This,
+            const D3D12_STATE_OBJECT_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_  void **ppStateObject);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, GetRaytracingAccelerationStructurePrebuildInfo)
+        void ( STDMETHODCALLTYPE *GetRaytracingAccelerationStructurePrebuildInfo )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
+            _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device5, CheckDriverMatchingIdentifier)
+        D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS ( STDMETHODCALLTYPE *CheckDriverMatchingIdentifier )( 
+            ID3D12Device9 * This,
+            _In_  D3D12_SERIALIZED_DATA_TYPE SerializedDataType,
+            _In_  const D3D12_SERIALIZED_DATA_DRIVER_MATCHING_IDENTIFIER *pIdentifierToCheck);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device6, SetBackgroundProcessingMode)
+        HRESULT ( STDMETHODCALLTYPE *SetBackgroundProcessingMode )( 
+            ID3D12Device9 * This,
+            D3D12_BACKGROUND_PROCESSING_MODE Mode,
+            D3D12_MEASUREMENTS_ACTION MeasurementsAction,
+            _In_opt_  HANDLE hEventToSignalUponCompletion,
+            _Out_opt_  BOOL *pbFurtherMeasurementsDesired);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device7, AddToStateObject)
+        HRESULT ( STDMETHODCALLTYPE *AddToStateObject )( 
+            ID3D12Device9 * This,
+            const D3D12_STATE_OBJECT_DESC *pAddition,
+            ID3D12StateObject *pStateObjectToGrowFrom,
+            REFIID riid,
+            _COM_Outptr_  void **ppNewStateObject);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device7, CreateProtectedResourceSession1)
+        HRESULT ( STDMETHODCALLTYPE *CreateProtectedResourceSession1 )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_PROTECTED_RESOURCE_SESSION_DESC1 *pDesc,
+            _In_  REFIID riid,
+            _COM_Outptr_  void **ppSession);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, GetResourceAllocationInfo2)
+        D3D12_RESOURCE_ALLOCATION_INFO *( STDMETHODCALLTYPE *GetResourceAllocationInfo2 )( 
+            ID3D12Device9 * This,
+            D3D12_RESOURCE_ALLOCATION_INFO * RetVal,
+            UINT visibleMask,
+            UINT numResourceDescs,
+            _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC1 *pResourceDescs,
+            _Out_writes_opt_(numResourceDescs)  D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, CreateCommittedResource2)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommittedResource2 )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+            D3D12_HEAP_FLAGS HeapFlags,
+            _In_  const D3D12_RESOURCE_DESC1 *pDesc,
+            D3D12_RESOURCE_STATES InitialResourceState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedSession,
+            REFIID riidResource,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, CreatePlacedResource1)
+        HRESULT ( STDMETHODCALLTYPE *CreatePlacedResource1 )( 
+            ID3D12Device9 * This,
+            _In_  ID3D12Heap *pHeap,
+            UINT64 HeapOffset,
+            _In_  const D3D12_RESOURCE_DESC1 *pDesc,
+            D3D12_RESOURCE_STATES InitialState,
+            _In_opt_  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, CreateSamplerFeedbackUnorderedAccessView)
+        void ( STDMETHODCALLTYPE *CreateSamplerFeedbackUnorderedAccessView )( 
+            ID3D12Device9 * This,
+            _In_opt_  ID3D12Resource *pTargetedResource,
+            _In_opt_  ID3D12Resource *pFeedbackResource,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device8, GetCopyableFootprints1)
+        void ( STDMETHODCALLTYPE *GetCopyableFootprints1 )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_RESOURCE_DESC1 *pResourceDesc,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES)  UINT FirstSubresource,
+            _In_range_(0,D3D12_REQ_SUBRESOURCES-FirstSubresource)  UINT NumSubresources,
+            UINT64 BaseOffset,
+            _Out_writes_opt_(NumSubresources)  D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts,
+            _Out_writes_opt_(NumSubresources)  UINT *pNumRows,
+            _Out_writes_opt_(NumSubresources)  UINT64 *pRowSizeInBytes,
+            _Out_opt_  UINT64 *pTotalBytes);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device9, CreateShaderCacheSession)
+        HRESULT ( STDMETHODCALLTYPE *CreateShaderCacheSession )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_SHADER_CACHE_SESSION_DESC *pDesc,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvSession);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device9, ShaderCacheControl)
+        HRESULT ( STDMETHODCALLTYPE *ShaderCacheControl )( 
+            ID3D12Device9 * This,
+            D3D12_SHADER_CACHE_KIND_FLAGS Kinds,
+            D3D12_SHADER_CACHE_CONTROL_FLAGS Control);
+        
+        DECLSPEC_XFGVIRT(ID3D12Device9, CreateCommandQueue1)
+        HRESULT ( STDMETHODCALLTYPE *CreateCommandQueue1 )( 
+            ID3D12Device9 * This,
+            _In_  const D3D12_COMMAND_QUEUE_DESC *pDesc,
+            REFIID CreatorID,
+            REFIID riid,
+            _COM_Outptr_  void **ppCommandQueue);
+        
+        END_INTERFACE
+    } ID3D12Device9Vtbl;
+
+    interface ID3D12Device9
+    {
+        CONST_VTBL struct ID3D12Device9Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12Device9_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12Device9_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12Device9_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12Device9_GetPrivateData(This,guid,pDataSize,pData)	\
+    ( (This)->lpVtbl -> GetPrivateData(This,guid,pDataSize,pData) ) 
+
+#define ID3D12Device9_SetPrivateData(This,guid,DataSize,pData)	\
+    ( (This)->lpVtbl -> SetPrivateData(This,guid,DataSize,pData) ) 
+
+#define ID3D12Device9_SetPrivateDataInterface(This,guid,pData)	\
+    ( (This)->lpVtbl -> SetPrivateDataInterface(This,guid,pData) ) 
+
+#define ID3D12Device9_SetName(This,Name)	\
+    ( (This)->lpVtbl -> SetName(This,Name) ) 
+
+
+#define ID3D12Device9_GetNodeCount(This)	\
+    ( (This)->lpVtbl -> GetNodeCount(This) ) 
+
+#define ID3D12Device9_CreateCommandQueue(This,pDesc,riid,ppCommandQueue)	\
+    ( (This)->lpVtbl -> CreateCommandQueue(This,pDesc,riid,ppCommandQueue) ) 
+
+#define ID3D12Device9_CreateCommandAllocator(This,type,riid,ppCommandAllocator)	\
+    ( (This)->lpVtbl -> CreateCommandAllocator(This,type,riid,ppCommandAllocator) ) 
+
+#define ID3D12Device9_CreateGraphicsPipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreateGraphicsPipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+#define ID3D12Device9_CreateComputePipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreateComputePipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+#define ID3D12Device9_CreateCommandList(This,nodeMask,type,pCommandAllocator,pInitialState,riid,ppCommandList)	\
+    ( (This)->lpVtbl -> CreateCommandList(This,nodeMask,type,pCommandAllocator,pInitialState,riid,ppCommandList) ) 
+
+#define ID3D12Device9_CheckFeatureSupport(This,Feature,pFeatureSupportData,FeatureSupportDataSize)	\
+    ( (This)->lpVtbl -> CheckFeatureSupport(This,Feature,pFeatureSupportData,FeatureSupportDataSize) ) 
+
+#define ID3D12Device9_CreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device9_GetDescriptorHandleIncrementSize(This,DescriptorHeapType)	\
+    ( (This)->lpVtbl -> GetDescriptorHandleIncrementSize(This,DescriptorHeapType) ) 
+
+#define ID3D12Device9_CreateRootSignature(This,nodeMask,pBlobWithRootSignature,blobLengthInBytes,riid,ppvRootSignature)	\
+    ( (This)->lpVtbl -> CreateRootSignature(This,nodeMask,pBlobWithRootSignature,blobLengthInBytes,riid,ppvRootSignature) ) 
+
+#define ID3D12Device9_CreateConstantBufferView(This,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateConstantBufferView(This,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device9_CreateShaderResourceView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateShaderResourceView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device9_CreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device9_CreateRenderTargetView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateRenderTargetView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device9_CreateDepthStencilView(This,pResource,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateDepthStencilView(This,pResource,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device9_CreateSampler(This,pDesc,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateSampler(This,pDesc,DestDescriptor) ) 
+
+#define ID3D12Device9_CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType)	\
+    ( (This)->lpVtbl -> CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType) ) 
+
+#define ID3D12Device9_CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType)	\
+    ( (This)->lpVtbl -> CopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType) ) 
+
+#define ID3D12Device9_GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo(This,RetVal,visibleMask,numResourceDescs,pResourceDescs) ) 
+
+#define ID3D12Device9_GetCustomHeapProperties(This,RetVal,nodeMask,heapType)	\
+    ( (This)->lpVtbl -> GetCustomHeapProperties(This,RetVal,nodeMask,heapType) ) 
+
+#define ID3D12Device9_CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource)	\
+    ( (This)->lpVtbl -> CreateCommittedResource(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource) ) 
+
+#define ID3D12Device9_CreateHeap(This,pDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateHeap(This,pDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device9_CreatePlacedResource(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreatePlacedResource(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource) ) 
+
+#define ID3D12Device9_CreateReservedResource(This,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreateReservedResource(This,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource) ) 
+
+#define ID3D12Device9_CreateSharedHandle(This,pObject,pAttributes,Access,Name,pHandle)	\
+    ( (This)->lpVtbl -> CreateSharedHandle(This,pObject,pAttributes,Access,Name,pHandle) ) 
+
+#define ID3D12Device9_OpenSharedHandle(This,NTHandle,riid,ppvObj)	\
+    ( (This)->lpVtbl -> OpenSharedHandle(This,NTHandle,riid,ppvObj) ) 
+
+#define ID3D12Device9_OpenSharedHandleByName(This,Name,Access,pNTHandle)	\
+    ( (This)->lpVtbl -> OpenSharedHandleByName(This,Name,Access,pNTHandle) ) 
+
+#define ID3D12Device9_MakeResident(This,NumObjects,ppObjects)	\
+    ( (This)->lpVtbl -> MakeResident(This,NumObjects,ppObjects) ) 
+
+#define ID3D12Device9_Evict(This,NumObjects,ppObjects)	\
+    ( (This)->lpVtbl -> Evict(This,NumObjects,ppObjects) ) 
+
+#define ID3D12Device9_CreateFence(This,InitialValue,Flags,riid,ppFence)	\
+    ( (This)->lpVtbl -> CreateFence(This,InitialValue,Flags,riid,ppFence) ) 
+
+#define ID3D12Device9_GetDeviceRemovedReason(This)	\
+    ( (This)->lpVtbl -> GetDeviceRemovedReason(This) ) 
+
+#define ID3D12Device9_GetCopyableFootprints(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes)	\
+    ( (This)->lpVtbl -> GetCopyableFootprints(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes) ) 
+
+#define ID3D12Device9_CreateQueryHeap(This,pDesc,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateQueryHeap(This,pDesc,riid,ppvHeap) ) 
+
+#define ID3D12Device9_SetStablePowerState(This,Enable)	\
+    ( (This)->lpVtbl -> SetStablePowerState(This,Enable) ) 
+
+#define ID3D12Device9_CreateCommandSignature(This,pDesc,pRootSignature,riid,ppvCommandSignature)	\
+    ( (This)->lpVtbl -> CreateCommandSignature(This,pDesc,pRootSignature,riid,ppvCommandSignature) ) 
+
+#define ID3D12Device9_GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips)	\
+    ( (This)->lpVtbl -> GetResourceTiling(This,pTiledResource,pNumTilesForEntireResource,pPackedMipDesc,pStandardTileShapeForNonPackedMips,pNumSubresourceTilings,FirstSubresourceTilingToGet,pSubresourceTilingsForNonPackedMips) ) 
+
+#define ID3D12Device9_GetAdapterLuid(This,RetVal)	\
+    ( (This)->lpVtbl -> GetAdapterLuid(This,RetVal) ) 
+
+
+#define ID3D12Device9_CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary)	\
+    ( (This)->lpVtbl -> CreatePipelineLibrary(This,pLibraryBlob,BlobLength,riid,ppPipelineLibrary) ) 
+
+#define ID3D12Device9_SetEventOnMultipleFenceCompletion(This,ppFences,pFenceValues,NumFences,Flags,hEvent)	\
+    ( (This)->lpVtbl -> SetEventOnMultipleFenceCompletion(This,ppFences,pFenceValues,NumFences,Flags,hEvent) ) 
+
+#define ID3D12Device9_SetResidencyPriority(This,NumObjects,ppObjects,pPriorities)	\
+    ( (This)->lpVtbl -> SetResidencyPriority(This,NumObjects,ppObjects,pPriorities) ) 
+
+
+#define ID3D12Device9_CreatePipelineState(This,pDesc,riid,ppPipelineState)	\
+    ( (This)->lpVtbl -> CreatePipelineState(This,pDesc,riid,ppPipelineState) ) 
+
+
+#define ID3D12Device9_OpenExistingHeapFromAddress(This,pAddress,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> OpenExistingHeapFromAddress(This,pAddress,riid,ppvHeap) ) 
+
+#define ID3D12Device9_OpenExistingHeapFromFileMapping(This,hFileMapping,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> OpenExistingHeapFromFileMapping(This,hFileMapping,riid,ppvHeap) ) 
+
+#define ID3D12Device9_EnqueueMakeResident(This,Flags,NumObjects,ppObjects,pFenceToSignal,FenceValueToSignal)	\
+    ( (This)->lpVtbl -> EnqueueMakeResident(This,Flags,NumObjects,ppObjects,pFenceToSignal,FenceValueToSignal) ) 
+
+
+#define ID3D12Device9_CreateCommandList1(This,nodeMask,type,flags,riid,ppCommandList)	\
+    ( (This)->lpVtbl -> CreateCommandList1(This,nodeMask,type,flags,riid,ppCommandList) ) 
+
+#define ID3D12Device9_CreateProtectedResourceSession(This,pDesc,riid,ppSession)	\
+    ( (This)->lpVtbl -> CreateProtectedResourceSession(This,pDesc,riid,ppSession) ) 
+
+#define ID3D12Device9_CreateCommittedResource1(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource)	\
+    ( (This)->lpVtbl -> CreateCommittedResource1(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource) ) 
+
+#define ID3D12Device9_CreateHeap1(This,pDesc,pProtectedSession,riid,ppvHeap)	\
+    ( (This)->lpVtbl -> CreateHeap1(This,pDesc,pProtectedSession,riid,ppvHeap) ) 
+
+#define ID3D12Device9_CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreateReservedResource1(This,pDesc,InitialState,pOptimizedClearValue,pProtectedSession,riid,ppvResource) ) 
+
+#define ID3D12Device9_GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo1(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
+
+
+#define ID3D12Device9_CreateLifetimeTracker(This,pOwner,riid,ppvTracker)	\
+    ( (This)->lpVtbl -> CreateLifetimeTracker(This,pOwner,riid,ppvTracker) ) 
+
+#define ID3D12Device9_RemoveDevice(This)	\
+    ( (This)->lpVtbl -> RemoveDevice(This) ) 
+
+#define ID3D12Device9_EnumerateMetaCommands(This,pNumMetaCommands,pDescs)	\
+    ( (This)->lpVtbl -> EnumerateMetaCommands(This,pNumMetaCommands,pDescs) ) 
+
+#define ID3D12Device9_EnumerateMetaCommandParameters(This,CommandId,Stage,pTotalStructureSizeInBytes,pParameterCount,pParameterDescs)	\
+    ( (This)->lpVtbl -> EnumerateMetaCommandParameters(This,CommandId,Stage,pTotalStructureSizeInBytes,pParameterCount,pParameterDescs) ) 
+
+#define ID3D12Device9_CreateMetaCommand(This,CommandId,NodeMask,pCreationParametersData,CreationParametersDataSizeInBytes,riid,ppMetaCommand)	\
+    ( (This)->lpVtbl -> CreateMetaCommand(This,CommandId,NodeMask,pCreationParametersData,CreationParametersDataSizeInBytes,riid,ppMetaCommand) ) 
+
+#define ID3D12Device9_CreateStateObject(This,pDesc,riid,ppStateObject)	\
+    ( (This)->lpVtbl -> CreateStateObject(This,pDesc,riid,ppStateObject) ) 
+
+#define ID3D12Device9_GetRaytracingAccelerationStructurePrebuildInfo(This,pDesc,pInfo)	\
+    ( (This)->lpVtbl -> GetRaytracingAccelerationStructurePrebuildInfo(This,pDesc,pInfo) ) 
+
+#define ID3D12Device9_CheckDriverMatchingIdentifier(This,SerializedDataType,pIdentifierToCheck)	\
+    ( (This)->lpVtbl -> CheckDriverMatchingIdentifier(This,SerializedDataType,pIdentifierToCheck) ) 
+
+
+#define ID3D12Device9_SetBackgroundProcessingMode(This,Mode,MeasurementsAction,hEventToSignalUponCompletion,pbFurtherMeasurementsDesired)	\
+    ( (This)->lpVtbl -> SetBackgroundProcessingMode(This,Mode,MeasurementsAction,hEventToSignalUponCompletion,pbFurtherMeasurementsDesired) ) 
+
+
+#define ID3D12Device9_AddToStateObject(This,pAddition,pStateObjectToGrowFrom,riid,ppNewStateObject)	\
+    ( (This)->lpVtbl -> AddToStateObject(This,pAddition,pStateObjectToGrowFrom,riid,ppNewStateObject) ) 
+
+#define ID3D12Device9_CreateProtectedResourceSession1(This,pDesc,riid,ppSession)	\
+    ( (This)->lpVtbl -> CreateProtectedResourceSession1(This,pDesc,riid,ppSession) ) 
+
+
+#define ID3D12Device9_GetResourceAllocationInfo2(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1)	\
+    ( (This)->lpVtbl -> GetResourceAllocationInfo2(This,RetVal,visibleMask,numResourceDescs,pResourceDescs,pResourceAllocationInfo1) ) 
+
+#define ID3D12Device9_CreateCommittedResource2(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource)	\
+    ( (This)->lpVtbl -> CreateCommittedResource2(This,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,pProtectedSession,riidResource,ppvResource) ) 
+
+#define ID3D12Device9_CreatePlacedResource1(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource)	\
+    ( (This)->lpVtbl -> CreatePlacedResource1(This,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource) ) 
+
+#define ID3D12Device9_CreateSamplerFeedbackUnorderedAccessView(This,pTargetedResource,pFeedbackResource,DestDescriptor)	\
+    ( (This)->lpVtbl -> CreateSamplerFeedbackUnorderedAccessView(This,pTargetedResource,pFeedbackResource,DestDescriptor) ) 
+
+#define ID3D12Device9_GetCopyableFootprints1(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes)	\
+    ( (This)->lpVtbl -> GetCopyableFootprints1(This,pResourceDesc,FirstSubresource,NumSubresources,BaseOffset,pLayouts,pNumRows,pRowSizeInBytes,pTotalBytes) ) 
+
+
+#define ID3D12Device9_CreateShaderCacheSession(This,pDesc,riid,ppvSession)	\
+    ( (This)->lpVtbl -> CreateShaderCacheSession(This,pDesc,riid,ppvSession) ) 
+
+#define ID3D12Device9_ShaderCacheControl(This,Kinds,Control)	\
+    ( (This)->lpVtbl -> ShaderCacheControl(This,Kinds,Control) ) 
+
+#define ID3D12Device9_CreateCommandQueue1(This,pDesc,CreatorID,riid,ppCommandQueue)	\
+    ( (This)->lpVtbl -> CreateCommandQueue1(This,pDesc,CreatorID,riid,ppCommandQueue) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ID3D12Device9_INTERFACE_DEFINED__ */
+
+
 #ifndef __ID3D12Tools_INTERFACE_DEFINED__
 #define __ID3D12Tools_INTERFACE_DEFINED__
 
@@ -16193,21 +21108,26 @@ EXTERN_C const IID IID_ID3D12Tools;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12Tools * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12Tools * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12Tools * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Tools, EnableShaderInstrumentation)
         void ( STDMETHODCALLTYPE *EnableShaderInstrumentation )( 
             ID3D12Tools * This,
             BOOL bEnable);
         
+        DECLSPEC_XFGVIRT(ID3D12Tools, ShaderInstrumentationEnabled)
         BOOL ( STDMETHODCALLTYPE *ShaderInstrumentationEnabled )( 
             ID3D12Tools * This);
         
@@ -16251,7 +21171,7 @@ EXTERN_C const IID IID_ID3D12Tools;
 #endif 	/* __ID3D12Tools_INTERFACE_DEFINED__ */
 
 
-/* interface __MIDL_itf_d3d12_0000_0044 */
+/* interface __MIDL_itf_d3d12_0000_0053 */
 /* [local] */ 
 
 typedef struct D3D12_SUBRESOURCE_DATA
@@ -16383,19 +21303,113 @@ static const UUID D3D12MetaCommand = { /* C734C97E-8077-48C8-9FDC-D9D1DD31DD77 *
     { 0x9f, 0xdc, 0xd9, 0xd1, 0xdd, 0x31, 0xdd, 0x77 }
 };
 // --------------------------------------------------------------------------------------------------------------------------------
-// Experimental Feature: D3D12ComputeOnlyDevices
+// D3D12GetInterface
 //
-// Use with D3D12EnableExperimentalFeatures to enable compute only devices (D3D_FEATURE_LEVEL_1_0_CORE).
+// Retrieve Global D3D12 Interface.
 //
-// Enabling D3D12ComputeOnlyDevices needs no configuration struct, pass NULL in the pConfigurationStructs array.
-//
-// --------------------------------------------------------------------------------------------------------------------------------
-static const UUID D3D12ComputeOnlyDevices = { /* 50f7ab08-4b6d-4e14-89a5-5d16cd272594 */
-    0x50f7ab08,
-    0x4b6d,
-    0x4e14,
-    {0x89, 0xa5, 0x5d, 0x16, 0xcd, 0x27, 0x25, 0x94}
-};
+
+DEFINE_GUID(CLSID_D3D12Debug,                        0xf2352aeb, 0xdd84, 0x49fe, 0xb9, 0x7b, 0xa9, 0xdc, 0xfd, 0xcc, 0x1b, 0x4f);
+DEFINE_GUID(CLSID_D3D12Tools,                        0xe38216b1, 0x3c8c, 0x4833, 0xaa, 0x09, 0x0a, 0x06, 0xb6, 0x5d, 0x96, 0xc8);
+DEFINE_GUID(CLSID_D3D12DeviceRemovedExtendedData,    0x4a75bbc4, 0x9ff4, 0x4ad8, 0x9f, 0x18, 0xab, 0xae, 0x84, 0xdc, 0x5f, 0xf2);
+DEFINE_GUID(CLSID_D3D12SDKConfiguration,             0x7cda6aca, 0xa03e, 0x49c8, 0x94, 0x58, 0x03, 0x34, 0xd2, 0x0e, 0x07, 0xce);
+
+typedef HRESULT (WINAPI* PFN_D3D12_GET_INTERFACE)( _In_ REFCLSID, _In_ REFIID, _COM_Outptr_opt_ void** );
+
+HRESULT WINAPI D3D12GetInterface( _In_ REFCLSID rclsid, _In_ REFIID riid, _COM_Outptr_opt_ void** ppvDebug );
+
+
+
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0053_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0053_v0_0_s_ifspec;
+
+#ifndef __ID3D12SDKConfiguration_INTERFACE_DEFINED__
+#define __ID3D12SDKConfiguration_INTERFACE_DEFINED__
+
+/* interface ID3D12SDKConfiguration */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12SDKConfiguration;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("e9eb5314-33aa-42b2-a718-d77f58b1f1c7")
+    ID3D12SDKConfiguration : public IUnknown
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE SetSDKVersion( 
+            UINT SDKVersion,
+            _In_z_  LPCSTR SDKPath) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12SDKConfigurationVtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12SDKConfiguration * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12SDKConfiguration * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12SDKConfiguration * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12SDKConfiguration, SetSDKVersion)
+        HRESULT ( STDMETHODCALLTYPE *SetSDKVersion )( 
+            ID3D12SDKConfiguration * This,
+            UINT SDKVersion,
+            _In_z_  LPCSTR SDKPath);
+        
+        END_INTERFACE
+    } ID3D12SDKConfigurationVtbl;
+
+    interface ID3D12SDKConfiguration
+    {
+        CONST_VTBL struct ID3D12SDKConfigurationVtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12SDKConfiguration_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12SDKConfiguration_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12SDKConfiguration_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12SDKConfiguration_SetSDKVersion(This,SDKVersion,SDKPath)	\
+    ( (This)->lpVtbl -> SetSDKVersion(This,SDKVersion,SDKPath) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ID3D12SDKConfiguration_INTERFACE_DEFINED__ */
+
+
+/* interface __MIDL_itf_d3d12_0000_0054 */
+/* [local] */ 
+
 typedef 
 enum D3D12_AXIS_SHADING_RATE
     {
@@ -16433,8 +21447,8 @@ enum D3D12_SHADING_RATE_COMBINER
 
 
 
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0044_v0_0_c_ifspec;
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0044_v0_0_s_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0054_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0054_v0_0_s_ifspec;
 
 #ifndef __ID3D12GraphicsCommandList5_INTERFACE_DEFINED__
 #define __ID3D12GraphicsCommandList5_INTERFACE_DEFINED__
@@ -16467,58 +21481,71 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
     {
         BEGIN_INTERFACE
         
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
         HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
             ID3D12GraphicsCommandList5 * This,
             REFIID riid,
             _COM_Outptr_  void **ppvObject);
         
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
         ULONG ( STDMETHODCALLTYPE *AddRef )( 
             ID3D12GraphicsCommandList5 * This);
         
+        DECLSPEC_XFGVIRT(IUnknown, Release)
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ID3D12GraphicsCommandList5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  REFGUID guid,
             _Inout_  UINT *pDataSize,
             _Out_writes_bytes_opt_( *pDataSize )  void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  REFGUID guid,
             _In_  UINT DataSize,
             _In_reads_bytes_opt_( DataSize )  const void *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
         HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  REFGUID guid,
             _In_opt_  const IUnknown *pData);
         
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
         HRESULT ( STDMETHODCALLTYPE *SetName )( 
             ID3D12GraphicsCommandList5 * This,
             _In_z_  LPCWSTR Name);
         
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
         HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
             ID3D12GraphicsCommandList5 * This,
             REFIID riid,
             _COM_Outptr_opt_  void **ppvDevice);
         
+        DECLSPEC_XFGVIRT(ID3D12CommandList, GetType)
         D3D12_COMMAND_LIST_TYPE ( STDMETHODCALLTYPE *GetType )( 
             ID3D12GraphicsCommandList5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Close)
         HRESULT ( STDMETHODCALLTYPE *Close )( 
             ID3D12GraphicsCommandList5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Reset)
         HRESULT ( STDMETHODCALLTYPE *Reset )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12CommandAllocator *pAllocator,
             _In_opt_  ID3D12PipelineState *pInitialState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearState)
         void ( STDMETHODCALLTYPE *ClearState )( 
             ID3D12GraphicsCommandList5 * This,
             _In_opt_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawInstanced)
         void ( STDMETHODCALLTYPE *DrawInstanced )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT VertexCountPerInstance,
@@ -16526,6 +21553,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  UINT StartVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawIndexedInstanced)
         void ( STDMETHODCALLTYPE *DrawIndexedInstanced )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT IndexCountPerInstance,
@@ -16534,12 +21562,14 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  INT BaseVertexLocation,
             _In_  UINT StartInstanceLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Dispatch)
         void ( STDMETHODCALLTYPE *Dispatch )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT ThreadGroupCountX,
             _In_  UINT ThreadGroupCountY,
             _In_  UINT ThreadGroupCountZ);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyBufferRegion)
         void ( STDMETHODCALLTYPE *CopyBufferRegion )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -16548,6 +21578,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             UINT64 SrcOffset,
             UINT64 NumBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTextureRegion)
         void ( STDMETHODCALLTYPE *CopyTextureRegion )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pDst,
@@ -16557,11 +21588,13 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  const D3D12_TEXTURE_COPY_LOCATION *pSrc,
             _In_opt_  const D3D12_BOX *pSrcBox);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyResource)
         void ( STDMETHODCALLTYPE *CopyResource )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12Resource *pDstResource,
             _In_  ID3D12Resource *pSrcResource);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTiles)
         void ( STDMETHODCALLTYPE *CopyTiles )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12Resource *pTiledResource,
@@ -16571,6 +21604,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             UINT64 BufferStartOffsetInBytes,
             D3D12_TILE_COPY_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveSubresource)
         void ( STDMETHODCALLTYPE *ResolveSubresource )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -16579,76 +21613,92 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  UINT SrcSubresource,
             _In_  DXGI_FORMAT Format);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetPrimitiveTopology)
         void ( STDMETHODCALLTYPE *IASetPrimitiveTopology )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetViewports)
         void ( STDMETHODCALLTYPE *RSSetViewports )( 
             ID3D12GraphicsCommandList5 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumViewports,
             _In_reads_( NumViewports)  const D3D12_VIEWPORT *pViewports);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetScissorRects)
         void ( STDMETHODCALLTYPE *RSSetScissorRects )( 
             ID3D12GraphicsCommandList5 * This,
             _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumRects,
             _In_reads_( NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetBlendFactor)
         void ( STDMETHODCALLTYPE *OMSetBlendFactor )( 
             ID3D12GraphicsCommandList5 * This,
             _In_reads_opt_(4)  const FLOAT BlendFactor[ 4 ]);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetStencilRef)
         void ( STDMETHODCALLTYPE *OMSetStencilRef )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT StencilRef);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPipelineState)
         void ( STDMETHODCALLTYPE *SetPipelineState )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12PipelineState *pPipelineState);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResourceBarrier)
         void ( STDMETHODCALLTYPE *ResourceBarrier )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT NumBarriers,
             _In_reads_(NumBarriers)  const D3D12_RESOURCE_BARRIER *pBarriers);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteBundle)
         void ( STDMETHODCALLTYPE *ExecuteBundle )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12GraphicsCommandList *pCommandList);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetDescriptorHeaps)
         void ( STDMETHODCALLTYPE *SetDescriptorHeaps )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT NumDescriptorHeaps,
             _In_reads_(NumDescriptorHeaps)  ID3D12DescriptorHeap *const *ppDescriptorHeaps);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootSignature)
         void ( STDMETHODCALLTYPE *SetComputeRootSignature )( 
             ID3D12GraphicsCommandList5 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootSignature)
         void ( STDMETHODCALLTYPE *SetGraphicsRootSignature )( 
             ID3D12GraphicsCommandList5 * This,
             _In_opt_  ID3D12RootSignature *pRootSignature);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetComputeRootDescriptorTable )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootDescriptorTable)
         void ( STDMETHODCALLTYPE *SetGraphicsRootDescriptorTable )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstant )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstant)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstant )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  UINT SrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstants )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
@@ -16656,6 +21706,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstants)
         void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstants )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
@@ -16663,52 +21714,62 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
             _In_  UINT DestOffsetIn32BitValues);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetComputeRootConstantBufferView )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootConstantBufferView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootConstantBufferView )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetComputeRootShaderResourceView )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootShaderResourceView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootShaderResourceView )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetComputeRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootUnorderedAccessView)
         void ( STDMETHODCALLTYPE *SetGraphicsRootUnorderedAccessView )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT RootParameterIndex,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetIndexBuffer)
         void ( STDMETHODCALLTYPE *IASetIndexBuffer )( 
             ID3D12GraphicsCommandList5 * This,
             _In_opt_  const D3D12_INDEX_BUFFER_VIEW *pView);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetVertexBuffers)
         void ( STDMETHODCALLTYPE *IASetVertexBuffers )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_VERTEX_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SOSetTargets)
         void ( STDMETHODCALLTYPE *SOSetTargets )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT StartSlot,
             _In_  UINT NumViews,
             _In_reads_opt_(NumViews)  const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetRenderTargets)
         void ( STDMETHODCALLTYPE *OMSetRenderTargets )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT NumRenderTargetDescriptors,
@@ -16716,6 +21777,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  BOOL RTsSingleHandleToDescriptorRange,
             _In_opt_  const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearDepthStencilView)
         void ( STDMETHODCALLTYPE *ClearDepthStencilView )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
@@ -16725,6 +21787,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearRenderTargetView)
         void ( STDMETHODCALLTYPE *ClearRenderTargetView )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView,
@@ -16732,6 +21795,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewUint)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewUint )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -16741,6 +21805,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewFloat)
         void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewFloat )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
@@ -16750,23 +21815,27 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  UINT NumRects,
             _In_reads_(NumRects)  const D3D12_RECT *pRects);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DiscardResource)
         void ( STDMETHODCALLTYPE *DiscardResource )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12Resource *pResource,
             _In_opt_  const D3D12_DISCARD_REGION *pRegion);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginQuery)
         void ( STDMETHODCALLTYPE *BeginQuery )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndQuery)
         void ( STDMETHODCALLTYPE *EndQuery )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
             _In_  D3D12_QUERY_TYPE Type,
             _In_  UINT Index);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveQueryData)
         void ( STDMETHODCALLTYPE *ResolveQueryData )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12QueryHeap *pQueryHeap,
@@ -16776,27 +21845,32 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  ID3D12Resource *pDestinationBuffer,
             _In_  UINT64 AlignedDestinationBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPredication)
         void ( STDMETHODCALLTYPE *SetPredication )( 
             ID3D12GraphicsCommandList5 * This,
             _In_opt_  ID3D12Resource *pBuffer,
             _In_  UINT64 AlignedBufferOffset,
             _In_  D3D12_PREDICATION_OP Operation);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetMarker)
         void ( STDMETHODCALLTYPE *SetMarker )( 
             ID3D12GraphicsCommandList5 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginEvent)
         void ( STDMETHODCALLTYPE *BeginEvent )( 
             ID3D12GraphicsCommandList5 * This,
             UINT Metadata,
             _In_reads_bytes_opt_(Size)  const void *pData,
             UINT Size);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndEvent)
         void ( STDMETHODCALLTYPE *EndEvent )( 
             ID3D12GraphicsCommandList5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteIndirect)
         void ( STDMETHODCALLTYPE *ExecuteIndirect )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12CommandSignature *pCommandSignature,
@@ -16806,6 +21880,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_opt_  ID3D12Resource *pCountBuffer,
             _In_  UINT64 CountBufferOffset);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -16816,6 +21891,7 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT64)
         void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT64 )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12Resource *pDstBuffer,
@@ -16826,17 +21902,20 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
             _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, OMSetDepthBounds)
         void ( STDMETHODCALLTYPE *OMSetDepthBounds )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  FLOAT Min,
             _In_  FLOAT Max);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetSamplePositions)
         void ( STDMETHODCALLTYPE *SetSamplePositions )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT NumSamplesPerPixel,
             _In_  UINT NumPixels,
             _In_reads_(NumSamplesPerPixel*NumPixels)  D3D12_SAMPLE_POSITION *pSamplePositions);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, ResolveSubresourceRegion)
         void ( STDMETHODCALLTYPE *ResolveSubresourceRegion )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12Resource *pDstResource,
@@ -16849,20 +21928,24 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_  DXGI_FORMAT Format,
             _In_  D3D12_RESOLVE_MODE ResolveMode);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetViewInstanceMask)
         void ( STDMETHODCALLTYPE *SetViewInstanceMask )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT Mask);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList2, WriteBufferImmediate)
         void ( STDMETHODCALLTYPE *WriteBufferImmediate )( 
             ID3D12GraphicsCommandList5 * This,
             UINT Count,
             _In_reads_(Count)  const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER *pParams,
             _In_reads_opt_(Count)  const D3D12_WRITEBUFFERIMMEDIATE_MODE *pModes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList3, SetProtectedResourceSession)
         void ( STDMETHODCALLTYPE *SetProtectedResourceSession )( 
             ID3D12GraphicsCommandList5 * This,
             _In_opt_  ID3D12ProtectedResourceSession *pProtectedResourceSession);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, BeginRenderPass)
         void ( STDMETHODCALLTYPE *BeginRenderPass )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  UINT NumRenderTargets,
@@ -16870,52 +21953,62 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
             _In_opt_  const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil,
             D3D12_RENDER_PASS_FLAGS Flags);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, EndRenderPass)
         void ( STDMETHODCALLTYPE *EndRenderPass )( 
             ID3D12GraphicsCommandList5 * This);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, InitializeMetaCommand)
         void ( STDMETHODCALLTYPE *InitializeMetaCommand )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12MetaCommand *pMetaCommand,
             _In_reads_bytes_opt_(InitializationParametersDataSizeInBytes)  const void *pInitializationParametersData,
             _In_  SIZE_T InitializationParametersDataSizeInBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, ExecuteMetaCommand)
         void ( STDMETHODCALLTYPE *ExecuteMetaCommand )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12MetaCommand *pMetaCommand,
             _In_reads_bytes_opt_(ExecutionParametersDataSizeInBytes)  const void *pExecutionParametersData,
             _In_  SIZE_T ExecutionParametersDataSizeInBytes);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, BuildRaytracingAccelerationStructure)
         void ( STDMETHODCALLTYPE *BuildRaytracingAccelerationStructure )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
             _In_  UINT NumPostbuildInfoDescs,
             _In_reads_opt_(NumPostbuildInfoDescs)  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, EmitRaytracingAccelerationStructurePostbuildInfo)
         void ( STDMETHODCALLTYPE *EmitRaytracingAccelerationStructurePostbuildInfo )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
             _In_  UINT NumSourceAccelerationStructures,
             _In_reads_( NumSourceAccelerationStructures )  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, CopyRaytracingAccelerationStructure)
         void ( STDMETHODCALLTYPE *CopyRaytracingAccelerationStructure )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
             _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, SetPipelineState1)
         void ( STDMETHODCALLTYPE *SetPipelineState1 )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  ID3D12StateObject *pStateObject);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, DispatchRays)
         void ( STDMETHODCALLTYPE *DispatchRays )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  const D3D12_DISPATCH_RAYS_DESC *pDesc);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList5, RSSetShadingRate)
         void ( STDMETHODCALLTYPE *RSSetShadingRate )( 
             ID3D12GraphicsCommandList5 * This,
             _In_  D3D12_SHADING_RATE baseShadingRate,
             _In_reads_opt_(D3D12_RS_SET_SHADING_RATE_COMBINER_COUNT)  const D3D12_SHADING_RATE_COMBINER *combiners);
         
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList5, RSSetShadingRateImage)
         void ( STDMETHODCALLTYPE *RSSetShadingRateImage )( 
             ID3D12GraphicsCommandList5 * This,
             _In_opt_  ID3D12Resource *shadingRateImage);
@@ -17190,7 +22283,864 @@ EXTERN_C const IID IID_ID3D12GraphicsCommandList5;
 #endif 	/* __ID3D12GraphicsCommandList5_INTERFACE_DEFINED__ */
 
 
-/* interface __MIDL_itf_d3d12_0000_0045 */
+/* interface __MIDL_itf_d3d12_0000_0055 */
+/* [local] */ 
+
+typedef struct D3D12_DISPATCH_MESH_ARGUMENTS
+    {
+    UINT ThreadGroupCountX;
+    UINT ThreadGroupCountY;
+    UINT ThreadGroupCountZ;
+    } 	D3D12_DISPATCH_MESH_ARGUMENTS;
+
+
+
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0055_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0055_v0_0_s_ifspec;
+
+#ifndef __ID3D12GraphicsCommandList6_INTERFACE_DEFINED__
+#define __ID3D12GraphicsCommandList6_INTERFACE_DEFINED__
+
+/* interface ID3D12GraphicsCommandList6 */
+/* [unique][local][object][uuid] */ 
+
+
+EXTERN_C const IID IID_ID3D12GraphicsCommandList6;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("c3827890-e548-4cfa-96cf-5689a9370f80")
+    ID3D12GraphicsCommandList6 : public ID3D12GraphicsCommandList5
+    {
+    public:
+        virtual void STDMETHODCALLTYPE DispatchMesh( 
+            _In_  UINT ThreadGroupCountX,
+            _In_  UINT ThreadGroupCountY,
+            _In_  UINT ThreadGroupCountZ) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ID3D12GraphicsCommandList6Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ID3D12GraphicsCommandList6 * This,
+            REFIID riid,
+            _COM_Outptr_  void **ppvObject);
+        
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ID3D12GraphicsCommandList6 * This);
+        
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ID3D12GraphicsCommandList6 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, GetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  REFGUID guid,
+            _Inout_  UINT *pDataSize,
+            _Out_writes_bytes_opt_( *pDataSize )  void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateData)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateData )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  REFGUID guid,
+            _In_  UINT DataSize,
+            _In_reads_bytes_opt_( DataSize )  const void *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetPrivateDataInterface)
+        HRESULT ( STDMETHODCALLTYPE *SetPrivateDataInterface )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  REFGUID guid,
+            _In_opt_  const IUnknown *pData);
+        
+        DECLSPEC_XFGVIRT(ID3D12Object, SetName)
+        HRESULT ( STDMETHODCALLTYPE *SetName )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_z_  LPCWSTR Name);
+        
+        DECLSPEC_XFGVIRT(ID3D12DeviceChild, GetDevice)
+        HRESULT ( STDMETHODCALLTYPE *GetDevice )( 
+            ID3D12GraphicsCommandList6 * This,
+            REFIID riid,
+            _COM_Outptr_opt_  void **ppvDevice);
+        
+        DECLSPEC_XFGVIRT(ID3D12CommandList, GetType)
+        D3D12_COMMAND_LIST_TYPE ( STDMETHODCALLTYPE *GetType )( 
+            ID3D12GraphicsCommandList6 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Close)
+        HRESULT ( STDMETHODCALLTYPE *Close )( 
+            ID3D12GraphicsCommandList6 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Reset)
+        HRESULT ( STDMETHODCALLTYPE *Reset )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12CommandAllocator *pAllocator,
+            _In_opt_  ID3D12PipelineState *pInitialState);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearState)
+        void ( STDMETHODCALLTYPE *ClearState )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_opt_  ID3D12PipelineState *pPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawInstanced)
+        void ( STDMETHODCALLTYPE *DrawInstanced )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT VertexCountPerInstance,
+            _In_  UINT InstanceCount,
+            _In_  UINT StartVertexLocation,
+            _In_  UINT StartInstanceLocation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DrawIndexedInstanced)
+        void ( STDMETHODCALLTYPE *DrawIndexedInstanced )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT IndexCountPerInstance,
+            _In_  UINT InstanceCount,
+            _In_  UINT StartIndexLocation,
+            _In_  INT BaseVertexLocation,
+            _In_  UINT StartInstanceLocation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, Dispatch)
+        void ( STDMETHODCALLTYPE *Dispatch )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT ThreadGroupCountX,
+            _In_  UINT ThreadGroupCountY,
+            _In_  UINT ThreadGroupCountZ);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyBufferRegion)
+        void ( STDMETHODCALLTYPE *CopyBufferRegion )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12Resource *pDstBuffer,
+            UINT64 DstOffset,
+            _In_  ID3D12Resource *pSrcBuffer,
+            UINT64 SrcOffset,
+            UINT64 NumBytes);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTextureRegion)
+        void ( STDMETHODCALLTYPE *CopyTextureRegion )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  const D3D12_TEXTURE_COPY_LOCATION *pDst,
+            UINT DstX,
+            UINT DstY,
+            UINT DstZ,
+            _In_  const D3D12_TEXTURE_COPY_LOCATION *pSrc,
+            _In_opt_  const D3D12_BOX *pSrcBox);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyResource)
+        void ( STDMETHODCALLTYPE *CopyResource )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12Resource *pDstResource,
+            _In_  ID3D12Resource *pSrcResource);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, CopyTiles)
+        void ( STDMETHODCALLTYPE *CopyTiles )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12Resource *pTiledResource,
+            _In_  const D3D12_TILED_RESOURCE_COORDINATE *pTileRegionStartCoordinate,
+            _In_  const D3D12_TILE_REGION_SIZE *pTileRegionSize,
+            _In_  ID3D12Resource *pBuffer,
+            UINT64 BufferStartOffsetInBytes,
+            D3D12_TILE_COPY_FLAGS Flags);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveSubresource)
+        void ( STDMETHODCALLTYPE *ResolveSubresource )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12Resource *pDstResource,
+            _In_  UINT DstSubresource,
+            _In_  ID3D12Resource *pSrcResource,
+            _In_  UINT SrcSubresource,
+            _In_  DXGI_FORMAT Format);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetPrimitiveTopology)
+        void ( STDMETHODCALLTYPE *IASetPrimitiveTopology )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetViewports)
+        void ( STDMETHODCALLTYPE *RSSetViewports )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumViewports,
+            _In_reads_( NumViewports)  const D3D12_VIEWPORT *pViewports);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, RSSetScissorRects)
+        void ( STDMETHODCALLTYPE *RSSetScissorRects )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_range_(0, D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumRects,
+            _In_reads_( NumRects)  const D3D12_RECT *pRects);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetBlendFactor)
+        void ( STDMETHODCALLTYPE *OMSetBlendFactor )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_reads_opt_(4)  const FLOAT BlendFactor[ 4 ]);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetStencilRef)
+        void ( STDMETHODCALLTYPE *OMSetStencilRef )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT StencilRef);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPipelineState)
+        void ( STDMETHODCALLTYPE *SetPipelineState )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12PipelineState *pPipelineState);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResourceBarrier)
+        void ( STDMETHODCALLTYPE *ResourceBarrier )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT NumBarriers,
+            _In_reads_(NumBarriers)  const D3D12_RESOURCE_BARRIER *pBarriers);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteBundle)
+        void ( STDMETHODCALLTYPE *ExecuteBundle )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12GraphicsCommandList *pCommandList);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetDescriptorHeaps)
+        void ( STDMETHODCALLTYPE *SetDescriptorHeaps )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT NumDescriptorHeaps,
+            _In_reads_(NumDescriptorHeaps)  ID3D12DescriptorHeap *const *ppDescriptorHeaps);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootSignature)
+        void ( STDMETHODCALLTYPE *SetComputeRootSignature )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_opt_  ID3D12RootSignature *pRootSignature);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootSignature)
+        void ( STDMETHODCALLTYPE *SetGraphicsRootSignature )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_opt_  ID3D12RootSignature *pRootSignature);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootDescriptorTable)
+        void ( STDMETHODCALLTYPE *SetComputeRootDescriptorTable )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootDescriptorTable)
+        void ( STDMETHODCALLTYPE *SetGraphicsRootDescriptorTable )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstant)
+        void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstant )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  UINT SrcData,
+            _In_  UINT DestOffsetIn32BitValues);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstant)
+        void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstant )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  UINT SrcData,
+            _In_  UINT DestOffsetIn32BitValues);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRoot32BitConstants)
+        void ( STDMETHODCALLTYPE *SetComputeRoot32BitConstants )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  UINT Num32BitValuesToSet,
+            _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
+            _In_  UINT DestOffsetIn32BitValues);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRoot32BitConstants)
+        void ( STDMETHODCALLTYPE *SetGraphicsRoot32BitConstants )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  UINT Num32BitValuesToSet,
+            _In_reads_(Num32BitValuesToSet*sizeof(UINT))  const void *pSrcData,
+            _In_  UINT DestOffsetIn32BitValues);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootConstantBufferView)
+        void ( STDMETHODCALLTYPE *SetComputeRootConstantBufferView )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootConstantBufferView)
+        void ( STDMETHODCALLTYPE *SetGraphicsRootConstantBufferView )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootShaderResourceView)
+        void ( STDMETHODCALLTYPE *SetComputeRootShaderResourceView )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootShaderResourceView)
+        void ( STDMETHODCALLTYPE *SetGraphicsRootShaderResourceView )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetComputeRootUnorderedAccessView)
+        void ( STDMETHODCALLTYPE *SetComputeRootUnorderedAccessView )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetGraphicsRootUnorderedAccessView)
+        void ( STDMETHODCALLTYPE *SetGraphicsRootUnorderedAccessView )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT RootParameterIndex,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetIndexBuffer)
+        void ( STDMETHODCALLTYPE *IASetIndexBuffer )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_opt_  const D3D12_INDEX_BUFFER_VIEW *pView);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, IASetVertexBuffers)
+        void ( STDMETHODCALLTYPE *IASetVertexBuffers )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT StartSlot,
+            _In_  UINT NumViews,
+            _In_reads_opt_(NumViews)  const D3D12_VERTEX_BUFFER_VIEW *pViews);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SOSetTargets)
+        void ( STDMETHODCALLTYPE *SOSetTargets )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT StartSlot,
+            _In_  UINT NumViews,
+            _In_reads_opt_(NumViews)  const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, OMSetRenderTargets)
+        void ( STDMETHODCALLTYPE *OMSetRenderTargets )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT NumRenderTargetDescriptors,
+            _In_opt_  const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors,
+            _In_  BOOL RTsSingleHandleToDescriptorRange,
+            _In_opt_  const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearDepthStencilView)
+        void ( STDMETHODCALLTYPE *ClearDepthStencilView )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
+            _In_  D3D12_CLEAR_FLAGS ClearFlags,
+            _In_  FLOAT Depth,
+            _In_  UINT8 Stencil,
+            _In_  UINT NumRects,
+            _In_reads_(NumRects)  const D3D12_RECT *pRects);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearRenderTargetView)
+        void ( STDMETHODCALLTYPE *ClearRenderTargetView )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView,
+            _In_  const FLOAT ColorRGBA[ 4 ],
+            _In_  UINT NumRects,
+            _In_reads_(NumRects)  const D3D12_RECT *pRects);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewUint)
+        void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewUint )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle,
+            _In_  ID3D12Resource *pResource,
+            _In_  const UINT Values[ 4 ],
+            _In_  UINT NumRects,
+            _In_reads_(NumRects)  const D3D12_RECT *pRects);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ClearUnorderedAccessViewFloat)
+        void ( STDMETHODCALLTYPE *ClearUnorderedAccessViewFloat )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap,
+            _In_  D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle,
+            _In_  ID3D12Resource *pResource,
+            _In_  const FLOAT Values[ 4 ],
+            _In_  UINT NumRects,
+            _In_reads_(NumRects)  const D3D12_RECT *pRects);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, DiscardResource)
+        void ( STDMETHODCALLTYPE *DiscardResource )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12Resource *pResource,
+            _In_opt_  const D3D12_DISCARD_REGION *pRegion);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginQuery)
+        void ( STDMETHODCALLTYPE *BeginQuery )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12QueryHeap *pQueryHeap,
+            _In_  D3D12_QUERY_TYPE Type,
+            _In_  UINT Index);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndQuery)
+        void ( STDMETHODCALLTYPE *EndQuery )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12QueryHeap *pQueryHeap,
+            _In_  D3D12_QUERY_TYPE Type,
+            _In_  UINT Index);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ResolveQueryData)
+        void ( STDMETHODCALLTYPE *ResolveQueryData )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12QueryHeap *pQueryHeap,
+            _In_  D3D12_QUERY_TYPE Type,
+            _In_  UINT StartIndex,
+            _In_  UINT NumQueries,
+            _In_  ID3D12Resource *pDestinationBuffer,
+            _In_  UINT64 AlignedDestinationBufferOffset);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetPredication)
+        void ( STDMETHODCALLTYPE *SetPredication )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_opt_  ID3D12Resource *pBuffer,
+            _In_  UINT64 AlignedBufferOffset,
+            _In_  D3D12_PREDICATION_OP Operation);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, SetMarker)
+        void ( STDMETHODCALLTYPE *SetMarker )( 
+            ID3D12GraphicsCommandList6 * This,
+            UINT Metadata,
+            _In_reads_bytes_opt_(Size)  const void *pData,
+            UINT Size);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, BeginEvent)
+        void ( STDMETHODCALLTYPE *BeginEvent )( 
+            ID3D12GraphicsCommandList6 * This,
+            UINT Metadata,
+            _In_reads_bytes_opt_(Size)  const void *pData,
+            UINT Size);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, EndEvent)
+        void ( STDMETHODCALLTYPE *EndEvent )( 
+            ID3D12GraphicsCommandList6 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList, ExecuteIndirect)
+        void ( STDMETHODCALLTYPE *ExecuteIndirect )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12CommandSignature *pCommandSignature,
+            _In_  UINT MaxCommandCount,
+            _In_  ID3D12Resource *pArgumentBuffer,
+            _In_  UINT64 ArgumentBufferOffset,
+            _In_opt_  ID3D12Resource *pCountBuffer,
+            _In_  UINT64 CountBufferOffset);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT)
+        void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12Resource *pDstBuffer,
+            UINT64 DstOffset,
+            _In_  ID3D12Resource *pSrcBuffer,
+            UINT64 SrcOffset,
+            UINT Dependencies,
+            _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
+            _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, AtomicCopyBufferUINT64)
+        void ( STDMETHODCALLTYPE *AtomicCopyBufferUINT64 )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12Resource *pDstBuffer,
+            UINT64 DstOffset,
+            _In_  ID3D12Resource *pSrcBuffer,
+            UINT64 SrcOffset,
+            UINT Dependencies,
+            _In_reads_(Dependencies)  ID3D12Resource *const *ppDependentResources,
+            _In_reads_(Dependencies)  const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, OMSetDepthBounds)
+        void ( STDMETHODCALLTYPE *OMSetDepthBounds )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  FLOAT Min,
+            _In_  FLOAT Max);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetSamplePositions)
+        void ( STDMETHODCALLTYPE *SetSamplePositions )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT NumSamplesPerPixel,
+            _In_  UINT NumPixels,
+            _In_reads_(NumSamplesPerPixel*NumPixels)  D3D12_SAMPLE_POSITION *pSamplePositions);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, ResolveSubresourceRegion)
+        void ( STDMETHODCALLTYPE *ResolveSubresourceRegion )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12Resource *pDstResource,
+            _In_  UINT DstSubresource,
+            _In_  UINT DstX,
+            _In_  UINT DstY,
+            _In_  ID3D12Resource *pSrcResource,
+            _In_  UINT SrcSubresource,
+            _In_opt_  D3D12_RECT *pSrcRect,
+            _In_  DXGI_FORMAT Format,
+            _In_  D3D12_RESOLVE_MODE ResolveMode);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList1, SetViewInstanceMask)
+        void ( STDMETHODCALLTYPE *SetViewInstanceMask )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT Mask);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList2, WriteBufferImmediate)
+        void ( STDMETHODCALLTYPE *WriteBufferImmediate )( 
+            ID3D12GraphicsCommandList6 * This,
+            UINT Count,
+            _In_reads_(Count)  const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER *pParams,
+            _In_reads_opt_(Count)  const D3D12_WRITEBUFFERIMMEDIATE_MODE *pModes);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList3, SetProtectedResourceSession)
+        void ( STDMETHODCALLTYPE *SetProtectedResourceSession )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_opt_  ID3D12ProtectedResourceSession *pProtectedResourceSession);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, BeginRenderPass)
+        void ( STDMETHODCALLTYPE *BeginRenderPass )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT NumRenderTargets,
+            _In_reads_opt_(NumRenderTargets)  const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets,
+            _In_opt_  const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil,
+            D3D12_RENDER_PASS_FLAGS Flags);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, EndRenderPass)
+        void ( STDMETHODCALLTYPE *EndRenderPass )( 
+            ID3D12GraphicsCommandList6 * This);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, InitializeMetaCommand)
+        void ( STDMETHODCALLTYPE *InitializeMetaCommand )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12MetaCommand *pMetaCommand,
+            _In_reads_bytes_opt_(InitializationParametersDataSizeInBytes)  const void *pInitializationParametersData,
+            _In_  SIZE_T InitializationParametersDataSizeInBytes);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, ExecuteMetaCommand)
+        void ( STDMETHODCALLTYPE *ExecuteMetaCommand )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12MetaCommand *pMetaCommand,
+            _In_reads_bytes_opt_(ExecutionParametersDataSizeInBytes)  const void *pExecutionParametersData,
+            _In_  SIZE_T ExecutionParametersDataSizeInBytes);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, BuildRaytracingAccelerationStructure)
+        void ( STDMETHODCALLTYPE *BuildRaytracingAccelerationStructure )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
+            _In_  UINT NumPostbuildInfoDescs,
+            _In_reads_opt_(NumPostbuildInfoDescs)  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, EmitRaytracingAccelerationStructurePostbuildInfo)
+        void ( STDMETHODCALLTYPE *EmitRaytracingAccelerationStructurePostbuildInfo )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
+            _In_  UINT NumSourceAccelerationStructures,
+            _In_reads_( NumSourceAccelerationStructures )  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, CopyRaytracingAccelerationStructure)
+        void ( STDMETHODCALLTYPE *CopyRaytracingAccelerationStructure )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
+            _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, SetPipelineState1)
+        void ( STDMETHODCALLTYPE *SetPipelineState1 )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  ID3D12StateObject *pStateObject);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList4, DispatchRays)
+        void ( STDMETHODCALLTYPE *DispatchRays )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  const D3D12_DISPATCH_RAYS_DESC *pDesc);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList5, RSSetShadingRate)
+        void ( STDMETHODCALLTYPE *RSSetShadingRate )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  D3D12_SHADING_RATE baseShadingRate,
+            _In_reads_opt_(D3D12_RS_SET_SHADING_RATE_COMBINER_COUNT)  const D3D12_SHADING_RATE_COMBINER *combiners);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList5, RSSetShadingRateImage)
+        void ( STDMETHODCALLTYPE *RSSetShadingRateImage )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_opt_  ID3D12Resource *shadingRateImage);
+        
+        DECLSPEC_XFGVIRT(ID3D12GraphicsCommandList6, DispatchMesh)
+        void ( STDMETHODCALLTYPE *DispatchMesh )( 
+            ID3D12GraphicsCommandList6 * This,
+            _In_  UINT ThreadGroupCountX,
+            _In_  UINT ThreadGroupCountY,
+            _In_  UINT ThreadGroupCountZ);
+        
+        END_INTERFACE
+    } ID3D12GraphicsCommandList6Vtbl;
+
+    interface ID3D12GraphicsCommandList6
+    {
+        CONST_VTBL struct ID3D12GraphicsCommandList6Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ID3D12GraphicsCommandList6_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ID3D12GraphicsCommandList6_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ID3D12GraphicsCommandList6_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ID3D12GraphicsCommandList6_GetPrivateData(This,guid,pDataSize,pData)	\
+    ( (This)->lpVtbl -> GetPrivateData(This,guid,pDataSize,pData) ) 
+
+#define ID3D12GraphicsCommandList6_SetPrivateData(This,guid,DataSize,pData)	\
+    ( (This)->lpVtbl -> SetPrivateData(This,guid,DataSize,pData) ) 
+
+#define ID3D12GraphicsCommandList6_SetPrivateDataInterface(This,guid,pData)	\
+    ( (This)->lpVtbl -> SetPrivateDataInterface(This,guid,pData) ) 
+
+#define ID3D12GraphicsCommandList6_SetName(This,Name)	\
+    ( (This)->lpVtbl -> SetName(This,Name) ) 
+
+
+#define ID3D12GraphicsCommandList6_GetDevice(This,riid,ppvDevice)	\
+    ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
+
+
+#define ID3D12GraphicsCommandList6_GetType(This)	\
+    ( (This)->lpVtbl -> GetType(This) ) 
+
+
+#define ID3D12GraphicsCommandList6_Close(This)	\
+    ( (This)->lpVtbl -> Close(This) ) 
+
+#define ID3D12GraphicsCommandList6_Reset(This,pAllocator,pInitialState)	\
+    ( (This)->lpVtbl -> Reset(This,pAllocator,pInitialState) ) 
+
+#define ID3D12GraphicsCommandList6_ClearState(This,pPipelineState)	\
+    ( (This)->lpVtbl -> ClearState(This,pPipelineState) ) 
+
+#define ID3D12GraphicsCommandList6_DrawInstanced(This,VertexCountPerInstance,InstanceCount,StartVertexLocation,StartInstanceLocation)	\
+    ( (This)->lpVtbl -> DrawInstanced(This,VertexCountPerInstance,InstanceCount,StartVertexLocation,StartInstanceLocation) ) 
+
+#define ID3D12GraphicsCommandList6_DrawIndexedInstanced(This,IndexCountPerInstance,InstanceCount,StartIndexLocation,BaseVertexLocation,StartInstanceLocation)	\
+    ( (This)->lpVtbl -> DrawIndexedInstanced(This,IndexCountPerInstance,InstanceCount,StartIndexLocation,BaseVertexLocation,StartInstanceLocation) ) 
+
+#define ID3D12GraphicsCommandList6_Dispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ)	\
+    ( (This)->lpVtbl -> Dispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ) ) 
+
+#define ID3D12GraphicsCommandList6_CopyBufferRegion(This,pDstBuffer,DstOffset,pSrcBuffer,SrcOffset,NumBytes)	\
+    ( (This)->lpVtbl -> CopyBufferRegion(This,pDstBuffer,DstOffset,pSrcBuffer,SrcOffset,NumBytes) ) 
+
+#define ID3D12GraphicsCommandList6_CopyTextureRegion(This,pDst,DstX,DstY,DstZ,pSrc,pSrcBox)	\
+    ( (This)->lpVtbl -> CopyTextureRegion(This,pDst,DstX,DstY,DstZ,pSrc,pSrcBox) ) 
+
+#define ID3D12GraphicsCommandList6_CopyResource(This,pDstResource,pSrcResource)	\
+    ( (This)->lpVtbl -> CopyResource(This,pDstResource,pSrcResource) ) 
+
+#define ID3D12GraphicsCommandList6_CopyTiles(This,pTiledResource,pTileRegionStartCoordinate,pTileRegionSize,pBuffer,BufferStartOffsetInBytes,Flags)	\
+    ( (This)->lpVtbl -> CopyTiles(This,pTiledResource,pTileRegionStartCoordinate,pTileRegionSize,pBuffer,BufferStartOffsetInBytes,Flags) ) 
+
+#define ID3D12GraphicsCommandList6_ResolveSubresource(This,pDstResource,DstSubresource,pSrcResource,SrcSubresource,Format)	\
+    ( (This)->lpVtbl -> ResolveSubresource(This,pDstResource,DstSubresource,pSrcResource,SrcSubresource,Format) ) 
+
+#define ID3D12GraphicsCommandList6_IASetPrimitiveTopology(This,PrimitiveTopology)	\
+    ( (This)->lpVtbl -> IASetPrimitiveTopology(This,PrimitiveTopology) ) 
+
+#define ID3D12GraphicsCommandList6_RSSetViewports(This,NumViewports,pViewports)	\
+    ( (This)->lpVtbl -> RSSetViewports(This,NumViewports,pViewports) ) 
+
+#define ID3D12GraphicsCommandList6_RSSetScissorRects(This,NumRects,pRects)	\
+    ( (This)->lpVtbl -> RSSetScissorRects(This,NumRects,pRects) ) 
+
+#define ID3D12GraphicsCommandList6_OMSetBlendFactor(This,BlendFactor)	\
+    ( (This)->lpVtbl -> OMSetBlendFactor(This,BlendFactor) ) 
+
+#define ID3D12GraphicsCommandList6_OMSetStencilRef(This,StencilRef)	\
+    ( (This)->lpVtbl -> OMSetStencilRef(This,StencilRef) ) 
+
+#define ID3D12GraphicsCommandList6_SetPipelineState(This,pPipelineState)	\
+    ( (This)->lpVtbl -> SetPipelineState(This,pPipelineState) ) 
+
+#define ID3D12GraphicsCommandList6_ResourceBarrier(This,NumBarriers,pBarriers)	\
+    ( (This)->lpVtbl -> ResourceBarrier(This,NumBarriers,pBarriers) ) 
+
+#define ID3D12GraphicsCommandList6_ExecuteBundle(This,pCommandList)	\
+    ( (This)->lpVtbl -> ExecuteBundle(This,pCommandList) ) 
+
+#define ID3D12GraphicsCommandList6_SetDescriptorHeaps(This,NumDescriptorHeaps,ppDescriptorHeaps)	\
+    ( (This)->lpVtbl -> SetDescriptorHeaps(This,NumDescriptorHeaps,ppDescriptorHeaps) ) 
+
+#define ID3D12GraphicsCommandList6_SetComputeRootSignature(This,pRootSignature)	\
+    ( (This)->lpVtbl -> SetComputeRootSignature(This,pRootSignature) ) 
+
+#define ID3D12GraphicsCommandList6_SetGraphicsRootSignature(This,pRootSignature)	\
+    ( (This)->lpVtbl -> SetGraphicsRootSignature(This,pRootSignature) ) 
+
+#define ID3D12GraphicsCommandList6_SetComputeRootDescriptorTable(This,RootParameterIndex,BaseDescriptor)	\
+    ( (This)->lpVtbl -> SetComputeRootDescriptorTable(This,RootParameterIndex,BaseDescriptor) ) 
+
+#define ID3D12GraphicsCommandList6_SetGraphicsRootDescriptorTable(This,RootParameterIndex,BaseDescriptor)	\
+    ( (This)->lpVtbl -> SetGraphicsRootDescriptorTable(This,RootParameterIndex,BaseDescriptor) ) 
+
+#define ID3D12GraphicsCommandList6_SetComputeRoot32BitConstant(This,RootParameterIndex,SrcData,DestOffsetIn32BitValues)	\
+    ( (This)->lpVtbl -> SetComputeRoot32BitConstant(This,RootParameterIndex,SrcData,DestOffsetIn32BitValues) ) 
+
+#define ID3D12GraphicsCommandList6_SetGraphicsRoot32BitConstant(This,RootParameterIndex,SrcData,DestOffsetIn32BitValues)	\
+    ( (This)->lpVtbl -> SetGraphicsRoot32BitConstant(This,RootParameterIndex,SrcData,DestOffsetIn32BitValues) ) 
+
+#define ID3D12GraphicsCommandList6_SetComputeRoot32BitConstants(This,RootParameterIndex,Num32BitValuesToSet,pSrcData,DestOffsetIn32BitValues)	\
+    ( (This)->lpVtbl -> SetComputeRoot32BitConstants(This,RootParameterIndex,Num32BitValuesToSet,pSrcData,DestOffsetIn32BitValues) ) 
+
+#define ID3D12GraphicsCommandList6_SetGraphicsRoot32BitConstants(This,RootParameterIndex,Num32BitValuesToSet,pSrcData,DestOffsetIn32BitValues)	\
+    ( (This)->lpVtbl -> SetGraphicsRoot32BitConstants(This,RootParameterIndex,Num32BitValuesToSet,pSrcData,DestOffsetIn32BitValues) ) 
+
+#define ID3D12GraphicsCommandList6_SetComputeRootConstantBufferView(This,RootParameterIndex,BufferLocation)	\
+    ( (This)->lpVtbl -> SetComputeRootConstantBufferView(This,RootParameterIndex,BufferLocation) ) 
+
+#define ID3D12GraphicsCommandList6_SetGraphicsRootConstantBufferView(This,RootParameterIndex,BufferLocation)	\
+    ( (This)->lpVtbl -> SetGraphicsRootConstantBufferView(This,RootParameterIndex,BufferLocation) ) 
+
+#define ID3D12GraphicsCommandList6_SetComputeRootShaderResourceView(This,RootParameterIndex,BufferLocation)	\
+    ( (This)->lpVtbl -> SetComputeRootShaderResourceView(This,RootParameterIndex,BufferLocation) ) 
+
+#define ID3D12GraphicsCommandList6_SetGraphicsRootShaderResourceView(This,RootParameterIndex,BufferLocation)	\
+    ( (This)->lpVtbl -> SetGraphicsRootShaderResourceView(This,RootParameterIndex,BufferLocation) ) 
+
+#define ID3D12GraphicsCommandList6_SetComputeRootUnorderedAccessView(This,RootParameterIndex,BufferLocation)	\
+    ( (This)->lpVtbl -> SetComputeRootUnorderedAccessView(This,RootParameterIndex,BufferLocation) ) 
+
+#define ID3D12GraphicsCommandList6_SetGraphicsRootUnorderedAccessView(This,RootParameterIndex,BufferLocation)	\
+    ( (This)->lpVtbl -> SetGraphicsRootUnorderedAccessView(This,RootParameterIndex,BufferLocation) ) 
+
+#define ID3D12GraphicsCommandList6_IASetIndexBuffer(This,pView)	\
+    ( (This)->lpVtbl -> IASetIndexBuffer(This,pView) ) 
+
+#define ID3D12GraphicsCommandList6_IASetVertexBuffers(This,StartSlot,NumViews,pViews)	\
+    ( (This)->lpVtbl -> IASetVertexBuffers(This,StartSlot,NumViews,pViews) ) 
+
+#define ID3D12GraphicsCommandList6_SOSetTargets(This,StartSlot,NumViews,pViews)	\
+    ( (This)->lpVtbl -> SOSetTargets(This,StartSlot,NumViews,pViews) ) 
+
+#define ID3D12GraphicsCommandList6_OMSetRenderTargets(This,NumRenderTargetDescriptors,pRenderTargetDescriptors,RTsSingleHandleToDescriptorRange,pDepthStencilDescriptor)	\
+    ( (This)->lpVtbl -> OMSetRenderTargets(This,NumRenderTargetDescriptors,pRenderTargetDescriptors,RTsSingleHandleToDescriptorRange,pDepthStencilDescriptor) ) 
+
+#define ID3D12GraphicsCommandList6_ClearDepthStencilView(This,DepthStencilView,ClearFlags,Depth,Stencil,NumRects,pRects)	\
+    ( (This)->lpVtbl -> ClearDepthStencilView(This,DepthStencilView,ClearFlags,Depth,Stencil,NumRects,pRects) ) 
+
+#define ID3D12GraphicsCommandList6_ClearRenderTargetView(This,RenderTargetView,ColorRGBA,NumRects,pRects)	\
+    ( (This)->lpVtbl -> ClearRenderTargetView(This,RenderTargetView,ColorRGBA,NumRects,pRects) ) 
+
+#define ID3D12GraphicsCommandList6_ClearUnorderedAccessViewUint(This,ViewGPUHandleInCurrentHeap,ViewCPUHandle,pResource,Values,NumRects,pRects)	\
+    ( (This)->lpVtbl -> ClearUnorderedAccessViewUint(This,ViewGPUHandleInCurrentHeap,ViewCPUHandle,pResource,Values,NumRects,pRects) ) 
+
+#define ID3D12GraphicsCommandList6_ClearUnorderedAccessViewFloat(This,ViewGPUHandleInCurrentHeap,ViewCPUHandle,pResource,Values,NumRects,pRects)	\
+    ( (This)->lpVtbl -> ClearUnorderedAccessViewFloat(This,ViewGPUHandleInCurrentHeap,ViewCPUHandle,pResource,Values,NumRects,pRects) ) 
+
+#define ID3D12GraphicsCommandList6_DiscardResource(This,pResource,pRegion)	\
+    ( (This)->lpVtbl -> DiscardResource(This,pResource,pRegion) ) 
+
+#define ID3D12GraphicsCommandList6_BeginQuery(This,pQueryHeap,Type,Index)	\
+    ( (This)->lpVtbl -> BeginQuery(This,pQueryHeap,Type,Index) ) 
+
+#define ID3D12GraphicsCommandList6_EndQuery(This,pQueryHeap,Type,Index)	\
+    ( (This)->lpVtbl -> EndQuery(This,pQueryHeap,Type,Index) ) 
+
+#define ID3D12GraphicsCommandList6_ResolveQueryData(This,pQueryHeap,Type,StartIndex,NumQueries,pDestinationBuffer,AlignedDestinationBufferOffset)	\
+    ( (This)->lpVtbl -> ResolveQueryData(This,pQueryHeap,Type,StartIndex,NumQueries,pDestinationBuffer,AlignedDestinationBufferOffset) ) 
+
+#define ID3D12GraphicsCommandList6_SetPredication(This,pBuffer,AlignedBufferOffset,Operation)	\
+    ( (This)->lpVtbl -> SetPredication(This,pBuffer,AlignedBufferOffset,Operation) ) 
+
+#define ID3D12GraphicsCommandList6_SetMarker(This,Metadata,pData,Size)	\
+    ( (This)->lpVtbl -> SetMarker(This,Metadata,pData,Size) ) 
+
+#define ID3D12GraphicsCommandList6_BeginEvent(This,Metadata,pData,Size)	\
+    ( (This)->lpVtbl -> BeginEvent(This,Metadata,pData,Size) ) 
+
+#define ID3D12GraphicsCommandList6_EndEvent(This)	\
+    ( (This)->lpVtbl -> EndEvent(This) ) 
+
+#define ID3D12GraphicsCommandList6_ExecuteIndirect(This,pCommandSignature,MaxCommandCount,pArgumentBuffer,ArgumentBufferOffset,pCountBuffer,CountBufferOffset)	\
+    ( (This)->lpVtbl -> ExecuteIndirect(This,pCommandSignature,MaxCommandCount,pArgumentBuffer,ArgumentBufferOffset,pCountBuffer,CountBufferOffset) ) 
+
+
+#define ID3D12GraphicsCommandList6_AtomicCopyBufferUINT(This,pDstBuffer,DstOffset,pSrcBuffer,SrcOffset,Dependencies,ppDependentResources,pDependentSubresourceRanges)	\
+    ( (This)->lpVtbl -> AtomicCopyBufferUINT(This,pDstBuffer,DstOffset,pSrcBuffer,SrcOffset,Dependencies,ppDependentResources,pDependentSubresourceRanges) ) 
+
+#define ID3D12GraphicsCommandList6_AtomicCopyBufferUINT64(This,pDstBuffer,DstOffset,pSrcBuffer,SrcOffset,Dependencies,ppDependentResources,pDependentSubresourceRanges)	\
+    ( (This)->lpVtbl -> AtomicCopyBufferUINT64(This,pDstBuffer,DstOffset,pSrcBuffer,SrcOffset,Dependencies,ppDependentResources,pDependentSubresourceRanges) ) 
+
+#define ID3D12GraphicsCommandList6_OMSetDepthBounds(This,Min,Max)	\
+    ( (This)->lpVtbl -> OMSetDepthBounds(This,Min,Max) ) 
+
+#define ID3D12GraphicsCommandList6_SetSamplePositions(This,NumSamplesPerPixel,NumPixels,pSamplePositions)	\
+    ( (This)->lpVtbl -> SetSamplePositions(This,NumSamplesPerPixel,NumPixels,pSamplePositions) ) 
+
+#define ID3D12GraphicsCommandList6_ResolveSubresourceRegion(This,pDstResource,DstSubresource,DstX,DstY,pSrcResource,SrcSubresource,pSrcRect,Format,ResolveMode)	\
+    ( (This)->lpVtbl -> ResolveSubresourceRegion(This,pDstResource,DstSubresource,DstX,DstY,pSrcResource,SrcSubresource,pSrcRect,Format,ResolveMode) ) 
+
+#define ID3D12GraphicsCommandList6_SetViewInstanceMask(This,Mask)	\
+    ( (This)->lpVtbl -> SetViewInstanceMask(This,Mask) ) 
+
+
+#define ID3D12GraphicsCommandList6_WriteBufferImmediate(This,Count,pParams,pModes)	\
+    ( (This)->lpVtbl -> WriteBufferImmediate(This,Count,pParams,pModes) ) 
+
+
+#define ID3D12GraphicsCommandList6_SetProtectedResourceSession(This,pProtectedResourceSession)	\
+    ( (This)->lpVtbl -> SetProtectedResourceSession(This,pProtectedResourceSession) ) 
+
+
+#define ID3D12GraphicsCommandList6_BeginRenderPass(This,NumRenderTargets,pRenderTargets,pDepthStencil,Flags)	\
+    ( (This)->lpVtbl -> BeginRenderPass(This,NumRenderTargets,pRenderTargets,pDepthStencil,Flags) ) 
+
+#define ID3D12GraphicsCommandList6_EndRenderPass(This)	\
+    ( (This)->lpVtbl -> EndRenderPass(This) ) 
+
+#define ID3D12GraphicsCommandList6_InitializeMetaCommand(This,pMetaCommand,pInitializationParametersData,InitializationParametersDataSizeInBytes)	\
+    ( (This)->lpVtbl -> InitializeMetaCommand(This,pMetaCommand,pInitializationParametersData,InitializationParametersDataSizeInBytes) ) 
+
+#define ID3D12GraphicsCommandList6_ExecuteMetaCommand(This,pMetaCommand,pExecutionParametersData,ExecutionParametersDataSizeInBytes)	\
+    ( (This)->lpVtbl -> ExecuteMetaCommand(This,pMetaCommand,pExecutionParametersData,ExecutionParametersDataSizeInBytes) ) 
+
+#define ID3D12GraphicsCommandList6_BuildRaytracingAccelerationStructure(This,pDesc,NumPostbuildInfoDescs,pPostbuildInfoDescs)	\
+    ( (This)->lpVtbl -> BuildRaytracingAccelerationStructure(This,pDesc,NumPostbuildInfoDescs,pPostbuildInfoDescs) ) 
+
+#define ID3D12GraphicsCommandList6_EmitRaytracingAccelerationStructurePostbuildInfo(This,pDesc,NumSourceAccelerationStructures,pSourceAccelerationStructureData)	\
+    ( (This)->lpVtbl -> EmitRaytracingAccelerationStructurePostbuildInfo(This,pDesc,NumSourceAccelerationStructures,pSourceAccelerationStructureData) ) 
+
+#define ID3D12GraphicsCommandList6_CopyRaytracingAccelerationStructure(This,DestAccelerationStructureData,SourceAccelerationStructureData,Mode)	\
+    ( (This)->lpVtbl -> CopyRaytracingAccelerationStructure(This,DestAccelerationStructureData,SourceAccelerationStructureData,Mode) ) 
+
+#define ID3D12GraphicsCommandList6_SetPipelineState1(This,pStateObject)	\
+    ( (This)->lpVtbl -> SetPipelineState1(This,pStateObject) ) 
+
+#define ID3D12GraphicsCommandList6_DispatchRays(This,pDesc)	\
+    ( (This)->lpVtbl -> DispatchRays(This,pDesc) ) 
+
+
+#define ID3D12GraphicsCommandList6_RSSetShadingRate(This,baseShadingRate,combiners)	\
+    ( (This)->lpVtbl -> RSSetShadingRate(This,baseShadingRate,combiners) ) 
+
+#define ID3D12GraphicsCommandList6_RSSetShadingRateImage(This,shadingRateImage)	\
+    ( (This)->lpVtbl -> RSSetShadingRateImage(This,shadingRateImage) ) 
+
+
+#define ID3D12GraphicsCommandList6_DispatchMesh(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ)	\
+    ( (This)->lpVtbl -> DispatchMesh(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ID3D12GraphicsCommandList6_INTERFACE_DEFINED__ */
+
+
+/* interface __MIDL_itf_d3d12_0000_0056 */
 /* [local] */ 
 
 #endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_GAMES) */
@@ -17231,19 +23181,30 @@ DEFINE_GUID(IID_ID3D12StateObject,0x47016943,0xfca8,0x4594,0x93,0xea,0xaf,0x25,0
 DEFINE_GUID(IID_ID3D12StateObjectProperties,0xde5fa827,0x9bf9,0x4f26,0x89,0xff,0xd7,0xf5,0x6f,0xde,0x38,0x60);
 DEFINE_GUID(IID_ID3D12Device5,0x8b4f173b,0x2fea,0x4b80,0x8f,0x58,0x43,0x07,0x19,0x1a,0xb9,0x5d);
 DEFINE_GUID(IID_ID3D12DeviceRemovedExtendedDataSettings,0x82BC481C,0x6B9B,0x4030,0xAE,0xDB,0x7E,0xE3,0xD1,0xDF,0x1E,0x63);
+DEFINE_GUID(IID_ID3D12DeviceRemovedExtendedDataSettings1,0xDBD5AE51,0x3317,0x4F0A,0xAD,0xF9,0x1D,0x7C,0xED,0xCA,0xAE,0x0B);
 DEFINE_GUID(IID_ID3D12DeviceRemovedExtendedData,0x98931D33,0x5AE8,0x4791,0xAA,0x3C,0x1A,0x73,0xA2,0x93,0x4E,0x71);
+DEFINE_GUID(IID_ID3D12DeviceRemovedExtendedData1,0x9727A022,0xCF1D,0x4DDA,0x9E,0xBA,0xEF,0xFA,0x65,0x3F,0xC5,0x06);
+DEFINE_GUID(IID_ID3D12DeviceRemovedExtendedData2,0x67FC5816,0xE4CA,0x4915,0xBF,0x18,0x42,0x54,0x12,0x72,0xDA,0x54);
 DEFINE_GUID(IID_ID3D12Device6,0xc70b221b,0x40e4,0x4a17,0x89,0xaf,0x02,0x5a,0x07,0x27,0xa6,0xdc);
+DEFINE_GUID(IID_ID3D12ProtectedResourceSession1,0xD6F12DD6,0x76FB,0x406E,0x89,0x61,0x42,0x96,0xEE,0xFC,0x04,0x09);
+DEFINE_GUID(IID_ID3D12Device7,0x5c014b53,0x68a1,0x4b9b,0x8b,0xd1,0xdd,0x60,0x46,0xb9,0x35,0x8b);
+DEFINE_GUID(IID_ID3D12Device8,0x9218E6BB,0xF944,0x4F7E,0xA7,0x5C,0xB1,0xB2,0xC7,0xB7,0x01,0xF3);
 DEFINE_GUID(IID_ID3D12Resource1,0x9D5E227A,0x4430,0x4161,0x88,0xB3,0x3E,0xCA,0x6B,0xB1,0x6E,0x19);
+DEFINE_GUID(IID_ID3D12Resource2,0xBE36EC3B,0xEA85,0x4AEB,0xA4,0x5A,0xE9,0xD7,0x64,0x04,0xA4,0x95);
 DEFINE_GUID(IID_ID3D12Heap1,0x572F7389,0x2168,0x49E3,0x96,0x93,0xD6,0xDF,0x58,0x71,0xBF,0x6D);
 DEFINE_GUID(IID_ID3D12GraphicsCommandList3,0x6FDA83A7,0xB84C,0x4E38,0x9A,0xC8,0xC7,0xBD,0x22,0x01,0x6B,0x3D);
 DEFINE_GUID(IID_ID3D12MetaCommand,0xDBB84C27,0x36CE,0x4FC9,0xB8,0x01,0xF0,0x48,0xC4,0x6A,0xC5,0x70);
 DEFINE_GUID(IID_ID3D12GraphicsCommandList4,0x8754318e,0xd3a9,0x4541,0x98,0xcf,0x64,0x5b,0x50,0xdc,0x48,0x74);
+DEFINE_GUID(IID_ID3D12ShaderCacheSession,0x28e2495d,0x0f64,0x4ae4,0xa6,0xec,0x12,0x92,0x55,0xdc,0x49,0xa8);
+DEFINE_GUID(IID_ID3D12Device9,0x4c80e962,0xf032,0x4f60,0xbc,0x9e,0xeb,0xc2,0xcf,0xa1,0xd8,0x3c);
 DEFINE_GUID(IID_ID3D12Tools,0x7071e1f0,0xe84b,0x4b33,0x97,0x4f,0x12,0xfa,0x49,0xde,0x65,0xc5);
+DEFINE_GUID(IID_ID3D12SDKConfiguration,0xe9eb5314,0x33aa,0x42b2,0xa7,0x18,0xd7,0x7f,0x58,0xb1,0xf1,0xc7);
 DEFINE_GUID(IID_ID3D12GraphicsCommandList5,0x55050859,0x4024,0x474c,0x87,0xf5,0x64,0x72,0xea,0xee,0x44,0xea);
+DEFINE_GUID(IID_ID3D12GraphicsCommandList6,0xc3827890,0xe548,0x4cfa,0x96,0xcf,0x56,0x89,0xa9,0x37,0x0f,0x80);
 
 
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0045_v0_0_c_ifspec;
-extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0045_v0_0_s_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0056_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_d3d12_0000_0056_v0_0_s_ifspec;
 
 /* Additional Prototypes for ALL interfaces */
 
