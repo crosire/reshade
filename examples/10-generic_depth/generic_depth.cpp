@@ -143,12 +143,13 @@ struct __declspec(uuid("7c6363c7-f94e-437a-9160-141782c44a98")) state_tracking_c
 			return true;
 
 		const float w = static_cast<float>(width);
-		const float w_ratio = w / width_to_check;
+		float w_ratio = w / width_to_check;
 		const float h = static_cast<float>(height);
-		const float h_ratio = h / height_to_check;
+		float h_ratio = h / height_to_check;
 		const float aspect_ratio = (w / h) - (static_cast<float>(width_to_check) / height_to_check);
 
-		return std::fabs(aspect_ratio) <= 0.1f && w_ratio <= 1.85f && h_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio >= 0.5f;
+		// Accept if dimensions are similar in value or almost exact multiples
+		return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 	}
 
 	// Update the backup texture to match the requested dimensions
