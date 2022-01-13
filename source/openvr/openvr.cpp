@@ -168,6 +168,9 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 	}
 	else
 	{
+		// Synchronize access to the command queue while events are invoked and the immediate command list may be accessed
+		std::unique_lock<std::mutex> lock = command_queue_proxy->lock();
+
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(command_queue_proxy.get(), s_vr_swapchain);
 #endif
@@ -175,6 +178,8 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 		s_vr_swapchain->on_present();
 
 		command_queue_proxy->flush_immediate_command_list();
+
+		lock.unlock();
 
 		vr::D3D12TextureData_t target_texture = *texture;
 		target_texture.m_pResource = reinterpret_cast<ID3D12Resource *>(s_vr_swapchain->get_current_back_buffer().handle);

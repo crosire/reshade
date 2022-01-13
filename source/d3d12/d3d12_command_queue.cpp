@@ -150,6 +150,9 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
+	// Synchronize access to this command queue while events are invoked and the immediate command list may be accessed
+	std::unique_lock<std::mutex> lock(_mutex);
+
 	temp_mem<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; i++)
 	{
@@ -173,6 +176,8 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 	}
 
 	flush_immediate_command_list();
+
+	lock.unlock();
 
 	_orig->ExecuteCommandLists(NumCommandLists, command_lists.p);
 }

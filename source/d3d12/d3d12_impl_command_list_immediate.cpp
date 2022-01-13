@@ -41,13 +41,9 @@ reshade::d3d12::command_list_immediate_impl::~command_list_immediate_impl()
 
 bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queue)
 {
-	if (_last_thread_id == 0)
+	if (!_has_commands)
 		return true;
-	// Only flush on the same thread as the one recording the commands, since command lists are not thread-safe
-	// But 'ID3D12CommandQueue' is thread-safe, so this may get called from 'ID3D12CommandQueue::ExecuteCommandLists' or 'IDXGISwapChain::Present' on different threads
-	if (_last_thread_id != GetCurrentThreadId())
-		return false;
-	_last_thread_id = 0;
+	_has_commands = false;
 
 	_current_root_signature[0] = nullptr;
 	_current_root_signature[1] = nullptr;
@@ -92,7 +88,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 }
 bool reshade::d3d12::command_list_immediate_impl::flush_and_wait(ID3D12CommandQueue *queue)
 {
-	if (_last_thread_id == 0)
+	if (!_has_commands)
 		return true;
 
 	// Index is updated during flush below, so keep track of the current one to wait on

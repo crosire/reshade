@@ -46,8 +46,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 	if (count == 0)
 		return;
 
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	temp_mem<D3D12_RESOURCE_BARRIER> barriers(count);
 	for (uint32_t i = 0; i < count; ++i)
@@ -418,22 +417,19 @@ void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint
 
 void reshade::d3d12::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	_orig->DrawInstanced(vertex_count, instance_count, first_vertex, first_instance);
 }
 void reshade::d3d12::command_list_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	_orig->DrawIndexedInstanced(index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 void reshade::d3d12::command_list_impl::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	_orig->Dispatch(group_count_x, group_count_y, group_count_z);
 }
@@ -444,8 +440,7 @@ void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(api::indirect_
 
 void reshade::d3d12::command_list_impl::copy_resource(api::resource src, api::resource dst)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -453,8 +448,7 @@ void reshade::d3d12::command_list_impl::copy_resource(api::resource src, api::re
 }
 void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -465,8 +459,7 @@ void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, ui
 }
 void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -507,8 +500,7 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 }
 void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
@@ -532,8 +524,7 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 }
 void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -560,8 +551,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 }
 void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format format)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -597,8 +587,7 @@ void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src
 
 void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *rects)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(dsv.handle != 0);
 
@@ -609,8 +598,7 @@ void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_v
 }
 void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(rtv.handle != 0);
 
@@ -618,8 +606,7 @@ void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_v
 }
 void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const api::rect *rects)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(uav.handle != 0);
 
@@ -643,8 +630,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 }
 void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const api::rect *rects)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(uav.handle != 0);
 
@@ -669,8 +655,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 
 void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(srv.handle != 0);
 
@@ -753,8 +738,7 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 void reshade::d3d12::command_list_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(pool.handle != 0);
 
@@ -762,8 +746,7 @@ void reshade::d3d12::command_list_impl::begin_query(api::query_pool pool, api::q
 }
 void reshade::d3d12::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(pool.handle != 0);
 
@@ -780,8 +763,7 @@ void reshade::d3d12::command_list_impl::end_query(api::query_pool pool, api::que
 }
 void reshade::d3d12::command_list_impl::copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
-	assert(_last_thread_id == 0 || _last_thread_id == GetCurrentThreadId());
-	_last_thread_id = GetCurrentThreadId();
+	_has_commands = true;
 
 	assert(pool.handle != 0);
 	assert(stride == sizeof(uint64_t));
