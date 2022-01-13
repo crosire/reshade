@@ -20,8 +20,6 @@ namespace reshade::vulkan
 		bool flush(VkQueue queue, std::vector<VkSemaphore> &wait_semaphores);
 		bool flush_and_wait(VkQueue queue);
 
-		const VkCommandBuffer begin_commands() { _has_commands = true; return _orig; }
-
 	private:
 		uint32_t _cmd_index = 0;
 		VkCommandPool _cmd_pool = VK_NULL_HANDLE;

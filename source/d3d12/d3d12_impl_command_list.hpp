@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <d3d12.h>
 #include "addon_manager.hpp"
 
@@ -67,7 +68,7 @@ namespace reshade::d3d12
 
 	protected:
 		device_impl *const _device_impl;
-		bool _has_commands = false;
+		std::atomic<DWORD> _last_thread_id = 0;
 
 		// Currently bound root signature (graphics at index 0, compute at index 1)
 		ID3D12RootSignature *_current_root_signature[2] = {};

@@ -80,7 +80,7 @@ reshade::vulkan::command_list_immediate_impl::~command_list_immediate_impl()
 	vk.DestroyCommandPool(_device_impl->_orig, _cmd_pool, nullptr);
 
 	// Signal to 'command_list_impl' destructor that this is an immediate command list
-	_has_commands = false;
+	_orig = VK_NULL_HANDLE;
 }
 
 bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vector<VkSemaphore> &wait_semaphores)

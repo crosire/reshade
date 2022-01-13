@@ -20,8 +20,6 @@ namespace reshade::d3d12
 		bool flush(ID3D12CommandQueue *queue);
 		bool flush_and_wait(ID3D12CommandQueue *queue);
 
-		ID3D12GraphicsCommandList *const begin_commands() { _has_commands = true; return _orig; }
-
 	private:
 		UINT32 _cmd_index = 0;
 		HANDLE _fence_event = nullptr;
