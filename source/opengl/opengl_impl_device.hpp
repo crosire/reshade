@@ -160,6 +160,7 @@ namespace reshade::opengl
 
 	private:
 		GLuint _mipmap_program = 0;
+		GLuint _mipmap_sampler = 0;
 		std::vector<GLuint> _reserved_texture_names;
 
 		GLuint _push_constants = 0;

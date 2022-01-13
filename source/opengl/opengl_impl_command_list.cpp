@@ -1216,7 +1216,7 @@ void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
 	const GLenum target = srv.handle >> 40;
 	const GLuint object = srv.handle & 0xFFFFFFFF;
 
-	glBindSampler(0, 0);
+	glBindSampler(0, _mipmap_sampler);
 	glActiveTexture(GL_TEXTURE0); // src
 	glBindTexture(target, object);
 

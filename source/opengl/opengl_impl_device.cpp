@@ -94,12 +94,12 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 			"#version 430\n"
 			"layout(binding = 0) uniform sampler2D src;\n"
 			"layout(binding = 1) uniform writeonly image2D dest;\n"
-			"layout(location = 0) uniform vec3 info;\n"
+			"layout(location = 0) uniform vec3 texel;\n"
 			"layout(local_size_x = 8, local_size_y = 8) in;\n"
 			"void main()\n"
 			"{\n"
-			"	vec2 uv = info.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
-			"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(info.z)));\n"
+			"	vec2 uv = texel.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
+			"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(texel.z)));\n"
 			"}\n";
 
 		const GLuint mipmap_cs = glCreateShader(GL_COMPUTE_SHADER);
@@ -110,6 +110,13 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 		glAttachShader(_mipmap_program, mipmap_cs);
 		glLinkProgram(_mipmap_program);
 		glDeleteShader(mipmap_cs);
+
+		glGenSamplers(1, &_mipmap_sampler);
+		glSamplerParameteri(_mipmap_sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+		glSamplerParameteri(_mipmap_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glSamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glSamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glSamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	}
 
 #if RESHADE_ADDON
@@ -158,6 +165,7 @@ reshade::opengl::device_impl::~device_impl()
 
 	// Destroy mipmap generation program
 	glDeleteProgram(_mipmap_program);
+	glDeleteSamplers(1, &_mipmap_sampler);
 
 	// Destroy push constants buffer
 	glDeleteBuffers(1, &_push_constants);
