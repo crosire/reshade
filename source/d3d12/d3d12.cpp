@@ -67,6 +67,11 @@ HOOK_EXPORT HRESULT WINAPI D3D12EnableExperimentalFeatures(UINT NumFeatures, con
 	return reshade::hooks::call(D3D12EnableExperimentalFeatures)(NumFeatures, pIIDs, pConfigurationStructs, pConfigurationStructSizes);
 }
 
+HOOK_EXPORT HRESULT WINAPI D3D12GetInterface(REFCLSID rclsid, REFIID riid, void **ppvDebug)
+{
+	return reshade::hooks::call(D3D12GetInterface)(rclsid, riid, ppvDebug);
+}
+
 HOOK_EXPORT HRESULT WINAPI D3D12SerializeRootSignature(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)
 {
 	static const auto trampoline = reshade::hooks::call(D3D12SerializeRootSignature);

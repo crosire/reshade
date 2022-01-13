@@ -43,8 +43,9 @@ EXPORTS
 	D3D12CreateRootSignatureDeserializer @107 PRIVATE
 	D3D12CreateVersionedRootSignatureDeserializer @108 PRIVATE
 	D3D12EnableExperimentalFeatures @110 PRIVATE
-	D3D12SerializeRootSignature @115 PRIVATE
-	D3D12SerializeVersionedRootSignature @116 PRIVATE
+	D3D12GetInterface @111 PRIVATE
+	D3D12SerializeRootSignature PRIVATE
+	D3D12SerializeVersionedRootSignature PRIVATE
 
 	; dxgi.dll
 	CreateDXGIFactory PRIVATE
