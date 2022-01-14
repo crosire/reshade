@@ -709,8 +709,8 @@ void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint3
 	{
 		const api::resource_desc desc = get_resource_desc(dst);
 
-		dst_box.right  = dst_x + std::max(1u, desc.texture.width >> dst_subresource);
-		dst_box.bottom = dst_y + std::max(1u, desc.texture.height >> dst_subresource);
+		dst_box.right  = dst_x + std::max(1u, desc.texture.width >> (dst_subresource % desc.texture.levels));
+		dst_box.bottom = dst_y + std::max(1u, desc.texture.height >> (dst_subresource % desc.texture.levels));
 		dst_box.back   = dst_z + 1;
 	}
 

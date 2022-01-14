@@ -84,6 +84,12 @@ namespace reshade::opengl
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
+	template <typename T>
+	inline void hash_combine(size_t &seed, const T &v)
+	{
+		seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	}
+
 	auto convert_format(api::format format, GLint swizzle_mask[4] = nullptr) -> GLenum;
 	auto convert_format(GLenum internal_format, const GLint swizzle_mask[4] = nullptr) -> api::format;
 	auto convert_format(GLenum format, GLenum type) -> api::format;

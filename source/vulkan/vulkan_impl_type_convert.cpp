@@ -450,8 +450,12 @@ auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAc
 }
 auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state, bool src_stage) -> VkImageLayout
 {
+#if 0 // Only valid for the very first layout transition after image creation
 	if (src_stage && state == api::resource_usage::cpu_access)
 		return VK_IMAGE_LAYOUT_PREINITIALIZED;
+#else
+		src_stage;
+#endif
 
 	switch (state)
 	{

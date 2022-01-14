@@ -166,6 +166,14 @@ namespace reshade::opengl
 		GLuint _push_constants = 0;
 		GLuint _push_constants_size = 0;
 
+		struct map_info
+		{
+			api::subresource_data data;
+			api::subresource_box box;
+			api::map_access access;
+		};
+
 		std::unordered_map<size_t, GLuint> _fbo_lookup;
+		std::unordered_map<size_t, map_info> _map_lookup;
 	};
 }
