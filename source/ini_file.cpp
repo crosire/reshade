@@ -226,8 +226,6 @@ ini_file &ini_file::load_cache(const std::filesystem::path &path)
 
 ini_file & reshade::global_config()
 {
-	std::filesystem::path config_path = g_reshade_dll_path;
-	config_path.replace_extension(L".ini");
-	static ini_file config(config_path); // Load once on first use
+	static ini_file config(g_target_executable_path.parent_path() / g_reshade_dll_path.filename().replace_extension(L".ini")); // Load once on first use
 	return config;
 }
