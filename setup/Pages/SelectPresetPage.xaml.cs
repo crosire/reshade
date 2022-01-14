@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 
 namespace ReShade.Setup.Pages
 {

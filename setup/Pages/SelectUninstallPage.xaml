@@ -13,16 +13,16 @@
       An existing ReShade installation was found for the target game. Choose how to proceed with this installation.
     </TextBlock>
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
-      <RadioButton x:Name="UpdateButton" Margin="0,0,0,10" IsChecked="True">
+      <RadioButton x:Name="UpdateButton" Margin="0,10" IsChecked="True">
         <TextBlock Width="290" TextWrapping="Wrap">
-          <Label Content="_Modify" Margin="0,10" Padding="0" Foreground="#FF003399" FontSize="16" />
+          <Label Content="_Modify" Padding="0" Foreground="#FF003399" FontSize="16" />
           <LineBreak />
           Update ReShade to the version from this setup tool and download all used effect files again.
         </TextBlock>
       </RadioButton>
-      <RadioButton x:Name="UninstallButton" Margin="0,0,0,10" VerticalContentAlignment="Top">
+      <RadioButton x:Name="UninstallButton" Margin="0,10" VerticalContentAlignment="Top">
         <TextBlock Width="290" TextWrapping="Wrap">
-          <Label Content="_Uninstall" Margin="0,10" Padding="0" Foreground="#FF003399" FontSize="16" />
+          <Label Content="_Uninstall" Padding="0" Foreground="#FF003399" FontSize="16" />
           <LineBreak />
           Remove ReShade, related configuration and log files and all installed effect files from the target game.
         </TextBlock>

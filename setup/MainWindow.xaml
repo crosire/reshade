@@ -6,7 +6,7 @@
         WindowStartupLocation="CenterScreen"
         SourceInitialized="OnWindowInit">
   <DockPanel LastChildFill="True">
-    <DockPanel DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
+    <DockPanel x:Name="NavigationPanel" DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
       <Button x:Name="CancelButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Cancel" Click="OnCancelButtonClick" IsCancel="True" KeyboardNavigation.TabIndex="1" />
       <Button x:Name="NextButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Next" Click="OnNextButtonClick" IsDefault="True" KeyboardNavigation.TabIndex="0" />
     </DockPanel>

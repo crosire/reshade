@@ -3,12 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -21,6 +21,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Xml;
+using Microsoft.Win32;
 
 static class StringExtensionMethods
 {
@@ -58,6 +59,10 @@ namespace ReShade.Setup.Pages
 				if (Name is null || Name.Trim().Length == 0)
 				{
 					Name = System.IO.Path.GetFileNameWithoutExtension(path);
+					if (char.IsLower(Name[0]))
+					{
+						Name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Name);
+					}
 				}
 
 				Name += " (" + System.IO.Path.GetFileName(path) + ")";

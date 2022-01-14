@@ -103,7 +103,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release Signed'">
     <OutDir>$(OutDir)..\Release\</OutDir>
-    <TargetName>$(TargetName)_signed</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>

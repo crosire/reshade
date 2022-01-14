@@ -156,7 +156,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Update assembly info file -->
   <UsingTask TaskName="CL" AssemblyFile="$(VCTargetsPath)Microsoft.Build.CppTasks.Common.dll" />
-  <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeCompile" Inputs="..\res\version.h;Properties\AssemblyInfo.cs.in" Outputs="Properties\AssemblyInfo.cs">
+  <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeBuild" Inputs="..\res\version.h;Properties\AssemblyInfo.cs.in" Outputs="Properties\AssemblyInfo.cs">
     <Message Text="Generating assembly version ..." Importance="high" />
     <CL SuppressStartupBanner="true" PreprocessSuppressLineNumbers="true" PreprocessKeepComments="true" PreprocessToFile="true" AdditionalIncludeDirectories="..\res" Sources="Properties\AssemblyInfo.cs.in" PreprocessOutputPath="Properties\AssemblyInfo.cs" ToolPath="$(VC_ExecutablePath_x86)" />
   </Target>

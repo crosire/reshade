@@ -11,8 +11,8 @@ using System.Reflection;
 
 [assembly: AssemblyTitle("ReShade Setup")]
 [assembly: AssemblyVersion(BUILD_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION))]
+[assembly: AssemblyInformationalVersion(VERSION_STRING_PRODUCT)]
 [assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("crosire")]
 [assembly: AssemblyProduct("ReShade")]
 [assembly: AssemblyCopyright("Copyright © 2014. All rights reserved.")]

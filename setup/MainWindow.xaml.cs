@@ -3,22 +3,24 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-using Microsoft.Win32;
-using ReShade.Setup.Pages;
-using ReShade.Setup.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Navigation;
+using Microsoft.Win32;
+using ReShade.Setup.Pages;
+using ReShade.Setup.Utilities;
 
 namespace ReShade.Setup
 {
@@ -53,14 +55,14 @@ namespace ReShade.Setup
 		Queue<EffectPackage> packages;
 		string[] effects;
 		EffectPackage package;
-		bool? addonLoadSupport;
 
 		public MainWindow()
 		{
 			InitializeComponent();
 
 			var assembly = Assembly.GetExecutingAssembly();
-			Title = "ReShade Setup v" + assembly.GetName().Version.ToString(3);
+			var productVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+			Title = "ReShade Setup v" + productVersion;
 
 			try
 			{
@@ -93,21 +95,36 @@ namespace ReShade.Setup
 				{
 					throw new InvalidDataException();
 				}
-
-				if (zip.GetEntry("ReShade32_signed.dll") == null || zip.GetEntry("ReShade64_signed.dll") == null)
-				{
-					addonLoadSupport = null;
-				}
-				else
-				{
-					addonLoadSupport = true;
-				}
 			}
 			catch
 			{
 				MessageBox.Show("This setup archive is corrupted! Please download from https://reshade.me again.");
 				Environment.Exit(1);
 				return;
+			}
+
+			if (productVersion.Contains(" "))
+			{
+				NavigationPanel.Background = System.Windows.Media.Brushes.Crimson;
+			}
+			else
+			{
+				string tempFileName = Path.GetTempFileName();
+
+				try
+				{
+					zip.GetEntry("ReShade64.dll").ExtractToFile(tempFileName, true);
+
+					X509Certificate2.GetCertContentType(tempFileName);
+				}
+				catch
+				{
+					NavigationPanel.Background = System.Windows.Media.Brushes.Orange;
+				}
+				finally
+				{
+					File.Delete(tempFileName);
+				}
 			}
 
 			var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
@@ -428,6 +445,10 @@ namespace ReShade.Setup
 			if (targetName is null || targetName.Trim().Length == 0)
 			{
 				targetName = Path.GetFileNameWithoutExtension(targetPath);
+				if (char.IsLower(targetName[0]))
+				{
+					targetName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(targetName);
+				}
 			}
 
 			UpdateStatus("Analyzing executable ...");
@@ -519,17 +540,6 @@ namespace ReShade.Setup
 				page.ApiDXGI.IsChecked = isApiDXGI;
 				page.ApiOpenGL.IsChecked = isApiOpenGL;
 				page.ApiVulkan.IsChecked = isApiVulkan;
-
-				if (addonLoadSupport != null)
-				{
-					page.AddonSupport.IsEnabled = true;
-					page.AddonSupport.IsChecked = false;
-				}
-				else
-				{
-					page.AddonSupport.IsEnabled = false;
-					page.AddonSupport.IsChecked = true;
-				}
 
 				CurrentPage.Navigate(page);
 			});
@@ -659,7 +669,7 @@ namespace ReShade.Setup
 					Directory.CreateDirectory(parentPath);
 				}
 
-				var module = zip.GetEntry(moduleName + (addonLoadSupport != false ? string.Empty : "_signed") + ".dll");
+				var module = zip.GetEntry(moduleName + ".dll");
 				if (module == null)
 				{
 					throw new FileFormatException("Setup archive is missing ReShade DLL file.");
@@ -1266,11 +1276,6 @@ In that event here are some steps you can try to resolve this:
 				if (apiPage.ApiVulkan.IsChecked == true)
 				{
 					targetApi = Api.Vulkan;
-				}
-
-				if (apiPage.AddonSupport.IsEnabled)
-				{
-					addonLoadSupport = apiPage.AddonSupport.IsChecked == true;
 				}
 
 				Task.Run(InstallStep2);
