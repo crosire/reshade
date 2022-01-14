@@ -342,7 +342,10 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 #if RESHADE_ADDON_LITE
 	// Block all application events when building without add-on loading support
 	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
+	{
+		LOG(ERROR) << "Failed to register event because only limited add-on functionality is available.";
 		return;
+	}
 #endif
 
 	auto &event_list = reshade::addon_event_list[static_cast<uint32_t>(ev)];

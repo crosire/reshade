@@ -2223,16 +2223,26 @@ void reshade::runtime::draw_gui_addons()
 		ImGui::TextColored(COLOR_YELLOW, "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
 		return;
 	}
+
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextColored(COLOR_YELLOW, "Only limited add-on functionality is available.");
+#else
+	std::filesystem::path addon_search_path = g_reshade_base_path;
+	global_config().get("INSTALL", "AddonPath", addon_search_path);
+	if (imgui::directory_input_box("Add-on search path", addon_search_path, _file_selection_path))
+	{
+		global_config().set("INSTALL", "AddonPath", addon_search_path);
+		global_config().save();
+	}
 #endif
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
 
 	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
 
 	ImGui::Spacing();
-
-#if RESHADE_ADDON_LITE
-	ImGui::TextColored(COLOR_YELLOW, "Only limited add-on functionality is available.");
-	ImGui::Spacing();
-#endif
 
 	std::vector<std::string> disabled_addons;
 	global_config().get("ADDON", "DisabledAddons", disabled_addons);
