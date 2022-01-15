@@ -250,16 +250,19 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 }
 void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.set.handle == 0 && update.binding == 0);
+	assert(update.set.handle == 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 	if (update.type != api::descriptor_type::sampler ?
-		!_device_impl->_gpu_view_heap.allocate_transient(update.count, base_handle, base_handle_gpu) :
-		!_device_impl->_gpu_sampler_heap.allocate_transient(update.count, base_handle, base_handle_gpu))
+		!_device_impl->_gpu_view_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu) :
+		!_device_impl->_gpu_sampler_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu))
 		return;
 
 	const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(update.type);
+
+	// Add base descriptor offset (these descriptors stay unusued)
+	base_handle = _device_impl->offset_descriptor_handle(base_handle, update.binding, heap_type);
 
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
@@ -272,6 +275,17 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	}
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+
+#ifndef NDEBUG
+	pipeline_layout_extra_data extra_data;
+
+	if (UINT extra_data_size = sizeof(extra_data);
+		SUCCEEDED(root_signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	{
+		assert(heap_type == extra_data.ranges[layout_param].first);
+		assert(update.binding + update.count <= extra_data.ranges[layout_param].second);
+	}
+#endif
 
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
 	{
@@ -292,7 +306,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 
 	if (update.type == api::descriptor_type::constant_buffer)
 	{
-		for (uint32_t k = 0; k < update.count; ++k, base_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
+		for (uint32_t k = 0; k < update.count; ++k, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 		{
 			const auto buffer_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
 			const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffer_range.buffer.handle);
@@ -669,7 +683,7 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	if (!_device_impl->_gpu_view_heap.allocate_transient(desc.MipLevels * 2, base_handle, base_handle_gpu))
 		return;
 
-	for (uint32_t level = 0; level < desc.MipLevels; ++level, base_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
+	for (uint32_t level = 0; level < desc.MipLevels; ++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc;
 		srv_desc.Format = convert_format(api::format_to_default_typed(convert_format(desc.Format)));
@@ -682,7 +696,7 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 		_device_impl->_orig->CreateShaderResourceView(resource, &srv_desc, base_handle);
 	}
-	for (uint32_t level = 1; level < desc.MipLevels; ++level, base_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
+	for (uint32_t level = 1; level < desc.MipLevels; ++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc;
 		uav_desc.Format = convert_format(api::format_to_default_typed(convert_format(desc.Format)));
@@ -716,9 +730,9 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		_orig->SetComputeRoot32BitConstants(0, 2, dimensions, 0);
 
 		// Bind next higher mipmap level as input
-		_orig->SetComputeRootDescriptorTable(1, { base_handle_gpu.ptr + _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] * static_cast<UINT64>(level - 1) });
+		_orig->SetComputeRootDescriptorTable(1, _device_impl->offset_descriptor_handle(base_handle_gpu, level - 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		// There is no UAV for level 0, so substract one
-		_orig->SetComputeRootDescriptorTable(2, { base_handle_gpu.ptr + _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] * static_cast<UINT64>(desc.MipLevels + level - 1) });
+		_orig->SetComputeRootDescriptorTable(2, _device_impl->offset_descriptor_handle(base_handle_gpu, desc.MipLevels + level - 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
 		_orig->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 

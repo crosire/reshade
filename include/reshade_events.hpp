@@ -134,6 +134,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the swap chain description, modify <c>buffer_desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// Is not called in OpenGL (since it is not possible to influence swap chain creation there).
 		/// </remarks>
 		create_swapchain,
 

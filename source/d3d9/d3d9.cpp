@@ -73,6 +73,16 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
 	buffer_desc.usage = reshade::api::resource_usage::render_target;
 
+	if (pp.Windowed)
+	{
+		RECT window_rect = {};
+		GetClientRect(pp.hDeviceWindow, &window_rect);
+		if (pp.BackBufferWidth == 0)
+			buffer_desc.texture.width = window_rect.right;
+		if (pp.BackBufferHeight == 0)
+			buffer_desc.texture.height = window_rect.bottom;
+	}
+
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, pp.hDeviceWindow))
 	{
 		pp.BackBufferWidth = buffer_desc.texture.width;

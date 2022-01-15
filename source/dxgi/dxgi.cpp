@@ -98,6 +98,13 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	buffer_desc.texture.samples = static_cast<uint16_t>(desc.SampleDesc.Count);
 	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
 
+	RECT window_rect = {};
+	GetClientRect(desc.OutputWindow, &window_rect);
+	if (desc.BufferDesc.Width == 0)
+		buffer_desc.texture.width = window_rect.right;
+	if (desc.BufferDesc.Height == 0)
+		buffer_desc.texture.height = window_rect.bottom;
+
 	if (desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
 		buffer_desc.usage |= reshade::api::resource_usage::shader_resource;
 	if (desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
@@ -175,6 +182,16 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	buffer_desc.texture.format = static_cast<reshade::api::format>(desc.Format);
 	buffer_desc.texture.samples = static_cast<uint16_t>(desc.SampleDesc.Count);
 	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
+
+	if (hwnd != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(hwnd, &window_rect);
+		if (desc.Width == 0)
+			buffer_desc.texture.width = window_rect.right;
+		if (desc.Height == 0)
+			buffer_desc.texture.height = window_rect.bottom;
+	}
 
 	if (desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
 		buffer_desc.usage |= reshade::api::resource_usage::shader_resource;
