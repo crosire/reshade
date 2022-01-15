@@ -1460,12 +1460,27 @@ void reshade::runtime::draw_gui_settings()
 		modified |= imgui::key_input_box("Screenshot key", _screenshot_key_data, *_input);
 		modified |= imgui::directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
-		std::string screenshot_naming_items;
-		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss" + '\0';
+		char name[260] = "";
+		_screenshot_name.copy(name, sizeof(name) - 1);
+		if (ImGui::InputText("Screenshot name", name, sizeof(name)))
+		{
+			modified = true;
+			_screenshot_name = name;
+		}
+
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip(
+				"Macros you can add that are resolved during saving:\n"
+				"  %%AppName%%         Name of the application (%s)\n"
 #if RESHADE_FX
-		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss" + ' ' + _current_preset_path.stem().string() + '\0';
+				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
 #endif
-		modified |= ImGui::Combo("Screenshot name", reinterpret_cast<int *>(&_screenshot_naming), screenshot_naming_items.c_str());
+				"  %%Date%%            Current date in format 'yyyy-MM-dd'\n"
+				"  %%Time%%            Current time in format 'HH-mm-ss'",
+				g_target_executable_path.stem().string().c_str(),
+				_current_preset_path.stem().string().c_str());
+		}
 
 		modified |= ImGui::Combo("Screenshot format", reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
 
@@ -1487,7 +1502,7 @@ void reshade::runtime::draw_gui_settings()
 
 		char arguments[260] = "";
 		_screenshot_post_save_command_arguments.copy(arguments, sizeof(arguments) - 1);
-		if (ImGui::InputText("Post-save command arguments", arguments, sizeof(arguments), ImGuiInputTextFlags_None))
+		if (ImGui::InputText("Post-save command arguments", arguments, sizeof(arguments)))
 		{
 			modified = true;
 			_screenshot_post_save_command_arguments = arguments;
@@ -1499,16 +1514,24 @@ void reshade::runtime::draw_gui_settings()
 
 			ImGui::SetTooltip(
 				"Macros you can add that are resolved during command execution:\n"
+				"  %%AppName%%         Name of the application (%s)\n"
+#if RESHADE_FX
+				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
+#endif
+				"  %%Date%%            Current date in format 'yyyy-MM-dd'\n"
+				"  %%Time%%            Current time in format 'HH-mm-ss'\n"
 				"  %%TargetPath%%      Full path to the screenshot file (%s%s%s)\n"
 				"  %%TargetDir%%       Full path to the screenshot directory (%s)\n"
 				"  %%TargetFileName%%  File name of the screenshot file (%s%s)\n"
 				"  %%TargetExt%%       File extension of the screenshot file (%s)\n"
 				"  %%TargetName%%      File name without extension of the screenshot file (%s)",
-				_screenshot_path.u8string().c_str(), screenshot_naming_items.c_str(), extension.c_str(),
+				g_target_executable_path.stem().string().c_str(),
+				_current_preset_path.stem().string().c_str(),
+				_screenshot_path.u8string().c_str(), _screenshot_name.c_str(), extension.c_str(),
 				_screenshot_path.u8string().c_str(),
-				screenshot_naming_items.c_str(), extension.c_str(),
+				_screenshot_name.c_str(), extension.c_str(),
 				extension.c_str(),
-				screenshot_naming_items.c_str());
+				_screenshot_name.c_str());
 		}
 
 		modified |= imgui::directory_input_box("Post-save command working directory", _screenshot_post_save_command_working_directory, _file_selection_path);

@@ -118,6 +118,7 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 #endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path),
+	_screenshot_name("%ExeName% %Date% %Time%"),
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(g_reshade_base_path)
 {
@@ -402,7 +403,7 @@ void reshade::runtime::on_present()
 	if (_effects_enabled && !_effects_rendered_this_frame)
 	{
 		if (_should_save_screenshot && _screenshot_save_before)
-			save_screenshot(L" original");
+			save_screenshot(" original");
 
 		uint32_t back_buffer_index = get_current_back_buffer_index();
 		const api::resource back_buffer_resource = get_back_buffer_resolved(back_buffer_index);
@@ -435,7 +436,7 @@ void reshade::runtime::on_present()
 		draw_gui();
 
 	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != 0 && _effects_enabled)))
-		save_screenshot(L" overlay");
+		save_screenshot(" overlay");
 #endif
 
 	// All screenshots were created at this point, so reset request
@@ -567,7 +568,7 @@ void reshade::runtime::load_config()
 
 	config.get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
-	config.get("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
+	config.get("SCREENSHOT", "FileNaming", _screenshot_name);
 	config.get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 #if RESHADE_FX
 	config.get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
@@ -625,7 +626,7 @@ void reshade::runtime::save_config() const
 
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
-	config.set("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
+	config.set("SCREENSHOT", "FileNaming", _screenshot_name);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 #if RESHADE_FX
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
@@ -3303,15 +3304,10 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 
 void reshade::runtime::save_texture(const texture &tex)
 {
-	char timestamp[21];
-	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	tm tm; localtime_s(&tm, &t);
-	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+	std::string filename = tex.unique_name;
+	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
 
-	std::wstring filename = std::filesystem::path(tex.unique_name).concat(timestamp);
-	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
-
-	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
+	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
 
 	_last_screenshot_save_successfull = true;
 
@@ -3650,23 +3646,97 @@ template <> void reshade::runtime::set_uniform_value<uint32_t>(uniform &variable
 }
 #endif
 
-void reshade::runtime::save_screenshot(const std::wstring &postfix)
+static std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros)
 {
 	char timestamp[21];
 	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 	tm tm; localtime_s(&tm, &t);
-	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+	sprintf_s(timestamp, "%.4d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+	macros.emplace_back("Date", timestamp);
+	sprintf_s(timestamp, "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+	macros.emplace_back("Time", timestamp);
 
-	std::wstring filename = g_target_executable_path.stem().concat(timestamp);
+	std::string result;
+
+	for (size_t offset = 0, macro_beg, macro_end; offset < input.size(); offset = macro_end + 1)
+	{
+		macro_beg = input.find('%', offset);
+		macro_end = input.find('%', macro_beg + 1);
+
+		if (macro_beg == std::string::npos || macro_end == std::string::npos)
+		{
+			result += input.substr(offset);
+			break;
+		}
+		else
+		{
+			result += input.substr(offset, macro_beg - offset);
+
+			if (macro_end == macro_beg + 1) // Handle case of %% to escape percentage symbol
+			{
+				result += '%';
+				continue;
+			}
+		}
+
+		std::string_view replacing = std::string_view(input).substr(macro_beg + 1, macro_end - (macro_beg + 1));
+		size_t colon_pos = replacing.find(':');
+
+		std::string name;
+		if (colon_pos == std::string::npos)
+			name = replacing;
+		else
+			name = replacing.substr(0, colon_pos);
+
+		std::string value;
+
+		for (const std::pair<std::string, std::string> &macro : macros)
+		{
+			if (_stricmp(name.c_str(), macro.first.c_str()) == 0)
+			{
+				value = macro.second;
+				break;
+			}
+		}
+
+		if (colon_pos == std::string::npos)
+		{
+			result += value;
+		}
+		else
+		{
+			std::string_view param = replacing.substr(colon_pos + 1);
+
+			if (const size_t insert_pos = param.find('$');
+				insert_pos != std::string::npos)
+			{
+				result += param.substr(0, insert_pos);
+				result += value;
+				result += param.substr(insert_pos + 1);
+			}
+			else
+			{
+				result += param;
+			}
+		}
+	}
+
+	return result;
+}
+
+void reshade::runtime::save_screenshot(const std::string &postfix)
+{
+	std::string screenshot_name = expand_macro_string(_screenshot_name, {
+		{ "AppName", g_target_executable_path.stem().u8string() },
 #if RESHADE_FX
-	if (_screenshot_naming == 1)
-		filename += L' ' + _current_preset_path.stem().wstring();
+		{ "PresetName",  _current_preset_path.stem().u8string() },
 #endif
+	});
 
-	filename += postfix;
-	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
+	screenshot_name += postfix;
+	screenshot_name += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
 
-	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
+	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name);
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
 
@@ -3780,60 +3850,17 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 	if (!_screenshot_post_save_command_arguments.empty())
 	{
 		command_line += ' ';
-
-		for (size_t offset = 0; offset < _screenshot_post_save_command_arguments.size();)
-		{
-			const size_t brace_beg = _screenshot_post_save_command_arguments.find('%', offset);
-			const size_t brace_end = _screenshot_post_save_command_arguments.find('%', offset + 1);
-
-			if (brace_beg == std::string::npos || brace_end == std::string::npos)
-			{
-				command_line += _screenshot_post_save_command_arguments.substr(offset);
-				break;
-			}
-			else
-			{
-				command_line += _screenshot_post_save_command_arguments.substr(offset, brace_beg - offset);
-			}
-
-			std::string_view replacing = std::string_view(_screenshot_post_save_command_arguments).substr(brace_beg + 1, brace_end - (brace_beg + 1));
-			size_t colon_pos = replacing.find(':');
-
-			std::string name;
-			if (colon_pos == std::string::npos)
-				name = replacing;
-			else
-				name = replacing.substr(0, colon_pos);
-
-			std::string value;
-			if (_stricmp(name.c_str(), "TargetPath") == 0)
-				value = screenshot_path.u8string();
-			else if (_stricmp(name.c_str(), "TargetDir") == 0)
-				value = screenshot_path.parent_path().u8string();
-			else if (_stricmp(name.c_str(), "TargetFileName") == 0)
-				value = screenshot_path.filename().u8string();
-			else if (_stricmp(name.c_str(), "TargetExt") == 0)
-				value = screenshot_path.extension().u8string();
-			else if (_stricmp(name.c_str(), "TargetName") == 0)
-				value = screenshot_path.stem().u8string();
-
-			std::string param;
-			if (colon_pos == std::string::npos)
-			{
-				param = value;
-			}
-			else
-			{
-				param = replacing.substr(colon_pos + 1);
-				size_t insert_pos = param.find('$');
-
-				if (insert_pos != std::string::npos)
-					param = param.substr(0, insert_pos) + value + param.substr(insert_pos + 1);
-			}
-
-			command_line += param;
-			offset = brace_end + 1;
-		}
+		command_line += expand_macro_string(_screenshot_post_save_command_arguments, {
+			{ "AppName", g_target_executable_path.stem().u8string() },
+#if RESHADE_FX
+			{ "PresetName",  _current_preset_path.stem().u8string() },
+#endif
+			{ "TargetPath", screenshot_path.u8string() },
+			{ "TargetDir", screenshot_path.parent_path().u8string() },
+			{ "TargetFileName", screenshot_path.filename().u8string() },
+			{ "TargetExt", screenshot_path.extension().u8string() },
+			{ "TargetName", screenshot_path.stem().u8string() },
+		});
 	}
 
 	std::filesystem::path working_directory;

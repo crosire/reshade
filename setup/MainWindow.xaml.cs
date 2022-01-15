@@ -820,7 +820,7 @@ In that event here are some steps you can try to resolve this:
 			}
 
 			// Update old configurations to new format
-			if (config.HasValue("INPUT", "KeyMenu") && !config.HasValue("INPUT", "KeyOverlay"))
+			if (!config.HasValue("INPUT", "KeyOverlay") && config.HasValue("INPUT", "KeyMenu"))
 			{
 				config.RenameValue("INPUT", "KeyMenu", "KeyOverlay");
 
@@ -925,7 +925,18 @@ In that event here are some steps you can try to resolve this:
 				config.RenameValue("SCREENSHOTS", "SavePresetFile", "SCREENSHOT", "SavePresetFile");
 			}
 
-			if (config.HasValue("GENERAL", "CurrentPreset") && !config.HasValue("GENERAL", "PresetPath"))
+			if (!config.HasValue("SCREENSHOT", "FileNaming") && config.HasValue("SCREENSHOT", "FileNamingFormat"))
+			{
+				if (int.TryParse(config.GetString("SCREENSHOT", "FileNamingFormat", "0"), out int formatIndex))
+				{
+					if (formatIndex == 0)
+						config.SetValue("SCREENSHOT", "FileNaming", "%AppName% %Date% %Time%");
+					else if (formatIndex == 1)
+						config.SetValue("SCREENSHOT", "FileNaming", "%AppName% %Date% %Time% %PresetName%");
+				}
+			}
+
+			if (!config.HasValue("GENERAL", "PresetPath") && config.HasValue("GENERAL", "CurrentPreset"))
 			{
 				if (config.GetValue("GENERAL", "PresetFiles", out string[] presetFiles) &&
 					int.TryParse(config.GetString("GENERAL", "CurrentPreset", "0"), out int presetIndex) && presetIndex < presetFiles.Length)

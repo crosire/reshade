@@ -79,7 +79,7 @@ namespace reshade
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
-		void save_screenshot(const std::wstring &postfix = std::wstring());
+		void save_screenshot(const std::string &postfix = std::string());
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
 		/// </summary>
@@ -411,10 +411,10 @@ namespace reshade
 #endif
 		bool _screenshot_clear_alpha = true;
 		unsigned int _screenshot_format = 1;
-		unsigned int _screenshot_naming = 0;
 		unsigned int _screenshot_jpeg_quality = 90;
 		unsigned int _screenshot_key_data[4] = {};
 		std::filesystem::path _screenshot_path;
+		std::string _screenshot_name;
 		std::filesystem::path _screenshot_post_save_command;
 		std::string _screenshot_post_save_command_arguments;
 		std::filesystem::path _screenshot_post_save_command_working_directory;
