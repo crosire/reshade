@@ -74,6 +74,10 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 
 		s_vr_swapchain->on_present();
 
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(device_proxy, s_vr_swapchain);
+#endif
+
 		const auto target_texture = reinterpret_cast<ID3D10Texture2D *>(s_vr_swapchain->get_current_back_buffer().handle);
 
 		// The left and right eye were copied side-by-side to a single texture in 'on_vr_submit', so set bounds accordingly
@@ -130,6 +134,10 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 
 		s_vr_swapchain->on_present();
 
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(device_proxy->_immediate_context, s_vr_swapchain);
+#endif
+
 		const auto target_texture = reinterpret_cast<ID3D11Texture2D *>(s_vr_swapchain->get_current_back_buffer().handle);
 
 		// The left and right eye were copied side-by-side to a single texture in 'on_vr_submit', so set bounds accordingly
@@ -176,6 +184,10 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 #endif
 
 		s_vr_swapchain->on_present();
+
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(command_queue_proxy.get(), s_vr_swapchain);
+#endif
 
 		command_queue_proxy->flush_immediate_command_list();
 
@@ -227,6 +239,10 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 #endif
 
 		s_vr_swapchain->on_present();
+
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(g_current_context, s_vr_swapchain);
+#endif
 
 		const GLuint target_rbo = s_vr_swapchain->get_current_back_buffer().handle & 0xFFFFFFFF;
 
@@ -285,6 +301,10 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 #endif
 
 		s_vr_swapchain->on_present();
+
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(queue, s_vr_swapchain);
+#endif
 
 		queue->flush_immediate_command_list();
 

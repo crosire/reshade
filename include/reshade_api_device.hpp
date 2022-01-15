@@ -941,6 +941,7 @@ namespace reshade::api
 		/// </summary>
 		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
 		virtual resource get_back_buffer(uint32_t index) = 0;
+
 		/// <summary>
 		/// Gets the number of back buffer resources in this swap chain.
 		/// </summary>
@@ -954,5 +955,15 @@ namespace reshade::api
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
+
+		/// <summary>
+		/// Gets the HWND of the window this swap chain was created with, or <see langword="nullptr"/> if none exists.
+		/// </summary>
+		virtual void *get_window_handle() const = 0;
+
+		/// <summary>
+		/// Gets the description of the back buffer resources in this swap chain.
+		/// </summary>
+		inline  resource_desc get_back_buffer_resource_desc() { return get_device()->get_resource_desc(get_current_back_buffer()); }
 	};
 }

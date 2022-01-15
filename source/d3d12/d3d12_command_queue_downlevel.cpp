@@ -51,6 +51,10 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 
 	swapchain_impl::on_present(pSourceTex2D, hWindow);
 
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::reshade_present>(_parent_queue, this);
+#endif
+
 	_parent_queue->flush_immediate_command_list();
 
 	// Get original command list pointer from proxy object

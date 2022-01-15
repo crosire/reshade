@@ -8,6 +8,11 @@
 #include "input.hpp"
 #include <cassert>
 
+reshade::input::window_handle reshade::runtime::get_window_handle() const
+{
+	return _input != nullptr ? _input->get_window_handle() : nullptr;
+}
+
 bool reshade::runtime::is_key_down(uint32_t keycode) const
 {
 	return _input != nullptr && _input->is_key_down(keycode);

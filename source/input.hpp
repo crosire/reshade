@@ -35,6 +35,8 @@ namespace reshade
 		/// <returns>A pointer to the input manager for the <paramref name="window"/>.</returns>
 		static std::shared_ptr<input> register_window(window_handle window);
 
+		window_handle get_window_handle() const { return _window; }
+
 		bool is_key_down(unsigned int keycode) const;
 		bool is_key_pressed(unsigned int keycode) const;
 		bool is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt, bool force_modifiers = false) const;

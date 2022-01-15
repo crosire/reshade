@@ -852,6 +852,9 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 				reshade::invoke_addon_event<reshade::addon_event::present>(queue_impl, swapchain_impl);
 #endif
 				swapchain_impl->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
+#if RESHADE_ADDON
+				reshade::invoke_addon_event<reshade::addon_event::reshade_present>(queue_impl, swapchain_impl);
+#endif
 			}
 		}
 

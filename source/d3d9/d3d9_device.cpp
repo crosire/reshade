@@ -574,6 +574,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 		reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 #endif
 		_implicit_swapchain->on_present();
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(this, _implicit_swapchain);
+#endif
 	}
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
@@ -2186,6 +2189,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 		reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 #endif
 		_implicit_swapchain->on_present();
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(this, _implicit_swapchain);
+#endif
 	}
 
 	assert(_extended_interface);

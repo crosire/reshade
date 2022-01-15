@@ -116,6 +116,9 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 		reshade::invoke_addon_event<reshade::addon_event::present>(_device, this);
 #endif
 		swapchain_impl::on_present();
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(_device, this);
+#endif
 	}
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);

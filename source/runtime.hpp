@@ -45,6 +45,11 @@ namespace reshade
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
 
 		/// <summary>
+		/// Gets the handle of the window this swap chain was created with.
+		/// </summary>
+		virtual void *get_window_handle() const override;
+
+		/// <summary>
 		/// Gets the path to the configuration file used by this effect runtime.
 		/// </summary>
 		inline std::filesystem::path get_config_path() const { return _config_path; }

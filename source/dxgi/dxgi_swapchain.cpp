@@ -131,18 +131,27 @@ void DXGISwapChain::runtime_present(UINT flags)
 		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)), _impl);
 #endif
 		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_present();
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)), _impl);
+#endif
 		break;
 	case 11:
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context, _impl);
 #endif
 		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_present();
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context, _impl);
+#endif
 		break;
 	case 12:
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D12CommandQueue *>(_direct3d_command_queue), _impl);
 #endif
 		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_present();
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(static_cast<D3D12CommandQueue *>(_direct3d_command_queue), _impl);
+#endif
 		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();
 		break;
 	}

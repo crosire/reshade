@@ -912,6 +912,8 @@ bool reshade::vulkan::device_impl::create_pipeline(const api::pipeline_desc &des
 }
 bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map)
 {
+	assert(desc.entry_point != nullptr);
+
 	spec_map.reserve(desc.spec_constants);
 	for (uint32_t i = 0; i < desc.spec_constants; ++i)
 		spec_map.push_back(VkSpecializationMapEntry { desc.spec_constant_ids[i], i * 4, sizeof(uint32_t) });
