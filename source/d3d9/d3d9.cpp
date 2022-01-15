@@ -75,12 +75,22 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 
 	if (pp.Windowed)
 	{
-		RECT window_rect = {};
-		GetClientRect(pp.hDeviceWindow, &window_rect);
-		if (pp.BackBufferWidth == 0)
-			buffer_desc.texture.width = window_rect.right;
-		if (pp.BackBufferHeight == 0)
-			buffer_desc.texture.height = window_rect.bottom;
+		if (pp.hDeviceWindow != nullptr) // In this case focus window is used instead
+		{
+			RECT window_rect = {};
+			GetClientRect(pp.hDeviceWindow, &window_rect);
+			if (pp.BackBufferWidth == 0)
+				buffer_desc.texture.width = window_rect.right;
+			if (pp.BackBufferHeight == 0)
+				buffer_desc.texture.height = window_rect.bottom;
+		}
+
+		if (pp.BackBufferFormat == D3DFMT_UNKNOWN)
+		{
+			D3DDISPLAYMODE current_mode = {};
+			d3d->GetAdapterDisplayMode(adapter_index, &current_mode);
+			buffer_desc.texture.format = reshade::d3d9::convert_format(current_mode.Format);
+		}
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, pp.hDeviceWindow))
@@ -212,6 +222,9 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		return D3DERR_NOTAVAILABLE;
 	}
 
+	// Load add-ons before 'create_swapchain' event
+	reshade::load_addons();
+
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 	dump_and_modify_present_parameters(pp, pD3D, Adapter);
 
@@ -232,13 +245,16 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;
 	pPresentationParameters->BackBufferCount = pp.BackBufferCount;
 
-	if (FAILED(hr))
+	if (SUCCEEDED(hr))
+	{
+		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
+	}
+	else
 	{
 		LOG(WARN) << "IDirect3D9::CreateDevice" << " failed with error code " << hr << '.';
-		return hr;
 	}
 
-	init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
+	reshade::unload_addons();
 
 	return hr;
 }
@@ -269,6 +285,9 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		return D3DERR_NOTAVAILABLE;
 	}
 
+	// Load add-ons before 'create_swapchain' event
+	reshade::load_addons();
+
 	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
 	if (pFullscreenDisplayMode != nullptr)
 		fullscreen_mode = *pFullscreenDisplayMode;
@@ -292,13 +311,16 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;
 	pPresentationParameters->BackBufferCount = pp.BackBufferCount;
 
-	if (FAILED(hr))
+	if (SUCCEEDED(hr))
+	{
+		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
+	}
+	else
 	{
 		LOG(WARN) << "IDirect3D9Ex::CreateDeviceEx" << " failed with error code " << hr << '.';
-		return hr;
 	}
 
-	init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
+	reshade::unload_addons();
 
 	return hr;
 }
