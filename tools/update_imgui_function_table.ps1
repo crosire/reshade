@@ -18,7 +18,9 @@ imgui_function_table g_imgui_function_table = {
 $function_header = @"
 #pragma once
 
-#if defined(IMGUI_VERSION)
+#if defined(IMGUI_VERSION_NUM)
+
+#define ImTextureID reshade::api::resource_view
 
 #include "imgui_function_table.hpp"
 
@@ -39,8 +41,8 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 		$is_inside_namespace = 2
 	}
 
-	if ($is_inside_namespace -eq 1 -and $_ -match 'IMGUI_API\s([\w\&\*]+)\s+(\w+)\((.*)\);(?:(?:\s*\/\/)|$)') {
-		$type = $matches[1]
+	if ($is_inside_namespace -eq 1 -and $_ -match 'IMGUI_API\s([\s\w\&\*]+)\s+(\w+)\((.*)\);(?:(?:\s*\/\/)|$)') {
+		$type = $matches[1].TrimEnd()
 		$name = $matches[2]
 		$args = $matches[3]
 

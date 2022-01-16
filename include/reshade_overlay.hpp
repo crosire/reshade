@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(IMGUI_VERSION)
+#if defined(IMGUI_VERSION_NUM)
 
 #define ImTextureID reshade::api::resource_view
 
@@ -12,6 +12,7 @@ namespace ImGui
 {
 	inline ImGuiIO& GetIO() { return reshade::internal::get_imgui_function_table()->GetIO(); }
 	inline ImGuiStyle& GetStyle() { return reshade::internal::get_imgui_function_table()->GetStyle(); }
+	inline const char* GetVersion() { return reshade::internal::get_imgui_function_table()->GetVersion(); }
 	inline bool Begin(const char* name, bool* p_open, ImGuiWindowFlags flags) { return reshade::internal::get_imgui_function_table()->Begin(name, p_open, flags); }
 	inline void End() { reshade::internal::get_imgui_function_table()->End(); }
 	inline bool BeginChild(const char* str_id, const ImVec2& size, bool border, ImGuiWindowFlags flags) { return reshade::internal::get_imgui_function_table()->BeginChild(str_id, size, border, flags); }
@@ -83,6 +84,7 @@ namespace ImGui
 	inline ImU32 GetColorU32(ImGuiCol idx, float alpha_mul) { return reshade::internal::get_imgui_function_table()->GetColorU32(idx, alpha_mul); }
 	inline ImU32 GetColorU32(const ImVec4& col) { return reshade::internal::get_imgui_function_table()->GetColorU322(col); }
 	inline ImU32 GetColorU32(ImU32 col) { return reshade::internal::get_imgui_function_table()->GetColorU323(col); }
+	inline const ImVec4& GetStyleColorVec4(ImGuiCol idx) { return reshade::internal::get_imgui_function_table()->GetStyleColorVec4(idx); }
 	inline void Separator() { reshade::internal::get_imgui_function_table()->Separator(); }
 	inline void SameLine(float offset_from_start_x, float spacing) { reshade::internal::get_imgui_function_table()->SameLine(offset_from_start_x, spacing); }
 	inline void NewLine() { reshade::internal::get_imgui_function_table()->NewLine(); }
@@ -258,6 +260,7 @@ namespace ImGui
 	inline int TableGetColumnCount() { return reshade::internal::get_imgui_function_table()->TableGetColumnCount(); }
 	inline int TableGetColumnIndex() { return reshade::internal::get_imgui_function_table()->TableGetColumnIndex(); }
 	inline int TableGetRowIndex() { return reshade::internal::get_imgui_function_table()->TableGetRowIndex(); }
+	inline const char* TableGetColumnName(int column_n) { return reshade::internal::get_imgui_function_table()->TableGetColumnName(column_n); }
 	inline ImGuiTableColumnFlags TableGetColumnFlags(int column_n) { return reshade::internal::get_imgui_function_table()->TableGetColumnFlags(column_n); }
 	inline void TableSetColumnEnabled(int column_n, bool v) { reshade::internal::get_imgui_function_table()->TableSetColumnEnabled(column_n, v); }
 	inline void TableSetBgColor(ImGuiTableBgTarget target, ImU32 color, int column_n) { reshade::internal::get_imgui_function_table()->TableSetBgColor(target, color, column_n); }
@@ -285,7 +288,9 @@ namespace ImGui
 	inline bool SetDragDropPayload(const char* type, const void* data, size_t sz, ImGuiCond cond) { return reshade::internal::get_imgui_function_table()->SetDragDropPayload(type, data, sz, cond); }
 	inline void EndDragDropSource() { reshade::internal::get_imgui_function_table()->EndDragDropSource(); }
 	inline bool BeginDragDropTarget() { return reshade::internal::get_imgui_function_table()->BeginDragDropTarget(); }
+	inline const ImGuiPayload* AcceptDragDropPayload(const char* type, ImGuiDragDropFlags flags) { return reshade::internal::get_imgui_function_table()->AcceptDragDropPayload(type, flags); }
 	inline void EndDragDropTarget() { reshade::internal::get_imgui_function_table()->EndDragDropTarget(); }
+	inline const ImGuiPayload* GetDragDropPayload() { return reshade::internal::get_imgui_function_table()->GetDragDropPayload(); }
 	inline void BeginDisabled(bool disabled) { reshade::internal::get_imgui_function_table()->BeginDisabled(disabled); }
 	inline void EndDisabled() { reshade::internal::get_imgui_function_table()->EndDisabled(); }
 	inline void PushClipRect(const ImVec2& clip_rect_min, const ImVec2& clip_rect_max, bool intersect_with_current_clip_rect) { reshade::internal::get_imgui_function_table()->PushClipRect(clip_rect_min, clip_rect_max, intersect_with_current_clip_rect); }
@@ -319,6 +324,7 @@ namespace ImGui
 	inline ImDrawList* GetBackgroundDrawList(ImGuiViewport* viewport) { return reshade::internal::get_imgui_function_table()->GetBackgroundDrawList2(viewport); }
 	inline ImDrawList* GetForegroundDrawList(ImGuiViewport* viewport) { return reshade::internal::get_imgui_function_table()->GetForegroundDrawList2(viewport); }
 	inline ImDrawListSharedData* GetDrawListSharedData() { return reshade::internal::get_imgui_function_table()->GetDrawListSharedData(); }
+	inline const char* GetStyleColorName(ImGuiCol idx) { return reshade::internal::get_imgui_function_table()->GetStyleColorName(idx); }
 	inline void SetStateStorage(ImGuiStorage* storage) { reshade::internal::get_imgui_function_table()->SetStateStorage(storage); }
 	inline ImGuiStorage* GetStateStorage() { return reshade::internal::get_imgui_function_table()->GetStateStorage(); }
 	inline void CalcListClipping(int items_count, float items_height, int* out_items_display_start, int* out_items_display_end) { reshade::internal::get_imgui_function_table()->CalcListClipping(items_count, items_height, out_items_display_start, out_items_display_end); }
@@ -350,6 +356,7 @@ namespace ImGui
 	inline ImGuiMouseCursor GetMouseCursor() { return reshade::internal::get_imgui_function_table()->GetMouseCursor(); }
 	inline void SetMouseCursor(ImGuiMouseCursor cursor_type) { reshade::internal::get_imgui_function_table()->SetMouseCursor(cursor_type); }
 	inline void CaptureMouseFromApp(bool want_capture_mouse_value) { reshade::internal::get_imgui_function_table()->CaptureMouseFromApp(want_capture_mouse_value); }
+	inline const char* GetClipboardText() { return reshade::internal::get_imgui_function_table()->GetClipboardText(); }
 	inline void SetClipboardText(const char* text) { reshade::internal::get_imgui_function_table()->SetClipboardText(text); }
 	inline bool DebugCheckVersionAndDataLayout(const char* version_str, size_t sz_io, size_t sz_style, size_t sz_vec2, size_t sz_vec4, size_t sz_drawvert, size_t sz_drawidx) { return reshade::internal::get_imgui_function_table()->DebugCheckVersionAndDataLayout(version_str, sz_io, sz_style, sz_vec2, sz_vec4, sz_drawvert, sz_drawidx); }
 	inline void SetAllocatorFunctions(ImGuiMemAllocFunc alloc_func, ImGuiMemFreeFunc free_func, void* user_data) { reshade::internal::get_imgui_function_table()->SetAllocatorFunctions(alloc_func, free_func, user_data); }

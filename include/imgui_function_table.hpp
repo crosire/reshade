@@ -4,6 +4,7 @@ struct imgui_function_table
 {
 	ImGuiIO&(*GetIO)();
 	ImGuiStyle&(*GetStyle)();
+	const char*(*GetVersion)();
 	bool(*Begin)(const char* name, bool* p_open, ImGuiWindowFlags flags);
 	void(*End)();
 	bool(*BeginChild)(const char* str_id, const ImVec2& size, bool border, ImGuiWindowFlags flags);
@@ -75,6 +76,7 @@ struct imgui_function_table
 	ImU32(*GetColorU32)(ImGuiCol idx, float alpha_mul);
 	ImU32(*GetColorU322)(const ImVec4& col);
 	ImU32(*GetColorU323)(ImU32 col);
+	const ImVec4&(*GetStyleColorVec4)(ImGuiCol idx);
 	void(*Separator)();
 	void(*SameLine)(float offset_from_start_x, float spacing);
 	void(*NewLine)();
@@ -239,6 +241,7 @@ struct imgui_function_table
 	int(*TableGetColumnCount)();
 	int(*TableGetColumnIndex)();
 	int(*TableGetRowIndex)();
+	const char*(*TableGetColumnName)(int column_n);
 	ImGuiTableColumnFlags(*TableGetColumnFlags)(int column_n);
 	void(*TableSetColumnEnabled)(int column_n, bool v);
 	void(*TableSetBgColor)(ImGuiTableBgTarget target, ImU32 color, int column_n);
@@ -266,7 +269,9 @@ struct imgui_function_table
 	bool(*SetDragDropPayload)(const char* type, const void* data, size_t sz, ImGuiCond cond);
 	void(*EndDragDropSource)();
 	bool(*BeginDragDropTarget)();
+	const ImGuiPayload*(*AcceptDragDropPayload)(const char* type, ImGuiDragDropFlags flags);
 	void(*EndDragDropTarget)();
+	const ImGuiPayload*(*GetDragDropPayload)();
 	void(*BeginDisabled)(bool disabled);
 	void(*EndDisabled)();
 	void(*PushClipRect)(const ImVec2& clip_rect_min, const ImVec2& clip_rect_max, bool intersect_with_current_clip_rect);
@@ -300,6 +305,7 @@ struct imgui_function_table
 	ImDrawList*(*GetBackgroundDrawList2)(ImGuiViewport* viewport);
 	ImDrawList*(*GetForegroundDrawList2)(ImGuiViewport* viewport);
 	ImDrawListSharedData*(*GetDrawListSharedData)();
+	const char*(*GetStyleColorName)(ImGuiCol idx);
 	void(*SetStateStorage)(ImGuiStorage* storage);
 	ImGuiStorage*(*GetStateStorage)();
 	void(*CalcListClipping)(int items_count, float items_height, int* out_items_display_start, int* out_items_display_end);
@@ -331,6 +337,7 @@ struct imgui_function_table
 	ImGuiMouseCursor(*GetMouseCursor)();
 	void(*SetMouseCursor)(ImGuiMouseCursor cursor_type);
 	void(*CaptureMouseFromApp)(bool want_capture_mouse_value);
+	const char*(*GetClipboardText)();
 	void(*SetClipboardText)(const char* text);
 	bool(*DebugCheckVersionAndDataLayout)(const char* version_str, size_t sz_io, size_t sz_style, size_t sz_vec2, size_t sz_vec4, size_t sz_drawvert, size_t sz_drawidx);
 	void(*SetAllocatorFunctions)(ImGuiMemAllocFunc alloc_func, ImGuiMemFreeFunc free_func, void* user_data);
