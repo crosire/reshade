@@ -35,9 +35,8 @@ namespace reshade::api
 	/// A ReShade effect runtime, used to control effects.
 	/// <para>A separate runtime is instantiated for every swap chain.</para>
 	/// </summary>
-	class __declspec(novtable) effect_runtime : public swapchain
+	RESHADE_DEFINE_INTERFACE_WITH_BASE(effect_runtime, swapchain)
 	{
-	public:
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
 		/// This may potentially be different from the presentation queue and should be used to execute graphics commands on.
@@ -146,14 +145,14 @@ namespace reshade::api
 		/// <param name="out_base_type">Optional pointer to a variable that is set to the base type of the uniform variable (<see cref="format::r32_typeless"/>, <see cref="format::r32_sint"/>, <see cref="format::r32_uint"/> or <see cref="format::r32_float"/>).</param>
 		/// <param name="out_rows">Optional pointer to a variable that is set to the number of vector rows of the uniform variable type.</param>
 		/// <param name="out_columns">Optional pointer to a variable that is set to the number of matrix column of the uniform variable type.</param>
-		/// <param name="out_array_size">Optional pointer to a variable that is set to the number of array elements of the uniform variable type.</param>
+		/// <param name="out_array_length">Optional pointer to a variable that is set to the number of array elements of the uniform variable type.</param>
 		virtual void get_uniform_variable_type(effect_uniform_variable variable, format *out_base_type, uint32_t *out_rows = nullptr, uint32_t *out_columns = nullptr, uint32_t *out_array_length = nullptr) const = 0;
 
 		/// <summary>
 		/// Gets the name of a uniform <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
-		/// <param name="value">Pointer to a string buffer that is filled with the name of the uniform variable.</param>
+		/// <param name="name">Pointer to a string buffer that is filled with the name of the uniform variable.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual void get_uniform_variable_name(effect_uniform_variable variable, char *name, size_t *length) const = 0;
 
@@ -165,7 +164,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_bool_from_uniform_variable(effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as floating-point values.
 		/// </summary>
@@ -174,7 +173,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_float_from_uniform_variable(effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as signed integer values.
 		/// </summary>
@@ -183,7 +182,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_int_from_uniform_variable(effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as unsigned integer values.
 		/// </summary>
@@ -192,7 +191,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_uint_from_uniform_variable(effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from a string annotation attached to the specified uniform <paramref name="variable"/>.
 		/// </summary>
@@ -200,7 +199,7 @@ namespace reshade::api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
-		virtual void get_uniform_annotation_value(effect_uniform_variable variable, const char *name, char *value, size_t *length) const = 0;
+		virtual bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char *value, size_t *length) const = 0;
 
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/> as boolean values.
@@ -209,7 +208,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of booleans that is filled with the values of this uniform variable.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
-		virtual void get_uniform_value(effect_uniform_variable variable, bool *values, size_t count, size_t array_index = 0) const = 0;
+		virtual void get_uniform_value_bool(effect_uniform_variable variable, bool *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/> as floating-point values.
 		/// </summary>
@@ -217,7 +216,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of floating-points that is filled with the values of this uniform variable.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
-		virtual void get_uniform_value(effect_uniform_variable variable, float *values, size_t count, size_t array_index = 0) const = 0;
+		virtual void get_uniform_value_float(effect_uniform_variable variable, float *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/> as signed integer values.
 		/// </summary>
@@ -225,7 +224,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of signed integers that is filled with the values of this uniform variable.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
-		virtual void get_uniform_value(effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index = 0) const = 0;
+		virtual void get_uniform_value_int(effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/> as unsigned integer values.
 		/// </summary>
@@ -233,7 +232,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of this uniform variable.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when this uniform variable is an array variable.</param>
-		virtual void get_uniform_value(effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+		virtual void get_uniform_value_uint(effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
 
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as boolean values.
@@ -242,7 +241,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of booleans that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		virtual void set_uniform_value(effect_uniform_variable variable, const bool *values, size_t count, size_t array_index = 0) = 0;
+		virtual void set_uniform_value_bool(effect_uniform_variable variable, const bool *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of boolean values.
 		/// </summary>
@@ -251,9 +250,9 @@ namespace reshade::api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		inline  void set_uniform_value(effect_uniform_variable variable, bool x, bool y = bool(0), bool z = bool(0), bool w = bool(0)) {
+		inline  void set_uniform_value_bool(effect_uniform_variable variable, bool x, bool y = bool(0), bool z = bool(0), bool w = bool(0)) {
 			const bool values[4] = { x, y, z, w };
-			set_uniform_value(variable, values, 4);
+			set_uniform_value_bool(variable, values, 4);
 		}
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as floating-point values.
@@ -262,7 +261,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of floating-points that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		virtual void set_uniform_value(effect_uniform_variable variable, const float *values, size_t count, size_t array_index = 0) = 0;
+		virtual void set_uniform_value_float(effect_uniform_variable variable, const float *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of floating-point values.
 		/// </summary>
@@ -271,9 +270,9 @@ namespace reshade::api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		inline  void set_uniform_value(effect_uniform_variable variable, float x, float y = float(0), float z = float(0), float w = float(0)) {
+		inline  void set_uniform_value_float(effect_uniform_variable variable, float x, float y = float(0), float z = float(0), float w = float(0)) {
 			const float values[4] = { x, y, z, w };
-			set_uniform_value(variable, values, 4);
+			set_uniform_value_float(variable, values, 4);
 		}
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as signed integer values.
@@ -282,7 +281,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of signed integers that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		virtual void set_uniform_value(effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index = 0) = 0;
+		virtual void set_uniform_value_int(effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of signed integer values.
 		/// </summary>
@@ -291,9 +290,9 @@ namespace reshade::api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		inline  void set_uniform_value(effect_uniform_variable variable, int32_t x, int32_t y = int32_t(0), int32_t z = int32_t(0), int32_t w = int32_t(0)) {
+		inline  void set_uniform_value_int(effect_uniform_variable variable, int32_t x, int32_t y = int32_t(0), int32_t z = int32_t(0), int32_t w = int32_t(0)) {
 			const int32_t values[4] = { x, y, z, w };
-			set_uniform_value(variable, values, 4);
+			set_uniform_value_int(variable, values, 4);
 		}
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as unsigned integer values.
@@ -302,7 +301,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of unsigned integers that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		virtual void set_uniform_value(effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
+		virtual void set_uniform_value_uint(effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of unsigned integer values.
 		/// </summary>
@@ -311,9 +310,9 @@ namespace reshade::api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		inline  void set_uniform_value(effect_uniform_variable variable, uint32_t x, uint32_t y = uint32_t(0), uint32_t z = uint32_t(0), uint32_t w = uint32_t(0)) {
+		inline  void set_uniform_value_uint(effect_uniform_variable variable, uint32_t x, uint32_t y = uint32_t(0), uint32_t z = uint32_t(0), uint32_t w = uint32_t(0)) {
 			const uint32_t values[4] = { x, y, z, w };
-			set_uniform_value(variable, values, 4);
+			set_uniform_value_uint(variable, values, 4);
 		}
 
 		/// <summary>
@@ -345,7 +344,7 @@ namespace reshade::api
 		/// Gets the name of a texture <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the texture variable.</param>
-		/// <param name="value">Pointer to a string buffer that is filled with the name of the texture variable.</param>
+		/// <param name="name">Pointer to a string buffer that is filled with the name of the texture variable.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual void get_texture_variable_name(effect_texture_variable variable, char *name, size_t *length) const = 0;
 
@@ -357,7 +356,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_bool_from_texture_variable(effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as floating-point values.
 		/// </summary>
@@ -366,7 +365,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_float_from_texture_variable(effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as signed integer values.
 		/// </summary>
@@ -375,7 +374,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_int_from_texture_variable(effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as unsigned integer values.
 		/// </summary>
@@ -384,7 +383,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_uint_from_texture_variable(effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from a string annotation attached to the specified texture <paramref name="variable"/>.
 		/// </summary>
@@ -392,7 +391,7 @@ namespace reshade::api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
-		virtual void get_texture_annotation_value(effect_texture_variable variable, const char *name, char *value, size_t *length) const = 0;
+		virtual bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char *value, size_t *length) const = 0;
 
 		/// <summary>
 		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
@@ -451,7 +450,7 @@ namespace reshade::api
 		/// Gets the name of a <paramref name="technique"/>.
 		/// </summary>
 		/// <param name="technique">Opaque handle to the technique.</param>
-		/// <param name="value">Pointer to a string buffer that is filled with the name of the technique.</param>
+		/// <param name="name">Pointer to a string buffer that is filled with the name of the technique.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual void get_technique_name(effect_technique technique, char *name, size_t *length) const = 0;
 
@@ -463,7 +462,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_technique_annotation_value(effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_bool_from_technique(effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as floating-point values.
 		/// </summary>
@@ -472,7 +471,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_technique_annotation_value(effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_float_from_technique(effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as signed integer values.
 		/// </summary>
@@ -481,7 +480,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_technique_annotation_value(effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_int_from_technique(effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as unsigned integer values.
 		/// </summary>
@@ -490,7 +489,7 @@ namespace reshade::api
 		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
-		virtual void get_technique_annotation_value(effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
+		virtual bool get_annotation_uint_from_technique(effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from a string annotation attached to the specified <paramref name="technique"/>.
 		/// </summary>
@@ -498,19 +497,19 @@ namespace reshade::api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
-		virtual void get_technique_annotation_value(effect_technique technique, const char *name, char *value, size_t *length) const = 0;
+		virtual bool get_annotation_string_from_technique(effect_technique technique, const char *name, char *value, size_t *length) const = 0;
 
 		/// <summary>
-		/// Gets the status of a <paramref name="technique"/>.
+		/// Gets the state of a <paramref name="technique"/>.
 		/// </summary>
 		/// <param name="technique">Opaque handle to the technique.</param>
-		virtual bool get_technique_enabled(effect_technique technique) const = 0;
+		virtual bool get_technique_state(effect_technique technique) const = 0;
 		/// <summary>
 		/// Enables or disable the specified <paramref name="technique"/>.
 		/// </summary>
 		/// <param name="technique">Opaque handle to the technique.</param>
 		/// <param name="enabled"><see langword="true"/> to enable the technique, or <see langword="false"/> to disable it.</param>
-		virtual void set_technique_enabled(effect_technique technique, bool enabled) = 0;
+		virtual void set_technique_state(effect_technique technique, bool enabled) = 0;
 
 		/// <summary>
 		/// Gets the value of global preprocessor definition.

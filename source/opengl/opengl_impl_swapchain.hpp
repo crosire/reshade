@@ -17,10 +17,10 @@ namespace reshade::opengl
 		swapchain_impl(HDC hdc, HGLRC hglrc, bool compatibility_context = false);
 		~swapchain_impl();
 
+		uint64_t get_native() const final { return reinterpret_cast<uintptr_t>(*_hdcs.begin()); } // Simply return the first device context
+
 		void get_private_data(const uint8_t guid[16], uint64_t *data) const final { device_impl::get_private_data(guid, data); }
 		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { device_impl::set_private_data(guid, data); }
-
-		uint64_t get_native_object() const final { return reinterpret_cast<uintptr_t>(*_hdcs.begin()); } // Simply return the first device context
 
 		api::resource get_back_buffer(uint32_t index) final;
 		api::resource get_back_buffer_resolved(uint32_t index) final;

@@ -96,7 +96,10 @@ namespace reshade
 	inline bool config_get_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, bool &value)
 	{
 		int value_int = 0;
-		return config_get_value<int>(runtime, section, key, value_int) ? value = value_int != 0, true : false;
+		if (!config_get_value<int>(runtime, section, key, value_int))
+			return false;
+		value = value_int != 0;
+		return true;
 	}
 
 	/// <summary>
@@ -148,7 +151,7 @@ namespace reshade
 		// Check that the ReShade module was built with Dear ImGui support and supports the used version
 		const auto imgui_func = reinterpret_cast<const imgui_function_table *(*)(uint32_t)>(
 			GetProcAddress(reshade_module, "ReShadeGetImGuiFunctionTable"));
-		if (!(imgui_function_table_instance() = imgui_func(IMGUI_VERSION_NUM)))
+		if (imgui_func == nullptr || !(imgui_function_table_instance() = imgui_func(IMGUI_VERSION_NUM)))
 			return false;
 #endif
 

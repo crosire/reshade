@@ -246,9 +246,9 @@ static void update_effect_runtime(effect_runtime *runtime)
 
 	runtime->enumerate_uniform_variables(nullptr, [&device_state](effect_runtime *runtime, auto variable) {
 		char source[32] = ""; size_t source_length = sizeof(source);
-		runtime->get_uniform_annotation_value(variable, "source", source, &source_length);
-		if (source_length != 0 && strcmp(source, "bufready_depth") == 0)
-			runtime->set_uniform_value(variable, device_state.selected_shader_resource != 0);
+		if (runtime->get_annotation_string_from_uniform_variable(variable, "source", source, &source_length) &&
+			strcmp(source, "bufready_depth") == 0)
+			runtime->set_uniform_value_bool(variable, device_state.selected_shader_resource != 0);
 	});
 }
 

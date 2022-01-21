@@ -19,6 +19,8 @@ packages/
 *.opensdf
 *.suo
 *.vcxproj.user
+*.Args.json
+*.ArgsCfg.json
 
 # Visual Studio performance profiling
 *.vsp

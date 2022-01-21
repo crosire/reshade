@@ -816,7 +816,7 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 
 			vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)resource.handle, offset, size, data);
 
-			immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());
+			immediate_command_list->flush_and_wait(queue->_orig);
 			break;
 		}
 	}
@@ -887,7 +887,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 				immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, resource, subresource, box);
 
 				// Wait for command to finish executing before destroying the upload buffer
-				immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());
+				immediate_command_list->flush_and_wait(queue->_orig);
 				break;
 			}
 		}

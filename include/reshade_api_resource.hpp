@@ -65,7 +65,7 @@ namespace reshade::api
 		compare_min_linear_mag_point_mip_linear = 0x91,
 		compare_min_mag_linear_mip_point = 0x94,
 		compare_min_mag_mip_linear = 0x95,
-		compare_anisotropic = 0xd5,
+		compare_anisotropic = 0xd5
 	};
 
 	/// <summary>

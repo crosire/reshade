@@ -5,6 +5,11 @@
 
 #pragma once
 
+#define RESHADE_DEFINE_INTERFACE(name) \
+	struct __declspec(novtable) name
+#define RESHADE_DEFINE_INTERFACE_WITH_BASE(name, base) \
+	struct __declspec(novtable) name : public base
+
 #include "reshade_api_pipeline.hpp"
 
 namespace reshade::api
@@ -162,24 +167,22 @@ namespace reshade::api
 	};
 
 	/// <summary>
+	/// A list of flags that represent the available command queue types, as returned by <see cref="command_queue::get_type"/>.
+	/// </summary>
+	enum class command_queue_type
+	{
+		graphics = 0x1,
+		compute = 0x2,
+		copy = 0x4
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(command_queue_type);
+
+	/// <summary>
 	/// The base class for objects provided by the ReShade API.
 	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
-	class __declspec(novtable) api_object
+	RESHADE_DEFINE_INTERFACE(api_object)
 	{
-	public:
-		/// <summary>
-		/// Gets a user-defined 64-bit value from the object that was previously set via <see cref="set_private_data"/>, or zero if none associated with the specified <paramref name="guid"/> exists.
-		/// </summary>
-		virtual void get_private_data(const uint8_t guid[16], uint64_t *data) const = 0;
-		/// <summary>
-		/// Stores a user-defined 64-bit value in the object and associates it with the specified <paramref name="guid"/>.
-		/// </summary>
-		/// <remarks>
-		/// This function may NOT be called concurrently from multiple threads!
-		/// </remarks>
-		virtual void set_private_data(const uint8_t guid[16], const uint64_t data)  = 0;
-
 		/// <summary>
 		/// Gets the underlying native object for this API object.
 		/// </summary>
@@ -189,7 +192,19 @@ namespace reshade::api
 		/// For <see cref="command_queue"/> this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.<br/>
 		/// For <see cref="effect_runtime"/> this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
 		/// </remarks>
-		virtual uint64_t get_native_object() const = 0;
+		virtual uint64_t get_native() const = 0;
+
+		/// <summary>
+		/// Gets a user-defined 64-bit value from the object that was previously set via <see cref="set_private_data"/>, or zero if none associated with the specified <paramref name="guid"/> exists.
+		/// </summary>
+		virtual     void get_private_data(const uint8_t guid[16], uint64_t *data) const = 0;
+		/// <summary>
+		/// Stores a user-defined 64-bit value in the object and associates it with the specified <paramref name="guid"/>.
+		/// </summary>
+		/// <remarks>
+		/// This function may NOT be called concurrently from multiple threads!
+		/// </remarks>
+		virtual     void set_private_data(const uint8_t guid[16], const uint64_t data)  = 0;
 
 		/// <summary>
 		/// Gets a reference to user-defined data from the object that was previously allocated via <see cref="create_private_data"/>.
@@ -228,9 +243,8 @@ namespace reshade::api
 	/// <remarks>
 	/// This class is safe to use concurrently from multiple threads in D3D10+ and Vulkan.
 	/// </remarks>
-	class __declspec(novtable) device : public api_object
+	RESHADE_DEFINE_INTERFACE_WITH_BASE(device, api_object)
 	{
-	public:
 		/// <summary>
 		/// Gets the underlying render API used by this device.
 		/// </summary>
@@ -477,13 +491,23 @@ namespace reshade::api
 	/// <summary>
 	/// The base class for objects that are children to a logical render <see cref="device"/>.
 	/// </summary>
-	class __declspec(novtable) device_object : public api_object
+	RESHADE_DEFINE_INTERFACE_WITH_BASE(device_object, api_object)
 	{
-	public:
 		/// <summary>
 		/// Gets the parent device for this object.
 		/// </summary>
 		virtual device *get_device() = 0;
+	};
+
+	/// <summary>
+	/// The available indirect command types.
+	/// </summary>
+	enum class indirect_command
+	{
+		unknown,
+		draw,
+		draw_indexed,
+		dispatch
 	};
 
 	/// <summary>
@@ -493,9 +517,8 @@ namespace reshade::api
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	class __declspec(novtable) command_list : public device_object
+	RESHADE_DEFINE_INTERFACE_WITH_BASE(command_list, device_object)
 	{
-	public:
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
 		/// When both <paramref name="old_state"/> and <paramref name="new_state"/> are <see cref="resource_usage::unordered_access"/> a UAV barrier is added, otherwise a state transition is performed.
@@ -868,26 +891,14 @@ namespace reshade::api
 	};
 
 	/// <summary>
-	/// A list of flags that represent the available command queue types, as returned by <see cref="command_queue::get_type"/>.
-	/// </summary>
-	enum class command_queue_type
-	{
-		graphics = 0x1,
-		compute = 0x2,
-		copy = 0x4,
-	};
-	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(command_queue_type);
-
-	/// <summary>
 	/// A command queue, used to execute command lists on the GPU.
 	/// <para>Functionally equivalent to the immediate 'ID3D11DeviceContext' or a 'ID3D12CommandQueue' or 'VkQueue'.</para>
 	/// </summary>
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	class __declspec(novtable) command_queue : public device_object
+	RESHADE_DEFINE_INTERFACE_WITH_BASE(command_queue, device_object)
 	{
-	public:
 		/// <summary>
 		/// Gets the type of the command queue, which specifies what commands can be executed on it.
 		/// </summary>
@@ -933,9 +944,13 @@ namespace reshade::api
 	/// A swap chain, used to present images to the screen.
 	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
 	/// </summary>
-	class __declspec(novtable) swapchain : public device_object
+	RESHADE_DEFINE_INTERFACE_WITH_BASE(swapchain, device_object)
 	{
-	public:
+		/// <summary>
+		/// Gets the window handle of the window this swap chain was created with, or <see langword="nullptr"/> if this is an offscreen swap chain.
+		/// </summary>
+		virtual   void * get_hwnd() const = 0;
+
 		/// <summary>
 		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
 		/// </summary>
@@ -955,15 +970,5 @@ namespace reshade::api
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
-
-		/// <summary>
-		/// Gets the HWND of the window this swap chain was created with, or <see langword="nullptr"/> if none exists.
-		/// </summary>
-		virtual void *get_window_handle() const = 0;
-
-		/// <summary>
-		/// Gets the description of the back buffer resources in this swap chain.
-		/// </summary>
-		inline  resource_desc get_back_buffer_resource_desc() { return get_device()->get_resource_desc(get_current_back_buffer()); }
 	};
 }

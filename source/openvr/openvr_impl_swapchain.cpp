@@ -19,13 +19,13 @@ reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::comman
 	switch (_device->get_api())
 	{
 	case api::device_api::d3d9:
-		_app_state = new d3d9::state_block(reinterpret_cast<IDirect3DDevice9 *>(device->get_native_object()));
+		_app_state = new d3d9::state_block(reinterpret_cast<IDirect3DDevice9 *>(device->get_native()));
 		break;
 	case api::device_api::d3d10:
-		_app_state = new d3d10::state_block(reinterpret_cast<ID3D10Device *>(device->get_native_object()));
+		_app_state = new d3d10::state_block(reinterpret_cast<ID3D10Device *>(device->get_native()));
 		break;
 	case api::device_api::d3d11:
-		_app_state = new d3d11::state_block(reinterpret_cast<ID3D11Device *>(device->get_native_object()));
+		_app_state = new d3d11::state_block(reinterpret_cast<ID3D11Device *>(device->get_native()));
 		break;
 	case api::device_api::opengl:
 		_app_state = new opengl::state_block();
@@ -117,7 +117,7 @@ void reshade::openvr::swapchain_impl::on_present()
 		static_cast<d3d10::state_block *>(_app_state)->capture();
 		break;
 	case api::device_api::d3d11:
-		static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native_object()));
+		static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native()));
 		break;
 	case api::device_api::opengl:
 		static_cast<opengl::state_block *>(_app_state)->capture(false);
@@ -257,7 +257,7 @@ void reshade::openvr::swapchain_impl::render_effects(api::command_list *cmd_list
 		static_cast<d3d10::state_block *>(_app_state)->capture();
 		break;
 	case api::device_api::d3d11:
-		static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native_object()));
+		static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native()));
 		break;
 	case api::device_api::opengl:
 		static_cast<opengl::state_block *>(_app_state)->capture(false);

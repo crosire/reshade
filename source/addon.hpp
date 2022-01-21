@@ -37,9 +37,6 @@ struct temp_mem
 
 namespace reshade::api
 {
-	class api_object;
-	class effect_runtime;
-
 	template <typename T, typename... api_object_base>
 	class api_object_impl : public api_object_base...
 	{
@@ -84,7 +81,7 @@ namespace reshade::api
 			}
 		}
 
-		uint64_t get_native_object() const override { return (uint64_t)_orig; }
+		uint64_t get_native() const override { return (uint64_t)_orig; }
 
 		T _orig;
 
@@ -106,6 +103,9 @@ namespace reshade::api
 
 		std::vector<private_data> _private_data;
 	};
+
+	struct api_object;
+	struct effect_runtime;
 }
 
 #if RESHADE_ADDON

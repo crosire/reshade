@@ -23,7 +23,7 @@ namespace reshade::api
 
 		all = 0x7FFFFFFF,
 		all_compute = compute,
-		all_graphics = vertex | hull | domain | geometry | pixel,
+		all_graphics = vertex | hull | domain | geometry | pixel
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
@@ -47,7 +47,7 @@ namespace reshade::api
 		all = 0x7FFFFFFF,
 		all_compute = compute_shader,
 		all_graphics = 0x7FF,
-		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader,
+		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
 
@@ -276,7 +276,7 @@ namespace reshade::api
 		decrement_saturate = 4,
 		invert = 5,
 		increment = 6,
-		decrement = 7,
+		decrement = 7
 	};
 
 	/// <summary>
@@ -920,18 +920,7 @@ namespace reshade::api
 		back_stencil_func = 189,
 		back_stencil_pass_op = 188,
 		back_stencil_fail_op = 186,
-		back_stencil_depth_fail_op = 187,
-	};
-
-	/// <summary>
-	/// The available indirect command types.
-	/// </summary>
-	enum class indirect_command
-	{
-		unknown,
-		draw,
-		draw_indexed,
-		dispatch
+		back_stencil_depth_fail_op = 187
 	};
 
 	/// <summary>

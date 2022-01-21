@@ -35,6 +35,11 @@ namespace reshade
 	{
 	public:
 		/// <summary>
+		/// Gets the handle of the window this swap chain was created with.
+		/// </summary>
+		void *get_hwnd() const override;
+
+		/// <summary>
 		/// Gets the parent device for this effect runtime.
 		/// </summary>
 		api::device *get_device() final { return _device; }
@@ -43,11 +48,6 @@ namespace reshade
 		/// Gets the main graphics command queue associated with this effect runtime.
 		/// </summary>
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
-
-		/// <summary>
-		/// Gets the handle of the window this swap chain was created with.
-		/// </summary>
-		virtual void *get_window_handle() const override;
 
 		/// <summary>
 		/// Gets the path to the configuration file used by this effect runtime.
@@ -148,27 +148,27 @@ namespace reshade
 		/// <summary>
 		/// Gets the value from a named annotation attached to the specified uniform <paramref name="variable"/>.
 		/// </summary>
-		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
-		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
-		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
-		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		void get_uniform_annotation_value(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const final;
+		bool get_annotation_bool_from_uniform_variable(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_float_from_uniform_variable(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_int_from_uniform_variable(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_uint_from_uniform_variable(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_string_from_uniform_variable(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/>.
 		/// </summary>
-		void get_uniform_value(api::effect_uniform_variable variable, bool *values, size_t count, size_t array_index) const final;
-		void get_uniform_value(api::effect_uniform_variable variable, float *values, size_t count, size_t array_index) const final;
-		void get_uniform_value(api::effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index) const final;
-		void get_uniform_value(api::effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index) const final;
+		void get_uniform_value_bool(api::effect_uniform_variable variable, bool *values, size_t count, size_t array_index) const final;
+		void get_uniform_value_float(api::effect_uniform_variable variable, float *values, size_t count, size_t array_index) const final;
+		void get_uniform_value_int(api::effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index) const final;
+		void get_uniform_value_uint(api::effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index) const final;
 
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/>.
 		/// </summary>
-		void set_uniform_value(api::effect_uniform_variable variable, const bool *values, size_t count, size_t array_index) final;
-		void set_uniform_value(api::effect_uniform_variable variable, const float *values, size_t count, size_t array_index) final;
-		void set_uniform_value(api::effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index) final;
-		void set_uniform_value(api::effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index) final;
+		void set_uniform_value_bool(api::effect_uniform_variable variable, const bool *values, size_t count, size_t array_index) final;
+		void set_uniform_value_float(api::effect_uniform_variable variable, const float *values, size_t count, size_t array_index) final;
+		void set_uniform_value_int(api::effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index) final;
+		void set_uniform_value_uint(api::effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index) final;
 
 		/// <summary>
 		/// Enumerates all texture variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
@@ -188,11 +188,11 @@ namespace reshade
 		/// <summary>
 		/// Gets the value from a named annotation attached to the specified texture <paramref name="variable"/>.
 		/// </summary>
-		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
-		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
-		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
-		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		void get_texture_annotation_value(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const final;
+		bool get_annotation_bool_from_texture_variable(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_float_from_texture_variable(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_int_from_texture_variable(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_uint_from_texture_variable(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_string_from_texture_variable(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
 		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
@@ -227,20 +227,20 @@ namespace reshade
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/>.
 		/// </summary>
-		void get_technique_annotation_value(api::effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
-		void get_technique_annotation_value(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const final;
-		void get_technique_annotation_value(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
-		void get_technique_annotation_value(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		void get_technique_annotation_value(api::effect_technique technique, const char *name, char *value, size_t *length) const final;
+		bool get_annotation_bool_from_technique(api::effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_float_from_technique(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_int_from_technique(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_uint_from_technique(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
+		bool get_annotation_string_from_technique(api::effect_technique technique, const char *name, char *value, size_t *length) const final;
 
 		/// <summary>
-		/// Gets the status of a <paramref name="technique"/>.
+		/// Gets the state of a <paramref name="technique"/>.
 		/// </summary>
-		bool get_technique_enabled(api::effect_technique technique) const final;
+		bool get_technique_state(api::effect_technique technique) const final;
 		/// <summary>
 		/// Enables or disable the specified <paramref name="technique"/>.
 		/// </summary>
-		void set_technique_enabled(api::effect_technique technique, bool enabled) final;
+		void set_technique_state(api::effect_technique technique, bool enabled) final;
 
 		/// <summary>
 		/// Gets the value of global preprocessor definition.

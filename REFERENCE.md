@@ -117,7 +117,7 @@ static void on_init_device(reshade::api::device *device)
     // through the ReShade API, can retrieve it as follows:
     if (device->get_api() == reshade::api::device_api::d3d11)
     {
-        ID3D11Device *const d3d11_device = (ID3D11Device *)device->get_native_object();
+        ID3D11Device *const d3d11_device = (ID3D11Device *)device->get_native();
         // ...
     }
 
