@@ -7,6 +7,7 @@
 #include <reshade.hpp>
 #include "descriptor_set_tracking.hpp"
 #include <mutex>
+#include <cassert>
 #include <algorithm>
 #include <filesystem>
 #include <unordered_set>

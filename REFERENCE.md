@@ -47,7 +47,7 @@ For more complex examples, see the [examples directory in the repository](https:
 ## Overlays
 
 It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.
-Overlays are created with the use of [Dear ImGui](https://github.com/ocornut/imgui/). Including the `reshade.hpp` header after `imgui.h` will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
+Overlays are created with the use of [Dear ImGui version 1.86](https://github.com/ocornut/imgui/tree/v1.86). Including `reshade.hpp` after `imgui.h` will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
 
 ```cpp
 #include <imgui.h>

@@ -592,7 +592,6 @@
     <ClInclude Include="include\reshade_api_resource.hpp" />
     <ClInclude Include="include\reshade_events.hpp" />
     <ClInclude Include="include\reshade_overlay.hpp" />
-    <ClInclude Include="include\imgui_function_table.hpp" />
     <ClInclude Include="res\fonts\forkawesome.h" />
     <ClInclude Include="res\resource.h" />
     <ClInclude Include="res\version.h" />

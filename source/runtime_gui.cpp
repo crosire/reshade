@@ -766,21 +766,21 @@ void reshade::runtime::draw_gui()
 
 			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%02u:%02u:%02u" : "%02u:%02u", tm.tm_hour, tm.tm_min, tm.tm_sec);
 			if (_fps_pos % 2) // Align text to the right of the window
-				ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+				ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
 		if (_show_fps)
 		{
 			ImFormatString(temp, sizeof(temp), "%.0f fps", imgui_io.Framerate);
 			if (_fps_pos % 2)
-				ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+				ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
 		if (_show_frametime)
 		{
 			ImFormatString(temp, sizeof(temp), "%5.2f ms", 1000.0f / imgui_io.Framerate);
 			if (_fps_pos % 2)
-				ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+				ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
 		}
 
@@ -1021,7 +1021,7 @@ void reshade::runtime::draw_gui_home()
 
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-		const float browse_button_width = ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size) * 4;
+		const float browse_button_width = ImGui::GetContentRegionAvail().x - (button_spacing + button_size) * 4;
 
 		bool reload_preset = false;
 
@@ -1282,7 +1282,7 @@ void reshade::runtime::draw_gui_home()
 				{
 					char buf[60];
 					ImFormatString(buf, sizeof(buf), "Force load all effects (%zu remaining)", skipped_effects);
-					if (ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0)))
+					if (ImGui::ButtonEx(buf, ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 					{
 						_load_option_disable_skipping = true;
 						reload_effects();
@@ -1860,7 +1860,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		static_assert((std::size(texture_formats) - 1) == static_cast<size_t>(reshadefx::texture_format::rgb10a2));
 
-		const float total_width = ImGui::GetWindowContentRegionWidth();
+		const float total_width = ImGui::GetContentRegionAvail().x;
 		int texture_index = 0;
 		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / (55.0f * _font_size)));
 		const float single_image_width = (total_width / num_columns) - 5.0f;
@@ -2353,7 +2353,7 @@ void reshade::runtime::draw_gui_addons()
 #if RESHADE_FX
 void reshade::runtime::draw_variable_editor()
 {
-	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetWindowContentRegionWidth() * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
+	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, (ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
 	if (imgui::popup_button("Edit global preprocessor definitions", ImGui::GetContentRegionAvail().x, ImGuiWindowFlags_NoMove))
 	{
@@ -2372,6 +2372,8 @@ void reshade::runtime::draw_variable_editor()
 		{
 			if (ImGui::BeginTabItem("Global"))
 			{
+				const float content_region_width = ImGui::GetContentRegionAvail().x;
+
 				for (size_t i = 0; i < _global_preprocessor_definitions.size(); ++i)
 				{
 					char name[128] = "";
@@ -2384,13 +2386,13 @@ void reshade::runtime::draw_variable_editor()
 
 					ImGui::PushID(static_cast<int>(i));
 
-					ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
+					ImGui::SetNextItemWidth(content_region_width * 0.66666666f - (button_spacing));
 					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
 						[](ImGuiInputTextCallbackData *data) -> int { return data->EventChar == '=' || (data->EventChar != '_' && !isalnum(data->EventChar)); }); // Filter out invalid characters
 
 					ImGui::SameLine(0, button_spacing);
 
-					ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+					ImGui::SetNextItemWidth(content_region_width * 0.33333333f - (button_spacing + button_size) + 1);
 					modified |= ImGui::InputText("##value", value, sizeof(value));
 
 					ImGui::SameLine(0, button_spacing);
@@ -2409,7 +2411,7 @@ void reshade::runtime::draw_variable_editor()
 				}
 
 				ImGui::Dummy(ImVec2());
-				ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
+				ImGui::SameLine(0, content_region_width - button_size);
 				if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
 					_global_preprocessor_definitions.emplace_back();
 
@@ -2418,6 +2420,8 @@ void reshade::runtime::draw_variable_editor()
 
 			if (ImGui::BeginTabItem("Current Preset"))
 			{
+				const float content_region_width = ImGui::GetContentRegionAvail().x;
+
 				for (size_t i = 0; i < _preset_preprocessor_definitions.size(); ++i)
 				{
 					char name[128] = "";
@@ -2430,13 +2434,13 @@ void reshade::runtime::draw_variable_editor()
 
 					ImGui::PushID(static_cast<int>(i));
 
-					ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
+					ImGui::SetNextItemWidth(content_region_width * 0.66666666f - (button_spacing));
 					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
 						[](ImGuiInputTextCallbackData *data) -> int { return data->EventChar == '=' || (data->EventChar != '_' && !isalnum(data->EventChar)); }); // Filter out invalid characters
 
 					ImGui::SameLine(0, button_spacing);
 
-					ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+					ImGui::SetNextItemWidth(content_region_width * 0.33333333f - (button_spacing + button_size) + 1);
 					modified |= ImGui::InputText("##value", value, sizeof(value), ImGuiInputTextFlags_AutoSelectAll);
 
 					ImGui::SameLine(0, button_spacing);
@@ -2455,7 +2459,7 @@ void reshade::runtime::draw_variable_editor()
 				}
 
 				ImGui::Dummy(ImVec2());
-				ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
+				ImGui::SameLine(0, content_region_width - button_size);
 				if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
 					_preset_preprocessor_definitions.emplace_back();
 
@@ -2783,7 +2787,7 @@ void reshade::runtime::draw_variable_editor()
 
 			if (variable.toggle_key_data[0] != 0)
 			{
-				ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
+				ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120);
 				ImGui::TextDisabled("%s", input::key_name(variable.toggle_key_data).c_str());
 			}
 
@@ -3184,7 +3188,7 @@ void reshade::runtime::draw_technique_editor()
 
 		if (tech.toggle_key_data[0] != 0)
 		{
-			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
+			ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120);
 			ImGui::TextDisabled("%s", input::key_name(tech.toggle_key_data).c_str());
 		}
 

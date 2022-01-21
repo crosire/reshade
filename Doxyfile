@@ -3,7 +3,7 @@ PROJECT_BRIEF          = "A generic post-processing injector for games and video
 PROJECT_LOGO           = ./res/main_icon_small.png
 
 INPUT                  = ./include ./REFERENCE.md
-EXCLUDE                = ./include/imgui_function_table.hpp
+EXCLUDE                = ./include/imgui.h ./include/reshade_overlay.hpp
 FILE_PATTERNS          = *.c *.cpp *.h *.hpp *.inl
 EXCLUDE_SYMBOLS        = addon_event_traits
 USE_MDFILE_AS_MAINPAGE = ./REFERENCE.md

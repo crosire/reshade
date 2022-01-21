@@ -51,8 +51,8 @@ extern "C" __declspec(dllexport) void ReShadeSetConfigValue(void *, reshade::api
 
 #if RESHADE_GUI
 
-#include "reshade.hpp"
-#include "imgui_function_table.hpp"
+#include <imgui.h>
+#include "reshade_overlay.hpp"
 
 extern imgui_function_table g_imgui_function_table;
 

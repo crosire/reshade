@@ -1,4 +1,5 @@
-#include "imgui_function_table.hpp"
+#include <imgui.h>
+#include "reshade_overlay.hpp"
 
 imgui_function_table g_imgui_function_table = {
 	ImGui::GetIO,
@@ -26,7 +27,6 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::SetNextWindowCollapsed,
 	ImGui::SetNextWindowFocus,
 	ImGui::SetNextWindowBgAlpha,
-	ImGui::SetNextWindowViewport,
 	ImGui::SetWindowPos,
 	ImGui::SetWindowSize,
 	ImGui::SetWindowCollapsed,
@@ -40,7 +40,6 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::GetContentRegionMax,
 	ImGui::GetWindowContentRegionMin,
 	ImGui::GetWindowContentRegionMax,
-	ImGui::GetWindowContentRegionWidth,
 	ImGui::GetScrollX,
 	ImGui::GetScrollY,
 	ImGui::SetScrollX,
@@ -259,7 +258,6 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::TabItemButton,
 	ImGui::SetTabItemClosed,
 	ImGui::DockSpace,
-	ImGui::DockSpaceOverViewport,
 	ImGui::SetNextWindowDockID,
 	ImGui::SetNextWindowClass,
 	ImGui::GetWindowDockID,
@@ -294,7 +292,6 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::GetItemRectMax,
 	ImGui::GetItemRectSize,
 	ImGui::SetItemAllowOverlap,
-	ImGui::GetMainViewport,
 	ImGui::IsRectVisible,
 	ImGui::IsRectVisible,
 	ImGui::GetTime,
@@ -307,7 +304,6 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::GetStyleColorName,
 	ImGui::SetStateStorage,
 	ImGui::GetStateStorage,
-	ImGui::CalcListClipping,
 	ImGui::BeginChildFrame,
 	ImGui::EndChildFrame,
 	ImGui::CalcTextSize,
@@ -325,6 +321,7 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::IsMouseClicked,
 	ImGui::IsMouseReleased,
 	ImGui::IsMouseDoubleClicked,
+	ImGui::GetMouseClickedCount,
 	ImGui::IsMouseHoveringRect,
 	ImGui::IsMousePosValid,
 	ImGui::IsAnyMouseDown,
@@ -343,10 +340,5 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::GetAllocatorFunctions,
 	ImGui::MemAlloc,
 	ImGui::MemFree,
-	ImGui::GetPlatformIO,
-	ImGui::UpdatePlatformWindows,
-	ImGui::RenderPlatformWindowsDefault,
-	ImGui::DestroyPlatformWindows,
-	ImGui::FindViewportByID,
-	ImGui::FindViewportByPlatformHandle,
+
 };

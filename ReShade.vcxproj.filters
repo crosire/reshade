@@ -401,9 +401,6 @@
     <ClInclude Include="source\imgui_code_editor.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="include\imgui_function_table.hpp">
-      <Filter>core\utils</Filter>
-    </ClInclude>
     <ClInclude Include="source\imgui_widgets.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>

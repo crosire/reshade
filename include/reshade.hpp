@@ -55,20 +55,6 @@ namespace reshade
 			static HMODULE handle = nullptr;
 			return handle;
 		}
-
-#if defined(IMGUI_VERSION_NUM)
-		/// <summary>
-		/// Gets a pointer to the Dear ImGui function table.
-		/// </summary>
-		inline const imgui_function_table *get_imgui_function_table()
-		{
-			static const auto func = reinterpret_cast<const imgui_function_table *(*)(uint32_t)>(
-				GetProcAddress(get_reshade_module_handle(), "ReShadeGetImGuiFunctionTable"));
-			if (func != nullptr)
-				return func(IMGUI_VERSION_NUM);
-			return nullptr;
-		}
-#endif
 	}
 
 	/// <summary>
@@ -160,7 +146,9 @@ namespace reshade
 
 #if defined(IMGUI_VERSION_NUM)
 		// Check that the ReShade module was built with Dear ImGui support and supports the used version
-		if (!internal::get_imgui_function_table())
+		const auto imgui_func = reinterpret_cast<const imgui_function_table *(*)(uint32_t)>(
+			GetProcAddress(reshade_module, "ReShadeGetImGuiFunctionTable"));
+		if (!(imgui_function_table_instance() = imgui_func(IMGUI_VERSION_NUM)))
 			return false;
 #endif
 

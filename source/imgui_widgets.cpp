@@ -29,7 +29,7 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 			const size_t buf_len = paths[i].u8string().copy(buf, sizeof(buf) - 1);
 			buf[buf_len] = '\0';
 
-			ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size));
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - (button_spacing + button_size));
 			if (ImGui::InputText("##path", buf, sizeof(buf)))
 			{
 				res = true;
@@ -47,7 +47,7 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 		}
 
 		ImGui::Dummy(ImVec2(0, 0));
-		ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
+		ImGui::SameLine(0, ImGui::GetContentRegionAvail().x - button_size);
 		if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
 		{
 			// Do not show directory dialog when Alt key is pressed
