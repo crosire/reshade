@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -22,15 +23,22 @@ namespace ReShade.Setup.Pages
 				StatusSpin.Visibility = Visibility.Visible;
 				StatusSuccess.Visibility = Visibility.Collapsed;
 				StatusFailure.Visibility = Visibility.Collapsed;
+				PatreonButton.Visibility = Visibility.Collapsed;
 			}
 			else
 			{
 				StatusSpin.Visibility = Visibility.Collapsed;
 				StatusSuccess.Visibility = status == true ? Visibility.Visible : Visibility.Collapsed;
 				StatusFailure.Visibility = status == true ? Visibility.Collapsed : Visibility.Visible;
+				PatreonButton.Visibility = status == true ? Visibility.Visible : Visibility.Collapsed;
 			}
 
 			ProgressText.Text = message;
+		}
+
+		private void OnPatreonButtonClick(object sender, RoutedEventArgs e)
+		{
+			Process.Start("https://patreon.com/crosire");
 		}
 	}
 }

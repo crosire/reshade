@@ -7,15 +7,15 @@
       d:DesignWidth="510" d:DesignHeight="638"
       Width="Auto" Height="Auto">
   <Page.Resources>
-    <Color x:Key="FilledColor" A="255" B="155" R="155" G="155"/>
-    <Color x:Key="UnfilledColor" A="0" B="155" R="155" G="155"/>
-
     <!-- Adapted from https://stackoverflow.com/a/6369137 -->
     <Style x:Key="BusyAnimationStyle" TargetType="Control">
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Control">
             <ControlTemplate.Resources>
+              <Color x:Key="FilledColor" R="155" G="155" B="155" A="255" />
+              <Color x:Key="UnfilledColor" R="155" G="155" B="155" A="0" />
+
               <Storyboard x:Key="Animation0" BeginTime="00:00:00.0" RepeatBehavior="Forever">
                 <ColorAnimationUsingKeyFrames Storyboard.TargetName="ellipse0" Storyboard.TargetProperty="(Shape.Fill).(SolidColorBrush.Color)">
                   <SplineColorKeyFrame KeyTime="00:00:00.0" Value="{StaticResource FilledColor}"/>
@@ -125,6 +125,24 @@
         </Setter.Value>
       </Setter>
     </Style>
+
+    <Style x:Key="PatreonButtonStyle" TargetType="Button">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Cursor" Value="Hand" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+
+            <Border CornerRadius="12" Background="#141518">
+              <TextBlock Text="{TemplateBinding Content}" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Page.Resources>
   <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
     <Grid>
@@ -133,5 +151,6 @@
       <Path x:Name="StatusFailure" Width="100" Height="100" Visibility="Collapsed" Stroke="Red" StrokeThickness="10" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Data="M 20,20 L 80,80 M 20,80 L 80,20" />
     </Grid>
     <TextBlock x:Name="ProgressText" Margin="10,5" TextAlignment="Center" TextWrapping="Wrap" />
+    <Button x:Name="PatreonButton" Width="130" Height="25" Margin="0,20,0,0" Content="Become a patron" Style="{StaticResource PatreonButtonStyle}" Click="OnPatreonButtonClick" />
   </StackPanel>
 </Page>
