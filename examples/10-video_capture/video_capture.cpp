@@ -275,6 +275,9 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 		return;
 	data.last_time = time;
 
+	// TODO: This is slow/incorrect, because blocking for the frame and copy to finish.
+	// Instead multiple resources should be created and copied into in a round-robin fashion, only the oldest of which is mapped below and copies into the video frame.
+	// See also the OBS capture add-on example which does this.
 	reshade::api::command_list *const cmd_list = runtime->get_command_queue()->get_immediate_command_list();
 	cmd_list->barrier(data.host_resource, reshade::api::resource_usage::cpu_access, reshade::api::resource_usage::copy_dest);
 	cmd_list->barrier(rtv_resource, reshade::api::resource_usage::render_target, reshade::api::resource_usage::copy_source);
@@ -313,6 +316,9 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 
 	encode_frame(data.codec_ctx, data.output_ctx, data.frame);
 }
+
+extern "C" __declspec(dllexport) const char *NAME = "Video Capture";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that captures the screen after effects were rendered and uses FFmpeg to create a video file from that.";
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 {

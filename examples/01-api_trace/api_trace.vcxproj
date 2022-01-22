@@ -48,6 +48,7 @@
   <PropertyGroup>
     <OutDir>..\..\bin\$(Platform)\$(Configuration) Examples\</OutDir>
     <IntDir>..\..\intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <TargetName>api_trace</TargetName>
     <TargetExt>.addon</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

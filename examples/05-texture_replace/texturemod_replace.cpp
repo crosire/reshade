@@ -218,7 +218,7 @@ static void on_unmap_texture(device *, resource resource, uint32_t subresource)
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "TextureMod Replace";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that replaces textures the application creates with image files loaded from disk.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that replaces textures before they are used by the application with image files from disk.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

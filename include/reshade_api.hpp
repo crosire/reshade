@@ -155,6 +155,11 @@ namespace reshade::api
 		/// <param name="name">Pointer to a string buffer that is filled with the name of the uniform variable.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual void get_uniform_variable_name(effect_uniform_variable variable, char *name, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  void get_uniform_variable_name(effect_uniform_variable variable, char(&name)[SIZE]) const {
+			size_t length = SIZE;
+			get_uniform_variable_name(variable, name, &length);
+		}
 
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as boolean values.
@@ -200,6 +205,11 @@ namespace reshade::api
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char *value, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char(&value)[SIZE]) const {
+			size_t length = SIZE;
+			return get_annotation_string_from_uniform_variable(variable, name, value, &length);
+		}
 
 		/// <summary>
 		/// Gets the value of the specified uniform <paramref name="variable"/> as boolean values.
@@ -347,6 +357,11 @@ namespace reshade::api
 		/// <param name="name">Pointer to a string buffer that is filled with the name of the texture variable.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual void get_texture_variable_name(effect_texture_variable variable, char *name, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  void get_texture_variable_name(effect_texture_variable variable,char(&name)[SIZE]) const {
+			size_t length = SIZE;
+			get_texture_variable_name(variable, name, &length);
+		}
 
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as boolean values.
@@ -392,6 +407,11 @@ namespace reshade::api
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char *value, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char(&value)[SIZE]) const {
+			size_t length = SIZE;
+			return get_annotation_string_from_texture_variable(variable, name, value, &length);
+		}
 
 		/// <summary>
 		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
@@ -453,6 +473,11 @@ namespace reshade::api
 		/// <param name="name">Pointer to a string buffer that is filled with the name of the technique.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual void get_technique_name(effect_technique technique, char *name, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  void get_technique_name(effect_technique technique, char(&name)[SIZE]) const {
+			size_t length = SIZE;
+			get_technique_name(technique, name, &length);
+		}
 
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as boolean values.
@@ -498,6 +523,11 @@ namespace reshade::api
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual bool get_annotation_string_from_technique(effect_technique technique, const char *name, char *value, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  bool get_annotation_string_from_technique(effect_technique technique, const char *name, char(&value)[SIZE]) const {
+			size_t length = SIZE;
+			return get_annotation_string_from_technique(technique, name, value, &length);
+		}
 
 		/// <summary>
 		/// Gets the state of a <paramref name="technique"/>.
@@ -518,6 +548,11 @@ namespace reshade::api
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the definition.</param>
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual bool get_preprocessor_definition(const char *name, char *value, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  bool get_preprocessor_definition(const char *name, char(&value)[SIZE]) const {
+			size_t length = SIZE;
+			return get_preprocessor_definition(name, value, &length);
+		}
 		/// <summary>
 		/// Defines a global preprocessor definition to the specified <paramref name="value"/>.
 		/// </summary>

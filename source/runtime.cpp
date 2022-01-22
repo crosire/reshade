@@ -2487,7 +2487,7 @@ void reshade::runtime::enable_technique(technique &tech)
 	if (!_is_in_api_call)
 	{
 		_is_in_api_call = true;
-		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_enabled>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, true);
+		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_state>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, true);
 		_is_in_api_call = false;
 		if (skip)
 			return;
@@ -2515,7 +2515,7 @@ void reshade::runtime::disable_technique(technique &tech)
 	if (!_is_in_api_call)
 	{
 		_is_in_api_call = true;
-		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_enabled>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, false);
+		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_state>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, false);
 		_is_in_api_call = false;
 		if (skip)
 			return;

@@ -86,7 +86,7 @@ static void on_after_create_pipeline(device *, const pipeline_desc &, uint32_t, 
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "Shader Replace";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that replaces shaders the application creates with binaries loaded from disk.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that replaces shader binaries before they are used by the application with binaries from disk.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

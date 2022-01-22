@@ -477,7 +477,7 @@ void unregister_addon_texmod_overlay()
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "TextureMod Overlay";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that shows an overlay to inspect the textures used by the application.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that adds an overlay to inspect textures used by the application in-game and allows dumping individual ones to disk.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

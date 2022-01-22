@@ -1430,7 +1430,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent the technique from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		reshade_set_technique_enabled,
+		reshade_set_technique_state,
 
 #ifdef RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
@@ -1552,5 +1552,5 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reloaded_effects, void, api::effect_runtime *runtime);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_uniform_value, bool, api::effect_runtime *runtime, api::effect_uniform_variable variable, const void *data, size_t size);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_technique_enabled, bool, api::effect_runtime *runtime, api::effect_technique technique, bool enabled);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_technique_state, bool, api::effect_runtime *runtime, api::effect_technique technique, bool enabled);
 }

@@ -763,7 +763,7 @@ static void draw_overlay(reshade::api::effect_runtime *)
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "API Trace";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that logs all graphics API calls to an overlay window.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that logs graphics API calls done by the application to an overlay.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

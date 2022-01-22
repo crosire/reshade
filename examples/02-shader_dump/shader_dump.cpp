@@ -63,7 +63,7 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, co
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "Shader Dump";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that dumps all shaders used by the application to disk.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that dumps all shader binaries used by the application to disk.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

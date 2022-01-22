@@ -101,7 +101,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reshade_finish_effects);
 		CASE(reshade_reloaded_effects);
 		CASE(reshade_set_uniform_value);
-		CASE(reshade_set_technique_enabled);
+		CASE(reshade_set_technique_state);
 	}
 #undef  CASE
 	return "unknown";
