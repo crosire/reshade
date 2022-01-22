@@ -646,8 +646,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	assert(pDesc != nullptr);
-
 #if RESHADE_ADDON
 	_orig->CreateConstantBufferView(pDesc, convert_to_original_cpu_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 #else
@@ -656,7 +654,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::api::buffer_range buffer_range;
-	if (!resolve_gpu_address(pDesc->BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+	if (pDesc == nullptr || !resolve_gpu_address(pDesc->BufferLocation, &buffer_range.buffer, &buffer_range.offset))
 		return;
 	buffer_range.size = pDesc->SizeInBytes;
 
