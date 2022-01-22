@@ -264,46 +264,6 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	// Add base descriptor offset (these descriptors stay unusued)
 	base_handle = _device_impl->offset_descriptor_handle(base_handle, update.binding, heap_type);
 
-	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
-		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
-	{
-		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
-		_orig->SetDescriptorHeaps(2, heaps);
-
-		_current_descriptor_heaps[0] = heaps[0];
-		_current_descriptor_heaps[1] = heaps[1];
-	}
-
-	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
-
-#ifndef NDEBUG
-	pipeline_layout_extra_data extra_data;
-
-	if (UINT extra_data_size = sizeof(extra_data);
-		SUCCEEDED(root_signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
-	{
-		assert(heap_type == extra_data.ranges[layout_param].first);
-		assert(update.binding + update.count <= extra_data.ranges[layout_param].second);
-	}
-#endif
-
-	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
-	{
-		if (_current_root_signature[1] != root_signature)
-		{
-			_current_root_signature[1]  = root_signature;
-			_orig->SetComputeRootSignature(root_signature);
-		}
-	}
-	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
-	{
-		if (_current_root_signature[0] != root_signature)
-		{
-			_current_root_signature[0]  = root_signature;
-			_orig->SetGraphicsRootSignature(root_signature);
-		}
-	}
-
 	if (update.type == api::descriptor_type::constant_buffer)
 	{
 		for (uint32_t k = 0; k < update.count; ++k, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
@@ -339,10 +299,49 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		assert(false);
 	}
 
+	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
+		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
+	{
+		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
+		_orig->SetDescriptorHeaps(2, heaps);
+
+		_current_descriptor_heaps[0] = heaps[0];
+		_current_descriptor_heaps[1] = heaps[1];
+	}
+
+	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+
+#ifndef NDEBUG
+	pipeline_layout_extra_data extra_data;
+
+	if (UINT extra_data_size = sizeof(extra_data);
+		SUCCEEDED(root_signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	{
+		assert(heap_type == extra_data.ranges[layout_param].first);
+		assert(update.binding + update.count <= extra_data.ranges[layout_param].second);
+	}
+#endif
+
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
+	{
+		if (_current_root_signature[1] != root_signature)
+		{
+			_current_root_signature[1]  = root_signature;
+			_orig->SetComputeRootSignature(root_signature);
+		}
+
 		_orig->SetComputeRootDescriptorTable(layout_param, base_handle_gpu);
+	}
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
+	{
+		if (_current_root_signature[0] != root_signature)
+		{
+			_current_root_signature[0]  = root_signature;
+			_orig->SetGraphicsRootSignature(root_signature);
+		}
+
 		_orig->SetGraphicsRootDescriptorTable(layout_param, base_handle_gpu);
+	}
 }
 void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
@@ -352,18 +351,35 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 	assert(sets != nullptr);
 
 	// Change descriptor heaps to internal ones if descriptor sets were allocated from them
-	if ((_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() || _current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get()) &&
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		((sets[0].handle >> 24) & 0xFF) < 2) // Heap index 0 or 1
-#else
-		(_device_impl->_gpu_sampler_heap.contains(_device_impl->convert_to_original_gpu_descriptor_handle(sets[0])) || _device_impl->_gpu_view_heap.contains(_device_impl->convert_to_original_gpu_descriptor_handle(sets[0]))))
-#endif
-	{
-		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
-		_orig->SetDescriptorHeaps(2, heaps);
+	ID3D12DescriptorHeap *heaps[2];
+	std::copy_n(_current_descriptor_heaps, 2, heaps);
 
-		_current_descriptor_heaps[0] = heaps[0];
-		_current_descriptor_heaps[1] = heaps[1];
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		ID3D12DescriptorHeap *const heap = _device_impl->get_descriptor_heap(sets[i]);
+		if (heap == nullptr)
+			continue;
+
+		for (uint32_t k = 0; k < 2; ++k)
+		{
+			if (heaps[k] == heap)
+				break;
+
+			if (heaps[k] == nullptr || heaps[k]->GetDesc().Type == heap->GetDesc().Type)
+			{
+				// Cannot bind descriptor sets from different descriptor heaps
+				assert(heaps[k] == _current_descriptor_heaps[k]);
+
+				heaps[k] = heap;
+				break;
+			}
+		}
+	}
+
+	if (_current_descriptor_heaps[0] != heaps[0] || _current_descriptor_heaps[1] != heaps[1])
+	{
+		_orig->SetDescriptorHeaps(heaps[1] != nullptr ? 2 : 1, heaps);
+		std::copy_n(heaps, 2, _current_descriptor_heaps);
 	}
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);

@@ -660,13 +660,16 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
-	*out_handle = { 0 };
-
 	for (uint32_t i = 0; i < dynamic_state_count; ++i)
+	{
 		if (dynamic_states[i] != api::dynamic_state::stencil_reference_value &&
 			dynamic_states[i] != api::dynamic_state::blend_constant &&
 			dynamic_states[i] != api::dynamic_state::primitive_topology)
+		{
+			*out_handle = { 0 };
 			return false;
+		}
+	}
 
 	switch (desc.type)
 	{
@@ -676,6 +679,7 @@ bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc
 	case api::pipeline_stage::all_graphics:
 		return create_graphics_pipeline(desc, out_handle);
 	default:
+		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -987,17 +991,39 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 	const D3D12_GPU_DESCRIPTOR_HANDLE handle = { static_cast<UINT64>(set.handle & 0xFFFFFFFFFFFFFF) };
 
 	const size_t heap_index = static_cast<size_t>(handle.ptr >> 24);
-	const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>((handle.ptr >> 20) & 0x3);
 	assert(heap_index < _descriptor_heaps.second && _descriptor_heaps.first[heap_index] != nullptr);
 
 	D3D12DescriptorHeap *const heap = _descriptor_heaps.first[heap_index];
 
-	*pool = to_handle(heap->_orig);
+	if (pool != nullptr)
+		*pool = to_handle(heap->_orig);
 	// Increment size is 1 (see 'D3D12Device::GetDescriptorHandleIncrementSize'), so can just subtract to get offset
-	*offset = static_cast<uint32_t>(set.handle - heap->_internal_base_cpu_handle.ptr) + binding;
+	if (offset != nullptr)
+		*offset = static_cast<uint32_t>(set.handle - heap->_internal_base_cpu_handle.ptr) + binding;
 #else
-	*pool = { 0 }; // Not implemented
-	*offset = binding;
+	D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = convert_to_original_gpu_descriptor_handle(set);
+
+	if (_gpu_view_heap.contains(handle_gpu))
+	{
+		if (pool != nullptr)
+			*pool = to_handle(_gpu_view_heap.get());
+		if (offset != nullptr)
+			*offset = static_cast<uint32_t>((handle_gpu.ptr - _gpu_view_heap.get()->GetGPUDescriptorHandleForHeapStart().ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]) + binding;
+	}
+	else if (_gpu_sampler_heap.contains(handle_gpu))
+	{
+		if (pool != nullptr)
+			*pool = to_handle(_gpu_sampler_heap.get());
+		if (offset != nullptr)
+			*offset = static_cast<uint32_t>((handle_gpu.ptr - _gpu_sampler_heap.get()->GetGPUDescriptorHandleForHeapStart().ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]) + binding;
+	}
+	else
+	{
+		if (pool != nullptr)
+			*pool = { 0 }; // Not implemented
+		if (offset != nullptr)
+			*offset = binding;
+	}
 #endif
 }
 

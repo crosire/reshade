@@ -519,11 +519,14 @@ void reshade::d3d10::device_impl::update_texture_region(const api::subresource_d
 
 bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
 {
-	*out_handle = { 0 };
-
 	for (uint32_t i = 0; i < dynamic_state_count; ++i)
+	{
 		if (dynamic_states[i] != api::dynamic_state::primitive_topology)
+		{
+			*out_handle = { 0 };
 			return false;
+		}
+	}
 
 	switch (desc.type)
 	{
@@ -544,6 +547,7 @@ bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc
 	case api::pipeline_stage::output_merger:
 		return create_blend_state(desc, out_handle);
 	default:
+		*out_handle = { 0 };
 		return false;
 	}
 }

@@ -53,6 +53,7 @@ namespace reshade::d3d12
 		bool create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle) final;
 		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_ray_tracing_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		void destroy_pipeline(api::pipeline handle) final;
 
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
@@ -62,6 +63,13 @@ namespace reshade::d3d12
 		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
 
 		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
+
+		__forceinline ID3D12DescriptorHeap *get_descriptor_heap(api::descriptor_set set) const
+		{
+			api::descriptor_pool pool;
+			get_descriptor_pool_offset(set, 0, 0, &pool, nullptr);
+			return reinterpret_cast<ID3D12DescriptorHeap *>(pool.handle);
+		}
 
 		void copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies) final;
 		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
