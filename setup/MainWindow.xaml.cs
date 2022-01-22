@@ -672,9 +672,17 @@ namespace ReShade.Setup
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+				try
 				{
-					File.Delete(conflictingModulePath);
+					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+					{
+						File.Delete(conflictingModulePath);
+					}
+				}
+				catch
+				{
+					// Ignore errors
+					continue;
 				}
 			}
 
