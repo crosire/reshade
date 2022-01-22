@@ -260,7 +260,7 @@ namespace ReShade.Setup
 			}
 		}
 
-		static bool ReShadeExists(string path, out bool isReShade)
+		static bool ModuleExists(string path, out bool isReShade)
 		{
 			if (File.Exists(path))
 			{
@@ -548,14 +548,16 @@ namespace ReShade.Setup
 		{
 			UpdateStatus("Checking installation status ...");
 
-			var targetDir = Path.GetDirectoryName(targetPath);
+			var basePath = Path.GetDirectoryName(targetPath);
 			var executableName = Path.GetFileName(targetPath);
 			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "InstallTarget"))
 			{
-				targetDir = Path.Combine(targetDir, compatibilityIni.GetString(executableName, "InstallTarget"));
+				basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
 			}
 
-			configPath = Path.Combine(targetDir, "ReShade.ini");
+			configPath = Path.Combine(basePath, "ReShade.ini");
+
+			var isReShade = false;
 
 			if (targetApi != Api.Vulkan)
 			{
@@ -575,7 +577,7 @@ namespace ReShade.Setup
 						return;
 				}
 
-				modulePath = Path.Combine(targetDir, modulePath);
+				modulePath = Path.Combine(basePath, modulePath);
 
 				var configPathAlt = Path.ChangeExtension(modulePath, ".ini");
 				if (File.Exists(configPathAlt))
@@ -583,13 +585,13 @@ namespace ReShade.Setup
 					configPath = configPathAlt;
 				}
 
-				if (ReShadeExists(modulePath, out bool isReShade))
+				if (ModuleExists(modulePath, out isReShade))
 				{
 					if (isReShade)
 					{
 						if (isHeadless)
 						{
-							UpdateStatusAndFinish(false, "Existing ReShade installation found. Please uninstall the existing one first.");
+							UpdateStatusAndFinish(false, "Existing ReShade installation found. Please uninstall it first.");
 							return;
 						}
 
@@ -617,7 +619,7 @@ namespace ReShade.Setup
 				{
 					if (isHeadless)
 					{
-						UpdateStatusAndFinish(false, "Existing ReShade installation found. Please uninstall the existing one first.");
+						UpdateStatusAndFinish(false, "Existing ReShade installation found. Please uninstall it first.");
 					}
 					else
 					{
@@ -632,20 +634,27 @@ namespace ReShade.Setup
 				}
 			}
 
-			if (targetApi != Api.D3D9 && ReShadeExists(Path.Combine(targetDir, "d3d9.dll"), out bool isD3D9ReShade) && isD3D9ReShade)
+			foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
 			{
-				UpdateStatusAndFinish(false, "Existing ReShade installation for Direct3D 9 found.\nMultiple simultaneous ReShade installations are not supported. Please uninstall the existing one first.");
-				return;
-			}
-			if (targetApi != Api.DXGI && ReShadeExists(Path.Combine(targetDir, "dxgi.dll"), out bool isDXGIReShade) && isDXGIReShade)
-			{
-				UpdateStatusAndFinish(false, "Existing ReShade installation for Direct3D 10/11/12 found.\nMultiple simultaneous ReShade installations are not supported. Please uninstall the existing one first.");
-				return;
-			}
-			if (targetApi != Api.OpenGL && ReShadeExists(Path.Combine(targetDir, "opengl32.dll"), out bool isOpenGLReShade) && isOpenGLReShade)
-			{
-				UpdateStatusAndFinish(false, "Existing ReShade installation for OpenGL found.\nMultiple simultaneous ReShade installations are not supported. Please uninstall the existing one first.");
-				return;
+				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
+
+				if (ModuleExists(conflictingModulePath, out isReShade) && isReShade)
+				{
+					if (isHeadless)
+					{
+						UpdateStatusAndFinish(false, "Existing ReShade installation for another API found.\nMultiple simultaneous ReShade installations are not supported. Please uninstall the existing one first.");
+					}
+					else
+					{
+						Dispatcher.Invoke(() =>
+						{
+							var page = new SelectUninstallPage();
+
+							CurrentPage.Navigate(page);
+						});
+					}
+					return;
+				}
 			}
 
 			InstallStep3();
@@ -658,8 +667,18 @@ namespace ReShade.Setup
 			string basePath = Path.GetDirectoryName(configPath);
 			Directory.SetCurrentDirectory(basePath);
 
-			string parentPath = Path.GetDirectoryName(modulePath);
+			// Delete any existing and conflicting ReShade installations first
+			foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
+			{
+				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
+				if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+				{
+					File.Delete(conflictingModulePath);
+				}
+			}
+
+			string parentPath = Path.GetDirectoryName(modulePath);
 			string moduleName = is64Bit ? "ReShade64" : "ReShade32";
 
 			try
@@ -1168,7 +1187,8 @@ In that event here are some steps you can try to resolve this:
 		{
 			if (targetApi == Api.Vulkan)
 			{
-				string overrideMetaLayerPath = Path.Combine(commonPath, is64Bit ? "ReShade64_override.json" : "ReShade32_override.json");
+				string moduleName = is64Bit ? "ReShade64" : "ReShade32";
+				string overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
 
 				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
 
@@ -1231,6 +1251,17 @@ In that event here are some steps you can try to resolve this:
 				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
 				{
 					Directory.Delete(Path.Combine(basePath, "reshade-shaders"), true);
+				}
+
+				// Delete all other existing ReShade installations too
+				foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
+				{
+					string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
+
+					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+					{
+						File.Delete(conflictingModulePath);
+					}
 				}
 			}
 			catch (Exception ex)

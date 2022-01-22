@@ -17,6 +17,7 @@
         <TextBlock Width="290" TextWrapping="Wrap">
           <Label Content="_Modify" Padding="0" Foreground="#FF003399" FontSize="16" />
           <LineBreak />
+          <LineBreak />
           Update ReShade to the version from this setup tool and download all used effect files again.
         </TextBlock>
       </RadioButton>
@@ -24,7 +25,8 @@
         <TextBlock Width="290" TextWrapping="Wrap">
           <Label Content="_Uninstall" Padding="0" Foreground="#FF003399" FontSize="16" />
           <LineBreak />
-          Remove ReShade, related configuration and log files and all installed effect files from the target game.
+          <LineBreak />
+          Remove ReShade, related configuration, logs and all installed effect files from the target game.
         </TextBlock>
       </RadioButton>
     </StackPanel>
