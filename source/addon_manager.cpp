@@ -234,7 +234,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		return false;
 
 	// Check that the requested API version is supported
-	if (api_version > RESHADE_API_VERSION)
+	if (api_version == 0 || api_version > RESHADE_API_VERSION || (api_version / 10000) != (RESHADE_API_VERSION / 10000))
 		return false;
 
 	const std::filesystem::path path = get_module_path(module);

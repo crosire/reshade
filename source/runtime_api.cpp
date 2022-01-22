@@ -132,9 +132,9 @@ void reshade::runtime::get_uniform_variable_type(api::effect_uniform_variable ha
 
 	if (out_rows != nullptr)
 		*out_rows = variable->type.rows;
-	if (out_columns)
+	if (out_columns != nullptr)
 		*out_columns = variable->type.cols;
-	if (out_array_length)
+	if (out_array_length != nullptr)
 		*out_array_length = variable->type.array_length;
 #endif
 }

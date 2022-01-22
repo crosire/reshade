@@ -102,6 +102,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 Do not call `ImGui::Begin` and `ImGui::End` in the callback to create the overlay window itself, ReShade already does this for you before and after calling the callback function.
 You can however call `ImGui::Begin` and `ImGui::End` with a different title to open additional popup windows (this is not recommended though, since those are difficult to navigate in VR).
 
+Overlay names are shared across ReShade and all add-ons, which means you can register with a name already used by ReShade or another add-on to append widgets to that overlay.
+For example, `reshade::register_overlay("Settings", ...)` allows you to add widgets to the settings page in ReShade and `reshade::register_overlay("OSD", ...)` allows you to add additional information to the always visible on-screen display (clock, FPS, frametime) ReShade provides.
+
 ## Abstraction
 
 The graphics API abstraction is modeled after the Vulkan API, so much of the terminology used should be familiar to developers that have used Vulkan before.
@@ -146,11 +149,13 @@ ReShade will also pass the current command list object to every command event, l
 // Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::draw>(&on_draw)'.
 static bool on_draw(reshade::api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
-    // Clear the current render targets to red before every time a single triangle is drawn
+    // Clear a render target to red before every time a single triangle is drawn
     if (vertices == 3 && instances == 1)
     {
+        reshade::api::resource_view rtv = ...;
+
         const float clear_color[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
-        cmd_list->clear_attachments(reshade::api::attachment_type::color, clear_color, 0, 0);
+        cmd_list->clear_render_target_view(rtv, clear_color);
     }
 
     // Return 'true' to prevent this application command from actually being executed (e.g. because already having added a new command via 'cmd_list->draw(...)' or similar that should replace it).
@@ -162,14 +167,14 @@ static bool on_draw(reshade::api::command_list *cmd_list, uint32_t vertices, uin
 Showing results on the screen is done through a `reshade::api::swapchain` object. This is a collection of back buffers that the application can render into, which will eventually be presented to the screen. There may be multiple swap chains, if for example the application is rendering to multiple windows, or to a screen and a VR headset. ReShade again will call the `reshade::addon_event::init_swapchain` event after such an object was created by the application (and `reshade::addon_event::destroy_swapchain` on destruction). In addition ReShade will call the `reshade::addon_event::create_swapchain` event before the swap chain is created, so an add-on may modify its description before that happens. For example, to force the resolution to a specific value, one can do the following:
 ```cpp
 // Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::create_swapchain>(&on_create_swapchain)'.
-static bool on_create_swapchain(reshade::api::resource_desc &buffer_desc, void *hwnd)
+static bool on_create_swapchain(reshade::api::resource_desc &back_buffer_desc, void *hwnd)
 {
     // Change resolution to 1920x1080 if the application is trying to create a swap chain at 800x600.
-    if (buffer_desc.texture.width == 800 &&
-        buffer_desc.texture.height == 600)
+    if (back_buffer_desc.texture.width == 800 &&
+        back_buffer_desc.texture.height == 600)
     {
-        buffer_desc.texture.width = 1920;
-        buffer_desc.texture.height = 1080;
+        back_buffer_desc.texture.width = 1920;
+        back_buffer_desc.texture.height = 1080;
     }
 
     // Return 'true' for ReShade to overwrite the swap chain description of the application with the values set in this callback.
