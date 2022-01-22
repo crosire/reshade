@@ -732,20 +732,25 @@ void reshade::runtime::draw_gui()
 	}
 	else if (show_stats_window)
 	{
-		float window_height = _imgui_context->FontBaseSize * _fps_scale + _imgui_context->Style.ItemSpacing.y;
-		window_height *= (_show_clock ? 1 : 0) + (_show_fps ? 1 : 0) + (_show_frametime ? 1 : 0);
-		window_height += _imgui_context->Style.FramePadding.y * 4.0f;
-
 		ImVec2 fps_window_pos(5, 5);
+		ImVec2 fps_window_size(200, 0);
+
+		// Get last calculated window size (because of 'ImGuiWindowFlags_AlwaysAutoResize')
+		if (ImGuiWindow *const fps_window = ImGui::FindWindowByName("OSD"))
+		{
+			fps_window_size  = fps_window->Size;
+			fps_window_size.y = std::max(fps_window_size.y, _imgui_context->Style.FramePadding.y * 4.0f + _imgui_context->Style.ItemSpacing.y +
+				(_imgui_context->Style.ItemSpacing.y + _imgui_context->FontBaseSize * _fps_scale) * ((_show_clock ? 1 : 0) + (_show_fps ? 1 : 0) + (_show_frametime ? 1 : 0)));
+		}
+
 		if (_fps_pos % 2)
-			fps_window_pos.x = imgui_io.DisplaySize.x - 200.0f;
+			fps_window_pos.x = imgui_io.DisplaySize.x - fps_window_size.x - 5;
 		if (_fps_pos > 1)
-			fps_window_pos.y = imgui_io.DisplaySize.y - window_height - 5;
+			fps_window_pos.y = imgui_io.DisplaySize.y - fps_window_size.y - 5;
 
 		ImGui::SetNextWindowPos(fps_window_pos);
-		ImGui::SetNextWindowSize(ImVec2(200.0f, window_height));
 		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
-		ImGui::Begin("FPS", nullptr,
+		ImGui::Begin("OSD", nullptr,
 			ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoMove |
@@ -753,7 +758,8 @@ void reshade::runtime::draw_gui()
 			ImGuiWindowFlags_NoSavedSettings |
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing |
-			ImGuiWindowFlags_NoBackground);
+			ImGuiWindowFlags_NoBackground |
+			ImGuiWindowFlags_AlwaysAutoResize);
 
 		ImGui::SetWindowFontScale(_fps_scale);
 
@@ -766,23 +772,25 @@ void reshade::runtime::draw_gui()
 
 			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%02u:%02u:%02u" : "%02u:%02u", tm.tm_hour, tm.tm_min, tm.tm_sec);
 			if (_fps_pos % 2) // Align text to the right of the window
-				ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) - ImGui::CalcTextSize(temp).x);
+				ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(temp).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp);
 		}
 		if (_show_fps)
 		{
 			ImFormatString(temp, sizeof(temp), "%.0f fps", imgui_io.Framerate);
 			if (_fps_pos % 2)
-				ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) - ImGui::CalcTextSize(temp).x);
+				ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(temp).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp);
 		}
 		if (_show_frametime)
 		{
 			ImFormatString(temp, sizeof(temp), "%5.2f ms", 1000.0f / imgui_io.Framerate);
 			if (_fps_pos % 2)
-				ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) - ImGui::CalcTextSize(temp).x);
+				ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(temp).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp);
 		}
+
+		ImGui::Dummy(ImVec2(200, 0)); // Force a minimum window width
 
 		ImGui::End();
 		ImGui::PopStyleColor();
@@ -860,26 +868,6 @@ void reshade::runtime::draw_gui()
 			ImGui::End();
 		}
 
-#if RESHADE_ADDON
-		// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
-		if (!is_loading()
-#if RESHADE_ADDON_LITE
-			&& addon_enabled
-#endif
-			)
-		{
-			for (const addon_info &info : addon_loaded_info)
-			{
-				for (const auto &widget : info.overlay_callbacks)
-				{
-					if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
-						widget.second(this);
-					ImGui::End();
-				}
-			}
-		}
-#endif
-
 #if RESHADE_FX
 		if (!_editors.empty())
 		{
@@ -918,6 +906,29 @@ void reshade::runtime::draw_gui()
 		}
 #endif
 	}
+
+#if RESHADE_ADDON
+	// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
+	if (!is_loading()
+#if RESHADE_ADDON_LITE
+		&& addon_enabled
+#endif
+		)
+	{
+		for (const addon_info &info : addon_loaded_info)
+		{
+			for (const auto &widget : info.overlay_callbacks)
+			{
+				if (widget.first == "OSD" ? show_splash || (!show_stats_window && !_show_overlay) : !_show_overlay)
+					continue;
+
+				if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+					widget.second(this);
+				ImGui::End();
+			}
+		}
+	}
+#endif
 
 #if RESHADE_FX
 	if (_preview_texture != 0 && _effects_enabled)
@@ -1704,8 +1715,8 @@ void reshade::runtime::draw_gui_settings()
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show FPS", &_show_fps);
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show frame time", &_show_frametime);
 		modified |= ImGui::Combo("Clock format", reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0");
-		modified |= ImGui::SliderFloat("FPS text size", &_fps_scale, 0.2f, 2.5f, "%.1f");
-		modified |= ImGui::ColorEdit4("FPS text color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
+		modified |= ImGui::SliderFloat("OSD text size", &_fps_scale, 0.2f, 2.5f, "%.1f");
+		modified |= ImGui::ColorEdit4("OSD text color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
 		modified |= ImGui::Combo("Position on screen", reinterpret_cast<int *>(&_fps_pos), "Top Left\0Top Right\0Bottom Left\0Bottom Right\0");
 	}
 
@@ -2915,8 +2926,7 @@ void reshade::runtime::draw_variable_editor()
 			}
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-			if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics");
-				statistics_window != nullptr)
+			if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics"))
 				statistics_window->DrawList->CmdBuffer.clear();
 		}
 	}
@@ -3252,8 +3262,7 @@ void reshade::runtime::draw_technique_editor()
 		reload_effect(force_reload_effect, true);
 
 		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-		if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics");
-			statistics_window != nullptr)
+		if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics"))
 			statistics_window->DrawList->CmdBuffer.clear();
 	}
 }
@@ -3353,8 +3362,7 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 			reload_effect(instance.effect_index);
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-			if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics");
-				statistics_window != nullptr)
+			if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics"))
 				statistics_window->DrawList->CmdBuffer.clear();
 		}
 	}
