@@ -1449,7 +1449,9 @@ bool reshade::vulkan::device_impl::allocate_descriptor_sets(uint32_t count, api:
 	alloc_info.descriptorSetCount = count;
 	alloc_info.pSetLayouts = set_layouts.data();
 
-	if (vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out_sets)) == VK_SUCCESS)
+	// Access to descriptor pools must be externally synchronized, so lock for the duration of allocation from the global descriptor pool
+	if (const std::unique_lock<std::mutex> lock(_mutex);
+		vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out_sets)) == VK_SUCCESS)
 	{
 		for (uint32_t i = 0; i < count; ++i)
 		{
@@ -1470,6 +1472,9 @@ bool reshade::vulkan::device_impl::allocate_descriptor_sets(uint32_t count, api:
 }
 void reshade::vulkan::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
+	// Access to descriptor pools must be externally synchronized, so lock for the duration of freeing in the global descriptor pool
+	const std::unique_lock<std::mutex> lock(_mutex);
+
 	for (uint32_t i = 0; i < count; ++i)
 		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)sets[i].handle);
 
@@ -1700,6 +1705,7 @@ void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 	if (vk.CmdPushDescriptorSetKHR != nullptr)
 		return;
 
+	// This assumes that no other thread is currently allocating from the transient descriptor pool
 	const VkDescriptorPool next_pool = _transient_descriptor_pool[++_transient_index % 4];
 	vk.ResetDescriptorPool(_orig, next_pool, 0);
 }

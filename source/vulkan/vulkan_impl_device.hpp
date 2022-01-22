@@ -6,7 +6,7 @@
 #pragma once
 
 #include "addon_manager.hpp"
-#include <shared_mutex>
+#include <mutex>
 #include <unordered_map>
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
@@ -153,6 +153,7 @@ namespace reshade::vulkan
 
 		VkPrivateDataSlotEXT _private_data_slot = VK_NULL_HANDLE;
 
+		std::mutex _mutex;
 		std::unordered_map<size_t, VkRenderPassBeginInfo> _render_pass_lookup;
 	};
 }

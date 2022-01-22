@@ -176,7 +176,8 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 		VkRenderPassBeginInfo begin_info;
 
-		// TODO: This is not thread-safe!
+		std::unique_lock<std::mutex> lock(_device_impl->_mutex);
+
 		if (const auto it = _device_impl->_render_pass_lookup.find(hash);
 			it != _device_impl->_render_pass_lookup.end())
 		{
@@ -184,6 +185,8 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		}
 		else
 		{
+			lock.unlock();
+
 			temp_mem<VkImageView, 9> attach_views(max_attachments);
 			temp_mem<VkAttachmentReference, 9> attach_refs(max_attachments);
 			temp_mem<VkAttachmentDescription, 9> attach_descs(max_attachments);
@@ -288,8 +291,12 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			begin_info.renderArea.extent.width = framebuffer_create_info.width;
 			begin_info.renderArea.extent.height = framebuffer_create_info.height;
 
+			lock.lock();
+
 			_device_impl->_render_pass_lookup.emplace(hash, begin_info);
 		}
+
+		lock.unlock();
 
 		temp_mem<VkClearValue, 9> clear_values(max_attachments);
 		for (uint32_t i = 0; i < count; ++i)
@@ -518,13 +525,14 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		const VkPipelineLayout pipeline_layout = (VkPipelineLayout)layout.handle;
 		const VkDescriptorSetLayout set_layout = (VkDescriptorSetLayout)_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipeline_layout)->set_layouts[layout_param];
 
-		// TODO: This is not thread-safe!
 		VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _device_impl->_transient_descriptor_pool[_device_impl->_transient_index % 4];
 		alloc_info.descriptorSetCount = 1;
 		alloc_info.pSetLayouts = &set_layout;
 
-		if (vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
+		// Access to descriptor pools must be externally synchronized, so lock for the duration of allocation from the transient descriptor pool
+		if (const std::unique_lock<std::mutex> lock(_device_impl->_mutex);
+			vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
 			return;
 
 		vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
