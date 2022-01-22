@@ -159,7 +159,7 @@ void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_
 	}
 	else if ((count == 1) && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT)
 	{
-		glDrawBuffer(GL_BACK);
+		glDrawBuffer(rtvs[0].handle & 0xFFFFFFFF);
 	}
 	else
 	{
@@ -1018,7 +1018,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 			height = _default_fbo_height;
 		}
 
-		GLenum format = src_object == GL_BACK ? _default_color_format : _default_depth_format, type;
+		GLenum format = (src_object == GL_BACK || src_object == GL_BACK_LEFT || src_object == GL_BACK_RIGHT) ? _default_color_format : _default_depth_format, type;
 		format = convert_upload_format(format, type);
 
 		glReadPixels(xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));

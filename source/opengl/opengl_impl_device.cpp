@@ -50,6 +50,9 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 		break;
 	}
 
+	if (pfd.dwFlags & PFD_STEREO)
+		_default_fbo_stereo = true;
+
 	// Check whether this context supports Direct State Access
 	_supports_dsa = gl3wIsSupported(4, 5);
 
@@ -769,7 +772,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		{
 			const GLenum internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
 
-			return convert_resource_desc(target, 1, 1, internal_format, _default_fbo_width, _default_fbo_height);
+			return convert_resource_desc(target, 1, 1, internal_format, _default_fbo_width, _default_fbo_height, _default_fbo_stereo ? 2 : 1);
 		}
 	}
 
@@ -789,9 +792,15 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		desc.format == api::format_to_default_typed(desc.format, 1);
 
 	const GLenum resource_target = resource.handle >> 40;
-	if (resource_target == GL_RENDERBUFFER || resource_target == GL_FRAMEBUFFER_DEFAULT)
+	const GLenum resource_object = resource.handle & 0xFFFFFFFF;
+	if (resource_target == GL_FRAMEBUFFER_DEFAULT && _default_fbo_stereo && desc.texture.layer_count == 1)
 	{
-		*out_handle = make_resource_view_handle(resource_target, resource.handle & 0xFFFFFFFF, is_srgb_format ? 0x2 : 0);
+		*out_handle = make_resource_view_handle(resource_target, desc.texture.first_layer == 0 ? GL_BACK_LEFT : GL_BACK_RIGHT, is_srgb_format ? 0x2 : 0);
+		return true;
+	}
+	else if (resource_target == GL_FRAMEBUFFER_DEFAULT || resource_target == GL_RENDERBUFFER)
+	{
+		*out_handle = make_resource_view_handle(resource_target, resource_object, is_srgb_format ? 0x2 : 0);
 		return true;
 	}
 
@@ -835,13 +844,13 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	GLenum resource_format = GL_NONE;
 	if (_supports_dsa)
 	{
-		glGetTextureLevelParameteriv(resource.handle & 0xFFFFFFFF, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
+		glGetTextureLevelParameteriv(resource_object, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
 	}
 	else
 	{
 		GLuint prev_binding = 0;
 		glGetIntegerv(reshade::opengl::get_binding_for_target(resource_target), reinterpret_cast<GLint *>(&prev_binding));
-		glBindTexture(resource_target, resource.handle & 0xFFFFFFFF);
+		glBindTexture(resource_target, resource_object);
 
 		glGetTexLevelParameteriv(resource_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
 
@@ -860,13 +869,13 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		assert(target != GL_TEXTURE_BUFFER);
 
 		// No need to create a view, so use resource directly, but set a bit so to not destroy it twice via 'destroy_resource_view'
-		*out_handle = make_resource_view_handle(target, resource.handle & 0xFFFFFFFF, is_srgb_format ? 0x2 : 0);
+		*out_handle = make_resource_view_handle(target, resource_object, is_srgb_format ? 0x2 : 0);
 		return true;
 	}
 	else if (resource_target == GL_TEXTURE_CUBE_MAP && target == GL_TEXTURE_2D && desc.texture.layer_count == 1)
 	{
 		// Cube map face is handled via special target
-		*out_handle = make_resource_view_handle(GL_TEXTURE_CUBE_MAP_POSITIVE_X + desc.texture.first_layer, resource.handle & 0xFFFFFFFF, is_srgb_format ? 0x2 : 0);
+		*out_handle = make_resource_view_handle(GL_TEXTURE_CUBE_MAP_POSITIVE_X + desc.texture.first_layer, resource_object, is_srgb_format ? 0x2 : 0);
 		return true;
 	}
 
@@ -884,7 +893,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	if (target != GL_TEXTURE_BUFFER)
 	{
 		// Number of levels and layers are clamped to those of the original texture
-		glTextureView(object, target, resource.handle & 0xFFFFFFFF, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, desc.texture.layer_count);
+		glTextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, desc.texture.layer_count);
 
 		glBindTexture(target, object);
 		glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
@@ -895,13 +904,13 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 
 		if (desc.buffer.offset == 0 && desc.buffer.size == UINT64_MAX)
 		{
-			glTexBuffer(target, internal_format, resource.handle & 0xFFFFFFFF);
+			glTexBuffer(target, internal_format, resource_object);
 		}
 		else
 		{
 			assert(desc.buffer.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 			assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-			glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, static_cast<GLintptr>(desc.buffer.offset), static_cast<GLsizeiptr>(desc.buffer.size));
+			glTexBufferRange(target, internal_format, resource_object, static_cast<GLintptr>(desc.buffer.offset), static_cast<GLsizeiptr>(desc.buffer.size));
 		}
 	}
 
@@ -1468,7 +1477,7 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attachment(GLuint fbo_object, GLenum type, uint32_t index) const
 {
 	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
-	if (fbo_object == 0)
+	if (!fbo_object)
 	{
 		if (index == 0)
 		{
