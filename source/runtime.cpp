@@ -118,7 +118,7 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 #endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path),
-	_screenshot_name("%ExeName% %Date% %Time%"),
+	_screenshot_name("%AppName% %Date% %Time%"),
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(g_reshade_base_path)
 {
