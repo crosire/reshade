@@ -163,12 +163,24 @@ void reshade::load_addons()
 		LOG(INFO) << "Loading add-on from " << path << " ...";
 
 		// Use 'LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR' to temporarily add add-on search path to the list of directories "LoadLibraryEx" will use to resolve DLL dependencies
-		const HMODULE handle = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-		if (handle == nullptr)
+		const HMODULE module = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+		if (module == nullptr)
 		{
 			LOG(WARN) << "Failed to load add-on from " << path << " with error code " << GetLastError() << '.';
 			continue;
 		}
+
+		reshade::addon_info *const info = reshade::find_addon(module);
+		if (info == nullptr)
+		{
+			LOG(WARN) << "No add-on was registered by " << path << ". Unloading again ...";
+
+			FreeLibrary(module);
+			continue;
+		}
+
+		// Indicate that this add-on needs to be unloaded explicitly
+		info->loaded = true;
 	}
 #endif
 }
@@ -183,8 +195,10 @@ void reshade::unload_addons()
 	const std::vector<addon_info> loaded_info_copy = addon_loaded_info;
 	for (const addon_info &info : loaded_info_copy)
 	{
-		if (info.handle == nullptr || info.handle == g_module_handle)
+		if (!info.loaded)
 			continue; // Skip disabled and built-in add-ons
+
+		assert(info.handle != nullptr && info.handle != g_module_handle);
 
 		LOG(INFO) << "Unloading add-on \"" << info.name << "\" ...";
 
