@@ -19,19 +19,3 @@ reshade::resources::data_resource reshade::resources::load_data_resource(unsigne
 
 	return result;
 }
-
-reshade::resources::image_resource reshade::resources::load_image_resource(unsigned int id)
-{
-	DIBSECTION dib = {};
-	const HANDLE handle = LoadImage(g_module_handle, MAKEINTRESOURCE(id), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-	GetObject(handle, sizeof(dib), &dib);
-
-	image_resource result;
-	result.width = dib.dsBm.bmWidth;
-	result.height = dib.dsBm.bmHeight;
-	result.bits_per_pixel = dib.dsBm.bmBitsPixel;
-	result.data = dib.dsBm.bmBits;
-	result.data_size = dib.dsBmih.biSizeImage;
-
-	return result;
-}
