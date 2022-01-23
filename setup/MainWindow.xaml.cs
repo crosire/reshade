@@ -12,11 +12,11 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Navigation;
 using Microsoft.Win32;
 using ReShade.Setup.Pages;
@@ -106,25 +106,15 @@ namespace ReShade.Setup
 			var signed = false;
 			if (productVersion.Contains(" "))
 			{
-				NavigationPanel.Background = System.Windows.Media.Brushes.Crimson;
+				NavigationPanel.Background = Brushes.Crimson;
 			}
 			else
 			{
-				string tempFileName = Path.GetTempFileName();
+				signed = assembly.GetCustomAttribute<AssemblyConfigurationAttribute>().Configuration.Contains("Signed");
 
-				try
+				if (!signed)
 				{
-					zip.GetEntry("ReShade64.dll").ExtractToFile(tempFileName, true);
-
-					signed = X509Certificate2.GetCertContentType(tempFileName) != X509ContentType.Unknown;
-				}
-				catch
-				{
-					NavigationPanel.Background = System.Windows.Media.Brushes.Orange;
-				}
-				finally
-				{
-					File.Delete(tempFileName);
+					NavigationPanel.Background = new SolidColorBrush(Color.FromArgb(255, 237, 189, 0));
 				}
 			}
 

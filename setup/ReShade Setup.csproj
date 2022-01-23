@@ -17,10 +17,8 @@
     <ApplicationManifest>Properties\Assembly.manifest</ApplicationManifest>
     <WarningLevel>4</WarningLevel>
     <TargetFrameworkProfile />
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
@@ -32,7 +30,17 @@
     <LangVersion>7.3</LangVersion>
     <NoWarn>1633</NoWarn>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>7.3</LangVersion>
+    <NoWarn>1633</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release Signed|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
@@ -122,7 +130,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Properties\AssemblyInfo.cs">
+    <Compile Include="$(IntermediateOutputPath)Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
     <AppDesigner Include="Properties\" />
@@ -156,9 +164,9 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Update assembly info file -->
   <UsingTask TaskName="CL" AssemblyFile="$(VCTargetsPath)Microsoft.Build.CppTasks.Common.dll" />
-  <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeBuild" Inputs="..\res\version.h;Properties\AssemblyInfo.cs.in" Outputs="Properties\AssemblyInfo.cs">
+  <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeBuild" Inputs="..\res\version.h;Properties\AssemblyInfo.cs.in" Outputs="$(IntermediateOutputPath)Properties\AssemblyInfo.cs">
     <Message Text="Generating assembly version ..." Importance="high" />
-    <CL SuppressStartupBanner="true" PreprocessSuppressLineNumbers="true" PreprocessKeepComments="true" PreprocessToFile="true" AdditionalIncludeDirectories="..\res" Sources="Properties\AssemblyInfo.cs.in" PreprocessOutputPath="Properties\AssemblyInfo.cs" ToolPath="$(VC_ExecutablePath_x86)" />
+    <CL SuppressStartupBanner="true" PreprocessSuppressLineNumbers="true" PreprocessKeepComments="true" PreprocessToFile="true" PreprocessorDefinitions="BUILD_CONFIGURATION=$(Configuration)" AdditionalIncludeDirectories="..\res" Sources="Properties\AssemblyInfo.cs.in" PreprocessOutputPath="$(IntermediateOutputPath)Properties\AssemblyInfo.cs" ToolPath="$(VC_ExecutablePath_x86)" />
   </Target>
   <!-- Archive ReShade binaries and append them to the setup executable -->
   <Target Name="BuildAndAppendSetupArchive" AfterTargets="CopyFilesToOutputDirectory">
@@ -172,7 +180,7 @@
     <Delete Files="$(TargetPath).zip" />
   </Target>
   <PropertyGroup>
-    <PostBuildEvent Condition="'$(Configuration)'=='Release' and Exists('$(SolutionDir)\res\sign.pfx')">echo Signing executable ...
+    <PostBuildEvent Condition="('$(Configuration)'=='Release' Or '$(Configuration)'=='Release Signed') and Exists('$(SolutionDir)\res\sign.pfx')">echo Signing executable ...
 set PATH=%PATH%;$(WindowsSDK_ExecutablePath)
 signtool.exe sign /f "$(SolutionDir)\res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</PostBuildEvent>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>

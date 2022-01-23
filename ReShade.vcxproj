@@ -101,9 +101,6 @@
   <PropertyGroup>
     <ExecutablePath>tools;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Release Signed'">
-    <OutDir>$(OutDir)..\Release\</OutDir>
-  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <!-- Fix inconsistent DLL linkage warnings because of prototypes defined in "wingdi.h" and "Winsock2.h" using "__declspec(dllimport)" -->

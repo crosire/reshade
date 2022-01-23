@@ -1,11 +1,10 @@
 ﻿#include "version.h"
 
+#define STRINGIZE(value) #value
+#define EXPAND_AND_STRINGIZE(value) STRINGIZE(value)
+
 #define BUILD_VERSION(major, minor, revision) \
-	BUILD_VERSION_EXPAND(major, minor, revision)
-#define BUILD_VERSION_STRING(version) \
-	#version
-#define BUILD_VERSION_EXPAND(major, minor, revision) \
-	BUILD_VERSION_STRING(major.minor.revision)
+	EXPAND_AND_STRINGIZE(major.minor.revision)
 
 using System.Reflection;
 
@@ -16,3 +15,7 @@ using System.Reflection;
 [assembly: AssemblyCompany("crosire")]
 [assembly: AssemblyProduct("ReShade")]
 [assembly: AssemblyCopyright("Copyright © 2014. All rights reserved.")]
+
+#ifdef BUILD_CONFIGURATION
+[assembly: AssemblyConfiguration(EXPAND_AND_STRINGIZE(BUILD_CONFIGURATION))]
+#endif
