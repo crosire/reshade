@@ -1189,12 +1189,12 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 {
 	assert(resource != nullptr);
 
-	const std::unique_lock<std::shared_mutex> lock(_mutex);
-
 #if RESHADE_ADDON
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 		desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
+		const std::unique_lock<std::shared_mutex> lock(_mutex);
+
 		const D3D12_GPU_VIRTUAL_ADDRESS address = resource->GetGPUVirtualAddress();
 		if (address != 0)
 			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { address, desc.Width });
@@ -1205,12 +1205,12 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 {
 	assert(resource != nullptr);
 
-	const std::unique_lock<std::shared_mutex> lock(_mutex);
-
 #if RESHADE_ADDON
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 		desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
+		const std::unique_lock<std::shared_mutex> lock(_mutex);
+
 		const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(), [resource](const auto &buffer_info) { return buffer_info.first == resource; });
 		if (it != _buffer_gpu_addresses.end())
 			_buffer_gpu_addresses.erase(it);
@@ -1218,6 +1218,8 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 #endif
 
 #if 0
+	const std::unique_lock<std::shared_mutex> lock(_mutex);
+
 	// Remove all views that referenced this resource
 	for (auto it = _views.begin(); it != _views.end();)
 	{
@@ -1264,6 +1266,7 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *heap)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	// Read access to descriptor heaps array is guarded through an atomic pointer, but still need to ensure that multiple threads do not write to it simultaneously
 	const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 	size_t num_heaps = ++_descriptor_heaps.second;

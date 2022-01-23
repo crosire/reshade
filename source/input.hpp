@@ -37,6 +37,8 @@ namespace reshade
 
 		window_handle get_window_handle() const { return _window; }
 
+		// Before accessing input data with any of the member functions below, first call "lock()" and keep the returned object alive while accessing it.
+
 		bool is_key_down(unsigned int keycode) const;
 		bool is_key_pressed(unsigned int keycode) const;
 		bool is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt, bool force_modifiers = false) const;

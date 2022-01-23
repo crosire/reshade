@@ -425,7 +425,7 @@ void reshade::runtime::on_present()
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
-	const auto input_lock = _input->lock();
+	const std::unique_lock<std::mutex> input_lock = _input->lock();
 #endif
 
 #if RESHADE_GUI
@@ -2839,7 +2839,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	// TODO: This does not catch input happening between now and 'on_present'
-	const auto input_lock = _input->lock();
+	const std::unique_lock<std::mutex> input_lock = _input->lock();
 #endif
 
 	// Nothing to do here if effects are disabled globally

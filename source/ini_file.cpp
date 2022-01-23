@@ -11,6 +11,12 @@
 // TODO: This is unsafe if there are multiple threads accessing the cache simultaneously
 static std::unordered_map<std::wstring, ini_file> s_ini_cache;
 
+ini_file &reshade::global_config()
+{
+	static ini_file config(g_target_executable_path.parent_path() / g_reshade_dll_path.filename().replace_extension(L".ini")); // Load once on first use
+	return config;
+}
+
 ini_file::ini_file(const std::filesystem::path &path) : _path(path)
 {
 	load();
@@ -222,10 +228,4 @@ ini_file &ini_file::load_cache(const std::filesystem::path &path)
 		file.second.load();
 
 	return file.second;
-}
-
-ini_file & reshade::global_config()
-{
-	static ini_file config(g_target_executable_path.parent_path() / g_reshade_dll_path.filename().replace_extension(L".ini")); // Load once on first use
-	return config;
 }

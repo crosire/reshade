@@ -218,6 +218,7 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Uninstalling hook for " << name << " ...";
 #endif
+
 	if (hook.uninstalled())
 	{
 		LOG(WARN) << "Hook for " << name << " was already uninstalled.";
@@ -309,7 +310,7 @@ static reshade::hook find_internal(reshade::hook::address target, reshade::hook:
 				return hook.target == target;
 			// Otherwise search with the replacement function address (since the target address may not be known inside a replacement function)
 			return hook.replacement == replacement &&
-				// Optionally compare the target address too, in case the replacement function is used to hook multiple targets (do not do this if it is unknown)
+				// Optionally compare the target address too, in case the replacement function is used to hook multiple targets
 				(target == nullptr || hook.target == target);
 		});
 
@@ -467,6 +468,8 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 
 void reshade::hooks::ensure_export_module_loaded()
 {
+	const std::unique_lock<std::mutex> lock(s_delayed_hook_paths_mutex);
+
 	if (!g_export_module_handle && !s_export_hook_path.empty())
 	{
 		assert(s_export_hook_path.is_absolute());

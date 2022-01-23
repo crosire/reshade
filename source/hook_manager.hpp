@@ -41,24 +41,24 @@ namespace reshade::hooks
 	bool install(const char *name, hook::address vtable[], unsigned int offset, hook::address replacement);
 	/// <summary>
 	/// Uninstalls all previously installed hooks.
-	/// Only call this function as long as the loader-lock is active, since it is not thread-safe.
+	/// Only call this function while the loader-lock is held, since it is not thread-safe.
 	/// </summary>
 	void uninstall();
 
 	/// <summary>
-	/// Registers the matching exports in the specified module and install or delay their hooking.
-	/// Only call this function as long as the loader-lock is active, since it is not thread-safe.
+	/// Registers any matching exports in the specified module and installs or delays their hooking.
+	/// Only call this function while the loader-lock is held, since it is not thread-safe.
 	/// </summary>
 	/// <param name="path">The file path to the target module.</param>
 	void register_module(const std::filesystem::path &path);
 
 	/// <summary>
-	/// Loads the module for export hooks if not already loaded.
+	/// Loads the module for export hooks if it has not been loaded yet.
 	/// </summary>
 	void ensure_export_module_loaded();
 
 	/// <summary>
-	/// Checks whether the specified function was hooked.
+	/// Checks whether the specified function is currently hooked.
 	/// </summary>
 	/// <param name="target">The original target address of a function.</param>
 	bool is_hooked(hook::address target);

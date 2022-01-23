@@ -672,6 +672,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		}
 #endif
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource));
@@ -774,6 +775,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 		}
 #endif
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource));
@@ -859,6 +861,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		}
 #endif
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource));
@@ -952,6 +955,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 			reshade::hooks::install("IDirect3DVertexBuffer9::Unlock", vtable_from_instance(resource), 12, reinterpret_cast<reshade::hook::address>(IDirect3DVertexBuffer9_Unlock));
 #endif
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(*ppVertexBuffer));
@@ -1006,6 +1010,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 			reshade::hooks::install("IDirect3DIndexBuffer9::Unlock", vtable_from_instance(resource), 12, reinterpret_cast<reshade::hook::address>(IDirect3DIndexBuffer9_Unlock));
 #endif
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource));
@@ -1070,6 +1075,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
@@ -1135,6 +1141,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
@@ -1324,6 +1331,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
@@ -2283,6 +2291,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
@@ -2352,6 +2361,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
@@ -2419,6 +2429,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
+		// Add reference to device, to ensure the proxy device is not destroyed before this resource has been destroyed
 		InterlockedIncrement(&_ref);
 
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {

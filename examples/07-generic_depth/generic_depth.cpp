@@ -357,7 +357,7 @@ static void on_destroy_resource(device *device, resource resource)
 	if (&device_state == nullptr)
 		return;
 
-	std::unique_lock<std::mutex> lock(s_mutex);
+	const std::unique_lock<std::mutex> lock(s_mutex);
 	device_state.destroyed_resources.push_back(resource);
 }
 
@@ -456,7 +456,7 @@ static void on_begin_render_pass_with_depth_stencil(command_list *cmd_list, uint
 {
 #if 0
 	if (depth_stencil_desc != nullptr && depth_stencil_desc->depth_load_op == render_pass_load_op::clear)
-		on_clear_depth_stencil(cmd_list, depth_stencil_desc->view, &depth_stencil_desc->clear_value.depth, &depth_stencil_desc->clear_value.stencil, 0, nullptr);
+		on_clear_depth_stencil(cmd_list, depth_stencil_desc->view, &depth_stencil_desc->clear_depth, &depth_stencil_desc->clear_stencil, 0, nullptr);
 #endif
 
 	on_bind_depth_stencil(cmd_list, 0, nullptr, depth_stencil_desc != nullptr ? depth_stencil_desc->view : resource_view {});
@@ -469,8 +469,8 @@ static void on_reset(command_list *cmd_list)
 }
 static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 {
-	auto &source_state = cmd_list->get_private_data<state_tracking>();
 	auto &target_state = queue_or_cmd_list->get_private_data<state_tracking>();
+	const auto &source_state = cmd_list->get_private_data<state_tracking>();
 	target_state.merge(source_state);
 }
 
@@ -621,7 +621,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 
 	queue_state.reset_on_present();
 
-	std::unique_lock<std::mutex> lock(s_mutex);
+	const std::unique_lock<std::mutex> lock(s_mutex);
 	device_state.destroyed_resources.clear();
 }
 

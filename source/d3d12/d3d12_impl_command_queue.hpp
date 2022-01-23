@@ -12,13 +12,9 @@ namespace reshade::d3d12
 {
 	class command_queue_impl : public api::api_object_impl<ID3D12CommandQueue *, api::command_queue>
 	{
-		friend struct DXGISwapChain;
-
 	public:
 		command_queue_impl(device_impl *device, ID3D12CommandQueue *queue);
 		~command_queue_impl();
-
-		auto lock() { return std::unique_lock<std::mutex>(_mutex); }
 
 		api::device *get_device() final;
 
@@ -34,7 +30,6 @@ namespace reshade::d3d12
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-	protected:
 		mutable std::mutex _mutex; // 'ID3D12CommandQueue' is thread-safe, so need to lock when accessed from multiple threads
 
 	private:

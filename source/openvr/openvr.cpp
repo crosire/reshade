@@ -71,9 +71,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy, s_vr_swapchain);
 #endif
-
 		s_vr_swapchain->on_present();
-
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(device_proxy, s_vr_swapchain);
 #endif
@@ -131,9 +129,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy->_immediate_context, s_vr_swapchain);
 #endif
-
 		s_vr_swapchain->on_present();
-
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(device_proxy->_immediate_context, s_vr_swapchain);
 #endif
@@ -177,14 +173,12 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 	else
 	{
 		// Synchronize access to the command queue while events are invoked and the immediate command list may be accessed
-		std::unique_lock<std::mutex> lock = command_queue_proxy->lock();
+		std::unique_lock<std::mutex> lock(command_queue_proxy->_mutex);
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(command_queue_proxy.get(), s_vr_swapchain);
 #endif
-
 		s_vr_swapchain->on_present();
-
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(command_queue_proxy.get(), s_vr_swapchain);
 #endif
@@ -237,9 +231,7 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(g_current_context, s_vr_swapchain);
 #endif
-
 		s_vr_swapchain->on_present();
-
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(g_current_context, s_vr_swapchain);
 #endif
@@ -299,9 +291,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(queue, s_vr_swapchain);
 #endif
-
 		s_vr_swapchain->on_present();
-
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(queue, s_vr_swapchain);
 #endif

@@ -140,7 +140,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-	const auto input_lock = input->lock();
+	const std::unique_lock<std::mutex> input_lock = input->lock();
 
 	input->_mouse_position[0] = details.pt.x;
 	input->_mouse_position[1] = details.pt.y;
@@ -453,11 +453,15 @@ std::string reshade::input::key_name(unsigned int keycode)
 }
 std::string reshade::input::key_name(const unsigned int key[4])
 {
+	assert(key[0] != VK_CONTROL && key[0] != VK_SHIFT && key[0] != VK_MENU);
+
 	return (key[1] ? "Ctrl + " : std::string()) + (key[2] ? "Shift + " : std::string()) + (key[3] ? "Alt + " : std::string()) + key_name(key[0]);
 }
 
 static inline bool is_blocking_mouse_input()
 {
+	const std::unique_lock<std::mutex> lock(s_windows_mutex);
+
 	const auto predicate = [](const auto &input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_mouse_input();
 	};
@@ -465,6 +469,8 @@ static inline bool is_blocking_mouse_input()
 }
 static inline bool is_blocking_keyboard_input()
 {
+	const std::unique_lock<std::mutex> lock(s_windows_mutex);
+
 	const auto predicate = [](const auto &input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_keyboard_input();
 	};
