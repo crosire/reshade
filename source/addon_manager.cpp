@@ -166,11 +166,21 @@ void reshade::load_addons()
 		const HMODULE module = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 		if (module == nullptr)
 		{
-			LOG(WARN) << "Failed to load add-on from " << path << " with error code " << GetLastError() << '.';
+			if (!addon_loaded_info.empty() && std::filesystem::equivalent(std::filesystem::u8path(addon_loaded_info.back().file), path, ec))
+			{
+				// Avoid logging an error if loading failed because the add-on is disabled
+				assert(addon_loaded_info.back().handle == nullptr);
+
+				LOG(INFO) << "> Add-on is disabled. Skipped.";
+			}
+			else
+			{
+				LOG(WARN) << "Failed to load add-on from " << path << " with error code " << GetLastError() << '.';
+			}
 			continue;
 		}
 
-		reshade::addon_info *const info = reshade::find_addon(module);
+		addon_info *const info = find_addon(module);
 		if (info == nullptr)
 		{
 			LOG(WARN) << "No add-on was registered by " << path << ". Unloading again ...";
@@ -224,7 +234,7 @@ reshade::addon_info *reshade::find_addon(void *address)
 	if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(address), &module))
 		return nullptr;
 
-	for (auto it = reshade::addon_loaded_info.rbegin(); it != reshade::addon_loaded_info.rend(); ++it)
+	for (auto it = addon_loaded_info.rbegin(); it != addon_loaded_info.rend(); ++it)
 		if (it->handle == module)
 			return &(*it);
 	return nullptr;
@@ -291,10 +301,8 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	if (std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
 			[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
-	{
 		// Prevent registration if another add-on with the same name already exists
 		return false;
-	}
 
 	if (std::vector<std::string> disabled_addons;
 		reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons) &&
