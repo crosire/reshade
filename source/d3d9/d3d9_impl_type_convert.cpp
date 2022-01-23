@@ -771,31 +771,31 @@ void reshade::d3d9::convert_pipeline_desc(const api::pipeline_desc &desc, std::v
 			break;
 		}
 
-		if (strcmp(element.semantic, "POSITION") == 0)
+		if (std::strcmp(element.semantic, "POSITION") == 0)
 			internal_element.Usage = D3DDECLUSAGE_POSITION;
-		else if (strcmp(element.semantic, "BLENDWEIGHT") == 0)
+		else if (std::strcmp(element.semantic, "BLENDWEIGHT") == 0)
 			internal_element.Usage = D3DDECLUSAGE_BLENDWEIGHT;
-		else if (strcmp(element.semantic, "BLENDINDICES") == 0)
+		else if (std::strcmp(element.semantic, "BLENDINDICES") == 0)
 			internal_element.Usage = D3DDECLUSAGE_BLENDINDICES;
-		else if (strcmp(element.semantic, "NORMAL") == 0)
+		else if (std::strcmp(element.semantic, "NORMAL") == 0)
 			internal_element.Usage = D3DDECLUSAGE_NORMAL;
-		else if (strcmp(element.semantic, "PSIZE") == 0)
+		else if (std::strcmp(element.semantic, "PSIZE") == 0)
 			internal_element.Usage = D3DDECLUSAGE_PSIZE;
-		else if (strcmp(element.semantic, "TANGENT") == 0)
+		else if (std::strcmp(element.semantic, "TANGENT") == 0)
 			internal_element.Usage = D3DDECLUSAGE_TANGENT;
-		else if (strcmp(element.semantic, "BINORMAL") == 0)
+		else if (std::strcmp(element.semantic, "BINORMAL") == 0)
 			internal_element.Usage = D3DDECLUSAGE_BINORMAL;
-		else if (strcmp(element.semantic, "TESSFACTOR") == 0)
+		else if (std::strcmp(element.semantic, "TESSFACTOR") == 0)
 			internal_element.Usage = D3DDECLUSAGE_TESSFACTOR;
-		else if (strcmp(element.semantic, "POSITIONT") == 0)
+		else if (std::strcmp(element.semantic, "POSITIONT") == 0)
 			internal_element.Usage = D3DDECLUSAGE_POSITIONT;
-		else if (strcmp(element.semantic, "COLOR") == 0)
+		else if (std::strcmp(element.semantic, "COLOR") == 0)
 			internal_element.Usage = D3DDECLUSAGE_COLOR;
-		else if (strcmp(element.semantic, "FOG") == 0)
+		else if (std::strcmp(element.semantic, "FOG") == 0)
 			internal_element.Usage = D3DDECLUSAGE_FOG;
-		else if (strcmp(element.semantic, "DEPTH") == 0)
+		else if (std::strcmp(element.semantic, "DEPTH") == 0)
 			internal_element.Usage = D3DDECLUSAGE_DEPTH;
-		else if (strcmp(element.semantic, "SAMPLE") == 0)
+		else if (std::strcmp(element.semantic, "SAMPLE") == 0)
 			internal_element.Usage = D3DDECLUSAGE_SAMPLE;
 		else
 			internal_element.Usage = D3DDECLUSAGE_TEXCOORD;

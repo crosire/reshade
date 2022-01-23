@@ -1644,7 +1644,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 	if (!(desc.code_size > 4 && *static_cast<const uint32_t *>(desc.code) == 0x07230203)) // Check for SPIR-V magic number
 	{
-		assert(desc.entry_point == nullptr || strcmp(desc.entry_point, "main") == 0);
+		assert(desc.entry_point == nullptr || std::strcmp(desc.entry_point, "main") == 0);
 		assert(desc.spec_constants == 0);
 
 		const auto source = static_cast<const GLchar *>(desc.code);

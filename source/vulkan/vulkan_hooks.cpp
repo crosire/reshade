@@ -12,10 +12,10 @@ extern lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispat
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 #define HOOK_PROC(name) \
-	if (0 == strcmp(pName, "vk" #name)) \
+	if (0 == std::strcmp(pName, "vk" #name)) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
 #define HOOK_PROC_OPTIONAL(name) \
-	if (0 == strcmp(pName, "vk" #name) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
+	if (0 == std::strcmp(pName, "vk" #name) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name);
 
 
@@ -115,11 +115,11 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2KHR);
 	HOOK_PROC_OPTIONAL(CmdResolveImage2KHR);
 
-	if (0 == strcmp(pName, "vkBindBufferMemory2KHR"))
+	if (0 == std::strcmp(pName, "vkBindBufferMemory2KHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkBindBufferMemory2);
-	if (0 == strcmp(pName, "vkBindImageMemory2KHR"))
+	if (0 == std::strcmp(pName, "vkBindImageMemory2KHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkBindImageMemory2);
-	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
+	if (0 == std::strcmp(pName, "vkCreateRenderPass2KHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
 #endif
 

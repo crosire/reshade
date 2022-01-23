@@ -8,6 +8,8 @@
 #include <mutex>
 #include <vector>
 #include <unordered_map>
+#include <cmath>
+#include <cstring>
 #include <algorithm>
 
 static bool s_disable_intz = false;
@@ -246,7 +248,7 @@ static void update_effect_runtime(effect_runtime *runtime)
 
 	runtime->enumerate_uniform_variables(nullptr, [&device_state](effect_runtime *runtime, auto variable) {
 		char source[32] = "";
-		if (runtime->get_annotation_string_from_uniform_variable(variable, "source", source) && strcmp(source, "bufready_depth") == 0)
+		if (runtime->get_annotation_string_from_uniform_variable(variable, "source", source) && std::strcmp(source, "bufready_depth") == 0)
 			runtime->set_uniform_value_bool(variable, device_state.selected_shader_resource != 0);
 	});
 }

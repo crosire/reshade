@@ -950,49 +950,49 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #if RESHADE_ADDON
 	// Redirect some old extension functions to their modern variants in core OpenGL
 	#pragma region GL_ARB_draw_instanced
-	else if (0 == strcmp(lpszProc, "glDrawArraysInstancedARB"))
+	else if (0 == std::strcmp(lpszProc, "glDrawArraysInstancedARB"))
 		lpszProc = "glDrawArraysInstanced";
-	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedARB"))
+	else if (0 == std::strcmp(lpszProc, "glDrawElementsInstancedARB"))
 		lpszProc = "glDrawElementsInstanced";
 	#pragma endregion
 	#pragma region GL_EXT_draw_instanced
-	else if (0 == strcmp(lpszProc, "glDrawArraysInstancedEXT"))
+	else if (0 == std::strcmp(lpszProc, "glDrawArraysInstancedEXT"))
 		lpszProc = "glDrawArraysInstanced";
-	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedEXT"))
+	else if (0 == std::strcmp(lpszProc, "glDrawElementsInstancedEXT"))
 		lpszProc = "glDrawElementsInstanced";
 	#pragma endregion
 	#pragma region GL_EXT_framebuffer_object
-	else if (0 == strcmp(lpszProc, "glIsFramebufferEXT"))
+	else if (0 == std::strcmp(lpszProc, "glIsFramebufferEXT"))
 		lpszProc = "glIsFramebuffer";
 	// glBindFramebuffer and glBindFramebufferEXT have different semantics (core variant requires an existing FBO), so do not redirect
-	else if (0 == strcmp(lpszProc, "glGenFramebuffersEXT"))
+	else if (0 == std::strcmp(lpszProc, "glGenFramebuffersEXT"))
 		lpszProc = "glGenFramebuffers";
-	else if (0 == strcmp(lpszProc, "glDeleteFramebuffersEXT"))
+	else if (0 == std::strcmp(lpszProc, "glDeleteFramebuffersEXT"))
 		lpszProc = "glDeleteFramebuffers";
-	else if (0 == strcmp(lpszProc, "glCheckFramebufferStatusEXT"))
+	else if (0 == std::strcmp(lpszProc, "glCheckFramebufferStatusEXT"))
 		lpszProc = "glCheckFramebufferStatus";
-	else if (0 == strcmp(lpszProc, "glFramebufferRenderbufferEXT"))
+	else if (0 == std::strcmp(lpszProc, "glFramebufferRenderbufferEXT"))
 		lpszProc = "glFramebufferRenderbuffer";
-	else if (0 == strcmp(lpszProc, "glFramebufferTexture1DEXT"))
+	else if (0 == std::strcmp(lpszProc, "glFramebufferTexture1DEXT"))
 		lpszProc = "glFramebufferTexture1D";
-	else if (0 == strcmp(lpszProc, "glFramebufferTexture2DEXT"))
+	else if (0 == std::strcmp(lpszProc, "glFramebufferTexture2DEXT"))
 		lpszProc = "glFramebufferTexture2D";
-	else if (0 == strcmp(lpszProc, "glFramebufferTexture3DEXT"))
+	else if (0 == std::strcmp(lpszProc, "glFramebufferTexture3DEXT"))
 		lpszProc = "glFramebufferTexture3D";
-	else if (0 == strcmp(lpszProc, "glGetFramebufferAttachmentParameterivEXT"))
+	else if (0 == std::strcmp(lpszProc, "glGetFramebufferAttachmentParameterivEXT"))
 		lpszProc = "glGetFramebufferAttachmentParameteriv";
-	else if (0 == strcmp(lpszProc, "glIsRenderbufferEXT"))
+	else if (0 == std::strcmp(lpszProc, "glIsRenderbufferEXT"))
 		lpszProc = "glIsRenderbuffer";
 	// glBindRenderbuffer and glBindRenderbufferEXT have different semantics (core variant requires an existing RBO), so do not redirect
-	else if (0 == strcmp(lpszProc, "glGenRenderbuffersEXT"))
+	else if (0 == std::strcmp(lpszProc, "glGenRenderbuffersEXT"))
 		lpszProc = "glGenRenderbuffers";
-	else if (0 == strcmp(lpszProc, "glDeleteRenderbuffersEXT"))
+	else if (0 == std::strcmp(lpszProc, "glDeleteRenderbuffersEXT"))
 		lpszProc = "glDeleteRenderbuffers";
-	else if (0 == strcmp(lpszProc, "glRenderbufferStorageEXT"))
+	else if (0 == std::strcmp(lpszProc, "glRenderbufferStorageEXT"))
 		lpszProc = "glRenderbufferStorage";
-	else if (0 == strcmp(lpszProc, "glGetRenderbufferParameterivEXT"))
+	else if (0 == std::strcmp(lpszProc, "glGetRenderbufferParameterivEXT"))
 		lpszProc = "glGetRenderbufferParameteriv";
-	else if (0 == strcmp(lpszProc, "glGenerateMipmapEXT"))
+	else if (0 == std::strcmp(lpszProc, "glGenerateMipmapEXT"))
 		lpszProc = "glGenerateMipmap";
 	#pragma endregion
 #endif
@@ -1002,127 +1002,127 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 
 	if (address == nullptr)
 		return nullptr;
-	else if (0 == strcmp(lpszProc, "glBindTexture"))
+	else if (0 == std::strcmp(lpszProc, "glBindTexture"))
 		return reinterpret_cast<PROC>(glBindTexture);
-	else if (0 == strcmp(lpszProc, "glBlendFunc"))
+	else if (0 == std::strcmp(lpszProc, "glBlendFunc"))
 		return reinterpret_cast<PROC>(glBlendFunc);
-	else if (0 == strcmp(lpszProc, "glClear"))
+	else if (0 == std::strcmp(lpszProc, "glClear"))
 		return reinterpret_cast<PROC>(glClear);
-	else if (0 == strcmp(lpszProc, "glClearColor"))
+	else if (0 == std::strcmp(lpszProc, "glClearColor"))
 		return reinterpret_cast<PROC>(glClearColor);
-	else if (0 == strcmp(lpszProc, "glClearDepth"))
+	else if (0 == std::strcmp(lpszProc, "glClearDepth"))
 		return reinterpret_cast<PROC>(glClearDepth);
-	else if (0 == strcmp(lpszProc, "glClearStencil"))
+	else if (0 == std::strcmp(lpszProc, "glClearStencil"))
 		return reinterpret_cast<PROC>(glClearStencil);
-	else if (0 == strcmp(lpszProc, "glCopyTexImage1D"))
+	else if (0 == std::strcmp(lpszProc, "glCopyTexImage1D"))
 		return reinterpret_cast<PROC>(glCopyTexImage1D);
-	else if (0 == strcmp(lpszProc, "glCopyTexImage2D"))
+	else if (0 == std::strcmp(lpszProc, "glCopyTexImage2D"))
 		return reinterpret_cast<PROC>(glCopyTexImage2D);
-	else if (0 == strcmp(lpszProc, "glCopyTexSubImage1D"))
+	else if (0 == std::strcmp(lpszProc, "glCopyTexSubImage1D"))
 		return reinterpret_cast<PROC>(glCopyTexSubImage1D);
-	else if (0 == strcmp(lpszProc, "glCopyTexSubImage2D"))
+	else if (0 == std::strcmp(lpszProc, "glCopyTexSubImage2D"))
 		return reinterpret_cast<PROC>(glCopyTexSubImage2D);
-	else if (0 == strcmp(lpszProc, "glCullFace"))
+	else if (0 == std::strcmp(lpszProc, "glCullFace"))
 		return reinterpret_cast<PROC>(glCullFace);
-	else if (0 == strcmp(lpszProc, "glDeleteTextures"))
+	else if (0 == std::strcmp(lpszProc, "glDeleteTextures"))
 		return reinterpret_cast<PROC>(glDeleteTextures);
-	else if (0 == strcmp(lpszProc, "glDepthFunc"))
+	else if (0 == std::strcmp(lpszProc, "glDepthFunc"))
 		return reinterpret_cast<PROC>(glDepthFunc);
-	else if (0 == strcmp(lpszProc, "glDepthMask"))
+	else if (0 == std::strcmp(lpszProc, "glDepthMask"))
 		return reinterpret_cast<PROC>(glDepthMask);
-	else if (0 == strcmp(lpszProc, "glDepthRange"))
+	else if (0 == std::strcmp(lpszProc, "glDepthRange"))
 		return reinterpret_cast<PROC>(glDepthRange);
-	else if (0 == strcmp(lpszProc, "glDisable"))
+	else if (0 == std::strcmp(lpszProc, "glDisable"))
 		return reinterpret_cast<PROC>(glDisable);
-	else if (0 == strcmp(lpszProc, "glDrawArrays"))
+	else if (0 == std::strcmp(lpszProc, "glDrawArrays"))
 		return reinterpret_cast<PROC>(glDrawArrays);
-	else if (0 == strcmp(lpszProc, "glDrawBuffer"))
+	else if (0 == std::strcmp(lpszProc, "glDrawBuffer"))
 		return reinterpret_cast<PROC>(glDrawBuffer);
-	else if (0 == strcmp(lpszProc, "glDrawElements"))
+	else if (0 == std::strcmp(lpszProc, "glDrawElements"))
 		return reinterpret_cast<PROC>(glDrawElements);
-	else if (0 == strcmp(lpszProc, "glEnable"))
+	else if (0 == std::strcmp(lpszProc, "glEnable"))
 		return reinterpret_cast<PROC>(glEnable);
-	else if (0 == strcmp(lpszProc, "glFinish"))
+	else if (0 == std::strcmp(lpszProc, "glFinish"))
 		return reinterpret_cast<PROC>(glFinish);
-	else if (0 == strcmp(lpszProc, "glFlush"))
+	else if (0 == std::strcmp(lpszProc, "glFlush"))
 		return reinterpret_cast<PROC>(glFlush);
-	else if (0 == strcmp(lpszProc, "glFrontFace"))
+	else if (0 == std::strcmp(lpszProc, "glFrontFace"))
 		return reinterpret_cast<PROC>(glFrontFace);
-	else if (0 == strcmp(lpszProc, "glGenTextures"))
+	else if (0 == std::strcmp(lpszProc, "glGenTextures"))
 		return reinterpret_cast<PROC>(glGenTextures);
-	else if (0 == strcmp(lpszProc, "glGetBooleanv"))
+	else if (0 == std::strcmp(lpszProc, "glGetBooleanv"))
 		return reinterpret_cast<PROC>(glGetBooleanv);
-	else if (0 == strcmp(lpszProc, "glGetDoublev"))
+	else if (0 == std::strcmp(lpszProc, "glGetDoublev"))
 		return reinterpret_cast<PROC>(glGetDoublev);
-	else if (0 == strcmp(lpszProc, "glGetFloatv"))
+	else if (0 == std::strcmp(lpszProc, "glGetFloatv"))
 		return reinterpret_cast<PROC>(glGetFloatv);
-	else if (0 == strcmp(lpszProc, "glGetIntegerv"))
+	else if (0 == std::strcmp(lpszProc, "glGetIntegerv"))
 		return reinterpret_cast<PROC>(glGetIntegerv);
-	else if (0 == strcmp(lpszProc, "glGetError"))
+	else if (0 == std::strcmp(lpszProc, "glGetError"))
 		return reinterpret_cast<PROC>(glGetError);
-	else if (0 == strcmp(lpszProc, "glGetPointerv"))
+	else if (0 == std::strcmp(lpszProc, "glGetPointerv"))
 		return reinterpret_cast<PROC>(glGetPointerv);
-	else if (0 == strcmp(lpszProc, "glGetString"))
+	else if (0 == std::strcmp(lpszProc, "glGetString"))
 		return reinterpret_cast<PROC>(glGetString);
-	else if (0 == strcmp(lpszProc, "glGetTexImage"))
+	else if (0 == std::strcmp(lpszProc, "glGetTexImage"))
 		return reinterpret_cast<PROC>(glGetTexImage);
-	else if (0 == strcmp(lpszProc, "glGetTexLevelParameterfv"))
+	else if (0 == std::strcmp(lpszProc, "glGetTexLevelParameterfv"))
 		return reinterpret_cast<PROC>(glGetTexLevelParameterfv);
-	else if (0 == strcmp(lpszProc, "glGetTexLevelParameteriv"))
+	else if (0 == std::strcmp(lpszProc, "glGetTexLevelParameteriv"))
 		return reinterpret_cast<PROC>(glGetTexLevelParameteriv);
-	else if (0 == strcmp(lpszProc, "glGetTexParameterfv"))
+	else if (0 == std::strcmp(lpszProc, "glGetTexParameterfv"))
 		return reinterpret_cast<PROC>(glGetTexParameterfv);
-	else if (0 == strcmp(lpszProc, "glGetTexParameteriv"))
+	else if (0 == std::strcmp(lpszProc, "glGetTexParameteriv"))
 		return reinterpret_cast<PROC>(glGetTexParameteriv);
-	else if (0 == strcmp(lpszProc, "glHint"))
+	else if (0 == std::strcmp(lpszProc, "glHint"))
 		return reinterpret_cast<PROC>(glHint);
-	else if (0 == strcmp(lpszProc, "glIsEnabled"))
+	else if (0 == std::strcmp(lpszProc, "glIsEnabled"))
 		return reinterpret_cast<PROC>(glIsEnabled);
-	else if (0 == strcmp(lpszProc, "glIsTexture"))
+	else if (0 == std::strcmp(lpszProc, "glIsTexture"))
 		return reinterpret_cast<PROC>(glIsTexture);
-	else if (0 == strcmp(lpszProc, "glLineWidth"))
+	else if (0 == std::strcmp(lpszProc, "glLineWidth"))
 		return reinterpret_cast<PROC>(glLineWidth);
-	else if (0 == strcmp(lpszProc, "glLogicOp"))
+	else if (0 == std::strcmp(lpszProc, "glLogicOp"))
 		return reinterpret_cast<PROC>(glLogicOp);
-	else if (0 == strcmp(lpszProc, "glPixelStoref"))
+	else if (0 == std::strcmp(lpszProc, "glPixelStoref"))
 		return reinterpret_cast<PROC>(glPixelStoref);
-	else if (0 == strcmp(lpszProc, "glPixelStorei"))
+	else if (0 == std::strcmp(lpszProc, "glPixelStorei"))
 		return reinterpret_cast<PROC>(glPixelStorei);
-	else if (0 == strcmp(lpszProc, "glPointSize"))
+	else if (0 == std::strcmp(lpszProc, "glPointSize"))
 		return reinterpret_cast<PROC>(glPointSize);
-	else if (0 == strcmp(lpszProc, "glPolygonMode"))
+	else if (0 == std::strcmp(lpszProc, "glPolygonMode"))
 		return reinterpret_cast<PROC>(glPolygonMode);
-	else if (0 == strcmp(lpszProc, "glPolygonOffset"))
+	else if (0 == std::strcmp(lpszProc, "glPolygonOffset"))
 		return reinterpret_cast<PROC>(glPolygonOffset);
-	else if (0 == strcmp(lpszProc, "glReadBuffer"))
+	else if (0 == std::strcmp(lpszProc, "glReadBuffer"))
 		return reinterpret_cast<PROC>(glReadBuffer);
-	else if (0 == strcmp(lpszProc, "glReadPixels"))
+	else if (0 == std::strcmp(lpszProc, "glReadPixels"))
 		return reinterpret_cast<PROC>(glReadPixels);
-	else if (0 == strcmp(lpszProc, "glScissor"))
+	else if (0 == std::strcmp(lpszProc, "glScissor"))
 		return reinterpret_cast<PROC>(glScissor);
-	else if (0 == strcmp(lpszProc, "glStencilFunc"))
+	else if (0 == std::strcmp(lpszProc, "glStencilFunc"))
 		return reinterpret_cast<PROC>(glStencilFunc);
-	else if (0 == strcmp(lpszProc, "glStencilMask"))
+	else if (0 == std::strcmp(lpszProc, "glStencilMask"))
 		return reinterpret_cast<PROC>(glStencilMask);
-	else if (0 == strcmp(lpszProc, "glStencilOp"))
+	else if (0 == std::strcmp(lpszProc, "glStencilOp"))
 		return reinterpret_cast<PROC>(glStencilOp);
-	else if (0 == strcmp(lpszProc, "glTexImage1D"))
+	else if (0 == std::strcmp(lpszProc, "glTexImage1D"))
 		return reinterpret_cast<PROC>(glTexImage1D);
-	else if (0 == strcmp(lpszProc, "glTexImage2D"))
+	else if (0 == std::strcmp(lpszProc, "glTexImage2D"))
 		return reinterpret_cast<PROC>(glTexImage2D);
-	else if (0 == strcmp(lpszProc, "glTexParameterf"))
+	else if (0 == std::strcmp(lpszProc, "glTexParameterf"))
 		return reinterpret_cast<PROC>(glTexParameterf);
-	else if (0 == strcmp(lpszProc, "glTexParameterfv"))
+	else if (0 == std::strcmp(lpszProc, "glTexParameterfv"))
 		return reinterpret_cast<PROC>(glTexParameterfv);
-	else if (0 == strcmp(lpszProc, "glTexParameteri"))
+	else if (0 == std::strcmp(lpszProc, "glTexParameteri"))
 		return reinterpret_cast<PROC>(glTexParameteri);
-	else if (0 == strcmp(lpszProc, "glTexParameteriv"))
+	else if (0 == std::strcmp(lpszProc, "glTexParameteriv"))
 		return reinterpret_cast<PROC>(glTexParameteriv);
-	else if (0 == strcmp(lpszProc, "glTexSubImage1D"))
+	else if (0 == std::strcmp(lpszProc, "glTexSubImage1D"))
 		return reinterpret_cast<PROC>(glTexSubImage1D);
-	else if (0 == strcmp(lpszProc, "glTexSubImage2D"))
+	else if (0 == std::strcmp(lpszProc, "glTexSubImage2D"))
 		return reinterpret_cast<PROC>(glTexSubImage2D);
-	else if (0 == strcmp(lpszProc, "glViewport"))
+	else if (0 == std::strcmp(lpszProc, "glViewport"))
 		return reinterpret_cast<PROC>(glViewport);
 
 	if (!s_hooks_installed)

@@ -80,7 +80,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		// Make sure the driver actually supports the requested extensions
 		const auto add_extension = [&extensions, &enabled_extensions](const char *name, bool required) {
 			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
-				[name](const auto &props) { return strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
+				[name](const auto &props) { return std::strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
 				it != extensions.end())
 			{
 				enabled_extensions.push_back(name);

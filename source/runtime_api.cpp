@@ -855,11 +855,8 @@ void reshade::runtime::set_preprocessor_definition(const char *name, const char 
 	auto preset_it = _preset_preprocessor_definitions.begin();
 	for (; preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
 	{
-		char current_name[128] = "";
 		const size_t equals_index = preset_it->find('=');
-		preset_it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
-
-		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+		if (equals_index != std::string::npos && name == preset_it->substr(0, equals_index))
 			break;
 	}
 
@@ -891,33 +888,27 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, char *value
 	if (name == nullptr || length == nullptr)
 		return false;
 
-	for (auto it = _preset_preprocessor_definitions.begin(); it != _preset_preprocessor_definitions.end(); ++it)
+	for (auto preset_it = _preset_preprocessor_definitions.begin(); preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
 	{
-		char current_name[128] = "";
-		const size_t equals_index = it->find('=');
-		it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
-
-		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+		const size_t equals_index = preset_it->find('=');
+		if (equals_index != std::string::npos && name == preset_it->substr(0, equals_index))
 		{
 			if (value != nullptr && *length != 0)
-				value[it->copy(value, *length - 1, equals_index + 1)] = '\0';
+				value[preset_it->copy(value, *length - 1, equals_index + 1)] = '\0';
 
-			*length = it->size() - (equals_index + 1);
+			*length = preset_it->size() - (equals_index + 1);
 			return true;
 		}
 	}
-	for (auto it = _global_preprocessor_definitions.begin(); it != _global_preprocessor_definitions.end(); ++it)
+	for (auto global_it = _global_preprocessor_definitions.begin(); global_it != _global_preprocessor_definitions.end(); ++global_it)
 	{
-		char current_name[128] = "";
-		const size_t equals_index = it->find('=');
-		it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
-
-		if (strcmp(name, current_name) == 0 && equals_index != std::string::npos)
+		const size_t equals_index = global_it->find('=');
+		if (equals_index != std::string::npos && name == global_it->substr(0, equals_index))
 		{
 			if (value != nullptr && *length != 0)
-				value[it->copy(value, *length - 1, equals_index + 1)] = '\0';
+				value[global_it->copy(value, *length - 1, equals_index + 1)] = '\0';
 
-			*length = it->size() - (equals_index + 1);
+			*length = global_it->size() - (equals_index + 1);
 			return true;
 		}
 	}
