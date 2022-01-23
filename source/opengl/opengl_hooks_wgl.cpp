@@ -1131,8 +1131,9 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	#define HOOK_PROC(name) \
 		reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 #else
-	#define HOOK_PROC(name) \ // This does not work because the hooks are not registered then and thus 'reshade::hooks::call' will fail
-		if (0 == strcmp(lpszProc, #name)) \
+	// This does not work because the hooks are not registered then and thus 'reshade::hooks::call' will fail
+	#define HOOK_PROC(name) \
+		if (0 == std::strcmp(lpszProc, #name)) \
 			return reinterpret_cast<PROC>(name)
 #endif
 
