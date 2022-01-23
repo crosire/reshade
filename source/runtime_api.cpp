@@ -325,6 +325,9 @@ void reshade::runtime::set_uniform_value_bool(api::effect_uniform_variable handl
 
 	set_uniform_value(*variable, values, count, array_index);
 
+	if (variable->special == special_uniform::none)
+		save_current_preset();
+
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
 #endif
@@ -343,6 +346,9 @@ void reshade::runtime::set_uniform_value_float(api::effect_uniform_variable hand
 #endif
 
 	set_uniform_value(*variable, values, count, array_index);
+
+	if (variable->special == special_uniform::none)
+		save_current_preset();
 
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
@@ -363,6 +369,9 @@ void reshade::runtime::set_uniform_value_int(api::effect_uniform_variable handle
 
 	set_uniform_value(*variable, values, count, array_index);
 
+	if (variable->special == special_uniform::none)
+		save_current_preset();
+
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
 #endif
@@ -381,6 +390,9 @@ void reshade::runtime::set_uniform_value_uint(api::effect_uniform_variable handl
 #endif
 
 	set_uniform_value(*variable, values, count, array_index);
+
+	if (variable->special == special_uniform::none)
+		save_current_preset();
 
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
@@ -879,6 +891,8 @@ void reshade::runtime::set_preprocessor_definition(const char *name, const char 
 		}
 	}
 
+	// Save preset first, as preprocessor definitions are reset to those in the current preset during reloading
+	save_current_preset();
 	reload_effects();
 #endif
 }
