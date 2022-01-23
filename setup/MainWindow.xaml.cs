@@ -103,6 +103,7 @@ namespace ReShade.Setup
 				return;
 			}
 
+			var signed = false;
 			if (productVersion.Contains(" "))
 			{
 				NavigationPanel.Background = System.Windows.Media.Brushes.Crimson;
@@ -115,7 +116,7 @@ namespace ReShade.Setup
 				{
 					zip.GetEntry("ReShade64.dll").ExtractToFile(tempFileName, true);
 
-					X509Certificate2.GetCertContentType(tempFileName);
+					signed = X509Certificate2.GetCertContentType(tempFileName) != X509ContentType.Unknown;
 				}
 				catch
 				{
@@ -222,6 +223,11 @@ namespace ReShade.Setup
 				appPage.PathBox.TextChanged += (sender2, e2) => NextButton.IsEnabled = !string.IsNullOrEmpty(appPage.FileName) && Path.GetExtension(appPage.FileName) == ".exe" && File.Exists(appPage.FileName);
 
 				ResetStatus();
+
+				if (!signed)
+				{
+					MessageBox.Show("This version of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+				}
 			}
 		}
 
