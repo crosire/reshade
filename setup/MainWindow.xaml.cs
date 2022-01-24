@@ -216,7 +216,7 @@ namespace ReShade.Setup
 
 				if (!signed)
 				{
-					MessageBox.Show("This version of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+					MessageBox.Show("This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
 				}
 			}
 		}
@@ -425,7 +425,7 @@ namespace ReShade.Setup
 			}
 			else
 			{
-				InstallStep1();
+				Task.Run(InstallStep1);
 			}
 		}
 		void InstallStep1()
@@ -607,9 +607,11 @@ namespace ReShade.Setup
 			}
 			else
 			{
-				modulePath = Path.Combine(commonPath, is64Bit ? "ReShade64" : "ReShade32", is64Bit ? "ReShade64.dll" : "ReShade32.dll");
+				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
+				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
-				var overrideMetaLayerManifest = new JsonFile(Path.Combine(commonPath, is64Bit ? "ReShade64_override.json" : "ReShade32_override.json"));
+				var overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
+				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
 
 				if (overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys) && appKeys.Contains(targetPath))
 				{
@@ -724,7 +726,7 @@ namespace ReShade.Setup
 					return;
 				}
 
-				string overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
+				var overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
 
 				if (!File.Exists(overrideMetaLayerPath))
 				{
@@ -1191,9 +1193,8 @@ In that event here are some steps you can try to resolve this:
 		{
 			if (targetApi == Api.Vulkan)
 			{
-				string moduleName = is64Bit ? "ReShade64" : "ReShade32";
-				string overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
-
+				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
+				var overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
 				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
 
 				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);
@@ -1301,7 +1302,7 @@ In that event here are some steps you can try to resolve this:
 
 				targetPath = appPage.FileName;
 
-				Task.Run(InstallStep0);
+				InstallStep0();
 				return;
 			}
 
