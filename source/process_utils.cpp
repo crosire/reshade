@@ -29,7 +29,7 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 	utf8::unchecked::utf8to16(command_line.cbegin(), command_line.cend(), std::back_inserter(command_line_wide));
 
 	DWORD  process_creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP;
-	STARTUPINFO si = { sizeof(STARTUPINFO) };
+	STARTUPINFOW si = { sizeof(STARTUPINFOW) };
 	PROCESS_INFORMATION pi = { 0 };
 	if (no_window)
 	{
@@ -49,13 +49,13 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 
 	bool success = false;
 
-	if (LookupPrivilegeValueW(nullptr, SE_INCREASE_QUOTA_NAME, &new_state->Privileges[0].Luid) != FALSE &&
+	if (LookupPrivilegeValue(nullptr, SE_INCREASE_QUOTA_NAME, &new_state->Privileges[0].Luid) != FALSE &&
 		AdjustTokenPrivileges(process_token_handle, FALSE, new_state, state_buffer_size, previous_state, &state_buffer_size) != FALSE &&
 		GetLastError() != ERROR_NOT_ALL_ASSIGNED)
 	{
 		// Current process is elevated
 
-		HWND shell_window_handle = GetShellWindow();
+		const HWND shell_window_handle = GetShellWindow();
 		if (shell_window_handle == nullptr)
 			goto exit_failure;
 
@@ -63,7 +63,7 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 		GetWindowThreadProcessId(shell_window_handle, &shell_process_id);
 
 		HANDLE shell_process_handle = nullptr;
-		if (shell_process_id == 0 || (shell_process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, shell_process_id)) == nullptr)
+		if (shell_process_id == 0 || !(shell_process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, shell_process_id)))
 			goto exit_failure;
 
 		HANDLE desktop_token_handle = nullptr;
@@ -79,10 +79,8 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 
 		if (duplicated_token_handle)
 			CloseHandle(duplicated_token_handle);
-
 		if (desktop_token_handle)
 			CloseHandle(desktop_token_handle);
-
 		if (shell_process_handle)
 			CloseHandle(shell_process_handle);
 	}
