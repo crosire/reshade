@@ -295,7 +295,7 @@ namespace reshade::api
 		/// <summary>
 		/// Memory heap the resource allocation is placed in.
 		/// </summary>
-		memory_heap heap = memory_heap::gpu_only;
+		memory_heap heap = memory_heap::unknown;
 		/// <summary>
 		/// Flags that specify how this resource may be used.
 		/// </summary>
