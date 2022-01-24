@@ -69,12 +69,10 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 	else
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy, s_vr_swapchain);
+		// TODO: Call 'present' event for both submits, with the respective bounds as source rectangle and eye as destination rectangle
+		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy, s_vr_swapchain, nullptr, nullptr, 0, nullptr);
 #endif
 		s_vr_swapchain->on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(device_proxy, s_vr_swapchain);
-#endif
 
 		const auto target_texture = reinterpret_cast<ID3D10Texture2D *>(s_vr_swapchain->get_current_back_buffer().handle);
 
@@ -127,12 +125,9 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 	else
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy->_immediate_context, s_vr_swapchain);
+		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy->_immediate_context, s_vr_swapchain, nullptr, nullptr, 0, nullptr);
 #endif
 		s_vr_swapchain->on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(device_proxy->_immediate_context, s_vr_swapchain);
-#endif
 
 		const auto target_texture = reinterpret_cast<ID3D11Texture2D *>(s_vr_swapchain->get_current_back_buffer().handle);
 
@@ -176,12 +171,9 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 		std::unique_lock<std::mutex> lock(command_queue_proxy->_mutex);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(command_queue_proxy.get(), s_vr_swapchain);
+		reshade::invoke_addon_event<reshade::addon_event::present>(command_queue_proxy.get(), s_vr_swapchain, nullptr, nullptr, 0, nullptr);
 #endif
 		s_vr_swapchain->on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(command_queue_proxy.get(), s_vr_swapchain);
-#endif
 
 		command_queue_proxy->flush_immediate_command_list();
 
@@ -229,12 +221,9 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 	else
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(g_current_context, s_vr_swapchain);
+		reshade::invoke_addon_event<reshade::addon_event::present>(g_current_context, s_vr_swapchain, nullptr, nullptr, 0, nullptr);
 #endif
 		s_vr_swapchain->on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(g_current_context, s_vr_swapchain);
-#endif
 
 		const GLuint target_rbo = s_vr_swapchain->get_current_back_buffer().handle & 0xFFFFFFFF;
 
@@ -289,13 +278,11 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	else
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(queue, s_vr_swapchain);
+		reshade::invoke_addon_event<reshade::addon_event::present>(queue, s_vr_swapchain, nullptr, nullptr, 0, nullptr);
 #endif
 		s_vr_swapchain->on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(queue, s_vr_swapchain);
-#endif
 
+		assert(queue == s_vr_swapchain->get_command_queue());
 		queue->flush_immediate_command_list();
 
 		vr::VRVulkanTextureData_t target_texture = *texture;

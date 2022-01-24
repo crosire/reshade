@@ -189,6 +189,10 @@ void reshade::d3d11::swapchain_impl::on_present()
 		immediate_context->Draw(3, 0);
 	}
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_present>(this);
+#endif
+
 	// Apply previous state from application
 	_app_state.apply_and_release();
 }

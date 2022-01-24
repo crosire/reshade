@@ -126,6 +126,10 @@ void reshade::openvr::swapchain_impl::on_present()
 
 	runtime::on_present();
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_present>(this);
+#endif
+
 	switch (_device->get_api())
 	{
 	case api::device_api::d3d9:

@@ -1386,13 +1386,13 @@ namespace reshade
 		/// <item><description>vkQueuePresentKHR</description></item>
 		/// <item><description>IVRCompositor::Submit</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects)</c></para>
 		/// </summary>
 		present,
 
 		/// <summary>
 		/// Called after ReShade has rendered its overlay.
-		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::effect_runtime *runtime)</c></para>
+		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime)</c></para>
 		/// </summary>
 		reshade_present,
 
@@ -1544,9 +1544,9 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_command_list, void, api::command_queue *queue, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_present, void, api::command_queue *queue, api::effect_runtime *runtime);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_present, void, api::effect_runtime *runtime);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_begin_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_finish_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reloaded_effects, void, api::effect_runtime *runtime);

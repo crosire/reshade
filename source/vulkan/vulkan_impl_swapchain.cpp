@@ -146,6 +146,10 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 
 	runtime::on_present();
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_present>(this);
+#endif
+
 #ifndef NDEBUG
 	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)
 	if (static_cast<device_impl *>(_device)->_wait_for_idle_happened)

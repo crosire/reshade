@@ -1006,8 +1006,7 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 	if (create_info.mipLevels > 1 && (create_info.usage & (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
 		desc.flags |= api::resource_flags::generate_mipmaps;
 
-	const auto external_memory_info = find_in_structure_chain<VkExternalMemoryImageCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO);
-	if (external_memory_info != nullptr)
+	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryImageCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO))
 	{
 		if (external_memory_info->handleTypes != 0)
 		{
@@ -1027,8 +1026,7 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBuffe
 	desc.buffer.size = create_info.size;
 	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 
-	const auto external_memory_info = find_in_structure_chain<VkExternalMemoryBufferCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO);
-	if (external_memory_info != nullptr)
+	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryBufferCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO))
 	{
 		if (external_memory_info->handleTypes != 0)
 		{
@@ -1265,10 +1263,7 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 		desc.graphics.rasterizer_state.scissor_enable = true;
 
 #ifdef VK_EXT_conservative_rasterization
-		const auto conservative_rasterization_info = find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(
-			rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT);
-
-		if (conservative_rasterization_info != nullptr)
+		if (const auto conservative_rasterization_info = find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT))
 		{
 			desc.graphics.rasterizer_state.conservative_rasterization = static_cast<uint32_t>(conservative_rasterization_info->conservativeRasterizationMode);
 		}
@@ -1357,9 +1352,7 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 #ifdef VK_KHR_dynamic_rendering
 	else
 	{
-		const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfoKHR>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR);
-
-		if (dynamic_rendering_info != nullptr)
+		if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfoKHR>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR))
 		{
 			if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
 				desc.graphics.depth_stencil_format = convert_format(dynamic_rendering_info->depthAttachmentFormat);

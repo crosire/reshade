@@ -729,7 +729,7 @@ static bool on_generate_mipmaps(reshade::api::command_list *, reshade::api::reso
 	return false;
 }
 
-static void on_present(reshade::api::command_queue *, reshade::api::swapchain *)
+static void on_present(reshade::api::command_queue *, reshade::api::swapchain *, const reshade::api::rect *, const reshade::api::rect *, uint32_t, const reshade::api::rect *)
 {
 	if (!s_do_capture)
 		return;

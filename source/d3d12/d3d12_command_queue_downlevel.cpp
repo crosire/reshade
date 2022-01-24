@@ -44,16 +44,14 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this);
+	// Do not call 'present' event before 'init_swapchain' event
+	if (_width != 0 && _height != 0)
+		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
 #endif
 
 	assert(pSourceTex2D != nullptr);
 
 	swapchain_impl::on_present(pSourceTex2D, hWindow);
-
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::reshade_present>(_parent_queue, this);
-#endif
 
 	_parent_queue->flush_immediate_command_list();
 

@@ -604,8 +604,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
 
 		// Patch the format list in the create info of the application
-		if (const VkImageFormatListCreateInfoKHR *format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR); format_list_info2 != nullptr)
+		if (const auto format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR))
 		{
 			format_list.insert(format_list.end(),
 				format_list_info2->pViewFormats, format_list_info2->pViewFormats + format_list_info2->viewFormatCount);
@@ -849,12 +848,58 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			if (swapchain_impl != nullptr)
 			{
 #if RESHADE_ADDON
-				reshade::invoke_addon_event<reshade::addon_event::present>(queue_impl, swapchain_impl);
+				uint32_t dirty_rect_count = 0;
+				temp_mem<reshade::api::rect, 16> dirty_rects;
+
+				const auto present_regions = find_in_structure_chain<VkPresentRegionsKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR);
+				if (present_regions != nullptr)
+				{
+					assert(present_regions->swapchainCount == pPresentInfo->swapchainCount);
+
+					dirty_rect_count = present_regions->pRegions[i].rectangleCount;
+					if (dirty_rect_count > 16)
+						dirty_rects.p = new reshade::api::rect[dirty_rect_count];
+
+					const VkRectLayerKHR *rects = present_regions->pRegions[i].pRectangles;
+					for (uint32_t k = 0; k < dirty_rect_count; ++k)
+					{
+						dirty_rects[k] = {
+							rects[k].offset.x,
+							rects[k].offset.y,
+							rects[k].offset.x + static_cast<int32_t>(rects[k].extent.width),
+							rects[k].offset.y + static_cast<int32_t>(rects[k].extent.height)
+						};
+					}
+				}
+
+				reshade::api::rect source_rect, dest_rect;
+
+				const auto display_present_info = find_in_structure_chain<VkDisplayPresentInfoKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR);
+				if (display_present_info != nullptr)
+				{
+					source_rect = {
+						display_present_info->srcRect.offset.x,
+						display_present_info->srcRect.offset.y,
+						display_present_info->srcRect.offset.x + static_cast<int32_t>(display_present_info->srcRect.extent.width),
+						display_present_info->srcRect.offset.y + static_cast<int32_t>(display_present_info->srcRect.extent.height)
+					};
+					dest_rect = {
+						display_present_info->dstRect.offset.x,
+						display_present_info->dstRect.offset.y,
+						display_present_info->dstRect.offset.x + static_cast<int32_t>(display_present_info->dstRect.extent.width),
+						display_present_info->dstRect.offset.y + static_cast<int32_t>(display_present_info->dstRect.extent.height)
+					};
+				}
+
+				reshade::invoke_addon_event<reshade::addon_event::present>(
+					queue_impl,
+					swapchain_impl,
+					display_present_info != nullptr ? &source_rect : nullptr,
+					display_present_info != nullptr ? &dest_rect : nullptr,
+					dirty_rect_count,
+					dirty_rect_count != 0 ? dirty_rects.p : nullptr);
 #endif
 				swapchain_impl->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
-#if RESHADE_ADDON
-				reshade::invoke_addon_event<reshade::addon_event::reshade_present>(queue_impl, swapchain_impl);
-#endif
 			}
 		}
 

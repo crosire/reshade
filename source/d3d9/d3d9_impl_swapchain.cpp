@@ -128,6 +128,10 @@ void reshade::d3d9::swapchain_impl::on_present()
 	if (_backbuffer_resolved != _backbuffer)
 		device_impl->_orig->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer.get(), nullptr, D3DTEXF_NONE);
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_present>(this);
+#endif
+
 	// Apply previous state from application
 	_app_state.apply_and_release();
 	if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)

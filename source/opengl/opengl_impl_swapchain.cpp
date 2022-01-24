@@ -157,6 +157,10 @@ void reshade::opengl::swapchain_impl::on_present()
 	glDrawBuffer(GL_BACK);
 	glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_present>(this);
+#endif
+
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
 }

@@ -112,7 +112,7 @@ void DXGISwapChain::runtime_resize()
 		break;
 	}
 }
-void DXGISwapChain::runtime_present(UINT flags)
+void DXGISwapChain::runtime_present(UINT flags, const DXGI_PRESENT_PARAMETERS *params)
 {
 	// Some D3D11 games test presentation for timing and composition purposes
 	// These calls are not rendering related, but rather a status request for the D3D runtime and as such should be ignored
@@ -128,30 +128,39 @@ void DXGISwapChain::runtime_present(UINT flags)
 	{
 	case 10:
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)), _impl);
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
+			_impl,
+			nullptr,
+			nullptr,
+			params != nullptr ? params->DirtyRectsCount : 0,
+			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
 		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)), _impl);
-#endif
 		break;
 	case 11:
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context, _impl);
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
+			_impl,
+			nullptr,
+			nullptr,
+			params != nullptr ? params->DirtyRectsCount : 0,
+			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
 		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context, _impl);
-#endif
 		break;
 	case 12:
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D12CommandQueue *>(_direct3d_command_queue), _impl);
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			static_cast<D3D12CommandQueue *>(_direct3d_command_queue),
+			_impl,
+			nullptr,
+			nullptr,
+			params != nullptr ? params->DirtyRectsCount : 0,
+			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
 		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(static_cast<D3D12CommandQueue *>(_direct3d_command_queue), _impl);
-#endif
 		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();
 		break;
 	}
@@ -441,7 +450,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppU
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
-	runtime_present(PresentFlags);
+	runtime_present(PresentFlags, pPresentParameters);
 
 	if (_force_vsync)
 		SyncInterval = 1;

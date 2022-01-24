@@ -474,7 +474,7 @@ static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 	target_state.merge(source_state);
 }
 
-static void on_present(command_queue *, swapchain *swapchain)
+static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
 {
 	// Simply assume that every swap chain has an associated effect runtime
 	const auto runtime = static_cast<effect_runtime *>(swapchain);

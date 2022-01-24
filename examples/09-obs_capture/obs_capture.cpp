@@ -211,7 +211,7 @@ static void capture_impl_shmem(reshade::api::command_queue *queue, reshade::api:
 	data.cur_tex = next_tex;
 }
 
-static void on_present(reshade::api::command_queue *queue, reshade::api::effect_runtime *swapchain)
+static void on_present(reshade::api::effect_runtime *swapchain)
 {
 	if (global_hook_info == nullptr)
 		return;
@@ -227,9 +227,9 @@ static void on_present(reshade::api::command_queue *queue, reshade::api::effect_
 		reshade::api::resource back_buffer = swapchain->get_current_back_buffer();
 
 		if (data.using_shtex)
-			capture_impl_shtex(queue, back_buffer);
+			capture_impl_shtex(swapchain->get_command_queue(), back_buffer);
 		else
-			capture_impl_shmem(queue, back_buffer);
+			capture_impl_shmem(swapchain->get_command_queue(), back_buffer);
 	}
 }
 

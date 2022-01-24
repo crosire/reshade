@@ -240,7 +240,7 @@ static void on_execute(command_queue *, command_list *cmd_list)
 	cmd_data.current_texture_list.clear();
 }
 
-static void on_present(command_queue *queue, swapchain *swapchain)
+static void on_present(command_queue *queue, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
 {
 	device *const device = swapchain->get_device();
 

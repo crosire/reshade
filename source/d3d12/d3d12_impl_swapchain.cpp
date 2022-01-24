@@ -133,6 +133,10 @@ void reshade::d3d12::swapchain_impl::on_present()
 		return;
 
 	runtime::on_present();
+
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_present>(this);
+#endif
 }
 
 bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwnd)

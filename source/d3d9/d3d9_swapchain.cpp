@@ -109,17 +109,19 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::present>(
+		_device,
+		this,
+		reinterpret_cast<const reshade::api::rect *>(pSourceRect),
+		reinterpret_cast<const reshade::api::rect *>(pDestRect),
+		pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
+		pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
+#endif
+
 	// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
-	{
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(_device, this);
-#endif
 		swapchain_impl::on_present();
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::reshade_present>(_device, this);
-#endif
-	}
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }

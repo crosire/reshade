@@ -63,7 +63,7 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 		GetWindowThreadProcessId(shell_window_handle, &shell_process_id);
 
 		HANDLE shell_process_handle = nullptr;
-		if (shell_process_id == 0 || !(shell_process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, shell_process_id)))
+		if (shell_process_id == 0 || (shell_process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, shell_process_id)) == nullptr)
 			goto exit_failure;
 
 		HANDLE desktop_token_handle = nullptr;
