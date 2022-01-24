@@ -41,6 +41,18 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 	GET_DISPATCH_PTR_FROM(BeginCommandBuffer, device_impl);
 	return trampoline(commandBuffer, pBeginInfo);
 }
+VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	reshade::invoke_addon_event<reshade::addon_event::close_command_list>(cmd_impl);
+#endif
+
+	GET_DISPATCH_PTR_FROM(EndCommandBuffer, device_impl);
+	return trampoline(commandBuffer);
+}
 
 void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
 {

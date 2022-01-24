@@ -94,9 +94,11 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(end_query);
 		CASE(copy_query_pool_results);
 		CASE(reset_command_list);
+		CASE(close_command_list);
 		CASE(execute_command_list);
 		CASE(execute_secondary_command_list);
 		CASE(present);
+		CASE(reshade_present);
 		CASE(reshade_begin_effects);
 		CASE(reshade_finish_effects);
 		CASE(reshade_reloaded_effects);

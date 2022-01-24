@@ -132,6 +132,10 @@ D3D12_COMMAND_LIST_TYPE STDMETHODCALLTYPE D3D12GraphicsCommandList::GetType()
 
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::close_command_list>(this);
+#endif
+
 	return _orig->Close();
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator *pAllocator, ID3D12PipelineState *pInitialState)

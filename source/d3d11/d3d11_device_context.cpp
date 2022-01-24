@@ -1114,6 +1114,10 @@ UINT    STDMETHODCALLTYPE D3D11DeviceContext::GetContextFlags()
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList)
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::close_command_list>(this);
+#endif
+
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
 	if (SUCCEEDED(hr))
 	{

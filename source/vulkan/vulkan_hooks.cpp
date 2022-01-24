@@ -70,6 +70,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(AllocateCommandBuffers);
 	HOOK_PROC(FreeCommandBuffers);
 	HOOK_PROC(BeginCommandBuffer);
+	HOOK_PROC(EndCommandBuffer);
 
 	HOOK_PROC(CmdBindPipeline);
 	HOOK_PROC(CmdSetViewport);
