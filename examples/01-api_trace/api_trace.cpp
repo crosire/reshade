@@ -65,6 +65,8 @@ static inline auto to_string(reshade::api::pipeline_stage value)
 		return "compute_shader";
 	case reshade::api::pipeline_stage::input_assembler:
 		return "input_assembler";
+	case reshade::api::pipeline_stage::stream_output:
+		return "stream_output";
 	case reshade::api::pipeline_stage::rasterizer:
 		return "rasterizer";
 	case reshade::api::pipeline_stage::depth_stencil:
@@ -207,6 +209,8 @@ static inline auto to_string(reshade::api::resource_usage value)
 		return "vertex_buffer";
 	case reshade::api::resource_usage::constant_buffer:
 		return "constant_buffer";
+	case reshade::api::resource_usage::stream_output:
+		return "stream_output";
 	case reshade::api::resource_usage::indirect_argument:
 		return "indirect_argument";
 	case reshade::api::resource_usage::depth_stencil:

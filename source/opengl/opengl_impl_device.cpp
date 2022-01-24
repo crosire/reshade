@@ -381,6 +381,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		case api::resource_usage::constant_buffer:
 			target = GL_UNIFORM_BUFFER;
 			break;
+		case api::resource_usage::stream_output:
+			target = GL_TRANSFORM_FEEDBACK_BUFFER;
+			break;
 		default:
 			target = GL_COPY_WRITE_BUFFER;
 			if (desc.heap == api::memory_heap::gpu_to_cpu)
@@ -890,15 +893,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 
 	glGenTextures(1, &object);
 
-	if (target != GL_TEXTURE_BUFFER)
-	{
-		// Number of levels and layers are clamped to those of the original texture
-		glTextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, desc.texture.layer_count);
-
-		glBindTexture(target, object);
-		glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
-	}
-	else
+	if (desc.type == reshade::api::resource_view_type::buffer)
 	{
 		glBindTexture(target, object);
 
@@ -912,6 +907,14 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 			assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 			glTexBufferRange(target, internal_format, resource_object, static_cast<GLintptr>(desc.buffer.offset), static_cast<GLsizeiptr>(desc.buffer.size));
 		}
+	}
+	else
+	{
+		// Number of levels and layers are clamped to those of the original texture
+		glTextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, desc.texture.layer_count);
+
+		glBindTexture(target, object);
+		glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
 	}
 
 	status = glGetError();
@@ -1758,7 +1761,8 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 {
 	*out_handle = { 0 };
 
-	if (desc.graphics.rasterizer_state.conservative_rasterization)
+	if (desc.graphics.stream_output_state.rasterized_stream != 0 || // OpenGL always uses stream zero to pass along vertices
+		desc.graphics.rasterizer_state.conservative_rasterization)
 		return false;
 
 	GLuint vs, hs, ds, gs, ps;

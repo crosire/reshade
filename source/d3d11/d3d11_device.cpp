@@ -527,7 +527,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.vertex_shader.code;
-		BytecodeLength  = desc.graphics.vertex_shader.code_size;
+		BytecodeLength = desc.graphics.vertex_shader.code_size;
 	}
 #endif
 
@@ -564,7 +564,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderB
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.geometry_shader.code;
-		BytecodeLength  = desc.graphics.geometry_shader.code_size;
+		BytecodeLength = desc.graphics.geometry_shader.code_size;
 	}
 #endif
 
@@ -594,14 +594,16 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 	if (ppGeometryShader == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, nullptr);
 
-	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::geometry_shader };
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::geometry_shader | reshade::api::pipeline_stage::stream_output };
 	desc.graphics.geometry_shader.code = pShaderBytecode;
 	desc.graphics.geometry_shader.code_size = BytecodeLength;
+	desc.graphics.stream_output_state.rasterized_stream = RasterizedStream;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.geometry_shader.code;
-		BytecodeLength  = desc.graphics.geometry_shader.code_size;
+		BytecodeLength = desc.graphics.geometry_shader.code_size;
+		RasterizedStream = desc.graphics.stream_output_state.rasterized_stream;
 	}
 #endif
 
@@ -638,7 +640,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.pixel_shader.code;
-		BytecodeLength  = desc.graphics.pixel_shader.code_size;
+		BytecodeLength = desc.graphics.pixel_shader.code_size;
 	}
 #endif
 
@@ -675,7 +677,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.hull_shader.code;
-		BytecodeLength  = desc.graphics.hull_shader.code_size;
+		BytecodeLength = desc.graphics.hull_shader.code_size;
 	}
 #endif
 
@@ -712,7 +714,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.domain_shader.code;
-		BytecodeLength  = desc.graphics.domain_shader.code_size;
+		BytecodeLength = desc.graphics.domain_shader.code_size;
 	}
 #endif
 
@@ -749,7 +751,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.compute.shader.code;
-		BytecodeLength  = desc.compute.shader.code_size;
+		BytecodeLength = desc.compute.shader.code_size;
 	}
 #endif
 

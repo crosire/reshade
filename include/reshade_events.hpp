@@ -812,6 +812,7 @@ namespace reshade
 		/// <item><description>IDirect3DDevice9::SetVertexShader</description></item>
 		/// <item><description>IDirect3DDevice9::SetPixelShader</description></item>
 		/// <item><description>IDirect3DDevice9::SetVertexDeclaration</description></item>
+		/// <item><description>IDirect3DDevice9::ProcessVertices</description></item>
 		/// <item><description>ID3D10Device::VSSetShader</description></item>
 		/// <item><description>ID3D10Device::GSSetShader</description></item>
 		/// <item><description>ID3D10Device::PSSetShader</description></item>
@@ -1005,10 +1006,28 @@ namespace reshade
 		bind_vertex_buffers,
 
 		/// <summary>
+		/// Called after:
+		/// <list type="bullet">
+		/// <item><description>IDirect3DDevice9::ProcessVertices</description></item>
+		/// <item><description>ID3D10Device::SOSetTargets</description></item>
+		/// <item><description>ID3D11DeviceContext::SOSetTargets</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SOSetTargets</description></item>
+		/// <item><description>glBindBufferBase</description></item>
+		/// <item><description>glBindBufferRange</description></item>
+		/// <item><description>glBindBuffersBase</description></item>
+		/// <item><description>glBindBuffersRange</description></item>
+		/// <item><description>vkCmdBindTransformFeedbackBuffersEXT</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)</c></para>
+		/// </summary>
+		bind_stream_output_buffers,
+
+		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::DrawPrimitive</description></item>
 		/// <item><description>IDirect3DDevice9::DrawPrimitiveUP</description></item>
+		/// <item><description>IDirect3DDevice9::ProcessVertices</description></item>
 		/// <item><description>ID3D10Device::Draw</description></item>
 		/// <item><description>ID3D10Device::DrawInstanced</description></item>
 		/// <item><description>ID3D11DeviceContext::Draw</description></item>
@@ -1526,6 +1545,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_descriptor_sets, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_index_buffer, void, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_vertex_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_stream_output_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw, bool, api::command_list *cmd_list, uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_indexed, bool, api::command_list *cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);

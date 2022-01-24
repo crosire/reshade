@@ -386,11 +386,11 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot,
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppVertexBuffers);
 #endif
 
-	uint64_t offsets_64[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<uint64_t, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> offsets_64(NumBuffers);
 	for (UINT i = 0; i < NumBuffers; ++i)
 		offsets_64[i] = pOffsets[i];
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumBuffers, buffer_handles, offsets_64, pStrides);
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumBuffers, buffer_handles, offsets_64.p, pStrides);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
@@ -569,6 +569,29 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetDepthStencilState(ID3D11Depth
 void    STDMETHODCALLTYPE D3D11DeviceContext::SOSetTargets(UINT NumBuffers, ID3D11Buffer *const *ppSOTargets, const UINT *pOffsets)
 {
 	_orig->SOSetTargets(NumBuffers, ppSOTargets, pOffsets);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	assert(NumBuffers <= D3D11_SO_BUFFER_SLOT_COUNT);
+
+	if (!reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
+		return;
+
+#ifndef WIN64
+	temp_mem<reshade::api::resource, D3D11_SO_BUFFER_SLOT_COUNT> buffer_handles_mem(NumBuffers);
+	for (UINT i = 0; i < NumBuffers; ++i)
+		buffer_handles_mem[i] = to_handle(ppSOTargets[i]);
+	const auto buffer_handles = buffer_handles_mem.p;
+#else
+	static_assert(sizeof(*ppSOTargets) == sizeof(reshade::api::resource));
+	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppSOTargets);
+#endif
+
+	temp_mem<uint64_t, D3D11_SO_BUFFER_SLOT_COUNT> offsets_64(NumBuffers);
+	for (UINT i = 0; i < NumBuffers; ++i)
+		offsets_64[i] = pOffsets[i];
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, NumBuffers, buffer_handles, offsets_64.p, nullptr);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawAuto()
 {

@@ -2157,25 +2157,34 @@ void APIENTRY glBindBufferBase(GLenum target, GLuint index, GLuint buffer)
 	trampoline(target, index, buffer);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (g_current_context && (
-		target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) &&
-		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+	if (g_current_context)
 	{
-		const reshade::api::buffer_range descriptor_data = {
-			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
-			0,
-			UINT64_MAX
-		};
+		if ((target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) && reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		{
+			const reshade::api::buffer_range descriptor_data = {
+				reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
+				0,
+				UINT64_MAX
+			};
 
-		const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
-		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 1;
+			const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
+			const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 1;
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context,
-			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::device_impl'
-			reshade::opengl::global_pipeline_layout, layout_param,
-			reshade::api::descriptor_set_update { {}, index, 0, 1, type, &descriptor_data });
+			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+				g_current_context,
+				reshade::api::shader_stage::all,
+				// See global pipeline layout specified in 'device_impl::device_impl'
+				reshade::opengl::global_pipeline_layout, layout_param,
+				reshade::api::descriptor_set_update{ {}, index, 0, 1, type, &descriptor_data });
+		}
+		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
+		{
+			const reshade::api::resource buffer_handle = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
+			uint64_t offset_64 = 0;
+			uint64_t max_size_64 = UINT64_MAX;
+
+			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, index, 1, &buffer_handle, &offset_64, &max_size_64);
+		}
 	}
 #endif
 }
@@ -2185,25 +2194,34 @@ void APIENTRY glBindBufferRange(GLenum target, GLuint index, GLuint buffer, GLin
 	trampoline(target, index, buffer, offset, size);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (g_current_context && (
-		target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) &&
-		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+	if (g_current_context)
 	{
-		const reshade::api::buffer_range descriptor_data = {
-			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
-			static_cast<uint64_t>(offset),
-			static_cast<uint64_t>(size)
-		};
+		if ((target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) && reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		{
+			const reshade::api::buffer_range descriptor_data = {
+				reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
+				static_cast<uint64_t>(offset),
+				static_cast<uint64_t>(size)
+			};
 
-		const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
-		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 1;
+			const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
+			const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 1;
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context,
-			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::device_impl'
-			reshade::opengl::global_pipeline_layout, layout_param,
-			reshade::api::descriptor_set_update { {}, index, 0, 1, type, &descriptor_data });
+			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+				g_current_context,
+				reshade::api::shader_stage::all,
+				// See global pipeline layout specified in 'device_impl::device_impl'
+				reshade::opengl::global_pipeline_layout, layout_param,
+				reshade::api::descriptor_set_update{ {}, index, 0, 1, type, &descriptor_data });
+		}
+		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
+		{
+			const reshade::api::resource buffer_handle = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
+			uint64_t offset_64 = offset;
+			uint64_t max_size_64 = size;
+
+			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, index, 1, &buffer_handle, &offset_64, &max_size_64);
+		}
 	}
 #endif
 }
@@ -3250,34 +3268,58 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 	trampoline(target, first, count, buffers);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (g_current_context && (
-		target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) &&
-		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+	if (g_current_context)
 	{
-		temp_mem<reshade::api::buffer_range> descriptor_data(count);
-		if (buffers != nullptr)
+		if ((target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) && reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		{
-			for (GLsizei i = 0; i < count; ++i)
+			temp_mem<reshade::api::buffer_range> descriptor_data(count);
+			if (buffers != nullptr)
 			{
-				descriptor_data[i].buffer = reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]);
-				descriptor_data[i].offset = 0;
-				descriptor_data[i].size = UINT64_MAX;
+				for (GLsizei i = 0; i < count; ++i)
+				{
+					descriptor_data[i].buffer = reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]);
+					descriptor_data[i].offset = 0;
+					descriptor_data[i].size = UINT64_MAX;
+				}
 			}
+			else
+			{
+				std::memset(descriptor_data.p, 0, count * sizeof(reshade::api::buffer_range));
+			}
+
+			const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
+			const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 1;
+
+			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+				g_current_context,
+				reshade::api::shader_stage::all,
+				// See global pipeline layout specified in 'device_impl::device_impl'
+				reshade::opengl::global_pipeline_layout, layout_param,
+				reshade::api::descriptor_set_update{ {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
 		}
-		else
+		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{
-			std::memset(descriptor_data.p, 0, count * sizeof(reshade::api::buffer_range));
+			temp_mem<reshade::api::resource> buffer_handles(count);
+			temp_mem<uint64_t> offsets_64(count);
+			temp_mem<uint64_t> max_sizes_64(count);
+			if (buffers != nullptr)
+			{
+				for (GLsizei i = 0; i < count; ++i)
+				{
+					buffer_handles[i] = reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]);
+					offsets_64[i] = 0;
+					max_sizes_64[i] = UINT64_MAX;
+				}
+			}
+			else
+			{
+				std::memset(buffer_handles.p, 0, count * sizeof(reshade::api::resource));
+				std::memset(offsets_64.p, 0, count * sizeof(reshade::api::resource));
+				std::memset(max_sizes_64.p, 0, count * sizeof(reshade::api::resource));
+			}
+
+			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, first, count, buffer_handles.p, offsets_64.p, max_sizes_64.p);
 		}
-
-		const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
-		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 1;
-
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context,
-			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::device_impl'
-			reshade::opengl::global_pipeline_layout, layout_param,
-			reshade::api::descriptor_set_update { {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
 	}
 #endif
 }
@@ -3287,36 +3329,60 @@ void APIENTRY glBindBuffersRange(GLenum target, GLuint first, GLsizei count, con
 	trampoline(target, first, count, buffers, offsets, sizes);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (g_current_context && (
-		target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) &&
-		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+	if (g_current_context)
 	{
-		temp_mem<reshade::api::buffer_range> descriptor_data(count);
-		if (buffers != nullptr)
+		if ((target == GL_UNIFORM_BUFFER || target == GL_SHADER_STORAGE_BUFFER) && reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		{
-			assert(offsets != nullptr && sizes != nullptr);
-
-			for (GLsizei i = 0; i < count; ++i)
+			temp_mem<reshade::api::buffer_range> descriptor_data(count);
+			if (buffers != nullptr)
 			{
-				descriptor_data[i].buffer = reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]);
-				descriptor_data[i].offset = static_cast<uint64_t>(offsets[i]);
-				descriptor_data[i].size = static_cast<uint64_t>(sizes[i]);
+				assert(offsets != nullptr && sizes != nullptr);
+
+				for (GLsizei i = 0; i < count; ++i)
+				{
+					descriptor_data[i].buffer = reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]);
+					descriptor_data[i].offset = static_cast<uint64_t>(offsets[i]);
+					descriptor_data[i].size = static_cast<uint64_t>(sizes[i]);
+				}
 			}
+			else
+			{
+				std::memset(descriptor_data.p, 0, count * sizeof(reshade::api::buffer_range));
+			}
+
+			const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
+			const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 1;
+
+			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+				g_current_context,
+				reshade::api::shader_stage::all,
+				// See global pipeline layout specified in 'device_impl::device_impl'
+				reshade::opengl::global_pipeline_layout, layout_param,
+				reshade::api::descriptor_set_update{ {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
 		}
-		else
+		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{
-			std::memset(descriptor_data.p, 0, count * sizeof(reshade::api::buffer_range));
+			temp_mem<reshade::api::resource> buffer_handles(count);
+			temp_mem<uint64_t> offsets_64(count);
+			temp_mem<uint64_t> max_sizes_64(count);
+			if (buffers != nullptr)
+			{
+				for (GLsizei i = 0; i < count; ++i)
+				{
+					buffer_handles[i] = reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]);
+					offsets_64[i] = static_cast<uint64_t>(offsets[i]);
+					max_sizes_64[i] = static_cast<uint64_t>(sizes[i]);
+				}
+			}
+			else
+			{
+				std::memset(buffer_handles.p, 0, count * sizeof(reshade::api::resource));
+				std::memset(offsets_64.p, 0, count * sizeof(reshade::api::resource));
+				std::memset(max_sizes_64.p, 0, count * sizeof(reshade::api::resource));
+			}
+
+			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, first, count, buffer_handles.p, offsets_64.p, max_sizes_64.p);
 		}
-
-		const auto type = (target == GL_UNIFORM_BUFFER) ? reshade::api::descriptor_type::constant_buffer : reshade::api::descriptor_type::shader_storage_buffer;
-		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 1;
-
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context,
-			reshade::api::shader_stage::all,
-			// See global pipeline layout specified in 'device_impl::device_impl'
-			reshade::opengl::global_pipeline_layout, layout_param,
-			reshade::api::descriptor_set_update { {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
 	}
 #endif
 }

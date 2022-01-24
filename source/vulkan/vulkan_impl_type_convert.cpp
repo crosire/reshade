@@ -381,6 +381,10 @@ auto reshade::vulkan::convert_access_to_usage(VkAccessFlags flags) -> api::resou
 		result |= api::resource_usage::vertex_buffer;
 	if ((flags & VK_ACCESS_UNIFORM_READ_BIT) != 0)
 		result |= api::resource_usage::constant_buffer;
+#ifdef VK_EXT_transform_feedback
+	if ((flags & VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT) != 0)
+		result |= api::resource_usage::stream_output;
+#endif
 	return result;
 }
 auto reshade::vulkan::convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage
@@ -446,6 +450,10 @@ auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAc
 		result |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
 	if ((state & api::resource_usage::constant_buffer) != 0)
 		result |= VK_ACCESS_UNIFORM_READ_BIT;
+#ifdef VK_EXT_transform_feedback
+	if ((state & api::resource_usage::stream_output) != 0)
+		result |= VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT;
+#endif
 	return result;
 }
 auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state, bool src_stage) -> VkImageLayout
@@ -513,6 +521,10 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 		result |= VK_PIPELINE_STAGE_TRANSFER_BIT;
 	if ((state & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+#ifdef VK_EXT_transform_feedback
+	if ((state & (api::resource_usage::stream_output)) != 0)
+		result |= VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT;
+#endif
 	return result;
 }
 
@@ -608,6 +620,13 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+#ifdef VK_EXT_transform_feedback
+	if ((usage & api::resource_usage::stream_output) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
+#endif
 }
 void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, api::resource_usage &usage)
 {
@@ -631,6 +650,10 @@ void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFla
 		usage |= api::resource_usage::copy_dest;
 	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) != 0)
 		usage |= api::resource_usage::copy_source;
+#ifdef VK_EXT_transform_feedback
+	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT) != 0)
+		usage |= api::resource_usage::stream_output;
+#endif
 }
 
 void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamplerCreateInfo &create_info)
@@ -1262,6 +1285,13 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 		desc.graphics.rasterizer_state.depth_clip_enable = !rasterization_state_info.depthClampEnable;
 		desc.graphics.rasterizer_state.scissor_enable = true;
 
+#ifdef VK_EXT_transform_feedback
+		if (const auto stream_info = find_in_structure_chain<VkPipelineRasterizationStateStreamCreateInfoEXT>(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT))
+		{
+			desc.graphics.stream_output_state.rasterized_stream = stream_info->rasterizationStream;
+		}
+#endif
+
 #ifdef VK_EXT_conservative_rasterization
 		if (const auto conservative_rasterization_info = find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT))
 		{
@@ -1616,21 +1646,36 @@ auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
 		return VK_QUERY_TYPE_TIMESTAMP;
 	case api::query_type::pipeline_statistics:
 		return VK_QUERY_TYPE_PIPELINE_STATISTICS;
+#ifdef VK_EXT_transform_feedback
+	case api::query_type::stream_output_statistics_0:
+	case api::query_type::stream_output_statistics_1:
+	case api::query_type::stream_output_statistics_2:
+	case api::query_type::stream_output_statistics_3:
+		return VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT;
+#endif
 	default:
 		assert(false);
 		return VK_QUERY_TYPE_MAX_ENUM;
 	}
 }
-auto reshade::vulkan::convert_query_type(VkQueryType type) -> api::query_type
+auto reshade::vulkan::convert_query_type(VkQueryType type, uint32_t index) -> api::query_type
 {
 	switch (type)
 	{
 	case VK_QUERY_TYPE_OCCLUSION:
+		assert(index == 0);
 		return api::query_type::occlusion;
 	case VK_QUERY_TYPE_TIMESTAMP:
+		assert(index == 0);
 		return api::query_type::timestamp;
 	case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+		assert(index == 0);
 		return api::query_type::pipeline_statistics;
+#ifdef VK_EXT_transform_feedback
+	case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+		assert(index < 4);
+		return static_cast<api::query_type>(static_cast<uint32_t>(api::query_type::stream_output_statistics_0) + index);
+#endif
 	default:
 		assert(false);
 		return static_cast<api::query_type>(UINT32_MAX);

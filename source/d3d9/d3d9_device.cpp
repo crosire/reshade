@@ -1802,7 +1802,35 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, UINT DestIndex, UINT VertexCount, IDirect3DVertexBuffer9 *pDestBuffer, IDirect3DVertexDeclaration9 *pVertexDecl, DWORD Flags)
 {
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	com_ptr<IDirect3DVertexDeclaration9> prev_decl;
+	_orig->GetVertexDeclaration(&prev_decl);
+
+	const reshade::api::resource buffer = to_handle(pDestBuffer);
+	const uint64_t offset_64 = DestIndex; // TODO: Multiply with vertex stride
+
+	_current_stream_output = pDestBuffer;
+	_current_stream_output_offset = DestIndex;
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, 1, &buffer, &offset_64, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, to_handle(pVertexDecl));
+
+	HRESULT hr = D3D_OK;
+	if (!reshade::invoke_addon_event<reshade::addon_event::draw>(this, VertexCount, 1, SrcStartIndex, 0))
+		hr = _orig->ProcessVertices(SrcStartIndex, _current_stream_output_offset, VertexCount, _current_stream_output, pVertexDecl, Flags);
+
+	const reshade::api::resource prev_buffer = { 0 };
+	const uint64_t prev_offset_64 = 0;
+
+	_current_stream_output = nullptr;
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, 1, &prev_buffer, &prev_offset_64, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, to_handle(prev_decl.get()));
+
+	return hr;
+#else
 	return _orig->ProcessVertices(SrcStartIndex, DestIndex, VertexCount, pDestBuffer, pVertexDecl, Flags);
+#endif
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERTEXELEMENT9 *pVertexElements, IDirect3DVertexDeclaration9 **ppDecl)
 {

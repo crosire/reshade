@@ -1142,10 +1142,21 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 		rasterization_state_info.depthBiasSlopeFactor = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
 		rasterization_state_info.lineWidth = 1.0f;
 
+#ifdef VK_EXT_transform_feedback
+		VkPipelineRasterizationStateStreamCreateInfoEXT stream_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT };
+		if (desc.graphics.stream_output_state.rasterized_stream != 0)
+		{
+			stream_info.pNext = rasterization_state_info.pNext;
+			rasterization_state_info.pNext = &stream_info;
+			stream_info.rasterizationStream = desc.graphics.stream_output_state.rasterized_stream;
+		}
+#endif
+
 #ifdef VK_EXT_conservative_rasterization
 		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
 		if (desc.graphics.rasterizer_state.conservative_rasterization != 0)
 		{
+			conservative_rasterization_info.pNext = rasterization_state_info.pNext;
 			rasterization_state_info.pNext = &conservative_rasterization_info;
 			conservative_rasterization_info.conservativeRasterizationMode = static_cast<VkConservativeRasterizationModeEXT>(desc.graphics.rasterizer_state.conservative_rasterization);
 		}

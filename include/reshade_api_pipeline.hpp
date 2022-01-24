@@ -39,7 +39,8 @@ namespace reshade::api
 		pixel_shader = 0x80,
 		compute_shader = 0x800,
 
-		input_assembler = 0x4,
+		input_assembler = 0x1,
+		stream_output = 0x2,
 		rasterizer = 0x100,
 		output_merger = 0x400,
 		depth_stencil = 0x200,
@@ -407,6 +408,17 @@ namespace reshade::api
 	};
 
 	/// <summary>
+	/// Describes the state of the stream-output stage.
+	/// </summary>
+	struct stream_output_desc
+	{
+		/// <summary>
+		/// Index of the stream output stream to be sent to the rasterizer stage.
+		/// </summary>
+		uint32_t rasterized_stream = 0;
+	};
+
+	/// <summary>
 	/// Describes the state of the rasterizer stage.
 	/// </summary>
 	struct rasterizer_desc
@@ -660,6 +672,12 @@ namespace reshade::api
 				primitive_topology topology = primitive_topology::undefined;
 
 				/// <summary>
+				/// State of the stream-output stage.
+				/// </summary>
+				/// <seealso cref="pipeline_stage::stream_output"/>
+				stream_output_desc stream_output_state;
+
+				/// <summary>
 				/// State of the rasterizer stage.
 				/// </summary>
 				/// <seealso cref="pipeline_stage::rasterizer"/>
@@ -834,7 +852,11 @@ namespace reshade::api
 		occlusion = 0,
 		binary_occlusion = 1,
 		timestamp = 2,
-		pipeline_statistics = 3
+		pipeline_statistics = 3,
+		stream_output_statistics_0 = 4,
+		stream_output_statistics_1,
+		stream_output_statistics_2,
+		stream_output_statistics_3
 	};
 
 	/// <summary>

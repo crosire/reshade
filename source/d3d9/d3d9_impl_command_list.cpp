@@ -313,10 +313,27 @@ void reshade::d3d9::device_impl::bind_vertex_buffers(uint32_t first, uint32_t co
 		_orig->SetStreamSource(first + i, reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[i].handle), offsets != nullptr ? static_cast<UINT>(offsets[i]) : 0, strides[i]);
 	}
 }
+void reshade::d3d9::device_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *)
+{
+	assert(first == 0 && count == 1);
+	assert(offsets == nullptr || offsets[0] <= std::numeric_limits<UINT>::max());
+
+	_current_stream_output = reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[0].handle);
+	_current_stream_output_offset = (offsets != nullptr) ? static_cast<UINT>(offsets[0]) : 0;
+}
 
 void reshade::d3d9::device_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
 	assert(instance_count == 1 && first_instance == 0);
+
+	if (_current_stream_output != nullptr)
+	{
+		com_ptr<IDirect3DVertexDeclaration9> decl;
+		_orig->GetVertexDeclaration(&decl);
+
+		_orig->ProcessVertices(first_vertex, _current_stream_output_offset, vertex_count, _current_stream_output, decl.get(), 0);
+		return;
+	}
 
 	_orig->DrawPrimitive(_current_prim_type, first_vertex, calc_prim_from_vertex_count(_current_prim_type, vertex_count));
 }

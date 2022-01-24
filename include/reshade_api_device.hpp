@@ -51,7 +51,7 @@ namespace reshade::api
 		compute_shader = 1,
 		/// <summary>
 		/// Specifies whether geometry shaders are supported.
-		/// If this feature is not present, the <see cref="pipeline_stage::geometry_shader"/>  stage must not be used.
+		/// If this feature is not present, the <see cref="pipeline_stage::geometry_shader"/> stage must not be used.
 		/// </summary>
 		geometry_shader,
 		/// <summary>
@@ -655,9 +655,19 @@ namespace reshade::api
 		/// <param name="first">First input slot for binding.</param>
 		/// <param name="count">Number of vertex buffers to bind.</param>
 		/// <param name="buffers">Pointer to an array of vertex buffer resources. These resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
-		/// <param name="offsets">Pointer to an array of offset values, with one for each buffer in <paramref name="buffers"/>. Each offset is the number of bytes from the start of the vertex buffer to the first vertex element to use.</param>
-		/// <param name="strides">Pointer to an array of stride values, with one for each buffer in <paramref name="strides"/>. Each stride is the size (in bytes) of the vertex element that will be used from that vertex buffer (is added to an element offset to advance to the next).</param>
+		/// <param name="offsets">Pointer to an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the vertex buffer to the first vertex element to use.</param>
+		/// <param name="strides">Pointer to an array of stride values, one for each buffer. Each stride is the size (in bytes) of the vertex element that will be used from that vertex buffer (is added to an element offset to advance to the next).</param>
 		virtual void bind_vertex_buffers(uint32_t first, uint32_t count, const resource *buffers, const uint64_t *offsets, const uint32_t *strides) = 0;
+
+		/// <summary>
+		/// Binds an array of buffers to the stream-output stage.
+		/// </summary>
+		/// <param name="first">First stream-output slot for binding.</param>
+		/// <param name="count">Number of stream-output targets to bind.</param>
+		/// <param name="buffers">Pointer to an array of buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
+		/// <param name="offsets">Pointer to an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the buffer to the first element to write to.</param>
+		/// <param name="max_sizes">Optional pointer to an array of size values, one for each buffer. Can be <see langword="nullptr"/> or have elements set to UINT64_MAX to use the entire buffer.</param>
+		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes) = 0;
 
 		/// <summary>
 		/// Draws non-indexed primitives.

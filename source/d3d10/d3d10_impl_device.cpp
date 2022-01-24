@@ -557,6 +557,7 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 
 	if (desc.graphics.hull_shader.code_size != 0 ||
 		desc.graphics.domain_shader.code_size != 0 ||
+		desc.graphics.stream_output_state.rasterized_stream != 0 ||
 		desc.graphics.rasterizer_state.conservative_rasterization ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
 		desc.graphics.topology == api::primitive_topology::triangle_fan)

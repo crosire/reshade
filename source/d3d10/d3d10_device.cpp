@@ -392,11 +392,11 @@ void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT N
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppVertexBuffers);
 #endif
 
-	uint64_t offsets_64[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	temp_mem<uint64_t, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> offsets_64(NumBuffers);
 	for (UINT i = 0; i < NumBuffers; ++i)
 		offsets_64[i] = pOffsets[i];
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumBuffers, buffer_handles, offsets_64, pStrides);
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumBuffers, buffer_handles, offsets_64.p, pStrides);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetIndexBuffer(ID3D10Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
@@ -532,6 +532,29 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetDepthStencilState(ID3D10DepthStencil
 void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffer *const *ppSOTargets, const UINT *pOffsets)
 {
 	_orig->SOSetTargets(NumBuffers, ppSOTargets, pOffsets);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	assert(NumBuffers <= D3D10_SO_BUFFER_SLOT_COUNT);
+
+	if (!reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
+		return;
+
+#ifndef WIN64
+	temp_mem<reshade::api::resource, D3D10_SO_BUFFER_SLOT_COUNT> buffer_handles_mem(NumBuffers);
+	for (UINT i = 0; i < NumBuffers; ++i)
+		buffer_handles_mem[i] = to_handle(ppSOTargets[i]);
+	const auto buffer_handles = buffer_handles_mem.p;
+#else
+	static_assert(sizeof(*ppSOTargets) == sizeof(reshade::api::resource));
+	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppSOTargets);
+#endif
+
+	temp_mem<uint64_t, D3D10_SO_BUFFER_SLOT_COUNT> offsets_64(NumBuffers);
+	for (UINT i = 0; i < NumBuffers; ++i)
+		offsets_64[i] = pOffsets[i];
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, NumBuffers, buffer_handles, offsets_64.p, nullptr);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawAuto()
 {
@@ -1259,7 +1282,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.vertex_shader.code;
-		BytecodeLength  = desc.graphics.vertex_shader.code_size;
+		BytecodeLength = desc.graphics.vertex_shader.code_size;
 	}
 #endif
 
@@ -1296,7 +1319,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.geometry_shader.code;
-		BytecodeLength  = desc.graphics.geometry_shader.code_size;
+		BytecodeLength = desc.graphics.geometry_shader.code_size;
 	}
 #endif
 
@@ -1326,14 +1349,16 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 	if (ppGeometryShader == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, OutputStreamStride, nullptr);
 
-	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::geometry_shader };
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::geometry_shader | reshade::api::pipeline_stage::stream_output };
 	desc.graphics.geometry_shader.code = pShaderBytecode;
 	desc.graphics.geometry_shader.code_size = BytecodeLength;
+	desc.graphics.stream_output_state.rasterized_stream = 0;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.geometry_shader.code;
-		BytecodeLength  = desc.graphics.geometry_shader.code_size;
+		BytecodeLength = desc.graphics.geometry_shader.code_size;
+		assert(desc.graphics.stream_output_state.rasterized_stream == 0);
 	}
 #endif
 
@@ -1370,7 +1395,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
 	{
 		pShaderBytecode = desc.graphics.pixel_shader.code;
-		BytecodeLength  = desc.graphics.pixel_shader.code_size;
+		BytecodeLength = desc.graphics.pixel_shader.code_size;
 	}
 #endif
 

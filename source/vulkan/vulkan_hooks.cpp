@@ -108,13 +108,22 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdEndRenderPass);
 	HOOK_PROC(CmdExecuteCommands);
 
+#ifdef VK_KHR_push_descriptor
 	HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR);
+#endif
+#ifdef VK_KHR_copy_commands2
 	HOOK_PROC_OPTIONAL(CmdCopyBuffer2KHR);
 	HOOK_PROC_OPTIONAL(CmdCopyImage2KHR);
 	HOOK_PROC_OPTIONAL(CmdBlitImage2KHR);
 	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2KHR);
 	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2KHR);
 	HOOK_PROC_OPTIONAL(CmdResolveImage2KHR);
+#endif
+#ifdef VK_EXT_transform_feedback
+	HOOK_PROC_OPTIONAL(CmdBindTransformFeedbackBuffersEXT);
+	HOOK_PROC_OPTIONAL(CmdBeginQueryIndexedEXT);
+	HOOK_PROC_OPTIONAL(CmdEndQueryIndexedEXT);
+#endif
 
 	if (0 == std::strcmp(pName, "vkBindBufferMemory2KHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkBindBufferMemory2);

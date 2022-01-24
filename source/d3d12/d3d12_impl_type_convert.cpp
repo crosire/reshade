@@ -196,7 +196,7 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 		desc.buffer.size = internal_desc.Width;
 
 		// Buffers may be of any type in D3D12, so add all possible usage flags
-		desc.usage |= api::resource_usage::vertex_buffer | api::resource_usage::index_buffer | api::resource_usage::constant_buffer;
+		desc.usage |= api::resource_usage::vertex_buffer | api::resource_usage::index_buffer | api::resource_usage::constant_buffer | api::resource_usage::stream_output;
 	}
 	else
 	{
@@ -694,6 +694,8 @@ void reshade::d3d12::convert_pipeline_desc(const api::pipeline_desc &desc, D3D12
 	internal_desc.PS.pShaderBytecode = desc.graphics.pixel_shader.code;
 	internal_desc.PS.BytecodeLength = desc.graphics.pixel_shader.code_size;
 
+	internal_desc.StreamOutput.RasterizedStream = desc.graphics.stream_output_state.rasterized_stream;
+
 	internal_desc.BlendState.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
 	internal_desc.BlendState.IndependentBlendEnable = TRUE;
 
@@ -789,6 +791,8 @@ reshade::api::pipeline_desc reshade::d3d12::convert_pipeline_desc(const D3D12_GR
 	}
 
 	desc.graphics.topology = convert_primitive_topology_type(internal_desc.PrimitiveTopologyType);
+
+	desc.graphics.stream_output_state.rasterized_stream = internal_desc.StreamOutput.RasterizedStream;
 
 	desc.graphics.rasterizer_state.fill_mode = convert_fill_mode(internal_desc.RasterizerState.FillMode);
 	desc.graphics.rasterizer_state.cull_mode = convert_cull_mode(internal_desc.RasterizerState.CullMode);

@@ -111,6 +111,11 @@ static void convert_resource_usage_to_bind_flags(reshade::api::resource_usage us
 		bind_flags |= D3D10_BIND_CONSTANT_BUFFER;
 	else
 		bind_flags &= ~D3D10_BIND_CONSTANT_BUFFER;
+
+	if ((usage & api::resource_usage::stream_output) != 0)
+		bind_flags |= D3D10_BIND_STREAM_OUTPUT;
+	else
+		bind_flags &= ~D3D10_BIND_STREAM_OUTPUT;
 }
 static void convert_bind_flags_to_resource_usage(UINT bind_flags, reshade::api::resource_usage &usage)
 {
@@ -132,6 +137,8 @@ static void convert_bind_flags_to_resource_usage(UINT bind_flags, reshade::api::
 		usage |= api::resource_usage::vertex_buffer;
 	if ((bind_flags & D3D10_BIND_CONSTANT_BUFFER) != 0)
 		usage |= api::resource_usage::constant_buffer;
+	if ((bind_flags & D3D10_BIND_STREAM_OUTPUT) != 0)
+		usage |= api::resource_usage::stream_output;
 }
 
 static void convert_resource_flags_to_misc_flags(reshade::api::resource_flags flags, UINT &misc_flags)
@@ -1109,6 +1116,8 @@ auto reshade::d3d10::convert_query_type(api::query_type value) -> D3D10_QUERY
 		return D3D10_QUERY_TIMESTAMP;
 	case api::query_type::pipeline_statistics:
 		return D3D10_QUERY_PIPELINE_STATISTICS;
+	case api::query_type::stream_output_statistics_0: // D3D10 only supports a single stream
+		return D3D10_QUERY_SO_STATISTICS;
 	default:
 		assert(false);
 		return static_cast<D3D10_QUERY>(UINT_MAX);

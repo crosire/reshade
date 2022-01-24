@@ -1204,6 +1204,7 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 	if (desc.graphics.hull_shader.code_size != 0 ||
 		desc.graphics.domain_shader.code_size != 0 ||
 		desc.graphics.geometry_shader.code_size != 0 ||
+		desc.graphics.stream_output_state.rasterized_stream != 0 ||
 		desc.graphics.rasterizer_state.conservative_rasterization ||
 		desc.graphics.blend_state.alpha_to_coverage_enable ||
 		desc.graphics.blend_state.logic_op_enable[0] ||

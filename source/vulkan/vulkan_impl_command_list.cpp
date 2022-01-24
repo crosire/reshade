@@ -516,33 +516,32 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 			stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 			(VkPipelineLayout)layout.handle, layout_param,
 			1, &write);
+		return;
 	}
-	else
 #endif
-	{
-		assert(update.binding == 0 && update.array_offset == 0);
 
-		const VkPipelineLayout pipeline_layout = (VkPipelineLayout)layout.handle;
-		const VkDescriptorSetLayout set_layout = (VkDescriptorSetLayout)_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipeline_layout)->set_layouts[layout_param];
+	assert(update.binding == 0 && update.array_offset == 0);
 
-		VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-		alloc_info.descriptorPool = _device_impl->_transient_descriptor_pool[_device_impl->_transient_index % 4];
-		alloc_info.descriptorSetCount = 1;
-		alloc_info.pSetLayouts = &set_layout;
+	const VkPipelineLayout pipeline_layout = (VkPipelineLayout)layout.handle;
+	const VkDescriptorSetLayout set_layout = (VkDescriptorSetLayout)_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipeline_layout)->set_layouts[layout_param];
 
-		// Access to descriptor pools must be externally synchronized, so lock for the duration of allocation from the transient descriptor pool
-		if (const std::unique_lock<std::mutex> lock(_device_impl->_mutex);
-			vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
-			return;
+	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	alloc_info.descriptorPool = _device_impl->_transient_descriptor_pool[_device_impl->_transient_index % 4];
+	alloc_info.descriptorSetCount = 1;
+	alloc_info.pSetLayouts = &set_layout;
 
-		vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
+	// Access to descriptor pools must be externally synchronized, so lock for the duration of allocation from the transient descriptor pool
+	if (const std::unique_lock<std::mutex> lock(_device_impl->_mutex);
+		vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
+		return;
 
-		vk.CmdBindDescriptorSets(_orig,
-			stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
-			(VkPipelineLayout)layout.handle,
-			layout_param, 1, &write.dstSet,
-			0, nullptr);
-	}
+	vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
+
+	vk.CmdBindDescriptorSets(_orig,
+		stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+		(VkPipelineLayout)layout.handle,
+		layout_param, 1, &write.dstSet,
+		0, nullptr);
 }
 void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
@@ -569,6 +568,13 @@ void reshade::vulkan::command_list_impl::bind_index_buffer(api::resource buffer,
 void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *)
 {
 	vk.CmdBindVertexBuffers(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets);
+}
+void reshade::vulkan::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+{
+#ifdef VK_EXT_transform_feedback
+	if (vk.CmdBindTransformFeedbackBuffersEXT != nullptr)
+		vk.CmdBindTransformFeedbackBuffersEXT(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets, max_sizes);
+#endif
 }
 
 void reshade::vulkan::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
@@ -980,7 +986,22 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::
 	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)pool.handle)->type == convert_query_type(type));
 
 	vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
-	vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
+
+	switch (type)
+	{
+	default:
+		vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
+		break;
+#ifdef VK_EXT_transform_feedback
+	case api::query_type::stream_output_statistics_0:
+	case api::query_type::stream_output_statistics_1:
+	case api::query_type::stream_output_statistics_2:
+	case api::query_type::stream_output_statistics_3:
+		if (vk.CmdBeginQueryIndexedEXT != nullptr)
+			vk.CmdBeginQueryIndexedEXT(_orig, (VkQueryPool)pool.handle, index, 0, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+		break;
+#endif
+	}
 }
 void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
@@ -989,14 +1010,24 @@ void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::qu
 	assert(pool.handle != 0);
 	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)pool.handle)->type == convert_query_type(type));
 
-	if (type == api::query_type::timestamp)
+	switch (type)
 	{
+	default:
+		vk.CmdEndQuery(_orig, (VkQueryPool)pool.handle, index);
+		break;
+	case api::query_type::timestamp:
 		vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
 		vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)pool.handle, index);
-	}
-	else
-	{
-		vk.CmdEndQuery(_orig, (VkQueryPool)pool.handle, index);
+		break;
+#ifdef VK_EXT_transform_feedback
+	case api::query_type::stream_output_statistics_0:
+	case api::query_type::stream_output_statistics_1:
+	case api::query_type::stream_output_statistics_2:
+	case api::query_type::stream_output_statistics_3:
+		if (vk.CmdEndQueryIndexedEXT != nullptr)
+			vk.CmdEndQueryIndexedEXT(_orig, (VkQueryPool)pool.handle, index, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+		break;
+#endif
 	}
 }
 void reshade::vulkan::command_list_impl::copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)

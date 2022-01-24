@@ -625,6 +625,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 	_orig->IASetVertexBuffers(StartSlot, NumViews, pViews);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	assert(pViews != nullptr || NumViews == 0);
 	assert(NumViews <= D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
 	if (!reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
@@ -646,6 +647,26 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UINT NumViews, const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews)
 {
 	_orig->SOSetTargets(StartSlot, NumViews, pViews);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	assert(pViews != nullptr || NumViews == 0);
+	assert(NumViews <= D3D12_SO_BUFFER_SLOT_COUNT);
+
+	if (!reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
+		return;
+
+	temp_mem<reshade::api::resource, D3D12_SO_BUFFER_SLOT_COUNT> buffers(NumViews);
+	temp_mem<uint64_t, D3D12_SO_BUFFER_SLOT_COUNT> offsets(NumViews);
+	temp_mem<uint64_t, D3D12_SO_BUFFER_SLOT_COUNT> max_sizes(NumViews);
+	for (UINT i = 0; i < NumViews; ++i)
+	{
+		if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
+			return;
+		max_sizes[i] = (pViews[i].SizeInBytes != 0) ? pViews[i].SizeInBytes : UINT64_MAX;
+	}
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, StartSlot, NumViews, buffers.p, offsets.p, max_sizes.p);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRenderTargetDescriptors, const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors, BOOL RTsSingleHandleToDescriptorRange, D3D12_CPU_DESCRIPTOR_HANDLE const *pDepthStencilDescriptor)
 {

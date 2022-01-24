@@ -200,6 +200,7 @@ namespace reshade::api
 		index_buffer = 0x2,
 		vertex_buffer = 0x1,
 		constant_buffer = 0x8000,
+		stream_output = 0x100,
 		indirect_argument = 0x200,
 
 		depth_stencil = 0x30,

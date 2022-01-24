@@ -75,6 +75,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(bind_descriptor_sets);
 		CASE(bind_index_buffer);
 		CASE(bind_vertex_buffers);
+		CASE(bind_stream_output_buffers);
 		CASE(draw);
 		CASE(draw_indexed);
 		CASE(dispatch);

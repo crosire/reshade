@@ -605,6 +605,25 @@ void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t 
 		glBindVertexBuffer(first + i, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
 	}
 }
+void reshade::opengl::device_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+{
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		if (offsets == nullptr || max_sizes == nullptr || max_sizes[i] == UINT64_MAX)
+		{
+			assert(offsets == nullptr || offsets[i] == 0);
+
+			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, first + i, buffers[i].handle & 0xFFFFFFFF);
+		}
+		else
+		{
+			assert(offsets[i] <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+			assert(max_sizes[i] <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+
+			glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, first + i, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), static_cast<GLsizeiptr>(max_sizes[i]));
+		}
+	}
+}
 
 void reshade::opengl::device_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
@@ -1243,19 +1262,37 @@ void reshade::opengl::device_impl::begin_query(api::query_pool pool, api::query_
 {
 	assert(pool.handle != 0);
 
-	glBeginQuery(convert_query_type(type), reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]);
+	switch (type)
+	{
+	default:
+		glBeginQuery(convert_query_type(type), reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]);
+		break;
+	case api::query_type::stream_output_statistics_0:
+	case api::query_type::stream_output_statistics_1:
+	case api::query_type::stream_output_statistics_2:
+	case api::query_type::stream_output_statistics_3:
+		glBeginQueryIndexed(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index], static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+		break;
+	}
 }
 void reshade::opengl::device_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	assert(pool.handle != 0);
 
-	if (type == api::query_type::timestamp)
+	switch (type)
 	{
-		glQueryCounter(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index], GL_TIMESTAMP);
-	}
-	else
-	{
+	default:
 		glEndQuery(convert_query_type(type));
+		break;
+	case api::query_type::timestamp:
+		glQueryCounter(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index], GL_TIMESTAMP);
+		break;
+	case api::query_type::stream_output_statistics_0:
+	case api::query_type::stream_output_statistics_1:
+	case api::query_type::stream_output_statistics_2:
+	case api::query_type::stream_output_statistics_3:
+		glEndQueryIndexed(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+		break;
 	}
 }
 void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)

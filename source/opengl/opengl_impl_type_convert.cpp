@@ -1177,7 +1177,21 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	desc.type = convert_resource_type(target);
 	desc.buffer.size = buffer_size;
 	desc.heap = api::memory_heap::gpu_only;
-	desc.usage = api::resource_usage::shader_resource | api::resource_usage::copy_dest | api::resource_usage::copy_source;
+
+	desc.usage = api::resource_usage::copy_dest | api::resource_usage::copy_source;
+	if (target == GL_ELEMENT_ARRAY_BUFFER)
+		desc.usage |= api::resource_usage::index_buffer;
+	else if (target == GL_ARRAY_BUFFER)
+		desc.usage |= api::resource_usage::vertex_buffer;
+	else if (target == GL_UNIFORM_BUFFER)
+		desc.usage |= api::resource_usage::constant_buffer;
+	else if (target == GL_TRANSFORM_FEEDBACK_BUFFER)
+		desc.usage |= api::resource_usage::stream_output;
+	else if (target == GL_DRAW_INDIRECT_BUFFER || target == GL_DISPATCH_INDIRECT_BUFFER)
+		desc.usage |= api::resource_usage::indirect_argument;
+	else
+		desc.usage |= api::resource_usage::shader_resource;
+
 	return desc;
 }
 reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth, const GLint swizzle_mask[4])
@@ -1855,6 +1869,11 @@ GLenum reshade::opengl::convert_query_type(api::query_type value)
 		return GL_SAMPLES_PASSED;
 	case api::query_type::timestamp:
 		return GL_TIMESTAMP;
+	case api::query_type::stream_output_statistics_0:
+	case api::query_type::stream_output_statistics_1:
+	case api::query_type::stream_output_statistics_2:
+	case api::query_type::stream_output_statistics_3:
+		return GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN;
 	default:
 		assert(false);
 		return GL_NONE;

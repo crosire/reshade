@@ -477,6 +477,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
 #endif
 	#pragma endregion
+	#pragma region VK_EXT_transform_feedback
+#ifdef VK_EXT_transform_feedback
+	INIT_DISPATCH_PTR(CmdBindTransformFeedbackBuffersEXT);
+	INIT_DISPATCH_PTR(CmdBeginQueryIndexedEXT);
+	INIT_DISPATCH_PTR(CmdEndQueryIndexedEXT);
+#endif
+	#pragma endregion
 	#pragma region VK_EXT_extended_dynamic_state
 #ifdef VK_EXT_extended_dynamic_state
 	if (extended_dynamic_state_ext)

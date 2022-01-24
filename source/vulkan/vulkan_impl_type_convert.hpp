@@ -183,7 +183,7 @@ namespace reshade::vulkan
 	auto convert_primitive_topology(VkPrimitiveTopology value) -> api::primitive_topology;
 
 	auto convert_query_type(api::query_type value) -> VkQueryType;
-	auto convert_query_type(VkQueryType value) -> api::query_type;
+	auto convert_query_type(VkQueryType value, uint32_t index = 0) -> api::query_type;
 
 	auto convert_descriptor_type(api::descriptor_type value, bool is_image) -> VkDescriptorType;
 	auto convert_descriptor_type(VkDescriptorType value) -> api::descriptor_type;

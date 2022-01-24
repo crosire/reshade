@@ -470,6 +470,25 @@ void reshade::d3d11::device_context_impl::bind_vertex_buffers(uint32_t first, ui
 
 	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32.p);
 }
+void reshade::d3d11::device_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *)
+{
+	assert(first == 0 && count <= D3D11_SO_BUFFER_SLOT_COUNT);
+
+#ifndef WIN64
+	temp_mem<ID3D11Buffer *, D3D11_SO_BUFFER_SLOT_COUNT> buffer_ptrs_mem(count);
+	for (uint32_t i = 0; i < count; ++i)
+		buffer_ptrs_mem[i] = reinterpret_cast<ID3D11Buffer *>(buffers[i].handle);
+	const auto buffer_ptrs = buffer_ptrs_mem.p;
+#else
+	const auto buffer_ptrs = reinterpret_cast<ID3D11Buffer *const *>(buffers);
+#endif
+
+	temp_mem<UINT, D3D11_SO_BUFFER_SLOT_COUNT> offsets_32(count);
+	for (uint32_t i = 0; i < count; ++i)
+		offsets_32[i] = static_cast<UINT>(offsets[i]);
+
+	_orig->SOSetTargets(count, buffer_ptrs, offsets_32.p);
+}
 
 void reshade::d3d11::device_context_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {

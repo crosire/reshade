@@ -444,6 +444,22 @@ void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint
 
 	_orig->IASetVertexBuffers(first, count, views.p);
 }
+void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+{
+	assert(count <= D3D12_SO_BUFFER_SLOT_COUNT);
+
+	temp_mem<D3D12_STREAM_OUTPUT_BUFFER_VIEW, D3D12_SO_BUFFER_SLOT_COUNT> views(count);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
+
+		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offsets[i];
+		views[i].SizeInBytes = max_sizes != nullptr && max_sizes[i] != UINT64_MAX ? max_sizes[0] : 0;
+		views[i].BufferFilledSizeLocation = 0; // TODO
+	}
+
+	_orig->SOSetTargets(first, count, views.p);
+}
 
 void reshade::d3d12::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
