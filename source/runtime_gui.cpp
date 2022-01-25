@@ -1175,7 +1175,7 @@ void reshade::runtime::draw_gui_home()
 	{
 		std::string filename_list;
 		for (const effect &effect : _effects)
-			if (!effect.compiled)
+			if (!effect.compiled && !effect.skipped)
 				filename_list += ' ' + effect.source_file.filename().u8string() + ',';
 
 		// Make sure there are actually effects that failed to compile, since the last reload flag may not have been reset
@@ -2950,7 +2950,7 @@ void reshade::runtime::draw_technique_editor()
 		{
 			const reshade::effect &effect = _effects[effect_index];
 
-			if (effect.compiled)
+			if (effect.compiled || effect.skipped)
 				continue;
 
 			ImGui::PushID(static_cast<int>(_techniques.size() + effect_index));
