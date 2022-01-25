@@ -10,7 +10,7 @@
 
 using namespace reshade::api;
 
-static void dump_shader_code(device_api device_type, shader_stage, const shader_desc &desc)
+static void dump_shader_code(device_api device_type, const shader_desc &desc)
 {
 	if (desc.code_size == 0)
 		return;
@@ -41,23 +41,25 @@ static void dump_shader_code(device_api device_type, shader_stage, const shader_
 	file.write(static_cast<const char *>(desc.code), desc.code_size);
 }
 
-static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, const dynamic_state *)
+static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobject_count, const pipeline_subobject *subobjects)
 {
 	const device_api device_type = device->get_api();
 
 	// Go through all shader stages that are in this pipeline and dump the associated shader code
-	if ((desc.type & pipeline_stage::vertex_shader) != 0)
-		dump_shader_code(device_type, shader_stage::vertex, desc.graphics.vertex_shader);
-	if ((desc.type & pipeline_stage::hull_shader) != 0)
-		dump_shader_code(device_type, shader_stage::hull, desc.graphics.hull_shader);
-	if ((desc.type & pipeline_stage::domain_shader) != 0)
-		dump_shader_code(device_type, shader_stage::domain, desc.graphics.domain_shader);
-	if ((desc.type & pipeline_stage::geometry_shader) != 0)
-		dump_shader_code(device_type, shader_stage::geometry, desc.graphics.geometry_shader);
-	if ((desc.type & pipeline_stage::pixel_shader) != 0)
-		dump_shader_code(device_type, shader_stage::pixel, desc.graphics.pixel_shader);
-	if ((desc.type & pipeline_stage::compute_shader) != 0)
-		dump_shader_code(device_type, shader_stage::compute, desc.compute.shader);
+	for (uint32_t i = 0; i < subobject_count; ++i)
+	{
+		switch (subobjects[i].type)
+		{
+		case pipeline_subobject_type::vertex_shader:
+		case pipeline_subobject_type::hull_shader:
+		case pipeline_subobject_type::domain_shader:
+		case pipeline_subobject_type::geometry_shader:
+		case pipeline_subobject_type::pixel_shader:
+		case pipeline_subobject_type::compute_shader:
+			dump_shader_code(device_type, *static_cast<const shader_desc *>(subobjects[i].data));
+			break;
+		}
+	}
 
 	return false;
 }

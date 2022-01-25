@@ -1179,50 +1179,127 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 	assert(false); // Not implemented
 }
 
-bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t, const api::dynamic_state *, api::pipeline *out_handle)
+bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	switch (desc.type)
+	if (subobject_count == 1)
 	{
-	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out_handle);
-	case api::pipeline_stage::input_assembler:
-		return create_input_layout(desc, out_handle);
-	case api::pipeline_stage::vertex_shader:
-		return create_vertex_shader(desc, out_handle);
-	case api::pipeline_stage::pixel_shader:
-		return create_pixel_shader(desc, out_handle);
-	default:
-		*out_handle = { 0 };
-		return false;
+		switch (subobjects->type)
+		{
+		case api::pipeline_subobject_type::vertex_shader:
+			assert(subobjects->count == 1);
+			return create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+		case api::pipeline_subobject_type::pixel_shader:
+			assert(subobjects->count == 1);
+			return create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+		case api::pipeline_subobject_type::input_layout:
+			return create_input_layout(subobjects->count, static_cast<const api::input_element *>(subobjects->data), out_handle);
+		default:
+			*out_handle = { 0 };
+			return false;
+		}
 	}
-}
-bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
+
 	*out_handle = { 0 };
 
-	// Check for unsupported states
-	if (desc.graphics.hull_shader.code_size != 0 ||
-		desc.graphics.domain_shader.code_size != 0 ||
-		desc.graphics.geometry_shader.code_size != 0 ||
-		desc.graphics.stream_output_state.rasterized_stream != 0 ||
-		desc.graphics.rasterizer_state.conservative_rasterization ||
-		desc.graphics.blend_state.alpha_to_coverage_enable ||
-		desc.graphics.blend_state.logic_op_enable[0] ||
-		desc.graphics.topology > api::primitive_topology::triangle_fan ||
-		desc.graphics.viewport_count > 1)
-		return false;
+	com_ptr<IDirect3DVertexShader9> vertex_shader;
+	com_ptr<IDirect3DPixelShader9> pixel_shader;
+	com_ptr<IDirect3DVertexDeclaration9> input_layout;
+	api::blend_desc blend_state;
+	api::rasterizer_desc rasterizer_state;
+	api::depth_stencil_desc depth_stencil_state;
+	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	uint32_t sample_mask = UINT32_MAX;
 
-#define create_state_object(name, type, condition) \
-	api::pipeline name##_handle = { 0 }; \
-	if (condition && !create_##name(desc, &name##_handle)) \
-		return false; \
-	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
+	for (uint32_t i = 0; i < subobject_count; ++i)
+	{
+		if (subobjects[i].count == 0)
+			continue;
 
-	create_state_object(vertex_shader, IDirect3DVertexShader9, desc.graphics.vertex_shader.code_size != 0);
-	create_state_object(pixel_shader, IDirect3DPixelShader9, desc.graphics.pixel_shader.code_size != 0);
+		api::pipeline temp;
 
-	create_state_object(input_layout, IDirect3DVertexDeclaration9, true);
-#undef create_state_object
+		switch (subobjects[i].type)
+		{
+		case api::pipeline_subobject_type::vertex_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+				return false;
+			vertex_shader = com_ptr<IDirect3DVertexShader9>(reinterpret_cast<IDirect3DVertexShader9 *>(temp.handle), true);
+			break;
+		case api::pipeline_subobject_type::hull_shader:
+		case api::pipeline_subobject_type::domain_shader:
+		case api::pipeline_subobject_type::geometry_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			return false; // Not supported
+		case api::pipeline_subobject_type::pixel_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+				return false;
+			pixel_shader = com_ptr<IDirect3DPixelShader9>(reinterpret_cast<IDirect3DPixelShader9 *>(temp.handle), true);
+			break;
+		case api::pipeline_subobject_type::compute_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			return false; // Not supported
+		case api::pipeline_subobject_type::input_layout:
+			assert(subobjects[i].count <= MAXD3DDECLLENGTH);
+			if (!create_input_layout(subobjects[i].count, static_cast<const api::input_element *>(subobjects[i].data), &temp))
+				return false;
+			input_layout = com_ptr<IDirect3DVertexDeclaration9>(reinterpret_cast<IDirect3DVertexDeclaration9 *>(temp.handle), true);
+			break;
+		case api::pipeline_subobject_type::stream_output_state:
+			assert(subobjects[i].count == 1);
+			return false; // Not implemented
+		case api::pipeline_subobject_type::blend_state:
+			assert(subobjects[i].count == 1);
+			blend_state = *static_cast<const api::blend_desc *>(subobjects[i].data);
+			if (blend_state.alpha_to_coverage_enable || blend_state.logic_op_enable[0])
+				return false;
+			break;
+		case api::pipeline_subobject_type::rasterizer_state:
+			assert(subobjects[i].count == 1);
+			rasterizer_state = *static_cast<const api::rasterizer_desc *>(subobjects[i].data);
+			if (rasterizer_state.conservative_rasterization)
+				return false;
+			break;
+		case api::pipeline_subobject_type::depth_stencil_state:
+			assert(subobjects[i].count == 1);
+			depth_stencil_state = *static_cast<const api::depth_stencil_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::primitive_topology:
+			assert(subobjects[i].count == 1);
+			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
+			if (topology > api::primitive_topology::triangle_fan)
+				return false;
+			break;
+		case api::pipeline_subobject_type::depth_stencil_format:
+		case api::pipeline_subobject_type::render_target_formats:
+			break; // Ignored
+		case api::pipeline_subobject_type::sample_mask:
+			assert(subobjects[i].count == 1);
+			sample_mask = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::sample_count:
+			assert(subobjects[i].count == 1);
+			break; // Ignored
+		case api::pipeline_subobject_type::viewport_count:
+			assert(subobjects[i].count == 1);
+			if (*static_cast<const uint32_t *>(subobjects[i].data) > 1)
+				return false;
+			break;
+		case api::pipeline_subobject_type::dynamic_states:
+			break; // Ignored
+		default:
+			assert(false);
+			return false;
+		}
+	}
 
 	if (FAILED(_orig->BeginStateBlock()))
 		return false;
@@ -1241,99 +1318,71 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		_orig->SetVertexDeclaration(_default_input_layout.get());
 	}
 
-	_orig->SetRenderState(D3DRS_ZENABLE,
-		desc.graphics.depth_stencil_state.depth_enable);
-	_orig->SetRenderState(D3DRS_FILLMODE,
-		convert_fill_mode(desc.graphics.rasterizer_state.fill_mode));
-	_orig->SetRenderState(D3DRS_ZWRITEENABLE,
-		desc.graphics.depth_stencil_state.depth_write_mask);
+	_orig->SetRenderState(D3DRS_ZENABLE, depth_stencil_state.depth_enable);
+	_orig->SetRenderState(D3DRS_FILLMODE, convert_fill_mode(rasterizer_state.fill_mode));
+	_orig->SetRenderState(D3DRS_ZWRITEENABLE, depth_stencil_state.depth_write_mask);
 	_orig->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
 	_orig->SetRenderState(D3DRS_LASTPIXEL, TRUE);
-	_orig->SetRenderState(D3DRS_SRCBLEND,
-		convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[0]));
-	_orig->SetRenderState(D3DRS_DESTBLEND,
-		convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[0]));
-	_orig->SetRenderState(D3DRS_CULLMODE,
-		convert_cull_mode(desc.graphics.rasterizer_state.cull_mode, desc.graphics.rasterizer_state.front_counter_clockwise));
-	_orig->SetRenderState(D3DRS_ZFUNC,
-		convert_compare_op(desc.graphics.depth_stencil_state.depth_func));
+	_orig->SetRenderState(D3DRS_SRCBLEND, convert_blend_factor(blend_state.source_color_blend_factor[0]));
+	_orig->SetRenderState(D3DRS_DESTBLEND, convert_blend_factor(blend_state.dest_color_blend_factor[0]));
+	_orig->SetRenderState(D3DRS_CULLMODE, convert_cull_mode(rasterizer_state.cull_mode, rasterizer_state.front_counter_clockwise));
+	_orig->SetRenderState(D3DRS_ZFUNC, convert_compare_op(depth_stencil_state.depth_func));
 	_orig->SetRenderState(D3DRS_DITHERENABLE, FALSE);
-	_orig->SetRenderState(D3DRS_ALPHABLENDENABLE,
-		desc.graphics.blend_state.blend_enable[0]);
+	_orig->SetRenderState(D3DRS_ALPHABLENDENABLE, blend_state.blend_enable[0]);
 	_orig->SetRenderState(D3DRS_FOGENABLE, FALSE);
-	_orig->SetRenderState(D3DRS_STENCILENABLE,
-		desc.graphics.depth_stencil_state.stencil_enable);
+	_orig->SetRenderState(D3DRS_STENCILENABLE, depth_stencil_state.stencil_enable);
 	_orig->SetRenderState(D3DRS_STENCILZFAIL,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_depth_fail_op : desc.graphics.depth_stencil_state.front_stencil_depth_fail_op));
+		convert_stencil_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_depth_fail_op : depth_stencil_state.front_stencil_depth_fail_op));
 	_orig->SetRenderState(D3DRS_STENCILFAIL,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_fail_op : desc.graphics.depth_stencil_state.front_stencil_fail_op));
+		convert_stencil_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_fail_op : depth_stencil_state.front_stencil_fail_op));
 	_orig->SetRenderState(D3DRS_STENCILPASS,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_pass_op : desc.graphics.depth_stencil_state.front_stencil_pass_op));
+		convert_stencil_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_pass_op : depth_stencil_state.front_stencil_pass_op));
 	_orig->SetRenderState(D3DRS_STENCILFUNC,
-		convert_compare_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_func : desc.graphics.depth_stencil_state.front_stencil_func));
-	_orig->SetRenderState(D3DRS_STENCILREF,
-		desc.graphics.depth_stencil_state.stencil_reference_value);
-	_orig->SetRenderState(D3DRS_STENCILMASK,
-		desc.graphics.depth_stencil_state.stencil_read_mask);
-	_orig->SetRenderState(D3DRS_STENCILWRITEMASK,
-		desc.graphics.depth_stencil_state.stencil_write_mask);
-	_orig->SetRenderState(D3DRS_CLIPPING,
-		desc.graphics.rasterizer_state.depth_clip_enable);
+		convert_compare_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_func : depth_stencil_state.front_stencil_func));
+	_orig->SetRenderState(D3DRS_STENCILREF, depth_stencil_state.stencil_reference_value);
+	_orig->SetRenderState(D3DRS_STENCILMASK, depth_stencil_state.stencil_read_mask);
+	_orig->SetRenderState(D3DRS_STENCILWRITEMASK, depth_stencil_state.stencil_write_mask);
+	_orig->SetRenderState(D3DRS_CLIPPING, rasterizer_state.depth_clip_enable);
 	_orig->SetRenderState(D3DRS_LIGHTING, FALSE);
 	_orig->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
 	_orig->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
-	_orig->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS,
-		desc.graphics.rasterizer_state.multisample_enable);
-	_orig->SetRenderState(D3DRS_MULTISAMPLEMASK,
-		desc.graphics.sample_mask);
-	_orig->SetRenderState(D3DRS_COLORWRITEENABLE,
-		desc.graphics.blend_state.render_target_write_mask[0]);
-	_orig->SetRenderState(D3DRS_BLENDOP,
-		convert_blend_op(desc.graphics.blend_state.color_blend_op[0]));
-	_orig->SetRenderState(D3DRS_SCISSORTESTENABLE,
-		desc.graphics.rasterizer_state.scissor_enable);
-	_orig->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS,
-		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.slope_scaled_depth_bias));
-	_orig->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE,
-		desc.graphics.rasterizer_state.antialiased_line_enable);
+	_orig->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, rasterizer_state.multisample_enable);
+	_orig->SetRenderState(D3DRS_MULTISAMPLEMASK, sample_mask);
+	_orig->SetRenderState(D3DRS_COLORWRITEENABLE, blend_state.render_target_write_mask[0]);
+	_orig->SetRenderState(D3DRS_BLENDOP, convert_blend_op(blend_state.color_blend_op[0]));
+	_orig->SetRenderState(D3DRS_SCISSORTESTENABLE, rasterizer_state.scissor_enable);
+	_orig->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, *reinterpret_cast<const DWORD *>(&rasterizer_state.slope_scaled_depth_bias));
+	_orig->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, rasterizer_state.antialiased_line_enable);
 	_orig->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, FALSE);
 	_orig->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE,
-		desc.graphics.rasterizer_state.cull_mode == api::cull_mode::none && (
-		desc.graphics.depth_stencil_state.front_stencil_fail_op != desc.graphics.depth_stencil_state.back_stencil_fail_op ||
-		desc.graphics.depth_stencil_state.front_stencil_depth_fail_op != desc.graphics.depth_stencil_state.back_stencil_depth_fail_op ||
-		desc.graphics.depth_stencil_state.front_stencil_pass_op != desc.graphics.depth_stencil_state.back_stencil_pass_op ||
-		desc.graphics.depth_stencil_state.front_stencil_func != desc.graphics.depth_stencil_state.back_stencil_func));
+		rasterizer_state.cull_mode == api::cull_mode::none && (
+			depth_stencil_state.front_stencil_fail_op != depth_stencil_state.back_stencil_fail_op ||
+			depth_stencil_state.front_stencil_depth_fail_op != depth_stencil_state.back_stencil_depth_fail_op ||
+			depth_stencil_state.front_stencil_pass_op != depth_stencil_state.back_stencil_pass_op ||
+			depth_stencil_state.front_stencil_func != depth_stencil_state.back_stencil_func));
 	_orig->SetRenderState(D3DRS_CCW_STENCILZFAIL,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_depth_fail_op : desc.graphics.depth_stencil_state.back_stencil_depth_fail_op));
+		convert_stencil_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.front_stencil_depth_fail_op : depth_stencil_state.back_stencil_depth_fail_op));
 	_orig->SetRenderState(D3DRS_CCW_STENCILFAIL,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_fail_op : desc.graphics.depth_stencil_state.back_stencil_fail_op));
+		convert_stencil_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.front_stencil_fail_op : depth_stencil_state.back_stencil_fail_op));
 	_orig->SetRenderState(D3DRS_CCW_STENCILPASS,
-		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_pass_op : desc.graphics.depth_stencil_state.back_stencil_pass_op));
+		convert_stencil_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.front_stencil_pass_op : depth_stencil_state.back_stencil_pass_op));
 	_orig->SetRenderState(D3DRS_CCW_STENCILFUNC,
-		convert_compare_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_func : desc.graphics.depth_stencil_state.back_stencil_func));
-	_orig->SetRenderState(D3DRS_COLORWRITEENABLE1,
-		desc.graphics.blend_state.render_target_write_mask[1]);
-	_orig->SetRenderState(D3DRS_COLORWRITEENABLE2,
-		desc.graphics.blend_state.render_target_write_mask[2]);
-	_orig->SetRenderState(D3DRS_COLORWRITEENABLE3,
-		desc.graphics.blend_state.render_target_write_mask[3]);
-	_orig->SetRenderState(D3DRS_BLENDFACTOR,
-		D3DCOLOR_COLORVALUE(desc.graphics.blend_state.blend_constant[0], desc.graphics.blend_state.blend_constant[1], desc.graphics.blend_state.blend_constant[2], desc.graphics.blend_state.blend_constant[3]));
-	_orig->SetRenderState(D3DRS_DEPTHBIAS,
-		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.depth_bias));
+		convert_compare_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.front_stencil_func : depth_stencil_state.back_stencil_func));
+	_orig->SetRenderState(D3DRS_COLORWRITEENABLE1, blend_state.render_target_write_mask[1]);
+	_orig->SetRenderState(D3DRS_COLORWRITEENABLE2, blend_state.render_target_write_mask[2]);
+	_orig->SetRenderState(D3DRS_COLORWRITEENABLE3, blend_state.render_target_write_mask[3]);
+	_orig->SetRenderState(D3DRS_BLENDFACTOR, D3DCOLOR_COLORVALUE(blend_state.blend_constant[0], blend_state.blend_constant[1], blend_state.blend_constant[2], blend_state.blend_constant[3]));
+	_orig->SetRenderState(D3DRS_DEPTHBIAS, *reinterpret_cast<const DWORD *>(&rasterizer_state.depth_bias));
 	_orig->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
-	_orig->SetRenderState(D3DRS_SRCBLENDALPHA,
-		convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[0]));
-	_orig->SetRenderState(D3DRS_DESTBLENDALPHA,
-		convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[0]));
-	_orig->SetRenderState(D3DRS_BLENDOPALPHA,
-		convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]));
+	_orig->SetRenderState(D3DRS_SRCBLENDALPHA, convert_blend_factor(blend_state.source_alpha_blend_factor[0]));
+	_orig->SetRenderState(D3DRS_DESTBLENDALPHA, convert_blend_factor(blend_state.dest_alpha_blend_factor[0]));
+	_orig->SetRenderState(D3DRS_BLENDOPALPHA, convert_blend_op(blend_state.alpha_blend_op[0]));
 
 	if (com_ptr<IDirect3DStateBlock9> state_block;
 		SUCCEEDED(_orig->EndStateBlock(&state_block)))
 	{
 		const auto impl = new pipeline_impl();
-		impl->prim_type = convert_primitive_topology(desc.graphics.topology);
+		impl->prim_type = convert_primitive_topology(topology);
 		impl->state_block = std::move(state_block);
 
 		// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
@@ -1347,12 +1396,12 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d9::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(IDirect3DVertexDeclaration9) >= 2);
 
 	std::vector<D3DVERTEXELEMENT9> internal_elements;
-	convert_pipeline_desc(desc, internal_elements);
+	convert_input_layout_desc(count, desc, internal_elements);
 
 	if (com_ptr<IDirect3DVertexDeclaration9> object;
 		internal_elements.size() == 1 || // Avoid vertex declaration creation if the input layout is empty (it always contains at least a single 'D3DDECL_END' element)
@@ -1367,14 +1416,14 @@ bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &d
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d9::device_impl::create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(IDirect3DVertexShader9) >= 2);
 
-	assert(desc.graphics.vertex_shader.spec_constants == 0);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<IDirect3DVertexShader9> object;
-		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), &object)))
+		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.code), &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -1385,14 +1434,14 @@ bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d9::device_impl::create_pixel_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(IDirect3DPixelShader9) >= 2);
 
-	assert(desc.graphics.pixel_shader.spec_constants == 0);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<IDirect3DPixelShader9> object;
-		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), &object)))
+		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.code), &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;

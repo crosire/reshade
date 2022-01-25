@@ -8,7 +8,6 @@
 #include <mutex>
 #include <sstream>
 #include <unordered_set>
-#include <unordered_map>
 #include <cassert>
 
 namespace
@@ -20,7 +19,7 @@ namespace
 	std::unordered_set<uint64_t> s_samplers;
 	std::unordered_set<uint64_t> s_resources;
 	std::unordered_set<uint64_t> s_resource_views;
-	std::unordered_map<uint64_t, reshade::api::pipeline_stage> s_pipelines;
+	std::unordered_set<uint64_t> s_pipelines;
 }
 
 static inline auto to_string(reshade::api::shader_stage value)
@@ -312,11 +311,11 @@ static void on_destroy_resource_view(reshade::api::device *device, reshade::api:
 	assert(s_resource_views.find(handle.handle) != s_resource_views.end());
 	s_resource_views.erase(handle.handle);
 }
-static void on_init_pipeline(reshade::api::device *device, const reshade::api::pipeline_desc &desc, uint32_t, const reshade::api::dynamic_state *, reshade::api::pipeline handle)
+static void on_init_pipeline(reshade::api::device *device, reshade::api::pipeline_layout, uint32_t, const reshade::api::pipeline_subobject *, reshade::api::pipeline handle)
 {
 	const std::lock_guard<std::mutex> lock(s_mutex);
 
-	s_pipelines.emplace(handle.handle, desc.type);
+	s_pipelines.emplace(handle.handle);
 }
 static void on_destroy_pipeline(reshade::api::device *device, reshade::api::pipeline handle)
 {

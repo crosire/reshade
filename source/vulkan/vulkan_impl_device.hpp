@@ -60,9 +60,7 @@ namespace reshade::vulkan
 		void update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size) final;
 		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
-		bool create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle) final;
-		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
-		bool create_graphics_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle);
+		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle) final;
 		void destroy_pipeline(api::pipeline handle) final;
 
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
@@ -85,9 +83,6 @@ namespace reshade::vulkan
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
 
 		void advance_transient_descriptor_pool();
-
-		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;
-		api::pipeline_desc convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info) const;
 
 		template <VkObjectType type, typename... Args>
 		void register_object(typename object_data<type>::Handle object, Args... args)

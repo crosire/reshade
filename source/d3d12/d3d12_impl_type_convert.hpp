@@ -60,10 +60,22 @@ namespace reshade::d3d12
 	api::resource_view_desc convert_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc);
+	void convert_shader_desc(const api::shader_desc &desc, D3D12_SHADER_BYTECODE &internal_desc);
+	api::shader_desc convert_shader_desc(const D3D12_SHADER_BYTECODE &internal_desc);
+
+	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3D12_INPUT_ELEMENT_DESC> &internal_elements);
+	void convert_input_layout_desc(uint32_t count, const D3D12_INPUT_ELEMENT_DESC *internal_elements, std::vector<api::input_element> &elements);
+
+	void convert_stream_output_desc(const api::stream_output_desc &desc, D3D12_STREAM_OUTPUT_DESC &internal_desc);
+	api::stream_output_desc convert_stream_output_desc(const D3D12_STREAM_OUTPUT_DESC &internal_desc);
+	void convert_blend_desc(const api::blend_desc &desc, D3D12_BLEND_DESC &internal_desc);
+	api::blend_desc convert_blend_desc(const D3D12_BLEND_DESC &internal_desc);
+	void convert_rasterizer_desc(const api::rasterizer_desc &desc, D3D12_RASTERIZER_DESC &internal_desc);
+	api::rasterizer_desc convert_rasterizer_desc(const D3D12_RASTERIZER_DESC &internal_desc);
+	void convert_depth_stencil_desc(const api::depth_stencil_desc &desc, D3D12_DEPTH_STENCIL_DESC &internal_desc);
+	void convert_depth_stencil_desc(const api::depth_stencil_desc &desc, D3D12_DEPTH_STENCIL_DESC1 &internal_desc);
+	api::depth_stencil_desc convert_depth_stencil_desc(const D3D12_DEPTH_STENCIL_DESC &internal_desc);
+	api::depth_stencil_desc convert_depth_stencil_desc(const D3D12_DEPTH_STENCIL_DESC1 &internal_desc);
 
 	auto convert_logic_op(api::logic_op value) -> D3D12_LOGIC_OP;
 	auto convert_logic_op(D3D12_LOGIC_OP value) -> api::logic_op;

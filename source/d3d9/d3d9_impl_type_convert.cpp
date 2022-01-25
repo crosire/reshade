@@ -694,14 +694,13 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 	return desc;
 }
 
-void reshade::d3d9::convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3DVERTEXELEMENT9> &internal_elements)
+void reshade::d3d9::convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3DVERTEXELEMENT9> &internal_elements)
 {
-	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::input_assembler);
-	internal_elements.reserve(16 + 1);
+	internal_elements.reserve(count);
 
-	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		const api::input_element &element = desc.graphics.input_layout[i];
+		const api::input_element &element = elements[i];
 
 		D3DVERTEXELEMENT9 &internal_element = internal_elements.emplace_back();
 
@@ -806,18 +805,16 @@ void reshade::d3d9::convert_pipeline_desc(const api::pipeline_desc &desc, std::v
 
 	internal_elements.push_back(D3DDECL_END());
 }
-reshade::api::pipeline_desc reshade::d3d9::convert_pipeline_desc(const D3DVERTEXELEMENT9 *elements)
+void reshade::d3d9::convert_input_layout_desc(const D3DVERTEXELEMENT9 *internal_elements, std::vector<api::input_element> &elements)
 {
-	api::pipeline_desc desc = { api::pipeline_stage::input_assembler };
+	if (internal_elements == nullptr)
+		return;
 
-	if (elements == nullptr)
-		return desc;
-
-	for (UINT i = 0; i < 16 && elements[i].Stream != 0xFF; ++i)
+	for (uint32_t i = 0; internal_elements[i].Stream != 0xFF; ++i)
 	{
-		api::input_element &element = desc.graphics.input_layout[i];
+		api::input_element &element = elements.emplace_back();
 
-		const D3DVERTEXELEMENT9 &internal_element = elements[i];
+		const D3DVERTEXELEMENT9 &internal_element = internal_elements[i];
 
 		element.buffer_binding = internal_element.Stream;
 		element.offset = internal_element.Offset;
@@ -928,8 +925,6 @@ reshade::api::pipeline_desc reshade::d3d9::convert_pipeline_desc(const D3DVERTEX
 
 		element.semantic_index = internal_element.UsageIndex;
 	}
-
-	return desc;
 }
 
 auto reshade::d3d9::convert_blend_op(D3DBLENDOP value) -> api::blend_op

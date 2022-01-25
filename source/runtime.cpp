@@ -1917,23 +1917,25 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			reshadefx::pass_info &pass_info = tech.passes[pass_index];
 			technique::pass_data &pass_data = tech.passes_data[pass_index];
 
+			std::vector<api::pipeline_subobject> subobjects;
+
 			if (!pass_info.cs_entry_point.empty())
 			{
-				api::pipeline_desc desc = { api::pipeline_stage::all_compute };
-				desc.layout = effect.layout;
-
 				const auto &cs = effect.assembly.at(pass_info.cs_entry_point).first;
-				desc.compute.shader.code = cs.data();
-				desc.compute.shader.code_size = cs.size();
+				api::shader_desc cs_desc = {};
+				cs_desc.code = cs.data();
+				cs_desc.code_size = cs.size();
 				if (_renderer_id & 0x20000)
 				{
-					desc.compute.shader.entry_point = pass_info.cs_entry_point.c_str();
-					desc.compute.shader.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
-					desc.compute.shader.spec_constant_ids = spec_constants.data();
-					desc.compute.shader.spec_constant_values = spec_data.data();
+					cs_desc.entry_point = pass_info.cs_entry_point.c_str();
+					cs_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					cs_desc.spec_constant_ids = spec_constants.data();
+					cs_desc.spec_constant_values = spec_data.data();
 				}
 
-				if (!_device->create_pipeline(desc, 0, nullptr, &pass_data.pipeline))
+				subobjects.push_back({ api::pipeline_subobject_type::compute_shader, 1, &cs_desc });
+
+				if (!_device->create_pipeline(effect.layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pass_data.pipeline))
 				{
 					effect.compiled = false;
 					_last_reload_successfull = false;
@@ -1944,38 +1946,45 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			}
 			else
 			{
-				api::pipeline_desc desc = { api::pipeline_stage::all_graphics };
-				desc.layout = effect.layout;
-
 				const auto &vs = effect.assembly.at(pass_info.vs_entry_point).first;
-				desc.graphics.vertex_shader.code = vs.data();
-				desc.graphics.vertex_shader.code_size = vs.size();
+				api::shader_desc vs_desc = {};
+				vs_desc.code = vs.data();
+				vs_desc.code_size = vs.size();
 				if (_renderer_id & 0x20000)
 				{
-					desc.graphics.vertex_shader.entry_point = pass_info.vs_entry_point.c_str();
-					desc.graphics.vertex_shader.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
-					desc.graphics.vertex_shader.spec_constant_ids = spec_constants.data();
-					desc.graphics.vertex_shader.spec_constant_values = spec_data.data();
+					vs_desc.entry_point = pass_info.vs_entry_point.c_str();
+					vs_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					vs_desc.spec_constant_ids = spec_constants.data();
+					vs_desc.spec_constant_values = spec_data.data();
 				}
+
+				subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
 
 				const auto &ps = effect.assembly.at(pass_info.ps_entry_point).first;
-				desc.graphics.pixel_shader.code = ps.data();
-				desc.graphics.pixel_shader.code_size = ps.size();
+				api::shader_desc ps_desc = {};
+				ps_desc.code = ps.data();
+				ps_desc.code_size = ps.size();
 				if (_renderer_id & 0x20000)
 				{
-					desc.graphics.pixel_shader.entry_point = pass_info.ps_entry_point.c_str();
-					desc.graphics.pixel_shader.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
-					desc.graphics.pixel_shader.spec_constant_ids = spec_constants.data();
-					desc.graphics.pixel_shader.spec_constant_values = spec_data.data();
+					ps_desc.entry_point = pass_info.ps_entry_point.c_str();
+					ps_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					ps_desc.spec_constant_ids = spec_constants.data();
+					ps_desc.spec_constant_values = spec_data.data();
 				}
+
+				subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
+
+				api::format render_target_formats[8] = {};
 
 				if (pass_info.render_target_names[0].empty())
 				{
 					pass_info.viewport_width = _width;
 					pass_info.viewport_height = _height;
 
-					desc.graphics.depth_stencil_format = _effect_stencil_format;
-					desc.graphics.render_target_formats[0] = api::format_to_default_typed(_back_buffer_format, pass_info.srgb_write_enable);
+					render_target_formats[0] = api::format_to_default_typed(_back_buffer_format, pass_info.srgb_write_enable);
+
+					subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_format, 1, &_effect_stencil_format });
+					subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, 1, &render_target_formats[0] });
 				}
 				else
 				{
@@ -1984,12 +1993,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						pass_info.viewport_width == _width &&
 						pass_info.viewport_height == _height)
 					{
-						desc.graphics.depth_stencil_format = _effect_stencil_format;
+						subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_format, 1, &_effect_stencil_format });
 					}
 
-					for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+					int render_target_count = 0;
+					for (; render_target_count < 8 && !pass_info.render_target_names[render_target_count].empty(); ++render_target_count)
 					{
-						const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = pass_info.render_target_names[k]](const auto &item) {
+						const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = pass_info.render_target_names[render_target_count]](const auto &item) {
 							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
 						assert(texture != _textures.end());
 
@@ -2003,12 +2013,16 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 						const api::resource_desc res_desc = _device->get_resource_desc(texture->resource);
 
-						pass_data.render_target_views[k] = texture->rtv[pass_info.srgb_write_enable];
-						desc.graphics.render_target_formats[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
+						render_target_formats[render_target_count] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
+
+						pass_data.render_target_views[render_target_count] = texture->rtv[pass_info.srgb_write_enable];
 					}
+
+					subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, static_cast<uint32_t>(render_target_count), render_target_formats });
 				}
 
-				desc.graphics.topology = static_cast<api::primitive_topology>(pass_info.topology);
+				api::primitive_topology topology = static_cast<api::primitive_topology>(pass_info.topology);
+				subobjects.push_back({ api::pipeline_subobject_type::primitive_topology, 1, &topology });
 
 				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
 					switch (value)
@@ -2038,7 +2052,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				};
 
 				// Technically should check for 'api::device_caps::independent_blend' support, but render target write masks are supported in D3D9, when rest is not, so just always set ...
-				auto &blend_state = desc.graphics.blend_state;
+				api::blend_desc blend_state = {};
 				for (int i = 0; i < 8; ++i)
 				{
 					blend_state.blend_enable[i] = pass_info.blend_enable[i];
@@ -2051,8 +2065,12 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					blend_state.render_target_write_mask[i] = pass_info.color_write_mask[i];
 				}
 
-				auto &rasterizer_state = desc.graphics.rasterizer_state;
+				subobjects.push_back({ api::pipeline_subobject_type::blend_state, 1, &blend_state });
+
+				api::rasterizer_desc rasterizer_state = {};
 				rasterizer_state.cull_mode = api::cull_mode::none;
+
+				subobjects.push_back({ api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_state });
 
 				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
 					switch (value) {
@@ -2082,7 +2100,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					}
 				};
 
-				auto &depth_stencil_state = desc.graphics.depth_stencil_state;
+				api::depth_stencil_desc depth_stencil_state = {};
 				depth_stencil_state.depth_enable = false;
 				depth_stencil_state.depth_write_mask = false;
 				depth_stencil_state.depth_func = api::compare_op::always;
@@ -2098,7 +2116,9 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				depth_stencil_state.front_stencil_pass_op = depth_stencil_state.back_stencil_pass_op;
 				depth_stencil_state.front_stencil_func = depth_stencil_state.back_stencil_func;
 
-				if (!_device->create_pipeline(desc, 0, nullptr, &pass_data.pipeline))
+				subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_state });
+
+				if (!_device->create_pipeline(effect.layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pass_data.pipeline))
 				{
 					effect.compiled = false;
 					_last_reload_successfull = false;

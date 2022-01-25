@@ -1638,11 +1638,6 @@ void reshade::opengl::device_impl::update_current_window_height(GLuint fbo_objec
 
 static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
 {
-	shader_object = 0;
-
-	if (desc.code_size == 0)
-		return false;
-
 	shader_object = glCreateShader(type);
 
 	if (!(desc.code_size > 4 && *static_cast<const uint32_t *>(desc.code) == 0x07230203)) // Check for SPIR-V magic number
@@ -1684,129 +1679,132 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 		}
 
 		glDeleteShader(shader_object);
-
-		shader_object = 0;
 		return false;
 	}
 }
 
-bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t, const api::dynamic_state *, api::pipeline *out_handle)
-{
-	switch (desc.type)
-	{
-	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out_handle);
-	case api::pipeline_stage::vertex_shader:
-		return create_shader_module(GL_VERTEX_SHADER, desc.graphics.vertex_shader, *reinterpret_cast<GLuint *>(out_handle));
-	case api::pipeline_stage::hull_shader:
-		return create_shader_module(GL_TESS_CONTROL_SHADER, desc.graphics.hull_shader, *reinterpret_cast<GLuint *>(out_handle));
-	case api::pipeline_stage::domain_shader:
-		return create_shader_module(GL_TESS_EVALUATION_SHADER, desc.graphics.domain_shader, *reinterpret_cast<GLuint *>(out_handle));
-	case api::pipeline_stage::geometry_shader:
-		return create_shader_module(GL_GEOMETRY_SHADER, desc.graphics.geometry_shader, *reinterpret_cast<GLuint *>(out_handle));
-	case api::pipeline_stage::pixel_shader:
-		return create_shader_module(GL_FRAGMENT_SHADER, desc.graphics.pixel_shader, *reinterpret_cast<GLuint *>(out_handle));
-	case api::pipeline_stage::compute_shader:
-		return create_compute_pipeline(desc, out_handle);
-	default:
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
 	*out_handle = { 0 };
 
-	GLuint cs;
-	const GLuint program = glCreateProgram();
+	std::vector<GLuint> shaders;
+	api::pipeline_subobject input_layout_desc = {};
+	api::blend_desc blend_desc = {};
+	api::rasterizer_desc rasterizer_desc = {};
+	api::depth_stencil_desc depth_stencil_desc = {};
+	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	uint32_t sample_mask = UINT32_MAX;
 
-	if (create_shader_module(GL_COMPUTE_SHADER, desc.compute.shader, cs))
-		glAttachShader(program, cs);
-
-	glLinkProgram(program);
-
-	if (cs != 0)
-		glDetachShader(program, cs);
-
-	glDeleteShader(cs);
-
-	GLint status = GL_FALSE;
-	glGetProgramiv(program, GL_LINK_STATUS, &status);
-
-	if (GL_FALSE == status ||
-		(desc.compute.shader.code_size != 0 && cs == 0))
+	// TODO: This potentially leaks shader objects when pipeline creation was not successfull
+	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
-		GLint log_size = 0;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
+		if (subobjects[i].count == 0)
+			continue;
 
-		if (0 != log_size)
+		switch (subobjects[i].type)
 		{
-			std::vector<char> log(log_size);
-			glGetProgramInfoLog(program, log_size, nullptr, log.data());
-
-			LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
+		case api::pipeline_subobject_type::vertex_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_shader_module(GL_VERTEX_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
+				return false;
+			break;
+		case api::pipeline_subobject_type::hull_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_shader_module(GL_TESS_CONTROL_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
+				return false;
+			break;
+		case api::pipeline_subobject_type::domain_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_shader_module(GL_TESS_EVALUATION_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
+				return false;
+			break;
+		case api::pipeline_subobject_type::geometry_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_shader_module(GL_GEOMETRY_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
+				return false;
+			break;
+		case api::pipeline_subobject_type::pixel_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_shader_module(GL_FRAGMENT_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
+				return false;
+			break;
+		case api::pipeline_subobject_type::compute_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_shader_module(GL_COMPUTE_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
+				return false;
+			break;
+		case api::pipeline_subobject_type::input_layout:
+			input_layout_desc = subobjects[i];
+			break;
+		case api::pipeline_subobject_type::stream_output_state:
+			assert(subobjects[i].count == 1);
+			return false; // Not implemented
+		case api::pipeline_subobject_type::blend_state:
+			assert(subobjects[i].count == 1);
+			blend_desc = *static_cast<const api::blend_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::rasterizer_state:
+			assert(subobjects[i].count == 1);
+			rasterizer_desc = *static_cast<const api::rasterizer_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::depth_stencil_state:
+			assert(subobjects[i].count == 1);
+			depth_stencil_desc = *static_cast<const api::depth_stencil_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::primitive_topology:
+			assert(subobjects[i].count == 1);
+			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::depth_stencil_format:
+		case api::pipeline_subobject_type::render_target_formats:
+			break; // Ignored
+		case api::pipeline_subobject_type::sample_mask:
+			assert(subobjects[i].count == 1);
+			sample_mask = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::sample_count:
+		case api::pipeline_subobject_type::viewport_count:
+			assert(subobjects[i].count == 1);
+			break;
+		case api::pipeline_subobject_type::dynamic_states:
+			break; // Ignored
+		default:
+			assert(false);
+			return false;
 		}
-
-		glDeleteProgram(program);
-		return false;
 	}
 
-	const auto state = new pipeline_impl();
-	state->program = program;
-
-	*out_handle = { reinterpret_cast<uintptr_t>(state) };
-	return true;
-}
-bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	*out_handle = { 0 };
-
-	if (desc.graphics.stream_output_state.rasterized_stream != 0 || // OpenGL always uses stream zero to pass along vertices
-		desc.graphics.rasterizer_state.conservative_rasterization)
-		return false;
-
-	GLuint vs, hs, ds, gs, ps;
 	const GLuint program = glCreateProgram();
 
-	if (create_shader_module(GL_VERTEX_SHADER, desc.graphics.vertex_shader, vs))
-		glAttachShader(program, vs);
-	if (create_shader_module(GL_TESS_CONTROL_SHADER, desc.graphics.hull_shader, hs))
-		glAttachShader(program, hs);
-	if (create_shader_module(GL_TESS_EVALUATION_SHADER, desc.graphics.domain_shader, ds))
-		glAttachShader(program, ds);
-	if (create_shader_module(GL_GEOMETRY_SHADER, desc.graphics.geometry_shader, gs))
-		glAttachShader(program, gs);
-	if (create_shader_module(GL_FRAGMENT_SHADER, desc.graphics.pixel_shader, ps))
-		glAttachShader(program, ps);
+	for (const GLuint shader : shaders)
+	{
+		glAttachShader(program, shader);
+	}
 
 	glLinkProgram(program);
 
-	if (vs != 0)
-		glDetachShader(program, vs);
-	if (hs != 0)
-		glDetachShader(program, hs);
-	if (ds != 0)
-		glDetachShader(program, ds);
-	if (gs != 0)
-		glDetachShader(program, gs);
-	if (ps != 0)
-		glDetachShader(program, ps);
-
-	glDeleteShader(vs);
-	glDeleteShader(hs);
-	glDeleteShader(ds);
-	glDeleteShader(gs);
-	glDeleteShader(ps);
+	for (const GLuint shader : shaders)
+	{
+		glDetachShader(program, shader);
+		glDeleteShader(shader);
+	}
 
 	GLint status = GL_FALSE;
 	glGetProgramiv(program, GL_LINK_STATUS, &status);
 
-	if (GL_FALSE == status ||
-		(desc.graphics.vertex_shader.code_size != 0 && vs == 0) ||
-		(desc.graphics.hull_shader.code_size != 0 && hs == 0) ||
-		(desc.graphics.domain_shader.code_size != 0 && ds == 0) ||
-		(desc.graphics.geometry_shader.code_size != 0 && gs == 0) ||
-		(desc.graphics.pixel_shader.code_size != 0 && ps == 0))
+	if (GL_FALSE == status)
 	{
 		GLint log_size = 0;
 		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
@@ -1833,9 +1831,9 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 
 		glBindVertexArray(impl->vao);
 
-		for (uint32_t i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+		for (uint32_t i = 0; i < input_layout_desc.count; ++i)
 		{
-			const auto &element = desc.graphics.input_layout[i];
+			const auto &element = static_cast<const api::input_element *>(input_layout_desc.data)[i];
 
 			glEnableVertexAttribArray(element.location);
 
@@ -1854,55 +1852,55 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 		glBindVertexArray(prev_vao);
 	}
 
-	impl->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage_enable;
-	impl->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0]; // Logic operation applies to all attachments
-	impl->logic_op = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
-	std::copy_n(desc.graphics.blend_state.blend_constant, 4, impl->blend_constant);
+	impl->sample_alpha_to_coverage = blend_desc.alpha_to_coverage_enable;
+	impl->logic_op_enable = blend_desc.logic_op_enable[0]; // Logic operation applies to all attachments
+	impl->logic_op = convert_logic_op(blend_desc.logic_op[0]);
+	std::copy_n(blend_desc.blend_constant, 4, impl->blend_constant);
 	for (int i = 0; i < 8; ++i)
 	{
-		impl->blend_enable[i] = desc.graphics.blend_state.blend_enable[i];
-		impl->blend_src[i] = convert_blend_factor(desc.graphics.blend_state.source_color_blend_factor[i]);
-		impl->blend_dst[i] = convert_blend_factor(desc.graphics.blend_state.dest_color_blend_factor[i]);
-		impl->blend_src_alpha[i] = convert_blend_factor(desc.graphics.blend_state.source_alpha_blend_factor[i]);
-		impl->blend_dst_alpha[i] = convert_blend_factor(desc.graphics.blend_state.dest_alpha_blend_factor[i]);
-		impl->blend_eq[i] = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
-		impl->blend_eq_alpha[i] = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
-		impl->color_write_mask[i][0] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 0)) != 0;
-		impl->color_write_mask[i][1] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 1)) != 0;
-		impl->color_write_mask[i][2] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 2)) != 0;
-		impl->color_write_mask[i][3] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 3)) != 0;
+		impl->blend_enable[i] = blend_desc.blend_enable[i];
+		impl->blend_src[i] = convert_blend_factor(blend_desc.source_color_blend_factor[i]);
+		impl->blend_dst[i] = convert_blend_factor(blend_desc.dest_color_blend_factor[i]);
+		impl->blend_src_alpha[i] = convert_blend_factor(blend_desc.source_alpha_blend_factor[i]);
+		impl->blend_dst_alpha[i] = convert_blend_factor(blend_desc.dest_alpha_blend_factor[i]);
+		impl->blend_eq[i] = convert_blend_op(blend_desc.color_blend_op[i]);
+		impl->blend_eq_alpha[i] = convert_blend_op(blend_desc.alpha_blend_op[i]);
+		impl->color_write_mask[i][0] = (blend_desc.render_target_write_mask[i] & (1 << 0)) != 0;
+		impl->color_write_mask[i][1] = (blend_desc.render_target_write_mask[i] & (1 << 1)) != 0;
+		impl->color_write_mask[i][2] = (blend_desc.render_target_write_mask[i] & (1 << 2)) != 0;
+		impl->color_write_mask[i][3] = (blend_desc.render_target_write_mask[i] & (1 << 3)) != 0;
 	}
 
-	impl->polygon_mode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
-	impl->cull_mode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
-	impl->front_face = desc.graphics.rasterizer_state.front_counter_clockwise ? GL_CCW : GL_CW;
-	impl->depth_clamp = !desc.graphics.rasterizer_state.depth_clip_enable;
-	impl->scissor_test = desc.graphics.rasterizer_state.scissor_enable;
-	impl->multisample_enable = desc.graphics.rasterizer_state.multisample_enable;
-	impl->line_smooth_enable = desc.graphics.rasterizer_state.antialiased_line_enable;
+	impl->polygon_mode = convert_fill_mode(rasterizer_desc.fill_mode);
+	impl->cull_mode = convert_cull_mode(rasterizer_desc.cull_mode);
+	impl->front_face = rasterizer_desc.front_counter_clockwise ? GL_CCW : GL_CW;
+	impl->depth_clamp = !rasterizer_desc.depth_clip_enable;
+	impl->scissor_test = rasterizer_desc.scissor_enable;
+	impl->multisample_enable = rasterizer_desc.multisample_enable;
+	impl->line_smooth_enable = rasterizer_desc.antialiased_line_enable;
 
 	// Polygon offset is not currently implemented
-	assert(desc.graphics.rasterizer_state.depth_bias == 0 && desc.graphics.rasterizer_state.depth_bias_clamp == 0 && desc.graphics.rasterizer_state.slope_scaled_depth_bias == 0);
+	assert(rasterizer_desc.depth_bias == 0 && rasterizer_desc.depth_bias_clamp == 0 && rasterizer_desc.slope_scaled_depth_bias == 0);
 
-	impl->depth_test = desc.graphics.depth_stencil_state.depth_enable;
-	impl->depth_mask = desc.graphics.depth_stencil_state.depth_write_mask;
-	impl->depth_func = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
-	impl->stencil_test = desc.graphics.depth_stencil_state.stencil_enable;
-	impl->stencil_read_mask = desc.graphics.depth_stencil_state.stencil_read_mask;
-	impl->stencil_write_mask = desc.graphics.depth_stencil_state.stencil_write_mask;
-	impl->stencil_reference_value = static_cast<GLint>(desc.graphics.depth_stencil_state.stencil_reference_value);
-	impl->front_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
-	impl->front_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
-	impl->front_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
-	impl->front_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
-	impl->back_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
-	impl->back_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
-	impl->back_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
-	impl->back_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
+	impl->depth_test = depth_stencil_desc.depth_enable;
+	impl->depth_mask = depth_stencil_desc.depth_write_mask;
+	impl->depth_func = convert_compare_op(depth_stencil_desc.depth_func);
+	impl->stencil_test = depth_stencil_desc.stencil_enable;
+	impl->stencil_read_mask = depth_stencil_desc.stencil_read_mask;
+	impl->stencil_write_mask = depth_stencil_desc.stencil_write_mask;
+	impl->stencil_reference_value = static_cast<GLint>(depth_stencil_desc.stencil_reference_value);
+	impl->front_stencil_op_fail = convert_stencil_op(depth_stencil_desc.front_stencil_fail_op);
+	impl->front_stencil_op_depth_fail = convert_stencil_op(depth_stencil_desc.front_stencil_depth_fail_op);
+	impl->front_stencil_op_pass = convert_stencil_op(depth_stencil_desc.front_stencil_pass_op);
+	impl->front_stencil_func = convert_compare_op(depth_stencil_desc.front_stencil_func);
+	impl->back_stencil_op_fail = convert_stencil_op(depth_stencil_desc.back_stencil_fail_op);
+	impl->back_stencil_op_depth_fail = convert_stencil_op(depth_stencil_desc.back_stencil_depth_fail_op);
+	impl->back_stencil_op_pass = convert_stencil_op(depth_stencil_desc.back_stencil_pass_op);
+	impl->back_stencil_func = convert_compare_op(depth_stencil_desc.back_stencil_func);
 
-	impl->sample_mask = desc.graphics.sample_mask;
-	impl->prim_mode = convert_primitive_topology(desc.graphics.topology);
-	impl->patch_vertices = impl->prim_mode == GL_PATCHES ? static_cast<uint32_t>(desc.graphics.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0;
+	impl->sample_mask = sample_mask;
+	impl->prim_mode = convert_primitive_topology(topology);
+	impl->patch_vertices = impl->prim_mode == GL_PATCHES ? static_cast<uint32_t>(topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0;
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;

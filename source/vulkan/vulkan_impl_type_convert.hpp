@@ -163,7 +163,20 @@ namespace reshade::vulkan
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
 
-	void convert_dynamic_states(const VkPipelineDynamicStateCreateInfo &create_info, std::vector<api::dynamic_state> &states);
+	void convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info, std::vector<api::dynamic_state> &states);
+	void convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states, bool with_extended);
+
+	void convert_input_layout_desc(const VkPipelineVertexInputStateCreateInfo *create_info, std::vector<api::input_element> &elements);
+	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<VkVertexInputBindingDescription> &vertex_bindings, std::vector<VkVertexInputAttributeDescription> &vertex_attributes);
+
+	void convert_stream_output_desc(const api::stream_output_desc &desc, VkPipelineRasterizationStateCreateInfo &create_info);
+	api::stream_output_desc convert_stream_output_desc(const VkPipelineRasterizationStateCreateInfo *create_info);
+	void convert_blend_desc(const api::blend_desc &desc, VkPipelineColorBlendStateCreateInfo &create_info, VkPipelineMultisampleStateCreateInfo &multisample_create_info);
+	api::blend_desc convert_blend_desc(const VkPipelineColorBlendStateCreateInfo *create_info, const VkPipelineMultisampleStateCreateInfo *multisample_create_info);
+	void convert_rasterizer_desc(const api::rasterizer_desc &desc, VkPipelineRasterizationStateCreateInfo &create_info);
+	api::rasterizer_desc convert_rasterizer_desc(const VkPipelineRasterizationStateCreateInfo *create_info, const VkPipelineMultisampleStateCreateInfo *multisample_create_info = nullptr);
+	void convert_depth_stencil_desc(const api::depth_stencil_desc &desc, VkPipelineDepthStencilStateCreateInfo &create_info);
+	api::depth_stencil_desc convert_depth_stencil_desc(const VkPipelineDepthStencilStateCreateInfo *create_info);
 
 	auto convert_logic_op(api::logic_op value) -> VkLogicOp;
 	auto convert_logic_op(VkLogicOp value) -> api::logic_op;

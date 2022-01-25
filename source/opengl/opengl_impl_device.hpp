@@ -59,9 +59,7 @@ namespace reshade::opengl
 		api::resource_view get_framebuffer_attachment(GLuint framebuffer, GLenum type, uint32_t index) const;
 		void update_current_window_height(GLuint framebuffer);
 
-		bool create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle) final;
-		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
-		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_pipeline(api::pipeline_layout layout, uint32_t subobjecte_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle) final;
 		void destroy_pipeline(api::pipeline handle) final;
 
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;

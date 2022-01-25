@@ -39,15 +39,15 @@ namespace reshade::api
 		pixel_shader = 0x80,
 		compute_shader = 0x800,
 
-		input_assembler = 0x1,
-		stream_output = 0x2,
+		input_assembler = 0x2,
+		stream_output = 0x4,
 		rasterizer = 0x100,
-		output_merger = 0x400,
 		depth_stencil = 0x200,
+		output_merger = 0x400,
 
 		all = 0x7FFFFFFF,
 		all_compute = compute_shader,
-		all_graphics = 0x7FF,
+		all_graphics = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | input_assembler | stream_output | rasterizer | depth_stencil | output_merger,
 		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
@@ -161,10 +161,12 @@ namespace reshade::api
 			/// Used when parameter type is <see cref="pipeline_layout_param_type::push_constants"/>.
 			/// </summary>
 			constant_range push_constants;
+
 			/// <summary>
 			/// Used when parameter type is <see cref="pipeline_layout_param_type::push_descriptors"/>.
 			/// </summary>
 			descriptor_range push_descriptors;
+
 			/// <summary>
 			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/>.
 			/// </summary>
@@ -419,57 +421,6 @@ namespace reshade::api
 	};
 
 	/// <summary>
-	/// Describes the state of the rasterizer stage.
-	/// </summary>
-	struct rasterizer_desc
-	{
-		/// <summary>
-		/// Fill mode to use when rendering triangles.
-		/// </summary>
-		fill_mode fill_mode = fill_mode::solid;
-		/// <summary>
-		/// Triangles facing the specified direction are not drawn.
-		/// </summary>
-		cull_mode cull_mode = cull_mode::back;
-		/// <summary>
-		/// Determines if a triangle is front or back-facing.
-		/// </summary>
-		bool front_counter_clockwise = false;
-		/// <summary>
-		/// Depth value added to a given pixel.
-		/// </summary>
-		float depth_bias = 0.0f;
-		/// <summary>
-		/// Maximum depth bias of a pixel.
-		/// </summary>
-		float depth_bias_clamp = 0.0f;
-		/// <summary>
-		/// Scalar on the slope of a given pixel.
-		/// </summary>
-		float slope_scaled_depth_bias = 0.0f;
-		/// <summary>
-		/// Enable or disable clipping based on distance.
-		/// </summary>
-		bool depth_clip_enable = true;
-		/// <summary>
-		/// Enable or disable scissor testing (scissor rectangle culling).
-		/// </summary>
-		bool scissor_enable = false;
-		/// <summary>
-		/// Use the quadrilateral or alpha line anti-aliasing algorithm on multisample antialiasing render targets.
-		/// </summary>
-		bool multisample_enable = false;
-		/// <summary>
-		/// Enable or disable line antialiasing. Only applies if doing line drawing and <see cref="multisample_enable"/> is <see langword="false"/>.
-		/// </summary>
-		bool antialiased_line_enable = false;
-		/// <summary>
-		/// Enable or disable conservative rasterization mode.
-		/// </summary>
-		uint32_t conservative_rasterization = 0;
-	};
-
-	/// <summary>
 	/// Describes the state of the output-merger stage.
 	/// </summary>
 	struct blend_desc
@@ -522,6 +473,57 @@ namespace reshade::api
 		/// A write mask specifying which color components are written to each render target. Bitwise combination of <c>0x1</c> for red, <c>0x2</c> for green, <c>0x4</c> for blue and <c>0x8</c> for alpha.
 		/// </summary>
 		uint8_t render_target_write_mask[8] = { 0xF, 0xF, 0xF, 0xF, 0xF, 0xF, 0xF, 0xF };
+	};
+
+	/// <summary>
+	/// Describes the state of the rasterizer stage.
+	/// </summary>
+	struct rasterizer_desc
+	{
+		/// <summary>
+		/// Fill mode to use when rendering triangles.
+		/// </summary>
+		fill_mode fill_mode = fill_mode::solid;
+		/// <summary>
+		/// Triangles facing the specified direction are not drawn.
+		/// </summary>
+		cull_mode cull_mode = cull_mode::back;
+		/// <summary>
+		/// Determines if a triangle is front or back-facing.
+		/// </summary>
+		bool front_counter_clockwise = false;
+		/// <summary>
+		/// Depth value added to a given pixel.
+		/// </summary>
+		float depth_bias = 0.0f;
+		/// <summary>
+		/// Maximum depth bias of a pixel.
+		/// </summary>
+		float depth_bias_clamp = 0.0f;
+		/// <summary>
+		/// Scalar on the slope of a given pixel.
+		/// </summary>
+		float slope_scaled_depth_bias = 0.0f;
+		/// <summary>
+		/// Enable or disable clipping based on distance.
+		/// </summary>
+		bool depth_clip_enable = true;
+		/// <summary>
+		/// Enable or disable scissor testing (scissor rectangle culling).
+		/// </summary>
+		bool scissor_enable = false;
+		/// <summary>
+		/// Use the quadrilateral or alpha line anti-aliasing algorithm on multisample antialiasing render targets.
+		/// </summary>
+		bool multisample_enable = false;
+		/// <summary>
+		/// Enable or disable line antialiasing. Only applies if doing line drawing and <see cref="multisample_enable"/> is <see langword="false"/>.
+		/// </summary>
+		bool antialiased_line_enable = false;
+		/// <summary>
+		/// Enable or disable conservative rasterization mode.
+		/// </summary>
+		uint32_t conservative_rasterization = 0;
 	};
 
 	/// <summary>
@@ -592,133 +594,138 @@ namespace reshade::api
 	};
 
 	/// <summary>
-	/// Describes a pipeline state object.
+	/// The available pipeline sub-object types.
 	/// </summary>
-	struct pipeline_desc
+	enum class pipeline_subobject_type
 	{
-		pipeline_desc() : graphics() {}
-		pipeline_desc(pipeline_stage type) : type(type), graphics() {}
-
+		unknown,
 		/// <summary>
-		/// Type of the pipeline state object.
+		/// Vertex shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
-		pipeline_stage type = static_cast<pipeline_stage>(0);
+		/// <seealso cref="shader_stage::vertex"/>
+		/// <seealso cref="pipeline_stage::vertex_shader"/>
+		vertex_shader,
 		/// <summary>
-		/// Descriptor set and constant layout of the pipeline.
+		/// Hull shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
-		pipeline_layout layout = { 0 };
+		/// <seealso cref="shader_stage::hull"/>
+		/// <seealso cref="pipeline_stage::hull_shader"/>
+		hull_shader,
+		/// <summary>
+		/// Domain shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::domain"/>
+		/// <seealso cref="pipeline_stage::domain_shader"/>
+		domain_shader,
+		/// <summary>
+		/// Geometry shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::geometry"/>
+		/// <seealso cref="pipeline_stage::geometry_shader"/>
+		geometry_shader,
+		/// <summary>
+		/// Pixel shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::pixel"/>
+		/// <seealso cref="pipeline_stage::pixel_shader"/>
+		pixel_shader,
+		/// <summary>
+		/// Compute shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::compute"/>
+		/// <seealso cref="pipeline_stage::compute_shader"/>
+		compute_shader,
+		/// <summary>
+		/// Vertex layout for the input-assembler stage. 
+		/// Sub-object data is a pointer to an array of <see cref="input_element"/>.
+		/// </summary>
+		/// <seealso cref="pipeline_stage::input_assembler"/>
+		input_layout,
+		/// <summary>
+		/// State of the stream-output stage.
+		/// Sub-object data is a pointer to a <see cref="stream_output_desc"/>.
+		/// </summary>
+		/// <seealso cref="pipeline_stage::stream_output"/>
+		stream_output_state,
+		/// <summary>
+		/// State of the output-merger stage.
+		/// Sub-object data is a pointer to a <see cref="blend_desc"/>.
+		/// </summary>
+		/// <seealso cref="pipeline_stage::output_merger"/>
+		blend_state,
+		/// <summary>
+		/// State of the rasterizer stage.
+		/// Sub-object data is a pointer to a <see cref="rasterizer_desc"/>.
+		/// </summary>
+		/// <seealso cref="pipeline_stage::rasterizer"/>
+		rasterizer_state,
+		/// <summary>
+		/// State of the depth-stencil stage.
+		/// Sub-object data is a pointer to a <see cref="depth_stencil_desc"/>.
+		/// </summary>
+		/// <seealso cref="pipeline_stage::depth_stencil"/>
+		depth_stencil_state,
+		/// <summary>
+		/// Primitive topology to use when rendering.
+		/// Sub-object data is a pointer to a <see cref="primitive_topology"/> value.
+		/// </summary>
+		primitive_topology,
+		/// <summary>
+		/// Format of the depth-stencil view that may be used with this pipeline.
+		/// Sub-object data is a pointer to a <see cref="format"/> value.
+		/// </summary>
+		depth_stencil_format,
+		/// <summary>
+		/// Formats of the render target views that may be used with this pipeline.
+		/// Sub-object data is a pointer to an array of <see cref="format"/> values.
+		/// </summary>
+		render_target_formats,
+		/// <summary>
+		/// Mask applied to the coverage mask for a fragment during rasterization.
+		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
+		/// </summary>
+		sample_mask,
+		/// <summary>
+		/// Number of samples used in rasterization.
+		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
+		/// </summary>
+		sample_count,
+		/// <summary>
+		/// Maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> with this pipeline.
+		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
+		/// </summary>
+		viewport_count,
+		/// <summary>
+		/// States that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding the this pipeline.
+		/// Sub-object data is a pointer to an array of <see cref="dynamic_state"/> values.
+		/// </summary>
+		dynamic_states
+	};
 
-		union
-		{
-			/// <summary>
-			/// Used when pipeline type is <see cref="pipeline_stage::all_compute"/> or a subset of it.
-			/// </summary>
-			struct
-			{
-				/// <summary>
-				/// Compute shader to use.
-				/// </summary>
-				/// <seealso cref="shader_stage::compute"/>
-				/// <seealso cref="pipeline_stage::compute_shader"/>
-				shader_desc shader;
-			} compute;
-
-			/// <summary>
-			/// Used when pipeline type is <see cref="pipeline_stage::all_graphics"/> or a subset of it.
-			/// </summary>
-			struct
-			{
-				/// <summary>
-				/// Vertex shader to use.
-				/// </summary>
-				/// <seealso cref="shader_stage::vertex"/>
-				/// <seealso cref="pipeline_stage::vertex_shader"/>
-				shader_desc vertex_shader;
-				/// <summary>
-				/// Optional hull shader to use.
-				/// </summary>
-				/// <seealso cref="shader_stage::hull"/>
-				/// <seealso cref="pipeline_stage::hull_shader"/>
-				shader_desc hull_shader;
-				/// <summary>
-				/// Optional domain shader to use.
-				/// </summary>
-				/// <seealso cref="shader_stage::domain"/>
-				/// <seealso cref="pipeline_stage::domain_shader"/>
-				shader_desc domain_shader;
-				/// <summary>
-				/// Optional geometry shader to use.
-				/// </summary>
-				/// <seealso cref="shader_stage::geometry"/>
-				/// <seealso cref="pipeline_stage::geometry_shader"/>
-				shader_desc geometry_shader;
-				/// <summary>
-				/// Pixel shader to use.
-				/// </summary>
-				/// <seealso cref="shader_stage::pixel"/>
-				/// <seealso cref="pipeline_stage::pixel_shader"/>
-				shader_desc pixel_shader;
-
-				/// <summary>
-				/// Vertex layout for the input-assembler stage. 
-				/// This list is terminated with an element that has its format set to <see cref="format::unknown"/>.
-				/// </summary>
-				/// <seealso cref="pipeline_stage::input_assembler"/>
-				input_element input_layout[16];
-
-				/// <summary>
-				/// Primitive topology to use when rendering.
-				/// </summary>
-				primitive_topology topology = primitive_topology::undefined;
-
-				/// <summary>
-				/// State of the stream-output stage.
-				/// </summary>
-				/// <seealso cref="pipeline_stage::stream_output"/>
-				stream_output_desc stream_output_state;
-
-				/// <summary>
-				/// State of the rasterizer stage.
-				/// </summary>
-				/// <seealso cref="pipeline_stage::rasterizer"/>
-				rasterizer_desc rasterizer_state;
-
-				/// <summary>
-				/// State of the output-merger stage.
-				/// </summary>
-				/// <seealso cref="pipeline_stage::output_merger"/>
-				blend_desc blend_state;
-
-				/// <summary>
-				/// State of the depth-stencil stage.
-				/// </summary>
-				/// <seealso cref="pipeline_stage::depth_stencil"/>
-				depth_stencil_desc depth_stencil_state;
-
-				/// <summary>
-				/// Format of the depth-stencil view that may be used with this pipeline.
-				/// </summary>
-				format depth_stencil_format = format::unknown;
-				/// <summary>
-				/// Formats of the render target views that may be used with this pipeline.
-				/// </summary>
-				format render_target_formats[8] = { format::unknown, format::unknown, format::unknown, format::unknown, format::unknown, format::unknown, format::unknown, format::unknown };
-
-				/// <summary>
-				/// Mask applied to the coverage mask for a fragment during rasterization.
-				/// </summary>
-				uint32_t sample_mask = UINT32_MAX;
-				/// <summary>
-				/// Number of samples used in rasterization.
-				/// </summary>
-				uint32_t sample_count = 1;
-
-				/// <summary>
-				/// Maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> with this pipeline.
-				/// </summary>
-				uint32_t viewport_count = 1;
-			} graphics;
-		};
+	/// <summary>
+	/// Describes a pipeline sub-object.
+	/// </summary>
+	struct pipeline_subobject
+	{
+		/// <summary>
+		/// Type of the specified sub-object <see cref="data"/>.
+		/// </summary>
+		pipeline_subobject_type type = pipeline_subobject_type::unknown;
+		/// <summary>
+		/// Number of sub-object descriptions. This should usually be 1, except for e.g. <see cref="pipeline_subobject_type::render_target_formats"/> (where this specifies the number of render targets).
+		/// </summary>
+		uint32_t count = 0;
+		/// <summary>
+		/// Pointer to an array of sub-object descriptions (which should be as large as the specified <see cref="count"/>).
+		/// Depending on the sub-object <see cref="type"/> this should be a pointer to a <see cref="shader_desc"/>, <see cref="blend_desc"/>, <see cref="rasterizer_desc"/>, <see cref="depth_stencil_desc"/> or ...
+		/// </summary>
+		void *data = nullptr;
 	};
 
 	/// <summary>
@@ -857,24 +864,6 @@ namespace reshade::api
 		stream_output_statistics_1,
 		stream_output_statistics_2,
 		stream_output_statistics_3
-	};
-
-	/// <summary>
-	/// Describes the data structure returned by <see cref="query_type::pipeline_statistics"/> queries.
-	/// </summary>
-	struct pipeline_statistics
-	{
-		uint64_t input_assembler_vertices;
-		uint64_t input_assembler_primitives;
-		uint64_t vertex_shader_invocations;
-		uint64_t geometry_shader_invocations;
-		uint64_t geometry_shader_primitives;
-		uint64_t clipping_invocations;
-		uint64_t clipping_primitives;
-		uint64_t pixel_shader_invocations;
-		uint64_t hull_shader_invocations;
-		uint64_t domain_shader_invocations;
-		uint64_t compute_shader_invocations;
 	};
 
 	/// <summary>

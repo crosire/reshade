@@ -3464,23 +3464,22 @@ bool reshade::runtime::init_imgui_resources()
 	if (_imgui_pipeline != 0)
 		return true;
 
-	api::pipeline_desc pso_desc = { api::pipeline_stage::all_graphics };
-	pso_desc.layout = _imgui_pipeline_layout;
+	api::shader_desc vs_desc, ps_desc;
 
 	if ((_renderer_id & 0xF0000) == 0)
 	{
 		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
-		pso_desc.graphics.vertex_shader.code = vs_res.data;
-		pso_desc.graphics.vertex_shader.code_size = vs_res.data_size;
+		vs_desc.code = vs_res.data;
+		vs_desc.code_size = vs_res.data_size;
 
 		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : IDR_IMGUI_PS_4_0);
-		pso_desc.graphics.pixel_shader.code = ps_res.data;
-		pso_desc.graphics.pixel_shader.code_size = ps_res.data_size;
+		ps_desc.code = ps_res.data;
+		ps_desc.code_size = ps_res.data_size;
 	}
 	else if (_renderer_id < 0x20000)
 	{
 		// These need to be static so that the shader source memory doesn't fall out of scope before pipeline creation below
-		static constexpr char vertex_shader[] =
+		static constexpr char vertex_shader_code[] =
 			"#version 430\n"
 			"layout(binding = 0) uniform Buf { mat4 proj; };\n"
 			"layout(location = 0) in vec2 pos;\n"
@@ -3494,7 +3493,7 @@ bool reshade::runtime::init_imgui_resources()
 			"	frag_tex = tex;\n"
 			"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
 			"}\n";
-		static constexpr char fragment_shader[] =
+		static constexpr char fragment_shader_code[] =
 			"#version 430\n"
 			"layout(binding = 0) uniform sampler2D s0;\n"
 			"in vec4 frag_col;\n"
@@ -3505,56 +3504,66 @@ bool reshade::runtime::init_imgui_resources()
 			"	col = frag_col * texture(s0, frag_tex.st);\n"
 			"}\n";
 
-		pso_desc.graphics.vertex_shader.code = vertex_shader;
-		pso_desc.graphics.vertex_shader.code_size = sizeof(vertex_shader);
-		pso_desc.graphics.vertex_shader.entry_point = "main";
+		vs_desc.code = vertex_shader_code;
+		vs_desc.code_size = sizeof(vertex_shader_code);
+		vs_desc.entry_point = "main";
 
-		pso_desc.graphics.pixel_shader.code = fragment_shader;
-		pso_desc.graphics.pixel_shader.code_size = sizeof(fragment_shader);
-		pso_desc.graphics.pixel_shader.entry_point = "main";
+		ps_desc.code = fragment_shader_code;
+		ps_desc.code_size = sizeof(fragment_shader_code);
+		ps_desc.entry_point = "main";
 	}
 	else
 	{
 		const resources::data_resource vs_res = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
-		pso_desc.graphics.vertex_shader.code = vs_res.data;
-		pso_desc.graphics.vertex_shader.code_size = vs_res.data_size;
-		pso_desc.graphics.vertex_shader.entry_point = "main";
+		vs_desc.code = vs_res.data;
+		vs_desc.code_size = vs_res.data_size;
+		vs_desc.entry_point = "main";
 
 		const resources::data_resource ps_res = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
-		pso_desc.graphics.pixel_shader.code = ps_res.data;
-		pso_desc.graphics.pixel_shader.code_size = ps_res.data_size;
-		pso_desc.graphics.pixel_shader.entry_point = "main";
+		ps_desc.code = ps_res.data;
+		ps_desc.code_size = ps_res.data_size;
+		ps_desc.entry_point = "main";
 	}
 
-	pso_desc.graphics.input_layout[0] = { 0, "POSITION", 0, api::format::r32g32_float,   0, offsetof(ImDrawVert, pos), sizeof(ImDrawVert), 0 };
-	pso_desc.graphics.input_layout[1] = { 1, "TEXCOORD", 0, api::format::r32g32_float,   0, offsetof(ImDrawVert, uv ), sizeof(ImDrawVert), 0 };
-	pso_desc.graphics.input_layout[2] = { 2, "COLOR",    0, api::format::r8g8b8a8_unorm, 0, offsetof(ImDrawVert, col), sizeof(ImDrawVert), 0 };
+	std::vector<api::pipeline_subobject> subobjects;
+	subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
+	subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
 
-	{	auto &blend_state = pso_desc.graphics.blend_state;
-		blend_state.blend_enable[0] = true;
-		blend_state.source_color_blend_factor[0] = api::blend_factor::source_alpha;
-		blend_state.dest_color_blend_factor[0] = api::blend_factor::one_minus_source_alpha;
-		blend_state.color_blend_op[0] = api::blend_op::add;
-		blend_state.source_alpha_blend_factor[0] = api::blend_factor::one;
-		blend_state.dest_alpha_blend_factor[0] = api::blend_factor::one_minus_source_alpha;
-		blend_state.alpha_blend_op[0] = api::blend_op::add;
-		blend_state.render_target_write_mask[0] = 0xF;
-	}
+	const api::input_element input_layout[3] = {
+		{ 0, "POSITION", 0, api::format::r32g32_float,   0, offsetof(ImDrawVert, pos), sizeof(ImDrawVert), 0 },
+		{ 1, "TEXCOORD", 0, api::format::r32g32_float,   0, offsetof(ImDrawVert, uv ), sizeof(ImDrawVert), 0 },
+		{ 2, "COLOR",    0, api::format::r8g8b8a8_unorm, 0, offsetof(ImDrawVert, col), sizeof(ImDrawVert), 0 }
+	};
 
-	{	auto &rasterizer_state = pso_desc.graphics.rasterizer_state;
-		rasterizer_state.cull_mode = api::cull_mode::none;
-		rasterizer_state.scissor_enable = true;
-	}
+	subobjects.push_back({ api::pipeline_subobject_type::input_layout, 3, (void *)input_layout });
 
-	{	auto &depth_stencil_state = pso_desc.graphics.depth_stencil_state;
-		depth_stencil_state.depth_enable = false;
-		depth_stencil_state.stencil_enable = false;
-	}
+	api::blend_desc blend_state;
+	blend_state.blend_enable[0] = true;
+	blend_state.source_color_blend_factor[0] = api::blend_factor::source_alpha;
+	blend_state.dest_color_blend_factor[0] = api::blend_factor::one_minus_source_alpha;
+	blend_state.color_blend_op[0] = api::blend_op::add;
+	blend_state.source_alpha_blend_factor[0] = api::blend_factor::one;
+	blend_state.dest_alpha_blend_factor[0] = api::blend_factor::one_minus_source_alpha;
+	blend_state.alpha_blend_op[0] = api::blend_op::add;
+	blend_state.render_target_write_mask[0] = 0xF;
 
-	pso_desc.graphics.topology = api::primitive_topology::triangle_list;
-	pso_desc.graphics.render_target_formats[0] = _back_buffer_format;
+	subobjects.push_back({ api::pipeline_subobject_type::blend_state, 1, &blend_state });
 
-	if (_device->create_pipeline(pso_desc, 0, nullptr, &_imgui_pipeline))
+	api::rasterizer_desc rasterizer_state;
+	rasterizer_state.cull_mode = api::cull_mode::none;
+	rasterizer_state.scissor_enable = true;
+
+	subobjects.push_back({ api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_state });
+
+	api::depth_stencil_desc depth_stencil_state;
+	depth_stencil_state.depth_enable = false;
+	depth_stencil_state.stencil_enable = false;
+
+	subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_state });
+
+	subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, 1, &_back_buffer_format });
+
+	if (_device->create_pipeline(_imgui_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_imgui_pipeline))
 	{
 		return true;
 	}

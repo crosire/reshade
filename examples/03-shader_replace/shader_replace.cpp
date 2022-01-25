@@ -12,7 +12,7 @@ using namespace reshade::api;
 
 static thread_local std::vector<std::vector<uint8_t>> data_to_delete;
 
-static bool replace_shader_code(device_api device_type, shader_stage, shader_desc &desc)
+static bool replace_shader_code(device_api device_type, shader_desc &desc)
 {
 	if (desc.code_size == 0)
 		return false;
@@ -57,29 +57,31 @@ static bool replace_shader_code(device_api device_type, shader_stage, shader_des
 	return false;
 }
 
-static bool on_create_pipeline(device *device, pipeline_desc &desc, uint32_t, const dynamic_state *)
+static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobject_count, const pipeline_subobject *subobjects)
 {
 	bool replaced_stages = false;
 	const device_api device_type = device->get_api();
 
 	// Go through all shader stages that are in this pipeline and potentially replace the associated shader code
-	if ((desc.type & pipeline_stage::vertex_shader) != 0)
-		replaced_stages |= replace_shader_code(device_type, shader_stage::vertex, desc.graphics.vertex_shader);
-	if ((desc.type & pipeline_stage::hull_shader) != 0)
-		replaced_stages |= replace_shader_code(device_type, shader_stage::hull, desc.graphics.hull_shader);
-	if ((desc.type & pipeline_stage::domain_shader) != 0)
-		replaced_stages |= replace_shader_code(device_type, shader_stage::domain, desc.graphics.domain_shader);
-	if ((desc.type & pipeline_stage::geometry_shader) != 0)
-		replaced_stages |= replace_shader_code(device_type, shader_stage::geometry, desc.graphics.geometry_shader);
-	if ((desc.type & pipeline_stage::pixel_shader) != 0)
-		replaced_stages |= replace_shader_code(device_type, shader_stage::pixel, desc.graphics.pixel_shader);
-	if ((desc.type & pipeline_stage::compute_shader) != 0)
-		replaced_stages |= replace_shader_code(device_type, shader_stage::compute, desc.compute.shader);
+	for (uint32_t i = 0; i < subobject_count; ++i)
+	{
+		switch (subobjects[i].type)
+		{
+		case pipeline_subobject_type::vertex_shader:
+		case pipeline_subobject_type::hull_shader:
+		case pipeline_subobject_type::domain_shader:
+		case pipeline_subobject_type::geometry_shader:
+		case pipeline_subobject_type::pixel_shader:
+		case pipeline_subobject_type::compute_shader:
+			replaced_stages |= replace_shader_code(device_type, *static_cast<shader_desc *>(subobjects[i].data));
+			break;
+		}
+	}
 
 	// Return whether any shader code was replaced
 	return replaced_stages;
 }
-static void on_after_create_pipeline(device *, const pipeline_desc &, uint32_t, const dynamic_state *, pipeline)
+static void on_after_create_pipeline(device *, pipeline_layout, uint32_t, const pipeline_subobject *, pipeline)
 {
 	// Free the memory allocated in 'replace_shader_code' above
 	data_to_delete.clear();

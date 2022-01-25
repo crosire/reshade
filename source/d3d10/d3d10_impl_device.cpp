@@ -517,67 +517,149 @@ void reshade::d3d10::device_impl::update_texture_region(const api::subresource_d
 	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(resource.handle), subresource, reinterpret_cast<const D3D10_BOX *>(box), data.data, data.row_pitch, data.slice_pitch);
 }
 
-bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
+bool reshade::d3d10::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	for (uint32_t i = 0; i < dynamic_state_count; ++i)
+	if (subobject_count == 1)
 	{
-		if (dynamic_states[i] != api::dynamic_state::primitive_topology)
+		assert(subobjects->count == 1);
+
+		switch (subobjects->type)
 		{
+		case api::pipeline_subobject_type::vertex_shader:
+			return create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+		case api::pipeline_subobject_type::geometry_shader:
+			return create_geometry_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+		case api::pipeline_subobject_type::pixel_shader:
+			return create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+		case api::pipeline_subobject_type::blend_state:
+			return create_blend_state(*static_cast<const api::blend_desc *>(subobjects->data), out_handle);
+		case api::pipeline_subobject_type::rasterizer_state:
+			return create_rasterizer_state(*static_cast<const api::rasterizer_desc *>(subobjects->data), out_handle);
+		case api::pipeline_subobject_type::depth_stencil_state:
+			return create_depth_stencil_state(*static_cast<const api::depth_stencil_desc *>(subobjects->data), out_handle);
+		default:
 			*out_handle = { 0 };
 			return false;
 		}
 	}
 
-	switch (desc.type)
-	{
-	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out_handle);
-	case api::pipeline_stage::input_assembler:
-		return create_input_layout(desc, out_handle);
-	case api::pipeline_stage::vertex_shader:
-		return create_vertex_shader(desc, out_handle);
-	case api::pipeline_stage::geometry_shader:
-		return create_geometry_shader(desc, out_handle);
-	case api::pipeline_stage::pixel_shader:
-		return create_pixel_shader(desc, out_handle);
-	case api::pipeline_stage::rasterizer:
-		return create_rasterizer_state(desc, out_handle);
-	case api::pipeline_stage::depth_stencil:
-		return create_depth_stencil_state(desc, out_handle);
-	case api::pipeline_stage::output_merger:
-		return create_blend_state(desc, out_handle);
-	default:
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
 	*out_handle = { 0 };
 
-	if (desc.graphics.hull_shader.code_size != 0 ||
-		desc.graphics.domain_shader.code_size != 0 ||
-		desc.graphics.stream_output_state.rasterized_stream != 0 ||
-		desc.graphics.rasterizer_state.conservative_rasterization ||
-		desc.graphics.blend_state.logic_op_enable[0] ||
-		desc.graphics.topology == api::primitive_topology::triangle_fan)
+	api::shader_desc vertex_shader_desc = {};
+	com_ptr<ID3D10VertexShader> vertex_shader;
+	com_ptr<ID3D10GeometryShader> geometry_shader;
+	com_ptr<ID3D10PixelShader> pixel_shader;
+	api::pipeline_subobject input_layout_desc = {};
+	com_ptr<ID3D10BlendState> blend_state;
+	com_ptr<ID3D10RasterizerState> rasterizer_state;
+	com_ptr<ID3D10DepthStencilState> depth_stencil_state;
+	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	uint32_t sample_mask = UINT32_MAX;
+	uint32_t stencil_reference_value = 0;
+	float blend_constant[4] = {};
+
+	for (uint32_t i = 0; i < subobject_count; ++i)
+	{
+		if (subobjects[i].count == 0)
+			continue;
+
+		api::pipeline temp;
+
+		switch (subobjects[i].type)
+		{
+		case api::pipeline_subobject_type::vertex_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+				return false;
+			vertex_shader = com_ptr<ID3D10VertexShader>(reinterpret_cast<ID3D10VertexShader *>(temp.handle), true);
+			vertex_shader_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::hull_shader:
+		case api::pipeline_subobject_type::domain_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			return false;
+		case api::pipeline_subobject_type::geometry_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_geometry_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+				return false;
+			geometry_shader = com_ptr<ID3D10GeometryShader>(reinterpret_cast<ID3D10GeometryShader *>(temp.handle), true);
+			break;
+		case api::pipeline_subobject_type::pixel_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			if (!create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+				return false;
+			pixel_shader = com_ptr<ID3D10PixelShader>(reinterpret_cast<ID3D10PixelShader *>(temp.handle), true);
+			break;
+		case api::pipeline_subobject_type::compute_shader:
+			assert(subobjects[i].count == 1);
+			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+				break;
+			return false; // Not supported
+		case api::pipeline_subobject_type::input_layout:
+			input_layout_desc = subobjects[i];
+			break;
+		case api::pipeline_subobject_type::stream_output_state:
+			assert(subobjects[i].count == 1);
+			return false; // Not implemented
+		case api::pipeline_subobject_type::blend_state:
+			assert(subobjects[i].count == 1);
+			if (!create_blend_state(*static_cast<const api::blend_desc *>(subobjects[i].data), &temp))
+				return false;
+			blend_state = com_ptr<ID3D10BlendState>(reinterpret_cast<ID3D10BlendState *>(temp.handle), true);
+			std::copy_n(static_cast<const api::blend_desc *>(subobjects[i].data)->blend_constant, 4, blend_constant);
+			break;
+		case api::pipeline_subobject_type::rasterizer_state:
+			assert(subobjects[i].count == 1);
+			if (!create_rasterizer_state(*static_cast<const api::rasterizer_desc *>(subobjects[i].data), &temp))
+				return false;
+			rasterizer_state = com_ptr<ID3D10RasterizerState>(reinterpret_cast<ID3D10RasterizerState *>(temp.handle), true);
+			break;
+		case api::pipeline_subobject_type::depth_stencil_state:
+			assert(subobjects[i].count == 1);
+			if (!create_depth_stencil_state(*static_cast<const api::depth_stencil_desc *>(subobjects[i].data), &temp))
+				return false;
+			depth_stencil_state = com_ptr<ID3D10DepthStencilState>(reinterpret_cast<ID3D10DepthStencilState *>(temp.handle), true);
+			stencil_reference_value = static_cast<const api::depth_stencil_desc *>(subobjects[i].data)->stencil_reference_value;
+			break;
+		case api::pipeline_subobject_type::primitive_topology:
+			assert(subobjects[i].count == 1);
+			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
+			if (topology == api::primitive_topology::triangle_fan)
+				return false;
+			break;
+		case api::pipeline_subobject_type::depth_stencil_format:
+		case api::pipeline_subobject_type::render_target_formats:
+			break; // Ignored
+		case api::pipeline_subobject_type::sample_mask:
+			assert(subobjects[i].count == 1);
+			sample_mask = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::sample_count:
+		case api::pipeline_subobject_type::viewport_count:
+			assert(subobjects[i].count == 1);
+			break; // Ignored
+		case api::pipeline_subobject_type::dynamic_states:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				if (static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::primitive_topology)
+					return false;
+			break;
+		default:
+			assert(false);
+			return false;
+		}
+	}
+
+	api::pipeline input_layout;
+	if (!create_input_layout(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_shader_desc, &input_layout))
 		return false;
-
-#define create_state_object(name, type, condition) \
-	api::pipeline name##_handle = { 0 }; \
-	if (condition && !create_##name(desc, &name##_handle)) \
-		return false; \
-	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
-
-	create_state_object(vertex_shader, ID3D10VertexShader, desc.graphics.vertex_shader.code_size != 0);
-	create_state_object(geometry_shader, ID3D10GeometryShader, desc.graphics.geometry_shader.code_size != 0);
-	create_state_object(pixel_shader, ID3D10PixelShader, desc.graphics.pixel_shader.code_size != 0);
-
-	create_state_object(input_layout, ID3D10InputLayout, true);
-	create_state_object(blend_state, ID3D10BlendState, true);
-	create_state_object(rasterizer_state, ID3D10RasterizerState, true);
-	create_state_object(depth_stencil_state, ID3D10DepthStencilState, true);
-#undef create_state_object
 
 	const auto impl = new pipeline_impl();
 
@@ -585,17 +667,17 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 	impl->gs = std::move(geometry_shader);
 	impl->ps = std::move(pixel_shader);
 
-	impl->input_layout = std::move(input_layout);
+	impl->input_layout = com_ptr<ID3D10InputLayout>(reinterpret_cast<ID3D10InputLayout *>(input_layout.handle), true);
 
 	impl->blend_state = std::move(blend_state);
 	impl->rasterizer_state = std::move(rasterizer_state);
 	impl->depth_stencil_state = std::move(depth_stencil_state);
 
-	impl->topology = convert_primitive_topology(desc.graphics.topology);
-	impl->sample_mask = desc.graphics.sample_mask;
-	impl->stencil_reference_value = desc.graphics.depth_stencil_state.stencil_reference_value;
+	impl->topology = convert_primitive_topology(topology);
+	impl->sample_mask = sample_mask;
+	impl->stencil_reference_value = stencil_reference_value;
 
-	std::copy_n(desc.graphics.blend_state.blend_constant, 4, impl->blend_constant);
+	std::copy_n(blend_constant, 4, impl->blend_constant);
 
 	// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
 	static_assert(alignof(pipeline_impl) >= 2);
@@ -603,16 +685,16 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
 	return true;
 }
-bool reshade::d3d10::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d10::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, const api::shader_desc &signature, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D10InputLayout) >= 2);
 
 	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_elements;
-	convert_pipeline_desc(desc, internal_elements);
+	convert_input_layout_desc(count, desc, internal_elements);
 
 	if (com_ptr<ID3D10InputLayout> object;
 		internal_elements.empty() || // Empty input layout is valid, but generates a warning, so just return success and a zero handle
-		SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
+		SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), signature.code, signature.code_size, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -623,15 +705,15 @@ bool reshade::d3d10::device_impl::create_input_layout(const api::pipeline_desc &
 		return false;
 	}
 }
-bool reshade::d3d10::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d10::device_impl::create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D10VertexShader) >= 2);
 
-	assert(desc.graphics.vertex_shader.entry_point == nullptr);
-	assert(desc.graphics.vertex_shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D10VertexShader> object;
-		SUCCEEDED(_orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
+		SUCCEEDED(_orig->CreateVertexShader(desc.code, desc.code_size, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -642,15 +724,15 @@ bool reshade::d3d10::device_impl::create_vertex_shader(const api::pipeline_desc 
 		return false;
 	}
 }
-bool reshade::d3d10::device_impl::create_geometry_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d10::device_impl::create_geometry_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D10GeometryShader) >= 2);
 
-	assert(desc.graphics.geometry_shader.entry_point == nullptr);
-	assert(desc.graphics.geometry_shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D10GeometryShader> object;
-		SUCCEEDED(_orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, &object)))
+		SUCCEEDED(_orig->CreateGeometryShader(desc.code, desc.code_size, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -661,15 +743,15 @@ bool reshade::d3d10::device_impl::create_geometry_shader(const api::pipeline_des
 		return false;
 	}
 }
-bool reshade::d3d10::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d10::device_impl::create_pixel_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D10PixelShader) >= 2);
 
-	assert(desc.graphics.pixel_shader.entry_point == nullptr);
-	assert(desc.graphics.pixel_shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D10PixelShader> object;
-		SUCCEEDED(_orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, &object)))
+		SUCCEEDED(_orig->CreatePixelShader(desc.code, desc.code_size, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -680,12 +762,18 @@ bool reshade::d3d10::device_impl::create_pixel_shader(const api::pipeline_desc &
 		return false;
 	}
 }
-bool reshade::d3d10::device_impl::create_blend_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d10::device_impl::create_blend_state(const api::blend_desc &desc, api::pipeline *out_handle)
 {
+	if (desc.logic_op_enable[0])
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
 	static_assert(alignof(ID3D10BlendState1) >= 2);
 
 	D3D10_BLEND_DESC1 internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
+	convert_blend_desc(desc, internal_desc);
 
 	if (com_ptr<ID3D10BlendState1> object;
 		SUCCEEDED(_orig->CreateBlendState1(&internal_desc, &object)))
@@ -699,12 +787,18 @@ bool reshade::d3d10::device_impl::create_blend_state(const api::pipeline_desc &d
 		return false;
 	}
 }
-bool reshade::d3d10::device_impl::create_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d10::device_impl::create_rasterizer_state(const api::rasterizer_desc &desc, api::pipeline *out_handle)
 {
+	if (desc.conservative_rasterization)
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
 	static_assert(alignof(ID3D10RasterizerState) >= 2);
 
 	D3D10_RASTERIZER_DESC internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
+	convert_rasterizer_desc(desc, internal_desc);
 
 	if (com_ptr<ID3D10RasterizerState> object;
 		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
@@ -718,12 +812,12 @@ bool reshade::d3d10::device_impl::create_rasterizer_state(const api::pipeline_de
 		return false;
 	}
 }
-bool reshade::d3d10::device_impl::create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d10::device_impl::create_depth_stencil_state(const api::depth_stencil_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D10DepthStencilState) >= 2);
 
 	D3D10_DEPTH_STENCIL_DESC internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
+	convert_depth_stencil_desc(desc, internal_desc);
 
 	if (com_ptr<ID3D10DepthStencilState> object;
 		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))

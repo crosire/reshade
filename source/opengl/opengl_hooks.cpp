@@ -1558,68 +1558,65 @@ void APIENTRY glLinkProgram(GLuint program)
 
 		if (GL_FALSE != status)
 		{
-			std::vector<std::string> sources;
+			std::vector<std::pair<reshade::api::shader_desc, std::vector<char>>> sources;
+			sources.reserve(16);
+			std::vector<reshade::api::pipeline_subobject> subobjects;
+			subobjects.reserve(16);
 
 			GLuint shaders[16] = {};
 			glGetAttachedShaders(program, 16, nullptr, shaders);
-			for (int i = 0; i < 16 && shaders[i] != GL_NONE; ++i)
-			{
-				GLint size = 0;
-				glGetShaderiv(shaders[i], GL_SHADER_SOURCE_LENGTH, &size);
 
-				std::string &source = sources.emplace_back(size, '\0');
-				glGetShaderSource(shaders[i], size, nullptr, source.data());
-			}
-
-			reshade::api::pipeline_desc desc = {};
-			for (int i = 0; i < 16 && shaders[i] != GL_NONE; ++i)
+			for (const GLuint shader : shaders)
 			{
+				if (shader == 0)
+					break;
+
 				GLint type = GL_NONE;
-				glGetShaderiv(shaders[i], GL_SHADER_TYPE, &type);
+				glGetShaderiv(shader, GL_SHADER_TYPE, &type);
 
-				reshade::api::shader_desc *shader_desc = nullptr;
+				reshade::api::pipeline_subobject_type subobject_type = reshade::api::pipeline_subobject_type::unknown;
 				switch (type)
 				{
 				case GL_VERTEX_SHADER:
-					desc.type |= reshade::api::pipeline_stage::vertex_shader;
-					shader_desc = &desc.graphics.vertex_shader;
+					subobject_type = reshade::api::pipeline_subobject_type::vertex_shader;
 					break;
 				case GL_TESS_CONTROL_SHADER:
-					desc.type |= reshade::api::pipeline_stage::hull_shader;
-					shader_desc = &desc.graphics.hull_shader;
+					subobject_type = reshade::api::pipeline_subobject_type::hull_shader;
 					break;
 				case GL_TESS_EVALUATION_SHADER:
-					desc.type |= reshade::api::pipeline_stage::domain_shader;
-					shader_desc = &desc.graphics.domain_shader;
+					subobject_type = reshade::api::pipeline_subobject_type::domain_shader;
 					break;
 				case GL_GEOMETRY_SHADER:
-					desc.type |= reshade::api::pipeline_stage::geometry_shader;
-					shader_desc = &desc.graphics.geometry_shader;
+					subobject_type = reshade::api::pipeline_subobject_type::geometry_shader;
 					break;
 				case GL_FRAGMENT_SHADER:
-					desc.type |= reshade::api::pipeline_stage::pixel_shader;
-					shader_desc = &desc.graphics.pixel_shader;
+					subobject_type = reshade::api::pipeline_subobject_type::pixel_shader;
 					break;
 				case GL_COMPUTE_SHADER:
-					// Can't mix compute and graphics shaders in a single pipeline
-					assert((desc.type & (reshade::api::pipeline_stage::all_shader_stages ^ reshade::api::pipeline_stage::compute_shader)) == 0);
-					desc.type |= reshade::api::pipeline_stage::compute_shader;
-					shader_desc = &desc.compute.shader;
+					subobject_type = reshade::api::pipeline_subobject_type::compute_shader;
 					break;
 				default:
 					assert(false);
-					break;
+					continue;
 				}
 
-				if (shader_desc != nullptr)
-				{
-					shader_desc->code = sources[i].c_str();
-					shader_desc->code_size = sources[i].size();
-					shader_desc->entry_point = "main";
-				}
+				GLint size = 0;
+				glGetShaderiv(shader, GL_SHADER_SOURCE_LENGTH, &size);
+
+				auto &source = sources.emplace_back();
+				source.second.resize(size);
+
+				glGetShaderSource(shader, size, nullptr, source.second.data());
+
+				reshade::api::shader_desc &desc = source.first;
+				desc.code = source.second.data();
+				desc.code_size = size;
+				desc.entry_point = "main";
+
+				subobjects.push_back({ subobject_type, 1, &desc });
 			}
 
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, desc, 0, nullptr, reshade::api::pipeline { program });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline { program });
 		}
 	}
 #endif
@@ -1629,7 +1626,7 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 {
 #if RESHADE_ADDON
 	std::string combined_source;
-	reshade::api::pipeline_desc desc = {};
+	const GLchar *combined_source_ptr = nullptr;
 	GLint combined_source_length = -1;
 
 	if (g_current_context)
@@ -1646,57 +1643,55 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 				combined_source.append(string[i]);
 		}
 
-		GLint type = GL_NONE;
-		glGetShaderiv(shader, GL_SHADER_TYPE, &type);
-
-		reshade::api::shader_desc *shader_desc = nullptr;
-		switch (type)
+		do
 		{
-		case GL_VERTEX_SHADER:
-			desc.type = reshade::api::pipeline_stage::vertex_shader;
-			shader_desc = &desc.graphics.vertex_shader;
-			break;
-		case GL_TESS_CONTROL_SHADER:
-			desc.type = reshade::api::pipeline_stage::hull_shader;
-			shader_desc = &desc.graphics.hull_shader;
-			break;
-		case GL_TESS_EVALUATION_SHADER:
-			desc.type = reshade::api::pipeline_stage::domain_shader;
-			shader_desc = &desc.graphics.domain_shader;
-			break;
-		case GL_GEOMETRY_SHADER:
-			desc.type = reshade::api::pipeline_stage::geometry_shader;
-			shader_desc = &desc.graphics.geometry_shader;
-			break;
-		case GL_FRAGMENT_SHADER:
-			desc.type = reshade::api::pipeline_stage::pixel_shader;
-			shader_desc = &desc.graphics.pixel_shader;
-			break;
-		case GL_COMPUTE_SHADER:
-			desc.type = reshade::api::pipeline_stage::compute_shader;
-			shader_desc = &desc.compute.shader;
-			break;
-		default:
-			assert(false);
-			break;
-		}
+			GLint type = GL_NONE;
+			glGetShaderiv(shader, GL_SHADER_TYPE, &type);
 
-		if (shader_desc != nullptr)
-		{
-			shader_desc->code = combined_source.c_str();
-			shader_desc->code_size = combined_source.size();
-			shader_desc->entry_point = "main";
-
-			if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, desc, 0, nullptr))
+			reshade::api::pipeline_subobject_type subobject_type;
+			switch (type)
 			{
-				assert(shader_desc->code_size <= static_cast<size_t>(std::numeric_limits<GLint>::max()));
-				combined_source_length = static_cast<GLint>(shader_desc->code_size);
+			case GL_VERTEX_SHADER:
+				subobject_type = reshade::api::pipeline_subobject_type::vertex_shader;
+				break;
+			case GL_TESS_CONTROL_SHADER:
+				subobject_type = reshade::api::pipeline_subobject_type::hull_shader;
+				break;
+			case GL_TESS_EVALUATION_SHADER:
+				subobject_type = reshade::api::pipeline_subobject_type::domain_shader;
+				break;
+			case GL_GEOMETRY_SHADER:
+				subobject_type = reshade::api::pipeline_subobject_type::geometry_shader;
+				break;
+			case GL_FRAGMENT_SHADER:
+				subobject_type = reshade::api::pipeline_subobject_type::pixel_shader;
+				break;
+			case GL_COMPUTE_SHADER:
+				subobject_type = reshade::api::pipeline_subobject_type::compute_shader;
+				break;
+			default:
+				assert(false);
+				continue;
+			}
+
+			reshade::api::shader_desc desc = {};
+			desc.code = combined_source.c_str();
+			desc.code_size = combined_source.size();
+			desc.entry_point = "main";
+
+			const reshade::api::pipeline_subobject subobject = { subobject_type, 1, &desc };
+
+			if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject))
+			{
+				assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLint>::max()));
+				combined_source_ptr = static_cast<const GLchar *>(desc.code);
+				combined_source_length = static_cast<GLint>(desc.code_size);
 
 				count = 1;
-				string = reinterpret_cast<const GLchar *const *>(&shader_desc->code);
+				string = &combined_source_ptr;
 				length = &combined_source_length;
 			}
-		}
+		} while (false);
 	}
 #endif
 

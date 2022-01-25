@@ -1835,12 +1835,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, U
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERTEXELEMENT9 *pVertexElements, IDirect3DVertexDeclaration9 **ppDecl)
 {
 #if RESHADE_ADDON
-	auto desc = reshade::d3d9::convert_pipeline_desc(pVertexElements);
 	std::vector<D3DVERTEXELEMENT9> internal_elements;
+	std::vector<reshade::api::input_element> elements;
+	reshade::d3d9::convert_input_layout_desc(pVertexElements, elements);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
+	const reshade::api::pipeline_subobject subobjects[] = {
+		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(elements.size()), elements.data() }
+	};
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
 	{
-		reshade::d3d9::convert_pipeline_desc(desc, internal_elements);
+		reshade::d3d9::convert_input_layout_desc(static_cast<uint32_t>(elements.size()), elements.data(), internal_elements);
 		pVertexElements = internal_elements.data();
 	}
 #endif
@@ -1851,7 +1856,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 		assert(ppDecl != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 0, nullptr, to_handle(*ppDecl));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppDecl));
 #endif
 	}
 	else
@@ -1896,17 +1901,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 	// First token should be version token (https://docs.microsoft.com/windows-hardware/drivers/display/version-token), so verify its shader type
 	assert((pFunction[0] >> 16) == 0xFFFE);
 
-	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::vertex_shader };
-	desc.graphics.vertex_shader.code = pFunction;
+	reshade::api::shader_desc desc = {};
+	desc.code = pFunction;
 
 	// Find the end token to calculate token stream size (https://docs.microsoft.com/windows-hardware/drivers/display/end-token)
-	desc.graphics.vertex_shader.code_size = sizeof(DWORD);
+	desc.code_size = sizeof(DWORD);
 	for (int i = 0; pFunction[i] != 0x0000FFFF; ++i)
-		desc.graphics.vertex_shader.code_size += sizeof(DWORD);
+		desc.code_size += sizeof(DWORD);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
+	const reshade::api::pipeline_subobject subobjects[] = {
+		{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &desc }
+	};
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
 	{
-		pFunction = static_cast<const DWORD *>(desc.graphics.vertex_shader.code);
+		pFunction = static_cast<const DWORD *>(desc.code);
 	}
 #endif
 
@@ -1916,7 +1925,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 		assert(ppShader != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 0, nullptr, to_handle(*ppShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppShader));
 #endif
 	}
 	else
@@ -2075,17 +2084,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 	// First token should be version token (https://docs.microsoft.com/windows-hardware/drivers/display/version-token), so verify its shader type
 	assert((pFunction[0] >> 16) == 0xFFFF);
 
-	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::pixel_shader };
-	desc.graphics.pixel_shader.code = pFunction;
+	reshade::api::shader_desc desc = {};
+	desc.code = pFunction;
 
 	// Find the end token to calculate token stream size (https://docs.microsoft.com/windows-hardware/drivers/display/end-token)
-	desc.graphics.pixel_shader.code_size = sizeof(DWORD);
+	desc.code_size = sizeof(DWORD);
 	for (int i = 0; pFunction[i] != 0x0000FFFF; ++i)
-		desc.graphics.pixel_shader.code_size += sizeof(DWORD);
+		desc.code_size += sizeof(DWORD);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, 0, nullptr))
+	const reshade::api::pipeline_subobject subobjects[] = {
+		{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &desc }
+	};
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
 	{
-		pFunction = static_cast<const DWORD *>(desc.graphics.pixel_shader.code);
+		pFunction = static_cast<const DWORD *>(desc.code);
 	}
 #endif
 
@@ -2095,7 +2108,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 		assert(ppShader != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, 0, nullptr, to_handle(*ppShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppShader));
 #endif
 	}
 	else
@@ -2221,6 +2234,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
+	assert(_extended_interface);
+
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::present>(
 		this,
@@ -2234,7 +2249,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_implicit_swapchain->on_present();
 
-	assert(_extended_interface);
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetGPUThreadPriority(INT *pPriority)
@@ -2486,6 +2500,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode)
 {
+	assert(_extended_interface);
+
 	LOG(INFO) << "Redirecting " << "IDirect3DDevice9Ex::ResetEx" << '(' << "this = " << this << ", pPresentationParameters = " << pPresentationParameters << ", pFullscreenDisplayMode = " << pFullscreenDisplayMode << ')' << " ...";
 
 	if (pPresentationParameters == nullptr)
@@ -2501,7 +2517,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	_implicit_swapchain->on_reset();
 	device_impl::on_reset();
 
-	assert(_extended_interface);
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pp.Windowed ? nullptr : &fullscreen_mode);
 
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9ex-resetex)

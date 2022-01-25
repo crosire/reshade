@@ -167,17 +167,6 @@ namespace reshade::api
 	};
 
 	/// <summary>
-	/// A list of flags that represent the available command queue types, as returned by <see cref="command_queue::get_type"/>.
-	/// </summary>
-	enum class command_queue_type
-	{
-		graphics = 0x1,
-		compute = 0x2,
-		copy = 0x4
-	};
-	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(command_queue_type);
-
-	/// <summary>
 	/// The base class for objects provided by the ReShade API.
 	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
@@ -367,12 +356,12 @@ namespace reshade::api
 		/// <summary>
 		/// Creates a new pipeline state object.
 		/// </summary>
-		/// <param name="desc">Description of the pipeline state object to create.</param>
-		/// <param name="dynamic_state_count">Number of dynamic pipeline states.</param>
-		/// <param name="dynamic_states">Optional pointer to an array of pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding the created pipeline state object.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
+		/// <param name="layout">Pipeline layout to use.</param>
+		/// <param name="subobject_count">Number of sub-objects.</param>
+		/// <param name="subobjects">Pointer to an array of sub-objects that describe this pipeline.</param>
 		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_pipeline(const pipeline_desc &desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states, pipeline *out_handle) = 0;
+		virtual bool create_pipeline(pipeline_layout layout, uint32_t subobject_count, const pipeline_subobject *subobjects, pipeline *out_handle) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
 		/// </summary>
@@ -899,6 +888,17 @@ namespace reshade::api
 		/// <param name="color">Optional RGBA color value associated with the debug marker.</param>
 		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 	};
+
+	/// <summary>
+	/// A list of flags that represent the available command queue types, as returned by <see cref="command_queue::get_type"/>.
+	/// </summary>
+	enum class command_queue_type
+	{
+		graphics = 0x1,
+		compute = 0x2,
+		copy = 0x4
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(command_queue_type);
 
 	/// <summary>
 	/// A command queue, used to execute command lists on the GPU.

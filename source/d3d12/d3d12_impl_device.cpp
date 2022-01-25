@@ -658,96 +658,173 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	}
 }
 
-bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
+bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	for (uint32_t i = 0; i < dynamic_state_count; ++i)
+	*out_handle = { 0 };
+
+	api::shader_desc vs_desc = {};
+	api::shader_desc hs_desc = {};
+	api::shader_desc ds_desc = {};
+	api::shader_desc gs_desc = {};
+	api::shader_desc ps_desc = {};
+	api::shader_desc cs_desc = {};
+	api::pipeline_subobject input_layout_desc = {};
+	api::stream_output_desc stream_output_desc = {};
+	api::blend_desc blend_desc = {};
+	api::rasterizer_desc rasterizer_desc = {};
+	api::depth_stencil_desc depth_stencil_desc = {};
+	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	api::format depth_stencil_format = api::format::unknown;
+	api::pipeline_subobject render_target_formats = {};
+	uint32_t sample_mask = UINT32_MAX;
+	uint32_t sample_count = 1;
+
+	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
-		if (dynamic_states[i] != api::dynamic_state::stencil_reference_value &&
-			dynamic_states[i] != api::dynamic_state::blend_constant &&
-			dynamic_states[i] != api::dynamic_state::primitive_topology)
+		if (subobjects[i].count == 0)
+			continue;
+
+		switch (subobjects[i].type)
 		{
-			*out_handle = { 0 };
+		case api::pipeline_subobject_type::vertex_shader:
+			assert(subobjects[i].count == 1);
+			vs_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::hull_shader:
+			assert(subobjects[i].count == 1);
+			hs_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::domain_shader:
+			assert(subobjects[i].count == 1);
+			ds_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::geometry_shader:
+			assert(subobjects[i].count == 1);
+			gs_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::pixel_shader:
+			assert(subobjects[i].count == 1);
+			ps_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::compute_shader:
+			assert(subobjects[i].count == 1);
+			cs_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::input_layout:
+			input_layout_desc = subobjects[i];
+			break;
+		case api::pipeline_subobject_type::stream_output_state:
+			assert(subobjects[i].count == 1);
+			stream_output_desc = *static_cast<const api::stream_output_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::blend_state:
+			assert(subobjects[i].count == 1);
+			blend_desc = *static_cast<const api::blend_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::rasterizer_state:
+			assert(subobjects[i].count == 1);
+			rasterizer_desc = *static_cast<const api::rasterizer_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::depth_stencil_state:
+			assert(subobjects[i].count == 1);
+			depth_stencil_desc = *static_cast<const api::depth_stencil_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::primitive_topology:
+			assert(subobjects[i].count == 1);
+			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
+			if (topology == api::primitive_topology::triangle_fan)
+				return false;
+			break;
+		case api::pipeline_subobject_type::depth_stencil_format:
+			assert(subobjects[i].count == 1);
+			depth_stencil_format = *static_cast<const api::format *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::render_target_formats:
+			assert(subobjects[i].count <= 8);
+			render_target_formats = subobjects[i];
+			break;
+		case api::pipeline_subobject_type::sample_mask:
+			assert(subobjects[i].count == 1);
+			sample_mask = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::sample_count:
+			assert(subobjects[i].count == 1);
+			sample_count = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::viewport_count:
+			assert(subobjects[i].count == 1);
+			break;
+		case api::pipeline_subobject_type::dynamic_states:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				if (static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::stencil_reference_value &&
+					static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::blend_constant &&
+					static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::primitive_topology)
+					return false;
+			break;
+		default:
+			assert(false);
 			return false;
 		}
 	}
 
-	switch (desc.type)
+	if (cs_desc.code_size != 0)
 	{
-	case api::pipeline_stage::all_compute:
-		assert(dynamic_state_count == 0);
-		return create_compute_pipeline(desc, out_handle);
-	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out_handle);
-	default:
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d12::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
+		D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = {};
+		internal_desc.pRootSignature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+		convert_shader_desc(cs_desc, internal_desc.CS);
 
-	if (com_ptr<ID3D12PipelineState> pipeline;
-		SUCCEEDED(_orig->CreateComputePipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
-	{
-		*out_handle = to_handle(pipeline.release());
-		return true;
+		if (com_ptr<ID3D12PipelineState> pipeline;
+			SUCCEEDED(_orig->CreateComputePipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
+		{
+			*out_handle = to_handle(pipeline.release());
+			return true;
+		}
 	}
 	else
 	{
-		*out_handle = { 0 };
-		return false;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC internal_desc = {};
+		internal_desc.pRootSignature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+		reshade::d3d12::convert_shader_desc(vs_desc, internal_desc.VS);
+		reshade::d3d12::convert_shader_desc(ps_desc, internal_desc.PS);
+		reshade::d3d12::convert_shader_desc(ds_desc, internal_desc.DS);
+		reshade::d3d12::convert_shader_desc(hs_desc, internal_desc.HS);
+		reshade::d3d12::convert_shader_desc(gs_desc, internal_desc.GS);
+		reshade::d3d12::convert_stream_output_desc(stream_output_desc, internal_desc.StreamOutput);
+		reshade::d3d12::convert_blend_desc(blend_desc, internal_desc.BlendState);
+		internal_desc.SampleMask = sample_mask;
+		reshade::d3d12::convert_rasterizer_desc(rasterizer_desc, internal_desc.RasterizerState);
+		reshade::d3d12::convert_depth_stencil_desc(depth_stencil_desc, internal_desc.DepthStencilState);
+
+		std::vector<D3D12_INPUT_ELEMENT_DESC> internal_elements;
+		reshade::d3d12::convert_input_layout_desc(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), internal_elements);
+		internal_desc.InputLayout.NumElements = static_cast<UINT>(internal_elements.size());
+		internal_desc.InputLayout.pInputElementDescs = internal_elements.data();
+
+		internal_desc.PrimitiveTopologyType = reshade::d3d12::convert_primitive_topology_type(topology);
+
+		internal_desc.NumRenderTargets = render_target_formats.count;
+		for (UINT i = 0; i < internal_desc.NumRenderTargets; ++i)
+			internal_desc.RTVFormats[i] = reshade::d3d12::convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
+		internal_desc.DSVFormat = reshade::d3d12::convert_format(depth_stencil_format);
+
+		internal_desc.SampleDesc.Count = sample_count;
+
+		if (com_ptr<ID3D12PipelineState> pipeline;
+			SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
+		{
+			pipeline_extra_data extra_data;
+			extra_data.topology = convert_primitive_topology(topology);
+
+			std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
+
+			pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+
+			*out_handle = to_handle(pipeline.release());
+			return true;
+		}
 	}
-}
-bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	if (desc.graphics.topology == api::primitive_topology::triangle_fan)
-	{
-		*out_handle = { 0 };
-		return false;
-	}
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
-
-	std::vector<D3D12_INPUT_ELEMENT_DESC> internal_elements;
-	internal_elements.reserve(16);
-	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
-	{
-		const api::input_element &element = desc.graphics.input_layout[i];
-
-		D3D12_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
-		internal_element.SemanticName = element.semantic;
-		internal_element.SemanticIndex = element.semantic_index;
-		internal_element.Format = convert_format(element.format);
-		internal_element.InputSlot = element.buffer_binding;
-		internal_element.AlignedByteOffset = element.offset;
-		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		internal_element.InstanceDataStepRate = element.instance_step_rate;
-	}
-
-	internal_desc.InputLayout.NumElements = static_cast<UINT>(internal_elements.size());
-	internal_desc.InputLayout.pInputElementDescs = internal_elements.data();
-
-	if (com_ptr<ID3D12PipelineState> pipeline;
-		SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
-	{
-		pipeline_extra_data extra_data;
-		extra_data.topology = convert_primitive_topology(desc.graphics.topology);
-
-		std::copy_n(desc.graphics.blend_state.blend_constant, 4, extra_data.blend_constant);
-
-		pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
-
-		*out_handle = to_handle(pipeline.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
+	return false;
 }
 void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline handle)
 {

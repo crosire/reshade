@@ -1379,19 +1379,142 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-		VkGraphicsPipelineCreateInfo create_info = pCreateInfos[i];
-		auto desc = device_impl->convert_pipeline_desc(create_info);
+		const VkGraphicsPipelineCreateInfo &create_info = pCreateInfos[i];
+
+		reshade::api::shader_desc vs_desc = {};
+		reshade::api::shader_desc hs_desc = {};
+		reshade::api::shader_desc ds_desc = {};
+		reshade::api::shader_desc gs_desc = {};
+		reshade::api::shader_desc ps_desc = {};
+		auto stream_output_desc = reshade::vulkan::convert_stream_output_desc(create_info.pRasterizationState);
+		auto blend_desc = reshade::vulkan::convert_blend_desc(create_info.pColorBlendState, create_info.pMultisampleState);
+		auto rasterizer_desc = reshade::vulkan::convert_rasterizer_desc(create_info.pRasterizationState, create_info.pMultisampleState);
+		auto depth_stencil_desc = reshade::vulkan::convert_depth_stencil_desc(create_info.pDepthStencilState);
+		reshade::api::primitive_topology topology = (create_info.pInputAssemblyState != nullptr) ? reshade::vulkan::convert_primitive_topology(create_info.pInputAssemblyState->topology) : reshade::api::primitive_topology::undefined;
+		reshade::api::format depth_stencil_format = reshade::api::format::unknown;
+		reshade::api::format render_target_formats[8] = {};
+		uint32_t sample_mask = (create_info.pMultisampleState != nullptr && create_info.pMultisampleState->pSampleMask != nullptr) ? *create_info.pMultisampleState->pSampleMask : UINT32_MAX;
+		uint32_t sample_count = (create_info.pMultisampleState != nullptr) ? static_cast<uint32_t>(create_info.pMultisampleState->rasterizationSamples) : 1;
+		uint32_t viewport_count = (create_info.pViewportState != nullptr) ? create_info.pViewportState->viewportCount : 1;
+
+		std::vector<reshade::api::input_element> input_layout;
+		reshade::vulkan::convert_input_layout_desc(create_info.pVertexInputState, input_layout);
+
+		for (uint32_t k = 0; k < create_info.stageCount; ++k)
+		{
+			const VkPipelineShaderStageCreateInfo &stage = create_info.pStages[k];
+
+			const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(stage.module);
+
+			switch (stage.stage)
+			{
+			case VK_SHADER_STAGE_VERTEX_BIT:
+				vs_desc.code = module_data->spirv.data();
+				vs_desc.code_size = module_data->spirv.size();
+				vs_desc.entry_point = stage.pName;
+				break;
+			case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+				hs_desc.code = module_data->spirv.data();
+				hs_desc.code_size = module_data->spirv.size();
+				hs_desc.entry_point = stage.pName;
+				break;
+			case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+				ds_desc.code = module_data->spirv.data();
+				ds_desc.code_size = module_data->spirv.size();
+				ds_desc.entry_point = stage.pName;
+				break;
+			case VK_SHADER_STAGE_GEOMETRY_BIT:
+				gs_desc.code = module_data->spirv.data();
+				gs_desc.code_size = module_data->spirv.size();
+				gs_desc.entry_point = stage.pName;
+				break;
+			case VK_SHADER_STAGE_FRAGMENT_BIT:
+				ps_desc.code = module_data->spirv.data();
+				ps_desc.code_size = module_data->spirv.size();
+				ps_desc.entry_point = stage.pName;
+				break;
+			}
+		}
+
+		if ((hs_desc.code_size != 0 || ds_desc.code_size != 0) && create_info.pTessellationState != nullptr)
+		{
+			const VkPipelineTessellationStateCreateInfo &tessellation_state_info = *create_info.pTessellationState;
+
+			assert(topology == reshade::api::primitive_topology::patch_list_01_cp);
+			topology = static_cast<reshade::api::primitive_topology>(static_cast<uint32_t>(reshade::api::primitive_topology::patch_list_01_cp) + tessellation_state_info.patchControlPoints - 1);
+		}
+
+		uint32_t render_target_count = 0;
+
+		if (create_info.renderPass != VK_NULL_HANDLE)
+		{
+			const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(create_info.renderPass);
+
+			const auto &subpass = render_pass_data->subpasses[create_info.subpass];
+
+			if (subpass.pDepthStencilAttachment != nullptr)
+			{
+				const uint32_t a = subpass.pDepthStencilAttachment->attachment;
+				if (a != VK_ATTACHMENT_UNUSED)
+					depth_stencil_format = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
+			}
+
+			render_target_count = std::min(subpass.colorAttachmentCount, 8u);
+
+			for (uint32_t k = 0; k < render_target_count; ++k)
+			{
+				const uint32_t a = subpass.pColorAttachments[k].attachment;
+				if (a != VK_ATTACHMENT_UNUSED)
+					render_target_formats[i] = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
+			}
+		}
+#ifdef VK_KHR_dynamic_rendering
+		else
+		{
+			if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfoKHR>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR))
+			{
+				if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
+					depth_stencil_format = convert_format(dynamic_rendering_info->depthAttachmentFormat);
+				else
+					depth_stencil_format = convert_format(dynamic_rendering_info->stencilAttachmentFormat);
+
+				render_target_count = std::min(dynamic_rendering_info->colorAttachmentCount, 8u);
+
+				for (uint32_t k = 0; k < render_target_count; ++k)
+					render_target_formats[k] = convert_format(dynamic_rendering_info->pColorAttachmentFormats[k]);
+			}
+		}
+#endif
 
 		std::vector<reshade::api::dynamic_state> states;
-		if (create_info.pDynamicState != nullptr)
-			reshade::vulkan::convert_dynamic_states(*create_info.pDynamicState, states);
+		reshade::vulkan::convert_dynamic_states(create_info.pDynamicState, states);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, static_cast<uint32_t>(states.size()), states.data()))
+		const reshade::api::pipeline_subobject subobjects[] = {
+			{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc },
+			{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc },
+			{ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc },
+			{ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc },
+			{ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc },
+			{ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc },
+			{ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc },
+			{ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask },
+			{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc },
+			{ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc },
+			{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() },
+			{ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology },
+			{ reshade::api::pipeline_subobject_type::render_target_formats, render_target_count, render_target_formats },
+			{ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format },
+			{ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count },
+			{ reshade::api::pipeline_subobject_type::viewport_count, 1, &viewport_count },
+			{ reshade::api::pipeline_subobject_type::dynamic_states, static_cast<uint32_t>(states.size()), states.data() },
+		};
+
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
-			result = device_impl->create_graphics_pipeline(
-				desc, static_cast<uint32_t>(states.size()), states.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+			result = device_impl->create_pipeline(
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, 17, subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -1400,7 +1523,8 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 
 		if (result >= VK_SUCCESS)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, static_cast<uint32_t>(states.size()), states.data(), reshade::api::pipeline { (uint64_t)pPipelines[i] });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
+				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reshade::api::pipeline{ (uint64_t)pPipelines[i] });
 		}
 		else
 		{
@@ -1430,13 +1554,24 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-		VkComputePipelineCreateInfo create_info = pCreateInfos[i];
-		auto desc = device_impl->convert_pipeline_desc(pCreateInfos[i]);
+		const VkComputePipelineCreateInfo &create_info = pCreateInfos[i];
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, 0, nullptr))
+		assert(create_info.stage.stage == VK_SHADER_STAGE_COMPUTE_BIT);
+		const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(create_info.stage.module);
+
+		reshade::api::shader_desc cs_desc = {};
+		cs_desc.code = module_data->spirv.data();
+		cs_desc.code_size = module_data->spirv.size();
+		cs_desc.entry_point = create_info.stage.pName;
+
+		const reshade::api::pipeline_subobject subobjects[] = {
+			{ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc }
+		};
+
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 		{
-			result = device_impl->create_compute_pipeline(
-				desc, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+			result = device_impl->create_pipeline(
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, 1, subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -1445,7 +1580,8 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 
 		if (result >= VK_SUCCESS)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, 0, nullptr, reshade::api::pipeline { (uint64_t)pPipelines[i] });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
+				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reshade::api::pipeline { (uint64_t)pPipelines[i] });
 		}
 		else
 		{

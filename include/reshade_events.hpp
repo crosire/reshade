@@ -580,11 +580,12 @@ namespace reshade
 		/// <item><description>ID3D11Device3::CreateRasterizerState2</description></item>
 		/// <item><description>ID3D12Device::CreateComputePipelineState</description></item>
 		/// <item><description>ID3D12Device::CreateGraphicsPipelineState</description></item>
+		/// <item><description>ID3D12Device2::CreatePipelineState</description></item>
 		/// <item><description>glLinkProgram</description></item>
 		/// <item><description>vkCreateComputePipelines</description></item>
 		/// <item><description>vkCreateGraphicsPipelines</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_desc &amp;desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline pipeline)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline pipeline)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// May be called multiple times with the same pipeline handle (whenever the pipeline is updated or its reference count is incremented).
@@ -622,11 +623,12 @@ namespace reshade
 		/// <item><description>ID3D11Device3::CreateRasterizerState2</description></item>
 		/// <item><description>ID3D12Device::CreateComputePipelineState</description></item>
 		/// <item><description>ID3D12Device::CreateGraphicsPipelineState</description></item>
+		/// <item><description>ID3D12Device2::CreatePipelineState</description></item>
 		/// <item><description>glShaderSource</description></item>
 		/// <item><description>vkCreateComputePipelines</description></item>
 		/// <item><description>vkCreateGraphicsPipelines</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -1513,8 +1515,8 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_buffer_region, bool, api::device *device, const void *data, api::resource resource, uint64_t offset, uint64_t size);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline, void, api::device *device, const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline pipeline);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline, void, api::device *device, api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline pipeline);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline_layout, void, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout layout);
