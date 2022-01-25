@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#define ImTextureID unsigned long long
+
 #include <imgui.h>
 #include <reshade.hpp>
 #include <vector>

@@ -2,9 +2,8 @@
 
 #if defined(IMGUI_VERSION_NUM)
 
-#ifndef ImTextureID
-#define ImTextureID reshade::api::resource_view
-#endif
+// Check that the 'ImTextureID' type has the same size as 'reshade::api::resource_view'
+static_assert(sizeof(ImTextureID) == 8, "Missing \"#define ImTextureID uint64_t\" before \"#include <imgui.h>\"");
 
 struct imgui_function_table
 {
@@ -346,6 +345,73 @@ struct imgui_function_table
 	void(*GetAllocatorFunctions)(ImGuiMemAllocFunc* p_alloc_func, ImGuiMemFreeFunc* p_free_func, void** p_user_data);
 	void*(*MemAlloc)(size_t size);
 	void(*MemFree)(void* ptr);
+	int(*ImGuiStorage_GetInt)(const ImGuiStorage *_this, ImGuiID key, int default_val);
+	void(*ImGuiStorage_SetInt)(ImGuiStorage *_this, ImGuiID key, int val);
+	bool(*ImGuiStorage_GetBool)(const ImGuiStorage *_this, ImGuiID key, bool default_val);
+	void(*ImGuiStorage_SetBool)(ImGuiStorage *_this, ImGuiID key, bool val);
+	float(*ImGuiStorage_GetFloat)(const ImGuiStorage *_this, ImGuiID key, float default_val);
+	void(*ImGuiStorage_SetFloat)(ImGuiStorage *_this, ImGuiID key, float val);
+	void*(*ImGuiStorage_GetVoidPtr)(const ImGuiStorage *_this, ImGuiID key);
+	void(*ImGuiStorage_SetVoidPtr)(ImGuiStorage *_this, ImGuiID key, void* val);
+	int*(*ImGuiStorage_GetIntRef)(ImGuiStorage *_this, ImGuiID key, int default_val);
+	bool*(*ImGuiStorage_GetBoolRef)(ImGuiStorage *_this, ImGuiID key, bool default_val);
+	float*(*ImGuiStorage_GetFloatRef)(ImGuiStorage *_this, ImGuiID key, float default_val);
+	void**(*ImGuiStorage_GetVoidPtrRef)(ImGuiStorage *_this, ImGuiID key, void* default_val);
+	void(*ImGuiStorage_SetAllInt)(ImGuiStorage *_this, int val);
+	void(*ImGuiStorage_BuildSortByKey)(ImGuiStorage *_this);
+	void(*ConstructImGuiListClipper)(ImGuiListClipper *_this);
+	void(*DestructImGuiListClipper)(ImGuiListClipper *_this);
+	void(*ImGuiListClipper_Begin)(ImGuiListClipper *_this, int items_count, float items_height);
+	void(*ImGuiListClipper_End)(ImGuiListClipper *_this);
+	bool(*ImGuiListClipper_Step)(ImGuiListClipper *_this);
+	void(*ImGuiListClipper_ForceDisplayRangeByIndices)(ImGuiListClipper *_this, int item_min, int item_max);
+	void(*ImDrawList_PushClipRect)(ImDrawList *_this, ImVec2 clip_rect_min, ImVec2 clip_rect_max, bool intersect_with_current_clip_rect);
+	void(*ImDrawList_PushClipRectFullScreen)(ImDrawList *_this);
+	void(*ImDrawList_PopClipRect)(ImDrawList *_this);
+	void(*ImDrawList_PushTextureID)(ImDrawList *_this, ImTextureID texture_id);
+	void(*ImDrawList_PopTextureID)(ImDrawList *_this);
+	void(*ImDrawList_AddLine)(ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, ImU32 col, float thickness);
+	void(*ImDrawList_AddRect)(ImDrawList *_this, const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness);
+	void(*ImDrawList_AddRectFilled)(ImDrawList *_this, const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags);
+	void(*ImDrawList_AddRectFilledMultiColor)(ImDrawList *_this, const ImVec2& p_min, const ImVec2& p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_bot_right, ImU32 col_bot_left);
+	void(*ImDrawList_AddQuad)(ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col, float thickness);
+	void(*ImDrawList_AddQuadFilled)(ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col);
+	void(*ImDrawList_AddTriangle)(ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col, float thickness);
+	void(*ImDrawList_AddTriangleFilled)(ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col);
+	void(*ImDrawList_AddCircle)(ImDrawList *_this, const ImVec2& center, float radius, ImU32 col, int num_segments, float thickness);
+	void(*ImDrawList_AddCircleFilled)(ImDrawList *_this, const ImVec2& center, float radius, ImU32 col, int num_segments);
+	void(*ImDrawList_AddNgon)(ImDrawList *_this, const ImVec2& center, float radius, ImU32 col, int num_segments, float thickness);
+	void(*ImDrawList_AddNgonFilled)(ImDrawList *_this, const ImVec2& center, float radius, ImU32 col, int num_segments);
+	void(*ImDrawList_AddText)(ImDrawList *_this, const ImVec2& pos, ImU32 col, const char* text_begin, const char* text_end);
+	void(*ImDrawList_AddText2)(ImDrawList *_this, const ImFont* font, float font_size, const ImVec2& pos, ImU32 col, const char* text_begin, const char* text_end, float wrap_width, const ImVec4* cpu_fine_clip_rect);
+	void(*ImDrawList_AddPolyline)(ImDrawList *_this, const ImVec2* points, int num_points, ImU32 col, ImDrawFlags flags, float thickness);
+	void(*ImDrawList_AddConvexPolyFilled)(ImDrawList *_this, const ImVec2* points, int num_points, ImU32 col);
+	void(*ImDrawList_AddBezierCubic)(ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col, float thickness, int num_segments);
+	void(*ImDrawList_AddBezierQuadratic)(ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col, float thickness, int num_segments);
+	void(*ImDrawList_AddImage)(ImDrawList *_this, ImTextureID user_texture_id, const ImVec2& p_min, const ImVec2& p_max, const ImVec2& uv_min, const ImVec2& uv_max, ImU32 col);
+	void(*ImDrawList_AddImageQuad)(ImDrawList *_this, ImTextureID user_texture_id, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, const ImVec2& uv1, const ImVec2& uv2, const ImVec2& uv3, const ImVec2& uv4, ImU32 col);
+	void(*ImDrawList_AddImageRounded)(ImDrawList *_this, ImTextureID user_texture_id, const ImVec2& p_min, const ImVec2& p_max, const ImVec2& uv_min, const ImVec2& uv_max, ImU32 col, float rounding, ImDrawFlags flags);
+	void(*ImDrawList_PathArcTo)(ImDrawList *_this, const ImVec2& center, float radius, float a_min, float a_max, int num_segments);
+	void(*ImDrawList_PathArcToFast)(ImDrawList *_this, const ImVec2& center, float radius, int a_min_of_12, int a_max_of_12);
+	void(*ImDrawList_PathBezierCubicCurveTo)(ImDrawList *_this, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, int num_segments);
+	void(*ImDrawList_PathBezierQuadraticCurveTo)(ImDrawList *_this, const ImVec2& p2, const ImVec2& p3, int num_segments);
+	void(*ImDrawList_PathRect)(ImDrawList *_this, const ImVec2& rect_min, const ImVec2& rect_max, float rounding, ImDrawFlags flags);
+	void(*ImDrawList_AddCallback)(ImDrawList *_this, ImDrawCallback callback, void* callback_data);
+	void(*ImDrawList_AddDrawCmd)(ImDrawList *_this);
+	ImDrawList*(*ImDrawList_CloneOutput)(const ImDrawList *_this);
+	void(*ImDrawList_PrimReserve)(ImDrawList *_this, int idx_count, int vtx_count);
+	void(*ImDrawList_PrimUnreserve)(ImDrawList *_this, int idx_count, int vtx_count);
+	void(*ImDrawList_PrimRect)(ImDrawList *_this, const ImVec2& a, const ImVec2& b, ImU32 col);
+	void(*ImDrawList_PrimRectUV)(ImDrawList *_this, const ImVec2& a, const ImVec2& b, const ImVec2& uv_a, const ImVec2& uv_b, ImU32 col);
+	void(*ImDrawList_PrimQuadUV)(ImDrawList *_this, const ImVec2& a, const ImVec2& b, const ImVec2& c, const ImVec2& d, const ImVec2& uv_a, const ImVec2& uv_b, const ImVec2& uv_c, const ImVec2& uv_d, ImU32 col);
+	void(*ConstructImFont)(ImFont *_this);
+	void(*DestructImFont)(ImFont *_this);
+	const ImFontGlyph*(*ImFont_FindGlyph)(const ImFont *_this, ImWchar c);
+	const ImFontGlyph*(*ImFont_FindGlyphNoFallback)(const ImFont *_this, ImWchar c);
+	ImVec2(*ImFont_CalcTextSizeA)(const ImFont *_this, float size, float max_width, float wrap_width, const char* text_begin, const char* text_end, const char** remaining);
+	const char*(*ImFont_CalcWordWrapPositionA)(const ImFont *_this, float scale, const char* text, const char* text_end, float wrap_width);
+	void(*ImFont_RenderChar)(const ImFont *_this, ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, ImWchar c);
+	void(*ImFont_RenderText)(const ImFont *_this, ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, float wrap_width, bool cpu_fine_clip);
 
 };
 
@@ -710,6 +776,75 @@ namespace ImGui
 	inline void MemFree(void* ptr) { imgui_function_table_instance()->MemFree(ptr); }
 
 }
+
+inline int ImGuiStorage::GetInt(ImGuiID key, int default_val) const { return imgui_function_table_instance()->ImGuiStorage_GetInt(this, key, default_val); }
+inline void ImGuiStorage::SetInt(ImGuiID key, int val) { imgui_function_table_instance()->ImGuiStorage_SetInt(this, key, val); }
+inline bool ImGuiStorage::GetBool(ImGuiID key, bool default_val) const { return imgui_function_table_instance()->ImGuiStorage_GetBool(this, key, default_val); }
+inline void ImGuiStorage::SetBool(ImGuiID key, bool val) { imgui_function_table_instance()->ImGuiStorage_SetBool(this, key, val); }
+inline float ImGuiStorage::GetFloat(ImGuiID key, float default_val) const { return imgui_function_table_instance()->ImGuiStorage_GetFloat(this, key, default_val); }
+inline void ImGuiStorage::SetFloat(ImGuiID key, float val) { imgui_function_table_instance()->ImGuiStorage_SetFloat(this, key, val); }
+inline void* ImGuiStorage::GetVoidPtr(ImGuiID key) const { return imgui_function_table_instance()->ImGuiStorage_GetVoidPtr(this, key); }
+inline void ImGuiStorage::SetVoidPtr(ImGuiID key, void* val) { imgui_function_table_instance()->ImGuiStorage_SetVoidPtr(this, key, val); }
+inline int* ImGuiStorage::GetIntRef(ImGuiID key, int default_val) { return imgui_function_table_instance()->ImGuiStorage_GetIntRef(this, key, default_val); }
+inline bool* ImGuiStorage::GetBoolRef(ImGuiID key, bool default_val) { return imgui_function_table_instance()->ImGuiStorage_GetBoolRef(this, key, default_val); }
+inline float* ImGuiStorage::GetFloatRef(ImGuiID key, float default_val) { return imgui_function_table_instance()->ImGuiStorage_GetFloatRef(this, key, default_val); }
+inline void** ImGuiStorage::GetVoidPtrRef(ImGuiID key, void* default_val) { return imgui_function_table_instance()->ImGuiStorage_GetVoidPtrRef(this, key, default_val); }
+inline void ImGuiStorage::SetAllInt(int val) { imgui_function_table_instance()->ImGuiStorage_SetAllInt(this, val); }
+inline void ImGuiStorage::BuildSortByKey() { imgui_function_table_instance()->ImGuiStorage_BuildSortByKey(this); }
+inline ImGuiListClipper::ImGuiListClipper() { imgui_function_table_instance()->ConstructImGuiListClipper(this); }
+inline ImGuiListClipper::~ImGuiListClipper() { imgui_function_table_instance()->DestructImGuiListClipper(this); }
+inline void ImGuiListClipper::Begin(int items_count, float items_height) { imgui_function_table_instance()->ImGuiListClipper_Begin(this, items_count, items_height); }
+inline void ImGuiListClipper::End() { imgui_function_table_instance()->ImGuiListClipper_End(this); }
+inline bool ImGuiListClipper::Step() { return imgui_function_table_instance()->ImGuiListClipper_Step(this); }
+inline void ImGuiListClipper::ForceDisplayRangeByIndices(int item_min, int item_max) { imgui_function_table_instance()->ImGuiListClipper_ForceDisplayRangeByIndices(this, item_min, item_max); }
+inline void ImDrawList::PushClipRect(ImVec2 clip_rect_min, ImVec2 clip_rect_max, bool intersect_with_current_clip_rect) { imgui_function_table_instance()->ImDrawList_PushClipRect(this, clip_rect_min, clip_rect_max, intersect_with_current_clip_rect); }
+inline void ImDrawList::PushClipRectFullScreen() { imgui_function_table_instance()->ImDrawList_PushClipRectFullScreen(this); }
+inline void ImDrawList::PopClipRect() { imgui_function_table_instance()->ImDrawList_PopClipRect(this); }
+inline void ImDrawList::PushTextureID(ImTextureID texture_id) { imgui_function_table_instance()->ImDrawList_PushTextureID(this, texture_id); }
+inline void ImDrawList::PopTextureID() { imgui_function_table_instance()->ImDrawList_PopTextureID(this); }
+inline void ImDrawList::AddLine(const ImVec2& p1, const ImVec2& p2, ImU32 col, float thickness) { imgui_function_table_instance()->ImDrawList_AddLine(this, p1, p2, col, thickness); }
+inline void ImDrawList::AddRect(const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness) { imgui_function_table_instance()->ImDrawList_AddRect(this, p_min, p_max, col, rounding, flags, thickness); }
+inline void ImDrawList::AddRectFilled(const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags) { imgui_function_table_instance()->ImDrawList_AddRectFilled(this, p_min, p_max, col, rounding, flags); }
+inline void ImDrawList::AddRectFilledMultiColor(const ImVec2& p_min, const ImVec2& p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_bot_right, ImU32 col_bot_left) { imgui_function_table_instance()->ImDrawList_AddRectFilledMultiColor(this, p_min, p_max, col_upr_left, col_upr_right, col_bot_right, col_bot_left); }
+inline void ImDrawList::AddQuad(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col, float thickness) { imgui_function_table_instance()->ImDrawList_AddQuad(this, p1, p2, p3, p4, col, thickness); }
+inline void ImDrawList::AddQuadFilled(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col) { imgui_function_table_instance()->ImDrawList_AddQuadFilled(this, p1, p2, p3, p4, col); }
+inline void ImDrawList::AddTriangle(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col, float thickness) { imgui_function_table_instance()->ImDrawList_AddTriangle(this, p1, p2, p3, col, thickness); }
+inline void ImDrawList::AddTriangleFilled(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col) { imgui_function_table_instance()->ImDrawList_AddTriangleFilled(this, p1, p2, p3, col); }
+inline void ImDrawList::AddCircle(const ImVec2& center, float radius, ImU32 col, int num_segments, float thickness) { imgui_function_table_instance()->ImDrawList_AddCircle(this, center, radius, col, num_segments, thickness); }
+inline void ImDrawList::AddCircleFilled(const ImVec2& center, float radius, ImU32 col, int num_segments) { imgui_function_table_instance()->ImDrawList_AddCircleFilled(this, center, radius, col, num_segments); }
+inline void ImDrawList::AddNgon(const ImVec2& center, float radius, ImU32 col, int num_segments, float thickness) { imgui_function_table_instance()->ImDrawList_AddNgon(this, center, radius, col, num_segments, thickness); }
+inline void ImDrawList::AddNgonFilled(const ImVec2& center, float radius, ImU32 col, int num_segments) { imgui_function_table_instance()->ImDrawList_AddNgonFilled(this, center, radius, col, num_segments); }
+inline void ImDrawList::AddText(const ImVec2& pos, ImU32 col, const char* text_begin, const char* text_end) { imgui_function_table_instance()->ImDrawList_AddText(this, pos, col, text_begin, text_end); }
+inline void ImDrawList::AddText(const ImFont* font, float font_size, const ImVec2& pos, ImU32 col, const char* text_begin, const char* text_end, float wrap_width, const ImVec4* cpu_fine_clip_rect) { imgui_function_table_instance()->ImDrawList_AddText2(this, font, font_size, pos, col, text_begin, text_end, wrap_width, cpu_fine_clip_rect); }
+inline void ImDrawList::AddPolyline(const ImVec2* points, int num_points, ImU32 col, ImDrawFlags flags, float thickness) { imgui_function_table_instance()->ImDrawList_AddPolyline(this, points, num_points, col, flags, thickness); }
+inline void ImDrawList::AddConvexPolyFilled(const ImVec2* points, int num_points, ImU32 col) { imgui_function_table_instance()->ImDrawList_AddConvexPolyFilled(this, points, num_points, col); }
+inline void ImDrawList::AddBezierCubic(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col, float thickness, int num_segments) { imgui_function_table_instance()->ImDrawList_AddBezierCubic(this, p1, p2, p3, p4, col, thickness, num_segments); }
+inline void ImDrawList::AddBezierQuadratic(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col, float thickness, int num_segments) { imgui_function_table_instance()->ImDrawList_AddBezierQuadratic(this, p1, p2, p3, col, thickness, num_segments); }
+inline void ImDrawList::AddImage(ImTextureID user_texture_id, const ImVec2& p_min, const ImVec2& p_max, const ImVec2& uv_min, const ImVec2& uv_max, ImU32 col) { imgui_function_table_instance()->ImDrawList_AddImage(this, user_texture_id, p_min, p_max, uv_min, uv_max, col); }
+inline void ImDrawList::AddImageQuad(ImTextureID user_texture_id, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, const ImVec2& uv1, const ImVec2& uv2, const ImVec2& uv3, const ImVec2& uv4, ImU32 col) { imgui_function_table_instance()->ImDrawList_AddImageQuad(this, user_texture_id, p1, p2, p3, p4, uv1, uv2, uv3, uv4, col); }
+inline void ImDrawList::AddImageRounded(ImTextureID user_texture_id, const ImVec2& p_min, const ImVec2& p_max, const ImVec2& uv_min, const ImVec2& uv_max, ImU32 col, float rounding, ImDrawFlags flags) { imgui_function_table_instance()->ImDrawList_AddImageRounded(this, user_texture_id, p_min, p_max, uv_min, uv_max, col, rounding, flags); }
+inline void ImDrawList::PathArcTo(const ImVec2& center, float radius, float a_min, float a_max, int num_segments) { imgui_function_table_instance()->ImDrawList_PathArcTo(this, center, radius, a_min, a_max, num_segments); }
+inline void ImDrawList::PathArcToFast(const ImVec2& center, float radius, int a_min_of_12, int a_max_of_12) { imgui_function_table_instance()->ImDrawList_PathArcToFast(this, center, radius, a_min_of_12, a_max_of_12); }
+inline void ImDrawList::PathBezierCubicCurveTo(const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, int num_segments) { imgui_function_table_instance()->ImDrawList_PathBezierCubicCurveTo(this, p2, p3, p4, num_segments); }
+inline void ImDrawList::PathBezierQuadraticCurveTo(const ImVec2& p2, const ImVec2& p3, int num_segments) { imgui_function_table_instance()->ImDrawList_PathBezierQuadraticCurveTo(this, p2, p3, num_segments); }
+inline void ImDrawList::PathRect(const ImVec2& rect_min, const ImVec2& rect_max, float rounding, ImDrawFlags flags) { imgui_function_table_instance()->ImDrawList_PathRect(this, rect_min, rect_max, rounding, flags); }
+inline void ImDrawList::AddCallback(ImDrawCallback callback, void* callback_data) { imgui_function_table_instance()->ImDrawList_AddCallback(this, callback, callback_data); }
+inline void ImDrawList::AddDrawCmd() { imgui_function_table_instance()->ImDrawList_AddDrawCmd(this); }
+inline ImDrawList* ImDrawList::CloneOutput() const { return imgui_function_table_instance()->ImDrawList_CloneOutput(this); }
+inline void ImDrawList::PrimReserve(int idx_count, int vtx_count) { imgui_function_table_instance()->ImDrawList_PrimReserve(this, idx_count, vtx_count); }
+inline void ImDrawList::PrimUnreserve(int idx_count, int vtx_count) { imgui_function_table_instance()->ImDrawList_PrimUnreserve(this, idx_count, vtx_count); }
+inline void ImDrawList::PrimRect(const ImVec2& a, const ImVec2& b, ImU32 col) { imgui_function_table_instance()->ImDrawList_PrimRect(this, a, b, col); }
+inline void ImDrawList::PrimRectUV(const ImVec2& a, const ImVec2& b, const ImVec2& uv_a, const ImVec2& uv_b, ImU32 col) { imgui_function_table_instance()->ImDrawList_PrimRectUV(this, a, b, uv_a, uv_b, col); }
+inline void ImDrawList::PrimQuadUV(const ImVec2& a, const ImVec2& b, const ImVec2& c, const ImVec2& d, const ImVec2& uv_a, const ImVec2& uv_b, const ImVec2& uv_c, const ImVec2& uv_d, ImU32 col) { imgui_function_table_instance()->ImDrawList_PrimQuadUV(this, a, b, c, d, uv_a, uv_b, uv_c, uv_d, col); }
+inline ImFont::ImFont() { imgui_function_table_instance()->ConstructImFont(this); }
+inline ImFont::~ImFont() { imgui_function_table_instance()->DestructImFont(this); }
+inline const ImFontGlyph* ImFont::FindGlyph(ImWchar c) const { return imgui_function_table_instance()->ImFont_FindGlyph(this, c); }
+inline const ImFontGlyph* ImFont::FindGlyphNoFallback(ImWchar c) const { return imgui_function_table_instance()->ImFont_FindGlyphNoFallback(this, c); }
+inline ImVec2 ImFont::CalcTextSizeA(float size, float max_width, float wrap_width, const char* text_begin, const char* text_end, const char** remaining) const { return imgui_function_table_instance()->ImFont_CalcTextSizeA(this, size, max_width, wrap_width, text_begin, text_end, remaining); }
+inline const char* ImFont::CalcWordWrapPositionA(float scale, const char* text, const char* text_end, float wrap_width) const { return imgui_function_table_instance()->ImFont_CalcWordWrapPositionA(this, scale, text, text_end, wrap_width); }
+inline void ImFont::RenderChar(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, ImWchar c) const { imgui_function_table_instance()->ImFont_RenderChar(this, draw_list, size, pos, col, c); }
+inline void ImFont::RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, float wrap_width, bool cpu_fine_clip) const { imgui_function_table_instance()->ImFont_RenderText(this, draw_list, size, pos, col, clip_rect, text_begin, text_end, wrap_width, cpu_fine_clip); }
+
 
 #endif
 

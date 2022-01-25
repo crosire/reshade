@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#define ImTextureID unsigned long long
+
 #include <imgui.h>
 #include <reshade.hpp>
 #include "descriptor_set_tracking.hpp"
@@ -410,7 +412,7 @@ static void draw_overlay(effect_runtime *runtime)
 		const ImVec2 pos = ImGui::GetCursorScreenPos();
 		const ImVec2 size = aspect_ratio > 1 ? ImVec2(single_image_max_size, single_image_max_size / aspect_ratio) : ImVec2(single_image_max_size * aspect_ratio, single_image_max_size);
 
-		ImGui::Image(tex_data.last_view, size, ImVec2(0, 0), ImVec2(1, 1), ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + size.x, pos.y + size.y)) ? ImColor(0.0f, 1.0f, 0.0f) : ImColor(1.0f, 1.0f, 1.0f), ImColor(0.0f, 0.0f, 0.0f, 0.0f));
+		ImGui::Image(tex_data.last_view.handle, size, ImVec2(0, 0), ImVec2(1, 1), ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + size.x, pos.y + size.y)) ? ImColor(0.0f, 1.0f, 0.0f) : ImColor(1.0f, 1.0f, 1.0f), ImColor(0.0f, 0.0f, 0.0f, 0.0f));
 
 		if (ImGui::IsItemHovered())
 			data.replaced_texture_srv = tex_data.last_view;
