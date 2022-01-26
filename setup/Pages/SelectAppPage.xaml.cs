@@ -115,8 +115,8 @@ namespace ReShade.Setup.Pages
 					{
 						searchPaths.Add(Path.Combine(steamInstallPath, "steamapps", "common"));
 
-						string steamConfig = File.ReadAllText(Path.Combine(steamInstallPath, "config", "config.vdf"));
-						foreach (Match match in new Regex("\"BaseInstallFolder_[1-9]\"\\s+\"(.+)\"").Matches(steamConfig))
+						string steamConfig = File.ReadAllText(Path.Combine(steamInstallPath, "config", "libraryfolders.vdf"));
+						foreach (Match match in new Regex("\"path\"\\s+\"(.+)\"").Matches(steamConfig))
 						{
 							searchPaths.Add(Path.Combine(match.Groups[1].Value.Replace("\\\\", "\\"), "steamapps", "common"));
 						}
