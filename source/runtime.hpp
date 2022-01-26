@@ -5,14 +5,14 @@
 
 #pragma once
 
-#include <mutex>
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <atomic>
 #include <chrono>
 #include <memory>
 #include <filesystem>
+#include <atomic>
+#include <shared_mutex>
+#include <string>
+#include <vector>
+#include <unordered_map>
 #include "reshade_api.hpp"
 #if RESHADE_GUI
 #include "imgui_code_editor.hpp"
@@ -377,9 +377,9 @@ namespace reshade
 		std::atomic<bool> _last_reload_successfull = true;
 		bool _textures_loaded = false;
 		bool _last_texture_reload_successfull = true;
+		std::shared_mutex _reload_mutex;
 		std::vector<size_t> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
-		std::mutex _reload_mutex;
 
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;

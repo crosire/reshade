@@ -18,8 +18,8 @@
 #include "process_utils.hpp"
 #include <set>
 #include <thread>
-#include <algorithm>
 #include <cstring>
+#include <algorithm>
 #include <fpng.h>
 #include <stb_image.h>
 #include <stb_image_dds.h>
@@ -425,7 +425,7 @@ void reshade::runtime::on_present()
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
-	const std::unique_lock<std::mutex> input_lock = _input->lock();
+	const std::unique_lock<std::shared_mutex> input_lock = _input->lock();
 #endif
 
 #if RESHADE_GUI
@@ -1516,7 +1516,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			}
 		}
 
-		const std::unique_lock<std::mutex> lock(_reload_mutex);
+		const std::unique_lock<std::shared_mutex> lock(_reload_mutex);
 
 		for (texture new_texture : effect.module.textures)
 		{
@@ -2312,7 +2312,7 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 #endif
 
 	// Lock here to be safe in case another effect is still loading
-	const std::unique_lock<std::mutex> lock(_reload_mutex);
+	const std::unique_lock<std::shared_mutex> lock(_reload_mutex);
 
 	// No techniques from this effect are rendering anymore
 	_effects[effect_index].rendering = 0;
@@ -2856,15 +2856,15 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	if (rtv_srgb == 0)
 		rtv_srgb = rtv;
 
-#ifdef NDEBUG
-	// Lock input so it cannot be modified by other threads while we are reading it here
-	// TODO: This does not catch input happening between now and 'on_present'
-	const std::unique_lock<std::mutex> input_lock = _input->lock();
-#endif
-
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled || _techniques.empty())
 		return;
+
+#ifdef NDEBUG
+	// Lock input so it cannot be modified by other threads while we are reading it here
+	// TODO: This does not catch input happening between now and 'on_present'
+	const std::unique_lock<std::shared_mutex> input_lock = _input->lock();
+#endif
 
 	// Update special uniform variables
 	for (effect &effect : _effects)

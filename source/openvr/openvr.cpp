@@ -168,7 +168,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 	else
 	{
 		// Synchronize access to the command queue while events are invoked and the immediate command list may be accessed
-		std::unique_lock<std::mutex> lock(command_queue_proxy->_mutex);
+		std::unique_lock<std::shared_mutex> lock(command_queue_proxy->_mutex);
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(command_queue_proxy.get(), s_vr_swapchain, nullptr, nullptr, 0, nullptr);

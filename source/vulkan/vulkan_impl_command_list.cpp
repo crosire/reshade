@@ -176,7 +176,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 		VkRenderPassBeginInfo begin_info;
 
-		std::unique_lock<std::mutex> lock(_device_impl->_mutex);
+		std::unique_lock<std::shared_mutex> lock(_device_impl->_mutex);
 
 		if (const auto it = _device_impl->_render_pass_lookup.find(hash);
 			it != _device_impl->_render_pass_lookup.end())
@@ -533,7 +533,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	alloc_info.pSetLayouts = &set_layout;
 
 	// Access to descriptor pools must be externally synchronized, so lock for the duration of allocation from the transient descriptor pool
-	if (const std::unique_lock<std::mutex> lock(_device_impl->_mutex);
+	if (const std::unique_lock<std::shared_mutex> lock(_device_impl->_mutex);
 		vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
 		return;
 

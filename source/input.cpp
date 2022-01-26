@@ -11,7 +11,7 @@
 #include <Windows.h>
 
 extern HMODULE g_module_handle;
-static std::mutex s_windows_mutex;
+static std::shared_mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
 
@@ -42,7 +42,7 @@ void reshade::input::register_window_with_raw_input(window_handle window, bool n
 
 	assert(window != nullptr);
 
-	const std::unique_lock<std::mutex> lock(s_windows_mutex);
+	const std::unique_lock<std::shared_mutex> lock(s_windows_mutex);
 
 	const auto flags = (no_legacy_keyboard ? 0x1u : 0u) | (no_legacy_mouse ? 0x2u : 0u);
 	const auto insert = s_raw_input_windows.emplace(static_cast<HWND>(window), flags);
@@ -53,7 +53,7 @@ std::shared_ptr<reshade::input> reshade::input::register_window(window_handle wi
 {
 	assert(window != nullptr);
 
-	const std::unique_lock<std::mutex> lock(s_windows_mutex);
+	const std::unique_lock<std::shared_mutex> lock(s_windows_mutex);
 
 	const auto insert = s_windows.emplace(static_cast<HWND>(window), std::weak_ptr<input>());
 
@@ -89,7 +89,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		return false;
 
 	// Guard access to windows list against race conditions
-	std::unique_lock<std::mutex> lock(s_windows_mutex);
+	std::unique_lock<std::shared_mutex> lock(s_windows_mutex);
 
 	// Remove any expired entry from the list
 	for (auto it = s_windows.begin(); it != s_windows.end();)
@@ -140,7 +140,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-	const std::unique_lock<std::mutex> input_lock = input->lock();
+	const std::unique_lock<std::shared_mutex> input_lock = input->lock();
 
 	input->_mouse_position[0] = details.pt.x;
 	input->_mouse_position[1] = details.pt.y;
@@ -460,7 +460,7 @@ std::string reshade::input::key_name(const unsigned int key[4])
 
 static inline bool is_blocking_mouse_input()
 {
-	const std::unique_lock<std::mutex> lock(s_windows_mutex);
+	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
 	const auto predicate = [](const auto &input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_mouse_input();
@@ -469,7 +469,7 @@ static inline bool is_blocking_mouse_input()
 }
 static inline bool is_blocking_keyboard_input()
 {
-	const std::unique_lock<std::mutex> lock(s_windows_mutex);
+	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
 	const auto predicate = [](const auto &input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_keyboard_input();

@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <mutex>
 #include <vector>
+#include <shared_mutex>
 #include <d3d12.h>
 #include "com_ptr.hpp"
 
@@ -32,7 +32,7 @@ namespace reshade::d3d12
 
 		bool allocate(D3D12_CPU_DESCRIPTOR_HANDLE &handle)
 		{
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			for (int attempt = 0; attempt < 2; ++attempt)
 			{
@@ -60,7 +60,7 @@ namespace reshade::d3d12
 
 		void free(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			for (heap_info &heap_info : _heap_infos)
 			{
@@ -105,7 +105,7 @@ namespace reshade::d3d12
 		std::vector<heap_info> _heap_infos;
 		SIZE_T _increment_size;
 		D3D12_DESCRIPTOR_HEAP_TYPE _type;
-		std::mutex _mutex;
+		std::shared_mutex _mutex;
 	};
 
 	template <D3D12_DESCRIPTOR_HEAP_TYPE type, UINT static_size, UINT transient_size>
@@ -137,7 +137,7 @@ namespace reshade::d3d12
 			if (_heap == nullptr)
 				return false;
 
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			// First try to allocate from the list of freed blocks
 			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
@@ -173,7 +173,7 @@ namespace reshade::d3d12
 			if (_heap == nullptr)
 				return false;
 
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			SIZE_T index = static_cast<SIZE_T>(_current_transient_tail % transient_size);
 
@@ -196,7 +196,7 @@ namespace reshade::d3d12
 			if (handle.ptr < _static_heap_base_gpu || handle.ptr >= _transient_heap_base_gpu)
 				return;
 
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			// First try to append to an existing freed block
 			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
@@ -270,6 +270,6 @@ namespace reshade::d3d12
 		SIZE_T _current_static_index = 0;
 		UINT64 _current_transient_tail = 0;
 		std::vector<std::pair<UINT64, UINT64>> _free_list;
-		std::mutex _mutex;
+		std::shared_mutex _mutex;
 	};
 }

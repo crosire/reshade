@@ -5,11 +5,10 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include <mutex>
-#include <shared_mutex>
 #include <cstring>
 #include <algorithm>
 #include <vector>
+#include <shared_mutex>
 #include <Windows.h>
 
 enum class hook_method
@@ -38,7 +37,7 @@ extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
 static std::shared_mutex s_hooks_mutex;
 static std::vector<named_hook> s_hooks;
-static std::mutex s_delayed_hook_paths_mutex;
+static std::shared_mutex s_delayed_hook_paths_mutex;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
 
 std::vector<module_export> enumerate_module_exports(HMODULE handle)
@@ -273,7 +272,7 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 {
 	// Ignore this call if unable to acquire the mutex to avoid possible deadlock
-	if (std::unique_lock<std::mutex> lock(s_delayed_hook_paths_mutex, std::try_to_lock); lock.owns_lock())
+	if (std::unique_lock<std::shared_mutex> lock(s_delayed_hook_paths_mutex, std::try_to_lock); lock.owns_lock())
 	{
 		const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 			[&loaded_path](const std::filesystem::path &path) {
@@ -468,7 +467,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 
 void reshade::hooks::ensure_export_module_loaded()
 {
-	const std::unique_lock<std::mutex> lock(s_delayed_hook_paths_mutex);
+	const std::unique_lock<std::shared_mutex> lock(s_delayed_hook_paths_mutex);
 
 	if (!g_export_module_handle && !s_export_hook_path.empty())
 	{

@@ -4,7 +4,7 @@
  */
 
 #include "dll_log.hpp"
-#include <mutex>
+#include <shared_mutex>
 #include <Windows.h>
 
 struct scoped_file_handle
@@ -22,7 +22,7 @@ private:
 	HANDLE handle = INVALID_HANDLE_VALUE;
 };
 
-static std::mutex s_message_mutex;
+static std::shared_mutex s_message_mutex;
 static scoped_file_handle s_file_handle;
 std::ostringstream reshade::log::line_stream;
 

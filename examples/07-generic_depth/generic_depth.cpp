@@ -7,15 +7,15 @@
 
 #include <imgui.h>
 #include <reshade.hpp>
-#include <mutex>
-#include <vector>
-#include <unordered_map>
 #include <cmath>
 #include <cstring>
 #include <algorithm>
+#include <vector>
+#include <shared_mutex>
+#include <unordered_map>
 
 static bool s_disable_intz = false;
-static std::mutex s_mutex;
+static std::shared_mutex s_mutex;
 
 using namespace reshade::api;
 
@@ -359,7 +359,7 @@ static void on_destroy_resource(device *device, resource resource)
 	if (&device_state == nullptr)
 		return;
 
-	const std::unique_lock<std::mutex> lock(s_mutex);
+	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 	device_state.destroyed_resources.push_back(resource);
 }
 
@@ -499,7 +499,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 
 	for (const auto &[resource, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
-		if (std::unique_lock<std::mutex> lock(s_mutex);
+		if (std::shared_lock<std::shared_mutex> lock(s_mutex);
 			std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application
 
@@ -528,7 +528,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 		}
 	}
 
-	if (std::unique_lock<std::mutex> lock(s_mutex);
+	if (std::shared_lock<std::shared_mutex> lock(s_mutex);
 		device_state.override_depth_stencil != 0 &&
 		std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), device_state.override_depth_stencil) == device_state.destroyed_resources.end())
 	{
@@ -623,7 +623,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 
 	queue_state.reset_on_present();
 
-	const std::unique_lock<std::mutex> lock(s_mutex);
+	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 	device_state.destroyed_resources.clear();
 }
 

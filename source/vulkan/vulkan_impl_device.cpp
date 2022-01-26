@@ -1427,9 +1427,11 @@ bool reshade::vulkan::device_impl::allocate_descriptor_sets(uint32_t count, api:
 	alloc_info.pSetLayouts = set_layouts.data();
 
 	// Access to descriptor pools must be externally synchronized, so lock for the duration of allocation from the global descriptor pool
-	if (const std::unique_lock<std::mutex> lock(_mutex);
+	if (std::unique_lock<std::shared_mutex> lock(_mutex);
 		vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out_sets)) == VK_SUCCESS)
 	{
+		lock.unlock();
+
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET> data;
@@ -1449,11 +1451,11 @@ bool reshade::vulkan::device_impl::allocate_descriptor_sets(uint32_t count, api:
 }
 void reshade::vulkan::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
-	// Access to descriptor pools must be externally synchronized, so lock for the duration of freeing in the global descriptor pool
-	const std::unique_lock<std::mutex> lock(_mutex);
-
 	for (uint32_t i = 0; i < count; ++i)
 		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)sets[i].handle);
+
+	// Access to descriptor pools must be externally synchronized, so lock for the duration of freeing in the global descriptor pool
+	const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }

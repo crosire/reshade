@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <mutex>
 #include <dxgi1_5.h>
+#include <shared_mutex>
 
 struct D3D10Device;
 struct D3D11Device;
@@ -95,7 +95,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	IUnknown *const _direct3d_device;
 	IUnknown *const _direct3d_command_queue;
 	const unsigned int _direct3d_version;
-	std::mutex _impl_mutex;
+	std::shared_mutex _impl_mutex;
 	reshade::runtime *const _impl;
 	bool _force_vsync = false;
 	bool _force_10_bit_format = false;
