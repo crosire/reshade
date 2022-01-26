@@ -225,6 +225,12 @@ void reshade::unload_addons()
 
 	unregister_addon_depth();
 
+#ifndef NDEBUG
+	// All events should have been unregistered at this point
+	for (const auto &event_info : addon_event_list)
+		assert(event_info.empty());
+#endif
+
 	addon_loaded_info.clear();
 }
 

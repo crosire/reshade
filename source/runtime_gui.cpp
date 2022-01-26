@@ -2288,7 +2288,10 @@ void reshade::runtime::draw_gui_addons()
 		if (!filter_text(info.name, _addons_filter))
 			continue;
 
-		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, info.settings_height + _imgui_context->Style.FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
+		const ImGuiID settings_id = ImGui::GetID(info.name.c_str());
+		float settings_height = ImGui::GetStateStorage()->GetFloat(settings_id);
+
+		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, settings_height + _imgui_context->Style.FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
 
 		bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"));
 		if (ImGui::ArrowButton("##addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
@@ -2354,9 +2357,11 @@ void reshade::runtime::draw_gui_addons()
 			}
 		}
 
-		info.settings_height = ImGui::GetCursorPosY();
+		settings_height = ImGui::GetCursorPosY();
 
 		ImGui::EndChild();
+
+		ImGui::GetStateStorage()->SetFloat(settings_id, settings_height);
 	}
 }
 #endif
