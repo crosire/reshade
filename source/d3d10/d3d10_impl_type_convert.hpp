@@ -15,7 +15,7 @@ namespace reshade::d3d10
 
 	struct pipeline_impl
 	{
-		void apply(ID3D10Device *ctx) const;
+		void apply(ID3D10Device *ctx, api::pipeline_stage stages) const;
 
 		com_ptr<ID3D10VertexShader> vs;
 		com_ptr<ID3D10GeometryShader> gs;

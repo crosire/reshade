@@ -7,16 +7,29 @@
 #include "d3d10_impl_type_convert.hpp"
 #include "dll_log.hpp"
 
-void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx) const
+void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx, api::pipeline_stage stages) const
 {
-	ctx->VSSetShader(vs.get());
-	ctx->GSSetShader(gs.get());
-	ctx->PSSetShader(ps.get());
-	ctx->IASetInputLayout(input_layout.get());
-	ctx->IASetPrimitiveTopology(topology);
-	ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
-	ctx->RSSetState(rasterizer_state.get());
-	ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+	if ((stages & api::pipeline_stage::vertex_shader) != 0)
+		ctx->VSSetShader(vs.get());
+	if ((stages & api::pipeline_stage::geometry_shader) != 0)
+		ctx->GSSetShader(gs.get());
+	if ((stages & api::pipeline_stage::pixel_shader) != 0)
+		ctx->PSSetShader(ps.get());
+
+	if ((stages & api::pipeline_stage::input_assembler) != 0)
+	{
+		ctx->IASetInputLayout(input_layout.get());
+		ctx->IASetPrimitiveTopology(topology);
+	}
+
+	if ((stages & api::pipeline_stage::rasterizer) != 0)
+		ctx->RSSetState(rasterizer_state.get());
+
+	if ((stages & api::pipeline_stage::depth_stencil) != 0)
+		ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+
+	if ((stages & api::pipeline_stage::output_merger) != 0)
+		ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
 }
 
 void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *, const api::resource_usage *old_states, const api::resource_usage *new_states)
@@ -85,27 +98,31 @@ void reshade::d3d10::device_impl::bind_render_targets_and_depth_stencil(uint32_t
 	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle));
 }
 
-void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
+void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
 
-	switch (type)
+	if (pipeline.handle & 1)
 	{
-	case api::pipeline_stage::all_graphics:
-		assert(pipeline.handle & 1);
-		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->apply(_orig);
-		break;
-	case api::pipeline_stage::input_assembler:
-		_orig->IASetInputLayout(reinterpret_cast<ID3D10InputLayout *>(pipeline.handle));
-		break;
+		assert((stages & api::pipeline_stage::all_graphics) != 0);
+		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->apply(_orig, stages);
+		return;
+	}
+
+	switch (stages)
+	{
 	case api::pipeline_stage::vertex_shader:
 		_orig->VSSetShader(reinterpret_cast<ID3D10VertexShader *>(pipeline.handle));
 		break;
 	case api::pipeline_stage::geometry_shader:
+	case api::pipeline_stage::geometry_shader | api::pipeline_stage::stream_output:
 		_orig->GSSetShader(reinterpret_cast<ID3D10GeometryShader *>(pipeline.handle));
 		break;
 	case api::pipeline_stage::pixel_shader:
 		_orig->PSSetShader(reinterpret_cast<ID3D10PixelShader *>(pipeline.handle));
+		break;
+	case api::pipeline_stage::input_assembler:
+		_orig->IASetInputLayout(reinterpret_cast<ID3D10InputLayout *>(pipeline.handle));
 		break;
 	case api::pipeline_stage::rasterizer:
 		_orig->RSSetState(reinterpret_cast<ID3D10RasterizerState *>(pipeline.handle));

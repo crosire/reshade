@@ -11,8 +11,7 @@ namespace reshade::opengl
 {
 	struct pipeline_impl
 	{
-		void apply_compute() const;
-		void apply_graphics() const;
+		void apply(api::pipeline_stage stages) const;
 
 		GLuint program;
 		GLuint vao;

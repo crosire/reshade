@@ -100,7 +100,7 @@ namespace reshade::opengl
 		void bind_framebuffer_with_resource(GLenum target, GLenum attachment, api::resource dest, uint32_t dest_subresource, const api::resource_desc &dest_desc);
 		void bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
 
-		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
+		void bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
 		void bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports) final;
 		void bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects) final;

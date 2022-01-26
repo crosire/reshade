@@ -16,7 +16,7 @@ namespace reshade::d3d11
 
 	struct pipeline_impl
 	{
-		void apply(ID3D11DeviceContext *ctx) const;
+		void apply(ID3D11DeviceContext *ctx, api::pipeline_stage stages) const;
 
 		com_ptr<ID3D11VertexShader> vs;
 		com_ptr<ID3D11HullShader> hs;

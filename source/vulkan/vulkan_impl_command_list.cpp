@@ -335,12 +335,14 @@ void reshade::vulkan::command_list_impl::bind_render_targets_and_depth_stencil(u
 	assert(false);
 }
 
-void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
+void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
-	assert(type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
+	assert(pipeline.handle != 0);
+	// Cannot bind state to individual pipeline stages
+	assert(stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics);
 
 	vk.CmdBindPipeline(_orig,
-		type == api::pipeline_stage::all_compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+		stages == api::pipeline_stage::all_compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 		(VkPipeline)pipeline.handle);
 }
 void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)

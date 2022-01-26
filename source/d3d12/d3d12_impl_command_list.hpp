@@ -26,7 +26,7 @@ namespace reshade::d3d12
 		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
-		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
+		void bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
 		void bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports) final;
 		void bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects) final;

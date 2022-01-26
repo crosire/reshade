@@ -167,17 +167,18 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 	_orig->OMSetRenderTargets(count, rtv_handles, FALSE, dsv.handle != 0 ? &dsv_handle : nullptr);
 }
 
-void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
+void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
-	assert(type == api::pipeline_stage::all || type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
+	// Cannot bind state to individual pipeline stages
+	assert(stages == api::pipeline_stage::all || stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics);
 
 	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
 	_orig->SetPipelineState(pipeline_object);
 
 	pipeline_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
-	if (type == api::pipeline_stage::all_graphics &&
+	if (stages == api::pipeline_stage::all_graphics &&
 		SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		_orig->IASetPrimitiveTopology(extra_data.topology);

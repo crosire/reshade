@@ -67,14 +67,14 @@ void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindP
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	const auto pipeline_type =
+	const auto pipeline_stages =
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_stage::all_compute :
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_stage::all_graphics :
 		static_cast<reshade::api::pipeline_stage>(0);
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
 		cmd_impl,
-		pipeline_type,
+		pipeline_stages,
 		reshade::api::pipeline { (uint64_t)pipeline });
 #endif
 }

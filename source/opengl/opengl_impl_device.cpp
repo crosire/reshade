@@ -1687,6 +1687,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 {
 	*out_handle = { 0 };
 
+	bool is_graphics_pipeline = true;
 	std::vector<GLuint> shaders;
 	api::pipeline_subobject input_layout_desc = {};
 	api::blend_desc blend_desc = {};
@@ -1744,6 +1745,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 				break;
 			if (!create_shader_module(GL_COMPUTE_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
 				return false;
+			is_graphics_pipeline = false;
 			break;
 		case api::pipeline_subobject_type::input_layout:
 			input_layout_desc = subobjects[i];
@@ -1824,6 +1826,8 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	const auto impl = new pipeline_impl();
 	impl->program = program;
 
+	// There always has to be a VAO for graphics pipelines, even if it is empty
+	if (is_graphics_pipeline || input_layout_desc.count != 0)
 	{
 		GLint prev_vao = 0;
 		glGenVertexArrays(1, &impl->vao);
@@ -1850,6 +1854,10 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		}
 
 		glBindVertexArray(prev_vao);
+	}
+	else
+	{
+		impl->vao = 0;
 	}
 
 	impl->sample_alpha_to_coverage = blend_desc.alpha_to_coverage_enable;
@@ -1909,6 +1917,9 @@ void reshade::opengl::device_impl::destroy_pipeline(api::pipeline handle)
 {
 	if (handle.handle == 0)
 		return;
+
+	// It is not allowed to destroy application pipeline handles
+	assert((handle.handle >> 40) != GL_PROGRAM);
 
 	const auto impl = reinterpret_cast<pipeline_impl *>(handle.handle);
 

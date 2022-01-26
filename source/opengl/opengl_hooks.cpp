@@ -1707,7 +1707,7 @@ void APIENTRY glUseProgram(GLuint program)
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::all_shader_stages, reshade::api::pipeline { program });
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::all_shader_stages, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
 	}
 #endif
 }

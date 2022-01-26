@@ -131,7 +131,7 @@ namespace reshade::api
 		blit,
 		/// <summary>
 		/// Specifies whether resolving a region of a resource rather than its entirety is supported.
-		/// If this feature is not present, the "source_box", "dest_x", "dest_y" and "dest_z" parameters to <see cref="command_list::resolve_texture_region"/> must be <see langword="nullptr"/>.
+		/// If this feature is not present, the "source_box", "dest_x", "dest_y" and "dest_z" parameters to <see cref="command_list::resolve_texture_region"/> must be <see langword="nullptr"/> and zero.
 		/// </summary>
 		resolve_region,
 		/// <summary>
@@ -163,7 +163,7 @@ namespace reshade::api
 		/// Specifies whether resource sharing with NT handles is supported.
 		/// If this feature is not present, <see cref="resource_flags::shared_nt_handle"/> must not be used.
 		/// </summary>
-		shared_resource_nt_handle,
+		shared_resource_nt_handle
 	};
 
 	/// <summary>
@@ -553,9 +553,9 @@ namespace reshade::api
 		/// <summary>
 		/// Binds a pipeline state object.
 		/// </summary>
-		/// <param name="type">Pipeline stage to bind the pipeline state object to.</param>
+		/// <param name="stages">Pipeline stages to update with state from the pipeline state object.</param>
 		/// <param name="pipeline">Pipeline state object to bind.</param>
-		virtual void bind_pipeline(pipeline_stage type, pipeline pipeline) = 0;
+		virtual void bind_pipeline(pipeline_stage stages, pipeline pipeline) = 0;
 		/// <summary>
 		/// Updates the specfified pipeline <paramref name="state"/> to the specified <paramref name="value"/>.
 		/// This is only valid for states that have been listed in the dynamic states provided at creation of the currently bound pipeline state object.

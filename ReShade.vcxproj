@@ -492,7 +492,9 @@
     <ClCompile Include="source\d2d1\d2d1.cpp" />
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
-    <ClCompile Include="source\d3d10\d3d10_impl_command_list.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_impl_command_list.cpp">
+      <DisableSpecificWarnings>4063;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
     <ClCompile Include="source\d3d10\d3d10_impl_command_queue.cpp" />
     <ClCompile Include="source\d3d10\d3d10_impl_device.cpp" />
     <ClCompile Include="source\d3d10\d3d10_impl_state_block.cpp" />
@@ -502,7 +504,9 @@
     <ClCompile Include="source\d3d11\d3d11_command_list.cpp" />
     <ClCompile Include="source\d3d11\d3d11_device.cpp" />
     <ClCompile Include="source\d3d11\d3d11_device_context.cpp" />
-    <ClCompile Include="source\d3d11\d3d11_impl_command_list.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_impl_command_list.cpp">
+      <DisableSpecificWarnings>4063;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
     <ClCompile Include="source\d3d11\d3d11_impl_command_queue.cpp" />
     <ClCompile Include="source\d3d11\d3d11_impl_device.cpp" />
     <ClCompile Include="source\d3d11\d3d11_impl_state_block.cpp" />

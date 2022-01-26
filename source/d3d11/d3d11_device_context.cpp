@@ -427,7 +427,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetShader(ID3D11GeometryShader *
 {
 	_orig->GSSetShader(pShader, ppClassInstances, NumClassInstances);
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::geometry_shader, to_handle(pShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::geometry_shader | reshade::api::pipeline_stage::stream_output, to_handle(pShader));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY Topology)

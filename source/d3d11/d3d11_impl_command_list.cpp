@@ -8,18 +8,33 @@
 #include "d3d11_impl_type_convert.hpp"
 #include "dll_log.hpp"
 
-void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx) const
+void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx, api::pipeline_stage stages) const
 {
-	ctx->VSSetShader(vs.get(), nullptr, 0);
-	ctx->HSSetShader(hs.get(), nullptr, 0);
-	ctx->DSSetShader(ds.get(), nullptr, 0);
-	ctx->GSSetShader(gs.get(), nullptr, 0);
-	ctx->PSSetShader(ps.get(), nullptr, 0);
-	ctx->IASetInputLayout(input_layout.get());
-	ctx->IASetPrimitiveTopology(topology);
-	ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
-	ctx->RSSetState(rasterizer_state.get());
-	ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+	if ((stages & api::pipeline_stage::vertex_shader) != 0)
+		ctx->VSSetShader(vs.get(), nullptr, 0);
+	if ((stages & api::pipeline_stage::hull_shader) != 0)
+		ctx->HSSetShader(hs.get(), nullptr, 0);
+	if ((stages & api::pipeline_stage::domain_shader) != 0)
+		ctx->DSSetShader(ds.get(), nullptr, 0);
+	if ((stages & api::pipeline_stage::geometry_shader) != 0)
+		ctx->GSSetShader(gs.get(), nullptr, 0);
+	if ((stages & api::pipeline_stage::pixel_shader) != 0)
+		ctx->PSSetShader(ps.get(), nullptr, 0);
+
+	if ((stages & api::pipeline_stage::input_assembler) != 0)
+	{
+		ctx->IASetInputLayout(input_layout.get());
+		ctx->IASetPrimitiveTopology(topology);
+	}
+
+	if ((stages & api::pipeline_stage::rasterizer) != 0)
+		ctx->RSSetState(rasterizer_state.get());
+
+	if ((stages & api::pipeline_stage::depth_stencil) != 0)
+		ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+
+	if ((stages & api::pipeline_stage::output_merger) != 0)
+		ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
 }
 
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
@@ -127,19 +142,19 @@ void reshade::d3d11::device_context_impl::bind_render_targets_and_depth_stencil(
 	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
 }
 
-void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
+void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
 
-	switch (type)
+	if (pipeline.handle & 1)
 	{
-	case api::pipeline_stage::all_graphics:
-		assert(pipeline.handle & 1);
-		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->apply(_orig);
-		break;
-	case api::pipeline_stage::input_assembler:
-		_orig->IASetInputLayout(reinterpret_cast<ID3D11InputLayout *>(pipeline.handle));
-		break;
+		assert((stages & api::pipeline_stage::all_graphics) != 0);
+		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->apply(_orig, stages);
+		return;
+	}
+
+	switch (stages)
+	{
 	case api::pipeline_stage::vertex_shader:
 		_orig->VSSetShader(reinterpret_cast<ID3D11VertexShader *>(pipeline.handle), nullptr, 0);
 		break;
@@ -150,6 +165,7 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage type
 		_orig->DSSetShader(reinterpret_cast<ID3D11DomainShader *>(pipeline.handle), nullptr, 0);
 		break;
 	case api::pipeline_stage::geometry_shader:
+	case api::pipeline_stage::geometry_shader | api::pipeline_stage::stream_output:
 		_orig->GSSetShader(reinterpret_cast<ID3D11GeometryShader *>(pipeline.handle), nullptr, 0);
 		break;
 	case api::pipeline_stage::pixel_shader:
@@ -157,6 +173,9 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage type
 		break;
 	case api::pipeline_stage::compute_shader:
 		_orig->CSSetShader(reinterpret_cast<ID3D11ComputeShader *>(pipeline.handle), nullptr, 0);
+		break;
+	case api::pipeline_stage::input_assembler:
+		_orig->IASetInputLayout(reinterpret_cast<ID3D11InputLayout *>(pipeline.handle));
 		break;
 	case api::pipeline_stage::rasterizer:
 		_orig->RSSetState(reinterpret_cast<ID3D11RasterizerState *>(pipeline.handle));

@@ -111,25 +111,30 @@ void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t 
 	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, srgb_write_enable);
 }
 
-void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
+void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
 
-	switch (type)
+	if (pipeline.handle & 1)
 	{
-	case api::pipeline_stage::all_graphics:
-		assert(pipeline.handle & 1);
+		assert(stages == api::pipeline_stage::all_graphics);
 		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->state_block->Apply();
-		_current_prim_type = reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->prim_type;
-		break;
-	case api::pipeline_stage::input_assembler:
-		_orig->SetVertexDeclaration(reinterpret_cast<IDirect3DVertexDeclaration9 *>(pipeline.handle));
-		break;
+
+		if ((stages & api::pipeline_stage::input_assembler) != 0)
+			_current_prim_type = reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->prim_type;
+		return;
+	}
+
+	switch (stages)
+	{
 	case api::pipeline_stage::vertex_shader:
 		_orig->SetVertexShader(reinterpret_cast<IDirect3DVertexShader9 *>(pipeline.handle));
 		break;
 	case api::pipeline_stage::pixel_shader:
 		_orig->SetPixelShader(reinterpret_cast<IDirect3DPixelShader9 *>(pipeline.handle));
+		break;
+	case api::pipeline_stage::input_assembler:
+		_orig->SetVertexDeclaration(reinterpret_cast<IDirect3DVertexDeclaration9 *>(pipeline.handle));
 		break;
 	default:
 		assert(false);
