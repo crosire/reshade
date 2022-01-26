@@ -519,9 +519,9 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 	D3D12_BOX src_box = {};
 	if (dst_box != nullptr)
 	{
-		src_box.right = src_box.left + (dst_box->right - dst_box->left);
-		src_box.bottom = src_box.top + (dst_box->bottom - dst_box->top);
-		src_box.back = src_box.front + (dst_box->back - dst_box->front);
+		src_box.right = src_box.left + dst_box->width();
+		src_box.bottom = src_box.top + dst_box->height();
+		src_box.back = src_box.front + dst_box->depth();
 	}
 	else
 	{
@@ -554,10 +554,8 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
-	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-		(dst_box->right - dst_box->left) == (src_box->right - src_box->left) && // Blit between different region dimensions is not supported
-		(dst_box->bottom - dst_box->top) == (src_box->bottom - src_box->top) &&
-		(dst_box->back - dst_box->front) == (src_box->back - src_box->front)));
+	// Blit between different region dimensions is not supported
+	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
 	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
 	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);

@@ -431,8 +431,8 @@ void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint
 	{
 		rect_data[i].offset.x = rects[i].left;
 		rect_data[i].offset.y = rects[i].top;
-		rect_data[i].extent.width = rects[i].right - rects[i].left;
-		rect_data[i].extent.height = rects[i].bottom - rects[i].top;
+		rect_data[i].extent.width = rects[i].width();
+		rect_data[i].extent.height = rects[i].height();
 	}
 
 	vk.CmdSetScissor(_orig, first, count, rect_data.p);
@@ -693,10 +693,7 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
 	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
-	if ((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-		(src_box->right - src_box->left) == (dst_box->right - dst_box->left) &&
-		(src_box->bottom - src_box->top) == (dst_box->bottom - dst_box->top) &&
-		(src_box->back - src_box->front) == (dst_box->back - dst_box->front)))
+	if ((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && src_box->width() == dst_box->width() && src_box->height() == dst_box->height() && src_box->depth() == dst_box->depth()))
 	{
 		VkImageCopy region;
 
@@ -714,9 +711,9 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 
 		if (src_box != nullptr)
 		{
-			region.extent.width  = src_box->right - src_box->left;
-			region.extent.height = src_box->bottom - src_box->top;
-			region.extent.depth  = src_box->back - src_box->front;
+			region.extent.width  = src_box->width();
+			region.extent.height = src_box->height();
+			region.extent.depth  = src_box->depth();
 		}
 		else
 		{
@@ -788,9 +785,9 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 		region.imageOffset.y = src_box->top;
 		region.imageOffset.z = src_box->front;
 
-		region.imageExtent.width  = src_box->right - src_box->left;
-		region.imageExtent.height = src_box->bottom - src_box->top;
-		region.imageExtent.depth  = src_box->back - src_box->front;
+		region.imageExtent.width  = src_box->width();
+		region.imageExtent.height = src_box->height();
+		region.imageExtent.depth  = src_box->depth();
 	}
 	else
 	{
@@ -821,9 +818,9 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		region.srcOffset.y = src_box->top;
 		region.srcOffset.z = src_box->front;
 
-		region.extent.width  = src_box->right - src_box->left;
-		region.extent.height = src_box->bottom - src_box->top;
-		region.extent.depth  = src_box->back - src_box->front;
+		region.extent.width  = src_box->width();
+		region.extent.height = src_box->height();
+		region.extent.depth  = src_box->depth();
 	}
 	else
 	{

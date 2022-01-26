@@ -431,12 +431,12 @@ void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t c
 	{
 		if (clip_origin == GL_UPPER_LEFT)
 		{
-			glScissorIndexed(first + i, rects[i].left, rects[i].top, rects[i].right - rects[i].left, rects[i].bottom - rects[i].top);
+			glScissorIndexed(first + i, rects[i].left, rects[i].top, rects[i].width(), rects[i].height());
 		}
 		else
 		{
 			assert(_current_window_height != 0);
-			glScissorIndexed(first + i, rects[i].left, _current_window_height - rects[i].bottom, rects[i].right - rects[i].left, rects[i].bottom - rects[i].top);
+			glScissorIndexed(first + i, rects[i].left, _current_window_height - rects[i].bottom, rects[i].width(), rects[i].height());
 		}
 	}
 }
@@ -782,9 +782,9 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 		xoffset = dst_box->left;
 		yoffset = dst_box->top;
 		zoffset = dst_box->front;
-		width   = dst_box->right - dst_box->left;
-		height  = dst_box->bottom - dst_box->top;
-		depth   = dst_box->back - dst_box->front;
+		width   = dst_box->width();
+		height  = dst_box->height();
+		depth   = dst_box->depth();
 	}
 	else
 	{
@@ -1021,9 +1021,9 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		xoffset = src_box->left;
 		yoffset = src_box->top;
 		zoffset = src_box->front;
-		width   = src_box->right - src_box->left;
-		height  = src_box->bottom - src_box->top;
-		depth   = src_box->back - src_box->front;
+		width   = src_box->width();
+		height  = src_box->height();
+		depth   = src_box->depth();
 	}
 	else
 	{
@@ -1167,9 +1167,9 @@ void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uin
 
 	if (src_box != nullptr)
 	{
-		dst_box.right  = dst_x + src_box->right - src_box->left;
-		dst_box.bottom = dst_y + src_box->bottom - src_box->top;
-		dst_box.back   = dst_z + src_box->back - src_box->front;
+		dst_box.right  = dst_x + src_box->width();
+		dst_box.bottom = dst_y + src_box->height();
+		dst_box.back   = dst_z + src_box->depth();
 	}
 	else
 	{

@@ -176,9 +176,9 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 		source_box.back   = 1;
 	}
 
-	const uint32_t region_width = source_box.right - source_box.left;
+	const uint32_t region_width = source_box.width();
 	const uint32_t target_width = region_width * 2;
-	const uint32_t region_height = source_box.bottom - source_box.top;
+	const uint32_t region_height = source_box.height();
 
 	if (region_width == 0 || region_height == 0)
 		return false;

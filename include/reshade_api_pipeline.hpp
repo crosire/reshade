@@ -944,6 +944,9 @@ namespace reshade::api
 		int32_t top = 0;
 		int32_t right = 0;
 		int32_t bottom = 0;
+
+		constexpr uint32_t width() const { return right - left; }
+		constexpr uint32_t height() const { return bottom - top; }
 	};
 
 	/// <summary>

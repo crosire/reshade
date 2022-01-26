@@ -830,9 +830,9 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 
 	if (box != nullptr)
 	{
-		extent.width  = box->right - box->left;
-		extent.height = box->bottom - box->top;
-		extent.depth  = box->back - box->front;
+		extent.width  = box->width();
+		extent.height = box->height();
+		extent.depth  = box->depth();
 	}
 
 	const auto row_pitch = api::format_row_pitch(convert_format(resource_data->create_info.format), extent.width);

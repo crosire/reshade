@@ -1147,9 +1147,9 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 		xoffset = box->left;
 		yoffset = box->top;
 		zoffset = box->front;
-		width   = box->right - box->left;
-		height  = box->bottom - box->top;
-		depth   = box->back - box->front;
+		width   = box->width();
+		height  = box->height();
+		depth   = box->depth();
 	}
 	else
 	{
@@ -1381,9 +1381,9 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		xoffset = box->left;
 		yoffset = box->top;
 		zoffset = box->front;
-		width   = box->right - box->left;
-		height  = box->bottom - box->top;
-		depth   = box->back - box->front;
+		width   = box->width();
+		height  = box->height();
+		depth   = box->depth();
 	}
 	else
 	{

@@ -1063,8 +1063,8 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			if (FAILED(static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(subresource, &desc)))
 				return;
 
-			const UINT width = (box != nullptr) ? box->right - box->left : desc.Width;
-			const UINT height = (box != nullptr) ? box->bottom - box->top : desc.Height;
+			const UINT width = (box != nullptr) ? box->width() : desc.Width;
+			const UINT height = (box != nullptr) ? box->height() : desc.Height;
 			const bool use_systemmem_texture = static_cast<IDirect3DTexture9 *>(object)->GetLevelCount() == 1 && box == nullptr;
 
 			com_ptr<IDirect3DTexture9> intermediate;

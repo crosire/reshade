@@ -590,9 +590,9 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	UINT num_slices = desc.DepthOrArraySize;
 	if (box != nullptr)
 	{
-		width = box->right - box->left;
-		num_rows = box->bottom - box->top;
-		num_slices = box->back - box->front;
+		width = box->width();
+		num_rows = box->height();
+		num_slices = box->depth();
 	}
 
 	auto row_pitch = api::format_row_pitch(convert_format(desc.Format), width);

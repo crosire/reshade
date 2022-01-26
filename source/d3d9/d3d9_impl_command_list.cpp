@@ -723,9 +723,9 @@ void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint3
 
 	if (src_box != nullptr)
 	{
-		dst_box.right  = dst_x + src_box->right - src_box->left;
-		dst_box.bottom = dst_y + src_box->bottom - src_box->top;
-		dst_box.back   = dst_z + src_box->back - src_box->front;
+		dst_box.right  = dst_x + src_box->width();
+		dst_box.bottom = dst_y + src_box->height();
+		dst_box.back   = dst_z + src_box->depth();
 	}
 	else
 	{

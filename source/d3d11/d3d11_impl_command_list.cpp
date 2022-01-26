@@ -574,10 +574,8 @@ void reshade::d3d11::device_context_impl::copy_buffer_to_texture(api::resource, 
 void reshade::d3d11::device_context_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode)
 {
 	assert(src.handle != 0 && dst.handle != 0);
-	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
-		(dst_box->right - dst_box->left) == (src_box->right - src_box->left) && // Blit between different region dimensions is not supported
-		(dst_box->bottom - dst_box->top) == (src_box->bottom - src_box->top) &&
-		(dst_box->back - dst_box->front) == (src_box->back - src_box->front)));
+	// Blit between different region dimensions is not supported
+	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
 	_orig->CopySubresourceRegion(
 		reinterpret_cast<ID3D11Resource *>(dst.handle), src_subresource, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
