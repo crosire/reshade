@@ -73,6 +73,8 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 
 void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
+	_has_commands = true;
+
 	assert(count <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
 	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
@@ -140,6 +142,8 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 }
 void reshade::d3d12::command_list_impl::end_render_pass()
 {
+	assert(_has_commands);
+
 	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
 	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
 	{

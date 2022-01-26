@@ -716,6 +716,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+		return;
+
 	reshade::api::buffer_range buffer_range;
 	if (pDesc == nullptr || !resolve_gpu_address(pDesc->BufferLocation, &buffer_range.buffer, &buffer_range.offset))
 		return;
@@ -758,6 +761,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+		return;
+
 	reshade::api::descriptor_set_update update;
 	update.set = { DestDescriptor.ptr };
 	update.binding = 0;
@@ -795,6 +801,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+		return;
+
 	reshade::api::descriptor_set_update update;
 	update.set = { DestDescriptor.ptr };
 	update.binding = 0;
@@ -853,7 +862,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	if (pDesc == nullptr)
+	if (pDesc == nullptr) // Not allowed in D3D12
 		return;
 
 	D3D12_SAMPLER_DESC internal_desc = *pDesc;
@@ -876,6 +885,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+		return;
+
 	reshade::api::descriptor_set_update update;
 	update.set = { DestDescriptor.ptr };
 	update.binding = 0;
