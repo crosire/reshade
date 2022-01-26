@@ -1406,7 +1406,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				cso = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
 
-				if (entry_point.type == reshadefx::shader_type::vs)
+				if (entry_point.type != reshadefx::shader_type::ps)
 				{
 					// OpenGL does not allow using 'discard' in the vertex shader profile
 					cso += "#define discard\n";
