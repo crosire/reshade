@@ -356,7 +356,12 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth), dst, subresource, &dst_box);
 }
 
-static void update_current_primitive_topology(GLenum mode, GLenum type)
+static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLuint
+{
+	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
+}
+
+static __forceinline void update_current_primitive_topology(GLenum mode, GLenum type)
 {
 	assert(g_current_context != nullptr);
 	g_current_context->_current_index_type = type;
@@ -370,11 +375,6 @@ static void update_current_primitive_topology(GLenum mode, GLenum type)
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 	}
-}
-
-static __forceinline GLuint get_index_buffer_offset(const GLvoid *indices)
-{
-	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
 }
 #endif
 

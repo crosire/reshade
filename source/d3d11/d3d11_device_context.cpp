@@ -295,12 +295,14 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartV
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
 {
+	assert(pResource != nullptr);
+
 	const HRESULT hr = _orig->Map(pResource, Subresource, MapType, MapFlags, pMappedResource);
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && (
+		reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::map_texture_region>()))
 	{
-		assert(pResource != nullptr);
-
 		D3D11_RESOURCE_DIMENSION type = D3D11_RESOURCE_DIMENSION_UNKNOWN;
 		pResource->GetType(&type);
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
@@ -333,20 +335,24 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UIN
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Unmap(ID3D11Resource *pResource, UINT Subresource)
 {
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(pResource != nullptr);
 
-	D3D11_RESOURCE_DIMENSION type = D3D11_RESOURCE_DIMENSION_UNKNOWN;
-	pResource->GetType(&type);
-	if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
 	{
-		assert(Subresource == 0);
+		D3D11_RESOURCE_DIMENSION type = D3D11_RESOURCE_DIMENSION_UNKNOWN;
+		pResource->GetType(&type);
+		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+		{
+			assert(Subresource == 0);
 
-		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(_device, to_handle(pResource));
-	}
-	else
-	{
-		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(_device, to_handle(pResource), Subresource);
+			reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(_device, to_handle(pResource));
+		}
+		else
+		{
+			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(_device, to_handle(pResource), Subresource);
+		}
 	}
 #endif
 
