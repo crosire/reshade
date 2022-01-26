@@ -660,8 +660,6 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	*out_handle = { 0 };
-
 	api::shader_desc vs_desc = {};
 	api::shader_desc hs_desc = {};
 	api::shader_desc ds_desc = {};
@@ -733,7 +731,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			assert(subobjects[i].count == 1);
 			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
 			if (topology == api::primitive_topology::triangle_fan)
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::depth_stencil_format:
 			assert(subobjects[i].count == 1);
@@ -754,16 +752,16 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		case api::pipeline_subobject_type::viewport_count:
 			assert(subobjects[i].count == 1);
 			break;
-		case api::pipeline_subobject_type::dynamic_states:
+		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
 				if (static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::stencil_reference_value &&
 					static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::blend_constant &&
 					static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::primitive_topology)
-					return false;
+					goto exit_failure;
 			break;
 		default:
 			assert(false);
-			return false;
+			goto exit_failure;
 		}
 	}
 
@@ -824,6 +822,8 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		}
 	}
 
+exit_failure:
+	*out_handle = { 0 };
 	return false;
 }
 void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline handle)

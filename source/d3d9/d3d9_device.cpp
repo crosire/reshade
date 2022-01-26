@@ -1843,7 +1843,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(elements.size()), elements.data() }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d9::convert_input_layout_desc(static_cast<uint32_t>(elements.size()), elements.data(), internal_elements);
 		pVertexElements = internal_elements.data();
@@ -1856,7 +1856,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 		assert(ppDecl != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppDecl));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppDecl));
 #endif
 	}
 	else
@@ -1913,7 +1913,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 		{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &desc }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pFunction = static_cast<const DWORD *>(desc.code);
 	}
@@ -1925,7 +1925,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 		assert(ppShader != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppShader));
 #endif
 	}
 	else
@@ -2096,7 +2096,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 		{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &desc }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pFunction = static_cast<const DWORD *>(desc.code);
 	}
@@ -2108,7 +2108,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 		assert(ppShader != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppShader));
 #endif
 	}
 	else

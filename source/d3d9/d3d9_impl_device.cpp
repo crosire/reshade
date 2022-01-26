@@ -155,40 +155,19 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_device>(this);
 
-	{	api::pipeline_layout_param global_pipeline_layout_params[8];
-		global_pipeline_layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
-		global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-		global_pipeline_layout_params[0].push_descriptors.count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
-		global_pipeline_layout_params[0].push_descriptors.visibility = api::shader_stage::vertex;
-		global_pipeline_layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
-		global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-		global_pipeline_layout_params[1].push_descriptors.count = _caps.MaxSimultaneousTextures; // s#
-		global_pipeline_layout_params[1].push_descriptors.visibility = api::shader_stage::pixel;
-
+	const api::pipeline_layout_param global_pipeline_layout_params[8] = {
+		/* s# */ api::descriptor_range { 0, 0, 0, 4, api::shader_stage::vertex, 1, api::descriptor_type::sampler_with_resource_view }, // Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
+		/* s# */ api::descriptor_range { 0, 0, 0, _caps.MaxSimultaneousTextures, api::shader_stage::pixel, 1, api::descriptor_type::sampler_with_resource_view },
 		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-		global_pipeline_layout_params[2].type = api::pipeline_layout_param_type::push_constants;
-		global_pipeline_layout_params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
-		global_pipeline_layout_params[2].push_constants.visibility = api::shader_stage::vertex;
-		global_pipeline_layout_params[3].type = api::pipeline_layout_param_type::push_constants;
-		global_pipeline_layout_params[3].push_constants.count =  16 * 4; // i#
-		global_pipeline_layout_params[3].push_constants.visibility = api::shader_stage::vertex;
-		global_pipeline_layout_params[4].type = api::pipeline_layout_param_type::push_constants;
-		global_pipeline_layout_params[4].push_constants.count =  16 * 1; // b#
-		global_pipeline_layout_params[4].push_constants.visibility = api::shader_stage::vertex;
-
+		/* vs_3_0 c# */ api::constant_range { 0, 0, 0, _caps.MaxVertexShaderConst * 4, api::shader_stage::vertex },
+		/* vs_3_0 i# */ api::constant_range { 0, 0, 0, 16 * 4, api::shader_stage::vertex },
+		/* vs_3_0 b# */ api::constant_range { 0, 0, 0, 16 * 1, api::shader_stage::vertex },
 		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-		global_pipeline_layout_params[5].type = api::pipeline_layout_param_type::push_constants;
-		global_pipeline_layout_params[5].push_constants.count = 224 * 4; // c#
-		global_pipeline_layout_params[5].push_constants.visibility = api::shader_stage::pixel;
-		global_pipeline_layout_params[6].type = api::pipeline_layout_param_type::push_constants;
-		global_pipeline_layout_params[6].push_constants.count =  16 * 4; // i#
-		global_pipeline_layout_params[6].push_constants.visibility = api::shader_stage::pixel;
-		global_pipeline_layout_params[7].type = api::pipeline_layout_param_type::push_constants;
-		global_pipeline_layout_params[7].push_constants.count =  16 * 1; // b#
-		global_pipeline_layout_params[7].push_constants.visibility = api::shader_stage::pixel;
-
-		invoke_addon_event<addon_event::init_pipeline_layout>(this, 8, global_pipeline_layout_params, global_pipeline_layout);
-	}
+		/* ps_3_0 c# */ api::constant_range { 0, 0, 0, 224 * 4, api::shader_stage::pixel },
+		/* ps_3_0 i# */ api::constant_range { 0, 0, 0,  16 * 4, api::shader_stage::pixel },
+		/* ps_3_0 b# */ api::constant_range { 0, 0, 0,  16 * 1, api::shader_stage::pixel },
+	};
+	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
 
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
@@ -1199,8 +1178,6 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 		}
 	}
 
-	*out_handle = { 0 };
-
 	com_ptr<IDirect3DVertexShader9> vertex_shader;
 	com_ptr<IDirect3DPixelShader9> pixel_shader;
 	com_ptr<IDirect3DVertexDeclaration9> input_layout;
@@ -1224,7 +1201,7 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
 			if (!create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
-				return false;
+				goto exit_failure;
 			vertex_shader = com_ptr<IDirect3DVertexShader9>(reinterpret_cast<IDirect3DVertexShader9 *>(temp.handle), true);
 			break;
 		case api::pipeline_subobject_type::hull_shader:
@@ -1233,40 +1210,40 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 			assert(subobjects[i].count == 1);
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
-			return false; // Not supported
+			goto exit_failure; // Not supported
 		case api::pipeline_subobject_type::pixel_shader:
 			assert(subobjects[i].count == 1);
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
 			if (!create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
-				return false;
+				goto exit_failure;
 			pixel_shader = com_ptr<IDirect3DPixelShader9>(reinterpret_cast<IDirect3DPixelShader9 *>(temp.handle), true);
 			break;
 		case api::pipeline_subobject_type::compute_shader:
 			assert(subobjects[i].count == 1);
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
-			return false; // Not supported
+			goto exit_failure; // Not supported
 		case api::pipeline_subobject_type::input_layout:
 			assert(subobjects[i].count <= MAXD3DDECLLENGTH);
 			if (!create_input_layout(subobjects[i].count, static_cast<const api::input_element *>(subobjects[i].data), &temp))
-				return false;
+				goto exit_failure;
 			input_layout = com_ptr<IDirect3DVertexDeclaration9>(reinterpret_cast<IDirect3DVertexDeclaration9 *>(temp.handle), true);
 			break;
 		case api::pipeline_subobject_type::stream_output_state:
 			assert(subobjects[i].count == 1);
-			return false; // Not implemented
+			goto exit_failure; // Not implemented
 		case api::pipeline_subobject_type::blend_state:
 			assert(subobjects[i].count == 1);
 			blend_state = *static_cast<const api::blend_desc *>(subobjects[i].data);
 			if (blend_state.alpha_to_coverage_enable || blend_state.logic_op_enable[0])
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::rasterizer_state:
 			assert(subobjects[i].count == 1);
 			rasterizer_state = *static_cast<const api::rasterizer_desc *>(subobjects[i].data);
 			if (rasterizer_state.conservative_rasterization)
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::depth_stencil_state:
 			assert(subobjects[i].count == 1);
@@ -1276,7 +1253,7 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 			assert(subobjects[i].count == 1);
 			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
 			if (topology > api::primitive_topology::triangle_fan)
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::depth_stencil_format:
 		case api::pipeline_subobject_type::render_target_formats:
@@ -1291,18 +1268,18 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 		case api::pipeline_subobject_type::viewport_count:
 			assert(subobjects[i].count == 1);
 			if (*static_cast<const uint32_t *>(subobjects[i].data) > 1)
-				return false;
+				goto exit_failure;
 			break;
-		case api::pipeline_subobject_type::dynamic_states:
+		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			break; // Ignored
 		default:
 			assert(false);
-			return false;
+			goto exit_failure;
 		}
 	}
 
 	if (FAILED(_orig->BeginStateBlock()))
-		return false;
+		goto exit_failure;
 
 	_orig->SetVertexShader(vertex_shader.get());
 	_orig->SetPixelShader(pixel_shader.get());
@@ -1391,10 +1368,10 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 		*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+
+exit_failure:
+	*out_handle = { 0 };
+	return false;
 }
 bool reshade::d3d9::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, api::pipeline *out_handle)
 {

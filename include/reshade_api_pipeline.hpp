@@ -145,10 +145,10 @@ namespace reshade::api
 	/// </summary>
 	struct pipeline_layout_param
 	{
-		pipeline_layout_param() : push_descriptors() {}
-		pipeline_layout_param(const constant_range &push_constants) : type(pipeline_layout_param_type::push_constants), push_constants(push_constants) {}
-		pipeline_layout_param(const descriptor_range &push_descriptors) : type(pipeline_layout_param_type::push_descriptors), push_descriptors(push_descriptors) {}
-		pipeline_layout_param(uint32_t count, const descriptor_range *ranges) : type(pipeline_layout_param_type::descriptor_set), descriptor_set({ count, ranges }) {}
+		constexpr pipeline_layout_param() : push_descriptors() {}
+		constexpr pipeline_layout_param(const constant_range &push_constants) : type(pipeline_layout_param_type::push_constants), push_constants(push_constants) {}
+		constexpr pipeline_layout_param(const descriptor_range &push_descriptors) : type(pipeline_layout_param_type::push_descriptors), push_descriptors(push_descriptors) {}
+		constexpr pipeline_layout_param(uint32_t count, const descriptor_range *ranges) : type(pipeline_layout_param_type::descriptor_set), descriptor_set({ count, ranges }) {}
 
 		/// <summary>
 		/// Type of the parameter.
@@ -702,10 +702,10 @@ namespace reshade::api
 		/// </summary>
 		viewport_count,
 		/// <summary>
-		/// States that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding the this pipeline.
+		/// States that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding this pipeline.
 		/// Sub-object data is a pointer to an array of <see cref="dynamic_state"/> values.
 		/// </summary>
-		dynamic_states
+		dynamic_pipeline_states
 	};
 
 	/// <summary>
@@ -718,7 +718,8 @@ namespace reshade::api
 		/// </summary>
 		pipeline_subobject_type type = pipeline_subobject_type::unknown;
 		/// <summary>
-		/// Number of sub-object descriptions. This should usually be 1, except for e.g. <see cref="pipeline_subobject_type::render_target_formats"/> (where this specifies the number of render targets).
+		/// Number of sub-object descriptions.
+		/// This should usually be 1, except for array sub-objects like <see cref="pipeline_subobject_type::render_target_formats"/> (where this specifies the number of render targets) or <see cref="pipeline_subobject_type::dynamic_pipeline_states"/>.
 		/// </summary>
 		uint32_t count = 0;
 		/// <summary>

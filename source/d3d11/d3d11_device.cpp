@@ -486,7 +486,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEME
 		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(elements.size()), elements.data() }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_input_layout_desc(static_cast<uint32_t>(elements.size()), elements.data(), internal_elements);
 		pInputElementDescs = internal_elements.data();
@@ -498,7 +498,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEME
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppInputLayout));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppInputLayout));
 
 		register_destruction_callback(*ppInputLayout, [this, pipeline = *ppInputLayout]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -528,7 +528,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 		{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &desc }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
@@ -539,7 +539,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppVertexShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppVertexShader));
 
 		register_destruction_callback(*ppVertexShader, [this, pipeline = *ppVertexShader]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -569,7 +569,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderB
 		{ reshade::api::pipeline_subobject_type::geometry_shader, 1, &desc }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
@@ -580,7 +580,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderB
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppGeometryShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppGeometryShader));
 
 		register_destruction_callback(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -614,7 +614,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 		{ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
@@ -626,7 +626,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppGeometryShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppGeometryShader));
 
 		register_destruction_callback(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -656,7 +656,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 		{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &desc },
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
@@ -667,7 +667,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppPixelShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppPixelShader));
 
 		register_destruction_callback(*ppPixelShader, [this, pipeline = *ppPixelShader]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -697,7 +697,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 		{ reshade::api::pipeline_subobject_type::hull_shader, 1, &desc },
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
@@ -708,7 +708,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppHullShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppHullShader));
 
 		register_destruction_callback(*ppHullShader, [this, pipeline = *ppHullShader]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -738,7 +738,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 		{ reshade::api::pipeline_subobject_type::domain_shader, 1, &desc },
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
@@ -749,7 +749,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppDomainShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppDomainShader));
 
 		register_destruction_callback(*ppDomainShader, [this, pipeline = *ppDomainShader]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -779,7 +779,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 		{ reshade::api::pipeline_subobject_type::compute_shader, 1, &desc },
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
@@ -790,7 +790,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppComputeShader));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppComputeShader));
 
 		register_destruction_callback(*ppComputeShader, [this, pipeline = *ppComputeShader]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -818,14 +818,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState(const D3D11_BLEND_DESC *
 
 	D3D11_BLEND_DESC internal_desc = {};
 	auto desc = reshade::d3d11::convert_blend_desc(pBlendStateDesc);
-	reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
+	reshade::api::dynamic_state dynamic_states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
 
 	const reshade::api::pipeline_subobject subobjects[] = {
 		{ reshade::api::pipeline_subobject_type::blend_state, 1, &desc },
-		{ reshade::api::pipeline_subobject_type::dynamic_states, ARRAYSIZE(states), states }
+		{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(std::size(dynamic_states)), dynamic_states }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_blend_desc(desc, internal_desc);
 		pBlendStateDesc = &internal_desc;
@@ -836,7 +836,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState(const D3D11_BLEND_DESC *
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppBlendState));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppBlendState));
 
 		register_destruction_callback(*ppBlendState, [this, pipeline = *ppBlendState]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -860,14 +860,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 
 	D3D11_DEPTH_STENCIL_DESC internal_desc;
 	auto desc = reshade::d3d11::convert_depth_stencil_desc(pDepthStencilDesc);
-	reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_reference_value };
+	reshade::api::dynamic_state dynamic_states[1] = { reshade::api::dynamic_state::stencil_reference_value };
 
 	const reshade::api::pipeline_subobject subobjects[] = {
 		{ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &desc },
-		{ reshade::api::pipeline_subobject_type::dynamic_states, ARRAYSIZE(states), states }
+		{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(std::size(dynamic_states)), dynamic_states }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_depth_stencil_desc(desc, internal_desc);
 		pDepthStencilDesc = &internal_desc;
@@ -878,7 +878,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppDepthStencilState));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppDepthStencilState));
 
 		register_destruction_callback(*ppDepthStencilState, [this, pipeline = *ppDepthStencilState]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -907,7 +907,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc },
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_rasterizer_desc(desc, internal_desc);
 		pRasterizerDesc = &internal_desc;
@@ -918,7 +918,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppRasterizerState));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppRasterizerState));
 
 		register_destruction_callback(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1190,14 +1190,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1
 
 	D3D11_BLEND_DESC1 internal_desc = {};
 	auto desc = reshade::d3d11::convert_blend_desc(pBlendStateDesc);
-	reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
+	reshade::api::dynamic_state dynamic_states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
 
 	const reshade::api::pipeline_subobject subobjects[] = {
 		{ reshade::api::pipeline_subobject_type::blend_state, 1, &desc },
-		{ reshade::api::pipeline_subobject_type::dynamic_states, ARRAYSIZE(states), states }
+		{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(std::size(dynamic_states)), dynamic_states }
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_blend_desc(desc, internal_desc);
 		pBlendStateDesc = &internal_desc;
@@ -1208,7 +1208,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppBlendState));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppBlendState));
 
 		register_destruction_callback(*ppBlendState, [this, pipeline = *ppBlendState]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1239,7 +1239,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc },
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_rasterizer_desc(desc, internal_desc);
 		pRasterizerDesc = &internal_desc;
@@ -1250,7 +1250,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppRasterizerState));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppRasterizerState));
 
 		register_destruction_callback(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1576,7 +1576,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc },
 	};
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_rasterizer_desc(desc, internal_desc);
 		pRasterizerDesc = &internal_desc;
@@ -1587,7 +1587,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(*ppRasterizerState));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppRasterizerState));
 
 		register_destruction_callback(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));

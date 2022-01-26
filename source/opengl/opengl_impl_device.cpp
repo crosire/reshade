@@ -127,24 +127,24 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 
 	invoke_addon_event<addon_event::init_device>(this);
 
-	{	api::pipeline_layout_param global_pipeline_layout_params[6];
-		global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[0].push_descriptors.count));
-		global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::shader_storage_buffer;
-		glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[1].push_descriptors.count));
-		global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
-		glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[2].push_descriptors.count));
-		global_pipeline_layout_params[3].push_descriptors.type = api::descriptor_type::unordered_access_view;
-		glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&global_pipeline_layout_params[3].push_descriptors.count));
-		global_pipeline_layout_params[4].type = api::pipeline_layout_param_type::push_constants;
-		global_pipeline_layout_params[4].push_constants.count = std::numeric_limits<uint32_t>::max();
-		global_pipeline_layout_params[4].push_constants.visibility = api::shader_stage::all;
-		global_pipeline_layout_params[5].type = api::pipeline_layout_param_type::push_constants;
-		global_pipeline_layout_params[5].push_constants.count = std::numeric_limits<uint32_t>::max();
-		global_pipeline_layout_params[5].push_constants.visibility = api::shader_stage::all;
+	GLint max_combined_texture_image_units = 0;
+	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_combined_texture_image_units);
+	GLint max_shader_storage_buffer_bindings = 0;
+	glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, &max_shader_storage_buffer_bindings);
+	GLint max_uniform_buffer_bindings = 0;
+	glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &max_uniform_buffer_bindings);
+	GLint max_image_units = 0;
+	glGetIntegerv(GL_MAX_IMAGE_UNITS, &max_image_units);
 
-		invoke_addon_event<addon_event::init_pipeline_layout>(this, 6, global_pipeline_layout_params, global_pipeline_layout);
-	}
+	const api::pipeline_layout_param global_pipeline_layout_params[6] = {
+		api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_combined_texture_image_units), api::shader_stage::all, 1, api::descriptor_type::sampler_with_resource_view },
+		api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_shader_storage_buffer_bindings), api::shader_stage::all, 1, api::descriptor_type::shader_storage_buffer },
+		api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_uniform_buffer_bindings), api::shader_stage::all, 1, api::descriptor_type::constant_buffer },
+		api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_image_units), api::shader_stage::all, 1, api::descriptor_type::unordered_access_view },
+		/* Float uniforms */ api::constant_range { 0, 0, 0, std::numeric_limits<uint32_t>::max(), api::shader_stage::all },
+		/* Integer uniforms */ api::constant_range { 0, 0, 0, std::numeric_limits<uint32_t>::max(), api::shader_stage::all },
+	};
+	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
 
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
@@ -1661,11 +1661,8 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 	GLint status = GL_FALSE;
 	glGetShaderiv(shader_object, GL_COMPILE_STATUS, &status);
-	if (GL_FALSE != status)
-	{
-		return true;
-	}
-	else
+
+	if (GL_FALSE == status)
 	{
 		GLint log_size = 0;
 		glGetShaderiv(shader_object, GL_INFO_LOG_LENGTH, &log_size);
@@ -1677,18 +1674,17 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 			LOG(ERROR) << "Failed to compile GLSL shader:\n" << log.data();
 		}
-
-		glDeleteShader(shader_object);
 		return false;
 	}
+
+	return true;
 }
 
 bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	*out_handle = { 0 };
-
 	bool is_graphics_pipeline = true;
 	std::vector<GLuint> shaders;
+
 	api::pipeline_subobject input_layout_desc = {};
 	api::blend_desc blend_desc = {};
 	api::rasterizer_desc rasterizer_desc = {};
@@ -1696,7 +1692,6 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	api::primitive_topology topology = api::primitive_topology::triangle_list;
 	uint32_t sample_mask = UINT32_MAX;
 
-	// TODO: This potentially leaks shader objects when pipeline creation was not successfull
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
 		if (subobjects[i].count == 0)
@@ -1709,42 +1704,42 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
 			if (!create_shader_module(GL_VERTEX_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::hull_shader:
 			assert(subobjects[i].count == 1);
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
 			if (!create_shader_module(GL_TESS_CONTROL_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::domain_shader:
 			assert(subobjects[i].count == 1);
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
 			if (!create_shader_module(GL_TESS_EVALUATION_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::geometry_shader:
 			assert(subobjects[i].count == 1);
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
 			if (!create_shader_module(GL_GEOMETRY_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::pixel_shader:
 			assert(subobjects[i].count == 1);
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
 			if (!create_shader_module(GL_FRAGMENT_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::compute_shader:
 			assert(subobjects[i].count == 1);
 			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
 				break;
 			if (!create_shader_module(GL_COMPUTE_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
-				return false;
+				goto exit_failure;
 			is_graphics_pipeline = false;
 			break;
 		case api::pipeline_subobject_type::input_layout:
@@ -1752,7 +1747,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 			break;
 		case api::pipeline_subobject_type::stream_output_state:
 			assert(subobjects[i].count == 1);
-			return false; // Not implemented
+			goto exit_failure; // Not implemented
 		case api::pipeline_subobject_type::blend_state:
 			assert(subobjects[i].count == 1);
 			blend_desc = *static_cast<const api::blend_desc *>(subobjects[i].data);
@@ -1780,11 +1775,11 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		case api::pipeline_subobject_type::viewport_count:
 			assert(subobjects[i].count == 1);
 			break;
-		case api::pipeline_subobject_type::dynamic_states:
+		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			break; // Ignored
 		default:
 			assert(false);
-			return false;
+			goto exit_failure;
 		}
 	}
 
@@ -1803,6 +1798,8 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		glDeleteShader(shader);
 	}
 
+	shaders.clear();
+
 	GLint status = GL_FALSE;
 	glGetProgramiv(program, GL_LINK_STATUS, &status);
 
@@ -1820,7 +1817,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		}
 
 		glDeleteProgram(program);
-		return false;
+		goto exit_failure;
 	}
 
 	const auto impl = new pipeline_impl();
@@ -1912,6 +1909,15 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
+
+exit_failure:
+	for (const GLuint shader : shaders)
+	{
+		glDeleteShader(shader);
+	}
+
+	*out_handle = { 0 };
+	return false;
 }
 void reshade::opengl::device_impl::destroy_pipeline(api::pipeline handle)
 {

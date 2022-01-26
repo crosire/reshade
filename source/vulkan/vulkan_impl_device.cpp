@@ -923,7 +923,8 @@ bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits st
 
 bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	*out_handle = { 0 };
+	VkRenderPass render_pass = VK_NULL_HANDLE;
+	std::vector<VkShaderModule> shaders;
 
 	api::shader_desc vs_desc = {};
 	api::shader_desc hs_desc = {};
@@ -932,7 +933,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	api::shader_desc ps_desc = {};
 	api::shader_desc cs_desc = {};
 	api::pipeline_subobject input_layout_desc = {};
-	api::stream_output_desc stream_output_desc = {};
 	api::blend_desc blend_desc = {};
 	api::rasterizer_desc rasterizer_desc = {};
 	api::depth_stencil_desc depth_stencil_desc = {};
@@ -980,8 +980,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			break;
 		case api::pipeline_subobject_type::stream_output_state:
 			assert(subobjects[i].count == 1);
-			stream_output_desc = *static_cast<const api::stream_output_desc *>(subobjects[i].data);
-			break;
+			goto exit_failure; // Not implemented
 		case api::pipeline_subobject_type::blend_state:
 			assert(subobjects[i].count == 1);
 			blend_desc = *static_cast<const api::blend_desc *>(subobjects[i].data);
@@ -998,7 +997,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			assert(subobjects[i].count == 1);
 			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
 			if (topology == api::primitive_topology::triangle_fan)
-				return false;
+				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::depth_stencil_format:
 			assert(subobjects[i].count == 1);
@@ -1020,12 +1019,12 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			assert(subobjects[i].count == 1);
 			viewport_count = *static_cast<const uint32_t *>(subobjects[i].data);
 			break;
-		case api::pipeline_subobject_type::dynamic_states:
+		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			dynamic_states_subobject = subobjects[i];
 			break;
 		default:
 			assert(false);
-			return false;
+			goto exit_failure;
 		}
 	}
 
@@ -1037,8 +1036,12 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkSpecializationInfo spec_info;
 		std::vector<VkSpecializationMapEntry> spec_map;
 
-		if (!create_shader_module(VK_SHADER_STAGE_COMPUTE_BIT, cs_desc, create_info.stage, spec_info, spec_map))
-			goto exit_failure_cs;
+		if (cs_desc.code_size != 0)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_COMPUTE_BIT, cs_desc, create_info.stage, spec_info, spec_map))
+				goto exit_failure;
+			shaders.push_back(create_info.stage.module);
+		}
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateComputePipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
@@ -1048,9 +1051,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			*out_handle = { (uint64_t)object };
 			return true;
 		}
-
-	exit_failure_cs:
-		vk.DestroyShaderModule(_orig, create_info.stage.module, nullptr);
 	}
 	else
 	{
@@ -1066,217 +1066,212 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		if (vs_desc.code_size != 0)
 		{
 			if (!create_shader_module(VK_SHADER_STAGE_VERTEX_BIT, vs_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure_gfx;
-			create_info.stageCount++;
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
 		}
 		if (hs_desc.code_size != 0)
 		{
 			if (!create_shader_module(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, hs_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure_gfx;
-			create_info.stageCount++;
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
 		}
 		if (ds_desc.code_size != 0)
 		{
 			if (!create_shader_module(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, ds_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure_gfx;
-			create_info.stageCount++;
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
 		}
 		if (gs_desc.code_size != 0)
 		{
 			if (!create_shader_module(VK_SHADER_STAGE_GEOMETRY_BIT, gs_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure_gfx;
-			create_info.stageCount++;
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
 		}
 		if (ps_desc.code_size != 0)
 		{
 			if (!create_shader_module(VK_SHADER_STAGE_FRAGMENT_BIT, ps_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure_gfx;
-			create_info.stageCount++;
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
 		}
 
-		{
-			std::vector<VkDynamicState> dyn_states;
-			// Always make scissor rectangles and viewports dynamic
-			dyn_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
-			dyn_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
-			convert_dynamic_states(dynamic_states_subobject.count, static_cast<const api::dynamic_state *>(dynamic_states_subobject.data), dyn_states, _extended_dynamic_state_ext);
+		std::vector<VkDynamicState> dyn_states;
+		// Always make scissor rectangles and viewports dynamic
+		dyn_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
+		dyn_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+		convert_dynamic_states(dynamic_states_subobject.count, static_cast<const api::dynamic_state *>(dynamic_states_subobject.data), dyn_states, _extended_dynamic_state_ext);
 
-			VkPipelineDynamicStateCreateInfo dynamic_state_info { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
-			create_info.pDynamicState = &dynamic_state_info;
-			dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dyn_states.size());
-			dynamic_state_info.pDynamicStates = dyn_states.data();
+		VkPipelineDynamicStateCreateInfo dynamic_state_info { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+		create_info.pDynamicState = &dynamic_state_info;
+		dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dyn_states.size());
+		dynamic_state_info.pDynamicStates = dyn_states.data();
 
-			std::vector<VkVertexInputBindingDescription> vertex_bindings;
-			std::vector<VkVertexInputAttributeDescription> vertex_attributes;
-			convert_input_layout_desc(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_bindings, vertex_attributes);
+		std::vector<VkVertexInputBindingDescription> vertex_bindings;
+		std::vector<VkVertexInputAttributeDescription> vertex_attributes;
+		convert_input_layout_desc(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_bindings, vertex_attributes);
 
-			VkPipelineVertexInputStateCreateInfo vertex_input_state_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-			create_info.pVertexInputState = &vertex_input_state_info;
-			vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(vertex_bindings.size());
-			vertex_input_state_info.pVertexBindingDescriptions = vertex_bindings.data();
-			vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attributes.size());
-			vertex_input_state_info.pVertexAttributeDescriptions = vertex_attributes.data();
+		VkPipelineVertexInputStateCreateInfo vertex_input_state_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+		create_info.pVertexInputState = &vertex_input_state_info;
+		vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(vertex_bindings.size());
+		vertex_input_state_info.pVertexBindingDescriptions = vertex_bindings.data();
+		vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attributes.size());
+		vertex_input_state_info.pVertexAttributeDescriptions = vertex_attributes.data();
 
-			VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-			create_info.pInputAssemblyState = &input_assembly_state_info;
-			input_assembly_state_info.primitiveRestartEnable = VK_FALSE;
-			input_assembly_state_info.topology = convert_primitive_topology(topology);
+		VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+		create_info.pInputAssemblyState = &input_assembly_state_info;
+		input_assembly_state_info.primitiveRestartEnable = VK_FALSE;
+		input_assembly_state_info.topology = convert_primitive_topology(topology);
 
-			VkPipelineTessellationStateCreateInfo tessellation_state_info { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
-			create_info.pTessellationState = &tessellation_state_info;
-			if (input_assembly_state_info.topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST)
-				tessellation_state_info.patchControlPoints = static_cast<uint32_t>(topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) + 1;
+		VkPipelineTessellationStateCreateInfo tessellation_state_info { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
+		create_info.pTessellationState = &tessellation_state_info;
+		if (input_assembly_state_info.topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST)
+			tessellation_state_info.patchControlPoints = static_cast<uint32_t>(topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) + 1;
 
-			VkPipelineViewportStateCreateInfo viewport_state_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
-			create_info.pViewportState = &viewport_state_info;
-			viewport_state_info.scissorCount = viewport_count;
-			viewport_state_info.viewportCount = viewport_count;
+		VkPipelineViewportStateCreateInfo viewport_state_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+		create_info.pViewportState = &viewport_state_info;
+		viewport_state_info.scissorCount = viewport_count;
+		viewport_state_info.viewportCount = viewport_count;
 
-			VkPipelineRasterizationStateCreateInfo rasterization_state_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-			create_info.pRasterizationState = &rasterization_state_info;
-
-#ifdef VK_EXT_transform_feedback
-			VkPipelineRasterizationStateStreamCreateInfoEXT stream_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT };
-			if (stream_output_desc.rasterized_stream != 0)
-			{
-				stream_info.pNext = rasterization_state_info.pNext;
-				rasterization_state_info.pNext = &stream_info;
-			}
-#endif
+		VkPipelineRasterizationStateCreateInfo rasterization_state_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+		create_info.pRasterizationState = &rasterization_state_info;
 
 #ifdef VK_EXT_conservative_rasterization
-			VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
-			if (rasterizer_desc.conservative_rasterization != 0)
-			{
-				conservative_rasterization_info.pNext = rasterization_state_info.pNext;
-				rasterization_state_info.pNext = &conservative_rasterization_info;
-			}
+		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
+		if (rasterizer_desc.conservative_rasterization != 0)
+		{
+			if (!_conservative_rasterization_ext)
+				goto exit_failure;
+
+			conservative_rasterization_info.pNext = rasterization_state_info.pNext;
+			rasterization_state_info.pNext = &conservative_rasterization_info;
+		}
 #endif
 
-			convert_rasterizer_desc(rasterizer_desc, rasterization_state_info);
-			rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
-			rasterization_state_info.lineWidth = 1.0f;
+		convert_rasterizer_desc(rasterizer_desc, rasterization_state_info);
+		rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
+		rasterization_state_info.lineWidth = 1.0f;
 
-			VkPipelineMultisampleStateCreateInfo multisample_state_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
-			create_info.pMultisampleState = &multisample_state_info;
-			multisample_state_info.rasterizationSamples = sample_count != 0 ? static_cast<VkSampleCountFlagBits>(sample_count) : VK_SAMPLE_COUNT_1_BIT;
-			multisample_state_info.sampleShadingEnable = VK_FALSE;
-			multisample_state_info.minSampleShading = 0.0f;
-			multisample_state_info.alphaToOneEnable = VK_FALSE;
-			multisample_state_info.pSampleMask = &sample_mask;
+		VkPipelineMultisampleStateCreateInfo multisample_state_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+		create_info.pMultisampleState = &multisample_state_info;
+		multisample_state_info.rasterizationSamples = sample_count != 0 ? static_cast<VkSampleCountFlagBits>(sample_count) : VK_SAMPLE_COUNT_1_BIT;
+		multisample_state_info.sampleShadingEnable = VK_FALSE;
+		multisample_state_info.minSampleShading = 0.0f;
+		multisample_state_info.alphaToOneEnable = VK_FALSE;
+		multisample_state_info.pSampleMask = &sample_mask;
 
-			VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-			create_info.pDepthStencilState = &depth_stencil_state_info;
-			convert_depth_stencil_desc(depth_stencil_desc, depth_stencil_state_info);
-			depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
-			depth_stencil_state_info.minDepthBounds = 0.0f;
-			depth_stencil_state_info.maxDepthBounds = 1.0f;
+		VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+		create_info.pDepthStencilState = &depth_stencil_state_info;
+		convert_depth_stencil_desc(depth_stencil_desc, depth_stencil_state_info);
+		depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
+		depth_stencil_state_info.minDepthBounds = 0.0f;
+		depth_stencil_state_info.maxDepthBounds = 1.0f;
 
-			VkPipelineColorBlendAttachmentState attachment_info[8];
-			VkPipelineColorBlendStateCreateInfo color_blend_state_info { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-			create_info.pColorBlendState = &color_blend_state_info;
-			color_blend_state_info.attachmentCount = 8;
-			color_blend_state_info.pAttachments = attachment_info;
-			convert_blend_desc(blend_desc, color_blend_state_info, multisample_state_info);
+		VkPipelineColorBlendAttachmentState attachment_info[8];
+		VkPipelineColorBlendStateCreateInfo color_blend_state_info { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+		create_info.pColorBlendState = &color_blend_state_info;
+		color_blend_state_info.attachmentCount = 8;
+		color_blend_state_info.pAttachments = attachment_info;
+		convert_blend_desc(blend_desc, color_blend_state_info, multisample_state_info);
 
-			VkFormat attachment_formats[8];
-			color_blend_state_info.attachmentCount = 0;
-			for (uint32_t i = 0; i < render_target_formats.count && i < 8; ++i, ++color_blend_state_info.attachmentCount)
-			{
-				attachment_formats[i] = convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
-				assert(attachment_formats[i] != VK_FORMAT_UNDEFINED);
-			}
-
-#ifdef VK_KHR_dynamic_rendering
-			VkPipelineRenderingCreateInfoKHR dynamic_rendering_info{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR };
-			if (vk.CmdBeginRenderingKHR != nullptr)
-			{
-				dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
-				dynamic_rendering_info.pColorAttachmentFormats = attachment_formats;
-				dynamic_rendering_info.depthAttachmentFormat = convert_format(desc.graphics.depth_stencil_format);
-				dynamic_rendering_info.stencilAttachmentFormat = convert_format(desc.graphics.depth_stencil_format);
-
-				create_info.pNext = &dynamic_rendering_info;
-			}
-			else
-#endif
-			{
-				VkAttachmentReference attach_refs[9];
-				VkAttachmentDescription attach_descs[9];
-
-				VkSubpassDescription subpass = {};
-				subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-				subpass.colorAttachmentCount = color_blend_state_info.attachmentCount;
-				subpass.pColorAttachments = attach_refs;
-				subpass.pDepthStencilAttachment = (depth_stencil_format != api::format::unknown) ? &attach_refs[color_blend_state_info.attachmentCount] : nullptr;
-
-				VkRenderPassCreateInfo render_pass_create_info{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-				render_pass_create_info.attachmentCount = subpass.colorAttachmentCount + (subpass.pDepthStencilAttachment != nullptr ? 1 : 0);
-				render_pass_create_info.pAttachments = attach_descs;
-				render_pass_create_info.subpassCount = 1;
-				render_pass_create_info.pSubpasses = &subpass;
-
-				for (uint32_t i = 0; i < subpass.colorAttachmentCount; ++i)
-				{
-					VkAttachmentReference &attach_ref = attach_refs[i];
-					attach_ref.attachment = i;
-					attach_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-					VkAttachmentDescription &attach_desc = attach_descs[i];
-					attach_desc.flags = 0;
-					attach_desc.format = attachment_formats[i];
-					attach_desc.samples = multisample_state_info.rasterizationSamples;
-					attach_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-					attach_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-					attach_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-					attach_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-					attach_desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-					attach_desc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-				}
-				if (subpass.pDepthStencilAttachment != nullptr)
-				{
-					VkAttachmentReference &attach_ref = attach_refs[subpass.colorAttachmentCount];
-					attach_ref.attachment = subpass.colorAttachmentCount;
-					attach_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-					VkAttachmentDescription &attach_desc = attach_descs[subpass.colorAttachmentCount];
-					attach_desc.flags = 0;
-					attach_desc.format = convert_format(depth_stencil_format);
-					attach_desc.samples = multisample_state_info.rasterizationSamples;
-					attach_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-					attach_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-					attach_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-					attach_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-					attach_desc.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-					attach_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-				}
-
-				if (vk.CreateRenderPass(_orig, &render_pass_create_info, nullptr, &create_info.renderPass) != VK_SUCCESS)
-					goto exit_failure_gfx;
-			}
-
-			if (VkPipeline object = VK_NULL_HANDLE;
-				vk.CreateGraphicsPipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
-			{
-				if (create_info.renderPass != VK_NULL_HANDLE)
-					vk.DestroyRenderPass(_orig, create_info.renderPass, nullptr);
-
-				for (uint32_t stage_index = 0; stage_index < create_info.stageCount; ++stage_index)
-					vk.DestroyShaderModule(_orig, create_info.pStages[stage_index].module, nullptr);
-
-				*out_handle = { (uint64_t)object };
-				return true;
-			}
+		VkFormat attachment_formats[8];
+		color_blend_state_info.attachmentCount = 0;
+		for (uint32_t i = 0; i < render_target_formats.count && i < 8; ++i, ++color_blend_state_info.attachmentCount)
+		{
+			attachment_formats[i] = convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
+			assert(attachment_formats[i] != VK_FORMAT_UNDEFINED);
 		}
 
-	exit_failure_gfx:
-		if (create_info.renderPass != VK_NULL_HANDLE)
-			vk.DestroyRenderPass(_orig, create_info.renderPass, nullptr);
+#ifdef VK_KHR_dynamic_rendering
+		VkPipelineRenderingCreateInfoKHR dynamic_rendering_info{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR };
+		if (vk.CmdBeginRenderingKHR != nullptr)
+		{
+			dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
+			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats;
+			dynamic_rendering_info.depthAttachmentFormat = convert_format(desc.graphics.depth_stencil_format);
+			dynamic_rendering_info.stencilAttachmentFormat = convert_format(desc.graphics.depth_stencil_format);
 
-		for (uint32_t stage_index = 0; stage_index < create_info.stageCount; ++stage_index)
-			vk.DestroyShaderModule(_orig, create_info.pStages[stage_index].module, nullptr);
+			create_info.pNext = &dynamic_rendering_info;
+		}
+		else
+#endif
+		{
+			VkAttachmentReference attach_refs[9];
+			VkAttachmentDescription attach_descs[9];
+
+			VkSubpassDescription subpass = {};
+			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+			subpass.colorAttachmentCount = color_blend_state_info.attachmentCount;
+			subpass.pColorAttachments = attach_refs;
+			subpass.pDepthStencilAttachment = (depth_stencil_format != api::format::unknown) ? &attach_refs[color_blend_state_info.attachmentCount] : nullptr;
+
+			VkRenderPassCreateInfo render_pass_create_info{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+			render_pass_create_info.attachmentCount = subpass.colorAttachmentCount + (subpass.pDepthStencilAttachment != nullptr ? 1 : 0);
+			render_pass_create_info.pAttachments = attach_descs;
+			render_pass_create_info.subpassCount = 1;
+			render_pass_create_info.pSubpasses = &subpass;
+
+			for (uint32_t i = 0; i < subpass.colorAttachmentCount; ++i)
+			{
+				VkAttachmentReference &attach_ref = attach_refs[i];
+				attach_ref.attachment = i;
+				attach_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+				VkAttachmentDescription &attach_desc = attach_descs[i];
+				attach_desc.flags = 0;
+				attach_desc.format = attachment_formats[i];
+				attach_desc.samples = multisample_state_info.rasterizationSamples;
+				attach_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+				attach_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+				attach_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+				attach_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+				attach_desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				attach_desc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			}
+			if (subpass.pDepthStencilAttachment != nullptr)
+			{
+				VkAttachmentReference &attach_ref = attach_refs[subpass.colorAttachmentCount];
+				attach_ref.attachment = subpass.colorAttachmentCount;
+				attach_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+				VkAttachmentDescription &attach_desc = attach_descs[subpass.colorAttachmentCount];
+				attach_desc.flags = 0;
+				attach_desc.format = convert_format(depth_stencil_format);
+				attach_desc.samples = multisample_state_info.rasterizationSamples;
+				attach_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+				attach_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+				attach_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+				attach_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+				attach_desc.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				attach_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			}
+
+			if (vk.CreateRenderPass(_orig, &render_pass_create_info, nullptr, &render_pass) != VK_SUCCESS)
+				goto exit_failure;
+
+			create_info.renderPass = render_pass;
+		}
+
+		if (VkPipeline object = VK_NULL_HANDLE;
+			vk.CreateGraphicsPipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
+		{
+			if (render_pass != VK_NULL_HANDLE)
+				vk.DestroyRenderPass(_orig, render_pass, nullptr);
+
+			for (const VkShaderModule shader : shaders)
+				vk.DestroyShaderModule(_orig, shader, nullptr);
+
+			*out_handle = { (uint64_t)object };
+			return true;
+		}
 	}
 
+exit_failure:
+	if (render_pass != VK_NULL_HANDLE)
+		vk.DestroyRenderPass(_orig, render_pass, nullptr);
+
+	for (const VkShaderModule shader : shaders)
+		vk.DestroyShaderModule(_orig, shader, nullptr);
+
+	*out_handle = { 0 };
 	return false;
 }
 void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline handle)

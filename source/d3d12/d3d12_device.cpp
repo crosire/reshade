@@ -317,7 +317,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	uint32_t sample_mask = internal_desc.SampleMask;
 	uint32_t sample_count = internal_desc.SampleDesc.Count;
 
-	reshade::api::dynamic_state states[3] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::stencil_reference_value };
+	reshade::api::dynamic_state dynamic_states[3] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::stencil_reference_value };
 
 	std::vector<reshade::api::input_element> input_layout;
 	reshade::d3d12::convert_input_layout_desc(internal_desc.InputLayout.NumElements, internal_desc.InputLayout.pInputElementDescs, input_layout);
@@ -338,15 +338,15 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 		{ reshade::api::pipeline_subobject_type::render_target_formats, internal_desc.NumRenderTargets, render_target_formats },
 		{ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format },
 		{ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count },
-		{ reshade::api::pipeline_subobject_type::dynamic_states, ARRAYSIZE(states), states },
+		{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(std::size(dynamic_states)), dynamic_states },
 	};
 
 	HRESULT hr = S_OK;
 	if (riid == __uuidof(ID3D12PipelineState) &&
-		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::api::pipeline pipeline;
-		hr = create_pipeline(to_handle(internal_desc.pRootSignature), ARRAYSIZE(subobjects), subobjects, &pipeline) ? S_OK : E_FAIL;
+		hr = create_pipeline(to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, &pipeline) ? S_OK : E_FAIL;
 		*ppPipelineState = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
 	}
 	else
@@ -364,7 +364,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
 
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(pipeline));
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 			register_destruction_callback(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -399,10 +399,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 
 	HRESULT hr = S_OK;
 	if (riid == __uuidof(ID3D12PipelineState) &&
-		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects))
+		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::api::pipeline handle;
-		hr = create_pipeline(to_handle(internal_desc.pRootSignature), ARRAYSIZE(subobjects), subobjects, &handle) ? S_OK : E_FAIL;
+		hr = create_pipeline(to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, &handle) ? S_OK : E_FAIL;
 		*ppPipelineState = reinterpret_cast<ID3D12PipelineState *>(handle.handle);
 	}
 	else
@@ -420,7 +420,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
 
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(ARRAYSIZE(subobjects)), subobjects, to_handle(pipeline));
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 			register_destruction_callback(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));

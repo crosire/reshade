@@ -1570,7 +1570,6 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_query, bool, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::end_query, bool, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index);
-
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_query_pool_results, bool, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reset_command_list, void, api::command_list *cmd_list);

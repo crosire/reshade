@@ -230,12 +230,12 @@ namespace reshade::api
 	/// </summary>
 	struct resource_desc
 	{
-		resource_desc() : texture() {}
-		resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
+		constexpr resource_desc() : texture() {}
+		constexpr resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
 			type(resource_type::buffer), buffer({ size }), heap(heap), usage(usage) {}
-		resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
+		constexpr resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
 			type(resource_type::texture_2d), texture({ width, height, layers, levels, format, samples }), heap(heap), usage(usage), flags(flags) {}
-		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
+		constexpr resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
 			type(type), texture({ width, height, depth_or_layers, levels, format, samples }), heap(heap), usage(usage), flags(flags) {}
 
 		/// <summary>
@@ -337,14 +337,14 @@ namespace reshade::api
 	/// </summary>
 	struct resource_view_desc
 	{
-		resource_view_desc() : texture() {}
-		resource_view_desc(format format, uint64_t offset, uint64_t size) :
+		constexpr resource_view_desc() : texture() {}
+		constexpr resource_view_desc(format format, uint64_t offset, uint64_t size) :
 			type(resource_view_type::buffer), format(format), buffer({ offset, size }) {}
-		resource_view_desc(format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
+		constexpr resource_view_desc(format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(resource_view_type::texture_2d), format(format), texture({ first_level, levels, first_layer, layers }) {}
-		resource_view_desc(resource_view_type type, format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
+		constexpr resource_view_desc(resource_view_type type, format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(type), format(format), texture({ first_level, levels, first_layer, layers }) {}
-		explicit resource_view_desc(format format) : type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
+		constexpr explicit resource_view_desc(format format) : type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
 
 		/// <summary>
 		/// Resource type the view should interpret the resource data to.

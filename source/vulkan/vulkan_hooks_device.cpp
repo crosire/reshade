@@ -1506,7 +1506,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			{ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format },
 			{ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count },
 			{ reshade::api::pipeline_subobject_type::viewport_count, 1, &viewport_count },
-			{ reshade::api::pipeline_subobject_type::dynamic_states, static_cast<uint32_t>(states.size()), states.data() },
+			{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(states.size()), states.data() },
 		};
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
@@ -1514,7 +1514,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
 			result = device_impl->create_pipeline(
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, 17, subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -1571,7 +1571,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 		{
 			result = device_impl->create_pipeline(
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, 1, subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
