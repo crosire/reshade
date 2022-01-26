@@ -473,7 +473,7 @@ void reshade::hooks::ensure_export_module_loaded()
 	{
 		assert(s_export_hook_path.is_absolute());
 
-		const HMODULE handle = LoadLibraryW(s_export_hook_path.c_str());
+		const HMODULE handle = call_unchecked(&HookLoadLibraryW)(s_export_hook_path.c_str());
 
 		LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";
 
