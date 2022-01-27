@@ -20,7 +20,7 @@ static bool s_disable_intz = false;
 // Enable or disable the creation of backup copies at clear operations on the selected depth-stencil
 static bool s_preserve_depth_buffers = false;
 // Enable or disable the aspect ratio check from 'check_aspect_ratio' in the detection heuristic
-static bool s_use_aspect_ratio_heuristics = true;
+static unsigned int s_use_aspect_ratio_heuristics = 1;
 
 using namespace reshade::api;
 
@@ -218,7 +218,7 @@ static bool check_aspect_ratio(float width_to_check, float height_to_check, uint
 	const float aspect_ratio = (w / h) - (static_cast<float>(width_to_check) / height_to_check);
 
 	// Accept if dimensions are similar in value or almost exact multiples
-	return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
+	return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (s_use_aspect_ratio_heuristics == 2 && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 }
 
 static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, resource depth_stencil, bool fullscreen_draw_call)
@@ -240,7 +240,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	}
 
 	// Ignore clears when there was no meaningful workload
-	if (counters.current_stats.drawcalls == 0 && !counters.clears.empty())
+	if (counters.current_stats.drawcalls == 0)
 		return;
 
 	// Skip clears when last viewport only affected a subset of the depth-stencil
@@ -717,7 +717,17 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	if (device->get_api() == device_api::d3d9)
 		modified |= ImGui::Checkbox("Disable replacement with INTZ format (requires application restart)", &s_disable_intz);
 
-	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &s_use_aspect_ratio_heuristics);
+	if (bool use_aspect_ratio_heuristics = s_use_aspect_ratio_heuristics != 0;
+		(modified |= ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics)) != false)
+		s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics ? 1 : 0;
+
+	if (s_use_aspect_ratio_heuristics)
+	{
+		if (bool use_aspect_ratio_heuristics_ex = s_use_aspect_ratio_heuristics == 2;
+			(modified |= ImGui::Checkbox("Use extended aspect ratio heuristics (enable when DLSS is active)", &use_aspect_ratio_heuristics_ex)) != false)
+			s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics_ex ? 2 : 1;
+	}
+
 	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &s_preserve_depth_buffers);
 
 	ImGui::Spacing();
