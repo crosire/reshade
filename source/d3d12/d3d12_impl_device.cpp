@@ -10,6 +10,7 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include <malloc.h>
+#include <algorithm>
 
 extern bool is_windows7();
 

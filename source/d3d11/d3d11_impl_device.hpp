@@ -78,10 +78,5 @@ namespace reshade::d3d11
 
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
-
-	private:
-		com_ptr<ID3D11VertexShader> _copy_vert_shader;
-		com_ptr<ID3D11PixelShader>  _copy_pixel_shader;
-		com_ptr<ID3D11SamplerState> _copy_sampler_state;
 	};
 }

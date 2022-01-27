@@ -23,7 +23,6 @@ namespace reshade::opengl
 		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { device_impl::set_private_data(guid, data); }
 
 		api::resource get_back_buffer(uint32_t index) final;
-		api::resource get_back_buffer_resolved(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }
@@ -39,7 +38,5 @@ namespace reshade::opengl
 
 	private:
 		state_block _app_state;
-		GLuint _rbo = 0;
-		GLuint _fbo = 0;
 	};
 }

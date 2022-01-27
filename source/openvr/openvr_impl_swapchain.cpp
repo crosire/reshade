@@ -59,12 +59,6 @@ reshade::api::resource reshade::openvr::swapchain_impl::get_back_buffer(uint32_t
 
 	return _side_by_side_texture;
 }
-reshade::api::resource reshade::openvr::swapchain_impl::get_back_buffer_resolved(uint32_t index)
-{
-	assert(index == 0);
-
-	return _side_by_side_texture;
-}
 
 uint32_t reshade::openvr::swapchain_impl::get_back_buffer_count() const
 {
@@ -126,10 +120,6 @@ void reshade::openvr::swapchain_impl::on_present()
 
 	runtime::on_present();
 
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_present>(this);
-#endif
-
 	switch (_device->get_api())
 	{
 	case api::device_api::d3d9:
@@ -186,7 +176,7 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
 	const  int32_t width_difference = std::abs(static_cast<int32_t>(target_width) - static_cast<int32_t>(_width));
 
-	if (width_difference > 2 || region_height != _height || source_desc.texture.format != _back_buffer_format)
+	if (width_difference > 2 || region_height != _height || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(_back_buffer_format))
 	{
 		on_reset();
 
@@ -197,10 +187,6 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 			LOG(ERROR) << "Failed to create region texture!";
 			return false;
 		}
-
-		_width = target_width;
-		_height = region_height;
-		_back_buffer_format = source_desc.texture.format;
 
 		if (!on_init())
 			return false;

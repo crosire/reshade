@@ -1567,10 +1567,14 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 
 void reshade::opengl::device_impl::update_current_window_height(GLuint fbo_object)
 {
-	const api::resource default_attachment = get_resource_from_view(get_framebuffer_attachment(fbo_object, GL_COLOR, 0));
+	const api::resource_view default_attachment = get_framebuffer_attachment(fbo_object, GL_COLOR, 0);
+	if (default_attachment.handle == 0)
+		return;
 
-	const GLenum default_attachment_target = default_attachment.handle >> 40;
-	const GLuint default_attachment_object = default_attachment.handle & 0xFFFFFFFF;
+	const api::resource default_attachment_resource = get_resource_from_view(default_attachment);
+
+	const GLenum default_attachment_target = default_attachment_resource.handle >> 40;
+	const GLuint default_attachment_object = default_attachment_resource.handle & 0xFFFFFFFF;
 
 	switch (default_attachment_target)
 	{

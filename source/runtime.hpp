@@ -67,11 +67,6 @@ namespace reshade
 		/// </summary>
 		bool is_initialized() const { return _is_initialized; }
 
-		/// <summary>
-		/// Gets a resolved resource for the specified back buffer <paramref name="index"/> in this swap chain.
-		/// </summary>
-		virtual api::resource get_back_buffer_resolved(uint32_t index) = 0;
-
 #if RESHADE_FX
 		/// <summary>
 		/// Applies post-processing effects to the specified render targets.
@@ -88,7 +83,7 @@ namespace reshade
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
 		/// </summary>
-		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(get_back_buffer_resolved(get_current_back_buffer_index()), api::resource_usage::present, pixels); }
+		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels); }
 
 		/// <summary>
 		/// Gets the current buffer dimensions of the swap chain as used with effect rendering.
@@ -403,6 +398,10 @@ namespace reshade
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _backup_texture_semantic_bindings;
 #endif
+		api::pipeline _copy_pipeline = {};
+		api::pipeline_layout _copy_pipeline_layout = {};
+		api::resource _back_buffer_resolved = {};
+		api::resource_view _back_buffer_resolved_srv = {};
 		std::vector<api::resource_view> _back_buffer_targets;
 		#pragma endregion
 

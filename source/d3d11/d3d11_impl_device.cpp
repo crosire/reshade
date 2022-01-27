@@ -6,7 +6,6 @@
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
 #include "dll_log.hpp"
-#include "dll_resources.hpp"
 #include <algorithm>
 
 extern bool is_windows7();
@@ -14,24 +13,6 @@ extern bool is_windows7();
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	api_object_impl(device)
 {
-	// Create copy pipeline
-	{
-		D3D11_SAMPLER_DESC desc = {};
-		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-		desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-
-		const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-		const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-		if (FAILED(_orig->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vert_shader)) ||
-			FAILED(_orig->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader)) ||
-			FAILED(_orig->CreateSamplerState(&desc, &_copy_sampler_state)))
-		{
-			LOG(ERROR) << "Failed to create copy pipeline!";
-		}
-	}
-
 #if RESHADE_ADDON
 	load_addons();
 

@@ -990,13 +990,21 @@ void reshade::runtime::draw_gui()
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 	{
-		uint32_t back_buffer_index = get_current_back_buffer_index();
-		const api::resource back_buffer_resource = get_back_buffer_resolved(back_buffer_index);
-
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
-		render_imgui_draw_data(cmd_list, draw_data, _back_buffer_targets[back_buffer_index * 2]);
-		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
+
+		if (_back_buffer_resolved != 0)
+		{
+			render_imgui_draw_data(cmd_list, draw_data, _back_buffer_targets[0]);
+		}
+		else
+		{
+			uint32_t back_buffer_index = get_current_back_buffer_index();
+			const api::resource back_buffer_resource = get_back_buffer(back_buffer_index);
+
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
+			render_imgui_draw_data(cmd_list, draw_data, _back_buffer_targets[back_buffer_index * 2]);
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
+		}
 	}
 
 	ImGui::SetCurrentContext(backup_context);
@@ -3410,54 +3418,20 @@ bool reshade::runtime::init_imgui_resources()
 
 	if (_imgui_pipeline_layout == 0)
 	{
-		api::descriptor_range ranges[2];
-		ranges[0].binding = 0;
-		ranges[0].dx_register_space = 0;
-		ranges[0].count = 1;
-		ranges[0].array_size = 1;
-		ranges[0].visibility = api::shader_stage::pixel;
-		ranges[1].binding = 0;
-		ranges[1].dx_register_space = 0;
-		ranges[1].count = 1;
-		ranges[1].array_size = 1;
-		ranges[1].visibility = api::shader_stage::pixel;
-
 		uint32_t num_layout_params = 0;
 		api::pipeline_layout_param layout_params[3];
 
 		if (has_combined_sampler_and_view)
 		{
-			ranges[0].type = api::descriptor_type::sampler_with_resource_view;
-			ranges[0].dx_register_index = 0; // s0
-
-			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[num_layout_params].push_descriptors = ranges[0];
-			num_layout_params++;
+			layout_params[num_layout_params++] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::pixel, 1, api::descriptor_type::sampler_with_resource_view }; // s0
 		}
 		else
 		{
-			ranges[0].type = api::descriptor_type::sampler;
-			ranges[0].dx_register_index = 0; // s0
-
-			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[num_layout_params].push_descriptors = ranges[0];
-			num_layout_params++;
-
-			ranges[1].type = api::descriptor_type::shader_resource_view;
-			ranges[1].dx_register_index = 0; // t0
-
-			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[num_layout_params].push_descriptors = ranges[1];
-			num_layout_params++;
+			layout_params[num_layout_params++] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::pixel, 1, api::descriptor_type::sampler }; // s0
+			layout_params[num_layout_params++] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::pixel, 1, api::descriptor_type::shader_resource_view }; // t0
 		}
 
-		layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_constants;
-		layout_params[num_layout_params].push_constants.binding = 0;
-		layout_params[num_layout_params].push_constants.dx_register_index = 0; // b0
-		layout_params[num_layout_params].push_constants.dx_register_space = 0;
-		layout_params[num_layout_params].push_constants.count = 16;
-		layout_params[num_layout_params].push_constants.visibility = api::shader_stage::vertex;
-		num_layout_params++;
+		layout_params[num_layout_params++] = api::constant_range { 0, 0, 0, 16, api::shader_stage::vertex }; // b0
 
 		if (!_device->create_pipeline_layout(num_layout_params, layout_params, &_imgui_pipeline_layout))
 		{

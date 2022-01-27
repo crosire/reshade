@@ -38,10 +38,6 @@ reshade::api::resource reshade::vulkan::swapchain_impl::get_back_buffer(uint32_t
 {
 	return { (uint64_t)_swapchain_images[index] };
 }
-reshade::api::resource reshade::vulkan::swapchain_impl::get_back_buffer_resolved(uint32_t index)
-{
-	return { (uint64_t)_swapchain_images[index] };
-}
 
 uint32_t reshade::vulkan::swapchain_impl::get_back_buffer_count() const
 {
@@ -95,10 +91,6 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
-	_width = desc.imageExtent.width;
-	_height = desc.imageExtent.height;
-	_back_buffer_format = convert_format(desc.imageFormat);
-
 	for (uint32_t i = 0; i < NUM_SYNC_SEMAPHORES; ++i)
 	{
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -145,10 +137,6 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 		return;
 
 	runtime::on_present();
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_present>(this);
-#endif
 
 #ifndef NDEBUG
 	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)

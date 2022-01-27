@@ -19,7 +19,6 @@ namespace reshade::d3d10
 		~swapchain_impl();
 
 		api::resource get_back_buffer(uint32_t index) final;
-		api::resource get_back_buffer_resolved(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }
@@ -36,8 +35,5 @@ namespace reshade::d3d10
 	private:
 		state_block _app_state;
 		com_ptr<ID3D10Texture2D> _backbuffer;
-		com_ptr<ID3D10Texture2D> _backbuffer_resolved;
-		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv;
-		com_ptr<ID3D10ShaderResourceView> _backbuffer_resolved_srv;
 	};
 }

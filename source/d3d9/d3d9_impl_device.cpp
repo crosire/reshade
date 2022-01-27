@@ -1059,6 +1059,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 		case D3DRTYPE_TEXTURE:
 		{
 			// Get D3D texture format
+			// Note: This fails for any mipmap level but the first one for textures with D3DUSAGE_AUTOGENMIPMAP, since in that case the D3D runtime does not have surfaces for those
 			D3DSURFACE_DESC desc;
 			if (FAILED(static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(subresource, &desc)))
 				return;

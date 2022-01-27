@@ -44,12 +44,6 @@ reshade::api::resource reshade::d3d10::swapchain_impl::get_back_buffer(uint32_t 
 
 	return to_handle(_backbuffer.get());
 }
-reshade::api::resource reshade::d3d10::swapchain_impl::get_back_buffer_resolved(uint32_t index)
-{
-	assert(index == 0);
-
-	return to_handle(_backbuffer_resolved.get());
-}
 
 bool reshade::d3d10::swapchain_impl::on_init()
 {
@@ -68,49 +62,7 @@ bool reshade::d3d10::swapchain_impl::on_init()
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
-	if (swap_desc.SampleDesc.Count > 1)
-	{
-		D3D10_TEXTURE2D_DESC tex_desc = {};
-		tex_desc.Width = swap_desc.BufferDesc.Width;
-		tex_desc.Height = swap_desc.BufferDesc.Height;
-		tex_desc.MipLevels = 1;
-		tex_desc.ArraySize = 1;
-		tex_desc.Format = convert_format(api::format_to_typeless(convert_format(swap_desc.BufferDesc.Format)));
-		tex_desc.SampleDesc = { 1, 0 };
-		tex_desc.Usage = D3D10_USAGE_DEFAULT;
-		tex_desc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
-
-		D3D10_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-		srv_desc.Format = swap_desc.BufferDesc.Format;
-		srv_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Texture2D.MipLevels = 1;
-
-		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
-		{
-			LOG(ERROR) << "Failed to create back buffer resolve texture!";
-			return false;
-		}
-		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv)))
-		{
-			LOG(ERROR) << "Failed to create original back buffer render target!";
-			return false;
-		}
-		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_resolved.get(), &srv_desc, &_backbuffer_resolved_srv)))
-		{
-			LOG(ERROR) << "Failed to create back buffer resolve shader resource view!";
-			return false;
-		}
-	}
-	else
-	{
-		assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
-
-		_backbuffer_resolved = _backbuffer;
-	}
-
-	_width = swap_desc.BufferDesc.Width;
-	_height = swap_desc.BufferDesc.Height;
-	_back_buffer_format = convert_format(swap_desc.BufferDesc.Format);
+	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
@@ -126,9 +78,6 @@ void reshade::d3d10::swapchain_impl::on_reset()
 #endif
 
 	_backbuffer.reset();
-	_backbuffer_resolved.reset();
-	_backbuffer_rtv.reset();
-	_backbuffer_resolved_srv.reset();
 }
 
 void reshade::d3d10::swapchain_impl::on_present()
@@ -136,43 +85,9 @@ void reshade::d3d10::swapchain_impl::on_present()
 	if (!is_initialized())
 		return;
 
-	ID3D10Device *const immediate_context = static_cast<device_impl *>(_graphics_queue)->_orig;
 	_app_state.capture();
 
-	// Resolve MSAA back buffer if MSAA is active
-	if (_backbuffer_resolved != _backbuffer)
-		immediate_context->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, convert_format(_back_buffer_format));
-
 	runtime::on_present();
-
-	// Stretch main render target back into MSAA back buffer if MSAA is active
-	if (_backbuffer_resolved != _backbuffer)
-	{
-		immediate_context->IASetInputLayout(nullptr);
-		const uintptr_t null = 0;
-		immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
-		immediate_context->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		immediate_context->VSSetShader(static_cast<device_impl *>(_device)->_copy_vert_shader.get());
-		immediate_context->GSSetShader(nullptr);
-		immediate_context->PSSetShader(static_cast<device_impl *>(_device)->_copy_pixel_shader.get());
-		ID3D10SamplerState *const samplers[] = { static_cast<device_impl *>(_device)->_copy_sampler_state.get() };
-		immediate_context->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
-		ID3D10ShaderResourceView *const srvs[] = { _backbuffer_resolved_srv.get() };
-		immediate_context->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
-		immediate_context->RSSetState(nullptr);
-		const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
-		immediate_context->RSSetViewports(1, &viewport);
-		immediate_context->OMSetBlendState(nullptr, nullptr, D3D10_DEFAULT_SAMPLE_MASK);
-		immediate_context->OMSetDepthStencilState(nullptr, D3D10_DEFAULT_STENCIL_REFERENCE);
-		ID3D10RenderTargetView *const render_targets[] = { _backbuffer_rtv.get() };
-		immediate_context->OMSetRenderTargets(ARRAYSIZE(render_targets), render_targets, nullptr);
-
-		immediate_context->Draw(3, 0);
-	}
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_present>(this);
-#endif
 
 	// Apply previous state from application
 	_app_state.apply_and_release();

@@ -20,7 +20,6 @@ namespace reshade::d3d12
 		~swapchain_impl();
 
 		api::resource get_back_buffer(uint32_t index) final;
-		api::resource get_back_buffer_resolved(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final;
 		uint32_t get_current_back_buffer_index() const final;

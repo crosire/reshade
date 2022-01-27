@@ -49,10 +49,6 @@ reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer(uint32_t 
 {
 	return to_handle(_backbuffers[index].get());
 }
-reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer_resolved(uint32_t index)
-{
-	return to_handle(_backbuffers[index].get());
-}
 
 uint32_t reshade::d3d12::swapchain_impl::get_back_buffer_count() const
 {
@@ -100,10 +96,6 @@ bool reshade::d3d12::swapchain_impl::on_init()
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
-	_width = swap_desc.BufferDesc.Width;
-	_height = swap_desc.BufferDesc.Height;
-	_back_buffer_format = convert_format(swap_desc.BufferDesc.Format);
-
 	return runtime::on_init(swap_desc.OutputWindow);
 }
 void reshade::d3d12::swapchain_impl::on_reset()
@@ -133,10 +125,6 @@ void reshade::d3d12::swapchain_impl::on_present()
 		return;
 
 	runtime::on_present();
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_present>(this);
-#endif
 }
 
 bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwnd)
@@ -163,12 +151,6 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 		// The first to be set is at index 1 due to the addition above, so it is sufficient to check the last to be set, which will be at index 0
 		if (_backbuffers[0] != nullptr)
 		{
-			const D3D12_RESOURCE_DESC source_desc = source->GetDesc();
-
-			_width = static_cast<UINT>(source_desc.Width);
-			_height = source_desc.Height;
-			_back_buffer_format = convert_format(source_desc.Format);
-
 #if RESHADE_ADDON
 			invoke_addon_event<addon_event::init_swapchain>(this);
 #endif

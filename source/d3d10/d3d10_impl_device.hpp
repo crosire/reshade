@@ -136,10 +136,6 @@ namespace reshade::d3d10
 		void insert_debug_marker(const char *, const float[4]) final {}
 
 	private:
-		com_ptr<ID3D10VertexShader> _copy_vert_shader;
-		com_ptr<ID3D10PixelShader>  _copy_pixel_shader;
-		com_ptr<ID3D10SamplerState> _copy_sampler_state;
-
 		UINT _push_constants_size = 0;
 		com_ptr<ID3D10Buffer> _push_constants;
 	};

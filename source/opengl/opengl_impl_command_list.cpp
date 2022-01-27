@@ -338,6 +338,10 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage stages, api
 
 	assert(pipeline.handle != 0);
 
+	// Set clip space to something consistent
+	if (gl3wProcs.gl.ClipControl != nullptr)
+		glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+
 	// Always disable alpha test in case the application set that (fixes broken GUI rendering in Quake)
 	if (_compatibility_context)
 		glDisable(GL_ALPHA_TEST);
@@ -964,6 +968,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		bind_framebuffer_with_resource(GL_DRAW_FRAMEBUFFER, copy_depth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, dst, dst_subresource, dst_desc);
 
 		glDisable(GL_SCISSOR_TEST);
+		glDisable(GL_FRAMEBUFFER_SRGB);
 
 		assert(src_region[2] == 0 && dst_region[2] == 0 && src_region[5] == 1 && dst_region[5] == 1);
 		glBlitFramebuffer(

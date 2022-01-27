@@ -5,6 +5,7 @@
 
 #include "version.h"
 #include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "ini_file.hpp"
 #include "addon_manager.hpp"
 #include "runtime.hpp"
@@ -162,6 +163,12 @@ bool reshade::runtime::on_init(input::window_handle window)
 {
 	assert(!_is_initialized);
 
+	const api::resource_desc back_buffer_desc = _device->get_resource_desc(get_back_buffer(0));
+
+	_width = back_buffer_desc.texture.width;
+	_height = back_buffer_desc.texture.height;
+	_back_buffer_format = api::format_to_default_typed(back_buffer_desc.texture.format);
+
 #if RESHADE_FX
 	// Create an empty texture, which is bound to shader resource view slots with an unknown semantic (since it is not valid to bind a zero handle in Vulkan, unless the 'VK_EXT_robustness2' extension is enabled)
 	if (_empty_tex == 0)
@@ -245,13 +252,97 @@ bool reshade::runtime::on_init(input::window_handle window)
 	}
 #endif
 
+	// Create resolve texture and copy pipeline
+	if (back_buffer_desc.texture.samples > 1
+		// Always use resolve texture in OpenGL to flip vertically and support sRGB + binding effect stencil
+		|| _device->get_api() == api::device_api::opengl
+#if RESHADE_FX
+		// Some effects rely on there being an alpha channel available, so create resolve texture if that is not the case
+		|| (_back_buffer_format == api::format::r8g8b8x8_unorm || _back_buffer_format == api::format::b8g8r8x8_unorm)
+#endif
+		)
+	{
+#if RESHADE_FX
+		switch (_back_buffer_format)
+		{
+		case api::format::r8g8b8x8_unorm:
+			_back_buffer_format = api::format::r8g8b8a8_unorm;
+			break;
+		case api::format::b8g8r8x8_unorm:
+			_back_buffer_format = api::format::b8g8r8a8_unorm;
+			break;
+		}
+#endif
+
+		if (!_device->create_resource(
+				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource | api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest),
+				nullptr, back_buffer_desc.texture.samples == 1 ? api::resource_usage::copy_dest : api::resource_usage::resolve_dest, &_back_buffer_resolved) ||
+			!_device->create_resource_view(
+				_back_buffer_resolved,
+				api::resource_usage::shader_resource,
+				api::resource_view_desc(_back_buffer_format),
+				&_back_buffer_resolved_srv) ||
+			!_device->create_resource_view(
+				_back_buffer_resolved,
+				api::resource_usage::render_target,
+				api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 0)),
+				&_back_buffer_targets.emplace_back()) ||
+			!_device->create_resource_view(
+				_back_buffer_resolved,
+				api::resource_usage::render_target,
+				api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)),
+				&_back_buffer_targets.emplace_back()))
+		{
+			LOG(ERROR) << "Failed to create resolve texture!";
+			goto exit_failure;
+		}
+
+		if (_device->get_api() == api::device_api::d3d10 ||
+			_device->get_api() == api::device_api::d3d11 ||
+			_device->get_api() == api::device_api::d3d12)
+		{
+			api::pipeline_layout_param params[2];
+			params[0] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::sampler };
+			params[1] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view };
+
+			const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
+			const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
+
+			api::shader_desc vs_desc = { vs.data, vs.data_size };
+			api::shader_desc ps_desc = { ps.data, ps.data_size };
+
+			std::vector<api::pipeline_subobject> subobjects;
+			subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
+			subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
+
+			if (!_device->create_pipeline_layout(2, params, &_copy_pipeline_layout) ||
+				!_device->create_pipeline(_copy_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_copy_pipeline))
+			{
+				LOG(ERROR) << "Failed to create copy pipeline!";
+				goto exit_failure;
+			}
+		}
+	}
+
 	// Create render targets for the back buffer resources
 	for (uint32_t i = 0; i < get_back_buffer_count(); ++i)
 	{
-		const api::resource back_buffer_resource = get_back_buffer_resolved(i);
+		const api::resource back_buffer_resource = get_back_buffer(i);
 
-		if (!_device->create_resource_view(back_buffer_resource, api::resource_usage::render_target, api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 0)), &_back_buffer_targets.emplace_back()) ||
-			!_device->create_resource_view(back_buffer_resource, api::resource_usage::render_target, api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)), &_back_buffer_targets.emplace_back()))
+		if (!_device->create_resource_view(
+				back_buffer_resource,
+				api::resource_usage::render_target,
+				api::resource_view_desc(
+					back_buffer_desc.texture.samples > 1 ? api::resource_view_type::texture_2d_multisample : api::resource_view_type::texture_2d,
+					api::format_to_default_typed(back_buffer_desc.texture.format, 0), 0, 1, 0, 1),
+				&_back_buffer_targets.emplace_back()) ||
+			!_device->create_resource_view(
+				back_buffer_resource,
+				api::resource_usage::render_target,
+				api::resource_view_desc(
+					back_buffer_desc.texture.samples > 1 ? api::resource_view_type::texture_2d_multisample : api::resource_view_type::texture_2d,
+					api::format_to_default_typed(back_buffer_desc.texture.format, 1), 0, 1, 0, 1),
+				&_back_buffer_targets.emplace_back()))
 		{
 			LOG(ERROR) << "Failed to create back buffer render targets!";
 			goto exit_failure;
@@ -324,6 +415,16 @@ exit_failure:
 	_effect_stencil_dsv = {};
 #endif
 
+	_device->destroy_pipeline(_copy_pipeline);
+	_copy_pipeline = {};
+	_device->destroy_pipeline_layout(_copy_pipeline_layout);
+	_copy_pipeline_layout = {};
+
+	_device->destroy_resource(_back_buffer_resolved);
+	_back_buffer_resolved = {};
+	_device->destroy_resource_view(_back_buffer_resolved_srv);
+	_back_buffer_resolved_srv = {};
+
 	for (const auto view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
@@ -372,6 +473,16 @@ void reshade::runtime::on_reset()
 	_worker_threads.clear();
 #endif
 
+	_device->destroy_pipeline(_copy_pipeline);
+	_copy_pipeline = {};
+	_device->destroy_pipeline_layout(_copy_pipeline_layout);
+	_copy_pipeline_layout = {};
+
+	_device->destroy_resource(_back_buffer_resolved);
+	_back_buffer_resolved = {};
+	_device->destroy_resource_view(_back_buffer_resolved_srv);
+	_back_buffer_resolved_srv = {};
+
 	for (const auto view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
@@ -397,6 +508,29 @@ void reshade::runtime::on_present()
 {
 	assert(is_initialized());
 
+	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+
+	uint32_t back_buffer_index = get_current_back_buffer_index();
+	const api::resource back_buffer_resource = get_back_buffer(back_buffer_index);
+
+	// Resolve MSAA back buffer if MSAA is active or copy when format conversion is required
+	if (_back_buffer_resolved != 0)
+	{
+		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
+		if (back_buffer_desc.texture.samples == 1)
+		{
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::copy_source);
+			cmd_list->copy_texture_region(back_buffer_resource, 0, nullptr, _back_buffer_resolved, 0, nullptr);
+			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::copy_dest, api::resource_usage::render_target);
+		}
+		else
+		{
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::resolve_source);
+			cmd_list->resolve_texture_region(back_buffer_resource, 0, nullptr, _back_buffer_resolved, 0, 0, 0, 0, _back_buffer_format);
+			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::resolve_dest, api::resource_usage::render_target);
+		}
+	}
+
 #if RESHADE_FX
 	update_effects();
 
@@ -405,13 +539,16 @@ void reshade::runtime::on_present()
 		if (_should_save_screenshot && _screenshot_save_before)
 			save_screenshot(" original");
 
-		uint32_t back_buffer_index = get_current_back_buffer_index();
-		const api::resource back_buffer_resource = get_back_buffer_resolved(back_buffer_index);
-
-		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
-		runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index * 2], _back_buffer_targets[back_buffer_index * 2 + 1]);
-		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
+		if (_back_buffer_resolved != 0)
+		{
+			runtime::render_effects(cmd_list, _back_buffer_targets[0], _back_buffer_targets[1]);
+		}
+		else
+		{
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
+			runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index * 2], _back_buffer_targets[back_buffer_index * 2 + 1]);
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
+		}
 	}
 #endif
 
@@ -482,6 +619,47 @@ void reshade::runtime::on_present()
 				load_current_preset();
 		}
 #endif
+	}
+
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_present>(this);
+#endif
+
+	// Stretch main render target back into MSAA back buffer if MSAA is active or copy when format conversion is required
+	if (_back_buffer_resolved != 0)
+	{
+		if (_device->get_api() == api::device_api::d3d10 ||
+			_device->get_api() == api::device_api::d3d11 ||
+			_device->get_api() == api::device_api::d3d12)
+		{
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::copy_source | api::resource_usage::resolve_source, api::resource_usage::render_target);
+			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::render_target, api::resource_usage::shader_resource);
+
+			cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, _copy_pipeline);
+
+			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 0, api::descriptor_set_update { {}, 0, 0, 1, api::descriptor_type::sampler, &_imgui_sampler_state });
+			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 1, api::descriptor_set_update { {}, 0, 0, 1, api::descriptor_type::shader_resource_view, &_back_buffer_resolved_srv });
+
+			const api::viewport viewport = { 0.0f, 0.0f, static_cast<float>(_width), static_cast<float>(_height), 0.0f, 1.0f };
+			cmd_list->bind_viewports(0, 1, &viewport);
+			const api::rect scissor_rect = { 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height) };
+			cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
+
+			cmd_list->bind_render_targets_and_depth_stencil(1, &_back_buffer_targets[2 + back_buffer_index * 2]);
+
+			cmd_list->draw(3, 1, 0, 0);
+
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
+			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::shader_resource, api::resource_usage::resolve_dest);
+		}
+		else
+		{
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::copy_source | api::resource_usage::resolve_source, api::resource_usage::copy_dest);
+			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::render_target, api::resource_usage::copy_source);
+			cmd_list->copy_texture_region(_back_buffer_resolved, 0, nullptr, back_buffer_resource, 0, nullptr);
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::copy_dest, api::resource_usage::present);
+			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::copy_source, api::resource_usage::resolve_dest);
+		}
 	}
 
 	// Reset input status
