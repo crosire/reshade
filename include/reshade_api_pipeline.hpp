@@ -348,7 +348,8 @@ namespace reshade::api
 		/// </summary>
 		size_t code_size = 0;
 		/// <summary>
-		/// Optional entry point name if the shader source <see cref="code"/> or binary contains multiple entry points. Can be <see langword="nullptr"/> if it does not.
+		/// Optional entry point name if the shader source <see cref="code"/> or binary contains multiple entry points.
+		/// Can be <see langword="nullptr"/> if it does not, or to use the default "main" entry point.
 		/// </summary>
 		const char *entry_point = nullptr;
 

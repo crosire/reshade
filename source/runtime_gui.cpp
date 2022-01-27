@@ -3471,18 +3471,20 @@ bool reshade::runtime::init_imgui_resources()
 
 	api::shader_desc vs_desc, ps_desc;
 
-	if ((_renderer_id & 0xF0000) == 0)
+	if ((_renderer_id & 0xF0000) == 0 || _renderer_id >= 0x20000)
 	{
-		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
+		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id >= 0x20000 ? IDR_IMGUI_VS_SPIRV : _renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
 		vs_desc.code = vs_res.data;
 		vs_desc.code_size = vs_res.data_size;
 
-		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : IDR_IMGUI_PS_4_0);
+		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id >= 0x20000 ? IDR_IMGUI_PS_SPIRV : _renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : IDR_IMGUI_PS_4_0);
 		ps_desc.code = ps_res.data;
 		ps_desc.code_size = ps_res.data_size;
 	}
-	else if (_renderer_id < 0x20000)
+	else
 	{
+		assert(_device->get_api() == api::device_api::opengl);
+
 		// These need to be static so that the shader source memory doesn't fall out of scope before pipeline creation below
 		static constexpr char vertex_shader_code[] =
 			"#version 430\n"
@@ -3515,18 +3517,6 @@ bool reshade::runtime::init_imgui_resources()
 
 		ps_desc.code = fragment_shader_code;
 		ps_desc.code_size = sizeof(fragment_shader_code);
-		ps_desc.entry_point = "main";
-	}
-	else
-	{
-		const resources::data_resource vs_res = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
-		vs_desc.code = vs_res.data;
-		vs_desc.code_size = vs_res.data_size;
-		vs_desc.entry_point = "main";
-
-		const resources::data_resource ps_res = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
-		ps_desc.code = ps_res.data;
-		ps_desc.code_size = ps_res.data_size;
 		ps_desc.entry_point = "main";
 	}
 

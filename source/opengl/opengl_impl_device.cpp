@@ -1653,10 +1653,9 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 	else
 	{
 		assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
-		assert(desc.entry_point != nullptr);
 
 		glShaderBinary(1, &shader_object, GL_SPIR_V_BINARY, desc.code, static_cast<GLsizei>(desc.code_size));
-		glSpecializeShader(shader_object, desc.entry_point, desc.spec_constants, desc.spec_constant_ids, desc.spec_constant_values);
+		glSpecializeShader(shader_object, desc.entry_point != nullptr ? desc.entry_point : "main", desc.spec_constants, desc.spec_constant_ids, desc.spec_constant_values);
 	}
 
 	GLint status = GL_FALSE;

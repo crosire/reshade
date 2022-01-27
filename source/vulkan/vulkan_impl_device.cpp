@@ -898,8 +898,6 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 
 bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map)
 {
-	assert(desc.entry_point != nullptr);
-
 	spec_map.reserve(desc.spec_constants);
 	for (uint32_t i = 0; i < desc.spec_constants; ++i)
 		spec_map.push_back(VkSpecializationMapEntry { desc.spec_constant_ids[i], i * 4, sizeof(uint32_t) });
@@ -911,7 +909,7 @@ bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits st
 
 	stage_info = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	stage_info.stage = stage;
-	stage_info.pName = desc.entry_point;
+	stage_info.pName = desc.entry_point != nullptr ? desc.entry_point : "main";
 	stage_info.pSpecializationInfo = &spec_info;
 
 	VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
