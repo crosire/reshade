@@ -1345,126 +1345,120 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 
 	for (uintptr_t p = reinterpret_cast<uintptr_t>(pDesc->pPipelineStateSubobjectStream); p < (reinterpret_cast<uintptr_t>(pDesc->pPipelineStateSubobjectStream) + pDesc->SizeInBytes);)
 	{
-		const auto type = reinterpret_cast<const D3D12_PIPELINE_STATE_SUBOBJECT_TYPE *>(p);
-		const auto data = static_cast<const void *>(type + 1);
-
-		p += sizeof(D3D12_PIPELINE_STATE_SUBOBJECT_TYPE);
-
-		switch (*type)
+		switch (*reinterpret_cast<const D3D12_PIPELINE_STATE_SUBOBJECT_TYPE *>(p))
 		{
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
-			layout = to_handle(*static_cast<ID3D12RootSignature *const *>(data));
-			p += sizeof(ID3D12RootSignature);
-			break;
+			layout = to_handle(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE *>(p)->data);
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VS:
-			vs_desc = reshade::d3d12::convert_shader_desc(*static_cast<const D3D12_SHADER_BYTECODE *>(data));
+			vs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VS *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
-			p += sizeof(D3D12_SHADER_BYTECODE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VS);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS:
-			ps_desc = reshade::d3d12::convert_shader_desc(*static_cast<const D3D12_SHADER_BYTECODE *>(data));
+			ps_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_PS *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
-			p += sizeof(D3D12_SHADER_BYTECODE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_PS);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DS:
-			ds_desc = reshade::d3d12::convert_shader_desc(*static_cast<const D3D12_SHADER_BYTECODE *>(data));
+			ds_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DS *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc });
-			p += sizeof(D3D12_SHADER_BYTECODE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DS);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_HS:
-			hs_desc = reshade::d3d12::convert_shader_desc(*static_cast<const D3D12_SHADER_BYTECODE *>(data));
+			hs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_HS *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc });
-			p += sizeof(D3D12_SHADER_BYTECODE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_HS);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_GS:
-			gs_desc = reshade::d3d12::convert_shader_desc(*static_cast<const D3D12_SHADER_BYTECODE *>(data));
+			gs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_GS *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc });
-			p += sizeof(D3D12_SHADER_BYTECODE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_GS);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CS:
-			cs_desc = reshade::d3d12::convert_shader_desc(*static_cast<const D3D12_SHADER_BYTECODE *>(data));
+			cs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_CS *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc });
-			p += sizeof(D3D12_SHADER_BYTECODE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_CS);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_STREAM_OUTPUT:
-			stream_output_desc = reshade::d3d12::convert_stream_output_desc(*static_cast<const D3D12_STREAM_OUTPUT_DESC *>(data));
+			stream_output_desc = reshade::d3d12::convert_stream_output_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_STREAM_OUTPUT *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc });
-			p += sizeof(D3D12_STREAM_OUTPUT_DESC);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_STREAM_OUTPUT);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND:
-			blend_desc = reshade::d3d12::convert_blend_desc(*static_cast<const D3D12_BLEND_DESC *>(data));
+			blend_desc = reshade::d3d12::convert_blend_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_BLEND_DESC *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc });
-			p += sizeof(D3D12_BLEND_DESC);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_BLEND_DESC);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK:
-			sample_mask = *static_cast<const UINT *>(data);
+			sample_mask = reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK *>(p)->data;
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask });
-			p += sizeof(UINT);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER:
-			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(*static_cast<const D3D12_RASTERIZER_DESC *>(data));
+			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
-			p += sizeof(D3D12_RASTERIZER_DESC);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL:
-			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(*static_cast<const D3D12_DEPTH_STENCIL_DESC *>(data));
+			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
-			p += sizeof(D3D12_DEPTH_STENCIL_DESC);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_INPUT_LAYOUT:
-			reshade::d3d12::convert_input_layout_desc(static_cast<const D3D12_INPUT_LAYOUT_DESC *>(data)->NumElements, static_cast<const D3D12_INPUT_LAYOUT_DESC *>(data)->pInputElementDescs, input_layout);
+			reshade::d3d12::convert_input_layout_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.NumElements, reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.pInputElementDescs, input_layout);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() });
-			p += sizeof(D3D12_INPUT_LAYOUT_DESC);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_IB_STRIP_CUT_VALUE:
-			p += sizeof(D3D12_INDEX_BUFFER_STRIP_CUT_VALUE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_IB_STRIP_CUT_VALUE);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PRIMITIVE_TOPOLOGY:
-			topology = reshade::d3d12::convert_primitive_topology_type(*static_cast<const D3D12_PRIMITIVE_TOPOLOGY_TYPE *>(data));
+			topology = reshade::d3d12::convert_primitive_topology_type(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology });
-			p += sizeof(D3D12_PRIMITIVE_TOPOLOGY_TYPE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS:
-			assert(static_cast<const D3D12_RT_FORMAT_ARRAY *>(data)->NumRenderTargets <= 8);
-			for (UINT i = 0; i < static_cast<const D3D12_RT_FORMAT_ARRAY *>(data)->NumRenderTargets; ++i)
-				render_target_formats[i] = reshade::d3d12::convert_format(static_cast<const D3D12_RT_FORMAT_ARRAY *>(data)->RTFormats[i]);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::render_target_formats, static_cast<const D3D12_RT_FORMAT_ARRAY *>(data)->NumRenderTargets, render_target_formats });
-			p += sizeof(D3D12_RT_FORMAT_ARRAY);
-			break;
+			assert(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets <= 8);
+			for (UINT i = 0; i < reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets; ++i)
+				render_target_formats[i] = reshade::d3d12::convert_format(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.RTFormats[i]);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::render_target_formats, reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets, render_target_formats });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT:
-			depth_stencil_format = reshade::d3d12::convert_format(*static_cast<const DXGI_FORMAT *>(data));
+			depth_stencil_format = reshade::d3d12::convert_format(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format });
-			p += sizeof(DXGI_FORMAT);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC:
-			sample_count = static_cast<const DXGI_SAMPLE_DESC *>(data)->Count;
+			sample_count = reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC *>(p)->data.Count;
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count });
-			p += sizeof(DXGI_SAMPLE_DESC);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_NODE_MASK:
-			p += sizeof(UINT);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_NODE_MASK);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CACHED_PSO:
-			p += sizeof(D3D12_CACHED_PIPELINE_STATE);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_CACHED_PSO);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS:
-			p += sizeof(D3D12_PIPELINE_STATE_FLAGS);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_FLAGS);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL1:
-			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(*static_cast<const D3D12_DEPTH_STENCIL_DESC1 *>(data));
+			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1 *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
-			p += sizeof(D3D12_DEPTH_STENCIL_DESC1);
-			break;
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1);
+			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING:
-			p += sizeof(D3D12_VIEW_INSTANCING_DESC);
-			break;
-		default: // Unknown sub-object type, break out of the loop
-			p  = reinterpret_cast<uintptr_t>(pDesc->pPipelineStateSubobjectStream) + pDesc->SizeInBytes;
-			break;
+			assert(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING *>(p)->data.ViewInstanceCount <= D3D12_MAX_VIEW_INSTANCE_COUNT);
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING);
+			continue;
+		default:
+			// Unknown sub-object type, break out of the loop
+			assert(false);
 		}
-
-		// Align pointer to natural word alignment of the system again
-		p = (p + (sizeof(void *) - 1)) & ~(sizeof(void *) - 1);
+		break;
 	}
 
 	HRESULT hr = S_OK;

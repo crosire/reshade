@@ -696,7 +696,9 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 
 void reshade::d3d9::convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3DVERTEXELEMENT9> &internal_elements)
 {
-	internal_elements.reserve(count);
+	assert(count <= MAXD3DDECLLENGTH);
+
+	internal_elements.reserve(count + 1);
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
