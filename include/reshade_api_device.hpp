@@ -356,10 +356,10 @@ namespace reshade::api
 		/// <summary>
 		/// Creates a new pipeline state object.
 		/// </summary>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
 		/// <param name="layout">Pipeline layout to use.</param>
 		/// <param name="subobject_count">Number of sub-objects.</param>
 		/// <param name="subobjects">Pointer to an array of sub-objects that describe this pipeline.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
 		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
 		virtual bool create_pipeline(pipeline_layout layout, uint32_t subobject_count, const pipeline_subobject *subobjects, pipeline *out_handle) = 0;
 		/// <summary>
