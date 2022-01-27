@@ -21,8 +21,10 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 
 	// The pixel format has to be the same for all device contexts used with this rendering context, so can cache information about it here
 	// See https://docs.microsoft.com/windows/win32/api/wingdi/nf-wingdi-wglmakecurrent
+	const int pixel_format = GetPixelFormat(initial_hdc);
+
 	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
-	DescribePixelFormat(initial_hdc, GetPixelFormat(initial_hdc), sizeof(pfd), &pfd);
+	DescribePixelFormat(initial_hdc, pixel_format, sizeof(pfd), &pfd);
 
 	switch (pfd.cRedBits)
 	{
@@ -52,6 +54,14 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 
 	if (pfd.dwFlags & PFD_STEREO)
 		_default_fbo_stereo = true;
+
+	const auto wglGetPixelFormatAttribivARB = reinterpret_cast<BOOL(WINAPI *)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)>(wglGetProcAddress("wglGetPixelFormatAttribivARB"));
+	if (wglGetPixelFormatAttribivARB != nullptr)
+	{
+		int attribs[2] = { 0x2042 /* WGL_SAMPLES_ARB */, 1 };
+		if (wglGetPixelFormatAttribivARB(initial_hdc, pixel_format, 0, 1, &attribs[0], &attribs[1]) && attribs[1] != 0)
+			_default_fbo_samples = attribs[1];
+	}
 
 	// Check whether this context supports Direct State Access
 	_supports_dsa = gl3wIsSupported(4, 5);
@@ -775,7 +785,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		{
 			const GLenum internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
 
-			return convert_resource_desc(target, 1, 1, internal_format, _default_fbo_width, _default_fbo_height, _default_fbo_stereo ? 2 : 1);
+			return convert_resource_desc(target, 1, _default_fbo_samples, internal_format, _default_fbo_width, _default_fbo_height, _default_fbo_stereo ? 2 : 1);
 		}
 	}
 
