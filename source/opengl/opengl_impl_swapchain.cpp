@@ -35,7 +35,9 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compa
 	glGetIntegerv(GL_SCISSOR_BOX, scissor_box);
 	assert(scissor_box[0] == 0 && scissor_box[1] == 0);
 
-	on_init(WindowFromDC(hdc), scissor_box[2], scissor_box[3]);
+	// Wolfenstein: The Old Blood creates a window with a height of zero that is later resized
+	if (scissor_box[2] != 0 && scissor_box[3] != 0)
+		on_init(WindowFromDC(hdc), scissor_box[2], scissor_box[3]);
 }
 reshade::opengl::swapchain_impl::~swapchain_impl()
 {
@@ -106,6 +108,13 @@ void reshade::opengl::swapchain_impl::on_present()
 
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
+
+#ifndef NDEBUG
+	GLenum type = GL_NONE; char message[512] = "";
+	while (glGetDebugMessageLog(1, 512, nullptr, &type, nullptr, nullptr, nullptr, message))
+		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
+			OutputDebugStringA(message), OutputDebugStringA("\n");
+#endif
 }
 
 #if RESHADE_FX
