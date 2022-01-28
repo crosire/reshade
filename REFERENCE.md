@@ -10,7 +10,7 @@ Here is a very basic code example of an add-on that registers a callback that ge
 ```cpp
 #include <reshade.hpp>
 
-static void on_present(reshade::api::command_queue *queue, reshade::api::swapchain *swapchain)
+static void on_present(reshade::api::command_queue *queue, reshade::api::swapchain *swapchain, const reshade::api::rect *source_rect, const reshade::api::rect *dest_rect, uint32_t dirty_rect_count, const reshade::api::rect *dirty_rects)
 {
     // ...
 }
@@ -32,7 +32,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
     case DLL_PROCESS_DETACH:
         // Optionally unregister the event callback that was previously registered during process attachment again.
         reshade::unregister_event<reshade::addon_event::present>(&on_present);
-        // And finally unregister the add-on from ReShade (this will automatically unregister any events and overlays registered by this add-on).
+        // And finally unregister the add-on from ReShade (this will automatically unregister any events and overlays registered by this add-on too).
         reshade::unregister_addon(hinstDLL);
         break;
     }
@@ -47,7 +47,7 @@ For more complex examples, see the [examples directory in the repository](https:
 ## Overlays
 
 It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.
-Overlays are created with the use of [Dear ImGui version 1.86](https://github.com/ocornut/imgui/tree/v1.86). Including `reshade.hpp` after `imgui.h` will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
+Overlays are created with the use of [Dear ImGui version 1.86](https://github.com/ocornut/imgui/tree/v1.86). Including `reshade.hpp` after [`imgui.h`](https://github.com/ocornut/imgui/blob/v1.86/imgui.h) will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
 
 ```cpp
 #define ImTextureID uint64_t // Change ImGui texture ID type to that of a 'reshade::api::resource_view' handle
@@ -88,10 +88,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
         // This registers a new overlay with the specified name with ReShade.
         // It will be displayed as an additional window when the ReShade overlay is opened.
         // Its contents are defined by Dear ImGui commands issued in the specified callback function.
-        reshade::register_overlay("Test", draw_debug_overlay);
+        reshade::register_overlay("Test", &draw_debug_overlay);
         // It is also possible to register a special settings overlay by passing 'nullptr' instead of a title.
         // This is shown beneath the add-on information in the add-on list of the ReShade overlay and can be used to present settings to users.
-        reshade::register_overlay(nullptr, draw_settings_overlay);
+        reshade::register_overlay(nullptr, &draw_settings_overlay);
         break;
     case DLL_PROCESS_DETACH:
         reshade::unregister_addon(hinstDLL);
@@ -104,12 +104,12 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 Do not call `ImGui::Begin` and `ImGui::End` in the callback to create the overlay window itself, ReShade already does this for you before and after calling the callback function.
 You can however call `ImGui::Begin` and `ImGui::End` with a different title to open additional popup windows (this is not recommended though, since those are difficult to navigate in VR).
 
-Overlay names are shared across ReShade and all add-ons, which means you can register with a name already used by ReShade or another add-on to append widgets to that overlay.
+Overlay names are shared across ReShade and all add-ons, which means you can register with a name already used by ReShade or another add-on to append widgets to their overlay.
 For example, `reshade::register_overlay("Settings", ...)` allows you to add widgets to the settings page in ReShade and `reshade::register_overlay("OSD", ...)` allows you to add additional information to the always visible on-screen display (clock, FPS, frametime) ReShade provides.
 
 ## Abstraction
 
-The graphics API abstraction is modeled after the Vulkan API, so much of the terminology used should be familiar to developers that have used Vulkan before.
+The graphics API abstraction is modeled after the Direct3D 12 and Vulkan APIs, so much of the terminology used should be familiar to developers that have used those before.
 
 Detailed inline documentation for all classes and methods can be found inside the headers (see `reshade_api_device.hpp` for the abstraction object classes and `reshade_events.hpp` for a list of available events).
 
@@ -166,7 +166,7 @@ static bool on_draw(reshade::api::command_list *cmd_list, uint32_t vertices, uin
 }
 ```
 
-Showing results on the screen is done through a `reshade::api::swapchain` object. This is a collection of back buffers that the application can render into, which will eventually be presented to the screen. There may be multiple swap chains, if for example the application is rendering to multiple windows, or to a screen and a VR headset. ReShade again will call the `reshade::addon_event::init_swapchain` event after such an object was created by the application (and `reshade::addon_event::destroy_swapchain` on destruction). In addition ReShade will call the `reshade::addon_event::create_swapchain` event before the swap chain is created, so an add-on may modify its description before that happens. For example, to force the resolution to a specific value, one can do the following:
+Showing results on the screen is done through a `reshade::api::swapchain` object. This is a collection of back buffers that the application can render into, which will eventually be presented to the screen. There may be multiple swap chains, if for example the application is rendering to multiple windows, or to a screen and a VR headset. ReShade again will call the `reshade::addon_event::init_swapchain` event after such an object was created by the application (and `reshade::addon_event::destroy_swapchain` on destruction). In addition ReShade will call the `reshade::addon_event::create_swapchain` event before a swap chain is created, so an add-on may modify its description before that happens. For example, to force the resolution to a specific value, one can do the following:
 ```cpp
 // Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::create_swapchain>(&on_create_swapchain)'.
 static bool on_create_swapchain(reshade::api::resource_desc &back_buffer_desc, void *hwnd)
@@ -185,7 +185,7 @@ static bool on_create_swapchain(reshade::api::resource_desc &back_buffer_desc, v
 }
 ```
 
-ReShade associates an independent post-processing effect runtime with every swap chain. This is the runtime one usually controls via the ReShade overlay, but it can also be controlled programatically via the ReShade API using the methods of the `reshade::api::effect_runtime` object.
+ReShade associates an independent post-processing effect runtime with most swap chains. This is the runtime one usually controls via the ReShade overlay, but it can also be controlled programatically via the ReShade API using methods of the `reshade::api::effect_runtime` object.
 
 In contrast to the described basic API abstraction objects, any buffers, textures, pipelines, etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_resource`, `reshade::addon_event::init_pipeline`, ...) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_resource()`, `reshade::api::device::create_pipeline()`, ...).
 
