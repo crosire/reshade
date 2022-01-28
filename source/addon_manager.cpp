@@ -264,11 +264,17 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 {
 	// Can only register an add-on module once
 	if (module == nullptr || module == g_module_handle || reshade::find_addon(module))
+	{
+		LOG(ERROR) << "Failed to register an add-on, because it provided an invalid module handle.";
 		return false;
+	}
 
 	// Check that the requested API version is supported
 	if (api_version == 0 || api_version > RESHADE_API_VERSION || (api_version / 10000) != (RESHADE_API_VERSION / 10000))
+	{
+		LOG(ERROR) << "Failed to register an add-on, because the requested API version (" << api_version << ") is not supported (" << RESHADE_API_VERSION << ").";
 		return false;
+	}
 
 	const std::filesystem::path path = get_module_path(module);
 
@@ -310,8 +316,11 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	if (std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
 			[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
+	{
 		// Prevent registration if another add-on with the same name already exists
+		LOG(ERROR) << "Failed to register an add-on, because another one with the same name (\"" << info.name << "\") was already registered.";
 		return false;
+	}
 
 	if (std::vector<std::string> disabled_addons;
 		reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons) &&
@@ -374,7 +383,7 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 	// Block all application events when building without add-on loading support
 	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
 	{
-		LOG(ERROR) << "Failed to register event because only limited add-on functionality is available.";
+		LOG(ERROR) << "Failed to register an event because only limited add-on functionality is available.";
 		return;
 	}
 #endif
