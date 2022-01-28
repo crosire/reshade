@@ -375,6 +375,7 @@ namespace reshade
 		std::shared_mutex _reload_mutex;
 		std::vector<size_t> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
+		void *_d3d_compiler_module = nullptr;
 
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;

@@ -1433,6 +1433,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			if ((_renderer_id & 0xF0000) == 0)
 			{
+				assert(_d3d_compiler_module != nullptr);
+
 				// Add specialization constant defines to source code
 				const std::string hlsl =
 					"#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
@@ -1492,16 +1494,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				compile_flags |= D3DCOMPILE_DEBUG;
 #endif
 
-				HMODULE d3d_compiler_module = nullptr;
-				const auto ensure_d3d_compiler_loaded = [&d3d_compiler_module]() {
-					// Ensure HLSL compiler is loaded before trying to compile effects
-					if (nullptr == d3d_compiler_module)
-						d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll");
-					if (nullptr == d3d_compiler_module)
-						d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll");
-					return d3d_compiler_module != nullptr;
-				};
-
 				std::string hlsl_attributes;
 				hlsl_attributes += "entrypoint=" + entry_point.name + ';';
 				hlsl_attributes += "profile=" + profile + ';';
@@ -1511,16 +1503,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					effect.source_file.stem().u8string() + '-' + entry_point.name + '-' + std::to_string(_renderer_id) + '-' +
 					std::to_string(std::hash<std::string_view>()(hlsl_attributes) ^ std::hash<std::string_view>()(hlsl));
 
-				if (load_effect_cache(cache_id, "cso", cso) == false)
+				if (!load_effect_cache(cache_id, "cso", cso))
 				{
-					if (!ensure_d3d_compiler_loaded())
-					{
-						effect.errors += "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!";
-						effect.compiled = false;
-						break;
-					}
-
-					const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(d3d_compiler_module, "D3DCompile"));
+					const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DCompile"));
 
 					com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 					const HRESULT hr = D3DCompile(
@@ -1568,7 +1553,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 						d3d_errors.reset();
 						d3d_compiled.reset();
-						FreeLibrary(d3d_compiler_module);
 						break;
 					}
 
@@ -1578,18 +1562,15 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					save_effect_cache(cache_id, "cso", cso);
 				}
 
-				if (load_effect_cache(cache_id, "asm", cso_text) == false && ensure_d3d_compiler_loaded())
+				if (!load_effect_cache(cache_id, "asm", cso_text))
 				{
-					const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(d3d_compiler_module, "D3DDisassemble"));
+					const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DDisassemble"));
 
 					if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 						cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
 
 					save_effect_cache(cache_id, "asm", cso_text);
 				}
-
-				if (d3d_compiler_module != nullptr)
-					FreeLibrary(d3d_compiler_module);
 			}
 			else if (effect.module.spirv.empty())
 			{
@@ -2758,6 +2739,17 @@ void reshade::runtime::load_effects()
 	// Have to be initialized at this point or else the threads spawned below will immediately exit without reducing the remaining effects count
 	assert(_is_initialized);
 
+	// Ensure HLSL compiler is loaded before trying to compile effects in Direct3D
+	if (_d3d_compiler_module == nullptr && (_renderer_id & 0xF0000) == 0)
+	{
+		if ((_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll")) == nullptr &&
+			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll")) == nullptr)
+		{
+			LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!";
+			return;
+		}
+	}
+
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
 	const size_t offset = _effects.size();
 	_effects.resize(offset + effect_files.size());
@@ -2874,6 +2866,13 @@ void reshade::runtime::destroy_effects()
 
 	// Reset the effect list after all resources have been destroyed
 	_effects.clear();
+
+	// Unload HLSL compiler which was previously loaded in 'load_effects' again
+	if (_d3d_compiler_module)
+	{
+		FreeLibrary(static_cast<HMODULE>(_d3d_compiler_module));
+		_d3d_compiler_module = nullptr;
+	}
 
 	// Textures and techniques should have been cleaned up by the calls to 'destroy_effect' above
 	assert(_textures.empty());
