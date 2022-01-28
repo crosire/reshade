@@ -301,9 +301,15 @@ bool reshade::runtime::on_init(input::window_handle window)
 			_device->get_api() == api::device_api::d3d11 ||
 			_device->get_api() == api::device_api::d3d12)
 		{
-			api::pipeline_layout_param params[2];
-			params[0] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::sampler };
-			params[1] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view };
+			api::sampler_desc sampler_desc = {};
+			sampler_desc.filter = api::filter_mode::min_mag_mip_point;
+			sampler_desc.address_u = api::texture_address_mode::clamp;
+			sampler_desc.address_v = api::texture_address_mode::clamp;
+			sampler_desc.address_w = api::texture_address_mode::clamp;
+
+			api::pipeline_layout_param layout_params[2];
+			layout_params[0] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::sampler };
+			layout_params[1] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view };
 
 			const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
 			const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
@@ -315,8 +321,9 @@ bool reshade::runtime::on_init(input::window_handle window)
 			subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
 			subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
 
-			if (!_device->create_pipeline_layout(2, params, &_copy_pipeline_layout) ||
-				!_device->create_pipeline(_copy_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_copy_pipeline))
+			if (!_device->create_pipeline_layout(2, layout_params, &_copy_pipeline_layout) ||
+				!_device->create_pipeline(_copy_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_copy_pipeline) ||
+				!_device->create_sampler(sampler_desc, &_copy_sampler_state))
 			{
 				LOG(ERROR) << "Failed to create copy pipeline!";
 				goto exit_failure;
@@ -419,6 +426,8 @@ exit_failure:
 	_copy_pipeline = {};
 	_device->destroy_pipeline_layout(_copy_pipeline_layout);
 	_copy_pipeline_layout = {};
+	_device->destroy_sampler(_copy_sampler_state);
+	_copy_sampler_state = {};
 
 	_device->destroy_resource(_back_buffer_resolved);
 	_back_buffer_resolved = {};
@@ -477,6 +486,8 @@ void reshade::runtime::on_reset()
 	_copy_pipeline = {};
 	_device->destroy_pipeline_layout(_copy_pipeline_layout);
 	_copy_pipeline_layout = {};
+	_device->destroy_sampler(_copy_sampler_state);
+	_copy_sampler_state = {};
 
 	_device->destroy_resource(_back_buffer_resolved);
 	_back_buffer_resolved = {};
@@ -637,7 +648,7 @@ void reshade::runtime::on_present()
 
 			cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, _copy_pipeline);
 
-			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 0, api::descriptor_set_update { {}, 0, 0, 1, api::descriptor_type::sampler, &_imgui_sampler_state });
+			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 0, api::descriptor_set_update { {}, 0, 0, 1, api::descriptor_type::sampler, &_copy_sampler_state });
 			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 1, api::descriptor_set_update { {}, 0, 0, 1, api::descriptor_type::shader_resource_view, &_back_buffer_resolved_srv });
 
 			const api::viewport viewport = { 0.0f, 0.0f, static_cast<float>(_width), static_cast<float>(_height), 0.0f, 1.0f };

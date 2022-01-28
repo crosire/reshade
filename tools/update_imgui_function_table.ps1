@@ -209,6 +209,8 @@ $function_table
 "@
 
 $function_table_init = @"
+#if RESHADE_ADDON
+
 #include <new>
 #include <imgui.h>
 #include "reshade_overlay.hpp"
@@ -216,6 +218,8 @@ $function_table_init = @"
 imgui_function_table g_imgui_function_table = {
 $function_table_init
 };
+
+#endif
 "@
 
 #$function_table = "`t" + (($function_table -split "`r`n") -join "`r`n`t")

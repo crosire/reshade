@@ -89,6 +89,7 @@ reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable(co
 			break;
 	}
 #endif
+
 	return { 0 };
 }
 
@@ -141,10 +142,10 @@ void reshade::runtime::get_uniform_variable_type(api::effect_uniform_variable ha
 
 void reshade::runtime::get_uniform_variable_name(api::effect_uniform_variable handle, char *value, size_t *length) const
 {
-#if RESHADE_FX
 	if (length == nullptr)
 		return;
 
+#if RESHADE_FX
 	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
 	if (variable != nullptr)
 	{
@@ -154,10 +155,8 @@ void reshade::runtime::get_uniform_variable_name(api::effect_uniform_variable ha
 		*length = variable->name.size();
 	}
 	else
-	{
-		*length = 0;
-	}
 #endif
+		*length = 0;
 }
 
 bool reshade::runtime::get_annotation_bool_from_uniform_variable(api::effect_uniform_variable handle, const char *name, bool *values, size_t count, size_t array_index) const
@@ -175,11 +174,11 @@ bool reshade::runtime::get_annotation_bool_from_uniform_variable(api::effect_uni
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = false;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_float_from_uniform_variable(api::effect_uniform_variable handle, const char *name, float *values, size_t count, size_t array_index) const
 {
@@ -196,11 +195,11 @@ bool reshade::runtime::get_annotation_float_from_uniform_variable(api::effect_un
 			return true;
 		}
 	}
+#endif
 	
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0.0f;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_int_from_uniform_variable(api::effect_uniform_variable handle, const char *name, int32_t *values, size_t count, size_t array_index) const
 {
@@ -217,11 +216,11 @@ bool reshade::runtime::get_annotation_int_from_uniform_variable(api::effect_unif
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_uint_from_uniform_variable(api::effect_uniform_variable handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
 {
@@ -238,11 +237,11 @@ bool reshade::runtime::get_annotation_uint_from_uniform_variable(api::effect_uni
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_string_from_uniform_variable(api::effect_uniform_variable handle, const char *name, char *value, size_t *length) const
 {
@@ -263,11 +262,11 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable(api::effect_u
 			return true;
 		}
 	}
+#endif
 
 	if (length != nullptr)
 		*length = 0;
 	return false;
-#endif
 }
 
 void reshade::runtime::get_uniform_value_bool(api::effect_uniform_variable handle, bool *values, size_t count, size_t array_index) const
@@ -435,15 +434,16 @@ reshade::api::effect_texture_variable reshade::runtime::find_texture_variable(co
 			return { reinterpret_cast<uintptr_t>(&variable) };
 	}
 #endif
+
 	return { 0 };
 }
 
 void reshade::runtime::get_texture_variable_name(api::effect_texture_variable handle, char *value, size_t *length) const
 {
-#if RESHADE_FX
 	if (length == nullptr)
 		return;
 
+#if RESHADE_FX
 	const auto variable = reinterpret_cast<const texture *>(handle.handle);
 	if (variable != nullptr)
 	{
@@ -453,10 +453,8 @@ void reshade::runtime::get_texture_variable_name(api::effect_texture_variable ha
 		*length = variable->name.size();
 	}
 	else
-	{
-		*length = 0;
-	}
 #endif
+		*length = 0;
 }
 
 bool reshade::runtime::get_annotation_bool_from_texture_variable(api::effect_texture_variable handle, const char *name, bool *values, size_t count, size_t array_index) const
@@ -474,11 +472,11 @@ bool reshade::runtime::get_annotation_bool_from_texture_variable(api::effect_tex
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = false;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_float_from_texture_variable(api::effect_texture_variable handle, const char *name, float *values, size_t count, size_t array_index) const
 {
@@ -495,11 +493,11 @@ bool reshade::runtime::get_annotation_float_from_texture_variable(api::effect_te
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0.0f;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_int_from_texture_variable(api::effect_texture_variable handle, const char *name, int32_t *values, size_t count, size_t array_index) const
 {
@@ -516,11 +514,11 @@ bool reshade::runtime::get_annotation_int_from_texture_variable(api::effect_text
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_uint_from_texture_variable(api::effect_texture_variable handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
 {
@@ -537,11 +535,11 @@ bool reshade::runtime::get_annotation_uint_from_texture_variable(api::effect_tex
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_string_from_texture_variable(api::effect_texture_variable handle, const char *name, char *value, size_t *length) const
 {
@@ -562,11 +560,11 @@ bool reshade::runtime::get_annotation_string_from_texture_variable(api::effect_t
 			return true;
 		}
 	}
+#endif
 
 	if (length != nullptr)
 		*length = 0;
 	return false;
-#endif
 }
 
 void reshade::runtime::update_texture(api::effect_texture_variable handle, const uint32_t width, const uint32_t height, const uint8_t *pixels)
@@ -689,15 +687,16 @@ reshade::api::effect_technique reshade::runtime::find_technique(const char *effe
 			return { reinterpret_cast<uintptr_t>(&technique) };
 	}
 #endif
+
 	return { 0 };
 }
 
 void reshade::runtime::get_technique_name(api::effect_technique handle, char *value, size_t *length) const
 {
-#if RESHADE_FX
 	if (length == nullptr)
 		return;
 
+#if RESHADE_FX
 	const auto tech = reinterpret_cast<const technique *>(handle.handle);
 	if (tech != nullptr)
 	{
@@ -707,10 +706,8 @@ void reshade::runtime::get_technique_name(api::effect_technique handle, char *va
 		*length = tech->name.size();
 	}
 	else
-	{
-		*length = 0;
-	}
 #endif
+		*length = 0;
 }
 
 bool reshade::runtime::get_annotation_bool_from_technique(api::effect_technique handle, const char *name, bool *values, size_t count, size_t array_index) const
@@ -728,11 +725,11 @@ bool reshade::runtime::get_annotation_bool_from_technique(api::effect_technique 
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = false;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_float_from_technique(api::effect_technique handle, const char *name, float *values, size_t count, size_t array_index) const
 {
@@ -749,11 +746,11 @@ bool reshade::runtime::get_annotation_float_from_technique(api::effect_technique
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0.0f;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_int_from_technique(api::effect_technique handle, const char *name, int32_t *values, size_t count, size_t array_index) const
 {
@@ -770,11 +767,11 @@ bool reshade::runtime::get_annotation_int_from_technique(api::effect_technique h
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_uint_from_technique(api::effect_technique handle, const char *name, uint32_t *values, size_t count, size_t array_index) const
 {
@@ -791,11 +788,11 @@ bool reshade::runtime::get_annotation_uint_from_technique(api::effect_technique 
 			return true;
 		}
 	}
+#endif
 
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0;
 	return false;
-#endif
 }
 bool reshade::runtime::get_annotation_string_from_technique(api::effect_technique handle, const char *name, char *value, size_t *length) const
 {
@@ -816,11 +813,11 @@ bool reshade::runtime::get_annotation_string_from_technique(api::effect_techniqu
 			return true;
 		}
 	}
+#endif
 
 	if (length != nullptr)
 		*length = 0;
 	return false;
-#endif
 }
 
 bool reshade::runtime::get_technique_state(api::effect_technique handle) const
@@ -898,10 +895,10 @@ void reshade::runtime::set_preprocessor_definition(const char *name, const char 
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, char *value, size_t *length) const
 {
-#if RESHADE_FX
 	if (name == nullptr || length == nullptr)
 		return false;
 
+#if RESHADE_FX
 	for (auto preset_it = _preset_preprocessor_definitions.begin(); preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
 	{
 		const size_t equals_index = preset_it->find('=');
@@ -927,5 +924,7 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, char *value
 		}
 	}
 #endif
+
+	*length = 0;
 	return false;
 }

@@ -1,3 +1,5 @@
+#if RESHADE_ADDON
+
 #include <new>
 #include <imgui.h>
 #include "reshade_overlay.hpp"
@@ -410,3 +412,5 @@ imgui_function_table g_imgui_function_table = {
 	[](const ImFont *_this, ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, float wrap_width, bool cpu_fine_clip) -> void { _this->RenderText(draw_list, size, pos, col, clip_rect, text_begin, text_end, wrap_width, cpu_fine_clip); },
 
 };
+
+#endif

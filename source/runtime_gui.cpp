@@ -1495,10 +1495,14 @@ void reshade::runtime::draw_gui_settings()
 #if RESHADE_FX
 				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
 #endif
-				"  %%Date%%            Current date in format 'yyyy-MM-dd'\n"
-				"  %%Time%%            Current time in format 'HH-mm-ss'",
+				"  %%Date%%            Current date in format '%s'\n"
+				"  %%Time%%            Current time in format '%s'",
 				g_target_executable_path.stem().string().c_str(),
-				_current_preset_path.stem().string().c_str());
+#if RESHADE_FX
+				_current_preset_path.stem().string().c_str(),
+#endif
+				"yyyy-MM-dd",
+				"HH-mm-ss");
 		}
 
 		modified |= ImGui::Combo("Screenshot format", reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
@@ -1545,7 +1549,9 @@ void reshade::runtime::draw_gui_settings()
 				"  %%TargetExt%%       File extension of the screenshot file (%s)\n"
 				"  %%TargetName%%      File name without extension of the screenshot file (%s)",
 				g_target_executable_path.stem().string().c_str(),
+#if RESHADE_FX
 				_current_preset_path.stem().string().c_str(),
+#endif
 				_screenshot_path.u8string().c_str(), _screenshot_name.c_str(), extension.c_str(),
 				_screenshot_path.u8string().c_str(),
 				_screenshot_name.c_str(), extension.c_str(),
@@ -3400,16 +3406,13 @@ bool reshade::runtime::init_imgui_resources()
 
 	if (_imgui_sampler_state == 0)
 	{
-		api::sampler_desc desc = {};
-		desc.filter = api::filter_mode::min_mag_mip_linear;
-		desc.address_u = api::texture_address_mode::wrap;
-		desc.address_v = api::texture_address_mode::wrap;
-		desc.address_w = api::texture_address_mode::wrap;
-		desc.max_anisotropy = 1;
-		desc.min_lod = -FLT_MAX;
-		desc.max_lod = +FLT_MAX;
+		api::sampler_desc sampler_desc = {};
+		sampler_desc.filter = api::filter_mode::min_mag_mip_linear;
+		sampler_desc.address_u = api::texture_address_mode::wrap;
+		sampler_desc.address_v = api::texture_address_mode::wrap;
+		sampler_desc.address_w = api::texture_address_mode::wrap;
 
-		if (!_device->create_sampler(desc, &_imgui_sampler_state))
+		if (!_device->create_sampler(sampler_desc, &_imgui_sampler_state))
 		{
 			LOG(ERROR) << "Failed to create ImGui sampler object!";
 			return false;

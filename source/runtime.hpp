@@ -400,6 +400,8 @@ namespace reshade
 #endif
 		api::pipeline _copy_pipeline = {};
 		api::pipeline_layout _copy_pipeline_layout = {};
+		api::sampler  _copy_sampler_state = {};
+
 		api::resource _back_buffer_resolved = {};
 		api::resource_view _back_buffer_resolved_srv = {};
 		std::vector<api::resource_view> _back_buffer_targets;
