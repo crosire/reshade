@@ -632,10 +632,6 @@ void reshade::runtime::on_present()
 #endif
 	}
 
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_present>(this);
-#endif
-
 	// Stretch main render target back into MSAA back buffer if MSAA is active or copy when format conversion is required
 	if (_back_buffer_resolved != 0)
 	{
@@ -672,6 +668,10 @@ void reshade::runtime::on_present()
 			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::copy_source, api::resource_usage::resolve_dest);
 		}
 	}
+
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_present>(this);
+#endif
 
 	// Reset input status
 	_input->next_frame();
