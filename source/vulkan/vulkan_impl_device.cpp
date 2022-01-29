@@ -7,7 +7,6 @@
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_queue.hpp"
 #include "vulkan_impl_type_convert.hpp"
-#include <malloc.h>
 #include <algorithm>
 
 #define vk _dispatch_table

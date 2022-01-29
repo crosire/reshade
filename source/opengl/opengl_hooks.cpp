@@ -7,7 +7,6 @@
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
-#include <malloc.h>
 
 struct DrawArraysIndirectCommand
 {
@@ -228,6 +227,7 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 	return result;
 }
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 static bool copy_buffer_region(GLenum src_target, GLuint src_object, GLintptr src_offset, GLenum dst_target, GLuint dst_object, GLintptr dst_offset, GLsizeiptr size)
 {
 	if (!g_current_context || !reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
@@ -355,6 +355,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	std::vector<uint8_t> temp_data;
 	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth), dst, subresource, &dst_box);
 }
+#endif
 
 static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLuint
 {

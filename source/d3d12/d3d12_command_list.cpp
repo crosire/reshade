@@ -8,7 +8,6 @@
 #include "d3d12_descriptor_heap.hpp"
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp"
-#include <malloc.h>
 
 using reshade::d3d12::to_handle;
 

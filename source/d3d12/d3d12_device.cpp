@@ -11,7 +11,6 @@
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
-#include <malloc.h>
 
 using reshade::d3d12::to_handle;
 
