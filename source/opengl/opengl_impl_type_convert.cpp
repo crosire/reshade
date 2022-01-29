@@ -200,6 +200,8 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_DEPTH_COMPONENT16;
 	case api::format::d16_unorm_s8_uint:
 		break; // Unsupported
+	case api::format::d24_unorm_x8_uint:
+		return GL_DEPTH_COMPONENT24;
 	case api::format::r24_g8_typeless:
 	case api::format::r24_unorm_x8_uint:
 	case api::format::x24_unorm_g8_uint:
@@ -407,6 +409,7 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	case GL_DEPTH_COMPONENT16:
 		return api::format::d16_unorm;
 	case GL_DEPTH_COMPONENT24:
+		return api::format::d24_unorm_x8_uint;
 	case GL_DEPTH_STENCIL:
 	case GL_DEPTH24_STENCIL8:
 		return api::format::d24_unorm_s8_uint;

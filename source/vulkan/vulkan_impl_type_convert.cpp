@@ -154,6 +154,8 @@ auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 		return VK_FORMAT_D16_UNORM;
 	case api::format::d16_unorm_s8_uint:
 		return VK_FORMAT_D16_UNORM_S8_UINT;
+	case api::format::d24_unorm_x8_uint:
+		return VK_FORMAT_X8_D24_UNORM_PACK32;
 	case api::format::r24_g8_typeless:
 	case api::format::r24_unorm_x8_uint:
 	case api::format::x24_unorm_g8_uint:
@@ -322,10 +324,14 @@ auto reshade::vulkan::convert_format(VkFormat vk_format) -> api::format
 		return api::format::r9g9b9e5;
 	case VK_FORMAT_D16_UNORM:
 		return api::format::d16_unorm;
+	case VK_FORMAT_X8_D24_UNORM_PACK32:
+		return api::format::d24_unorm_x8_uint;
 	case VK_FORMAT_D32_SFLOAT:
 		return api::format::d32_float;
 	case VK_FORMAT_S8_UINT:
 		return api::format::s8_uint;
+	case VK_FORMAT_D16_UNORM_S8_UINT:
+		return api::format::d16_unorm_s8_uint;
 	case VK_FORMAT_D24_UNORM_S8_UINT:
 		return api::format::d24_unorm_s8_uint;
 	case VK_FORMAT_D32_SFLOAT_S8_UINT:

@@ -104,6 +104,7 @@ namespace reshade::api
 		s8_uint = 0x30303853,
 		d16_unorm = 55,
 		d16_unorm_s8_uint = 0x38363144,
+		d24_unorm_x8_uint = 0x38343244,
 		d24_unorm_s8_uint = 45,
 		d32_float = 40,
 		d32_float_s8_uint = 20,
@@ -245,6 +246,7 @@ namespace reshade::api
 		case format::r32_float_x8_uint:
 		case format::x32_float_g8_uint:
 			return format::r32_g8_typeless;
+		case format::d24_unorm_x8_uint:
 		case format::d24_unorm_s8_uint:
 		case format::r24_g8_typeless:
 		case format::r24_unorm_x8_uint:
@@ -339,6 +341,7 @@ namespace reshade::api
 		case format::d32_float_s8_uint:
 		case format::r32_g8_typeless:
 			return format::r32_float_x8_uint;
+		case format::d24_unorm_x8_uint:
 		case format::d24_unorm_s8_uint:
 		case format::r24_g8_typeless:
 			return format::r24_unorm_x8_uint;

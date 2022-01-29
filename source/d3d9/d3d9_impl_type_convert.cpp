@@ -131,6 +131,7 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::d16_unorm_s8_uint:
 		break; // Unsupported
 	case api::format::r24_g8_typeless:
+	case api::format::d24_unorm_x8_uint:
 	case api::format::d24_unorm_s8_uint:
 		return D3DFMT_D24S8;
 	case api::format::r24_unorm_x8_uint:
