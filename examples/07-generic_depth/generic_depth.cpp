@@ -604,7 +604,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	{
 		depth_stencil_backup *depth_stencil_backup = device_state.find_depth_stencil_backup(best_match);
 
-		if (best_match != instance.selected_depth_stencil || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))
+		if (best_match != instance.selected_depth_stencil || instance.selected_shader_resource == 0 || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))
 		{
 			// Destroy previous resource view, since the underlying resource has changed
 			if (instance.selected_shader_resource != 0)
@@ -637,40 +637,48 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				reshade::config_get_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 
 				if (api == device_api::d3d9)
-					srv_desc.format = format::r32_float; // Same format as backup texture, as set in 'update_backup_texture'
+					srv_desc.format = format::r32_float; // Same format as backup texture, as set in 'track_depth_stencil_for_backup'
 
-				device->create_resource_view(depth_stencil_backup->backup_texture, resource_usage::shader_resource, srv_desc, &instance.selected_shader_resource);
+				if (!device->create_resource_view(depth_stencil_backup->backup_texture, resource_usage::shader_resource, srv_desc, &instance.selected_shader_resource))
+					return;
 
 				instance.using_backup_texture = true;
 			}
 			else
 			{
-				device->create_resource_view(best_match, resource_usage::shader_resource, srv_desc, &instance.selected_shader_resource);
+				if (!device->create_resource_view(best_match, resource_usage::shader_resource, srv_desc, &instance.selected_shader_resource))
+					return;
 			}
 
 			update_effect_runtime(runtime);
 		}
 
-		if (s_preserve_depth_buffers)
-		{
-			assert(depth_stencil_backup != nullptr);
-			depth_stencil_backup->previous_stats = best_snapshot.current_stats;
-		}
-		else
-		{
-			// Copy to backup texture unless already copied during the current frame
-			if (depth_stencil_backup != nullptr && !best_snapshot.copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
-			{
-				cmd_list->barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::copy_source);
-				cmd_list->copy_resource(best_match, depth_stencil_backup->backup_texture);
-				cmd_list->barrier(best_match, resource_usage::copy_source, resource_usage::depth_stencil | resource_usage::shader_resource);
-			}
-		}
-
 		if (instance.using_backup_texture)
-			cmd_list->barrier(depth_stencil_backup->backup_texture, resource_usage::copy_dest, resource_usage::shader_resource);
+		{
+			assert(depth_stencil_backup != nullptr && depth_stencil_backup->backup_texture != 0);
+			const resource backup_texture = depth_stencil_backup->backup_texture;
+
+			if (s_preserve_depth_buffers)
+			{
+				depth_stencil_backup->previous_stats = best_snapshot.current_stats;
+			}
+			else
+			{
+				// Copy to backup texture unless already copied during the current frame
+				if (!best_snapshot.copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
+				{
+					cmd_list->barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::copy_source);
+					cmd_list->copy_resource(best_match, backup_texture);
+					cmd_list->barrier(best_match, resource_usage::copy_source, resource_usage::depth_stencil | resource_usage::shader_resource);
+				}
+			}
+
+			cmd_list->barrier(backup_texture, resource_usage::copy_dest, resource_usage::shader_resource);
+		}
 		else
+		{
 			cmd_list->barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::shader_resource);
+		}
 	}
 	else
 	{
@@ -700,9 +708,14 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 	if (instance.selected_shader_resource != 0)
 	{
 		if (instance.using_backup_texture)
-			cmd_list->barrier(runtime->get_device()->get_resource_from_view(instance.selected_shader_resource), resource_usage::shader_resource, resource_usage::copy_dest);
+		{
+			const resource backup_texture = runtime->get_device()->get_resource_from_view(instance.selected_shader_resource);
+			cmd_list->barrier(backup_texture, resource_usage::shader_resource, resource_usage::copy_dest);
+		}
 		else
+		{
 			cmd_list->barrier(instance.selected_depth_stencil, resource_usage::shader_resource, resource_usage::depth_stencil | resource_usage::shader_resource);
+		}
 	}
 }
 
