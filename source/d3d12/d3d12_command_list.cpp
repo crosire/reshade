@@ -449,14 +449,13 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootSignature(ID3D12
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
-#if RESHADE_ADDON
-	_orig->SetComputeRootDescriptorTable(RootParameterIndex, _device->convert_to_original_gpu_descriptor_handle(BaseDescriptor));
-#else
 	_orig->SetComputeRootDescriptorTable(RootParameterIndex, BaseDescriptor);
-#endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const reshade::api::descriptor_set set = { BaseDescriptor.ptr };
+	if (!reshade::has_addon_event<reshade::addon_event::bind_descriptor_sets>())
+		return;
+
+	const reshade::api::descriptor_set set = _device_impl->convert_to_descriptor_set(BaseDescriptor);
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::shader_stage::all_compute,
@@ -467,14 +466,13 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
-#if RESHADE_ADDON
-	_orig->SetGraphicsRootDescriptorTable(RootParameterIndex, _device->convert_to_original_gpu_descriptor_handle(BaseDescriptor));
-#else
 	_orig->SetGraphicsRootDescriptorTable(RootParameterIndex, BaseDescriptor);
-#endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const reshade::api::descriptor_set set = { BaseDescriptor.ptr };
+	if (!reshade::has_addon_event<reshade::addon_event::bind_descriptor_sets>())
+		return;
+
+	const reshade::api::descriptor_set set = _device_impl->convert_to_descriptor_set(BaseDescriptor);
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::shader_stage::all_graphics,
@@ -702,35 +700,27 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const UINT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
-#if RESHADE_ADDON
-	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = _device_impl->convert_to_original_cpu_descriptor_handle(ViewCPUHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_uint>(this, to_handle(original_descriptor_handle), Values, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
-		return;
-
-	_orig->ClearUnorderedAccessViewUint(
-		_device_impl->convert_to_original_gpu_descriptor_handle(ViewGPUHandleInCurrentHeap),
-		original_descriptor_handle,
-		pResource, Values, NumRects, pRects);
-#else
-	_orig->ClearUnorderedAccessViewUint(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	ViewCPUHandle = _device_impl->convert_to_original_cpu_descriptor_handle(ViewCPUHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 #endif
+
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_uint>(this, to_handle(ViewCPUHandle), Values, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
+		return;
+#endif
+	_orig->ClearUnorderedAccessViewUint(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const FLOAT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
-#if RESHADE_ADDON
-	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = _device_impl->convert_to_original_cpu_descriptor_handle(ViewCPUHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_float>(this, to_handle(original_descriptor_handle), Values, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
-		return;
-
-	_orig->ClearUnorderedAccessViewFloat(
-		_device_impl->convert_to_original_gpu_descriptor_handle(ViewGPUHandleInCurrentHeap),
-		original_descriptor_handle,
-		pResource, Values, NumRects, pRects);
-#else
-	_orig->ClearUnorderedAccessViewFloat(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	ViewCPUHandle = _device_impl->convert_to_original_cpu_descriptor_handle(ViewCPUHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 #endif
+
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_float>(this, to_handle(ViewCPUHandle), Values, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
+		return;
+#endif
+	_orig->ClearUnorderedAccessViewFloat(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DiscardResource(ID3D12Resource *pResource, const D3D12_DISCARD_REGION *pRegion)
 {

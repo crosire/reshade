@@ -3,13 +3,13 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 
 #include "d3d12_device.hpp"
 #include "d3d12_descriptor_heap.hpp"
 #include "dll_log.hpp"
 
-D3D12DescriptorHeap::D3D12DescriptorHeap(D3D12Device *device, ID3D12DescriptorHeap *original) :
+D3D12DescriptorHeap::D3D12DescriptorHeap(ID3D12Device *device, ID3D12DescriptorHeap *original) :
 	_orig(original),
 	_device(device)
 {
@@ -102,36 +102,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE STDMETHODCALLTYPE D3D12DescriptorHeap::GetCPUDescrip
 }
 D3D12_GPU_DESCRIPTOR_HANDLE STDMETHODCALLTYPE D3D12DescriptorHeap::GetGPUDescriptorHandleForHeapStart()
 {
-	return _internal_base_gpu_handle;
-}
-
-void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
-{
-	// Generate a descriptor handle of the following format:
-	//   Bit  0 - 19: Descriptor Index
-	//   Bit 20 - 22: Heap Type
-	//   Bit 23 - 23: Heap Flags
-	//   Bit 24 - 55: Heap Index
-
-	_orig_base_cpu_handle = _orig->GetCPUDescriptorHandleForHeapStart();
-	_internal_base_cpu_handle = { 0 };
-
-	static_assert(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 < (1 << 20));
-
-	assert(heap_index < (1ull << std::min(sizeof(SIZE_T) * 8 - 24ull, 32ull)));
-	_internal_base_cpu_handle.ptr |= static_cast<SIZE_T>(heap_index) << 24;
-
-	const D3D12_DESCRIPTOR_HEAP_DESC heap_desc = _orig->GetDesc();
-	assert(heap_desc.Type <= 0x3);
-	_internal_base_cpu_handle.ptr |= heap_desc.Type << 20;
-	assert(heap_desc.Flags <= 0x1);
-	_internal_base_cpu_handle.ptr |= heap_desc.Flags << 23;
-
-	if (heap_desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
-	{
-		_orig_base_gpu_handle = _orig->GetGPUDescriptorHandleForHeapStart();
-		_internal_base_gpu_handle.ptr = _internal_base_cpu_handle.ptr;
-	}
+	return _orig->GetGPUDescriptorHandleForHeapStart();
 }
 
 #endif

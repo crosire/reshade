@@ -5,7 +5,7 @@
 
 #pragma once
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 
 #include <d3d12.h>
 
@@ -13,7 +13,7 @@ struct D3D12Device;
 
 struct DECLSPEC_UUID("8628AD68-6047-4D27-9D87-3E5F386E0231") D3D12DescriptorHeap final : ID3D12DescriptorHeap
 {
-	D3D12DescriptorHeap(D3D12Device *device, ID3D12DescriptorHeap *original);
+	D3D12DescriptorHeap(ID3D12Device *device, ID3D12DescriptorHeap *original);
 
 	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -41,9 +41,10 @@ struct DECLSPEC_UUID("8628AD68-6047-4D27-9D87-3E5F386E0231") D3D12DescriptorHeap
 
 	ID3D12DescriptorHeap *_orig;
 	ULONG _ref = 1;
-	D3D12Device *const _device;
-	D3D12_CPU_DESCRIPTOR_HANDLE _internal_base_cpu_handle = { 0 }, _orig_base_cpu_handle = { 0 };
-	D3D12_GPU_DESCRIPTOR_HANDLE _internal_base_gpu_handle = { 0 }, _orig_base_gpu_handle = { 0 };
+	ID3D12Device *const _device;
+	D3D12_CPU_DESCRIPTOR_HANDLE _orig_base_cpu_handle = { 0 };
+	D3D12_GPU_DESCRIPTOR_HANDLE _orig_base_gpu_handle = { 0 };
+	D3D12_CPU_DESCRIPTOR_HANDLE _internal_base_cpu_handle = { 0 };
 };
 
 #endif

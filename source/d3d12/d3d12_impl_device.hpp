@@ -7,7 +7,6 @@
 
 #include "addon_manager.hpp"
 #include "descriptor_heap.hpp"
-#include <atomic>
 #include <shared_mutex>
 
 struct D3D12DescriptorHeap;
@@ -79,12 +78,15 @@ namespace reshade::d3d12
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view, const char * ) final {}
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_set set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const;
-		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_set set) const;
+		api::descriptor_set convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data = 0) const;
 		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type) const;
-		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle) const;
+#endif
+		api::descriptor_set convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data = 0) const;
+		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_set set) const;
+		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_set set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const;
 
 		__forceinline D3D12_CPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
@@ -101,8 +103,10 @@ namespace reshade::d3d12
 		void register_resource(ID3D12Resource *resource);
 		void unregister_resource(ID3D12Resource *resource);
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		void register_descriptor_heap(D3D12DescriptorHeap *heap);
 		void unregister_descriptor_heap(D3D12DescriptorHeap *heap);
+#endif
 
 		inline void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource, const api::resource_view_desc &desc)
 		{
@@ -121,8 +125,8 @@ namespace reshade::d3d12
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, 2048> _gpu_view_heap;
 
-#if RESHADE_ADDON
-		std::pair<std::atomic<D3D12DescriptorHeap **>, size_t> _descriptor_heaps;
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+		std::vector<D3D12DescriptorHeap *> _descriptor_heaps;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses; // TODO: Replace with interval tree
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;
