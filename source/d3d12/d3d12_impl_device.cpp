@@ -1402,7 +1402,9 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 
 reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data) const
 {
+#ifdef WIN64
 	assert((handle.ptr >> 56) == 0);
+#endif
 
 	return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
 }
@@ -1442,7 +1444,9 @@ reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_
 	assert(false);
 	return { 0 };
 #else
+#ifdef WIN64
 	assert((handle.ptr >> 56) == 0);
+#endif
 
 	return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
 #endif

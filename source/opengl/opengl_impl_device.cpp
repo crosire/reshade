@@ -1524,7 +1524,8 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		break;
 	case GL_DEPTH_STENCIL:
 	case GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT:
-		attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+		// Only return the depth attachment in case there are different depth and stencil attachments, since calling 'glGetNamedFramebufferAttachmentParameteriv' with 'GL_DEPTH_STENCIL_ATTACHMENT' would fail in that case
+		attachment = GL_DEPTH_ATTACHMENT;
 		break;
 	default:
 		return make_resource_view_handle(0, 0);
