@@ -77,8 +77,10 @@ namespace reshade::vulkan
 
 		object_data(device_impl *device, VkCommandBuffer cmd_list) : command_list_impl(device, cmd_list) {}
 
+#if RESHADE_ADDON
 		uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
 		VkRenderPass current_render_pass = VK_NULL_HANDLE;
 		VkFramebuffer current_framebuffer = VK_NULL_HANDLE;
+#endif
 	};
 }

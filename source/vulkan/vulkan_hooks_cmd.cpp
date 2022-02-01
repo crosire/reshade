@@ -20,6 +20,124 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 	assert(trampoline != nullptr)
 
 #if RESHADE_ADDON
+static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info)
+{
+	if (!reshade::has_addon_event<reshade::addon_event::begin_render_pass>())
+		return;
+
+	const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(cmd_impl->current_render_pass);
+	const auto framebuffer_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>(cmd_impl->current_framebuffer);
+
+	const VkSubpassDescription &subpass = render_pass_data->subpasses[cmd_impl->current_subpass];
+
+	uint32_t num_transitions = 0;
+	temp_mem<VkImageMemoryBarrier, 9> transitions(subpass.colorAttachmentCount + 1);
+
+	temp_mem<reshade::api::render_pass_render_target_desc, 8> rts(subpass.colorAttachmentCount);
+	for (uint32_t i = 0; i < subpass.colorAttachmentCount; ++i)
+	{
+		reshade::api::render_pass_render_target_desc &rt = rts[i];
+		const uint32_t a = subpass.pColorAttachments[i].attachment;
+
+		if (a != VK_ATTACHMENT_UNUSED)
+		{
+			const VkAttachmentDescription &desc = render_pass_data->attachments[a];
+
+			rt.view = { (uint64_t)framebuffer_data->attachments[a] };
+			rt.load_op = reshade::vulkan::convert_render_pass_load_op(desc.loadOp);
+			rt.store_op = reshade::vulkan::convert_render_pass_store_op(desc.storeOp);
+			std::memset(rt.clear_color, 0, sizeof(rt.clear_color));
+
+			if (begin_info != nullptr)
+			{
+				if (desc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR && begin_info->clearValueCount > a)
+					std::copy_n(begin_info->pClearValues[a].color.float32, 4, rt.clear_color);
+
+				if (desc.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED && desc.initialLayout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+				{
+					VkImageMemoryBarrier &transition = transitions[num_transitions++];
+					transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+					transition.oldLayout = desc.initialLayout;
+					transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+					transition.image = (VkImage)device_impl->get_resource_from_view(rt.view).handle;;
+					transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+				}
+			}
+		}
+		else
+		{
+			rt.view = { 0 };
+			rt.load_op = reshade::api::render_pass_load_op::discard;
+			rt.store_op = reshade::api::render_pass_store_op::discard;
+			std::memset(rt.clear_color, 0, sizeof(rt.clear_color));
+		}
+	}
+
+	reshade::api::render_pass_depth_stencil_desc ds;
+	if (subpass.pDepthStencilAttachment != nullptr)
+	{
+		const uint32_t a = subpass.pDepthStencilAttachment->attachment;
+
+		if (a != VK_ATTACHMENT_UNUSED)
+		{
+			const VkAttachmentDescription &desc = render_pass_data->attachments[a];
+
+			ds.view = { (uint64_t)framebuffer_data->attachments[a] };
+			ds.depth_load_op = reshade::vulkan::convert_render_pass_load_op(desc.loadOp);
+			ds.depth_store_op = reshade::vulkan::convert_render_pass_store_op(desc.storeOp);
+			ds.stencil_load_op = reshade::vulkan::convert_render_pass_load_op(desc.stencilLoadOp);
+			ds.stencil_store_op = reshade::vulkan::convert_render_pass_store_op(desc.stencilStoreOp);
+			ds.clear_depth = 0.0f;
+			ds.clear_stencil = 0;
+
+			if (begin_info != nullptr)
+			{
+				if (desc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR && begin_info->clearValueCount > a)
+				{
+					ds.clear_depth = begin_info->pClearValues[a].depthStencil.depth;
+					ds.clear_stencil = static_cast<uint8_t>(begin_info->pClearValues[a].depthStencil.stencil);
+				}
+
+				if (desc.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED && desc.initialLayout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+				{
+					VkImageMemoryBarrier &transition = transitions[num_transitions++];
+					transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+					transition.oldLayout = desc.initialLayout;
+					transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+					transition.image = (VkImage)device_impl->get_resource_from_view(ds.view).handle;;
+					transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+				}
+			}
+		}
+		else
+		{
+			ds.view = { 0 };
+			ds.depth_load_op = reshade::api::render_pass_load_op::discard;
+			ds.depth_store_op = reshade::api::render_pass_store_op::discard;
+			ds.stencil_load_op = reshade::api::render_pass_load_op::discard;
+			ds.stencil_store_op = reshade::api::render_pass_store_op::discard;
+			ds.clear_depth = 0.0f;
+			ds.clear_stencil = 0;
+		}
+	}
+
+	// The 'begin_render_pass' event assumes the resource to be in 'resource_usage::render_target' or 'reshade_usage::depth_stencil' state, so need to transition here
+	if (num_transitions != 0)
+		device_impl->_dispatch_table.CmdPipelineBarrier(cmd_impl->_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, num_transitions, transitions.p);
+
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, subpass.colorAttachmentCount, rts.p, subpass.pDepthStencilAttachment != nullptr ? &ds : nullptr);
+
+	for (uint32_t i = 0; i < num_transitions; ++i)
+		std::swap(transitions[i].oldLayout, transitions[i].newLayout);
+
+	if (num_transitions != 0)
+		device_impl->_dispatch_table.CmdPipelineBarrier(cmd_impl->_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, num_transitions, transitions.p);
+}
+
 static inline uint32_t calc_subresource_index(reshade::vulkan::device_impl *device, VkImage image, const VkImageSubresourceLayers &layers, uint32_t layer = 0)
 {
 	const uint32_t levels = device->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(image)->create_info.mipLevels;
@@ -30,11 +148,23 @@ static inline uint32_t calc_subresource_index(reshade::vulkan::device_impl *devi
 VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBeginInfo *pBeginInfo)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
 #if RESHADE_ADDON
-	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
 	// Begin does perform an implicit reset if command pool was created with 'VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT'
 	reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(cmd_impl);
+
+	if (pBeginInfo->pInheritanceInfo != nullptr && (pBeginInfo->flags & VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT) != 0)
+	{
+		const VkCommandBufferInheritanceInfo &inheritance_info = *pBeginInfo->pInheritanceInfo;
+
+		cmd_impl->current_subpass = inheritance_info.subpass;
+		cmd_impl->current_render_pass = inheritance_info.renderPass;
+		cmd_impl->current_framebuffer = inheritance_info.framebuffer;
+
+		invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr);
+	}
 #endif
 
 	GET_DISPATCH_PTR_FROM(BeginCommandBuffer, device_impl);
@@ -43,8 +173,18 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
 #if RESHADE_ADDON
-	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	if (cmd_impl->current_render_pass != VK_NULL_HANDLE)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
+
+		cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
+		cmd_impl->current_render_pass = VK_NULL_HANDLE;
+		cmd_impl->current_framebuffer = VK_NULL_HANDLE;
+	}
 
 	reshade::invoke_addon_event<reshade::addon_event::close_command_list>(cmd_impl);
 #endif
@@ -969,132 +1109,14 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 }
 #endif
 
-#if RESHADE_ADDON
-static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info)
-{
-	if (!reshade::has_addon_event<reshade::addon_event::begin_render_pass>())
-		return;
-
-	const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(cmd_impl->current_render_pass);
-	const auto framebuffer_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>(cmd_impl->current_framebuffer);
-
-	const VkSubpassDescription &subpass = render_pass_data->subpasses[cmd_impl->current_subpass];
-
-	uint32_t num_transitions = 0;
-	temp_mem<VkImageMemoryBarrier, 9> transitions(subpass.colorAttachmentCount + 1);
-
-	temp_mem<reshade::api::render_pass_render_target_desc, 8> rts(subpass.colorAttachmentCount);
-	for (uint32_t i = 0; i < subpass.colorAttachmentCount; ++i)
-	{
-		reshade::api::render_pass_render_target_desc &rt = rts[i];
-		const uint32_t a = subpass.pColorAttachments[i].attachment;
-
-		if (a != VK_ATTACHMENT_UNUSED)
-		{
-			const VkAttachmentDescription &desc = render_pass_data->attachments[a];
-
-			rt.view = { (uint64_t)framebuffer_data->attachments[a] };
-			rt.load_op = reshade::vulkan::convert_render_pass_load_op(desc.loadOp);
-			rt.store_op = reshade::vulkan::convert_render_pass_store_op(desc.storeOp);
-			std::memset(rt.clear_color, 0, sizeof(rt.clear_color));
-
-			if (begin_info != nullptr)
-			{
-				if (desc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR && begin_info->clearValueCount > a)
-					std::copy_n(begin_info->pClearValues[a].color.float32, 4, rt.clear_color);
-
-				if (desc.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED && desc.initialLayout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-				{
-					VkImageMemoryBarrier &transition = transitions[num_transitions++];
-					transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-					transition.oldLayout = desc.initialLayout;
-					transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-					transition.image = (VkImage)device_impl->get_resource_from_view(rt.view).handle;;
-					transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-				}
-			}
-		}
-		else
-		{
-			rt.view = { 0 };
-			rt.load_op = reshade::api::render_pass_load_op::discard;
-			rt.store_op = reshade::api::render_pass_store_op::discard;
-			std::memset(rt.clear_color, 0, sizeof(rt.clear_color));
-		}
-	}
-
-	reshade::api::render_pass_depth_stencil_desc ds;
-	if (subpass.pDepthStencilAttachment != nullptr)
-	{
-		const uint32_t a = subpass.pDepthStencilAttachment->attachment;
-
-		if (a != VK_ATTACHMENT_UNUSED)
-		{
-			const VkAttachmentDescription &desc = render_pass_data->attachments[a];
-
-			ds.view = { (uint64_t)framebuffer_data->attachments[a] };
-			ds.depth_load_op = reshade::vulkan::convert_render_pass_load_op(desc.loadOp);
-			ds.depth_store_op = reshade::vulkan::convert_render_pass_store_op(desc.storeOp);
-			ds.stencil_load_op = reshade::vulkan::convert_render_pass_load_op(desc.stencilLoadOp);
-			ds.stencil_store_op = reshade::vulkan::convert_render_pass_store_op(desc.stencilStoreOp);
-			ds.clear_depth = 0.0f;
-			ds.clear_stencil = 0;
-
-			if (begin_info != nullptr)
-			{
-				if (desc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR && begin_info->clearValueCount > a)
-				{
-					ds.clear_depth = begin_info->pClearValues[a].depthStencil.depth;
-					ds.clear_stencil = static_cast<uint8_t>(begin_info->pClearValues[a].depthStencil.stencil);
-				}
-
-				if (desc.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED && desc.initialLayout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-				{
-					VkImageMemoryBarrier &transition = transitions[num_transitions++];
-					transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-					transition.oldLayout = desc.initialLayout;
-					transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-					transition.image = (VkImage)device_impl->get_resource_from_view(ds.view).handle;;
-					transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-				}
-			}
-		}
-		else
-		{
-			ds.view = { 0 };
-			ds.depth_load_op = reshade::api::render_pass_load_op::discard;
-			ds.depth_store_op = reshade::api::render_pass_store_op::discard;
-			ds.stencil_load_op = reshade::api::render_pass_load_op::discard;
-			ds.stencil_store_op = reshade::api::render_pass_store_op::discard;
-			ds.clear_depth = 0.0f;
-			ds.clear_stencil = 0;
-		}
-	}
-
-	// The 'begin_render_pass' event assumes the resource to be in 'resource_usage::render_target' or 'reshade_usage::depth_stencil' state, so need to transition here
-	if (num_transitions != 0)
-		device_impl->_dispatch_table.CmdPipelineBarrier(cmd_impl->_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, num_transitions, transitions.p);
-
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, subpass.colorAttachmentCount, rts.p, subpass.pDepthStencilAttachment != nullptr ? &ds : nullptr);
-
-	for (uint32_t i = 0; i < num_transitions; ++i)
-		std::swap(transitions[i].oldLayout, transitions[i].newLayout);
-
-	if (num_transitions != 0)
-		device_impl->_dispatch_table.CmdPipelineBarrier(cmd_impl->_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, num_transitions, transitions.p);
-}
-#endif
-
 void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	assert(cmd_impl->current_render_pass == VK_NULL_HANDLE);
 
 	cmd_impl->current_subpass = 0;
 	cmd_impl->current_render_pass = pRenderPassBegin->renderPass;
@@ -1113,6 +1135,8 @@ void VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContent
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
+
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 
 	cmd_impl->current_subpass++;
@@ -1129,6 +1153,8 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 
@@ -1170,6 +1196,8 @@ void VKAPI_CALL vkCmdBeginRenderPass2(VkCommandBuffer commandBuffer, const VkRen
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(cmd_impl->current_render_pass == VK_NULL_HANDLE);
+
 	cmd_impl->current_subpass = 0;
 	cmd_impl->current_render_pass = pRenderPassBegin->renderPass;
 	cmd_impl->current_framebuffer = pRenderPassBegin->framebuffer;
@@ -1187,6 +1215,8 @@ void VKAPI_CALL vkCmdNextSubpass2(VkCommandBuffer commandBuffer, const VkSubpass
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
+
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 
 	cmd_impl->current_subpass++;
@@ -1203,6 +1233,8 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 
