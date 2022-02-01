@@ -1185,6 +1185,11 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #ifdef GL_VERSION_3_0
 		HOOK_PROC(glMapBufferRange);
 		HOOK_PROC(glDeleteRenderbuffers);
+		HOOK_PROC(glFramebufferTexture1D);
+		HOOK_PROC(glFramebufferTexture2D);
+		HOOK_PROC(glFramebufferTexture3D);
+		HOOK_PROC(glFramebufferTextureLayer);
+		HOOK_PROC(glFramebufferRenderbuffer);
 		HOOK_PROC(glRenderbufferStorage);
 		HOOK_PROC(glRenderbufferStorageMultisample);
 		HOOK_PROC(glClearBufferfv);
@@ -1211,6 +1216,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawElementsInstanced);
 #endif
 #ifdef GL_VERSION_3_2
+		HOOK_PROC(glFramebufferTexture);
 		HOOK_PROC(glTexImage2DMultisample);
 		HOOK_PROC(glTexImage3DMultisample);
 		HOOK_PROC(glDrawElementsBaseVertex);

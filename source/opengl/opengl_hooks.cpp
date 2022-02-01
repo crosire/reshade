@@ -227,6 +227,38 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 	return result;
 }
 
+static void update_framebuffer_object(GLenum target, GLuint framebuffer)
+{
+	if (!g_current_context || !(target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER))
+		return;
+
+	// Get object from current binding in case it was not specified
+	if (framebuffer == 0)
+		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&framebuffer));
+
+	g_current_context->update_current_window_height(framebuffer);
+
+	if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
+		// Only interested in existing framebuffers that are were bound to the render pipeline
+		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
+	{
+		uint32_t count = 0;
+		reshade::api::resource_view rtvs[8], dsv;
+		for (; count < 8; ++count)
+		{
+			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+			if (rtvs[count].handle == 0)
+				break;
+		}
+
+		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
+		if (dsv.handle == 0)
+			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
+	}
+}
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 static bool copy_buffer_region(GLenum src_target, GLuint src_object, GLintptr src_offset, GLenum dst_target, GLuint dst_object, GLintptr dst_offset, GLsizeiptr size)
 {
@@ -1971,6 +2003,52 @@ void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
 	trampoline(n, renderbuffers);
 }
 
+void APIENTRY glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+{
+	static const auto trampoline = reshade::hooks::call(glFramebufferTexture1D);
+	trampoline(target, attachment, textarget, texture, level);
+
+#if RESHADE_ADDON
+	update_framebuffer_object(target, 0);
+#endif
+}
+void APIENTRY glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+{
+	static const auto trampoline = reshade::hooks::call(glFramebufferTexture2D);
+	trampoline(target, attachment, textarget, texture, level);
+
+#if RESHADE_ADDON
+	update_framebuffer_object(target, 0);
+#endif
+}
+void APIENTRY glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer)
+{
+	static const auto trampoline = reshade::hooks::call(glFramebufferTexture3D);
+	trampoline(target, attachment, textarget, texture, level, layer);
+
+#if RESHADE_ADDON
+	update_framebuffer_object(target, 0);
+#endif
+}
+void APIENTRY glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
+{
+	static const auto trampoline = reshade::hooks::call(glFramebufferTextureLayer);
+	trampoline(target, attachment, texture, level, layer);
+
+#if RESHADE_ADDON
+	update_framebuffer_object(target, 0);
+#endif
+}
+void APIENTRY glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
+{
+	static const auto trampoline = reshade::hooks::call(glFramebufferRenderbuffer);
+	trampoline(target, attachment, renderbuffertarget, renderbuffer);
+
+#if RESHADE_ADDON
+	update_framebuffer_object(target, 0);
+#endif
+}
+
 void APIENTRY glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height)
 {
 	static const auto trampoline = reshade::hooks::call(glRenderbufferStorage);
@@ -2228,31 +2306,7 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 	trampoline(target, framebuffer);
 
 #if RESHADE_ADDON
-	if (g_current_context && (
-		target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER))
-	{
-		g_current_context->update_current_window_height(framebuffer);
-
-		if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
-			// Only interested in existing framebuffers that are were bound to the render pipeline
-			glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
-		{
-			uint32_t count = 0;
-			reshade::api::resource_view rtvs[8], dsv;
-			for (; count < 8; ++count)
-			{
-				rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-				if (rtvs[count].handle == 0)
-					break;
-			}
-
-			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
-			if (dsv.handle == 0)
-				dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
-
-			reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
-		}
-	}
+	update_framebuffer_object(target, framebuffer);
 #endif
 }
 
@@ -2474,6 +2528,17 @@ void APIENTRY glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, c
 #endif
 
 #ifdef GL_VERSION_3_2
+void APIENTRY glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
+{
+	static const auto trampoline = reshade::hooks::call(glFramebufferTexture);
+	trampoline(target, attachment, texture, level);
+
+#if RESHADE_ADDON
+	// Need to update render target and depth-stencil bindings after the current framebuffer was updated again
+	update_framebuffer_object(target, 0);
+#endif
+}
+
 void APIENTRY glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLboolean fixedsamplelocations)
 {
 	static const auto trampoline = reshade::hooks::call(glTexImage2DMultisample);
@@ -4088,31 +4153,7 @@ void APIENTRY glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 	trampoline(target, framebuffer);
 
 #if RESHADE_ADDON
-	if (g_current_context && (
-		target == 0x8D40 /* GL_FRAMEBUFFER_EXT */ || target == 0x8CA9 /* GL_DRAW_FRAMEBUFFER_EXT */))
-	{
-		g_current_context->update_current_window_height(framebuffer);
-
-		if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
-			// Only interested in existing framebuffers that are were bound to the render pipeline
-			glCheckFramebufferStatus(target) == 0x8CD5 /* GL_FRAMEBUFFER_COMPLETE_EXT */)
-		{
-			uint32_t count = 0;
-			reshade::api::resource_view rtvs[8], dsv;
-			for (; count < 8; ++count)
-			{
-				rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-				if (rtvs[count].handle == 0)
-					break;
-			}
-
-			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
-			if (dsv.handle == 0)
-				dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
-
-			reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
-		}
-	}
+	update_framebuffer_object(target, framebuffer);
 #endif
 }
 

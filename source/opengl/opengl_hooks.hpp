@@ -163,6 +163,18 @@ extern "C" void APIENTRY glEnable(GLenum cap);
 extern "C" void APIENTRY glFinish();
 #undef glFlush
 extern "C" void APIENTRY glFlush();
+#undef glFramebufferTexture
+extern "C" void APIENTRY glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level);
+#undef glFramebufferTexture1D
+extern "C" void APIENTRY glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+#undef glFramebufferTexture2D
+extern "C" void APIENTRY glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+#undef glFramebufferTexture3D
+extern "C" void APIENTRY glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer);
+#undef glFramebufferTextureLayer
+extern "C" void APIENTRY glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer);
+#undef glFramebufferRenderbuffer
+extern "C" void APIENTRY glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
 #undef glFrontFace
 extern "C" void APIENTRY glFrontFace(GLenum mode);
 #undef glGenerateMipmap

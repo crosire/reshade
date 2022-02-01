@@ -526,6 +526,10 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 	if (queue_state.counters_per_used_depth_stencil.empty())
 		return;
 
+	// Also skip update when there has been very little activity (special case for emulators which may present more often than they render a frame)
+	if (queue_state.counters_per_used_depth_stencil.size() == 1 && queue_state.counters_per_used_depth_stencil.begin()->second.total_stats.drawcalls <= 4)
+		return;
+
 	auto &device_state = swapchain->get_device()->get_private_data<state_tracking_context>();
 	device_state.current_depth_stencil_list.clear();
 	device_state.current_depth_stencil_list.reserve(queue_state.counters_per_used_depth_stencil.size());
