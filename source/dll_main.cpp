@@ -136,7 +136,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	g_target_executable_path = get_module_path(hInstance);
 	g_reshade_base_path = get_base_path();
 
-	reshade::log::open_log_file(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
+	reshade::log::open_log_file(g_reshade_base_path / L"ReShade.log");
 
 	reshade::hooks::register_module(L"user32.dll");
 
@@ -836,12 +836,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_target_executable_path = get_module_path(nullptr);
 		g_reshade_base_path = get_base_path(); // Needs to happen after DLL and executable path are set (since those are referenced in 'get_base_path')
 
-		if (std::filesystem::path log_path = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log");
+		if (std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
 			reshade::log::open_log_file(log_path) == false)
 		{
 			// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
-			std::filesystem::path log_filename = g_reshade_dll_path.stem();
-			log_filename += L"_";
+			std::filesystem::path log_filename = L"ReShade_";
 			log_filename += g_target_executable_path.stem();
 			log_filename += L".log";
 

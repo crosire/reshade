@@ -13,8 +13,7 @@ static std::unordered_map<std::wstring, ini_file> s_ini_cache;
 
 ini_file &reshade::global_config()
 {
-	static ini_file config(g_target_executable_path.parent_path() / g_reshade_dll_path.filename().replace_extension(L".ini")); // Load once on first use
-	return config;
+	return ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini");
 }
 
 ini_file::ini_file(const std::filesystem::path &path) : _path(path)
@@ -116,7 +115,7 @@ bool ini_file::save()
 
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
-	if (!ec && modified_at >= _modified_at)
+	if (!ec && modified_at > _modified_at)
 		return false; // File exists and was modified on disk and therefore may have different data, so cannot save
 
 	std::stringstream data;
