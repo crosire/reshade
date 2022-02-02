@@ -32,6 +32,10 @@ A quick overview of what some of the source code files contain:
 |[runtime.cpp](source/runtime.cpp)                                     |Core ReShade runtime including effect and preset management            |
 |[runtime_gui.cpp](source/runtime_gui.cpp)                             |Overlay rendering and everything user interface related                |
 
+## Feedback and Support
+
+See the [Discord](https://discord.gg/PrwndfH) server and our [Releases](https://reshade.me/releases) forum for support and feedback. 
+
 ## Contributing
 
 Any contributions to the project are welcomed, it's recommended to use GitHub [pull requests](https://help.github.com/articles/using-pull-requests/).
