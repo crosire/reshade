@@ -87,8 +87,6 @@ namespace ReShade.Setup
 				}
 
 				zip = new ZipArchive(output, ZipArchiveMode.Read, false);
-				packagesIni = new IniFile(assembly.GetManifestResourceStream("ReShade.Setup.EffectPackages.ini"));
-				compatibilityIni = new IniFile(assembly.GetManifestResourceStream("ReShade.Setup.Compatibility.ini"));
 
 				// Validate archive contains the ReShade DLLs
 				if (zip.GetEntry("ReShade32.dll") == null || zip.GetEntry("ReShade64.dll") == null)
@@ -115,6 +113,25 @@ namespace ReShade.Setup
 				if (!signed)
 				{
 					NavigationPanel.Background = new SolidColorBrush(Color.FromArgb(255, 237, 189, 0));
+				}
+			}
+
+			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
+			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+
+			// Attempt to download effect package and compatibility list
+			using (var client = new WebClient())
+			{
+				try
+				{
+					using (var packagesStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini"))
+						packagesIni = new IniFile(packagesStream);
+					using (var compatibilityStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Compatibility.ini"))
+						compatibilityIni = new IniFile(compatibilityStream);
+				}
+				catch
+				{
+					// Ignore if these lists fail to download, since setup can still proceed without them
 				}
 			}
 
@@ -430,6 +447,8 @@ namespace ReShade.Setup
 		}
 		void InstallStep1()
 		{
+			UpdateStatus("Analyzing executable ...");
+
 			string targetPathUnrealEngine = Path.Combine(Path.GetDirectoryName(targetPath), Path.GetFileNameWithoutExtension(targetPath), "Binaries", "Win64", Path.GetFileNameWithoutExtension(targetPath) + "-Win64-Shipping" + Path.GetExtension(targetPath));
 			if (File.Exists(targetPathUnrealEngine))
 			{
@@ -446,8 +465,6 @@ namespace ReShade.Setup
 					targetName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(targetName);
 				}
 			}
-
-			UpdateStatus("Analyzing executable ...");
 
 			var peInfo = new PEInfo(targetPath);
 			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
@@ -1048,9 +1065,6 @@ In that event here are some steps you can try to resolve this:
 			downloadPath = Path.GetTempFileName();
 
 			UpdateStatus("Downloading " + package.PackageName + " from " + package.DownloadUrl + " ...");
-
-			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
-			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
 
 			var client = new WebClient();
 
