@@ -90,7 +90,7 @@ namespace reshade
 		char value_string[32] = ""; size_t value_length = sizeof(value_string) - 1;
 		if (!config_get_value(runtime, section, key, value_string, &value_length))
 			return false;
-		return std::from_chars(value_string, value_string + value_length, value).ec != std::errc();
+		return std::from_chars(value_string, value_string + value_length, value).ec == std::errc {};
 	}
 	template <>
 	inline bool config_get_value<bool>(api::effect_runtime *runtime, const char *section, const char *key, bool &value)
