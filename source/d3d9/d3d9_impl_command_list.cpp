@@ -575,7 +575,15 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				viewport.MaxZ = 1.0f;
 
 				_orig->SetViewport(&viewport);
+
+				dst_desc.Width = viewport.Width;
+				dst_desc.Height = viewport.Height;
 			}
+
+			// Bake half-pixel offset into vertices
+			const float half_pixel_offset[2] = {
+				-1.0f / dst_desc.Width, 1.0f / dst_desc.Height
+			};
 
 			if (src_is_regular_texture)
 			{
@@ -587,6 +595,12 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 					{  3.0f,  1.0f,  0.0f,  2.0f,  0.0f },
 					{ -1.0f, -3.0f,  0.0f,  0.0f,  2.0f },
 				};
+
+				for (int v = 0; v < 3; ++v)
+				{
+					vertices[v][0] += half_pixel_offset[0];
+					vertices[v][1] += half_pixel_offset[1];
+				}
 
 				if (src_box != nullptr)
 				{
@@ -612,6 +626,12 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 					{ -1.0f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f },
 					{  1.0f, -1.0f,  0.0f,  1.0f,  0.0f,  0.0f },
 				};
+
+				for (int v = 0; v < 4; ++v)
+				{
+					vertices[v][0] += half_pixel_offset[0];
+					vertices[v][1] += half_pixel_offset[1];
+				}
 
 				if (src_box != nullptr)
 				{

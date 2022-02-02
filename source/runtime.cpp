@@ -169,6 +169,85 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_height = back_buffer_desc.texture.height;
 	_back_buffer_format = api::format_to_default_typed(back_buffer_desc.texture.format);
 
+	// Create resolve texture and copy pipeline (do this before creating effect resources, to ensure correct back buffer format is set up)
+	if (back_buffer_desc.texture.samples > 1
+		// Always use resolve texture in OpenGL to flip vertically and support sRGB + binding effect stencil
+		|| _device->get_api() == api::device_api::opengl
+#if RESHADE_FX
+		// Some effects rely on there being an alpha channel available, so create resolve texture if that is not the case
+		|| (_back_buffer_format == api::format::r8g8b8x8_unorm || _back_buffer_format == api::format::b8g8r8x8_unorm)
+#endif
+		)
+	{
+#if RESHADE_FX
+		switch (_back_buffer_format)
+		{
+		case api::format::r8g8b8x8_unorm:
+			_back_buffer_format = api::format::r8g8b8a8_unorm;
+			break;
+		case api::format::b8g8r8x8_unorm:
+			_back_buffer_format = api::format::b8g8r8a8_unorm;
+			break;
+		}
+#endif
+
+		if (!_device->create_resource(
+				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource | api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest),
+				nullptr, back_buffer_desc.texture.samples == 1 ? api::resource_usage::copy_dest : api::resource_usage::resolve_dest, &_back_buffer_resolved) ||
+			!_device->create_resource_view(
+				_back_buffer_resolved,
+				api::resource_usage::shader_resource,
+				api::resource_view_desc(_back_buffer_format),
+				&_back_buffer_resolved_srv) ||
+			!_device->create_resource_view(
+				_back_buffer_resolved,
+				api::resource_usage::render_target,
+				api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 0)),
+				&_back_buffer_targets.emplace_back()) ||
+			!_device->create_resource_view(
+				_back_buffer_resolved,
+				api::resource_usage::render_target,
+				api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)),
+				&_back_buffer_targets.emplace_back()))
+		{
+			LOG(ERROR) << "Failed to create resolve texture!";
+			goto exit_failure;
+		}
+
+		if (_device->get_api() == api::device_api::d3d10 ||
+			_device->get_api() == api::device_api::d3d11 ||
+			_device->get_api() == api::device_api::d3d12)
+		{
+			api::sampler_desc sampler_desc = {};
+			sampler_desc.filter = api::filter_mode::min_mag_mip_point;
+			sampler_desc.address_u = api::texture_address_mode::clamp;
+			sampler_desc.address_v = api::texture_address_mode::clamp;
+			sampler_desc.address_w = api::texture_address_mode::clamp;
+
+			api::pipeline_layout_param layout_params[2];
+			layout_params[0] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::sampler };
+			layout_params[1] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view };
+
+			const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
+			const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
+
+			api::shader_desc vs_desc = { vs.data, vs.data_size };
+			api::shader_desc ps_desc = { ps.data, ps.data_size };
+
+			std::vector<api::pipeline_subobject> subobjects;
+			subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
+			subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
+
+			if (!_device->create_pipeline_layout(2, layout_params, &_copy_pipeline_layout) ||
+				!_device->create_pipeline(_copy_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_copy_pipeline) ||
+				!_device->create_sampler(sampler_desc, &_copy_sampler_state))
+			{
+				LOG(ERROR) << "Failed to create copy pipeline!";
+				goto exit_failure;
+			}
+		}
+	}
+
 #if RESHADE_FX
 	// Create an empty texture, which is bound to shader resource view slots with an unknown semantic (since it is not valid to bind a zero handle in Vulkan, unless the 'VK_EXT_robustness2' extension is enabled)
 	if (_empty_tex == 0)
@@ -251,85 +330,6 @@ bool reshade::runtime::on_init(input::window_handle window)
 		}
 	}
 #endif
-
-	// Create resolve texture and copy pipeline
-	if (back_buffer_desc.texture.samples > 1
-		// Always use resolve texture in OpenGL to flip vertically and support sRGB + binding effect stencil
-		|| _device->get_api() == api::device_api::opengl
-#if RESHADE_FX
-		// Some effects rely on there being an alpha channel available, so create resolve texture if that is not the case
-		|| (_back_buffer_format == api::format::r8g8b8x8_unorm || _back_buffer_format == api::format::b8g8r8x8_unorm)
-#endif
-		)
-	{
-#if RESHADE_FX
-		switch (_back_buffer_format)
-		{
-		case api::format::r8g8b8x8_unorm:
-			_back_buffer_format = api::format::r8g8b8a8_unorm;
-			break;
-		case api::format::b8g8r8x8_unorm:
-			_back_buffer_format = api::format::b8g8r8a8_unorm;
-			break;
-		}
-#endif
-
-		if (!_device->create_resource(
-				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource | api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest),
-				nullptr, back_buffer_desc.texture.samples == 1 ? api::resource_usage::copy_dest : api::resource_usage::resolve_dest, &_back_buffer_resolved) ||
-			!_device->create_resource_view(
-				_back_buffer_resolved,
-				api::resource_usage::shader_resource,
-				api::resource_view_desc(_back_buffer_format),
-				&_back_buffer_resolved_srv) ||
-			!_device->create_resource_view(
-				_back_buffer_resolved,
-				api::resource_usage::render_target,
-				api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 0)),
-				&_back_buffer_targets.emplace_back()) ||
-			!_device->create_resource_view(
-				_back_buffer_resolved,
-				api::resource_usage::render_target,
-				api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)),
-				&_back_buffer_targets.emplace_back()))
-		{
-			LOG(ERROR) << "Failed to create resolve texture!";
-			goto exit_failure;
-		}
-
-		if (_device->get_api() == api::device_api::d3d10 ||
-			_device->get_api() == api::device_api::d3d11 ||
-			_device->get_api() == api::device_api::d3d12)
-		{
-			api::sampler_desc sampler_desc = {};
-			sampler_desc.filter = api::filter_mode::min_mag_mip_point;
-			sampler_desc.address_u = api::texture_address_mode::clamp;
-			sampler_desc.address_v = api::texture_address_mode::clamp;
-			sampler_desc.address_w = api::texture_address_mode::clamp;
-
-			api::pipeline_layout_param layout_params[2];
-			layout_params[0] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::sampler };
-			layout_params[1] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view };
-
-			const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-			const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-
-			api::shader_desc vs_desc = { vs.data, vs.data_size };
-			api::shader_desc ps_desc = { ps.data, ps.data_size };
-
-			std::vector<api::pipeline_subobject> subobjects;
-			subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
-			subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
-
-			if (!_device->create_pipeline_layout(2, layout_params, &_copy_pipeline_layout) ||
-				!_device->create_pipeline(_copy_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_copy_pipeline) ||
-				!_device->create_sampler(sampler_desc, &_copy_sampler_state))
-			{
-				LOG(ERROR) << "Failed to create copy pipeline!";
-				goto exit_failure;
-			}
-		}
-	}
 
 	// Create render targets for the back buffer resources
 	for (uint32_t i = 0; i < get_back_buffer_count(); ++i)

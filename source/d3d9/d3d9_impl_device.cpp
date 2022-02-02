@@ -94,6 +94,7 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		_orig->SetRenderState(D3DRS_CLIPPING, FALSE);
 		_orig->SetRenderState(D3DRS_LIGHTING, FALSE);
 		_orig->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
+		_orig->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, FALSE);
 		_orig->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
 		_orig->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 		_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
@@ -112,6 +113,16 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		_orig->SetSamplerState(0, D3DSAMP_MIPMAPLODBIAS, 0);
 		_orig->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
 		_orig->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, FALSE);
+
+		const D3DMATRIX identity_matrix = {
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f
+		};
+		_orig->SetTransform(D3DTS_VIEW, &identity_matrix);
+		_orig->SetTransform(D3DTS_PROJECTION, &identity_matrix);
+		_orig->SetTransform(D3DTS_WORLD, &identity_matrix);
 
 		hr = _orig->EndStateBlock(&_copy_state);
 	}
