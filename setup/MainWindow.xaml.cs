@@ -627,7 +627,7 @@ namespace ReShade.Setup
 				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
 				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
-				var overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
+				var overrideMetaLayerPath = Path.Combine(commonPath, "ReShade.json");
 				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
 
 				if (overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys) && appKeys.Contains(targetPath))
@@ -727,9 +727,11 @@ namespace ReShade.Setup
 
 			if (targetApi == Api.Vulkan)
 			{
+				string layerName = is64Bit ? "VK_LAYER_reshade64" : "VK_LAYER_reshade32";
+
 				try
 				{
-					var manifest = zip.GetEntry(moduleName + "_vk_layer.json");
+					var manifest = zip.GetEntry(moduleName + ".json");
 					if (manifest == null)
 					{
 						throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
@@ -743,11 +745,11 @@ namespace ReShade.Setup
 					return;
 				}
 
-				var overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
+				var overrideMetaLayerPath = Path.Combine(commonPath, "ReShade.json");
 
-				if (!File.Exists(overrideMetaLayerPath))
+				try
 				{
-					try
+					if (!File.Exists(overrideMetaLayerPath))
 					{
 						var manifest = zip.GetEntry(Path.GetFileName(overrideMetaLayerPath));
 						if (manifest == null)
@@ -756,17 +758,20 @@ namespace ReShade.Setup
 						}
 
 						manifest.ExtractToFile(overrideMetaLayerPath, true);
+					}
 
-						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(Environment.Is64BitOperatingSystem && !is64Bit ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
-						{
-							key.SetValue(overrideMetaLayerPath, 0, RegistryValueKind.DWord);
-						}
-					}
-					catch (Exception ex)
+					using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 					{
-						UpdateStatusAndFinish(false, "Failed to install Vulkan meta layer manifest:\n" + ex.Message);
-						return;
+						key.DeleteValue(Path.Combine(commonPath, "ReShade32_vk_override_layer.json"), false);
+						key.DeleteValue(Path.Combine(commonPath, "ReShade64_vk_override_layer.json"), false);
+
+						key.SetValue(overrideMetaLayerPath, 0, RegistryValueKind.DWord);
 					}
+				}
+				catch (Exception ex)
+				{
+					UpdateStatusAndFinish(false, "Failed to install Vulkan meta layer manifest:\n" + ex.Message);
+					return;
 				}
 
 				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
@@ -785,6 +790,14 @@ namespace ReShade.Setup
 					overridePaths.Add(parentPath);
 
 					overrideMetaLayerManifest.SetValue("layer.override_paths", overridePaths);
+				}
+
+				overrideMetaLayerManifest.GetValue("layer.component_layers", out List<string> componentLayers);
+				if (!componentLayers.Contains(layerName))
+				{
+					componentLayers.Add(layerName);
+
+					overrideMetaLayerManifest.SetValue("layer.component_layers", componentLayers);
 				}
 
 				overrideMetaLayerManifest.SaveFile();
@@ -1207,8 +1220,7 @@ In that event here are some steps you can try to resolve this:
 		{
 			if (targetApi == Api.Vulkan)
 			{
-				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
-				var overrideMetaLayerPath = Path.Combine(commonPath, moduleName + "_vk_override_layer.json");
+				var overrideMetaLayerPath = Path.Combine(commonPath, "ReShade.json");
 				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
 
 				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);
@@ -1221,7 +1233,7 @@ In that event here are some steps you can try to resolve this:
 					{
 						File.Delete(overrideMetaLayerPath);
 
-						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(Environment.Is64BitOperatingSystem && !is64Bit ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
+						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 						{
 							key.DeleteValue(overrideMetaLayerPath);
 						}
