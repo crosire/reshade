@@ -1011,30 +1011,23 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::
 
 	if (total_count != 0 && total_count <= 0xFF)
 	{
+		D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
+		D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
+
+		if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER ?
+			!_gpu_view_heap.allocate_static(count * total_count, base_handle, base_handle_gpu) :
+			!_gpu_sampler_heap.allocate_static(count * total_count, base_handle, base_handle_gpu))
+			goto exit_failure;
+
 		for (uint32_t i = 0; i < count; ++i)
-		{
-			D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
-			D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-
-			if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-				_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu);
-			else
-				_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu);
-
-			out_sets[i] = convert_to_descriptor_set(base_handle_gpu, static_cast<uint8_t>(total_count));
-		}
-
+			out_sets[i] = convert_to_descriptor_set(offset_descriptor_handle(base_handle_gpu, i * total_count, heap_type), static_cast<uint8_t>(total_count));
 		return true;
 	}
-	else
-	{
-		for (uint32_t i = 0; i < count; ++i)
-		{
-			out_sets[i] = { 0 };
-		}
 
-		return false;
-	}
+exit_failure:
+	for (uint32_t i = 0; i < count; ++i)
+		out_sets[i] = { 0 };
+	return false;
 }
 void reshade::d3d12::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
@@ -1423,6 +1416,10 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 
 reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data) const
 {
+#ifdef WIN64
+	assert((handle.ptr >> 56) == 0);
+#endif
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const std::shared_lock<std::shared_mutex> lock(_mutex);
 
@@ -1444,10 +1441,6 @@ reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_
 	assert(false);
 	return { 0 };
 #else
-#ifdef WIN64
-	assert((handle.ptr >> 56) == 0);
-#endif
-
 	return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
 #endif
 }
