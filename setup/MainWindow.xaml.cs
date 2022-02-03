@@ -732,7 +732,7 @@ namespace ReShade.Setup
 
 			if (targetApi == Api.Vulkan)
 			{
-				string layerName = is64Bit ? "VK_LAYER_reshade64" : "VK_LAYER_reshade32";
+				string layerName = is64Bit ? "VK_LAYER_reshade" : "VK_LAYER_reshade32";
 
 				try
 				{
