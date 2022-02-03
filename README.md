@@ -36,6 +36,10 @@ A quick overview of what some of the source code files contain:
 
 Any contributions to the project are welcomed, it's recommended to use GitHub [pull requests](https://help.github.com/articles/using-pull-requests/).
 
+## Feedback and Support
+
+See the [ReShade Forum](https://reshade.me/forum) and [Discord](https://discord.gg/PrwndfH) server for feedback and support.
+
 ## License
 
 All source code in this repository is licensed under a [BSD 3-clause license](LICENSE.md).
