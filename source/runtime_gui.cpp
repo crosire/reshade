@@ -1496,7 +1496,8 @@ void reshade::runtime::draw_gui_settings()
 				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
 #endif
 				"  %%Date%%            Current date in format '%s'\n"
-				"  %%Time%%            Current time in format '%s'",
+				"  %%Time%%            Current time in format '%s'\n"
+				"  %%TimeMS%%          Milliseconds fraction of current time",
 				g_target_executable_path.stem().string().c_str(),
 #if RESHADE_FX
 				_current_preset_path.stem().string().c_str(),
@@ -1543,6 +1544,7 @@ void reshade::runtime::draw_gui_settings()
 #endif
 				"  %%Date%%            Current date in format 'yyyy-MM-dd'\n"
 				"  %%Time%%            Current time in format 'HH-mm-ss'\n"
+				"  %%TimeMS%%          Milliseconds fraction of current time\n"
 				"  %%TargetPath%%      Full path to the screenshot file (%s%s%s)\n"
 				"  %%TargetDir%%       Full path to the screenshot directory (%s)\n"
 				"  %%TargetFileName%%  File name of the screenshot file (%s%s)\n"

@@ -3856,13 +3856,18 @@ template <> void reshade::runtime::set_uniform_value<uint32_t>(uniform &variable
 
 static std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros)
 {
+	const auto now = std::chrono::system_clock::now();
+	const auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
+
 	char timestamp[21];
-	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	const std::time_t t = std::chrono::system_clock::to_time_t(now_seconds);
 	tm tm; localtime_s(&tm, &t);
 	sprintf_s(timestamp, "%.4d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 	macros.emplace_back("Date", timestamp);
 	sprintf_s(timestamp, "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
 	macros.emplace_back("Time", timestamp);
+	sprintf_s(timestamp, "%.3lld", std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count());
+	macros.emplace_back("TimeMS", timestamp);
 
 	std::string result;
 
