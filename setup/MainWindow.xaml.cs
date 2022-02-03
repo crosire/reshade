@@ -805,7 +805,7 @@ namespace ReShade.Setup
 			else
 			{
 				// Create a default log file for troubleshooting
-				File.WriteAllText(Path.ChangeExtension(modulePath, ".log"), @"
+				File.WriteAllText("ReShade.log", @"
 If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
 
 In that event here are some steps you can try to resolve this:
