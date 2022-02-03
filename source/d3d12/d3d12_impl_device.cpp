@@ -1011,16 +1011,22 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::
 
 	if (total_count != 0 && total_count <= 0xFF)
 	{
-		D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
-		D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-
-		if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER ?
-			!_gpu_view_heap.allocate_static(count * total_count, base_handle, base_handle_gpu) :
-			!_gpu_sampler_heap.allocate_static(count * total_count, base_handle, base_handle_gpu))
-			goto exit_failure;
-
 		for (uint32_t i = 0; i < count; ++i)
-			out_sets[i] = convert_to_descriptor_set(offset_descriptor_handle(base_handle_gpu, i * total_count, heap_type), static_cast<uint8_t>(total_count));
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
+			D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
+
+			if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER ?
+				!_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu) :
+				!_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu))
+			{
+				free_descriptor_sets(count - i - 1, out_sets);
+				goto exit_failure;
+			}
+
+			out_sets[i] = convert_to_descriptor_set(base_handle_gpu, static_cast<uint8_t>(total_count));
+		}
+
 		return true;
 	}
 
