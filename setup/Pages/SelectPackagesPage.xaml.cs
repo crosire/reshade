@@ -26,6 +26,7 @@ namespace ReShade.Setup.Pages
 		public string TextureInstallPath { get; set; }
 		public string DownloadUrl { get; set; }
 		public string RepositoryUrl { get; set; }
+		public string[] DenyEffectFiles { get; set; }
 
 		public event PropertyChangedEventHandler PropertyChanged;
 
@@ -55,6 +56,8 @@ namespace ReShade.Setup.Pages
 					}
 				}
 
+				packagesIni.GetValue(package, "DenyEffectFiles", out string[] packageDenyEffectFiles);
+
 				Items.Add(new EffectPackage
 				{
 					Enabled = enabled,
@@ -64,7 +67,8 @@ namespace ReShade.Setup.Pages
 					InstallPath = packagesIni.GetString(package, "InstallPath"),
 					TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
 					DownloadUrl = packagesIni.GetString(package, "DownloadUrl"),
-					RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl")
+					RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl"),
+					DenyEffectFiles = packageDenyEffectFiles
 				});
 			}
 		}

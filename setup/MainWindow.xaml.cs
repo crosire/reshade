@@ -1160,6 +1160,19 @@ In that event here are some steps you can try to resolve this:
 					}
 				}
 
+				// Delete denied effects
+				if (package.DenyEffectFiles != null)
+				{
+					var denyEffectFiles = effects.Where(x => package.DenyEffectFiles.Contains(Path.GetFileName(x)));
+
+					foreach (string filePath in denyEffectFiles)
+					{
+						File.Delete(filePath);
+					}
+
+					effects = effects.Except(denyEffectFiles).ToArray();
+				}
+
 				// Show file selection dialog
 				if (!isHeadless && package.Enabled == null)
 				{
@@ -1274,14 +1287,14 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(configPath);
 				}
 
+				if (File.Exists(Path.Combine(basePath, "ReShade.log")))
+				{
+					File.Delete(Path.Combine(basePath, "ReShade.log"));
+				}
+
 				if (File.Exists(Path.Combine(basePath, "ReShadeGUI.ini")))
 				{
 					File.Delete(Path.Combine(basePath, "ReShadeGUI.ini"));
-				}
-
-				if (File.Exists(Path.ChangeExtension(modulePath, ".log")))
-				{
-					File.Delete(Path.ChangeExtension(modulePath, ".log"));
 				}
 
 				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
