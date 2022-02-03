@@ -511,7 +511,12 @@ namespace ReShade.Setup
 				}
 				if (isApiD3D8 && !isHeadless)
 				{
-					MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'https://github.com/crosire/d3d8to9/releases' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+					UpdateStatus("Waiting for user confirmation ...");
+
+					Dispatcher.Invoke(() =>
+					{
+						MessageBox.Show(this, "It looks like the target application uses Direct3D 8.\nIn order to use ReShade you'll have to download an additional wrapper from 'https://github.com/crosire/d3d8to9/releases' which converts all API calls to Direct3D 9.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+					});
 				}
 				if (isApiDXGI && isApiVulkan)
 				{
