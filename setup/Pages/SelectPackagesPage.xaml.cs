@@ -36,6 +36,22 @@ namespace ReShade.Setup.Pages
 		}
 	}
 
+	public class EffectPackageCheckBox : CheckBox
+	{
+		protected override void OnToggle()
+		{
+			// Change cycle order to show filled out box first
+			if (IsChecked != false)
+			{
+				IsChecked = new bool?(!IsChecked.HasValue);
+			}
+			else
+			{
+				IsChecked = IsThreeState ? null : new bool?(true);
+			}
+		}
+	}
+
 	public partial class SelectPackagesPage : Page
 	{
 		public SelectPackagesPage(Utilities.IniFile packagesIni, List<string> effectFiles)

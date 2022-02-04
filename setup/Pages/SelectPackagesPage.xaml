@@ -42,7 +42,7 @@
               <ColumnDefinition Width="35" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" IsEnabled="{Binding Modifiable}" IsThreeState="True" />
+            <local:EffectPackageCheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" IsEnabled="{Binding Modifiable}" IsThreeState="True" />
             <TextBlock Grid.Column="1" VerticalAlignment="Center">
               <Hyperlink NavigateUri="{Binding RepositoryUrl}" RequestNavigate="OnHyperlinkRequestNavigate">
                 <TextBlock Text="{Binding PackageName}" />
