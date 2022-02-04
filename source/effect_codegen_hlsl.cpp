@@ -1372,7 +1372,7 @@ private:
 		if (flags & 0x1)
 			attributes += "[unroll] ";
 		if (flags & 0x2)
-			attributes += "[fastopt] ";
+			attributes += _shader_model >= 40 ? "[fastopt] " : "[loop] ";
 
 		// Condition value can be missing in infinite loop constructs like "for (;;)"
 		std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
