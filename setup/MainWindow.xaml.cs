@@ -571,6 +571,10 @@ namespace ReShade.Setup
 			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "InstallTarget"))
 			{
 				basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
+
+				var globalConfig = new IniFile(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.ini"));
+				globalConfig.SetValue("INSTALL", "BasePath", basePath);
+				globalConfig.SaveFile();
 			}
 
 			configPath = Path.Combine(basePath, "ReShade.ini");
