@@ -578,8 +578,8 @@ void reshade::d3d11::device_context_impl::copy_texture_region(api::resource src,
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
 	_orig->CopySubresourceRegion(
-		reinterpret_cast<ID3D11Resource *>(dst.handle), src_subresource, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
-		reinterpret_cast<ID3D11Resource *>(src.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(src_box));
+		reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
+		reinterpret_cast<ID3D11Resource *>(src.handle), src_subresource, reinterpret_cast<const D3D11_BOX *>(src_box));
 }
 void reshade::d3d11::device_context_impl::copy_texture_to_buffer(api::resource, uint32_t, const api::subresource_box *, api::resource, uint64_t, uint32_t, uint32_t)
 {
