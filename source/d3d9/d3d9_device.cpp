@@ -561,7 +561,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	}
 
 	device_impl::on_init(pp);
-	_implicit_swapchain->on_init(pp);
+	_implicit_swapchain->on_init();
 
 	return hr;
 }
@@ -2555,7 +2555,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	}
 
 	device_impl::on_init(pp);
-	_implicit_swapchain->on_init(pp);
+	_implicit_swapchain->on_init();
 
 	return hr;
 }

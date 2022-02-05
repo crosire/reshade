@@ -26,10 +26,7 @@ reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwap
 		LOG(INFO) << "Running on " << adapter_desc.Description << " Driver " << (driver_version / 100) << '.' << (driver_version % 100);
 	}
 
-	D3DPRESENT_PARAMETERS pp = {};
-	_orig->GetPresentParameters(&pp);
-
-	on_init(pp);
+	on_init();
 }
 reshade::d3d9::swapchain_impl::~swapchain_impl()
 {
@@ -43,7 +40,7 @@ reshade::api::resource reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t i
 	return to_handle(static_cast<IDirect3DResource9 *>(_backbuffer.get()));
 }
 
-bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
+bool reshade::d3d9::swapchain_impl::on_init()
 {
 	// Get back buffer surface
 	if (FAILED(_orig->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer)))
@@ -53,6 +50,12 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
+
+	// Always retrieve present parameters from device, since the application may have set 'hDeviceWindow' to zero and instead used 'hFocusWindow' (e.g. Resident Evil 4)
+	// Retrieving them from the device ensures that 'hDeviceWindow' is always set (with either the original value from 'hDeviceWindow' or 'hFocusWindow')
+	D3DPRESENT_PARAMETERS pp = {};
+	_orig->GetPresentParameters(&pp);
+	assert(pp.hDeviceWindow != nullptr);
 
 	return runtime::on_init(pp.hDeviceWindow);
 }
