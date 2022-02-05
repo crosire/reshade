@@ -316,6 +316,8 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 	if (swapchain_proxy != nullptr)
 	{
 		reshade::global_config().get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
+		reshade::global_config().get("APP", "ForceWindowed", swapchain_proxy->_force_windowed);
+		reshade::global_config().get("APP", "ForceFullscreen", swapchain_proxy->_force_fullscreen);
 		reshade::global_config().get("APP", "ForceResolution", swapchain_proxy->_force_resolution);
 		reshade::global_config().get("APP", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
 

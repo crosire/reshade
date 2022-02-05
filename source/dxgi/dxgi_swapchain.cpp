@@ -355,6 +355,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDX
 {
 	LOG(INFO) << "Redirecting " << "IDXGISwapChain::SetFullscreenState" << '(' << "this = " << this << ", Fullscreen = " << (Fullscreen ? "TRUE" : "FALSE") << ", pTarget = " << pTarget << ')' << " ...";
 
+	if (_force_windowed)
+		Fullscreen = FALSE;
+	if (_force_fullscreen)
+		Fullscreen = TRUE;
+
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->SetFullscreenState(Fullscreen, pTarget);
 	g_in_dxgi_runtime = false;
