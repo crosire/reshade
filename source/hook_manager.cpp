@@ -430,7 +430,8 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 
 	// Install all "LoadLibrary" hooks in one go immediately
 	// Skip this in the test application to make RenderDoc work (which hooks these too)
-	hook::apply_queued_actions();
+	if (!hook::apply_queued_actions())
+		LOG(ERROR) << "Failed to install 'LoadLibrary' hooks!";
 #endif
 
 	LOG(INFO) << "Registering hooks for " << target_path << " ...";
