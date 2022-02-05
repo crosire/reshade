@@ -740,7 +740,8 @@ namespace ReShade.Setup
 
 			if (targetApi == Api.Vulkan)
 			{
-				string layerName = is64Bit ? "VK_LAYER_reshade" : "VK_LAYER_reshade32";
+				var layerName = is64Bit ? "VK_LAYER_reshade" : "VK_LAYER_reshade32";
+				var layerPath = Path.ChangeExtension(modulePath, ".json");
 
 				try
 				{
@@ -750,7 +751,13 @@ namespace ReShade.Setup
 						throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
 					}
 
-					manifest.ExtractToFile(Path.ChangeExtension(modulePath, ".json"), true);
+					manifest.ExtractToFile(layerPath, true);
+
+					// Register this layer manifest
+					using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
+					{
+						key.SetValue(layerPath, 0, RegistryValueKind.DWord);
+					}
 				}
 				catch (Exception ex)
 				{
@@ -773,13 +780,14 @@ namespace ReShade.Setup
 						manifest.ExtractToFile(overrideMetaLayerPath, true);
 					}
 
+					// Register the meta layer manifest
 					using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 					{
+						key.SetValue(overrideMetaLayerPath, 0, RegistryValueKind.DWord);
+
 						key.DeleteValue(Path.Combine(commonPath, "ReShade.json"), false);
 						key.DeleteValue(Path.Combine(commonPath, "ReShade32_vk_override_layer.json"), false);
 						key.DeleteValue(Path.Combine(commonPath, "ReShade64_vk_override_layer.json"), false);
-
-						key.SetValue(overrideMetaLayerPath, 0, RegistryValueKind.DWord);
 					}
 				}
 				catch (Exception ex)
@@ -1263,6 +1271,11 @@ In that event here are some steps you can try to resolve this:
 						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 						{
 							key.DeleteValue(overrideMetaLayerPath);
+						}
+
+						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
+						{
+							key.DeleteValue(Path.ChangeExtension(modulePath, ".json"));
 						}
 					}
 					catch (Exception ex)
