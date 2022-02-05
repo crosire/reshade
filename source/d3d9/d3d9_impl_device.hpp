@@ -141,6 +141,11 @@ namespace reshade::d3d9
 		D3DDEVICE_CREATION_PARAMETERS _cp = {};
 		com_ptr<IDirect3D9> _d3d;
 
+#if RESHADE_ADDON
+		com_ptr<IDirect3DSurface9> _auto_depth_stencil_orig;
+		com_ptr<IDirect3DSurface9> _auto_depth_stencil_replacement;
+#endif
+
 	private:
 		state_block _backup_state;
 		com_ptr<IDirect3DStateBlock9> _copy_state;

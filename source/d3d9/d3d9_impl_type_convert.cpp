@@ -130,8 +130,9 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 		return lockable ? D3DFMT_D16_LOCKABLE : D3DFMT_D16;
 	case api::format::d16_unorm_s8_uint:
 		break; // Unsupported
-	case api::format::r24_g8_typeless:
 	case api::format::d24_unorm_x8_uint:
+		return D3DFMT_D24X8;
+	case api::format::r24_g8_typeless:
 	case api::format::d24_unorm_s8_uint:
 		return D3DFMT_D24S8;
 	case api::format::r24_unorm_x8_uint:
@@ -233,6 +234,8 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 		return api::format::d16_unorm;
 	case D3DFMT_D24S8:
 		return api::format::d24_unorm_s8_uint;
+	case D3DFMT_D24X8:
+		return api::format::d24_unorm_x8_uint;
 	case D3DFMT_D32:
 		return api::format::d32_float;
 	case D3DFMT_DXT1:

@@ -201,7 +201,10 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 				// The device will hold a reference to the surface after binding it, so can release this one afterwards
 				_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
 
-				auto_depth_stencil = std::move(auto_depth_stencil_replacement);
+				_auto_depth_stencil_orig = std::move(auto_depth_stencil);
+				_auto_depth_stencil_replacement = std::move(auto_depth_stencil_replacement);
+
+				auto_depth_stencil = _auto_depth_stencil_replacement;
 			}
 		}
 
@@ -240,6 +243,8 @@ void reshade::d3d9::device_impl::on_reset()
 
 	// Release reference to the potentially replaced auto depth-stencil resource
 	_orig->SetDepthStencilSurface(nullptr);
+	_auto_depth_stencil_orig.reset();
+	_auto_depth_stencil_replacement.reset();
 
 	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
 

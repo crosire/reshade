@@ -1413,6 +1413,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
+#if RESHADE_ADDON
+	if (_auto_depth_stencil_orig != nullptr && pNewZStencil == _auto_depth_stencil_orig)
+	{
+		// Replace original auto depth-stencil with the replaced resource again
+		pNewZStencil = _auto_depth_stencil_replacement.get();
+	}
+#endif
+
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) &&
@@ -1438,7 +1446,22 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurface9 **ppZStencilSurface)
 {
-	return _orig->GetDepthStencilSurface(ppZStencilSurface);
+	const HRESULT hr = _orig->GetDepthStencilSurface(ppZStencilSurface);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr) &&
+		_auto_depth_stencil_orig != nullptr && *ppZStencilSurface == _auto_depth_stencil_replacement)
+	{
+		// The call to 'GetDepthStencilSurface' increased the reference count, so release that before replacing
+		(*ppZStencilSurface)->Release();
+
+		// Return the original auto depth-stencil surface to the application
+		// This is necessary in e.g. The Elder Scrolls IV: Oblivion, since the game checks the created auto depth-stencil surface format, and returning the replaced resource can fail that
+		(*ppZStencilSurface) = _auto_depth_stencil_orig.get();
+		_auto_depth_stencil_orig->AddRef();
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::BeginScene()
 {
