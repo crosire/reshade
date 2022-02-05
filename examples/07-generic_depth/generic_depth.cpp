@@ -788,6 +788,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		                                               (a.desc.texture.width == b.desc.texture.width && a.desc.texture.height == b.desc.texture.height && a.resource < b.resource)));
 	});
 
+	bool has_msaa_depth_stencil = false;
+
 	instance.display_count_per_depth_stencil.clear();
 	for (const depth_stencil_item &item : sorted_item_list)
 	{
@@ -798,6 +800,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 		if (item.desc.texture.samples > 1) // Disable widget for MSAA textures
 		{
+			has_msaa_depth_stencil = true;
+
 			ImGui::BeginDisabled();
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 		}
@@ -858,6 +862,15 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			}
 
 		}
+	}
+
+	if (has_msaa_depth_stencil)
+	{
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+
+		ImGui::TextUnformatted("Not all depth buffers are available.\nYou may have to disable MSAA in the game settings for depth buffer detection to work!");
 	}
 
 	if (modified)
