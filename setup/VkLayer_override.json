@@ -3,7 +3,7 @@
     "layer": {
         "name": "VK_LAYER_LUNARG_override",
         "type": "GLOBAL",
-        "api_version": "1.2.182",
+        "api_version": "1.2.198",
         "implementation_version": "1",
         "description": "ReShade Override Layer",
         "disable_environment": {

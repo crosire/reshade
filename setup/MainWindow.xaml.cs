@@ -636,7 +636,7 @@ namespace ReShade.Setup
 				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
 				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
-				var overrideMetaLayerPath = Path.Combine(commonPath, "ReShade.json");
+				var overrideMetaLayerPath = Path.Combine(commonPath, "VkLayer_override.json");
 				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
 
 				if (overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys) && appKeys.Contains(targetPath))
@@ -754,7 +754,7 @@ namespace ReShade.Setup
 					return;
 				}
 
-				var overrideMetaLayerPath = Path.Combine(commonPath, "ReShade.json");
+				var overrideMetaLayerPath = Path.Combine(commonPath, "VkLayer_override.json");
 
 				try
 				{
@@ -771,6 +771,7 @@ namespace ReShade.Setup
 
 					using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 					{
+						key.DeleteValue(Path.Combine(commonPath, "ReShade.json"), false);
 						key.DeleteValue(Path.Combine(commonPath, "ReShade32_vk_override_layer.json"), false);
 						key.DeleteValue(Path.Combine(commonPath, "ReShade64_vk_override_layer.json"), false);
 
@@ -1242,7 +1243,7 @@ In that event here are some steps you can try to resolve this:
 		{
 			if (targetApi == Api.Vulkan)
 			{
-				var overrideMetaLayerPath = Path.Combine(commonPath, "ReShade.json");
+				var overrideMetaLayerPath = Path.Combine(commonPath, "VkLayer_override.json");
 				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
 
 				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);

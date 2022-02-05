@@ -145,9 +145,9 @@
     <None Include="Properties\AssemblyInfo.cs.in" />
   </ItemGroup>
   <ItemGroup>
-    <Archive Include="ReShade.json" />
     <Archive Include="ReShade32.json" />
     <Archive Include="ReShade64.json" />
+    <Archive Include="VkLayer_override.json" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Pages\Resources\DirectX.png" />
