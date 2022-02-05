@@ -298,6 +298,10 @@ namespace ReShade.Setup
 		}
 		void WriteSearchPaths(string targetPathEffects, string targetPathTextures)
 		{
+			// Change current directory so that "Path.GetFullPath" resolves correctly
+			string currentPath = Directory.GetCurrentDirectory();
+			Directory.SetCurrentDirectory(Path.GetDirectoryName(configPath));
+
 			// Vulkan uses a common ReShade DLL for all applications, which is not in the location the effects and textures are installed to, so make paths absolute
 			if (targetApi == Api.Vulkan)
 			{
@@ -328,6 +332,8 @@ namespace ReShade.Setup
 			}
 
 			iniFile.SaveFile();
+
+			Directory.SetCurrentDirectory(currentPath);
 		}
 
 		void ResetStatus()
@@ -687,9 +693,7 @@ namespace ReShade.Setup
 		{
 			UpdateStatus("Installing ReShade ...");
 
-			// Change current directory so that "Path.GetFullPath" resolves correctly
 			string basePath = Path.GetDirectoryName(configPath);
-			Directory.SetCurrentDirectory(basePath);
 
 			// Delete any existing and conflicting ReShade installations first
 			foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
