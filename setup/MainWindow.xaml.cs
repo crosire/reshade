@@ -227,7 +227,7 @@ namespace ReShade.Setup
 			{
 				NextButton.IsEnabled = false;
 
-				appPage.PathBox.TextChanged += (sender2, e2) => NextButton.IsEnabled = !string.IsNullOrEmpty(appPage.FileName) && Path.GetExtension(appPage.FileName) == ".exe" && File.Exists(appPage.FileName);
+				appPage.PathBox.TextChanged += (sender2, e2) => NextButton.IsEnabled = !string.IsNullOrEmpty(appPage.FileName) && Path.GetExtension(appPage.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(appPage.FileName);
 
 				ResetStatus();
 
@@ -827,7 +827,7 @@ namespace ReShade.Setup
 			else
 			{
 				// Create a default log file for troubleshooting
-				File.WriteAllText("ReShade.log", @"
+				File.WriteAllText(Path.Combine(basePath, "ReShade.log"), @"
 If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
 
 In that event here are some steps you can try to resolve this:

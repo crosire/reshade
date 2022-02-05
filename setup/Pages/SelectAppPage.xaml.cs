@@ -226,7 +226,7 @@ namespace ReShade.Setup.Pages
 						{
 							string path = files[offset + i];
 
-							if (Path.GetExtension(path) != ".exe" || !File.Exists(path))
+							if (!Path.GetExtension(path).Equals(".exe", StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
 							{
 								continue;
 							}
