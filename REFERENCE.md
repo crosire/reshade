@@ -50,6 +50,7 @@ It is also supported to add an overlay, which can e.g. be used to display debug 
 Overlays are created with the use of [Dear ImGui version 1.86](https://github.com/ocornut/imgui/tree/v1.86). Including `reshade.hpp` after [`imgui.h`](https://github.com/ocornut/imgui/blob/v1.86/imgui.h) will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
 
 ```cpp
+#define IMGUI_DISABLE_INCLUDE_IMCONFIG_H
 #define ImTextureID uint64_t // Change ImGui texture ID type to that of a 'reshade::api::resource_view' handle
 
 #include <imgui.h>

@@ -262,9 +262,9 @@ struct imgui_function_table
 	void(*EndTabItem)();
 	bool(*TabItemButton)(const char* label, ImGuiTabItemFlags flags);
 	void(*SetTabItemClosed)(const char* tab_or_docked_window_label);
-	ImGuiID(*DockSpace)(ImGuiID id, const ImVec2& size, ImGuiDockNodeFlags flags, const ImGuiWindowClass* window_class);
+	ImGuiID(*DockSpace)(ImGuiID id, const ImVec2& size, int flags, const struct ImGuiWindowClass* window_class);
 	void(*SetNextWindowDockID)(ImGuiID dock_id, ImGuiCond cond);
-	void(*SetNextWindowClass)(const ImGuiWindowClass* window_class);
+	void(*SetNextWindowClass)(const struct ImGuiWindowClass* window_class);
 	ImGuiID(*GetWindowDockID)();
 	bool(*IsWindowDocked)();
 	bool(*BeginDragDropSource)(ImGuiDragDropFlags flags);
@@ -691,9 +691,9 @@ namespace ImGui
 	inline void EndTabItem() { imgui_function_table_instance()->EndTabItem(); }
 	inline bool TabItemButton(const char* label, ImGuiTabItemFlags flags) { return imgui_function_table_instance()->TabItemButton(label, flags); }
 	inline void SetTabItemClosed(const char* tab_or_docked_window_label) { imgui_function_table_instance()->SetTabItemClosed(tab_or_docked_window_label); }
-	inline ImGuiID DockSpace(ImGuiID id, const ImVec2& size, ImGuiDockNodeFlags flags, const ImGuiWindowClass* window_class) { return imgui_function_table_instance()->DockSpace(id, size, flags, window_class); }
+	inline ImGuiID DockSpace(ImGuiID id, const ImVec2& size, int flags, const struct ImGuiWindowClass* window_class) { return imgui_function_table_instance()->DockSpace(id, size, flags, window_class); }
 	inline void SetNextWindowDockID(ImGuiID dock_id, ImGuiCond cond) { imgui_function_table_instance()->SetNextWindowDockID(dock_id, cond); }
-	inline void SetNextWindowClass(const ImGuiWindowClass* window_class) { imgui_function_table_instance()->SetNextWindowClass(window_class); }
+	inline void SetNextWindowClass(const struct ImGuiWindowClass* window_class) { imgui_function_table_instance()->SetNextWindowClass(window_class); }
 	inline ImGuiID GetWindowDockID() { return imgui_function_table_instance()->GetWindowDockID(); }
 	inline bool IsWindowDocked() { return imgui_function_table_instance()->IsWindowDocked(); }
 	inline bool BeginDragDropSource(ImGuiDragDropFlags flags) { return imgui_function_table_instance()->BeginDragDropSource(flags); }
