@@ -4,7 +4,7 @@
 		"name": "VK_LAYER_reshade32",
 		"type": "GLOBAL",
 		"library_path": ".\\ReShade32.dll",
-		"api_version": "1.2.131",
+		"api_version": "1.3.204",
 		"implementation_version": "1",
 		"description": "crosire's ReShade post-processing injector for 32-bit",
 		"device_extensions": [

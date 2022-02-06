@@ -17,6 +17,9 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 #define HOOK_PROC_OPTIONAL(name) \
 	if (0 == std::strcmp(pName, "vk" #name) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name);
+#define HOOK_PROC_OPTIONAL_EXTENSION(name, suffix) \
+	if (0 == std::strcmp(pName, "vk" #name #suffix) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
+		return reinterpret_cast<PFN_vkVoidFunction>(vk##name);
 
 
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
@@ -108,29 +111,48 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdEndRenderPass);
 	HOOK_PROC(CmdExecuteCommands);
 
-#ifdef VK_KHR_push_descriptor
+	// Core 1_3
+	HOOK_PROC_OPTIONAL(CmdPipelineBarrier2);
+	HOOK_PROC_OPTIONAL(CmdWriteTimestamp2);
+	HOOK_PROC_OPTIONAL(QueueSubmit2);
+	HOOK_PROC_OPTIONAL(CmdCopyBuffer2);
+	HOOK_PROC_OPTIONAL(CmdCopyImage2);
+	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2);
+	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2);
+	HOOK_PROC_OPTIONAL(CmdBlitImage2);
+	HOOK_PROC_OPTIONAL(CmdResolveImage2);
+	HOOK_PROC_OPTIONAL(CmdBeginRendering);
+	HOOK_PROC_OPTIONAL(CmdEndRendering);
+
+	// VK_KHR_dynamic_rendering
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdBeginRendering, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdEndRendering, KHR);
+
+	// VK_KHR_push_descriptor
 	HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR);
-#endif
-#ifdef VK_KHR_copy_commands2
-	HOOK_PROC_OPTIONAL(CmdCopyBuffer2KHR);
-	HOOK_PROC_OPTIONAL(CmdCopyImage2KHR);
-	HOOK_PROC_OPTIONAL(CmdBlitImage2KHR);
-	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2KHR);
-	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2KHR);
-	HOOK_PROC_OPTIONAL(CmdResolveImage2KHR);
-#endif
-#ifdef VK_EXT_transform_feedback
+
+	// VK_KHR_create_renderpass2
+	HOOK_PROC_OPTIONAL_EXTENSION(CreateRenderPass2, KHR);
+
+	// VK_KHR_bind_memory2
+	HOOK_PROC_OPTIONAL_EXTENSION(BindBufferMemory2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(BindImageMemory2, KHR);
+
+	// VK_KHR_synchronization2
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdPipelineBarrier2, KHR);
+
+	// VK_KHR_copy_commands2
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdCopyBuffer2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdCopyImage2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdBlitImage2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdCopyBufferToImage2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdCopyImageToBuffer2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdResolveImage2, KHR);
+
+	// VK_EXT_transform_feedback
 	HOOK_PROC_OPTIONAL(CmdBindTransformFeedbackBuffersEXT);
 	HOOK_PROC_OPTIONAL(CmdBeginQueryIndexedEXT);
 	HOOK_PROC_OPTIONAL(CmdEndQueryIndexedEXT);
-#endif
-
-	if (0 == std::strcmp(pName, "vkBindBufferMemory2KHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkBindBufferMemory2);
-	if (0 == std::strcmp(pName, "vkBindImageMemory2KHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkBindImageMemory2);
-	if (0 == std::strcmp(pName, "vkCreateRenderPass2KHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
 #endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)

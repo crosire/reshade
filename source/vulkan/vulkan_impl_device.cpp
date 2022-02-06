@@ -28,6 +28,8 @@ reshade::vulkan::device_impl::device_impl(
 	VkDevice device,
 	VkPhysicalDevice physical_device,
 	const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
+	bool push_descriptors_ext,
+	bool dynamic_rendering_ext,
 	bool custom_border_color_ext,
 	bool extended_dynamic_state_ext,
 	bool conservative_rasterization_ext) :
@@ -35,6 +37,8 @@ reshade::vulkan::device_impl::device_impl(
 	_physical_device(physical_device),
 	_dispatch_table(device_table),
 	_instance_dispatch_table(instance_table),
+	_push_descriptor_ext(push_descriptors_ext),
+	_dynamic_rendering_ext(dynamic_rendering_ext),
 	_custom_border_color_ext(custom_border_color_ext),
 	_extended_dynamic_state_ext(extended_dynamic_state_ext),
 	_conservative_rasterization_ext(conservative_rasterization_ext),
@@ -112,9 +116,9 @@ reshade::vulkan::device_impl::device_impl(
 		}
 	}
 
-	{	VkPrivateDataSlotCreateInfoEXT create_info { VK_STRUCTURE_TYPE_PRIVATE_DATA_SLOT_CREATE_INFO_EXT };
+	{	VkPrivateDataSlotCreateInfo create_info { VK_STRUCTURE_TYPE_PRIVATE_DATA_SLOT_CREATE_INFO };
 
-		if (vk.CreatePrivateDataSlotEXT(_orig, &create_info, nullptr, &_private_data_slot) != VK_SUCCESS)
+		if (vk.CreatePrivateDataSlot(_orig, &create_info, nullptr, &_private_data_slot) != VK_SUCCESS)
 		{
 			LOG(ERROR) << "Failed to create private data slot!";
 		}
@@ -142,7 +146,7 @@ reshade::vulkan::device_impl::~device_impl()
 		vk.DestroyFramebuffer(_orig, render_pass_data.second.framebuffer, nullptr);
 	}
 
-	vk.DestroyPrivateDataSlotEXT(_orig, _private_data_slot, nullptr);
+	vk.DestroyPrivateDataSlot(_orig, _private_data_slot, nullptr);
 
 	vk.DestroyDescriptorPool(_orig, _descriptor_pool, nullptr);
 	for (uint32_t i = 0; i < 4; ++i)
@@ -178,7 +182,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::partial_push_constant_updates:
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
-		return vk.CmdPushDescriptorSetKHR != nullptr;
+		return _push_descriptor_ext;
 	case api::device_caps::draw_instanced:
 		return true;
 	case api::device_caps::draw_or_dispatch_indirect:
@@ -1097,7 +1101,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		// Always make scissor rectangles and viewports dynamic
 		dyn_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
 		dyn_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
-		convert_dynamic_states(dynamic_states_subobject.count, static_cast<const api::dynamic_state *>(dynamic_states_subobject.data), dyn_states, _extended_dynamic_state_ext);
+		convert_dynamic_states(dynamic_states_subobject.count, static_cast<const api::dynamic_state *>(dynamic_states_subobject.data), dyn_states);
 
 		VkPipelineDynamicStateCreateInfo dynamic_state_info { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
 		create_info.pDynamicState = &dynamic_state_info;
@@ -1179,19 +1183,17 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			assert(attachment_formats[i] != VK_FORMAT_UNDEFINED);
 		}
 
-#ifdef VK_KHR_dynamic_rendering
-		VkPipelineRenderingCreateInfoKHR dynamic_rendering_info{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR };
-		if (vk.CmdBeginRenderingKHR != nullptr)
+		VkPipelineRenderingCreateInfo dynamic_rendering_info { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+		if (_dynamic_rendering_ext)
 		{
 			dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
 			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats;
-			dynamic_rendering_info.depthAttachmentFormat = convert_format(desc.graphics.depth_stencil_format);
-			dynamic_rendering_info.stencilAttachmentFormat = convert_format(desc.graphics.depth_stencil_format);
+			dynamic_rendering_info.depthAttachmentFormat = convert_format(depth_stencil_format);
+			dynamic_rendering_info.stencilAttachmentFormat = convert_format(depth_stencil_format);
 
 			create_info.pNext = &dynamic_rendering_info;
 		}
 		else
-#endif
 		{
 			VkAttachmentReference attach_refs[9];
 			VkAttachmentDescription attach_descs[9];
@@ -1342,8 +1344,10 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
 		create_info.pBindings = internal_bindings.data();
 
-		if (push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
+#ifdef VK_KHR_push_descriptor
+		if (push_descriptors && _push_descriptor_ext)
 			create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+#endif
 
 		if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)
 		{
@@ -1675,8 +1679,10 @@ void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view han
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 {
-	if (vk.CmdPushDescriptorSetKHR != nullptr)
+#ifdef VK_KHR_push_descriptor
+	if (_push_descriptor_ext)
 		return;
+#endif
 
 	// This assumes that no other thread is currently allocating from the transient descriptor pool
 	const VkDescriptorPool next_pool = _transient_descriptor_pool[++_transient_index % 4];

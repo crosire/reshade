@@ -104,13 +104,12 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 {
 	_has_commands = true;
 
-#ifdef VK_KHR_dynamic_rendering
-	if (vk.CmdBeginRenderingKHR != nullptr)
+	if (_device_impl->_dynamic_rendering_ext)
 	{
-		temp_mem<VkRenderingAttachmentInfoKHR, 8> color_attachments(count);
-		VkRenderingAttachmentInfoKHR depth_attachment, stencil_attachment;
+		temp_mem<VkRenderingAttachmentInfo, 8> color_attachments(count);
+		VkRenderingAttachmentInfo depth_attachment, stencil_attachment;
 
-		VkRenderingInfoKHR rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO_KHR };
+		VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
 		rendering_info.renderArea.extent.width = std::numeric_limits<uint32_t>::max();
 		rendering_info.renderArea.extent.height = std::numeric_limits<uint32_t>::max();
 		rendering_info.layerCount = std::numeric_limits<uint32_t>::max();
@@ -119,7 +118,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			color_attachments[i] = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR };
+			color_attachments[i] = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 			color_attachments[i].imageView = (VkImageView)rts[i].view.handle;
 			color_attachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			color_attachments[i].loadOp = convert_render_pass_load_op(rts[i].load_op);
@@ -136,7 +135,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 		if (ds != nullptr)
 		{
-			depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR };
+			depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 			depth_attachment.imageView = (VkImageView)ds->view.handle;
 			depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			depth_attachment.loadOp = convert_render_pass_load_op(ds->depth_load_op);
@@ -145,7 +144,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 			rendering_info.pDepthAttachment = &depth_attachment;
 
-			stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR };
+			stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 			stencil_attachment.imageView = (VkImageView)ds->view.handle;
 			stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			stencil_attachment.loadOp = convert_render_pass_load_op(ds->stencil_load_op);
@@ -161,10 +160,9 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			rendering_info.layerCount = std::min(rendering_info.layerCount, image_data->create_info.arrayLayers);
 		}
 
-		vk.CmdBeginRenderingKHR(_orig, &rendering_info);
+		vk.CmdBeginRendering(_orig, &rendering_info);
 	}
 	else
-#endif
 	{
 		size_t hash = 0;
 		for (uint32_t i = 0; i < count; ++i)
@@ -318,13 +316,11 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 {
 	assert(_has_commands);
 
-#ifdef VK_KHR_dynamic_rendering
-	if (vk.CmdEndRenderingKHR != nullptr)
+	if (_device_impl->_dynamic_rendering_ext)
 	{
-		vk.CmdEndRenderingKHR(_orig);
+		vk.CmdEndRendering(_orig);
 	}
 	else
-#endif
 	{
 		vk.CmdEndRenderPass(_orig);
 	}
@@ -372,7 +368,6 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			continue;
 		}
 
-#ifdef VK_EXT_extended_dynamic_state
 		if (!_device_impl->_extended_dynamic_state_ext)
 		{
 			assert(false);
@@ -382,31 +377,30 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		switch (states[i])
 		{
 		case api::dynamic_state::cull_mode:
-			vk.CmdSetCullModeEXT(_orig, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
+			vk.CmdSetCullMode(_orig, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
 			continue;
 		case api::dynamic_state::front_counter_clockwise:
-			vk.CmdSetFrontFaceEXT(_orig, values[i] != 0 ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE);
+			vk.CmdSetFrontFace(_orig, values[i] != 0 ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE);
 			continue;
 		case api::dynamic_state::primitive_topology:
-			vk.CmdSetPrimitiveTopologyEXT(_orig, convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			vk.CmdSetPrimitiveTopology(_orig, convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			continue;
 		case api::dynamic_state::depth_enable:
-			vk.CmdSetDepthTestEnableEXT(_orig, values[i]);
+			vk.CmdSetDepthTestEnable(_orig, values[i]);
 			continue;
 		case api::dynamic_state::depth_write_mask:
-			vk.CmdSetDepthWriteEnableEXT(_orig, values[i]);
+			vk.CmdSetDepthWriteEnable(_orig, values[i]);
 			continue;
 		case api::dynamic_state::depth_func:
-			vk.CmdSetDepthCompareOpEXT(_orig, convert_compare_op(static_cast<api::compare_op>(values[i])));
+			vk.CmdSetDepthCompareOp(_orig, convert_compare_op(static_cast<api::compare_op>(values[i])));
 			continue;
 		case api::dynamic_state::stencil_enable:
-			vk.CmdSetStencilTestEnableEXT(_orig, values[i]);
+			vk.CmdSetStencilTestEnable(_orig, values[i]);
 			continue;
 		default:
 			assert(false);
 			continue;
 		}
-#endif
 	}
 }
 void reshade::vulkan::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
@@ -513,7 +507,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	}
 
 #ifdef VK_KHR_push_descriptor
-	if (vk.CmdPushDescriptorSetKHR != nullptr)
+	if (_device_impl->_push_descriptor_ext)
 	{
 		vk.CmdPushDescriptorSetKHR(_orig,
 			stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,

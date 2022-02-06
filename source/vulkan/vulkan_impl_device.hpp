@@ -28,6 +28,8 @@ namespace reshade::vulkan
 			VkDevice device,
 			VkPhysicalDevice physical_device,
 			const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
+			bool push_descriptors_ext,
+			bool dynamic_rendering_ext,
 			bool custom_border_color_ext,
 			bool extended_dynamic_state_ext,
 			bool conservative_rasterization_ext);
@@ -89,11 +91,11 @@ namespace reshade::vulkan
 		{
 			assert(object != VK_NULL_HANDLE);
 			uint64_t private_data = reinterpret_cast<uint64_t>(new object_data<type>(std::forward<Args>(args)...));
-			_dispatch_table.SetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, private_data);
+			_dispatch_table.SetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, private_data);
 		}
 		void register_object(VkObjectType type, uint64_t object, void *private_data)
 		{
-			_dispatch_table.SetPrivateDataEXT(_orig, type, object, _private_data_slot, reinterpret_cast<uint64_t>(private_data));
+			_dispatch_table.SetPrivateData(_orig, type, object, _private_data_slot, reinterpret_cast<uint64_t>(private_data));
 		}
 
 		template <VkObjectType type>
@@ -103,13 +105,13 @@ namespace reshade::vulkan
 				return;
 
 			uint64_t private_data = 0;
-			_dispatch_table.GetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
+			_dispatch_table.GetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
 			delete reinterpret_cast<object_data<type> *>(private_data);
-			_dispatch_table.SetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, 0);
+			_dispatch_table.SetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, 0);
 		}
 		void unregister_object(VkObjectType type, uint64_t object)
 		{
-			_dispatch_table.SetPrivateDataEXT(_orig, type, object, _private_data_slot, 0);
+			_dispatch_table.SetPrivateData(_orig, type, object, _private_data_slot, 0);
 		}
 
 		template <VkObjectType type>
@@ -117,7 +119,7 @@ namespace reshade::vulkan
 		{
 			assert(object != VK_NULL_HANDLE);
 			uint64_t private_data = 0;
-			_dispatch_table.GetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
+			_dispatch_table.GetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
 			assert(private_data != 0);
 			return reinterpret_cast<object_data<type> *>(private_data);
 		}
@@ -129,6 +131,8 @@ namespace reshade::vulkan
 		uint32_t _graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 		std::vector<command_queue_impl *> _queues;
 
+		const bool _push_descriptor_ext;
+		const bool _dynamic_rendering_ext;
 		const bool _custom_border_color_ext;
 		const bool _extended_dynamic_state_ext;
 		const bool _conservative_rasterization_ext;
@@ -146,7 +150,7 @@ namespace reshade::vulkan
 		VkDescriptorPool _transient_descriptor_pool[4] = {};
 		uint32_t _transient_index = 0;
 
-		VkPrivateDataSlotEXT _private_data_slot = VK_NULL_HANDLE;
+		VkPrivateDataSlot _private_data_slot = VK_NULL_HANDLE;
 
 		std::shared_mutex _mutex;
 		std::unordered_map<size_t, VkRenderPassBeginInfo> _render_pass_lookup;

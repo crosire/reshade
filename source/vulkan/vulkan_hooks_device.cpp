@@ -29,6 +29,9 @@ static lockfree_linear_map<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16
 	assert(trampoline != nullptr)
 #define INIT_DISPATCH_PTR(name) \
 	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
+#define INIT_DISPATCH_PTR_EXTENSION(name, suffix) \
+	if (dispatch_table.name == nullptr) \
+		dispatch_table.name  = reinterpret_cast<PFN_vk##name##suffix>(get_device_proc(device, "vk" #name #suffix))
 
 extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
 
@@ -156,12 +159,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
-#ifdef VK_KHR_push_descriptor
 	bool push_descriptor_ext = false;
-#endif
-#ifdef VK_KHR_dynamic_rendering
 	bool dynamic_rendering_ext = false;
-#endif
 	bool custom_border_color_ext = false;
 	bool extended_dynamic_state_ext = false;
 	bool conservative_rasterization_ext = false;
@@ -225,15 +224,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef VK_KHR_push_descriptor
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 #endif
-#ifdef VK_KHR_dynamic_rendering
 		dynamic_rendering_ext = add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
-#endif
 #ifdef VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 #endif
-#ifdef VK_EXT_extended_dynamic_state
 		extended_dynamic_state_ext = add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
-#endif
 #ifdef VK_EXT_conservative_rasterization
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
 #endif
@@ -254,11 +249,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		create_info.pEnabledFeatures = &enabled_features;
 
 	// Enable private data feature
-	VkDevicePrivateDataCreateInfoEXT private_data_info { VK_STRUCTURE_TYPE_DEVICE_PRIVATE_DATA_CREATE_INFO_EXT };
+	VkDevicePrivateDataCreateInfo private_data_info { VK_STRUCTURE_TYPE_DEVICE_PRIVATE_DATA_CREATE_INFO };
 	private_data_info.pNext = create_info.pNext;
 	private_data_info.privateDataSlotRequestCount = 1;
 
-	VkPhysicalDevicePrivateDataFeaturesEXT private_data_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES_EXT };
+	VkPhysicalDevicePrivateDataFeatures private_data_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES };
 	private_data_feature.pNext = &private_data_info;
 	private_data_feature.privateData = VK_TRUE;
 
@@ -277,7 +272,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 #endif
 
-#ifdef VK_EXT_extended_dynamic_state
 	// Optionally enable extended dynamic state feature
 	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
 	if (extended_dynamic_state_ext)
@@ -287,7 +281,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &extended_dynamic_state_feature;
 	}
-#endif
 
 	// Continue calling down the chain
 	g_in_dxgi_runtime = true;
@@ -420,53 +413,72 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdNextSubpass2);
 	INIT_DISPATCH_PTR(CmdEndRenderPass2);
 	#pragma endregion
+	#pragma region Core 1_3
+	INIT_DISPATCH_PTR(CreatePrivateDataSlot);
+	INIT_DISPATCH_PTR(DestroyPrivateDataSlot);
+	INIT_DISPATCH_PTR(GetPrivateData);
+	INIT_DISPATCH_PTR(SetPrivateData);
+	INIT_DISPATCH_PTR(CmdPipelineBarrier2);
+	INIT_DISPATCH_PTR(CmdWriteTimestamp2);
+	INIT_DISPATCH_PTR(QueueSubmit2);
+	INIT_DISPATCH_PTR(CmdCopyBuffer2);
+	INIT_DISPATCH_PTR(CmdCopyImage2);
+	INIT_DISPATCH_PTR(CmdBlitImage2);
+	INIT_DISPATCH_PTR(CmdCopyBufferToImage2);
+	INIT_DISPATCH_PTR(CmdCopyImageToBuffer2);
+	INIT_DISPATCH_PTR(CmdResolveImage2);
+	INIT_DISPATCH_PTR(CmdBeginRendering);
+	INIT_DISPATCH_PTR(CmdEndRendering);
+	INIT_DISPATCH_PTR(CmdSetCullMode);
+	INIT_DISPATCH_PTR(CmdSetFrontFace);
+	INIT_DISPATCH_PTR(CmdSetPrimitiveTopology);
+	INIT_DISPATCH_PTR(CmdSetViewportWithCount);
+	INIT_DISPATCH_PTR(CmdSetScissorWithCount);
+	INIT_DISPATCH_PTR(CmdBindVertexBuffers2);
+	INIT_DISPATCH_PTR(CmdSetDepthTestEnable);
+	INIT_DISPATCH_PTR(CmdSetDepthWriteEnable);
+	INIT_DISPATCH_PTR(CmdSetDepthCompareOp);
+	INIT_DISPATCH_PTR(CmdSetDepthBoundsTestEnable);
+	INIT_DISPATCH_PTR(CmdSetStencilTestEnable);
+	INIT_DISPATCH_PTR(CmdSetStencilOp);
+	INIT_DISPATCH_PTR(CmdSetRasterizerDiscardEnable);
+	INIT_DISPATCH_PTR(CmdSetDepthBiasEnable);
+	INIT_DISPATCH_PTR(CmdSetPrimitiveRestartEnable);
+	#pragma endregion
 	#pragma region VK_KHR_swapchain
 	INIT_DISPATCH_PTR(CreateSwapchainKHR);
 	INIT_DISPATCH_PTR(DestroySwapchainKHR);
 	INIT_DISPATCH_PTR(GetSwapchainImagesKHR);
 	INIT_DISPATCH_PTR(QueuePresentKHR);
 	#pragma endregion
-	#pragma region VK_KHR_push_descriptor
-#ifdef VK_KHR_push_descriptor
-	if (push_descriptor_ext)
-	{
-		INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
-	}
-#endif
-	#pragma endregion
 	#pragma region VK_KHR_dynamic_rendering
-#ifdef VK_KHR_dynamic_rendering
-	if (dynamic_rendering_ext)
-	{
-		INIT_DISPATCH_PTR(CmdBeginRenderingKHR);
-		INIT_DISPATCH_PTR(CmdEndRenderingKHR);
-	}
-#endif
+	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRendering, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdEndRendering, KHR);
+	#pragma endregion
+	#pragma region VK_KHR_push_descriptor
+	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
 	#pragma endregion
 	#pragma region VK_KHR_create_renderpass2
-#ifdef VK_KHR_create_renderpass2
-	if (dispatch_table.CreateRenderPass2 == nullptr) // Try the KHR version if the core version does not exist
-		dispatch_table.CreateRenderPass2 = reinterpret_cast<PFN_vkCreateRenderPass2KHR>(get_device_proc(device, "vkCreateRenderPass2KHR"));
-	if (dispatch_table.CmdBeginRenderPass2 == nullptr)
-		dispatch_table.CmdBeginRenderPass2 = reinterpret_cast<PFN_vkCmdBeginRenderPass2KHR>(get_device_proc(device, "vkCmdBeginRenderPass2KHR"));
-	if (dispatch_table.CmdNextSubpass2 == nullptr)
-		dispatch_table.CmdNextSubpass2 = reinterpret_cast<PFN_vkCmdNextSubpass2KHR>(get_device_proc(device, "vkCmdNextSubpass2KHR"));
-	if (dispatch_table.CmdEndRenderPass2 == nullptr)
-		dispatch_table.CmdEndRenderPass2 = reinterpret_cast<PFN_vkCmdEndRenderPass2KHR>(get_device_proc(device, "vkCmdEndRenderPass2KHR"));
-#endif
+	// Try the KHR version if the core version does not exist
+	INIT_DISPATCH_PTR_EXTENSION(CreateRenderPass2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRenderPass2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdNextSubpass2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdEndRenderPass2, KHR);
 	#pragma endregion
 	#pragma region VK_KHR_copy_commands2
-#ifdef VK_KHR_copy_commands2
-	INIT_DISPATCH_PTR(CmdCopyBuffer2KHR);
-	INIT_DISPATCH_PTR(CmdCopyImage2KHR);
-	INIT_DISPATCH_PTR(CmdBlitImage2KHR);
-	INIT_DISPATCH_PTR(CmdCopyBufferToImage2KHR);
-	INIT_DISPATCH_PTR(CmdCopyImageToBuffer2KHR);
-	INIT_DISPATCH_PTR(CmdResolveImage2KHR);
-#endif
+	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBuffer2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImage2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdBlitImage2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBufferToImage2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImageToBuffer2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdResolveImage2, KHR);
+	#pragma endregion
+	#pragma region VK_EXT_transform_feedback
+	INIT_DISPATCH_PTR(CmdBindTransformFeedbackBuffersEXT);
+	INIT_DISPATCH_PTR(CmdBeginQueryIndexedEXT);
+	INIT_DISPATCH_PTR(CmdEndQueryIndexedEXT);
 	#pragma endregion
 	#pragma region VK_EXT_debug_utils
-#ifdef VK_EXT_debug_utils
 	INIT_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
 	INIT_DISPATCH_PTR(QueueBeginDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(QueueEndDebugUtilsLabelEXT);
@@ -474,45 +486,31 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdBeginDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdEndDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
-#endif
-	#pragma endregion
-	#pragma region VK_EXT_transform_feedback
-#ifdef VK_EXT_transform_feedback
-	INIT_DISPATCH_PTR(CmdBindTransformFeedbackBuffersEXT);
-	INIT_DISPATCH_PTR(CmdBeginQueryIndexedEXT);
-	INIT_DISPATCH_PTR(CmdEndQueryIndexedEXT);
-#endif
 	#pragma endregion
 	#pragma region VK_EXT_extended_dynamic_state
-#ifdef VK_EXT_extended_dynamic_state
-	if (extended_dynamic_state_ext)
-	{
-		INIT_DISPATCH_PTR(CmdSetCullModeEXT);
-		INIT_DISPATCH_PTR(CmdSetFrontFaceEXT);
-		INIT_DISPATCH_PTR(CmdSetPrimitiveTopologyEXT);
-		INIT_DISPATCH_PTR(CmdSetViewportWithCountEXT);
-		INIT_DISPATCH_PTR(CmdSetScissorWithCountEXT);
-		INIT_DISPATCH_PTR(CmdBindVertexBuffers2EXT);
-		INIT_DISPATCH_PTR(CmdSetDepthTestEnableEXT);
-		INIT_DISPATCH_PTR(CmdSetDepthWriteEnableEXT);
-		INIT_DISPATCH_PTR(CmdSetDepthCompareOpEXT);
-		INIT_DISPATCH_PTR(CmdSetDepthBoundsTestEnableEXT);
-		INIT_DISPATCH_PTR(CmdSetStencilTestEnableEXT);
-		INIT_DISPATCH_PTR(CmdSetStencilOpEXT);
-	}
-#endif
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetCullMode, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetFrontFace, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetPrimitiveTopology, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetViewportWithCount, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetScissorWithCount, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdBindVertexBuffers2, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthTestEnable, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthWriteEnable, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthCompareOp, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthBoundsTestEnable, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilTestEnable, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilOp, EXT);
 	#pragma endregion
 	#pragma region VK_EXT_private_data
-	INIT_DISPATCH_PTR(CreatePrivateDataSlotEXT);
-	INIT_DISPATCH_PTR(DestroyPrivateDataSlotEXT);
-	INIT_DISPATCH_PTR(GetPrivateDataEXT);
-	INIT_DISPATCH_PTR(SetPrivateDataEXT);
+	// Try the EXT version if the core version does not exist
+	INIT_DISPATCH_PTR_EXTENSION(CreatePrivateDataSlot, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(DestroyPrivateDataSlot, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(GetPrivateData, EXT);
+	INIT_DISPATCH_PTR_EXTENSION(SetPrivateData, EXT);
 	#pragma endregion
 	#pragma region VK_KHR_external_memory_win32
-#ifdef VK_KHR_external_memory_win32
 	INIT_DISPATCH_PTR(GetMemoryWin32HandleKHR);
 	INIT_DISPATCH_PTR(GetMemoryWin32HandlePropertiesKHR);
-#endif
 	#pragma endregion
 
 	// Initialize per-device data
@@ -522,6 +520,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
 		dispatch_table,
 		enabled_features,
+		push_descriptor_ext,
+		dynamic_rendering_ext,
 		custom_border_color_ext,
 		extended_dynamic_state_ext,
 		conservative_rasterization_ext);
@@ -839,6 +839,35 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	GET_DISPATCH_PTR(QueueSubmit, queue);
 	return trampoline(queue, submitCount, pSubmits, fence);
 }
+VkResult VKAPI_CALL vkQueueSubmit2(VkQueue queue, uint32_t submitCount, const VkSubmitInfo2 *pSubmits, VkFence fence)
+{
+	assert(pSubmits != nullptr);
+
+#if RESHADE_ADDON
+	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue); queue_impl != nullptr)
+	{
+		const auto device_impl = static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device());
+
+		for (uint32_t i = 0; i < submitCount; ++i)
+		{
+			for (uint32_t k = 0; k < pSubmits[i].commandBufferInfoCount; ++k)
+			{
+				assert(pSubmits[i].pCommandBufferInfos[k].commandBuffer != VK_NULL_HANDLE);
+
+				reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pSubmits[i].pCommandBufferInfos[k].commandBuffer);
+
+				reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
+			}
+		}
+
+		queue_impl->flush_immediate_command_list();
+	}
+#endif
+
+	GET_DISPATCH_PTR(QueueSubmit2, queue);
+	return trampoline(queue, submitCount, pSubmits, fence);
+}
+
 VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
 {
 	assert(pPresentInfo != nullptr);
@@ -1471,23 +1500,21 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 					render_target_formats[i] = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
 			}
 		}
-#ifdef VK_KHR_dynamic_rendering
 		else
 		{
-			if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfoKHR>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR))
+			if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO))
 			{
 				if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
-					depth_stencil_format = convert_format(dynamic_rendering_info->depthAttachmentFormat);
+					depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->depthAttachmentFormat);
 				else
-					depth_stencil_format = convert_format(dynamic_rendering_info->stencilAttachmentFormat);
+					depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->stencilAttachmentFormat);
 
 				render_target_count = std::min(dynamic_rendering_info->colorAttachmentCount, 8u);
 
 				for (uint32_t k = 0; k < render_target_count; ++k)
-					render_target_formats[k] = convert_format(dynamic_rendering_info->pColorAttachmentFormats[k]);
+					render_target_formats[k] = reshade::vulkan::convert_format(dynamic_rendering_info->pColorAttachmentFormats[k]);
 			}
 		}
-#endif
 
 		std::vector<reshade::api::dynamic_state> states;
 		reshade::vulkan::convert_dynamic_states(create_info.pDynamicState, states);

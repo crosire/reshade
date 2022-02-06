@@ -373,6 +373,16 @@ auto reshade::vulkan::convert_format(VkFormat vk_format) -> api::format
 
 auto reshade::vulkan::convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage
 {
+	static_assert(
+		VK_ACCESS_SHADER_READ_BIT == VK_ACCESS_2_SHADER_READ_BIT &&
+		VK_ACCESS_SHADER_WRITE_BIT == VK_ACCESS_2_SHADER_WRITE_BIT &&
+		VK_ACCESS_TRANSFER_WRITE_BIT == VK_ACCESS_2_TRANSFER_WRITE_BIT &&
+		VK_ACCESS_TRANSFER_READ_BIT == VK_ACCESS_2_TRANSFER_READ_BIT &&
+		VK_ACCESS_INDEX_READ_BIT == VK_ACCESS_2_INDEX_READ_BIT &&
+		VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT == VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT &&
+		VK_ACCESS_UNIFORM_READ_BIT == VK_ACCESS_2_UNIFORM_READ_BIT &&
+		VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT == VK_ACCESS_2_TRANSFORM_FEEDBACK_WRITE_BIT_EXT);
+
 	api::resource_usage result = api::resource_usage::undefined;
 	if ((flags & VK_ACCESS_SHADER_READ_BIT) != 0)
 		result |= api::resource_usage::shader_resource;
@@ -1198,33 +1208,42 @@ void reshade::vulkan::convert_dynamic_states(const VkPipelineDynamicStateCreateI
 		case VK_DYNAMIC_STATE_STENCIL_REFERENCE:
 			states.push_back(api::dynamic_state::stencil_reference_value);
 			break;
-		case VK_DYNAMIC_STATE_CULL_MODE_EXT:
+		case VK_DYNAMIC_STATE_CULL_MODE:
 			states.push_back(api::dynamic_state::cull_mode);
 			break;
-		case VK_DYNAMIC_STATE_FRONT_FACE_EXT:
+		case VK_DYNAMIC_STATE_FRONT_FACE:
 			states.push_back(api::dynamic_state::front_counter_clockwise);
 			break;
-		case VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT:
+		case VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY:
 			states.push_back(api::dynamic_state::primitive_topology);
 			break;
-		case VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE_EXT:
+		case VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE:
 			states.push_back(api::dynamic_state::depth_enable);
 			break;
-		case VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE_EXT:
+		case VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE:
 			states.push_back(api::dynamic_state::depth_write_mask);
 			break;
-		case VK_DYNAMIC_STATE_DEPTH_COMPARE_OP_EXT:
+		case VK_DYNAMIC_STATE_DEPTH_COMPARE_OP:
 			states.push_back(api::dynamic_state::depth_func);
 			break;
-		case VK_DYNAMIC_STATE_DEPTH_BOUNDS_TEST_ENABLE_EXT:
+		case VK_DYNAMIC_STATE_DEPTH_BOUNDS_TEST_ENABLE:
 			states.push_back(api::dynamic_state::depth_clip_enable);
 			break;
-		case VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE_EXT:
+		case VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE:
 			states.push_back(api::dynamic_state::stencil_enable);
 			break;
-		case VK_DYNAMIC_STATE_STENCIL_OP_EXT:
+		case VK_DYNAMIC_STATE_STENCIL_OP:
 			states.push_back(api::dynamic_state::back_stencil_func);
 			states.push_back(api::dynamic_state::front_stencil_func);
+			break;
+		case VK_DYNAMIC_STATE_RASTERIZER_DISCARD_ENABLE:
+			break;
+		case VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE:
+			states.push_back(api::dynamic_state::depth_bias);
+			states.push_back(api::dynamic_state::depth_bias_clamp);
+			states.push_back(api::dynamic_state::depth_bias_slope_scaled);
+			break;
+		case VK_DYNAMIC_STATE_PRIMITIVE_RESTART_ENABLE:
 			break;
 		case VK_DYNAMIC_STATE_LOGIC_OP_EXT:
 			states.push_back(api::dynamic_state::logic_op);
@@ -1235,7 +1254,7 @@ void reshade::vulkan::convert_dynamic_states(const VkPipelineDynamicStateCreateI
 		}
 	}
 }
-void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states, bool with_extended)
+void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states)
 {
 	internal_states.reserve(count);
 
@@ -1255,36 +1274,26 @@ void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_
 		case api::dynamic_state::stencil_reference_value:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
 			continue;
-		}
-
-		if (!with_extended)
-		{
-			assert(false);
-			continue;
-		}
-
-		switch (states[i])
-		{
 		case api::dynamic_state::cull_mode:
-			internal_states.push_back(VK_DYNAMIC_STATE_CULL_MODE_EXT);
+			internal_states.push_back(VK_DYNAMIC_STATE_CULL_MODE);
 			continue;
 		case api::dynamic_state::front_counter_clockwise:
-			internal_states.push_back(VK_DYNAMIC_STATE_FRONT_FACE_EXT);
+			internal_states.push_back(VK_DYNAMIC_STATE_FRONT_FACE);
 			continue;
 		case api::dynamic_state::primitive_topology:
-			internal_states.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT);
+			internal_states.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
 			continue;
 		case api::dynamic_state::depth_enable:
-			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE_EXT);
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
 			continue;
 		case api::dynamic_state::depth_write_mask:
-			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE_EXT);
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE);
 			continue;
 		case api::dynamic_state::depth_func:
-			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_COMPARE_OP_EXT);
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_COMPARE_OP);
 			continue;
 		case api::dynamic_state::stencil_enable:
-			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE_EXT);
+			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE);
 			continue;
 		default:
 			assert(false);
