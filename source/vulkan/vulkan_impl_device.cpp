@@ -354,6 +354,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				object_data<VK_OBJECT_TYPE_BUFFER> data;
 				data.allocation = allocation;
 				data.create_info = create_info;
+				data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
 				if (is_shared)
 				{
@@ -443,6 +444,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				object_data<VK_OBJECT_TYPE_IMAGE> data;
 				data.allocation = allocation;
 				data.create_info = create_info;
+				data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
 				if (is_shared)
 				{

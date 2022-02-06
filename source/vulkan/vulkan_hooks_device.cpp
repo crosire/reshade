@@ -1152,6 +1152,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_BUFFER> data;
 	data.allocation = VK_NULL_HANDLE;
 	data.create_info = create_info;
+	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
 	device_impl->register_object<VK_OBJECT_TYPE_BUFFER>(*pBuffer, std::move(data));
 #endif
@@ -1202,6 +1203,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_BUFFER_VIEW> data;
 	data.create_info = create_info;
+	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
 	device_impl->register_object<VK_OBJECT_TYPE_BUFFER_VIEW>(*pView, std::move(data));
 
@@ -1257,6 +1259,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> data;
 	data.allocation = VK_NULL_HANDLE;
 	data.create_info = create_info;
+	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
 	device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(*pImage, std::move(data));
 #endif
@@ -1309,6 +1312,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE_VIEW> data;
 	data.create_info = create_info;
+	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
 	device_impl->register_object<VK_OBJECT_TYPE_IMAGE_VIEW>(*pView, std::move(data));
 
