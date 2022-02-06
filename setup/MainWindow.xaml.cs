@@ -767,19 +767,39 @@ namespace ReShade.Setup
 				}
 
 				var overrideMetaLayerPath = Path.Combine(commonPath, "VkLayer_override.json");
+				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
+
+				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);
+				if (!appKeys.Contains(targetPath))
+				{
+					appKeys.Add(targetPath);
+				}
+
+				var layerPath = Path.Combine(commonPath, is64Bit ? "ReShade64" : "ReShade32");
+
+				overrideMetaLayerManifest.GetValue("layer.override_paths", out List<string> overridePaths);
+				if (!overridePaths.Contains(layerPath))
+				{
+					overridePaths.Add(layerPath);
+				}
+
+				var layerName = is64Bit ? "VK_LAYER_reshade" : "VK_LAYER_reshade32";
+
+				overrideMetaLayerManifest.GetValue("layer.component_layers", out List<string> componentLayers);
+				if (!componentLayers.Contains(layerName))
+				{
+					componentLayers.Add(layerName);
+				}
 
 				try
 				{
-					if (!File.Exists(overrideMetaLayerPath))
+					var manifest = zip.GetEntry(Path.GetFileName(overrideMetaLayerPath));
+					if (manifest == null)
 					{
-						var manifest = zip.GetEntry(Path.GetFileName(overrideMetaLayerPath));
-						if (manifest == null)
-						{
-							throw new FileFormatException("Setup archive is missing Vulkan meta layer manifest file.");
-						}
-
-						manifest.ExtractToFile(overrideMetaLayerPath, true);
+						throw new FileFormatException("Setup archive is missing Vulkan meta layer manifest file.");
 					}
+
+					manifest.ExtractToFile(overrideMetaLayerPath, true);
 
 					// Register the meta layer manifest
 					using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
@@ -797,36 +817,10 @@ namespace ReShade.Setup
 					return;
 				}
 
-				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
-
-				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);
-				if (!appKeys.Contains(targetPath))
-				{
-					appKeys.Add(targetPath);
-
-					overrideMetaLayerManifest.SetValue("layer.app_keys", appKeys);
-				}
-
-				var layerPath = Path.Combine(commonPath, is64Bit ? "ReShade64" : "ReShade32");
-
-				overrideMetaLayerManifest.GetValue("layer.override_paths", out List<string> overridePaths);
-				if (!overridePaths.Contains(layerPath))
-				{
-					overridePaths.Add(layerPath);
-
-					overrideMetaLayerManifest.SetValue("layer.override_paths", overridePaths);
-				}
-
-				var layerName = is64Bit ? "VK_LAYER_reshade" : "VK_LAYER_reshade32";
-
-				overrideMetaLayerManifest.GetValue("layer.component_layers", out List<string> componentLayers);
-				if (!componentLayers.Contains(layerName))
-				{
-					componentLayers.Add(layerName);
-
-					overrideMetaLayerManifest.SetValue("layer.component_layers", componentLayers);
-				}
-
+				overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
+				overrideMetaLayerManifest.SetValue("layer.app_keys", appKeys);
+				overrideMetaLayerManifest.SetValue("layer.override_paths", overridePaths);
+				overrideMetaLayerManifest.SetValue("layer.component_layers", componentLayers);
 				overrideMetaLayerManifest.SaveFile();
 			}
 			else
