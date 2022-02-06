@@ -63,6 +63,24 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 	{
 		glBindVertexArray(vao);
 
+		// Rebuild vertex array object every time
+		// This fixes weird artifacts in melonDS and the first Call of Duty
+		for (const api::input_element &element : input_elements)
+		{
+			glEnableVertexAttribArray(element.location);
+
+			GLint attrib_size = 0;
+			GLboolean normalized = GL_FALSE;
+			const GLenum attrib_format = convert_attrib_format(element.format, attrib_size, normalized);
+#if 1
+			glVertexAttribFormat(element.location, attrib_size, attrib_format, normalized, element.offset);
+			glVertexAttribBinding(element.location, element.buffer_binding);
+#else
+			glVertexAttribPointer(element.location, attrib_size, attrib_format, normalized, element.stride, reinterpret_cast<const void *>(static_cast<uintptr_t>(element.offset)));
+#endif
+			glVertexBindingDivisor(element.buffer_binding, element.instance_step_rate);
+		}
+
 		glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
 
 		if (prim_mode == GL_PATCHES)

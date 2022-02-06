@@ -15,6 +15,7 @@ namespace reshade::opengl
 
 		GLuint program;
 		GLuint vao;
+		std::vector<api::input_element> input_elements;
 
 		// Blend state
 

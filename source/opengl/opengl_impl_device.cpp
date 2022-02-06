@@ -1840,31 +1840,11 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	// There always has to be a VAO for graphics pipelines, even if it is empty
 	if (is_graphics_pipeline || input_layout_desc.count != 0)
 	{
-		GLint prev_vao = 0;
 		glGenVertexArrays(1, &impl->vao);
-		glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
 
-		glBindVertexArray(impl->vao);
-
-		for (uint32_t i = 0; i < input_layout_desc.count; ++i)
-		{
-			const auto &element = static_cast<const api::input_element *>(input_layout_desc.data)[i];
-
-			glEnableVertexAttribArray(element.location);
-
-			GLint attrib_size = 0;
-			GLboolean normalized = GL_FALSE;
-			const GLenum attrib_format = convert_attrib_format(element.format, attrib_size, normalized);
-#if 1
-			glVertexAttribFormat(element.location, attrib_size, attrib_format, normalized, element.offset);
-			glVertexAttribBinding(element.location, element.buffer_binding);
-#else
-			glVertexAttribPointer(element.location, attrib_size, attrib_format, normalized, element.stride, reinterpret_cast<const void *>(static_cast<uintptr_t>(element.offset)));
-#endif
-			glVertexBindingDivisor(element.buffer_binding, element.instance_step_rate);
-		}
-
-		glBindVertexArray(prev_vao);
+		impl->input_elements.assign(
+			static_cast<const api::input_element *>(input_layout_desc.data),
+			static_cast<const api::input_element *>(input_layout_desc.data) + input_layout_desc.count);
 	}
 	else
 	{
