@@ -161,6 +161,7 @@
   <UsingTask TaskName="CL" AssemblyFile="$(VCTargetsPath)Microsoft.Build.CppTasks.Common.dll" />
   <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeBuild" Inputs="..\res\version.h;Properties\AssemblyInfo.cs.in" Outputs="$(IntermediateOutputPath)Properties\AssemblyInfo.cs">
     <Message Text="Generating assembly version ..." Importance="high" />
+    <MakeDir Directories="$(IntermediateOutputPath)Properties" />
     <CL SuppressStartupBanner="true" PreprocessSuppressLineNumbers="true" PreprocessKeepComments="true" PreprocessToFile="true" PreprocessorDefinitions="BUILD_CONFIGURATION=$(Configuration)" AdditionalIncludeDirectories="..\res" Sources="Properties\AssemblyInfo.cs.in" PreprocessOutputPath="$(IntermediateOutputPath)Properties\AssemblyInfo.cs" ToolPath="$(VC_ExecutablePath_x86)" />
   </Target>
   <!-- Archive ReShade binaries and append them to the setup executable -->

@@ -94,7 +94,7 @@ namespace ReShade.Setup
 					throw new InvalidDataException();
 				}
 			}
-			catch
+			catch (Exception)
 			{
 				MessageBox.Show("This setup archive is corrupted! Please download from https://reshade.me again.");
 				Environment.Exit(1);
