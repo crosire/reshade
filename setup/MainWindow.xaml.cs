@@ -1288,7 +1288,7 @@ In that event here are some steps you can try to resolve this:
 				{
 					try
 					{
-						File.Delete(overrideMetaLayerPath);
+						Directory.Delete(commonPath, true);
 
 						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 						{
@@ -1297,7 +1297,8 @@ In that event here are some steps you can try to resolve this:
 
 						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
 						{
-							key.DeleteValue(Path.ChangeExtension(modulePath, ".json"));
+							key.DeleteValue(Path.Combine(commonPath, "ReShade32", "ReShade32.json"), false);
+							key.DeleteValue(Path.Combine(commonPath, "ReShade64", "ReShade64.json"), false);
 						}
 					}
 					catch (Exception ex)
@@ -1319,11 +1320,9 @@ In that event here are some steps you can try to resolve this:
 			{
 				string basePath = Path.GetDirectoryName(configPath);
 
-				File.Delete(modulePath);
-
-				if (targetApi == Api.Vulkan && File.Exists(Path.ChangeExtension(modulePath, ".json")))
+				if (targetApi != Api.Vulkan)
 				{
-					File.Delete(Path.ChangeExtension(modulePath, ".json"));
+					File.Delete(modulePath);
 				}
 
 				if (File.Exists(configPath))
