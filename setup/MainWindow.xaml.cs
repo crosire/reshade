@@ -714,55 +714,56 @@ namespace ReShade.Setup
 				}
 			}
 
-			string parentPath = Path.GetDirectoryName(modulePath);
-			string moduleName = is64Bit ? "ReShade64" : "ReShade32";
-
-			try
-			{
-				if (!Directory.Exists(parentPath))
-				{
-					Directory.CreateDirectory(parentPath);
-				}
-
-				var module = zip.GetEntry(moduleName + ".dll");
-				if (module == null)
-				{
-					throw new FileFormatException("Setup archive is missing ReShade DLL file.");
-				}
-
-				module.ExtractToFile(modulePath, true);
-			}
-			catch (Exception ex)
-			{
-				UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ":\n" + ex.Message);
-				return;
-			}
-
 			if (targetApi == Api.Vulkan)
 			{
-				var layerName = is64Bit ? "VK_LAYER_reshade" : "VK_LAYER_reshade32";
-				var layerPath = Path.ChangeExtension(modulePath, ".json");
-
-				try
+				foreach (string layerModuleName in new[] { "ReShade32", "ReShade64" })
 				{
-					var manifest = zip.GetEntry(moduleName + ".json");
-					if (manifest == null)
+					string parentPath = Path.Combine(commonPath, layerModuleName);
+					string layerModulePath = Path.Combine(parentPath, layerModuleName + ".dll");
+					string layerManifestPath = Path.Combine(parentPath, layerModuleName + ".json");
+
+					try
 					{
-						throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
+						if (!Directory.Exists(parentPath))
+						{
+							Directory.CreateDirectory(parentPath);
+						}
+
+						var module = zip.GetEntry(Path.GetFileName(layerModulePath));
+						if (module == null)
+						{
+							throw new FileFormatException("Setup archive is missing ReShade DLL file.");
+						}
+
+						module.ExtractToFile(layerModulePath, true);
+					}
+					catch (Exception ex)
+					{
+						UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(layerModulePath) + ":\n" + ex.Message);
+						return;
 					}
 
-					manifest.ExtractToFile(layerPath, true);
-
-					// Register this layer manifest
-					using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
+					try
 					{
-						key.SetValue(layerPath, 0, RegistryValueKind.DWord);
+						var manifest = zip.GetEntry(Path.GetFileName(layerManifestPath));
+						if (manifest == null)
+						{
+							throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
+						}
+
+						manifest.ExtractToFile(layerManifestPath, true);
+
+						// Register this layer manifest
+						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
+						{
+							key.SetValue(layerManifestPath, 0, RegistryValueKind.DWord);
+						}
 					}
-				}
-				catch (Exception ex)
-				{
-					UpdateStatusAndFinish(false, "Failed to install Vulkan layer manifest:\n" + ex.Message);
-					return;
+					catch (Exception ex)
+					{
+						UpdateStatusAndFinish(false, "Failed to install Vulkan layer manifest:\n" + ex.Message);
+						return;
+					}
 				}
 
 				var overrideMetaLayerPath = Path.Combine(commonPath, "VkLayer_override.json");
@@ -806,13 +807,17 @@ namespace ReShade.Setup
 					overrideMetaLayerManifest.SetValue("layer.app_keys", appKeys);
 				}
 
+				var layerPath = Path.Combine(commonPath, is64Bit ? "ReShade64" : "ReShade32");
+
 				overrideMetaLayerManifest.GetValue("layer.override_paths", out List<string> overridePaths);
-				if (!overridePaths.Contains(parentPath))
+				if (!overridePaths.Contains(layerPath))
 				{
-					overridePaths.Add(parentPath);
+					overridePaths.Add(layerPath);
 
 					overrideMetaLayerManifest.SetValue("layer.override_paths", overridePaths);
 				}
+
+				var layerName = is64Bit ? "VK_LAYER_reshade" : "VK_LAYER_reshade32";
 
 				overrideMetaLayerManifest.GetValue("layer.component_layers", out List<string> componentLayers);
 				if (!componentLayers.Contains(layerName))
@@ -826,6 +831,29 @@ namespace ReShade.Setup
 			}
 			else
 			{
+				string parentPath = Path.GetDirectoryName(modulePath);
+
+				try
+				{
+					if (!Directory.Exists(parentPath))
+					{
+						Directory.CreateDirectory(parentPath);
+					}
+
+					var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
+					if (module == null)
+					{
+						throw new FileFormatException("Setup archive is missing ReShade DLL file.");
+					}
+
+					module.ExtractToFile(modulePath, true);
+				}
+				catch (Exception ex)
+				{
+					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ":\n" + ex.Message);
+					return;
+				}
+
 				// Create a default log file for troubleshooting
 				File.WriteAllText(Path.Combine(basePath, "ReShade.log"), @"
 If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
