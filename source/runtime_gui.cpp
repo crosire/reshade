@@ -2276,7 +2276,7 @@ void reshade::runtime::draw_gui_addons()
 	}
 
 	ImGui::AlignTextToFramePadding();
-	ImGui::TextColored(COLOR_YELLOW, "Only limited add-on functionality is available.");
+	ImGui::TextUnformatted("This build of ReShade has only limited add-on functionality.");
 #else
 	std::filesystem::path addon_search_path = g_reshade_base_path;
 	global_config().get("INSTALL", "AddonPath", addon_search_path);
