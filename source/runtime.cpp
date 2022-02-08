@@ -2674,7 +2674,7 @@ void reshade::runtime::enable_technique(technique &tech)
 		return; // Cannot enable techniques that failed to compile
 
 #if RESHADE_ADDON
-	if (!_is_in_api_call)
+	if (!is_loading() && !_is_in_api_call)
 	{
 		_is_in_api_call = true;
 		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_state>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, true);
@@ -3743,7 +3743,7 @@ template <> void reshade::runtime::get_uniform_value<uint32_t>(const uniform &va
 void reshade::runtime::set_uniform_value_data(uniform &variable, const uint8_t *data, size_t size, size_t base_index)
 {
 #if RESHADE_ADDON
-	if (!_is_in_api_call)
+	if (!is_loading() && !_is_in_api_call)
 	{
 		_is_in_api_call = true;
 		const bool skip = invoke_addon_event<addon_event::reshade_set_uniform_value>(this, api::effect_uniform_variable { reinterpret_cast<uintptr_t>(&variable) }, data, size);
