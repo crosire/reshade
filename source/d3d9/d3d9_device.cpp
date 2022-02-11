@@ -43,12 +43,47 @@ static inline const reshade::api::subresource_box *convert_rect_to_box(const POI
 	return &box;
 }
 
+#if RESHADE_ADDON
+#include "hook_manager.hpp"
+
+#undef IDirect3DSurface9_GetDesc
+
+static HRESULT STDMETHODCALLTYPE IDirect3DSurface9_GetDesc(IDirect3DSurface9 *pSurface, D3DSURFACE_DESC *pDesc)
+{
+	if (pDesc == nullptr)
+		return D3DERR_INVALIDCALL;
+
+	if (pDesc->Type != 0x7fffffff) // Always return correct description when special value is set before this call was made (see 'device_impl::get_resource_desc')
+	{
+		// Return original surface description in case it was modified by an add-on
+		// This is necessary to e.g. fix missing GUI elements in The Elder Scrolls IV: Oblivion and Fallout: New Vegas, since those game verify the format of created surfaces, and returning the modified one can fail that
+		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pSurface))
+			if (device_proxy->get_orig_surface_desc(pSurface, pDesc))
+				return D3D_OK;
+	}
+
+	return reshade::hooks::call(IDirect3DSurface9_GetDesc, vtable_from_instance(pSurface) + 12)(pSurface, pDesc);
+}
+#endif
+
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	device_impl(original),
 	_extended_interface(0),
 	_use_software_rendering(use_software_rendering)
 {
 	assert(_orig != nullptr);
+
+#if RESHADE_ADDON
+	if (!_orig_surface_desc.empty())
+	{
+		IDirect3DSurface9 *const surface = _orig_surface_desc.begin()->first;
+
+		const auto device_proxy = this;
+		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+
+		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
+	}
+#endif
 }
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
 	device_impl(original),
@@ -56,6 +91,18 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software
 	_use_software_rendering(use_software_rendering)
 {
 	assert(_orig != nullptr);
+
+#if RESHADE_ADDON
+	if (!_orig_surface_desc.empty())
+	{
+		IDirect3DSurface9 *const surface = _orig_surface_desc.begin()->first;
+
+		const auto device_proxy = this;
+		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+
+		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
+	}
+#endif
 }
 
 bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
@@ -130,8 +177,6 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 }
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-#include "hook_manager.hpp"
-
 #undef IDirect3DSurface9_LockRect
 #undef IDirect3DSurface9_UnlockRect
 
@@ -1037,14 +1082,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Lockable, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
 {
 #if RESHADE_ADDON
-	D3DSURFACE_DESC internal_desc = { Format, D3DRTYPE_SURFACE, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
-	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, 1, _caps, pSharedHandle != nullptr);
+	D3DSURFACE_DESC old_desc = { Format, D3DRTYPE_SURFACE, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
+	auto desc = reshade::d3d9::convert_resource_desc(old_desc, 1, _caps, pSharedHandle != nullptr);
 
+	D3DSURFACE_DESC internal_desc = old_desc;
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::render_target))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
 	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) && !Lockable ?
-		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
+		create_surface_replacement(old_desc, internal_desc, ppSurface, pSharedHandle) :
 		_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Lockable, ppSurface, pSharedHandle);
 #else
 	const HRESULT hr = _orig->CreateRenderTarget(Width, Height, Format, MultiSample, MultisampleQuality, Lockable, ppSurface, pSharedHandle);
@@ -1056,10 +1102,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
-#endif
+
+		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 
 		// In case surface was replaced with a texture resource
 		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
@@ -1088,6 +1134,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			_orig_surface_desc.erase(surface);
 		}, to_handle(surface).handle == resource.handle ? 1 : 0);
 #endif
 	}
@@ -1103,14 +1150,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Discard, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
 {
 #if RESHADE_ADDON
-	D3DSURFACE_DESC internal_desc = { Format, D3DRTYPE_SURFACE, D3DUSAGE_DEPTHSTENCIL, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
-	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, 1, _caps, pSharedHandle != nullptr);
+	D3DSURFACE_DESC old_desc = { Format, D3DRTYPE_SURFACE, D3DUSAGE_DEPTHSTENCIL, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
+	auto desc = reshade::d3d9::convert_resource_desc(old_desc, 1, _caps, pSharedHandle != nullptr);
 
+	D3DSURFACE_DESC internal_desc = old_desc;
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
 	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) ?
-		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
+		create_surface_replacement(old_desc, internal_desc, ppSurface, pSharedHandle) :
 		_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Discard, ppSurface, pSharedHandle);
 #else
 	const HRESULT hr = _orig->CreateDepthStencilSurface(Width, Height, Format, MultiSample, MultisampleQuality, Discard, ppSurface, pSharedHandle);
@@ -1122,10 +1170,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
-#endif
+
+		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 
 		// In case surface was replaced with a texture resource
 		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
@@ -1154,6 +1202,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			_orig_surface_desc.erase(surface);
 		}, to_handle(surface).handle == resource.handle ? 1 : 0);
 #endif
 	}
@@ -1413,14 +1462,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
-#if RESHADE_ADDON
-	if (_auto_depth_stencil_orig != nullptr && pNewZStencil == _auto_depth_stencil_orig)
-	{
-		// Replace original auto depth-stencil with the replaced resource again
-		pNewZStencil = _auto_depth_stencil_replacement.get();
-	}
-#endif
-
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) &&
@@ -1446,22 +1487,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurface9 **ppZStencilSurface)
 {
-	const HRESULT hr = _orig->GetDepthStencilSurface(ppZStencilSurface);
-#if RESHADE_ADDON
-	if (SUCCEEDED(hr) &&
-		_auto_depth_stencil_orig != nullptr && *ppZStencilSurface == _auto_depth_stencil_replacement)
-	{
-		// The call to 'GetDepthStencilSurface' increased the reference count, so release that before replacing
-		(*ppZStencilSurface)->Release();
-
-		// Return the original auto depth-stencil surface to the application
-		// This is necessary in e.g. The Elder Scrolls IV: Oblivion, since the game checks the created auto depth-stencil surface format, and returning the replaced resource can fail that
-		(*ppZStencilSurface) = _auto_depth_stencil_orig.get();
-		_auto_depth_stencil_orig->AddRef();
-	}
-#endif
-
-	return hr;
+	return _orig->GetDepthStencilSurface(ppZStencilSurface);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::BeginScene()
 {
@@ -2320,14 +2346,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 	assert(_extended_interface);
 
 #if RESHADE_ADDON
-	D3DSURFACE_DESC internal_desc = { Format, D3DRTYPE_SURFACE, Usage, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
-	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, 1, _caps, pSharedHandle != nullptr);
+	D3DSURFACE_DESC old_desc = { Format, D3DRTYPE_SURFACE, Usage, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
+	auto desc = reshade::d3d9::convert_resource_desc(old_desc, 1, _caps, pSharedHandle != nullptr);
 
+	D3DSURFACE_DESC internal_desc = old_desc;
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::render_target))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
 	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) && !Lockable ?
-		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
+		create_surface_replacement(old_desc, internal_desc, ppSurface, pSharedHandle) :
 		static_cast<IDirect3DDevice9Ex *>(_orig)->CreateRenderTargetEx(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Lockable, ppSurface, pSharedHandle, internal_desc.Usage);
 #else
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateRenderTargetEx(Width, Height, Format, MultiSample, MultisampleQuality, Lockable, ppSurface, pSharedHandle, Usage);
@@ -2339,10 +2366,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
-#endif
+
+		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 
 		// In case surface was replaced with a texture resource
 		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
@@ -2371,6 +2398,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			_orig_surface_desc.erase(surface);
 		}, to_handle(surface).handle == resource.handle ? 1 : 0);
 #endif
 	}
@@ -2458,14 +2486,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 	assert(_extended_interface);
 
 #if RESHADE_ADDON
-	D3DSURFACE_DESC internal_desc = { Format, D3DRTYPE_SURFACE, Usage, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
-	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, 1, _caps, pSharedHandle != nullptr);
+	D3DSURFACE_DESC old_desc = { Format, D3DRTYPE_SURFACE, Usage, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
+	auto desc = reshade::d3d9::convert_resource_desc(old_desc, 1, _caps, pSharedHandle != nullptr);
 
+	D3DSURFACE_DESC internal_desc = old_desc;
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
 	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) ?
-		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
+		create_surface_replacement(old_desc, internal_desc, ppSurface, pSharedHandle) :
 		static_cast<IDirect3DDevice9Ex *>(_orig)->CreateDepthStencilSurfaceEx(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Discard, ppSurface, pSharedHandle, internal_desc.Usage);
 #else
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateDepthStencilSurfaceEx(Width, Height, Format, MultiSample, MultisampleQuality, Discard, ppSurface, pSharedHandle, Usage);
@@ -2477,10 +2506,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
-#endif
+
+		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 
 		// In case surface was replaced with a texture resource
 		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
@@ -2509,6 +2538,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			_orig_surface_desc.erase(surface);
 		}, to_handle(surface).handle == resource.handle ? 1 : 0);
 #endif
 	}

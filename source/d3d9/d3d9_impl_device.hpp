@@ -7,6 +7,7 @@
 
 #include "addon_manager.hpp"
 #include "d3d9_impl_state_block.hpp"
+#include <unordered_map>
 
 namespace reshade::d3d9
 {
@@ -127,11 +128,22 @@ namespace reshade::d3d9
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
+#if RESHADE_ADDON
+		bool get_orig_surface_desc(IDirect3DSurface9 *surface, D3DSURFACE_DESC *out_desc) const
+		{
+			const auto it = _orig_surface_desc.find(surface);
+			if (it == _orig_surface_desc.end())
+				return false;
+			*out_desc = it->second;
+			return true;
+		}
+#endif
+
 	protected:
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
 
-		HRESULT create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr) const;
+		HRESULT create_surface_replacement(const D3DSURFACE_DESC &old_desc, const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
 		IDirect3DVertexBuffer9 *_current_stream_output = nullptr;
@@ -142,8 +154,7 @@ namespace reshade::d3d9
 		com_ptr<IDirect3D9> _d3d;
 
 #if RESHADE_ADDON
-		com_ptr<IDirect3DSurface9> _auto_depth_stencil_orig;
-		com_ptr<IDirect3DSurface9> _auto_depth_stencil_replacement;
+		std::unordered_map<IDirect3DSurface9 *, D3DSURFACE_DESC> _orig_surface_desc;
 #endif
 
 	private:
