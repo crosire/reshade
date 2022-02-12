@@ -25,12 +25,14 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 {
 	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
 	HOOK_PROC(DestroyDevice);
+
+	// VK_KHR_swapchain
 	HOOK_PROC(CreateSwapchainKHR);
 	HOOK_PROC(DestroySwapchainKHR);
-	HOOK_PROC(QueueSubmit);
 	HOOK_PROC(QueuePresentKHR);
 
 #if RESHADE_ADDON
+	HOOK_PROC(QueueSubmit);
 	HOOK_PROC(BindBufferMemory);
 	HOOK_PROC(BindBufferMemory2);
 	HOOK_PROC(BindImageMemory);
@@ -175,8 +177,12 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	HOOK_PROC(DestroyInstance);
 	HOOK_PROC(CreateDevice);
 	HOOK_PROC(DestroyDevice);
+
+	// VK_KHR_surface
 	HOOK_PROC(CreateWin32SurfaceKHR);
 	HOOK_PROC(DestroySurfaceKHR);
+
+	// VK_EXT_tooling_info
 	HOOK_PROC(GetPhysicalDeviceToolPropertiesEXT);
 
 	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
