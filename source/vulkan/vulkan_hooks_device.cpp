@@ -1407,7 +1407,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(CreateGraphicsPipelines, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
@@ -1576,7 +1576,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(CreateComputePipelines, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
@@ -1633,7 +1633,7 @@ void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, cons
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(DestroyPipeline, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_impl, reshade::api::pipeline { (uint64_t)pipeline });
 #endif
 
@@ -1656,7 +1656,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		return result;
 	}
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const uint32_t set_desc_count = pCreateInfo->setLayoutCount;
 	const uint32_t total_param_count = set_desc_count + pCreateInfo->pushConstantRangeCount;
 
@@ -1705,7 +1705,7 @@ void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pi
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(DestroyPipelineLayout, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(device_impl, reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
@@ -1775,7 +1775,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 		return result;
 	}
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
 	data.ranges.resize(pCreateInfo->bindingCount);
 	data.num_descriptors = 0;
@@ -1820,7 +1820,7 @@ void     VKAPI_CALL vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSe
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(DestroyDescriptorSetLayout, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	device_impl->unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(descriptorSetLayout);
 #endif
 
@@ -1901,7 +1901,7 @@ VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptor
 		return result;
 	}
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(pAllocateInfo->descriptorPool);
 
 	for (uint32_t i = 0; i < pAllocateInfo->descriptorSetCount; ++i)
@@ -1948,7 +1948,7 @@ VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
 		return result;
 	}
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	for (uint32_t i = 0; i < descriptorSetCount; ++i)
 	{
 		device_impl->unregister_object(VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)pDescriptorSets[i]);

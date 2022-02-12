@@ -288,7 +288,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandAllocator(D3D12_COMMAND_LIST
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
@@ -356,7 +356,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (riid == __uuidof(ID3D12PipelineState))
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
@@ -380,7 +380,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
@@ -412,7 +412,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (riid == __uuidof(ID3D12PipelineState))
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
@@ -523,7 +523,7 @@ UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DE
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const void *pBlobWithRootSignature, SIZE_T blobLengthInBytes, REFIID riid, void **ppvRootSignature)
 {
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (ppvRootSignature == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, nullptr);
 #endif
@@ -531,7 +531,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 	const HRESULT hr = _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (riid == __uuidof(ID3D12RootSignature))
 		{
 			const auto data = static_cast<const uint32_t *>(pBlobWithRootSignature);
