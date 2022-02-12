@@ -256,7 +256,7 @@ void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindP
 	const auto pipeline_stages =
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_stage::all_compute :
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_stage::all_graphics :
-		static_cast<reshade::api::pipeline_stage>(0);
+		static_cast<reshade::api::pipeline_stage>(0); // Unknown pipeline bind point
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
 		cmd_impl,
@@ -283,7 +283,7 @@ void VKAPI_CALL vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t firstVi
 	{
 		std::memcpy(&viewport_data[i], &pViewports[i], sizeof(VkViewport));
 
-		// Flip viewport vertically
+		// Flip viewport vertically (see 'command_list_impl::bind_viewports')
 		viewport_data[i].y += viewport_data[i].height;
 		viewport_data[i].height = -viewport_data[i].height;
 	}
@@ -435,7 +435,7 @@ void VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPipelin
 	const auto shader_stages =
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute :
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
-		static_cast<reshade::api::shader_stage>(0);
+		static_cast<reshade::api::shader_stage>(0); // Unknown pipeline bind point
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		cmd_impl,
@@ -1572,7 +1572,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 	const auto shader_stages =
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute :
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
-		static_cast<reshade::api::shader_stage>(0);
+		static_cast<reshade::api::shader_stage>(0); // Unknown pipeline bind point
 
 	for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i, j = 0)
 	{

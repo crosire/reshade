@@ -700,11 +700,12 @@ void reshade::d3d10::convert_input_layout_desc(uint32_t count, const api::input_
 		internal_element.InstanceDataStepRate = element.instance_step_rate;
 	}
 }
-void reshade::d3d10::convert_input_layout_desc(uint32_t count, const D3D10_INPUT_ELEMENT_DESC *internal_elements, std::vector<api::input_element> &elements)
+std::vector<reshade::api::input_element> reshade::d3d10::convert_input_layout_desc(UINT count, const D3D10_INPUT_ELEMENT_DESC *internal_elements)
 {
+	std::vector<reshade::api::input_element> elements;
 	elements.reserve(count);
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (UINT i = 0; i < count; ++i)
 	{
 		const D3D10_INPUT_ELEMENT_DESC &internal_element = internal_elements[i];
 
@@ -716,6 +717,8 @@ void reshade::d3d10::convert_input_layout_desc(uint32_t count, const D3D10_INPUT
 		element.offset = internal_element.AlignedByteOffset;
 		element.instance_step_rate = internal_element.InstanceDataStepRate;
 	}
+
+	return elements;
 }
 
 void reshade::d3d10::convert_blend_desc(const api::blend_desc &desc, D3D10_BLEND_DESC &internal_desc)

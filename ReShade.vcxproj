@@ -526,7 +526,9 @@
     <ClCompile Include="source\d3d12\d3d12_impl_swapchain.cpp" />
     <ClCompile Include="source\d3d12\d3d12_impl_type_convert.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
-    <ClCompile Include="source\d3d9\d3d9_device.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_device.cpp">
+      <DisableSpecificWarnings Condition="'$(Configuration)'=='Debug App'">4458;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_impl_command_list.cpp" />
     <ClCompile Include="source\d3d9\d3d9_impl_command_queue.cpp" />
     <ClCompile Include="source\d3d9\d3d9_impl_device.cpp" />

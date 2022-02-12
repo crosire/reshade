@@ -1833,7 +1833,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
 		ImGui::BeginGroup();
 
-		ImGui::Text("%X", _renderer_id);
+		ImGui::Text("0x%X", _renderer_id);
 		if (_device_id != 0)
 			ImGui::Text("DEV_%X", _device_id);
 		else

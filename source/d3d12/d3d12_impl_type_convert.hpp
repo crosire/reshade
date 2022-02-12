@@ -13,8 +13,6 @@ namespace reshade::d3d12
 	static_assert(sizeof(D3D12_RECT) == sizeof(api::rect));
 	static_assert(sizeof(D3D12_VIEWPORT) == sizeof(api::viewport));
 
-	extern const GUID extra_data_guid;
-
 	struct pipeline_extra_data
 	{
 		D3D12_PRIMITIVE_TOPOLOGY topology;
@@ -25,6 +23,8 @@ namespace reshade::d3d12
 	{
 		const std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT> *ranges;
 	};
+
+	extern const GUID extra_data_guid;
 
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
@@ -64,7 +64,7 @@ namespace reshade::d3d12
 	api::shader_desc convert_shader_desc(const D3D12_SHADER_BYTECODE &internal_desc);
 
 	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3D12_INPUT_ELEMENT_DESC> &internal_elements);
-	void convert_input_layout_desc(uint32_t count, const D3D12_INPUT_ELEMENT_DESC *internal_elements, std::vector<api::input_element> &elements);
+	std::vector<api::input_element> convert_input_layout_desc(UINT count, const D3D12_INPUT_ELEMENT_DESC *internal_elements);
 
 	void convert_stream_output_desc(const api::stream_output_desc &desc, D3D12_STREAM_OUTPUT_DESC &internal_desc);
 	api::stream_output_desc convert_stream_output_desc(const D3D12_STREAM_OUTPUT_DESC &internal_desc);

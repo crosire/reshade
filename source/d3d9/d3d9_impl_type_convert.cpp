@@ -814,10 +814,12 @@ void reshade::d3d9::convert_input_layout_desc(uint32_t count, const api::input_e
 
 	internal_elements.push_back(D3DDECL_END());
 }
-void reshade::d3d9::convert_input_layout_desc(const D3DVERTEXELEMENT9 *internal_elements, std::vector<api::input_element> &elements)
+std::vector<reshade::api::input_element> reshade::d3d9::convert_input_layout_desc(const D3DVERTEXELEMENT9 *internal_elements)
 {
 	if (internal_elements == nullptr)
-		return;
+		return {};
+
+	std::vector<api::input_element> elements;
 
 	for (uint32_t i = 0; internal_elements[i].Stream != 0xFF; ++i)
 	{
@@ -934,6 +936,8 @@ void reshade::d3d9::convert_input_layout_desc(const D3DVERTEXELEMENT9 *internal_
 
 		element.semantic_index = internal_element.UsageIndex;
 	}
+
+	return elements;
 }
 
 auto reshade::d3d9::convert_blend_op(D3DBLENDOP value) -> api::blend_op

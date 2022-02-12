@@ -9,6 +9,9 @@
 #include "reshade_api_pipeline.hpp"
 #include "d3d12_impl_type_convert.hpp"
 
+// {B2257A30-4014-46EA-BD88-DEC21DB6A02B}
+const GUID reshade::d3d12::extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
+
 auto reshade::d3d12::convert_format(api::format format) -> DXGI_FORMAT
 {
 	if (static_cast<uint32_t>(format) >= 1000)
@@ -692,11 +695,12 @@ void reshade::d3d12::convert_input_layout_desc(uint32_t count, const api::input_
 		internal_element.InstanceDataStepRate = element.instance_step_rate;
 	}
 }
-void reshade::d3d12::convert_input_layout_desc(uint32_t count, const D3D12_INPUT_ELEMENT_DESC *internal_elements, std::vector<api::input_element> &elements)
+std::vector<reshade::api::input_element> reshade::d3d12::convert_input_layout_desc(UINT count, const D3D12_INPUT_ELEMENT_DESC *internal_elements)
 {
+	std::vector<api::input_element> elements;
 	elements.reserve(count);
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (UINT i = 0; i < count; ++i)
 	{
 		const D3D12_INPUT_ELEMENT_DESC &internal_element = internal_elements[i];
 
@@ -708,6 +712,8 @@ void reshade::d3d12::convert_input_layout_desc(uint32_t count, const D3D12_INPUT
 		element.offset = internal_element.AlignedByteOffset;
 		element.instance_step_rate = internal_element.InstanceDataStepRate;
 	}
+
+	return elements;
 }
 
 void reshade::d3d12::convert_stream_output_desc(const api::stream_output_desc &desc, D3D12_STREAM_OUTPUT_DESC &internal_desc)

@@ -1180,11 +1180,59 @@ reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(con
 	return desc;
 }
 
-void reshade::vulkan::convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info, std::vector<api::dynamic_state> &states)
+void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states)
+{
+	internal_states.reserve(count);
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		switch (states[i])
+		{
+		case api::dynamic_state::blend_constant:
+			internal_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+			continue;
+		case api::dynamic_state::stencil_read_mask:
+			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+			continue;
+		case api::dynamic_state::stencil_write_mask:
+			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
+			continue;
+		case api::dynamic_state::stencil_reference_value:
+			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+			continue;
+		case api::dynamic_state::cull_mode:
+			internal_states.push_back(VK_DYNAMIC_STATE_CULL_MODE);
+			continue;
+		case api::dynamic_state::front_counter_clockwise:
+			internal_states.push_back(VK_DYNAMIC_STATE_FRONT_FACE);
+			continue;
+		case api::dynamic_state::primitive_topology:
+			internal_states.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
+			continue;
+		case api::dynamic_state::depth_enable:
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
+			continue;
+		case api::dynamic_state::depth_write_mask:
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE);
+			continue;
+		case api::dynamic_state::depth_func:
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_COMPARE_OP);
+			continue;
+		case api::dynamic_state::stencil_enable:
+			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE);
+			continue;
+		default:
+			assert(false);
+			continue;
+		}
+	}
+}
+std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info)
 {
 	if (create_info == nullptr)
-		return;
+		return {};
 
+	std::vector<api::dynamic_state> states;
 	states.reserve(create_info->dynamicStateCount);
 
 	for (uint32_t i = 0; i < create_info->dynamicStateCount; ++i)
@@ -1253,84 +1301,10 @@ void reshade::vulkan::convert_dynamic_states(const VkPipelineDynamicStateCreateI
 			break;
 		}
 	}
-}
-void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states)
-{
-	internal_states.reserve(count);
 
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		switch (states[i])
-		{
-		case api::dynamic_state::blend_constant:
-			internal_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-			continue;
-		case api::dynamic_state::stencil_read_mask:
-			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
-			continue;
-		case api::dynamic_state::stencil_write_mask:
-			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
-			continue;
-		case api::dynamic_state::stencil_reference_value:
-			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
-			continue;
-		case api::dynamic_state::cull_mode:
-			internal_states.push_back(VK_DYNAMIC_STATE_CULL_MODE);
-			continue;
-		case api::dynamic_state::front_counter_clockwise:
-			internal_states.push_back(VK_DYNAMIC_STATE_FRONT_FACE);
-			continue;
-		case api::dynamic_state::primitive_topology:
-			internal_states.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
-			continue;
-		case api::dynamic_state::depth_enable:
-			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
-			continue;
-		case api::dynamic_state::depth_write_mask:
-			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE);
-			continue;
-		case api::dynamic_state::depth_func:
-			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_COMPARE_OP);
-			continue;
-		case api::dynamic_state::stencil_enable:
-			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE);
-			continue;
-		default:
-			assert(false);
-			continue;
-		}
-	}
+	return states;
 }
 
-void reshade::vulkan::convert_input_layout_desc(const VkPipelineVertexInputStateCreateInfo *create_info, std::vector<api::input_element> &elements)
-{
-	if (create_info == nullptr)
-		return;
-
-	elements.resize(create_info->vertexAttributeDescriptionCount);
-
-	for (uint32_t a = 0; a < create_info->vertexAttributeDescriptionCount; ++a)
-	{
-		const VkVertexInputAttributeDescription &attribute = create_info->pVertexAttributeDescriptions[a];
-
-		elements[a].location = attribute.location;
-		elements[a].format = reshade::vulkan::convert_format(attribute.format);
-		elements[a].buffer_binding = attribute.binding;
-		elements[a].offset = attribute.offset;
-
-		for (uint32_t b = 0; b < create_info->vertexBindingDescriptionCount; ++b)
-		{
-			const VkVertexInputBindingDescription &binding = create_info->pVertexBindingDescriptions[b];
-
-			if (binding.binding == attribute.binding)
-			{
-				elements[a].stride = binding.stride;
-				elements[a].instance_step_rate = binding.inputRate != VK_VERTEX_INPUT_RATE_VERTEX ? 1 : 0;
-				break;
-			}
-		}
-	}
-}
 void reshade::vulkan::convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<VkVertexInputBindingDescription> &vertex_bindings, std::vector<VkVertexInputAttributeDescription> &vertex_attributes)
 {
 	vertex_attributes.reserve(count);
@@ -1362,6 +1336,38 @@ void reshade::vulkan::convert_input_layout_desc(uint32_t count, const api::input
 			binding.inputRate = input_rate;
 		}
 	}
+}
+std::vector<reshade::api::input_element> reshade::vulkan::convert_input_layout_desc(const VkPipelineVertexInputStateCreateInfo *create_info)
+{
+	if (create_info == nullptr)
+		return {};
+
+	std::vector<api::input_element> elements;
+	elements.resize(create_info->vertexAttributeDescriptionCount);
+
+	for (uint32_t a = 0; a < create_info->vertexAttributeDescriptionCount; ++a)
+	{
+		const VkVertexInputAttributeDescription &attribute = create_info->pVertexAttributeDescriptions[a];
+
+		elements[a].location = attribute.location;
+		elements[a].format = reshade::vulkan::convert_format(attribute.format);
+		elements[a].buffer_binding = attribute.binding;
+		elements[a].offset = attribute.offset;
+
+		for (uint32_t b = 0; b < create_info->vertexBindingDescriptionCount; ++b)
+		{
+			const VkVertexInputBindingDescription &binding = create_info->pVertexBindingDescriptions[b];
+
+			if (binding.binding == attribute.binding)
+			{
+				elements[a].stride = binding.stride;
+				elements[a].instance_step_rate = binding.inputRate != VK_VERTEX_INPUT_RATE_VERTEX ? 1 : 0;
+				break;
+			}
+		}
+	}
+
+	return elements;
 }
 
 void reshade::vulkan::convert_stream_output_desc(const api::stream_output_desc &desc, VkPipelineRasterizationStateCreateInfo &create_info)

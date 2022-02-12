@@ -60,7 +60,7 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 		rtv_handles[i] = rts[i].view;
 
 		if (rts[i].load_op == api::render_pass_load_op::clear)
-			clear_flags |= D3DCLEAR_TARGET;
+			clear_flags |= D3DCLEAR_TARGET; // This will clear all render targets, not just the current one ...
 	}
 
 	api::resource_view depth_stencil_handle = {};
@@ -218,7 +218,7 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 	constexpr api::shader_stage stages_to_iterate[] = { api::shader_stage::pixel, api::shader_stage::vertex };
 	for (api::shader_stage stage : stages_to_iterate)
 	{
-		if ((stages & stage) != stage)
+		if ((stages & stage) == 0)
 			continue;
 
 		if (stage == api::shader_stage::vertex)
@@ -291,9 +291,9 @@ void reshade::d3d9::device_impl::bind_descriptor_sets(api::shader_stage stages, 
 
 void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
+#ifndef NDEBUG
 	assert(offset == 0);
 
-#ifndef NDEBUG
 	if (buffer.handle != 0)
 	{
 		assert(index_size == 2 || index_size == 4);
@@ -330,6 +330,7 @@ void reshade::d3d9::device_impl::bind_stream_output_buffers(uint32_t first, uint
 void reshade::d3d9::device_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
 	assert(instance_count == 1 && first_instance == 0);
+	assert(_current_prim_type != 0); // Need to bind a primitive topology before performing draw call
 
 	if (_current_stream_output != nullptr)
 	{
@@ -345,6 +346,7 @@ void reshade::d3d9::device_impl::draw(uint32_t vertex_count, uint32_t instance_c
 void reshade::d3d9::device_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	assert(instance_count == 1 && first_instance == 0);
+	assert(_current_prim_type != 0);
 
 	_orig->DrawIndexedPrimitive(_current_prim_type, vertex_offset, 0, 0xFFFF, first_index, calc_prim_from_vertex_count(_current_prim_type, index_count));
 }

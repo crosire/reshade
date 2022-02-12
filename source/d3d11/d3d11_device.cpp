@@ -479,8 +479,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEME
 		return _orig->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, nullptr);
 
 	std::vector<D3D11_INPUT_ELEMENT_DESC> internal_elements;
-	std::vector<reshade::api::input_element> elements;
-	reshade::d3d11::convert_input_layout_desc(NumElements, pInputElementDescs, elements);
+	auto elements = reshade::d3d11::convert_input_layout_desc(NumElements, pInputElementDescs);
 
 	const reshade::api::pipeline_subobject subobjects[] = {
 		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(elements.size()), elements.data() }

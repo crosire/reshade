@@ -163,11 +163,11 @@ namespace reshade::vulkan
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
 
-	void convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info, std::vector<api::dynamic_state> &states);
 	void convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states);
+	std::vector<api::dynamic_state> convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info);
 
-	void convert_input_layout_desc(const VkPipelineVertexInputStateCreateInfo *create_info, std::vector<api::input_element> &elements);
 	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<VkVertexInputBindingDescription> &vertex_bindings, std::vector<VkVertexInputAttributeDescription> &vertex_attributes);
+	std::vector<api::input_element> convert_input_layout_desc(const VkPipelineVertexInputStateCreateInfo *create_info);
 
 	void convert_stream_output_desc(const api::stream_output_desc &desc, VkPipelineRasterizationStateCreateInfo &create_info);
 	api::stream_output_desc convert_stream_output_desc(const VkPipelineRasterizationStateCreateInfo *create_info);

@@ -215,7 +215,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features.shaderStorageImageWriteWithoutFormat = true;
 
 		// Enable extensions that ReShade requires
-		if (!add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
+		if (!add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true)) // This is core in Vulkan 1.3, but enable anyway to ensure compatibility with 1.1 and 1.2
 			return VK_ERROR_EXTENSION_NOT_PRESENT;
 
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
@@ -1422,15 +1422,14 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		auto blend_desc = reshade::vulkan::convert_blend_desc(create_info.pColorBlendState, create_info.pMultisampleState);
 		auto rasterizer_desc = reshade::vulkan::convert_rasterizer_desc(create_info.pRasterizationState, create_info.pMultisampleState);
 		auto depth_stencil_desc = reshade::vulkan::convert_depth_stencil_desc(create_info.pDepthStencilState);
+		auto input_layout = reshade::vulkan::convert_input_layout_desc(create_info.pVertexInputState);
 		reshade::api::primitive_topology topology = (create_info.pInputAssemblyState != nullptr) ? reshade::vulkan::convert_primitive_topology(create_info.pInputAssemblyState->topology) : reshade::api::primitive_topology::undefined;
 		reshade::api::format depth_stencil_format = reshade::api::format::unknown;
 		reshade::api::format render_target_formats[8] = {};
 		uint32_t sample_mask = (create_info.pMultisampleState != nullptr && create_info.pMultisampleState->pSampleMask != nullptr) ? *create_info.pMultisampleState->pSampleMask : UINT32_MAX;
 		uint32_t sample_count = (create_info.pMultisampleState != nullptr) ? static_cast<uint32_t>(create_info.pMultisampleState->rasterizationSamples) : 1;
 		uint32_t viewport_count = (create_info.pViewportState != nullptr) ? create_info.pViewportState->viewportCount : 1;
-
-		std::vector<reshade::api::input_element> input_layout;
-		reshade::vulkan::convert_input_layout_desc(create_info.pVertexInputState, input_layout);
+		auto dynamic_states = reshade::vulkan::convert_dynamic_states(create_info.pDynamicState);
 
 		for (uint32_t k = 0; k < create_info.stageCount; ++k)
 		{
@@ -1516,9 +1515,6 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			}
 		}
 
-		std::vector<reshade::api::dynamic_state> states;
-		reshade::vulkan::convert_dynamic_states(create_info.pDynamicState, states);
-
 		const reshade::api::pipeline_subobject subobjects[] = {
 			{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc },
 			{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc },
@@ -1536,7 +1532,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			{ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format },
 			{ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count },
 			{ reshade::api::pipeline_subobject_type::viewport_count, 1, &viewport_count },
-			{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(states.size()), states.data() },
+			{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
 		};
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
