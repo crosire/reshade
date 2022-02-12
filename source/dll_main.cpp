@@ -921,6 +921,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			}
 		}
 
+		if (reshade::global_config().get("INSTALL", "PreventUnloading"))
+			GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(hModule), &hModule);
+
 		// Register modules to hook
 		{
 			reshade::hooks::register_module(L"user32.dll");
