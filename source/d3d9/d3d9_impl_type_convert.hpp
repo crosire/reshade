@@ -12,6 +12,8 @@ namespace reshade::d3d9
 	static_assert(sizeof(D3DBOX) == sizeof(api::subresource_box));
 	static_assert(sizeof(D3DRECT) == sizeof(api::rect));
 
+	extern const GUID surface_desc_guid;
+
 	struct sampler_impl
 	{
 		DWORD state[12];

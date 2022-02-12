@@ -128,17 +128,6 @@ namespace reshade::d3d9
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-#if RESHADE_ADDON
-		bool get_orig_surface_desc(IDirect3DSurface9 *surface, D3DSURFACE_DESC *out_desc) const
-		{
-			const auto it = _orig_surface_desc.find(surface);
-			if (it == _orig_surface_desc.end())
-				return false;
-			*out_desc = it->second;
-			return true;
-		}
-#endif
-
 	protected:
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
@@ -152,10 +141,6 @@ namespace reshade::d3d9
 		D3DCAPS9 _caps = {};
 		D3DDEVICE_CREATION_PARAMETERS _cp = {};
 		com_ptr<IDirect3D9> _d3d;
-
-#if RESHADE_ADDON
-		std::unordered_map<IDirect3DSurface9 *, D3DSURFACE_DESC> _orig_surface_desc;
-#endif
 
 	private:
 		state_block _backup_state;

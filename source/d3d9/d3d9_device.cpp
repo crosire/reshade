@@ -53,13 +53,13 @@ static HRESULT STDMETHODCALLTYPE IDirect3DSurface9_GetDesc(IDirect3DSurface9 *pS
 	if (pDesc == nullptr)
 		return D3DERR_INVALIDCALL;
 
-	if (pDesc->Type != 0x7fffffff) // Always return correct description when special value is set before this call was made (see 'device_impl::get_resource_desc')
+	if (pDesc->Type != 0xBADC0DE) // Always return correct description when special value is set before this call was made (see 'device_impl::get_resource_desc')
 	{
-		// Return original surface description in case it was modified by an add-on
+		// Return original surface description in case it was modified by an add-on (see 'device_impl::create_surface_replacement')
 		// This is necessary to e.g. fix missing GUI elements in The Elder Scrolls IV: Oblivion and Fallout: New Vegas, since those game verify the format of created surfaces, and returning the modified one can fail that
-		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pSurface))
-			if (device_proxy->get_orig_surface_desc(pSurface, pDesc))
-				return D3D_OK;
+		DWORD size = sizeof(*pDesc);
+		if (SUCCEEDED(pSurface->GetPrivateData(reshade::d3d9::surface_desc_guid, pDesc, &size)))
+			return D3D_OK;
 	}
 
 	return reshade::hooks::call(IDirect3DSurface9_GetDesc, vtable_from_instance(pSurface) + 12)(pSurface, pDesc);
@@ -74,15 +74,8 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software
 	assert(_orig != nullptr);
 
 #if RESHADE_ADDON
-	if (!_orig_surface_desc.empty())
-	{
-		IDirect3DSurface9 *const surface = _orig_surface_desc.begin()->first;
-
-		const auto device_proxy = this;
-		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
-
-		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
-	}
+	if (com_ptr<IDirect3DSurface9> dsv; SUCCEEDED(_orig->GetDepthStencilSurface(&dsv)))
+		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(dsv.get()), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 #endif
 }
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
@@ -91,18 +84,6 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software
 	_use_software_rendering(use_software_rendering)
 {
 	assert(_orig != nullptr);
-
-#if RESHADE_ADDON
-	if (!_orig_surface_desc.empty())
-	{
-		IDirect3DSurface9 *const surface = _orig_surface_desc.begin()->first;
-
-		const auto device_proxy = this;
-		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
-
-		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
-	}
-#endif
 }
 
 bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
@@ -1102,8 +1083,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+#endif
 
 		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 
@@ -1134,7 +1117,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			_orig_surface_desc.erase(surface);
 		}, to_handle(surface).handle == resource.handle ? 1 : 0);
 #endif
 	}
@@ -1170,8 +1152,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+#endif
 
 		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 
@@ -1202,7 +1186,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			_orig_surface_desc.erase(surface);
 		}, to_handle(surface).handle == resource.handle ? 1 : 0);
 #endif
 	}
@@ -2366,8 +2349,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+#endif
 
 		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 
@@ -2398,7 +2383,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			_orig_surface_desc.erase(surface);
 		}, to_handle(surface).handle == resource.handle ? 1 : 0);
 #endif
 	}
@@ -2506,8 +2490,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 #if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+#endif
 
 		reshade::hooks::install("IDirect3DSurface9::GetDesc", vtable_from_instance(surface), 12, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_GetDesc));
 
@@ -2538,7 +2524,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		});
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			_orig_surface_desc.erase(surface);
 		}, to_handle(surface).handle == resource.handle ? 1 : 0);
 #endif
 	}
