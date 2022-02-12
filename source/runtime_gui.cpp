@@ -1781,6 +1781,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		ImGui::BeginGroup();
 
+		ImGui::TextUnformatted("API:");
 		ImGui::TextUnformatted("Hardware:");
 		ImGui::TextUnformatted("Application:");
 		ImGui::TextUnformatted("Time:");
@@ -1793,6 +1794,30 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
 		ImGui::BeginGroup();
 
+		const char *api_name = "Unknown";
+		switch (_device->get_api())
+		{
+		case api::device_api::d3d9:
+			api_name = "D3D9";
+			break;
+		case api::device_api::d3d10:
+			api_name = "D3D10";
+			break;
+		case api::device_api::d3d11:
+			api_name = "D3D11";
+			break;
+		case api::device_api::d3d12:
+			api_name = "D3D12";
+			break;
+		case api::device_api::opengl:
+			api_name = "OpenGL";
+			break;
+		case api::device_api::vulkan:
+			api_name = "Vulkan";
+			break;
+		}
+
+		ImGui::TextUnformatted(api_name);
 		if (_vendor_id != 0)
 			ImGui::Text("VEN_%X", _vendor_id);
 		else
@@ -1808,6 +1833,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
 		ImGui::BeginGroup();
 
+		ImGui::Text("%X", _renderer_id);
 		if (_device_id != 0)
 			ImGui::Text("DEV_%X", _device_id);
 		else
