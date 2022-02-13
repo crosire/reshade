@@ -338,8 +338,8 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 {
 	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
 		return false; // Skip resources that are not 2D textures
-	if (desc.texture.samples != 1 || (desc.usage & resource_usage::depth_stencil) == 0)
-		return false; // Skip MSAA textures and resources that are not used for depth-stencil views
+	if (desc.texture.samples != 1 || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
+		return false; // Skip MSAA textures and resources that are not used as depth buffers
 
 	switch (device->get_api())
 	{

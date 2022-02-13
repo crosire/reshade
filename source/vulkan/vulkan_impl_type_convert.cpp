@@ -1036,7 +1036,9 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 	if ((create_info.flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) != 0)
 		desc.flags |= api::resource_flags::sparse_binding;
 
-	if ((create_info.flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0)
+	if ((create_info.flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0 &&
+		// Do not convert depth-stencil formats to typeless variant, as that breaks later conversion back to 'VkFormat'
+		(create_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
 		desc.texture.format = api::format_to_typeless(desc.texture.format);
 
 	if ((create_info.flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) != 0)
