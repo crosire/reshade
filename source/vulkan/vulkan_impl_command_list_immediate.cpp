@@ -91,16 +91,16 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 
 	assert(_orig != VK_NULL_HANDLE);
 
+	VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
 	// Submit all asynchronous commands in one batch to the current queue
 	if (vk.EndCommandBuffer(_orig) != VK_SUCCESS)
 	{
 		LOG(ERROR) << "Failed to close immediate command list!";
 
 		// Have to reset the command buffer when closing it was unsuccessfull
-		VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-		vk.BeginCommandBuffer(_cmd_buffers[_cmd_index], 0);
+		vk.BeginCommandBuffer(_orig, &begin_info);
 		return false;
 	}
 
@@ -122,7 +122,13 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 	vk.ResetFences(_device_impl->_orig, 1, &_cmd_fences[_cmd_index]);
 
 	if (vk.QueueSubmit(queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
+	{
+		LOG(ERROR) << "Failed to submit immediate command list!";
+
+		// Have to reset the command buffer when submitting it was unsuccessfull
+		vk.BeginCommandBuffer(_orig, &begin_info);
 		return false;
+	}
 
 	// Only signal and wait on a semaphore if the submit this flush is executed in originally did
 	if (!wait_semaphores.empty())
@@ -143,9 +149,6 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 	}
 
 	// Command buffer is now ready for a reset
-	VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
 	if (vk.BeginCommandBuffer(_cmd_buffers[_cmd_index], &begin_info) != VK_SUCCESS)
 		return false;
 
