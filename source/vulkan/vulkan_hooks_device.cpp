@@ -33,9 +33,9 @@ static lockfree_linear_map<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16
 	if (dispatch_table.name == nullptr) \
 		dispatch_table.name  = reinterpret_cast<PFN_vk##name##suffix>(get_device_proc(device, "vk" #name #suffix))
 
+#if RESHADE_ADDON
 extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
 
-#if RESHADE_ADDON
 static void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
 {
 	if (image == VK_NULL_HANDLE)
@@ -53,8 +53,10 @@ static void create_default_view(reshade::vulkan::device_impl *device_impl, VkIma
 		default_view_info.viewType = static_cast<VkImageViewType>(data->create_info.imageType); // Map 'VK_IMAGE_TYPE_1D' to VK_IMAGE_VIEW_TYPE_1D' and so on
 		default_view_info.format = data->create_info.format;
 		default_view_info.subresourceRange.aspectMask = aspect_flags_from_format(data->create_info.format);
+		default_view_info.subresourceRange.baseMipLevel = 0;
 		default_view_info.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-		default_view_info.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+		default_view_info.subresourceRange.baseArrayLayer = 0;
+		default_view_info.subresourceRange.layerCount = 1; // Non-array image view types can only contain a single layer
 
 		vkCreateImageView(device_impl->_orig, &default_view_info, nullptr, &data->default_view);
 	}
@@ -215,7 +217,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features.shaderStorageImageWriteWithoutFormat = true;
 
 		// Enable extensions that ReShade requires
-		if (!add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true)) // This is core in Vulkan 1.3, but enable anyway to ensure compatibility with 1.1 and 1.2
+		if (instance_dispatch.api_version < VK_API_VERSION_1_3 && !add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
 			return VK_ERROR_EXTENSION_NOT_PRESENT;
 
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
@@ -224,11 +226,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef VK_KHR_push_descriptor
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 #endif
-		dynamic_rendering_ext = add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
+		dynamic_rendering_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
 #ifdef VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 #endif
-		extended_dynamic_state_ext = add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
+#ifdef VK_EXT_extended_dynamic_state
+		extended_dynamic_state_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
+#endif
 #ifdef VK_EXT_conservative_rasterization
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
 #endif
@@ -259,6 +263,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	create_info.pNext = &private_data_feature;
 
+	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
+	if (dynamic_rendering_ext)
+	{
+		dynamic_rendering_feature.pNext = const_cast<void *>(create_info.pNext);
+		dynamic_rendering_feature.dynamicRendering = VK_TRUE;
+
+		create_info.pNext = &dynamic_rendering_feature;
+	}
+
 #ifdef VK_EXT_custom_border_color
 	// Optionally enable custom border color feature
 	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
@@ -272,6 +285,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 #endif
 
+#ifdef VK_EXT_extended_dynamic_state
 	// Optionally enable extended dynamic state feature
 	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
 	if (extended_dynamic_state_ext)
@@ -281,6 +295,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &extended_dynamic_state_feature;
 	}
+#endif
 
 	// Continue calling down the chain
 	g_in_dxgi_runtime = true;
@@ -401,49 +416,58 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdExecuteCommands);
 	#pragma endregion
 	#pragma region Core 1_1
-	INIT_DISPATCH_PTR(BindBufferMemory2);
-	INIT_DISPATCH_PTR(BindImageMemory2);
-	INIT_DISPATCH_PTR(GetBufferMemoryRequirements2);
-	INIT_DISPATCH_PTR(GetImageMemoryRequirements2);
-	INIT_DISPATCH_PTR(GetDeviceQueue2);
+	if (instance_dispatch.api_version >= VK_API_VERSION_1_1)
+	{
+		INIT_DISPATCH_PTR(BindBufferMemory2);
+		INIT_DISPATCH_PTR(BindImageMemory2);
+		INIT_DISPATCH_PTR(GetBufferMemoryRequirements2);
+		INIT_DISPATCH_PTR(GetImageMemoryRequirements2);
+		INIT_DISPATCH_PTR(GetDeviceQueue2);
+	}
 	#pragma endregion
 	#pragma region Core 1_2
-	INIT_DISPATCH_PTR(CreateRenderPass2);
-	INIT_DISPATCH_PTR(CmdBeginRenderPass2);
-	INIT_DISPATCH_PTR(CmdNextSubpass2);
-	INIT_DISPATCH_PTR(CmdEndRenderPass2);
+	if (instance_dispatch.api_version >= VK_API_VERSION_1_2)
+	{
+		INIT_DISPATCH_PTR(CreateRenderPass2);
+		INIT_DISPATCH_PTR(CmdBeginRenderPass2);
+		INIT_DISPATCH_PTR(CmdNextSubpass2);
+		INIT_DISPATCH_PTR(CmdEndRenderPass2);
+	}
 	#pragma endregion
 	#pragma region Core 1_3
-	INIT_DISPATCH_PTR(CreatePrivateDataSlot);
-	INIT_DISPATCH_PTR(DestroyPrivateDataSlot);
-	INIT_DISPATCH_PTR(GetPrivateData);
-	INIT_DISPATCH_PTR(SetPrivateData);
-	INIT_DISPATCH_PTR(CmdPipelineBarrier2);
-	INIT_DISPATCH_PTR(CmdWriteTimestamp2);
-	INIT_DISPATCH_PTR(QueueSubmit2);
-	INIT_DISPATCH_PTR(CmdCopyBuffer2);
-	INIT_DISPATCH_PTR(CmdCopyImage2);
-	INIT_DISPATCH_PTR(CmdBlitImage2);
-	INIT_DISPATCH_PTR(CmdCopyBufferToImage2);
-	INIT_DISPATCH_PTR(CmdCopyImageToBuffer2);
-	INIT_DISPATCH_PTR(CmdResolveImage2);
-	INIT_DISPATCH_PTR(CmdBeginRendering);
-	INIT_DISPATCH_PTR(CmdEndRendering);
-	INIT_DISPATCH_PTR(CmdSetCullMode);
-	INIT_DISPATCH_PTR(CmdSetFrontFace);
-	INIT_DISPATCH_PTR(CmdSetPrimitiveTopology);
-	INIT_DISPATCH_PTR(CmdSetViewportWithCount);
-	INIT_DISPATCH_PTR(CmdSetScissorWithCount);
-	INIT_DISPATCH_PTR(CmdBindVertexBuffers2);
-	INIT_DISPATCH_PTR(CmdSetDepthTestEnable);
-	INIT_DISPATCH_PTR(CmdSetDepthWriteEnable);
-	INIT_DISPATCH_PTR(CmdSetDepthCompareOp);
-	INIT_DISPATCH_PTR(CmdSetDepthBoundsTestEnable);
-	INIT_DISPATCH_PTR(CmdSetStencilTestEnable);
-	INIT_DISPATCH_PTR(CmdSetStencilOp);
-	INIT_DISPATCH_PTR(CmdSetRasterizerDiscardEnable);
-	INIT_DISPATCH_PTR(CmdSetDepthBiasEnable);
-	INIT_DISPATCH_PTR(CmdSetPrimitiveRestartEnable);
+	if (instance_dispatch.api_version >= VK_API_VERSION_1_3)
+	{
+		INIT_DISPATCH_PTR(CreatePrivateDataSlot);
+		INIT_DISPATCH_PTR(DestroyPrivateDataSlot);
+		INIT_DISPATCH_PTR(GetPrivateData);
+		INIT_DISPATCH_PTR(SetPrivateData);
+		INIT_DISPATCH_PTR(CmdPipelineBarrier2);
+		INIT_DISPATCH_PTR(CmdWriteTimestamp2);
+		INIT_DISPATCH_PTR(QueueSubmit2);
+		INIT_DISPATCH_PTR(CmdCopyBuffer2);
+		INIT_DISPATCH_PTR(CmdCopyImage2);
+		INIT_DISPATCH_PTR(CmdBlitImage2);
+		INIT_DISPATCH_PTR(CmdCopyBufferToImage2);
+		INIT_DISPATCH_PTR(CmdCopyImageToBuffer2);
+		INIT_DISPATCH_PTR(CmdResolveImage2);
+		INIT_DISPATCH_PTR(CmdBeginRendering);
+		INIT_DISPATCH_PTR(CmdEndRendering);
+		INIT_DISPATCH_PTR(CmdSetCullMode);
+		INIT_DISPATCH_PTR(CmdSetFrontFace);
+		INIT_DISPATCH_PTR(CmdSetPrimitiveTopology);
+		INIT_DISPATCH_PTR(CmdSetViewportWithCount);
+		INIT_DISPATCH_PTR(CmdSetScissorWithCount);
+		INIT_DISPATCH_PTR(CmdBindVertexBuffers2);
+		INIT_DISPATCH_PTR(CmdSetDepthTestEnable);
+		INIT_DISPATCH_PTR(CmdSetDepthWriteEnable);
+		INIT_DISPATCH_PTR(CmdSetDepthCompareOp);
+		INIT_DISPATCH_PTR(CmdSetDepthBoundsTestEnable);
+		INIT_DISPATCH_PTR(CmdSetStencilTestEnable);
+		INIT_DISPATCH_PTR(CmdSetStencilOp);
+		INIT_DISPATCH_PTR(CmdSetRasterizerDiscardEnable);
+		INIT_DISPATCH_PTR(CmdSetDepthBiasEnable);
+		INIT_DISPATCH_PTR(CmdSetPrimitiveRestartEnable);
+	}
 	#pragma endregion
 	#pragma region VK_KHR_swapchain
 	INIT_DISPATCH_PTR(CreateSwapchainKHR);
@@ -488,6 +512,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
 	#pragma endregion
 	#pragma region VK_EXT_extended_dynamic_state
+#ifdef VK_EXT_extended_dynamic_state
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetCullMode, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetFrontFace, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetPrimitiveTopology, EXT);
@@ -500,6 +525,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthBoundsTestEnable, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilTestEnable, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilOp, EXT);
+#endif
 	#pragma endregion
 	#pragma region VK_EXT_private_data
 	// Try the EXT version if the core version does not exist

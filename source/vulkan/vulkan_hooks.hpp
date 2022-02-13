@@ -16,6 +16,7 @@
 struct instance_dispatch_table : public VkLayerInstanceDispatchTable
 {
 	VkInstance instance;
+	uint32_t api_version;
 };
 
 template <typename T>

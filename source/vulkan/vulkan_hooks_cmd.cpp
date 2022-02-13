@@ -20,6 +20,8 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 	assert(trampoline != nullptr)
 
 #if RESHADE_ADDON
+extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
+
 static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info)
 {
 	if (!reshade::has_addon_event<reshade::addon_event::begin_render_pass>())
@@ -62,7 +64,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.image = (VkImage)device_impl->get_resource_from_view(rt.view).handle;;
-					transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+					transition.subresourceRange = { aspect_flags_from_format(desc.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 				}
 			}
 		}
@@ -109,7 +111,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.image = (VkImage)device_impl->get_resource_from_view(ds.view).handle;;
-					transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+					transition.subresourceRange = { aspect_flags_from_format(desc.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 				}
 			}
 		}
