@@ -233,10 +233,10 @@ void reshade::runtime::draw_gui_vr()
 	{
 		for (const addon_info &info : addon_loaded_info)
 		{
-			for (const auto &widget : info.overlay_callbacks)
+			for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
 			{
 				if (bool state = (overlay_index == selected_overlay_index);
-					imgui::toggle_button(widget.first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
+					imgui::toggle_button(widget.title.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
 					selected_overlay_index = overlay_index;
 				ImGui::SameLine();
 
@@ -264,11 +264,11 @@ void reshade::runtime::draw_gui_vr()
 
 		for (const addon_info &info : addon_loaded_info)
 		{
-			for (const auto &widget : info.overlay_callbacks)
+			for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
 			{
 				if (selected_overlay_index == overlay_index++)
 				{
-					widget.second(this);
+					widget.callback(this);
 					break;
 				}
 			}

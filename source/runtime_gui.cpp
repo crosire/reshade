@@ -583,7 +583,15 @@ void reshade::runtime::draw_gui()
 	_effects_expanded_state &= 2;
 #endif
 
-	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture == 0)
+	bool has_always_visible_addon_overlays = false;
+#if RESHADE_ADDON
+	for (const addon_info &info : addon_loaded_info)
+		for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
+			if ((widget.flags & 1) != 0)
+				has_always_visible_addon_overlays = true;
+#endif
+
+	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture == 0 && !has_always_visible_addon_overlays)
 	{
 		_input->block_mouse_input(false);
 		_input->block_keyboard_input(false);
@@ -919,13 +927,13 @@ void reshade::runtime::draw_gui()
 	{
 		for (const addon_info &info : addon_loaded_info)
 		{
-			for (const auto &widget : info.overlay_callbacks)
+			for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
 			{
-				if (widget.first == "OSD" ? show_splash || (!show_stats_window && !_show_overlay) : !_show_overlay)
+				if ((widget.title == "OSD" ? show_splash || (!show_stats_window && !_show_overlay) : !_show_overlay) && (widget.flags & 1) == 0)
 					continue;
 
-				if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
-					widget.second(this);
+				if (ImGui::Begin(widget.title.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+					widget.callback(this);
 				ImGui::End();
 			}
 		}

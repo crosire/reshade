@@ -114,6 +114,13 @@ namespace reshade
 {
 	struct addon_info
 	{
+		struct overlay_callback
+		{
+			std::string title;
+			void(*callback)(api::effect_runtime *) = nullptr;
+			uint32_t flags = 0;
+		};
+
 		void *handle = nullptr;
 #if !RESHADE_ADDON_LITE
 		bool  loaded = false;
@@ -127,7 +134,7 @@ namespace reshade
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
 #if RESHADE_GUI
 		void(*settings_overlay_callback)(api::effect_runtime *) = nullptr;
-		std::vector<std::pair<std::string, void(*)(api::effect_runtime *)>> overlay_callbacks;
+		std::vector<overlay_callback> overlay_callbacks;
 #endif
 	};
 }

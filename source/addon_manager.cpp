@@ -257,6 +257,7 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_even
 
 #if RESHADE_GUI
 extern "C" __declspec(dllexport) void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
+extern "C" __declspec(dllexport) void ReShadeRegisterOverlay2(const char *title, void(*callback)(reshade::api::effect_runtime *runtime), uint32_t flags);
 extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
 #endif
 
@@ -358,7 +359,7 @@ void ReShadeUnregisterAddon(HMODULE module)
 	while (!info->overlay_callbacks.empty())
 	{
 		const auto &last_overlay_callback = info->overlay_callbacks.back();
-		ReShadeUnregisterOverlay(last_overlay_callback.first.c_str(), last_overlay_callback.second);
+		ReShadeUnregisterOverlay(last_overlay_callback.title.c_str(), last_overlay_callback.callback);
 	}
 #endif
 
@@ -424,6 +425,10 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 #if RESHADE_GUI
 void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
+	ReShadeRegisterOverlay2(title, callback, 0);
+}
+void ReShadeRegisterOverlay2(const char *title, void(*callback)(reshade::api::effect_runtime *runtime), uint32_t flags)
+{
 	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
 	{
@@ -437,7 +442,7 @@ void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::eff
 		return;
 	}
 
-	info->overlay_callbacks.emplace_back(title, callback);
+	info->overlay_callbacks.push_back({ title, callback, flags });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Registered overlay with title \"" << title << "\" and callback " << callback << '.';
@@ -461,7 +466,8 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 	LOG(DEBUG) << "Unregistered overlay with title \"" << title << "\" and callback " << callback << '.';
 #endif
 
-	info->overlay_callbacks.erase(std::remove(info->overlay_callbacks.begin(), info->overlay_callbacks.end(), std::make_pair<std::string>(title, callback)), info->overlay_callbacks.end());
+	info->overlay_callbacks.erase(std::remove_if(info->overlay_callbacks.begin(), info->overlay_callbacks.end(),
+		[title, callback](const reshade::addon_info::overlay_callback &item) { return item.title == title && item.callback == callback; }), info->overlay_callbacks.end());
 }
 #endif
 
