@@ -126,8 +126,12 @@ namespace reshade
 		/// <item><description>IDirect3D9::CreateDevice (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3D9Ex::CreateDeviceEx (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3D9Device::CreateAdditionalSwapChain</description></item>
+		/// <item><description>IDirect3D9Device::Reset (for the implicit swap chain)</description></item>
+		/// <item><description>IDirect3D9DeviceEx::ResetEx (for the implicit swap chain)</description></item>
 		/// <item><description>IDXGIFactory::CreateSwapChain</description></item>
 		/// <item><description>IDXGIFactory2::CreateSwapChain(...)</description></item>
+		/// <item><description>IDXGISwapChain::ResizeBuffers</description></item>
+		/// <item><description>IDXGISwapChain3::ResizeBuffers1</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::resource_desc &amp;back_buffer_desc, void *hwnd)</c></para>

@@ -66,26 +66,9 @@ static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
 	}
 }
 
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
+bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 {
-	LOG(INFO) << "> Dumping swap chain description:";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Parameter                               | Value                                   |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width   << " |";
-	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height  << " |";
-	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << ' ' << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
-	dump_format(desc.BufferDesc.Format);
-	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering   << " |";
-	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
-	dump_sample_desc(desc.SampleDesc);
-	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
-	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount  << " |";
-	LOG(INFO) << "  | OutputWindow                            | " << std::setw(39) << desc.OutputWindow << " |";
-	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed ? "TRUE" : "FALSE") << " |";
-	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect   << " |";
-	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	bool modified = false;
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc buffer_desc = {};
@@ -125,16 +108,22 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != 0)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+
+		modified = true;
 	}
 #endif
 
 	if (reshade::global_config().get("APP", "ForceWindowed"))
 	{
 		desc.Windowed = TRUE;
+
+		modified = true;
 	}
 	if (reshade::global_config().get("APP", "ForceFullscreen"))
 	{
 		desc.Windowed = FALSE;
+
+		modified = true;
 	}
 
 	if (unsigned int force_resolution[2] = {};
@@ -143,34 +132,22 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	{
 		desc.BufferDesc.Width = force_resolution[0];
 		desc.BufferDesc.Height = force_resolution[1];
+
+		modified = true;
 	}
 
 	if (reshade::global_config().get("APP", "Force10BitFormat"))
 	{
 		desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+
+		modified = true;
 	}
+
+	return modified;
 }
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc, HWND hwnd = nullptr)
+bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND hwnd)
 {
-	LOG(INFO) << "> Dumping swap chain description:";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Parameter                               | Value                                   |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width   << " |";
-	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height  << " |";
-	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << fullscreen_desc.RefreshRate.Numerator << ' ' << std::setw(19) << fullscreen_desc.RefreshRate.Denominator << " |";
-	dump_format(desc.Format);
-	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo ? "TRUE" : "FALSE") << " |";
-	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << fullscreen_desc.ScanlineOrdering << " |";
-	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << fullscreen_desc.Scaling << " |";
-	dump_sample_desc(desc.SampleDesc);
-	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
-	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
-	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (fullscreen_desc.Windowed ? "TRUE" : "FALSE") << " |";
-	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect  << " |";
-	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode   << " |";
-	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	bool modified = false;
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc buffer_desc = {};
@@ -218,10 +195,79 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 			desc.BufferUsage |= DXGI_USAGE_SHARED;
 		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != 0)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+
+		modified = true;
 	}
 #else
 	UNREFERENCED_PARAMETER(hwnd);
 #endif
+
+	if (unsigned int force_resolution[2] = {};
+		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
+		force_resolution[0] != 0 && force_resolution[1] != 0)
+	{
+		desc.Width = force_resolution[0];
+		desc.Height = force_resolution[1];
+
+		modified = true;
+	}
+
+	if (reshade::global_config().get("APP", "Force10BitFormat"))
+	{
+		desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+
+		modified = true;
+	}
+
+	return modified;
+}
+
+static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
+{
+	LOG(INFO) << "> Dumping swap chain description:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Parameter                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width   << " |";
+	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height  << " |";
+	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << ' ' << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
+	dump_format(desc.BufferDesc.Format);
+	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering   << " |";
+	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
+	dump_sample_desc(desc.SampleDesc);
+	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
+	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount  << " |";
+	LOG(INFO) << "  | OutputWindow                            | " << std::setw(39) << desc.OutputWindow << " |";
+	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect   << " |";
+	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+
+	modify_swapchain_desc(desc);
+}
+static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc, HWND hwnd = nullptr)
+{
+	LOG(INFO) << "> Dumping swap chain description:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Parameter                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width   << " |";
+	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height  << " |";
+	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << fullscreen_desc.RefreshRate.Numerator << ' ' << std::setw(19) << fullscreen_desc.RefreshRate.Denominator << " |";
+	dump_format(desc.Format);
+	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << fullscreen_desc.ScanlineOrdering << " |";
+	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << fullscreen_desc.Scaling << " |";
+	dump_sample_desc(desc.SampleDesc);
+	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
+	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
+	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (fullscreen_desc.Windowed ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect  << " |";
+	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode   << " |";
+	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+
+	modify_swapchain_desc(desc, hwnd);
 
 	if (reshade::global_config().get("APP", "ForceWindowed"))
 	{
@@ -230,19 +276,6 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	if (reshade::global_config().get("APP", "ForceFullscreen"))
 	{
 		fullscreen_desc.Windowed = FALSE;
-	}
-
-	if (unsigned int force_resolution[2] = {};
-		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
-		force_resolution[0] != 0 && force_resolution[1] != 0)
-	{
-		desc.Width = force_resolution[0];
-		desc.Height = force_resolution[1];
-	}
-
-	if (reshade::global_config().get("APP", "Force10BitFormat"))
-	{
-		desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	}
 }
 
@@ -318,8 +351,6 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 		reshade::global_config().get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
 		reshade::global_config().get("APP", "ForceWindowed", swapchain_proxy->_force_windowed);
 		reshade::global_config().get("APP", "ForceFullscreen", swapchain_proxy->_force_fullscreen);
-		reshade::global_config().get("APP", "ForceResolution", swapchain_proxy->_force_resolution);
-		reshade::global_config().get("APP", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
 
 #if RESHADE_VERBOSE_LOG
 		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";

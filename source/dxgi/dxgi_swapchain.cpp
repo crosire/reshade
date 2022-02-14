@@ -14,6 +14,9 @@
 #include "d3d12/d3d12_impl_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 
+extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc);
+extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND hwnd);
+
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
@@ -390,14 +393,23 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		<< ", SwapChainFlags = " << std::hex << SwapChainFlags << std::dec
 		<< ')' << " ...";
 
-	if (_force_resolution[0] != 0 &&
-		_force_resolution[1] != 0)
-		Width = _force_resolution[0],
-		Height = _force_resolution[1];
-	if (_force_10_bit_format)
-		NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
-
 	runtime_reset();
+
+	DXGI_SWAP_CHAIN_DESC desc = {};
+	GetDesc(&desc);
+	desc.BufferCount = BufferCount;
+	desc.BufferDesc.Width = Width;
+	desc.BufferDesc.Height = Height;
+	if (NewFormat != DXGI_FORMAT_UNKNOWN)
+		desc.BufferDesc.Format = NewFormat;
+	desc.Flags = SwapChainFlags;
+
+	if (modify_swapchain_desc(desc))
+	{
+		Width = desc.BufferDesc.Width;
+		Height = desc.BufferDesc.Height;
+		NewFormat = static_cast<DXGI_FORMAT>(desc.BufferDesc.Format);
+	}
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
@@ -570,14 +582,25 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		<< ", ppPresentQueue = " << ppPresentQueue
 		<< ')' << " ...";
 
-	if (_force_resolution[0] != 0 &&
-		_force_resolution[1] != 0)
-		Width = _force_resolution[0],
-		Height = _force_resolution[1];
-	if (_force_10_bit_format)
-		Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-
 	runtime_reset();
+
+	HWND hwnd = nullptr;
+	GetHwnd(&hwnd);
+	DXGI_SWAP_CHAIN_DESC1 desc = {};
+	GetDesc1(&desc);
+	desc.BufferCount = BufferCount;
+	desc.Width = Width;
+	desc.Height = Height;
+	if (Format != DXGI_FORMAT_UNKNOWN)
+		desc.Format = Format;
+	desc.Flags = SwapChainFlags;
+
+	if (modify_swapchain_desc(desc, hwnd))
+	{
+		Width = desc.Width;
+		Height = desc.Height;
+		Format = desc.Format;
+	}
 
 	// Need to extract the original command queue object from the proxies passed in
 	assert(ppPresentQueue != nullptr);
