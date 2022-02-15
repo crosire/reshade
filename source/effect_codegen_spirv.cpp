@@ -142,6 +142,7 @@ private:
 		spirv_basic_block definition;
 		type return_type;
 		std::vector<type> param_types;
+		bool is_entry_point = false;
 
 		friend bool operator==(const function_blocks &lhs, const function_blocks &rhs)
 		{
@@ -922,7 +923,7 @@ private:
 
 		if (initializer_value != 0)
 		{
-			if (storage != spv::StorageClassFunction)
+			if (storage != spv::StorageClassFunction || _current_function->is_entry_point)
 			{
 				// The initializer for variables must be a constant
 				inst.add(initializer_value);
@@ -1011,8 +1012,11 @@ private:
 		define_function({}, entry_point);
 		enter_block(create_block());
 
+		_current_function->is_entry_point = true;
+
 		const auto create_varying_param = [this, &call_params](const struct_member_info &param) {
-			const spv::Id variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction);
+			// Initialize all output variables with zero
+			const spv::Id variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction, spv::ImageFormatUnknown, emit_constant(param.type, 0u));
 
 			expression &call_param = call_params.emplace_back();
 			call_param.reset_to_lvalue({}, variable, param.type);
