@@ -1605,6 +1605,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				cso += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
 				cso += effect.module.hlsl;
+
+				cso_text = cso;
 			}
 			else
 			{

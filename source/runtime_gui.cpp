@@ -3228,15 +3228,12 @@ void reshade::runtime::draw_technique_editor()
 				if (ImGui::MenuItem("Generated code"))
 					entry_point_name = "Generated code";
 
-				if (!effect.assembly.empty())
-				{
-					ImGui::Separator();
+				ImGui::Separator();
 
-					for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
-						if (const auto assembly_it = effect.assembly.find(entry_point.name);
-							assembly_it != effect.assembly.end() && ImGui::MenuItem(entry_point.name.c_str()))
-							entry_point_name = entry_point.name;
-				}
+				for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
+					if (const auto assembly_it = effect.assembly.find(entry_point.name);
+						assembly_it != effect.assembly.end() && ImGui::MenuItem(entry_point.name.c_str()))
+						entry_point_name = entry_point.name;
 
 				ImGui::EndPopup();
 
