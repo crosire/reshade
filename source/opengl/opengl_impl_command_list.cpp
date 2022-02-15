@@ -1289,6 +1289,9 @@ void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
 		glBindImageTexture(1 /* dest */, object, level, GL_FALSE, 0, GL_WRITE_ONLY, internal_format);
 
 		glDispatchCompute(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
+
+		// Ensure next iteration reads the data written by this iteration
+		glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 	}
 #endif
 }
