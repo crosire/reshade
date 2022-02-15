@@ -118,7 +118,6 @@ namespace reshade
 		{
 			std::string title;
 			void(*callback)(api::effect_runtime *) = nullptr;
-			uint32_t flags = 0;
 		};
 
 		void *handle = nullptr;

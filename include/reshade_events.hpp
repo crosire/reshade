@@ -1468,6 +1468,16 @@ namespace reshade
 		/// </remarks>
 		reshade_set_technique_state,
 
+		/// <summary>
+		/// Called between the <c>ImGui::NewFrame</c> and <c>ImGui::EndFrame</c> calls for the ReShade overlay.
+		/// Can be used to perform custom Dear ImGui calls, but it is recommended to instead use <see cref="register_overlay"/> to register a dedicated overlay.
+		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// This is not called for effect runtimes in VR.
+		/// </remarks>
+		reshade_overlay,
+
 #ifdef RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
 #endif
@@ -1591,4 +1601,6 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_uniform_value, bool, api::effect_runtime *runtime, api::effect_uniform_variable variable, const void *data, size_t size);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_technique_state, bool, api::effect_runtime *runtime, api::effect_technique technique, bool enabled);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay, void, api::effect_runtime *runtime);
 }

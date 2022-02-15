@@ -209,19 +209,6 @@ namespace reshade
 		func(title, callback);
 	}
 	/// <summary>
-	/// Registers an overlay with ReShade that be always visible.
-	/// <para>The callback function is then called when the overlay is visible and allows adding Dear ImGui widgets for user interaction.</para>
-	/// </summary>
-	/// <param name="title">Null-terminated title string, or <see langword="nullptr"/> to register a settings overlay for this add-on.</param>
-	/// <param name="callback">Pointer to the callback function.</param>
-	/// <param name="always_visible"><c>true</c> to always show this overlay, regarless of whether the ReShade overlay is visible or not, <c>false</c> to use default behavior.</param>
-	inline void register_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime), bool always_visible)
-	{
-		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *), uint32_t)>(
-			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeRegisterOverlay2"));
-		func(title, callback, always_visible ? 1 : 0);
-	}
-	/// <summary>
 	/// Unregisters an overlay that was previously registered via <see cref="register_overlay"/>.
 	/// </summary>
 	/// <param name="title">Null-terminated title string.</param>

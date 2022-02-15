@@ -257,7 +257,6 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_even
 
 #if RESHADE_GUI
 extern "C" __declspec(dllexport) void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
-extern "C" __declspec(dllexport) void ReShadeRegisterOverlay2(const char *title, void(*callback)(reshade::api::effect_runtime *runtime), uint32_t flags);
 extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
 #endif
 
@@ -425,10 +424,6 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 #if RESHADE_GUI
 void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
-	ReShadeRegisterOverlay2(title, callback, 0);
-}
-void ReShadeRegisterOverlay2(const char *title, void(*callback)(reshade::api::effect_runtime *runtime), uint32_t flags)
-{
 	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
 	{
@@ -442,7 +437,7 @@ void ReShadeRegisterOverlay2(const char *title, void(*callback)(reshade::api::ef
 		return;
 	}
 
-	info->overlay_callbacks.push_back({ title, callback, flags });
+	info->overlay_callbacks.push_back(reshade::addon_info::overlay_callback { title, callback });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Registered overlay with title \"" << title << "\" and callback " << callback << '.';
