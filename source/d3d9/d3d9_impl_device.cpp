@@ -135,22 +135,6 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 
 	// Create input layout for vertex buffer which holds vertex indices
 	{
-		const UINT max_vertices = 100; // TODO: Make this configurable or automatically resize when encountering larger draw calls
-
-		if (FAILED(_orig->CreateVertexBuffer(max_vertices * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_default_input_stream, nullptr)))
-		{
-			LOG(ERROR) << "Failed to create default input stream!";
-			return false;
-		}
-
-		if (float *data;
-			SUCCEEDED(_default_input_stream->Lock(0, max_vertices * sizeof(float), reinterpret_cast<void **>(&data), 0)))
-		{
-			for (UINT i = 0; i < max_vertices; ++i)
-				data[i] = static_cast<float>(i);
-			_default_input_stream->Unlock();
-		}
-
 		const D3DVERTEXELEMENT9 declaration[] = {
 			{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
 			D3DDECL_END()
@@ -1209,6 +1193,7 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 	api::depth_stencil_desc depth_stencil_state;
 	api::primitive_topology topology = api::primitive_topology::triangle_list;
 	uint32_t sample_mask = UINT32_MAX;
+	uint32_t max_vertices = 3;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -1295,6 +1280,9 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 			break;
 		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			break; // Ignored
+		case api::pipeline_subobject_type::max_vertex_count:
+			max_vertices = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
 		default:
 			assert(false);
 			goto exit_failure;
@@ -1313,6 +1301,27 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 	}
 	else
 	{
+		// Resize vertex buffer which holds vertex indices when necessary
+		D3DVERTEXBUFFER_DESC default_input_stream_desc;
+		if (_default_input_stream == nullptr || (SUCCEEDED(_default_input_stream->GetDesc(&default_input_stream_desc)) && default_input_stream_desc.Size < (max_vertices * sizeof(float))))
+		{
+			_default_input_stream.reset();
+
+			if (FAILED(_orig->CreateVertexBuffer(max_vertices * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_default_input_stream, nullptr)))
+			{
+				LOG(ERROR) << "Failed to create default input stream!";
+				return false;
+			}
+
+			if (float *data;
+				SUCCEEDED(_default_input_stream->Lock(0, max_vertices * sizeof(float), reinterpret_cast<void **>(&data), 0)))
+			{
+				for (UINT i = 0; i < max_vertices; ++i)
+					data[i] = static_cast<float>(i);
+				_default_input_stream->Unlock();
+			}
+		}
+
 		// Setup default input (so that vertex shaders can get the vertex IDs)
 		_orig->SetStreamSource(0, _default_input_stream.get(), 0, sizeof(float));
 		_orig->SetVertexDeclaration(_default_input_layout.get());

@@ -1025,6 +1025,9 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			dynamic_states_subobject = subobjects[i];
 			break;
+		case api::pipeline_subobject_type::max_vertex_count:
+			assert(subobjects[i].count == 1);
+			break; // Ignored
 		default:
 			assert(false);
 			goto exit_failure;

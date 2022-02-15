@@ -1791,6 +1791,9 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 			break;
 		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			break; // Ignored
+		case api::pipeline_subobject_type::max_vertex_count:
+			assert(subobjects[i].count == 1);
+			break; // Ignored
 		default:
 			assert(false);
 			goto exit_failure;

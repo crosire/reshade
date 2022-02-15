@@ -760,6 +760,9 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 					static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::primitive_topology)
 					goto exit_failure;
 			break;
+		case api::pipeline_subobject_type::max_vertex_count:
+			assert(subobjects[i].count == 1);
+			break; // Ignored
 		default:
 			assert(false);
 			goto exit_failure;

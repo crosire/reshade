@@ -706,7 +706,12 @@ namespace reshade::api
 		/// States that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding this pipeline.
 		/// Sub-object data is a pointer to an array of <see cref="dynamic_state"/> values.
 		/// </summary>
-		dynamic_pipeline_states
+		dynamic_pipeline_states,
+		/// <summary>
+		/// Maximum number of vertices a draw call with this pipeline will draw.
+		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
+		/// </summary>
+		max_vertex_count
 	};
 
 	/// <summary>
