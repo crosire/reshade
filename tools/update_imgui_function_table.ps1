@@ -201,6 +201,8 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 }
 
 
+$year = Get-Date -Format "yyyy"
+
 $function_table = @"
 struct imgui_function_table
 {
@@ -209,6 +211,12 @@ $function_table
 "@
 
 $function_table_init = @"
+/*
+ * Copyright (C) 2021 Patrick Mours
+ * Copyright (C) 2014-$year Omar Cornut
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
+ */
+
 #if RESHADE_ADDON
 
 #include <new>
@@ -225,6 +233,12 @@ $function_table_init
 #$function_table = "`t" + (($function_table -split "`r`n") -join "`r`n`t")
 
 $function_definitions = @"
+/*
+ * Copyright (C) 2021 Patrick Mours
+ * Copyright (C) 2014-$year Omar Cornut
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
+ */
+
 #pragma once
 
 #if defined(IMGUI_VERSION_NUM)

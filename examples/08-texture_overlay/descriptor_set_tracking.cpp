@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "reshade.hpp"
@@ -132,7 +132,7 @@ static bool on_update_descriptor_sets(device *device, uint32_t count, const desc
 		{
 			pool_data.descriptors[offset + k].first = update.type;
 
-			if (update.type == descriptor_type::sampler)		
+			if (update.type == descriptor_type::sampler)
 				pool_data.descriptors[offset + k].second = static_cast<const sampler *>(update.descriptors)[k].handle;
 			else if (update.type == descriptor_type::shader_resource_view || update.type == descriptor_type::unordered_access_view)
 				pool_data.descriptors[offset + k].second = static_cast<const resource_view *>(update.descriptors)[k].handle;

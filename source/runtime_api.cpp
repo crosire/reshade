@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2022 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "runtime.hpp"
@@ -196,7 +196,7 @@ bool reshade::runtime::get_annotation_float_from_uniform_variable(api::effect_un
 		}
 	}
 #endif
-	
+
 	for (size_t i = 0; i < count; ++i)
 		values[i] = 0.0f;
 	return false;

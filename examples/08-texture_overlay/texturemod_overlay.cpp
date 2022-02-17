@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #define ImTextureID unsigned long long
@@ -208,11 +208,11 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 	{
 		const pipeline_layout_param param = descriptor_data.get_pipeline_layout_param(layout, first + i);
 		assert(param.type == pipeline_layout_param_type::descriptor_set);
-	
+
 		for (uint32_t k = 0; k < param.descriptor_set.count; ++k)
 		{
 			const descriptor_range &range = param.descriptor_set.ranges[k];
-	
+
 			if ((range.visibility & shader_stage::pixel) != shader_stage::pixel || (range.type != descriptor_type::shader_resource_view && range.type != descriptor_type::sampler_with_resource_view))
 				continue;
 

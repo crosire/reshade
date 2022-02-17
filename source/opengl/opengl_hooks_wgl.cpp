@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "dll_log.hpp"
@@ -415,7 +415,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	if (major < 4 || (major == 4 && minor < 3))
 	{
 		LOG(INFO) << "> Replacing requested version with 4.3 ...";
-	
+
 		for (int k = 0; k < i; ++k)
 		{
 			switch (attribs[k].name)

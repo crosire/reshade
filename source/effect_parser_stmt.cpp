@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_lexer.hpp"
@@ -138,7 +138,7 @@ void reshadefx::parser::parse_top(bool &parse_success)
 			// Unexpected token in source stream, consume and report an error about it
 			consume();
 			// Only add another error message if succeeded parsing previously
-			// This is done to avoid walls of error messages because of consequential errors following a top-level syntax mistake 
+			// This is done to avoid walls of error messages because of consequential errors following a top-level syntax mistake
 			if (parse_success)
 				error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
 			parse_success = false;

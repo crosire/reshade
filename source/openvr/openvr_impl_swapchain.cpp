@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 20ww Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2022 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "dll_log.hpp"

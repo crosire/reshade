@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #if defined(__INTELLISENSE__) || !defined(DEFINE_INTRINSIC)
 #define DEFINE_INTRINSIC(name, i, ret_type, ...)
 #endif
-#if defined(__INTELLISENSE__) || !defined(IMPLEMENT_INTRINSIC_GLSL) 
+#if defined(__INTELLISENSE__) || !defined(IMPLEMENT_INTRINSIC_GLSL)
 #define IMPLEMENT_INTRINSIC_GLSL(name, i, code)
 #endif
 #if defined(__INTELLISENSE__) || !defined(IMPLEMENT_INTRINSIC_HLSL)

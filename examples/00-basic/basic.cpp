@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: 0BSD
+ */
+
 #include <reshade.hpp>
 
 extern "C" __declspec(dllexport) const char *NAME = "Basic Add-on Template";

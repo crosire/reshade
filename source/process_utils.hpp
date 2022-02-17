@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2022 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2022 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
@@ -15,7 +15,7 @@ namespace reshade
 	bool open_explorer(const std::filesystem::path &path);
 
 	/// <summary>
-	/// Executes the specified command as a new process, which basic (not elevated) user privileges. 
+	/// Executes the specified command as a new process, which basic (not elevated) user privileges.
 	/// </summary>
 	bool execute_command(const std::string &command_line, const std::filesystem::path &working_directory = L".", bool no_window = false);
 }
