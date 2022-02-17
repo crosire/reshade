@@ -26,6 +26,9 @@ packages/
 *.vsp
 *.psess
 
+# Visual Studio Code
+.vscode/
+
 # Code signing
 *.pfx
 *.pvk
