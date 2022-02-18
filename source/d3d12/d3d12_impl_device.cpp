@@ -13,6 +13,13 @@
 
 extern bool is_windows7();
 
+#ifdef WIN64
+constexpr size_t heap_index_start = 28;
+#else
+// Make a bit more space for the heap index in descriptor handles, at the cost of less space for the descriptor index, due to overall limit of only 32-bit being available
+constexpr size_t heap_index_start = 24;
+#endif
+
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	api_object_impl(device),
 	_view_heaps {
@@ -1057,7 +1064,7 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const std::shared_lock<std::shared_mutex> lock(_mutex);
 
-	const size_t heap_index = (set.handle >> 28) & 0xFFFFFFF;
+	const size_t heap_index = (set.handle >> heap_index_start) & 0xFFFFFFF;
 	D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(set.handle & 0x3);
 	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
@@ -1068,7 +1075,7 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 
 	if (offset != nullptr)
 	{
-		*offset = ((set.handle & 0xFFFFFF8) / _descriptor_handle_size[type]) + binding;
+		*offset = ((set.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) / _descriptor_handle_size[type]) + binding;
 		assert(*offset < _descriptor_heaps[heap_index]->_orig->GetDesc().NumDescriptors);
 	}
 #else
@@ -1381,8 +1388,8 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 	_orig_base_cpu_handle = _orig->GetCPUDescriptorHandleForHeapStart();
 	_internal_base_cpu_handle = { 0 };
 
-	assert(heap_index < (1ull << std::min(sizeof(SIZE_T) * 8 - 28ull, 28ull)));
-	_internal_base_cpu_handle.ptr |= static_cast<SIZE_T>(heap_index) << 28;
+	assert(heap_index < (1ull << std::min(sizeof(SIZE_T) * 8 - heap_index_start, heap_index_start)));
+	_internal_base_cpu_handle.ptr |= static_cast<SIZE_T>(heap_index) << heap_index_start;
 
 	const D3D12_DESCRIPTOR_HEAP_DESC heap_desc = _orig->GetDesc();
 	assert(heap_desc.Type <= 0x3);
@@ -1390,9 +1397,24 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 	assert(heap_desc.Flags <= 0x1);
 	_internal_base_cpu_handle.ptr |= heap_desc.Flags << 2;
 
-	static_assert((D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 * 32) < (1 << 28));
-	assert(_device->GetDescriptorHandleIncrementSize(heap_desc.Type) >= (1 << 3));
-	assert((heap_desc.NumDescriptors * _device->GetDescriptorHandleIncrementSize(heap_desc.Type)) < (1 << 28));
+#ifdef WIN64
+	static_assert((D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 * 32) < (1 << heap_index_start));
+#else
+	if (heap_index >= (1ull << std::min(sizeof(SIZE_T) * 8 - heap_index_start, heap_index_start)))
+	{
+		LOG(ERROR) << "Descriptor heap index is too big to fit into handle!";
+	}
+#endif
+	if (_device->GetDescriptorHandleIncrementSize(heap_desc.Type) < (1 << 3))
+	{
+		assert(false);
+		LOG(ERROR) << "Descriptor heap contains descriptors that are too small!";
+	}
+	if ((heap_desc.NumDescriptors * _device->GetDescriptorHandleIncrementSize(heap_desc.Type)) >= (1 << heap_index_start))
+	{
+		assert(false);
+		LOG(ERROR) << "Descriptor heap contains too many descriptors to fit into handle!";
+	}
 
 	if (heap_desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
 	{
@@ -1411,13 +1433,10 @@ reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_
 
 D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 {
-	const std::shared_lock<std::shared_mutex> lock(_mutex);
-
-	const size_t heap_index = (handle.ptr >> 28);
-	assert(type == static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(handle.ptr & 0x3));
-	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
-
-	return { _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr + (handle.ptr & 0xFFFFFF8) };
+	D3D12_DESCRIPTOR_HEAP_TYPE actual_type;
+	const auto result = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_set(handle), actual_type);
+	assert(type == actual_type);
+	return result;
 }
 #endif
 
@@ -1457,10 +1476,10 @@ D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const std::shared_lock<std::shared_mutex> lock(_mutex);
 
-	const size_t heap_index = (set.handle >> 28) & 0xFFFFFFF;
+	const size_t heap_index = (set.handle >> heap_index_start) & 0xFFFFFFF;
 	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
-	return { _descriptor_heaps[heap_index]->_orig_base_gpu_handle.ptr + (set.handle & 0xFFFFFF8) };
+	return { _descriptor_heaps[heap_index]->_orig_base_gpu_handle.ptr + (set.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) };
 #else
 	return { set.handle & 0xFFFFFFFFFFFFFF };
 #endif
@@ -1471,11 +1490,11 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const std::shared_lock<std::shared_mutex> lock(_mutex);
 
-	const size_t heap_index = (set.handle >> 28) & 0xFFFFFFF;
+	const size_t heap_index = (set.handle >> heap_index_start) & 0xFFFFFFF;
 	type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(set.handle & 0x3);
 	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
-	return { _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr + (set.handle & 0xFFFFFF8) };
+	return { _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr + (set.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) };
 #else
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = { 0 };
 	D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = convert_to_original_gpu_descriptor_handle(set);
