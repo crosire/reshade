@@ -407,6 +407,7 @@ static void on_destroy_resource(device *device, resource resource)
 		return;
 
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
+
 	device_state.destroyed_resources.push_back(resource);
 }
 
@@ -531,6 +532,9 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 		return;
 
 	auto &device_state = swapchain->get_device()->get_private_data<state_tracking_context>();
+
+	const std::unique_lock<std::shared_mutex> lock(s_mutex);
+
 	device_state.current_depth_stencil_list.clear();
 	device_state.current_depth_stencil_list.reserve(queue_state.counters_per_used_depth_stencil.size());
 
@@ -539,8 +543,7 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 		if (snapshot.total_stats.drawcalls == 0)
 			continue; // Skip unused
 
-		if (std::shared_lock<std::shared_mutex> lock(s_mutex);
-			std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
+		if (std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application
 
 		// Save to current list of depth-stencils on the device, so that it can be displayed in the GUI
@@ -549,7 +552,6 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 
 	queue_state.reset_on_present();
 
-	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 	device_state.destroyed_resources.clear();
 }
 
@@ -568,10 +570,11 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	uint32_t frame_width, frame_height;
 	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
 
+	std::shared_lock<std::shared_mutex> lock(s_mutex);
+
 	for (const auto &[resource, snapshot] : device_state.current_depth_stencil_list)
 	{
-		if (std::shared_lock<std::shared_mutex> lock(s_mutex);
-			std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
+		if (std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application (check here again in case effects are rendered during the frame)
 
 		const resource_desc desc = device->get_resource_desc(resource);
@@ -603,6 +606,8 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			best_snapshot = it->second;
 		}
 	}
+
+	lock.unlock();
 
 	if (best_match != 0)
 	{
@@ -751,6 +756,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	ImGui::Separator();
 	ImGui::Spacing();
 
+	std::shared_lock<std::shared_mutex> lock(s_mutex);
+
 	if (device_state.current_depth_stencil_list.empty() && !modified)
 	{
 		ImGui::TextUnformatted("No depth buffers found.");
@@ -781,6 +788,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			sorted_item_list.push_back({ it->second + 1u, resource, snapshot, device->get_resource_desc(resource) });
 		}
 	}
+
+	lock.unlock();
 
 	std::sort(sorted_item_list.begin(), sorted_item_list.end(), [](const depth_stencil_item &a, const depth_stencil_item &b) {
 		return (a.display_count > b.display_count) ||
