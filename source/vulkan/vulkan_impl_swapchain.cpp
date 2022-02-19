@@ -52,38 +52,30 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 {
 	_orig = swapchain;
 
+	// Get back buffer images
 	uint32_t num_images = 0;
-	if (swapchain != VK_NULL_HANDLE)
-	{
-		// Get back buffer images
-		if (vk.GetSwapchainImagesKHR(static_cast<device_impl *>(_device)->_orig, swapchain, &num_images, nullptr) != VK_SUCCESS)
-			return false;
-		_swapchain_images.resize(num_images);
-		if (vk.GetSwapchainImagesKHR(static_cast<device_impl *>(_device)->_orig, swapchain, &num_images, _swapchain_images.data()) != VK_SUCCESS)
-			return false;
+	if (vk.GetSwapchainImagesKHR(static_cast<device_impl *>(_device)->_orig, swapchain, &num_images, nullptr) != VK_SUCCESS)
+		return false;
+	_swapchain_images.resize(num_images);
+	if (vk.GetSwapchainImagesKHR(static_cast<device_impl *>(_device)->_orig, swapchain, &num_images, _swapchain_images.data()) != VK_SUCCESS)
+		return false;
 
-		// Add swap chain images to the image list
-		object_data<VK_OBJECT_TYPE_IMAGE> data;
-		data.allocation = VK_NULL_HANDLE;
-		data.create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		data.create_info.imageType = VK_IMAGE_TYPE_2D;
-		data.create_info.format = desc.imageFormat;
-		data.create_info.extent = { desc.imageExtent.width, desc.imageExtent.height, 1 };
-		data.create_info.mipLevels = 1;
-		data.create_info.arrayLayers = desc.imageArrayLayers;
-		data.create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-		data.create_info.usage = desc.imageUsage;
-		data.create_info.sharingMode = desc.imageSharingMode;
-		data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	// Add swap chain images to the image list
+	object_data<VK_OBJECT_TYPE_IMAGE> data;
+	data.allocation = VK_NULL_HANDLE;
+	data.create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+	data.create_info.imageType = VK_IMAGE_TYPE_2D;
+	data.create_info.format = desc.imageFormat;
+	data.create_info.extent = { desc.imageExtent.width, desc.imageExtent.height, 1 };
+	data.create_info.mipLevels = 1;
+	data.create_info.arrayLayers = desc.imageArrayLayers;
+	data.create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	data.create_info.usage = desc.imageUsage;
+	data.create_info.sharingMode = desc.imageSharingMode;
+	data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-		for (uint32_t i = 0; i < num_images; ++i)
-			static_cast<device_impl *>(_device)->register_object<VK_OBJECT_TYPE_IMAGE>(_swapchain_images[i], std::move(data));
-	}
-	else
-	{
-		num_images = static_cast<uint32_t>(_swapchain_images.size());
-		assert(num_images != 0);
-	}
+	for (uint32_t i = 0; i < num_images; ++i)
+		static_cast<device_impl *>(_device)->register_object<VK_OBJECT_TYPE_IMAGE>(_swapchain_images[i], std::move(data));
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
@@ -101,6 +93,8 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 			return false;
 		}
 	}
+
+	_back_buffer_color_space = convert_color_space(desc.imageColorSpace);
 
 	return runtime::on_init(hwnd);
 }

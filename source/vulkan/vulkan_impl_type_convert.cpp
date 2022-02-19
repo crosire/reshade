@@ -371,6 +371,25 @@ auto reshade::vulkan::convert_format(VkFormat vk_format) -> api::format
 	}
 }
 
+auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::color_space
+{
+	switch (color_space)
+	{
+	case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
+		return api::color_space::srgb_nonlinear;
+	case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
+		return api::color_space::extended_srgb_linear;
+	case VK_COLOR_SPACE_HDR10_ST2084_EXT:
+		return api::color_space::hdr10_st2084;
+	case VK_COLOR_SPACE_HDR10_HLG_EXT:
+		return api::color_space::hdr10_hlg;
+	default:
+		break;
+	}
+
+	return api::color_space::unknown;
+}
+
 auto reshade::vulkan::convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage
 {
 	static_assert(

@@ -59,6 +59,11 @@ uint32_t reshade::d3d12::swapchain_impl::get_current_back_buffer_index() const
 	return _swap_index;
 }
 
+void reshade::d3d12::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type)
+{
+	_back_buffer_color_space = convert_color_space(type);
+}
+
 bool reshade::d3d12::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);

@@ -151,6 +151,19 @@ namespace reshade::api
 	};
 
 	/// <summary>
+	/// The available color space types for presentation.
+	/// </summary>
+	enum class color_space : uint32_t
+	{
+		unknown = -1,
+
+		srgb_nonlinear = 0,
+		extended_srgb_linear,
+		hdr10_st2084,
+		hdr10_hlg,
+	};
+
+	/// <summary>
 	/// Converts the specified format <paramref name="value"/> to its equivalent typeless variant.
 	/// </summary>
 	/// <param name="value">The format to convert.</param>

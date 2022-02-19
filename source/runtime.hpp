@@ -262,6 +262,7 @@ namespace reshade
 		unsigned int _device_id = 0;
 		unsigned int _renderer_id = 0;
 		api::format  _back_buffer_format = api::format::unknown;
+		api::color_space _back_buffer_color_space = api::color_space::srgb_nonlinear;
 		bool _is_vr = false;
 
 	private:

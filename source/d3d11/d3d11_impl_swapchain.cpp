@@ -46,6 +46,11 @@ reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t 
 	return to_handle(_backbuffer.get());
 }
 
+void reshade::d3d11::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type)
+{
+	_back_buffer_color_space = convert_color_space(type);
+}
+
 bool reshade::d3d11::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
