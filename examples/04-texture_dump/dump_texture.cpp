@@ -6,10 +6,15 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include <reshade.hpp>
+#include "dump_options.hpp"
 #include "crc32_hash.hpp"
 #include <vector>
 #include <filesystem>
 #include <stb_image_write.h>
+
+#ifdef DUMP_ENABLE_HASH_SET
+#include <set>
+#endif
 
 using namespace reshade::api;
 
@@ -84,15 +89,20 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 
 bool dump_texture(const resource_desc &desc, const subresource_data &data)
 {
+#ifdef DUMP_ENABLE_HASH_SET
+	static std::set<uint32_t> hash_set;
+#endif
+
 	uint8_t *data_p = static_cast<uint8_t *>(data.data);
 	std::vector<uint8_t> rgba_pixel_data(desc.texture.width * desc.texture.height * 4);
 
-#if 0
+#if DUMP_HASH == DUMP_HASH_FULL
 	// Correct hash calculation using entire resource data
 	const uint32_t hash = compute_crc32(
 		static_cast<const uint8_t *>(data.data),
+		reshade::log_message(4, "Skipped texture that was already dumped");
 		format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
-#else
+#elif DUMP_HASH == DUMP_HASH_TEXMOD
 	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
 	const uint32_t hash = ~compute_crc32(
 		static_cast<const uint8_t *>(data.data),
@@ -100,6 +110,17 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 			(desc.texture.format >= format::bc1_typeless && desc.texture.format <= format::bc1_unorm_srgb) || (desc.texture.format >= format::bc4_typeless && desc.texture.format <= format::bc4_snorm) ? (desc.texture.width * 4) / 8 :
 			(desc.texture.format >= format::bc2_typeless && desc.texture.format <= format::bc2_unorm_srgb) || (desc.texture.format >= format::bc3_typeless && desc.texture.format <= format::bc3_unorm_srgb) || (desc.texture.format >= format::bc5_typeless && desc.texture.format <= format::bc7_unorm_srgb) ? desc.texture.width :
 			format_row_pitch(desc.texture.format, desc.texture.width)));
+#endif
+
+#ifdef DUMP_ENABLE_HASH_SET
+	if (hash_set.find(hash) != hash_set.end())
+	{
+		return true;
+	}
+	else
+	{
+		hash_set.insert(hash);
+	}
 #endif
 
 	const uint32_t block_count_x = (desc.texture.width + 3) / 4;
@@ -393,10 +414,16 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	WCHAR file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
-	std::filesystem::path dump_path = file_prefix;
-	dump_path += L'_';
-	dump_path += hash_string;
-	dump_path += L".bmp";
+	std::filesystem::path game_file_path = file_prefix;
+	std::filesystem::path dump_path = game_file_path.parent_path();
+	dump_path /= DUMP_DIR;
+	dump_path /= hash_string;
 
+#if DUMP_FMT == DUMP_FMT_BMP
+	dump_path += L".bmp";
 	return stbi_write_bmp(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;
+#elif DUMP_FMT == DUMP_FMT_PNG
+	dump_path += L".png";
+	return stbi_write_png(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data(), desc.texture.width * 4) != 0;
+#endif
 }
