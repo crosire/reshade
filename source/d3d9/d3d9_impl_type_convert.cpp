@@ -1157,7 +1157,10 @@ UINT reshade::d3d9::calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT coun
 	switch (type)
 	{
 	default:
-		return 0;
+		assert(false);
+		[[fallthrough]];
+	case D3DPT_POINTLIST:
+		return count;
 	case D3DPT_LINELIST:
 		return count * 2;
 	case D3DPT_LINESTRIP:
@@ -1174,7 +1177,10 @@ UINT reshade::d3d9::calc_prim_from_vertex_count(D3DPRIMITIVETYPE type, UINT coun
 	switch (type)
 	{
 	default:
-		return 0;
+		assert(false);
+		[[fallthrough]];
+	case D3DPT_POINTLIST:
+		return count;
 	case D3DPT_LINELIST:
 		return count / 2;
 	case D3DPT_LINESTRIP:
