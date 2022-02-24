@@ -155,9 +155,9 @@ namespace reshade::api
 	/// </summary>
 	enum class color_space : uint32_t
 	{
-		unknown = -1,
+		unknown = 0,
 
-		srgb_nonlinear = 0,
+		srgb_nonlinear,
 		extended_srgb_linear,
 		hdr10_st2084,
 		hdr10_hlg,
