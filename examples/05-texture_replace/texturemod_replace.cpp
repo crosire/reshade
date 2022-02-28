@@ -6,6 +6,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 
 #include <reshade.hpp>
+#include "replace_options.hpp"
 #include "crc32_hash.hpp"
 #include <fstream>
 #include <filesystem>
@@ -23,12 +24,12 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data)
 		desc.texture.format != format::b8g8r8x8_typeless && desc.texture.format != format::b8g8r8x8_unorm && desc.texture.format != format::b8g8r8x8_unorm_srgb)
 		return false;
 
-#if 0
+#if REPLACE_HASH == REPLACE_HASH_FULL
 	// Correct hash calculation using entire resource data
 	const uint32_t hash = compute_crc32(
 		static_cast<const uint8_t *>(data.data),
 		format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
-#else
+#elif REPLACE_HASH == REPLACE_HASH_TEXMOD
 	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
 	const uint32_t hash = ~compute_crc32(
 		static_cast<const uint8_t *>(data.data),
@@ -45,10 +46,16 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data)
 	WCHAR file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
-	std::filesystem::path replace_path = file_prefix;
-	replace_path += L'_';
-	replace_path += hash_string;
+	std::filesystem::path game_file_path = file_prefix;
+	std::filesystem::path replace_path = game_file_path.parent_path();
+	replace_path /= REPLACE_DIR;
+	replace_path /= hash_string;
+
+#if REPLACE_FMT == REPLACE_FMT_BMP
 	replace_path += L".bmp";
+#elif REPLACE_FMT == REPLACE_FMT_PNG
+	replace_path += L".png";
+#endif
 
 	// Check if a replacement file for this texture hash exists and if so, overwrite the texture data with its contents
 	if (std::filesystem::exists(replace_path))
