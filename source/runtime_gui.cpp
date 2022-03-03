@@ -3108,10 +3108,8 @@ void reshade::runtime::draw_technique_editor()
 
 		// Prevent user from disabling the technique when it is set to always be enabled via annotation
 		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, tech.annotation_as_int("enabled"));
-		// Gray out disabled techniques and mark those with warnings yellow
-		ImGui::PushStyleColor(ImGuiCol_Text,
-			effect.errors.empty() || tech.enabled ?
-				_imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_YELLOW);
+		// Gray out disabled techniques
+		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
 
 		std::string label(tech.annotation_as_string("ui_label"));
 		if (label.empty())
