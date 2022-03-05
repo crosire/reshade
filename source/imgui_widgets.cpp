@@ -580,18 +580,28 @@ static bool drag_with_buttons(const char *label, T *v, int components, T v_speed
 		ImGui::DragScalar("##v", data_type, v, static_cast<float>(v_speed), &v_min, &v_max, format) :
 		ImGui::DragScalarN("##v", data_type, v, components, static_cast<float>(v_speed), &v_min, &v_max, format);
 
+	const bool ignore_limits = ImGui::GetIO().KeyCtrl;
+
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
+	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && (ignore_limits || v[0] > v_min))
 	{
 		for (int c = 0; c < components; ++c)
-			v[c] = std::max(v[c] - v_speed, v_min);
+		{
+			v[c] -= v_speed;
+			if (!ignore_limits)
+				v[c] = std::max(v[c], v_min);
+		}
 		value_changed = true;
 	}
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] < v_max)
+	if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && (ignore_limits || v[0] < v_max))
 	{
 		for (int c = 0; c < components; ++c)
-			v[c] = std::min(v[c] + v_speed, v_max);
+		{
+			v[c] += v_speed;
+			if (!ignore_limits)
+				v[c] = std::min(v[c], v_max);
+		}
 		value_changed = true;
 	}
 
