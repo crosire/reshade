@@ -1478,6 +1478,12 @@ namespace reshade
 		/// </remarks>
 		reshade_overlay,
 
+		/// <summary>
+		/// Called after a screenshot was taken and saved to disk.
+		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, const char *filename)</c></para>
+		/// </summary>
+		reshade_screenshot,
+
 #ifdef RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
 #endif
@@ -1603,4 +1609,5 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_technique_state, bool, api::effect_runtime *runtime, api::effect_technique technique, bool enabled);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay, void, api::effect_runtime *runtime);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_screenshot, void, api::effect_runtime *runtime, const char *filename);
 }

@@ -4049,6 +4049,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 					std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
 				}
 #endif
+
+				invoke_addon_event<addon_event::reshade_screenshot>(this, screenshot_path.u8string().c_str());
 			}
 			else
 			{
