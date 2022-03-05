@@ -1195,6 +1195,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
+	bool skip_optimization = false;
 	bool source_cached = false; std::string source;
 	if (!effect.preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
 	{
@@ -1250,7 +1251,20 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		if (effect.preprocessed)
 		{
 			source = std::move(pp.output());
-			source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
+
+			for (const auto &pragma : pp.used_pragmas())
+			{
+				if (pragma.first != "reshade" || pragma.second.size() != 1)
+					continue;
+
+				const std::string &pragma_command = pragma.second.front();
+				if (pragma_command == "skipoptimization" || pragma_command == "nooptimization")
+					skip_optimization = true;
+			}
+
+			// Do not cache if any pragma commands were used, to ensure they are read again next time
+			if (!skip_optimization)
+				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			effect.definitions.clear();
@@ -1488,7 +1502,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					break;
 				}
 
-				UINT compile_flags = (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1);
+				UINT compile_flags = 0;
+				if (skip_optimization)
+					compile_flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+				else if (_performance_mode)
+					compile_flags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
 				if (_renderer_id >= D3D_FEATURE_LEVEL_10_0)
 					compile_flags |= D3DCOMPILE_ENABLE_STRICTNESS;
 #ifndef NDEBUG

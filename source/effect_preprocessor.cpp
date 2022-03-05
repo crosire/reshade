@@ -303,8 +303,11 @@ bool reshadefx::preprocessor::expect(tokenid token)
 		auto actual_token = _input_stack[_next_input_index].next_token;
 		actual_token.location.source = _output_location.source;
 
-		error(actual_token.location, "syntax error: unexpected token '" +
-			_input_stack[_next_input_index].lexer->input_string().substr(actual_token.offset, actual_token.length) + '\'');
+		if (actual_token == tokenid::end_of_line)
+			error(actual_token.location, "syntax error: unexpected new line");
+		else
+			error(actual_token.location, "syntax error: unexpected token '" +
+				_input_stack[_next_input_index].lexer->input_string().substr(actual_token.offset, actual_token.length) + '\'');
 
 		return false;
 	}
@@ -605,6 +608,8 @@ void reshadefx::preprocessor::parse_pragma()
 		return;
 
 	std::string pragma = std::move(_token.literal_as_string);
+	std::vector<std::string> pragma_args;
+	int parentheses_level = accept(tokenid::parenthesis_open) ? 1 : 0;
 
 	while (!peek(tokenid::end_of_line) && !peek(tokenid::end_of_file))
 	{
@@ -612,14 +617,29 @@ void reshadefx::preprocessor::parse_pragma()
 
 		if (_token == tokenid::identifier && evaluate_identifier_as_macro())
 			continue;
+		if (_token == tokenid::comma || _token == tokenid::space)
+			continue;
 
-		pragma += _current_token_raw_data;
+		if (parentheses_level > 0)
+		{
+			if ((_token == tokenid::parenthesis_open && parentheses_level++ == 0) ||
+				(_token == tokenid::parenthesis_close && --parentheses_level == 0))
+				continue;
+		}
+
+		pragma_args.push_back(std::move(_current_token_raw_data));
 	}
 
 	if (pragma == "once")
 	{
 		if (const auto it = _file_cache.find(_output_location.source); it != _file_cache.end())
 			it->second.clear();
+		return;
+	}
+
+	if (pragma == "reshade")
+	{
+		_used_pragmas.emplace(std::move(pragma), std::move(pragma_args));
 		return;
 	}
 

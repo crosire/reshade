@@ -85,10 +85,15 @@ namespace reshadefx
 		std::vector<std::filesystem::path> included_files() const;
 
 		/// <summary>
-		/// Get a list of all defines that were used in #ifdef and #ifndef lines
+		/// Get a list of all defines that were used in #ifdef and #ifndef lines.
 		/// </summary>
 		/// <returns></returns>
 		std::vector<std::pair<std::string, std::string>> used_macro_definitions() const;
+
+		/// <summary>
+		/// Get a list of pragmas that occured.
+		/// </summary>
+		const std::unordered_map<std::string, std::vector<std::string>> &used_pragmas() const { return _used_pragmas; }
 
 	private:
 		struct if_level
@@ -151,5 +156,6 @@ namespace reshadefx
 		std::unordered_map<std::string, macro> _macros;
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _file_cache;
+		std::unordered_map<std::string, std::vector<std::string>> _used_pragmas;
 	};
 }
