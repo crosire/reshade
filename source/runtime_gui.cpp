@@ -1187,44 +1187,6 @@ void reshade::runtime::draw_gui_home()
 	if (!_effects_enabled)
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
-	if (!_last_reload_successfull)
-	{
-		std::string filename_list;
-		for (const effect &effect : _effects)
-			if (!effect.compiled && !effect.skipped)
-				filename_list += ' ' + effect.source_file.filename().u8string() + ',';
-
-		// Make sure there are actually effects that failed to compile, since the last reload flag may not have been reset
-		if (filename_list.empty())
-		{
-			_last_reload_successfull = true;
-		}
-		else
-		{
-			filename_list.pop_back();
-			ImGui::TextColored(COLOR_RED, "Some effects failed to compile:%s", filename_list.c_str());
-			ImGui::Spacing();
-		}
-	}
-	if (!_last_texture_reload_successfull)
-	{
-		std::string texture_list;
-		for (const texture &tex : _textures)
-			if (tex.resource != 0 && !tex.loaded && !tex.annotation_as_string("source").empty())
-				texture_list += ' ' + tex.unique_name + ',';
-
-		if (texture_list.empty())
-		{
-			_last_texture_reload_successfull = true;
-		}
-		else
-		{
-			texture_list.pop_back();
-			ImGui::TextColored(COLOR_RED, "Some textures failed to load:%s", texture_list.c_str());
-			ImGui::Spacing();
-		}
-	}
-
 	if (_tutorial_index > 1)
 	{
 		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 10.0f : 20.0f) * _font_size + (_variable_editor_tabs ? 1.0f : 2.0f) * _imgui_context->Style.ItemSpacing.x)))
@@ -3136,9 +3098,23 @@ void reshade::runtime::draw_technique_editor()
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
 			hovered_technique_index = index;
 
+		std::string warnings = effect.errors;
+		if (!_last_texture_reload_successfull)
+		{
+			for (const texture &tex : _textures)
+			{
+				if (tex.effect_index == tech.effect_index && tex.resource != 0 && !tex.loaded)
+				{
+					const std::string_view source = tex.annotation_as_string("source");
+					if (!source.empty())
+						warnings += "warning: " + tex.unique_name + ": \"" + std::string(source) + "\" could not be loaded.\n";
+				}
+			}
+		}
+
 		// Display tooltip
 		if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
-			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && (!tooltip.empty() || !effect.errors.empty()))
+			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && (!tooltip.empty() || !warnings.empty()))
 		{
 			ImGui::BeginTooltip();
 			if (!tooltip.empty())
@@ -3146,10 +3122,10 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::TextUnformatted(tooltip.data());
 				ImGui::Spacing();
 			}
-			if (!effect.errors.empty())
+			if (!warnings.empty())
 			{
 				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
-				ImGui::TextUnformatted(effect.errors.c_str());
+				ImGui::TextUnformatted(warnings.c_str());
 				ImGui::PopStyleColor();
 			}
 			ImGui::EndTooltip();
