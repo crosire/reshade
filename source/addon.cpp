@@ -60,6 +60,8 @@ extern "C" __declspec(dllexport) const imgui_function_table *ReShadeGetImGuiFunc
 {
 	if (version == IMGUI_VERSION_NUM)
 		return &g_imgui_function_table;
+
+	LOG(ERROR) << "Failed to retrieve ImGui function table, because the requested ImGui version (" << version << ") is not supported (expected " << IMGUI_VERSION_NUM << ").";
 	return nullptr;
 }
 
