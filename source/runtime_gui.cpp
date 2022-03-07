@@ -1248,8 +1248,8 @@ void reshade::runtime::draw_gui_home()
 		if (_tutorial_index == 2)
 		{
 			tutorial_text =
-				"This is the list of effects. It contains all techniques found in the effect files (*.fx) from the effect search paths as specified in the settings.\n\n"
-				"Enter text in the box at the top to filter it and search for specific techniques.\n\n"
+				"This is the list of effects. It contains all techniques exposed by effect files (*.fx) found in the effect search paths specified in the settings.\n\n"
+				"Enter text in the \"Search\" box at the top to filter it and search for specific techniques.\n\n"
 				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.\n"
 				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n";
 
@@ -1309,7 +1309,7 @@ void reshade::runtime::draw_gui_home()
 			tutorial_text =
 				"This is the list of variables. It contains all tweakable options the active effects expose. Values here apply in real-time.\n\n"
 				"Enter text in the box at the top to filter it and search for specific variables.\n\n"
-				"Press 'Ctrl' and click on a widget to manually edit the value.\n"
+				"Press 'Ctrl' and click on a widget to manually edit the value (can also hold 'Ctrl' while adjusting the value in a widget to have it ignore any minimum or maximum values).\n"
 				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n"
 				"Once you have finished tweaking your preset, be sure to enable the 'Performance Mode' check box. "
 				"This will recompile all effects into a more optimal representation that can give a performance boost, but will disable variable tweaking and this list.";
