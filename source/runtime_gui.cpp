@@ -3098,23 +3098,9 @@ void reshade::runtime::draw_technique_editor()
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
 			hovered_technique_index = index;
 
-		std::string warnings = effect.errors;
-		if (!_last_texture_reload_successfull)
-		{
-			for (const texture &tex : _textures)
-			{
-				if (tex.effect_index == tech.effect_index && tex.resource != 0 && !tex.loaded)
-				{
-					const std::string_view source = tex.annotation_as_string("source");
-					if (!source.empty())
-						warnings += "warning: " + tex.unique_name + ": \"" + std::string(source) + "\" could not be loaded.\n";
-				}
-			}
-		}
-
 		// Display tooltip
 		if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
-			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && (!tooltip.empty() || !warnings.empty()))
+			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && (!tooltip.empty() || !effect.errors.empty()))
 		{
 			ImGui::BeginTooltip();
 			if (!tooltip.empty())
@@ -3122,10 +3108,10 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::TextUnformatted(tooltip.data());
 				ImGui::Spacing();
 			}
-			if (!warnings.empty())
+			if (!effect.errors.empty())
 			{
 				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
-				ImGui::TextUnformatted(warnings.c_str());
+				ImGui::TextUnformatted(effect.errors.c_str());
 				ImGui::PopStyleColor();
 			}
 			ImGui::EndTooltip();

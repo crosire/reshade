@@ -372,7 +372,6 @@ namespace reshade
 
 		std::atomic<bool> _last_reload_successfull = true;
 		bool _textures_loaded = false;
-		bool _last_texture_reload_successfull = true;
 		std::shared_mutex _reload_mutex;
 		std::vector<size_t> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;

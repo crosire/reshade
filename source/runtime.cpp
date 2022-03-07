@@ -2805,16 +2805,14 @@ void reshade::runtime::load_effects()
 }
 void reshade::runtime::load_textures()
 {
-	_last_texture_reload_successfull = true;
-
 	LOG(INFO) << "Loading image files for textures ...";
 
-	for (texture &texture : _textures)
+	for (texture &tex : _textures)
 	{
-		if (texture.resource == 0 || !texture.semantic.empty())
+		if (tex.resource == 0 || !tex.semantic.empty())
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
 
-		std::filesystem::path source_path = std::filesystem::u8path(texture.annotation_as_string("source"));
+		std::filesystem::path source_path = std::filesystem::u8path(tex.annotation_as_string("source"));
 		// Ignore textures that have no image file attached to them (e.g. plain render targets)
 		if (source_path.empty())
 			continue;
@@ -2822,8 +2820,10 @@ void reshade::runtime::load_textures()
 		// Search for image file using the provided search paths unless the path provided is already absolute
 		if (!find_file(_texture_search_paths, source_path))
 		{
-			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths!";
-			_last_texture_reload_successfull = false;
+			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
+				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" was not found.\n";
+
+			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' was not found in any of the texture search paths!";
 			continue;
 		}
 
@@ -2845,16 +2845,18 @@ void reshade::runtime::load_textures()
 
 		if (filedata == nullptr)
 		{
-			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
-			_last_texture_reload_successfull = false;
+			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
+				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
+
+			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
 			continue;
 		}
 
-		update_texture(texture, width, height, filedata);
+		update_texture(tex, width, height, filedata);
 
 		stbi_image_free(filedata);
 
-		texture.loaded = true;
+		tex.loaded = true;
 	}
 
 	_textures_loaded = true;
