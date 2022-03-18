@@ -78,6 +78,8 @@ namespace ReShade.Setup.Utilities
 		private static extern IntPtr ImageRvaToVa(IntPtr pNtHeaders, IntPtr pBase, uint rva, IntPtr pLastRvaSection);
 		[DllImport("imagehlp.dll"), SuppressUnmanagedCodeSecurity]
 		private static extern bool MapAndLoad(string imageName, string dllPath, out LOADED_IMAGE loadedImage, bool dotDll, bool readOnly);
+		[DllImport("imagehlp.dll"), SuppressUnmanagedCodeSecurity]
+		private static extern bool UnMapAndLoad(LOADED_IMAGE loadedImage);
 
 		// Adapted from http://stackoverflow.com/a/4696857/2055880
 		public PEInfo(string path)
@@ -99,6 +101,8 @@ namespace ReShade.Setup.Utilities
 				}
 
 				Type = ((IMAGE_NT_HEADERS*)image.FileHeader)->FileHeader.Machine;
+
+				UnMapAndLoad(image);
 			}
 
 			Modules = modules;
