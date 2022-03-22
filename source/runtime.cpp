@@ -4021,30 +4021,35 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 
 			if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 			{
+				struct write_context { FILE *file; bool write_success = true; } context = { file };
+
 				const auto write_callback = [](void *context, void *data, int size) {
-					fwrite(data, 1, size, static_cast<FILE *>(context));
+					if (fwrite(data, 1, size, static_cast<write_context *>(context)->file) != size)
+						static_cast<write_context *>(context)->write_success = false;
 				};
 
 				switch (_screenshot_format)
 				{
 				case 0:
-					save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, data.data()) != 0;
+					save_success = stbi_write_bmp_to_func(write_callback, &context, _width, _height, comp, data.data()) != 0;
 					break;
 				case 1:
 				{
 #if 1
 					std::vector<uint8_t> encoded_data;
 					save_success = fpng::fpng_encode_image_to_memory(data.data(), _width, _height, comp, encoded_data);
-					fwrite(encoded_data.data(), 1, encoded_data.size(), file);
+					write_callback(&context, encoded_data.data(), static_cast<int>(encoded_data.size()));
 #else
-					save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, data.data(), 0) != 0;
+					save_success = stbi_write_png_to_func(write_callback, &context, _width, _height, comp, data.data(), 0) != 0;
 #endif
 					break;
 				}
 				case 2:
-					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
+					save_success = stbi_write_jpg_to_func(write_callback, &context, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				}
+
+				save_success &= context.write_success;
 
 				fclose(file);
 			}

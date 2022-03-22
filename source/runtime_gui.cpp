@@ -665,7 +665,7 @@ void reshade::runtime::draw_gui()
 		{
 			if (!_last_screenshot_save_successfull)
 				if (_screenshot_directory_creation_successfull)
-					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported).");
+					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported or the drive may be full).");
 				else
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path could not be created: %s.", (g_reshade_base_path / _screenshot_path).u8string().c_str());
 			else
