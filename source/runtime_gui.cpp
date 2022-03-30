@@ -1240,10 +1240,13 @@ void reshade::runtime::draw_gui_home()
 			save_current_preset();
 		}
 
-		ImGui::SameLine();
+		if (!_variable_editor_tabs)
+		{
+			ImGui::SameLine();
 
-		if (ImGui::Button((_effects_expanded_state & 2) ? "Collapse all" : "Expand all", ImVec2(10.0f * _font_size, 0)))
-			_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
+			if (ImGui::Button((_effects_expanded_state & 2) ? "Collapse all" : "Expand all", ImVec2(10.0f * _font_size, 0)))
+				_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
+		}
 
 		if (_tutorial_index == 2)
 		{
