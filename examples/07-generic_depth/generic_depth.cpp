@@ -346,6 +346,10 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 	case device_api::d3d9:
 		if (s_disable_intz)
 			return false;
+		// Skip textures that are sampled as PCF shadow maps using hardware support (see https://aras-p.info/texts/D3D9GPUHacks.html#shadowmap), since changing format would break that
+		if (desc.type == resource_type::texture_2d && (desc.texture.format == format::d16_unorm || desc.texture.format == format::d24_unorm_x8_uint || desc.texture.format == format::d24_unorm_s8_uint))
+			return false;
+		// Replace texture format with special format that supports normal sampling (see https://aras-p.info/texts/D3D9GPUHacks.html#depth)
 		desc.texture.format = format::intz;
 		desc.usage |= resource_usage::shader_resource;
 		break;

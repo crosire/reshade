@@ -589,6 +589,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 		case D3DFMT_D32_LOCKABLE:
 		case D3DFMT_S8_LOCKABLE:
 			assert((internal_desc.Usage & D3DUSAGE_DEPTHSTENCIL) != 0);
+			// D16, D24X8 and D24S8 technically support sampling as PCF shadow maps on some GPUs, but not normal sampling, so ignore that
 			break;
 		case MAKEFOURCC('R', 'E', 'S', 'Z'):
 		case MAKEFOURCC('N', 'U', 'L', 'L'):
