@@ -1067,7 +1067,7 @@ void reshade::runtime::draw_gui_home()
 
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-		const float browse_button_width = ImGui::GetContentRegionAvail().x - (button_spacing + button_size) * 4;
+		const float browse_button_width = ImGui::GetContentRegionAvail().x - (button_spacing + button_size) * (_performance_mode ? 3 : 4);
 
 		bool reload_preset = false;
 
@@ -1096,15 +1096,19 @@ void reshade::runtime::draw_gui_home()
 		}
 		ImGui::PopStyleVar();
 
-		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+		// Cannot save in performance mode, since there are no variables to retrieve values from then
+		if (!_performance_mode)
 		{
-			std::error_code ec; std::filesystem::remove(_current_preset_path, ec);
-			save_current_preset();
-		}
+			ImGui::SameLine(0, button_spacing);
+			if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+			{
+				std::error_code ec; std::filesystem::remove(_current_preset_path, ec);
+				save_current_preset();
+			}
 
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
+		}
 
 		ImGui::SameLine(0, button_spacing);
 		if (ImGui::ButtonEx(ICON_FK_PLUS, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | ImGuiButtonFlags_PressedOnClick))
