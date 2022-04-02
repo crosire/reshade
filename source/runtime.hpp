@@ -438,7 +438,7 @@ namespace reshade
 #if RESHADE_FX
 		unsigned int _prev_preset_key_data[4] = {};
 		unsigned int _next_preset_key_data[4] = {};
-		unsigned int _preset_transition_delay = 1000;
+		unsigned int _preset_transition_duration = 1000;
 		std::filesystem::path _current_preset_path;
 
 		bool _is_in_between_presets_transition = false;

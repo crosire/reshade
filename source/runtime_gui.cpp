@@ -1436,7 +1436,7 @@ void reshade::runtime::draw_gui_settings()
 			modified |= imgui::key_input_box("Previous preset key", _prev_preset_key_data, *_input);
 			modified |= imgui::key_input_box("Next preset key", _next_preset_key_data, *_input);
 
-			modified |= ImGui::SliderInt("Preset transition delay", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
+			modified |= ImGui::SliderInt("Preset transition duration", reinterpret_cast<int *>(&_preset_transition_duration), 0, 10 * 1000);
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
 #endif

@@ -1013,6 +1013,11 @@ In that event here are some steps you can try to resolve this:
 				}
 			}
 
+			if (!config.HasValue("GENERAL", "PresetTransitionDuration") && config.HasValue("GENERAL", "PresetTransitionDelay"))
+			{
+				config.RenameValue("GENERAL", "PresetTransitionDelay", "GENERAL", "PresetTransitionDuration");
+			}
+
 			// Always add input section
 			if (!config.HasValue("INPUT"))
 			{

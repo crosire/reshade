@@ -619,11 +619,7 @@ void reshade::runtime::on_present()
 			{
 				// The preset shortcut key was pressed down, so start the transition
 				if (switch_to_next_preset(_current_preset_path.parent_path(), reversed))
-				{
-					_last_preset_switching_time = current_time;
-					_is_in_between_presets_transition = true;
 					save_config();
-				}
 			}
 
 			// Continuously update preset values while a transition is in progress
@@ -742,7 +738,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
 
 	config.get("GENERAL", "PresetPath", _current_preset_path);
-	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
+	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 
 	// Fall back to temp directory if cache path does not exist
 	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path))
@@ -812,7 +808,7 @@ void reshade::runtime::save_config() const
 	if (relative_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
 		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
-	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
+	config.set("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 #endif
 
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
@@ -899,7 +895,7 @@ void reshade::runtime::load_current_preset()
 
 	// Compute times since the transition has started and how much is left till it should end
 	auto transition_time = std::chrono::duration_cast<std::chrono::microseconds>(_last_present_time - _last_preset_switching_time).count();
-	auto transition_ms_left = _preset_transition_delay - transition_time / 1000;
+	auto transition_ms_left = _preset_transition_duration - transition_time / 1000;
 	auto transition_ms_left_from_last_frame = transition_ms_left + std::chrono::duration_cast<std::chrono::microseconds>(_last_frame_duration).count() / 1000;
 
 	if (_is_in_between_presets_transition && transition_ms_left <= 0)
@@ -947,8 +943,8 @@ void reshade::runtime::load_current_preset()
 					// Perform smooth transition on floating point values
 					for (unsigned int i = 0; i < variable.type.components(); i++)
 					{
-						const auto transition_ratio = (values.as_float[i] - values_old.as_float[i]) / transition_ms_left_from_last_frame;
-						values.as_float[i] = values.as_float[i] - transition_ratio * transition_ms_left;
+						const float value_left = (values.as_float[i] - values_old.as_float[i]);
+						values.as_float[i] -= (value_left / transition_ms_left_from_last_frame) * transition_ms_left;
 					}
 				}
 				set_uniform_value(variable, values.as_float, variable.type.components());
@@ -1118,6 +1114,9 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 		else
 			_current_preset_path = it == std::prev(preset_paths.end()) ? preset_paths.front() : *++it;
 	}
+
+	_last_preset_switching_time = _last_present_time;
+	_is_in_between_presets_transition = true;
 
 	return true;
 }
