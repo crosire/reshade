@@ -447,6 +447,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 		if (command_list_proxy->check_and_upgrade_interface(riid))
 		{
 			*ppCommandList = command_list_proxy;
+
+#if RESHADE_ADDON
+			// Same implementation as in 'D3D12GraphicsCommandList::Reset'
+			reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(command_list_proxy);
+
+			if (pInitialState != nullptr)
+				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(command_list_proxy, reshade::api::pipeline_stage::all, to_handle(pInitialState));
+#endif
 		}
 		else // Do not hook object if we do not support the requested interface
 		{
@@ -1532,6 +1540,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 		if (command_list_proxy->check_and_upgrade_interface(riid))
 		{
 			*ppCommandList = command_list_proxy;
+
+#if RESHADE_ADDON
+			reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(command_list_proxy);
+#endif
 		}
 		else // Do not hook object if we do not support the requested interface or this is a compute command list
 		{
