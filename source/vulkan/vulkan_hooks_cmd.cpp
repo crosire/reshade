@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+#include "dll_log.hpp"
 #include "lockfree_linear_map.hpp"
 #include "vulkan_hooks.hpp"
 #include "vulkan_impl_device.hpp"
@@ -217,7 +218,14 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 #endif
 
 	GET_DISPATCH_PTR_FROM(BeginCommandBuffer, device_impl);
-	return trampoline(commandBuffer, pBeginInfo);
+	const VkResult result = trampoline(commandBuffer, pBeginInfo);
+#if RESHADE_VERBOSE_LOG
+	if (result < VK_SUCCESS)
+	{
+		LOG(WARN) << "vkBeginCommandBuffer" << " failed with error code " << result << '.';
+	}
+#endif
+	return result;
 }
 VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
@@ -239,7 +247,14 @@ VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 #endif
 
 	GET_DISPATCH_PTR_FROM(EndCommandBuffer, device_impl);
-	return trampoline(commandBuffer);
+	const VkResult result = trampoline(commandBuffer);
+#if RESHADE_VERBOSE_LOG
+	if (result < VK_SUCCESS)
+	{
+		LOG(WARN) << "vkEndCommandBuffer" << " failed with error code " << result << '.';
+	}
+#endif
+	return result;
 }
 
 void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
