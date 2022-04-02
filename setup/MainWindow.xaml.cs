@@ -719,18 +719,30 @@ namespace ReShade.Setup
 
 			if (targetApi == Api.Vulkan)
 			{
-				// Unregister any layers from previous ReShade installations
-				using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
+				try
 				{
-					key.DeleteValue(Path.Combine(commonPath, "ReShade32", "ReShade32.json"), false);
-					key.DeleteValue(Path.Combine(commonPath, "ReShade64", "ReShade64.json"), false);
+					// Unregister any layers from previous ReShade installations
+					using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Khronos\Vulkan\ExplicitLayers", true))
+					{
+						key.DeleteValue(Path.Combine(commonPath, "ReShade32", "ReShade32.json"), false);
+						key.DeleteValue(Path.Combine(commonPath, "ReShade64", "ReShade64.json"), false);
+					}
+					using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Khronos\Vulkan\ImplicitLayers", true))
+					{
+						key.DeleteValue(Path.Combine(commonPath, "ReShade.json"), false);
+						key.DeleteValue(Path.Combine(commonPath, "VkLayer_override.json"), false);
+						key.DeleteValue(Path.Combine(commonPath, "ReShade32_vk_override_layer.json"), false);
+						key.DeleteValue(Path.Combine(commonPath, "ReShade64_vk_override_layer.json"), false);
+					}
+					using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"Software\Khronos\Vulkan\ImplicitLayers", true))
+					{
+						key.DeleteValue(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade", "ReShade32.json"), false);
+						key.DeleteValue(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade", "ReShade64.json"), false);
+					}
 				}
-				using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
+				catch
 				{
-					key.DeleteValue(Path.Combine(commonPath, "ReShade.json"), false);
-					key.DeleteValue(Path.Combine(commonPath, "VkLayer_override.json"), false);
-					key.DeleteValue(Path.Combine(commonPath, "ReShade32_vk_override_layer.json"), false);
-					key.DeleteValue(Path.Combine(commonPath, "ReShade64_vk_override_layer.json"), false);
+					// Ignore errors
 				}
 
 				foreach (string layerModuleName in new[] { "ReShade32", "ReShade64" })
