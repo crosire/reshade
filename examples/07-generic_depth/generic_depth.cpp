@@ -799,6 +799,33 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 	bool has_msaa_depth_stencil = false;
 
+	const auto format_to_string = [](format format) {
+		switch (format)
+		{
+		case format::d16_unorm:
+		case format::r16_typeless:
+			return "D16  ";
+		case format::d16_unorm_s8_uint:
+			return "D16S8";
+		case format::d24_unorm_x8_uint:
+			return "D24X8";
+		case format::d24_unorm_s8_uint:
+		case format::r24_g8_typeless:
+			return "D24S8";
+		case format::d32_float:
+		case format::r32_float:
+		case format::r32_typeless:
+			return "D32  ";
+		case format::d32_float_s8_uint:
+		case format::r32_g8_typeless:
+			return "D32S8";
+		case format::intz:
+			return "INTZ ";
+		default:
+			return "     ";
+		}
+	};
+
 	instance.display_count_per_depth_stencil.clear();
 	for (const depth_stencil_item &item : sorted_item_list)
 	{
@@ -823,8 +850,14 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		}
 
 		ImGui::SameLine();
-		ImGui::Text("| %4ux%-4u | %5u draw calls (%5u indirect) ==> %8u vertices |%s",
-			item.desc.texture.width, item.desc.texture.height, item.snapshot.total_stats.drawcalls, item.snapshot.total_stats.drawcalls_indirect, item.snapshot.total_stats.vertices, (item.desc.texture.samples > 1 ? " MSAA" : ""));
+		ImGui::Text("| %4ux%-4u | %s | %5u draw calls (%5u indirect) ==> %8u vertices |%s",
+			item.desc.texture.width,
+			item.desc.texture.height,
+			format_to_string(item.desc.texture.format),
+			item.snapshot.total_stats.drawcalls,
+			item.snapshot.total_stats.drawcalls_indirect,
+			item.snapshot.total_stats.vertices,
+			(item.desc.texture.samples > 1 ? " MSAA" : ""));
 
 		if (item.desc.texture.samples > 1)
 		{
@@ -860,8 +893,11 @@ static void draw_settings_overlay(effect_runtime *runtime)
 				}
 
 				ImGui::SameLine();
-				ImGui::Text("        |           | %5u draw calls (%5u indirect) ==> %8u vertices |%s",
-					clear_stats.drawcalls, clear_stats.drawcalls_indirect, clear_stats.vertices, clear_stats.rect ? " RECT" : "");
+				ImGui::Text("        |           |       | %5u draw calls (%5u indirect) ==> %8u vertices |%s",
+					clear_stats.drawcalls,
+					clear_stats.drawcalls_indirect,
+					clear_stats.vertices,
+					clear_stats.rect ? " RECT" : "");
 
 				if (clear_stats.rect)
 				{
