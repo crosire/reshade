@@ -264,7 +264,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	create_info.pNext = &private_data_feature;
 
 	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
-	if (dynamic_rendering_ext)
+	if (const auto existing_dynamic_rendering_feature = find_in_structure_chain<VkPhysicalDeviceDynamicRenderingFeatures>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES))
+	{
+		dynamic_rendering_ext = existing_dynamic_rendering_feature->dynamicRendering;
+	}
+	else if (dynamic_rendering_ext)
 	{
 		dynamic_rendering_feature.pNext = const_cast<void *>(create_info.pNext);
 		dynamic_rendering_feature.dynamicRendering = VK_TRUE;
@@ -275,7 +280,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef VK_EXT_custom_border_color
 	// Optionally enable custom border color feature
 	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
-	if (custom_border_color_ext)
+	if (const auto existing_custom_border_feature = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT))
+	{
+		custom_border_color_ext = existing_custom_border_feature->customBorderColors;
+	}
+	else if (custom_border_color_ext)
 	{
 		custom_border_feature.pNext = const_cast<void *>(create_info.pNext);
 		custom_border_feature.customBorderColors = VK_TRUE;
@@ -288,7 +298,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef VK_EXT_extended_dynamic_state
 	// Optionally enable extended dynamic state feature
 	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
-	if (extended_dynamic_state_ext)
+	if (const auto existing_extended_dynamic_state_feature = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT))
+	{
+		extended_dynamic_state_ext = existing_extended_dynamic_state_feature->extendedDynamicState;
+	}
+	else if (extended_dynamic_state_ext)
 	{
 		extended_dynamic_state_feature.pNext = const_cast<void *>(create_info.pNext);
 		extended_dynamic_state_feature.extendedDynamicState = VK_TRUE;
