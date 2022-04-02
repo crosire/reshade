@@ -151,6 +151,9 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) state_tracking_c
 	// List of resources that were deleted this frame
 	std::vector<resource> destroyed_resources;
 
+	// List of resources that are enqueued for delayed destruction in the future
+	std::vector<std::pair<resource, int>> delayed_destroy_resources;
+
 	// List of all encountered depth-stencils of the last frame
 	std::vector<std::pair<resource, depth_stencil_info>> current_depth_stencil_list;
 
@@ -167,8 +170,9 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) state_tracking_c
 
 	depth_stencil_backup *track_depth_stencil_for_backup(device *device, resource resource, resource_desc desc)
 	{
-		if (const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(), [resource](const depth_stencil_backup &existing) { return existing.depth_stencil_resource == resource; });
-			it != depth_stencil_backups.end())
+		const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(),
+			[resource](const depth_stencil_backup &existing) { return existing.depth_stencil_resource == resource; });
+		if (it != depth_stencil_backups.end())
 		{
 			it->references++;
 			return &(*it);
@@ -186,20 +190,29 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) state_tracking_c
 		else if (device->get_api() != device_api::vulkan) // Use depth format as-is in Vulkan, since those are valid for shader resource views there
 			desc.texture.format = format_to_typeless(desc.texture.format);
 
-		if (!device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
+		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
+			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
+		else
 			reshade::log_message(1, "Failed to create backup depth-stencil texture!");
 
 		return &backup;
 	}
 
-	void untrack_depth_stencil(device *device, resource resource)
+	void untrack_depth_stencil(resource resource)
 	{
-		const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(), [resource](const depth_stencil_backup &existing) { return existing.depth_stencil_resource == resource; });
+		const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(),
+			[resource](const depth_stencil_backup &existing) { return existing.depth_stencil_resource == resource; });
 		if (it == depth_stencil_backups.end() || --it->references != 0)
 			return;
 
-		if (it->backup_texture != 0)
-			device->destroy_resource(it->backup_texture);
+		depth_stencil_backup &backup = *it;
+
+		if (backup.backup_texture != 0)
+		{
+			// Do not destroy backup texture immediately since it may still be referenced by a command list that is in flight or was prerecorded
+			// Instead enqueue it for delayed destruction in the future
+			delayed_destroy_resources.emplace_back(backup.backup_texture, 50); // Destroy after 50 frames
+		}
 
 		depth_stencil_backups.erase(it);
 	}
@@ -226,7 +239,9 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	if (depth_stencil == 0)
 		return;
 
-	const depth_stencil_backup *const depth_stencil_backup = cmd_list->get_device()->get_private_data<state_tracking_context>().find_depth_stencil_backup(depth_stencil);
+	device *const device = cmd_list->get_device();
+
+	depth_stencil_backup *const depth_stencil_backup = device->get_private_data<state_tracking_context>().find_depth_stencil_backup(depth_stencil);
 	if (depth_stencil_backup == nullptr || depth_stencil_backup->backup_texture == 0)
 		return;
 
@@ -244,7 +259,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 		return;
 
 	// Skip clears when last viewport only affected a subset of the depth-stencil
-	if (const resource_desc desc = cmd_list->get_device()->get_resource_desc(depth_stencil);
+	if (const resource_desc desc = device->get_resource_desc(depth_stencil);
 		!check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, desc.texture.width, desc.texture.height))
 	{
 		counters.current_stats = { 0, 0 };
@@ -309,6 +324,12 @@ static void on_init_effect_runtime(effect_runtime *runtime)
 static void on_destroy_device(device *device)
 {
 	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
+
+	// Destroy any remaining resources
+	for (const auto &[resource, _] : device_state.delayed_destroy_resources)
+	{
+		device->destroy_resource(resource);
+	}
 
 	for (depth_stencil_backup &depth_stencil_backup : device_state.depth_stencil_backups)
 	{
@@ -535,7 +556,8 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 	if (queue_state.counters_per_used_depth_stencil.size() == 1 && queue_state.counters_per_used_depth_stencil.begin()->second.total_stats.drawcalls <= 4)
 		return;
 
-	auto &device_state = swapchain->get_device()->get_private_data<state_tracking_context>();
+	device *const device = swapchain->get_device();
+	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
@@ -557,6 +579,21 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 	queue_state.reset_on_present();
 
 	device_state.destroyed_resources.clear();
+
+	// Destroy resources that were enqueued for delayed destruction and have reached the targeted number of passed frames
+	for (auto it = device_state.delayed_destroy_resources.begin(); it != device_state.delayed_destroy_resources.end();)
+	{
+		if (--it->second == 0)
+		{
+			device->destroy_resource(it->first);
+
+			it = device_state.delayed_destroy_resources.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
 }
 
 static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_list, resource_view, resource_view)
@@ -625,7 +662,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				queue->wait_idle(); // Ensure resource view is no longer in-use before destroying it
 				device->destroy_resource_view(instance.selected_shader_resource);
 
-				device_state.untrack_depth_stencil(device, instance.selected_depth_stencil);
+				device_state.untrack_depth_stencil(instance.selected_depth_stencil);
 			}
 
 			instance.using_backup_texture = false;
@@ -703,7 +740,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				queue->wait_idle(); // Ensure resource view is no longer in-use before destroying it
 				device->destroy_resource_view(instance.selected_shader_resource);
 
-				device_state.untrack_depth_stencil(device, instance.selected_depth_stencil);
+				device_state.untrack_depth_stencil(instance.selected_depth_stencil);
 			}
 
 			instance.using_backup_texture = false;
@@ -932,7 +969,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			queue->wait_idle(); // Ensure resource view is no longer in-use before destroying it
 			device->destroy_resource_view(instance.selected_shader_resource);
 
-			device_state.untrack_depth_stencil(device, instance.selected_depth_stencil);
+			device_state.untrack_depth_stencil(instance.selected_depth_stencil);
 		}
 
 		instance.using_backup_texture = false;
