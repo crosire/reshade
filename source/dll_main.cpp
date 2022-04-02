@@ -9,6 +9,7 @@
 #include "hook_manager.hpp"
 #include <Windows.h>
 #include <Psapi.h>
+#include <ShlObj.h>
 
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
@@ -59,7 +60,7 @@ static bool resolve_env_path(std::filesystem::path &path, const std::filesystem:
 /// <summary>
 /// Returns the path that should be used as base for relative paths.
 /// </summary>
-std::filesystem::path get_base_path()
+std::filesystem::path get_base_path(bool default_to_target_executable_path = false)
 {
 	std::filesystem::path result;
 
@@ -70,16 +71,7 @@ std::filesystem::path get_base_path()
 	if (GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(result = buf))
 		return result;
 
-	std::error_code ec;
-	if (!std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
-	{
-		return g_reshade_dll_path.parent_path();
-	}
-	else
-	{
-		// Use target executable directory when a unique configuration already exists
-		return g_target_executable_path.parent_path();
-	}
+	return default_to_target_executable_path ? g_target_executable_path.parent_path() : g_reshade_dll_path.parent_path();
 }
 
 /// <summary>
@@ -826,6 +818,8 @@ static PVOID s_exception_handler_handle = nullptr;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
+	bool default_base_to_target_executable_path = false;
+
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
@@ -834,7 +828,44 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_module_handle = hModule;
 		g_reshade_dll_path = get_module_path(hModule);
 		g_target_executable_path = get_module_path(nullptr);
-		g_reshade_base_path = get_base_path(); // Needs to happen after DLL and executable path are set (since those are referenced in 'get_base_path')
+
+#if 1
+		// When ReShade is loaded from the location managed by the setup tool (see "ReShade Setup" project), only load when the target executable is in the list of applications managed by the setup tool
+		// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
+		{
+			PWSTR appdata_path = nullptr;
+			SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_NO_PACKAGE_REDIRECTION, nullptr, &appdata_path);
+			const auto common_path = std::filesystem::path(appdata_path) / L"ReShade";
+			const auto appdata_reshade_dll_path = common_path /
+#ifdef WIN64
+				L"ReShade64" / L"ReShade64.dll";
+#else
+				L"ReShade32" / L"ReShade32.dll";
+#endif
+			CoTaskMemFree(appdata_path);
+
+			if (g_reshade_dll_path == appdata_reshade_dll_path)
+			{
+				default_base_to_target_executable_path = true;
+
+				const ini_file app_config(common_path / L"ReShadeApps.ini");
+				if (std::vector<std::filesystem::path> app_paths;
+					app_config.get(std::string(), "Apps", app_paths))
+				{
+					if (std::find(app_paths.begin(), app_paths.end(), g_target_executable_path) == app_paths.end())
+					{
+#ifndef NDEBUG
+						// Log was not yet opened at this point, so this only writes to debug output
+						LOG(WARN) << "ReShade was not enabled for " << g_target_executable_path << "! Aborting initialization ...";
+#endif
+						return FALSE; // Make the "LoadLibrary" call that loaded this instance fail
+					}
+				}
+			}
+		}
+#endif
+
+		g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
 		if (std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
 			reshade::log::open_log_file(log_path) == false)
@@ -849,11 +880,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			reshade::log::open_log_file(log_path);
 		}
 
+		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' "
 #ifdef WIN64
-		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
+			"(64-bit) "
 #else
-		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (32-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
+			"(32-bit) "
 #endif
+			"built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 
 #ifndef NDEBUG
 		// Disable exception handler for Java games, since it causing problems with the Java runtime

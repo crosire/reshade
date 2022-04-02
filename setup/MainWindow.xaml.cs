@@ -287,6 +287,11 @@ namespace ReShade.Setup
 			}
 		}
 
+		static void RunTaskWithExceptionHandling(Action action)
+		{
+			Task.Run(action).ContinueWith(c => Environment.FailFast("Unhandled exception during installation", c.Exception), TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+		}
+
 		void AddSearchPath(List<string> searchPaths, string newPath)
 		{
 			if (searchPaths.Any(searchPath => Path.GetFullPath(searchPath) == Path.GetFullPath(newPath)))
@@ -448,7 +453,7 @@ namespace ReShade.Setup
 			}
 			else
 			{
-				Task.Run(InstallStep1);
+				RunTaskWithExceptionHandling(InstallStep1);
 			}
 		}
 		void InstallStep1()
@@ -642,10 +647,8 @@ namespace ReShade.Setup
 				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
 				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
-				var overrideMetaLayerPath = Path.Combine(commonPath, "VkLayer_override.json");
-				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
-
-				if (overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys) && appKeys.Contains(targetPath))
+				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
+				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys) && appKeys.Contains(targetPath))
 				{
 					if (isHeadless)
 					{
@@ -716,6 +719,20 @@ namespace ReShade.Setup
 
 			if (targetApi == Api.Vulkan)
 			{
+				// Unregister any layers from previous ReShade installations
+				using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
+				{
+					key.DeleteValue(Path.Combine(commonPath, "ReShade32", "ReShade32.json"), false);
+					key.DeleteValue(Path.Combine(commonPath, "ReShade64", "ReShade64.json"), false);
+				}
+				using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
+				{
+					key.DeleteValue(Path.Combine(commonPath, "ReShade.json"), false);
+					key.DeleteValue(Path.Combine(commonPath, "VkLayer_override.json"), false);
+					key.DeleteValue(Path.Combine(commonPath, "ReShade32_vk_override_layer.json"), false);
+					key.DeleteValue(Path.Combine(commonPath, "ReShade64_vk_override_layer.json"), false);
+				}
+
 				foreach (string layerModuleName in new[] { "ReShade32", "ReShade64" })
 				{
 					string parentPath = Path.Combine(commonPath, layerModuleName);
@@ -754,7 +771,7 @@ namespace ReShade.Setup
 						manifest.ExtractToFile(layerManifestPath, true);
 
 						// Register this layer manifest
-						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
+						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 						{
 							key.SetValue(layerManifestPath, 0, RegistryValueKind.DWord);
 						}
@@ -766,62 +783,14 @@ namespace ReShade.Setup
 					}
 				}
 
-				var overrideMetaLayerPath = Path.Combine(commonPath, "VkLayer_override.json");
-				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
-
-				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);
-				if (!appKeys.Contains(targetPath))
+				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
+				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys) == false || !appKeys.Contains(targetPath))
 				{
-					appKeys.Add(targetPath);
+					var appKeysList = appKeys != null ? appKeys.ToList() : new List<string>();
+					appKeysList.Add(targetPath);
+					appConfig.SetValue(string.Empty, "Apps", appKeysList.ToArray());
+					appConfig.SaveFile();
 				}
-
-				var layerPath = Path.Combine(commonPath, is64Bit ? "ReShade64" : "ReShade32");
-
-				overrideMetaLayerManifest.GetValue("layer.override_paths", out List<string> overridePaths);
-				if (!overridePaths.Contains(layerPath))
-				{
-					overridePaths.Add(layerPath);
-				}
-
-				var layerName = is64Bit ? "VK_LAYER_reshade" : "VK_LAYER_reshade32";
-
-				overrideMetaLayerManifest.GetValue("layer.component_layers", out List<string> componentLayers);
-				if (!componentLayers.Contains(layerName))
-				{
-					componentLayers.Add(layerName);
-				}
-
-				try
-				{
-					var manifest = zip.GetEntry(Path.GetFileName(overrideMetaLayerPath));
-					if (manifest == null)
-					{
-						throw new FileFormatException("Setup archive is missing Vulkan meta layer manifest file.");
-					}
-
-					manifest.ExtractToFile(overrideMetaLayerPath, true);
-
-					// Register the meta layer manifest
-					using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
-					{
-						key.SetValue(overrideMetaLayerPath, 0, RegistryValueKind.DWord);
-
-						key.DeleteValue(Path.Combine(commonPath, "ReShade.json"), false);
-						key.DeleteValue(Path.Combine(commonPath, "ReShade32_vk_override_layer.json"), false);
-						key.DeleteValue(Path.Combine(commonPath, "ReShade64_vk_override_layer.json"), false);
-					}
-				}
-				catch (Exception ex)
-				{
-					UpdateStatusAndFinish(false, "Failed to install Vulkan meta layer manifest:\n" + ex.Message);
-					return;
-				}
-
-				overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
-				overrideMetaLayerManifest.SetValue("layer.app_keys", appKeys);
-				overrideMetaLayerManifest.SetValue("layer.override_paths", overridePaths);
-				overrideMetaLayerManifest.SetValue("layer.component_layers", componentLayers);
-				overrideMetaLayerManifest.SaveFile();
 			}
 			else
 			{
@@ -1277,42 +1246,35 @@ In that event here are some steps you can try to resolve this:
 		{
 			if (targetApi == Api.Vulkan)
 			{
-				var overrideMetaLayerPath = Path.Combine(commonPath, "VkLayer_override.json");
-				var overrideMetaLayerManifest = new JsonFile(overrideMetaLayerPath);
-
-				overrideMetaLayerManifest.GetValue("layer.app_keys", out List<string> appKeys);
-				appKeys.Remove(targetPath);
-				overrideMetaLayerManifest.SetValue("layer.app_keys", appKeys);
-
-				if (appKeys.Count == 0)
+				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
+				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys))
 				{
-					try
+					var appKeysList = appKeys.ToList();
+					appKeysList.Remove(targetPath);
+					appConfig.SetValue(string.Empty, "Apps", appKeysList.ToArray());
+
+					if (appKeysList.Count == 0)
 					{
-						Directory.Delete(commonPath, true);
-
-						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
+						try
 						{
-							key.DeleteValue(overrideMetaLayerPath);
+							Directory.Delete(commonPath, true);
+
+							using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
+							{
+								key.DeleteValue(Path.Combine(commonPath, "ReShade32", "ReShade32.json"), false);
+								key.DeleteValue(Path.Combine(commonPath, "ReShade64", "ReShade64.json"), false);
+							}
 						}
-
-						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ExplicitLayers"))
+						catch (Exception ex)
 						{
-							key.DeleteValue(Path.Combine(commonPath, "ReShade32", "ReShade32.json"), false);
-							key.DeleteValue(Path.Combine(commonPath, "ReShade64", "ReShade64.json"), false);
+							UpdateStatusAndFinish(false, "Failed to delete Vulkan layer manifest:\n" + ex.Message);
+							return;
 						}
 					}
-					catch (Exception ex)
+					else
 					{
-						UpdateStatusAndFinish(false, "Failed to delete Vulkan meta layer manifest:\n" + ex.Message);
-						return;
+						appConfig.SaveFile();
 					}
-				}
-				else
-				{
-					overrideMetaLayerManifest.SaveFile();
-
-					UninstallStep1();
-					return;
 				}
 			}
 
@@ -1412,7 +1374,7 @@ In that event here are some steps you can try to resolve this:
 					targetApi = Api.Vulkan;
 				}
 
-				Task.Run(InstallStep2);
+				RunTaskWithExceptionHandling(InstallStep2);
 				return;
 			}
 
@@ -1422,11 +1384,11 @@ In that event here are some steps you can try to resolve this:
 				{
 					isUpdate = true;
 
-					Task.Run(InstallStep3);
+					RunTaskWithExceptionHandling(InstallStep3);
 				}
 				else
 				{
-					Task.Run(UninstallStep0);
+					RunTaskWithExceptionHandling(UninstallStep0);
 				}
 				return;
 			}
@@ -1435,7 +1397,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				presetPath = presetPage.FileName;
 
-				Task.Run(InstallStep4);
+				RunTaskWithExceptionHandling(InstallStep4);
 				return;
 			}
 
@@ -1445,18 +1407,18 @@ In that event here are some steps you can try to resolve this:
 
 				if (packages.Count != 0)
 				{
-					Task.Run(InstallStep5);
+					RunTaskWithExceptionHandling(InstallStep5);
 				}
 				else
 				{
-					Task.Run(InstallStep8);
+					RunTaskWithExceptionHandling(InstallStep8);
 				}
 				return;
 			}
 
 			if (CurrentPage.Content is SelectEffectsPage effectsPage)
 			{
-				Task.Run(() =>
+				RunTaskWithExceptionHandling(() =>
 				{
 					// Delete all unselected effect files before moving
 					foreach (string filePath in effects.Except(effectsPage.EnabledItems.Select(x => x.FilePath)))
@@ -1481,19 +1443,19 @@ In that event here are some steps you can try to resolve this:
 			{
 				presetPath = null;
 
-				Task.Run(InstallStep4);
+				RunTaskWithExceptionHandling(InstallStep4);
 				return;
 			}
 
 			if (CurrentPage.Content is SelectPackagesPage)
 			{
-				Task.Run(InstallStep8);
+				RunTaskWithExceptionHandling(InstallStep8);
 				return;
 			}
 
 			if (CurrentPage.Content is SelectEffectsPage)
 			{
-				Task.Run(InstallStep7);
+				RunTaskWithExceptionHandling(InstallStep7);
 				return;
 			}
 

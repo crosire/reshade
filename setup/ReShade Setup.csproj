@@ -70,7 +70,6 @@
     <Compile Include="Utilities\AeroGlass.cs" />
     <Compile Include="Utilities\FileOpenDialog.cs" />
     <Compile Include="Utilities\IniFile.cs" />
-    <Compile Include="Utilities\JsonFile.cs" />
     <Compile Include="Utilities\PEInfo.cs" />
     <Page Include="Pages\SelectApiPage.xaml">
       <SubType>Designer</SubType>
@@ -147,7 +146,6 @@
   <ItemGroup>
     <Archive Include="ReShade32.json" />
     <Archive Include="ReShade64.json" />
-    <Archive Include="VkLayer_override.json" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Pages\Resources\DirectX.png" />
