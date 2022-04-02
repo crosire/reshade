@@ -631,6 +631,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 					break;
 
 				D3DSURFACE_DESC internal_desc;
+				internal_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(desc.texture.first_level, &internal_desc);
 				if (!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
@@ -645,6 +646,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 			else if (usage_type == api::resource_usage::shader_resource && desc.texture.first_level == 0)
 			{
 				D3DSURFACE_DESC internal_desc;
+				internal_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 				if (!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
@@ -684,6 +686,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 					break;
 
 				D3DSURFACE_DESC internal_desc;
+				internal_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(desc.texture.first_level, &internal_desc);
 				if (!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
@@ -700,6 +703,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				assert(desc.type == api::resource_view_type::texture_cube);
 
 				D3DSURFACE_DESC internal_desc;
+				internal_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 				if (!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
 					break;
@@ -1067,6 +1071,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			// Get D3D texture format
 			// Note: This fails for any mipmap level but the first one for textures with D3DUSAGE_AUTOGENMIPMAP, since in that case the D3D runtime does not have surfaces for those
 			D3DSURFACE_DESC desc;
+			desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			if (FAILED(static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(subresource, &desc)))
 				return;
 
