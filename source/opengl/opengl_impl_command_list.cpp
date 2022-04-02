@@ -140,6 +140,45 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 	}
 }
 
+void reshade::opengl::device_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
+{
+	GLbitfield barriers = 0;
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		if ((old_states[i] & api::resource_usage::unordered_access) != 0)
+		{
+			if (new_states[i] == api::resource_usage::cpu_access)
+			{
+				barriers |= (resources[i].handle >> 40) == GL_BUFFER ? GL_BUFFER_UPDATE_BARRIER_BIT | GL_PIXEL_BUFFER_BARRIER_BIT : GL_TEXTURE_UPDATE_BARRIER_BIT;
+			}
+			else
+			{
+				if ((new_states[i] & api::resource_usage::index_buffer) != 0)
+					barriers |= GL_ELEMENT_ARRAY_BARRIER_BIT;
+				if ((new_states[i] & api::resource_usage::vertex_buffer) != 0)
+					barriers |= GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT;
+				if ((new_states[i] & api::resource_usage::constant_buffer) != 0)
+					barriers |= GL_UNIFORM_BARRIER_BIT;
+				if ((new_states[i] & api::resource_usage::indirect_argument) != 0)
+					barriers |= GL_COMMAND_BARRIER_BIT;
+
+				if ((new_states[i] & api::resource_usage::render_target) != 0)
+					barriers |= GL_FRAMEBUFFER_BARRIER_BIT;
+				if ((new_states[i] & api::resource_usage::shader_resource) != 0)
+					barriers |= GL_TEXTURE_FETCH_BARRIER_BIT;
+				if ((new_states[i] & api::resource_usage::unordered_access) != 0)
+					barriers |= (resources[i].handle >> 40) == GL_BUFFER ? GL_SHADER_STORAGE_BARRIER_BIT : GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
+			}
+		}
+	}
+
+	if (barriers == 0)
+		return;
+
+	glMemoryBarrier(barriers);
+}
+
 void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
 	temp_mem<api::resource_view, 8> rtv_handles(count);

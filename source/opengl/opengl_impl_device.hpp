@@ -91,7 +91,7 @@ namespace reshade::opengl
 
 		api::command_list *get_immediate_command_list() final { return this; }
 
-		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
+		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
 		void begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds) final;
 		void end_render_pass() final;
