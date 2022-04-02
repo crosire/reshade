@@ -745,7 +745,10 @@ void reshade::runtime::load_config()
 	{
 		WCHAR temp_path[MAX_PATH] = L"";
 		GetTempPathW(MAX_PATH, temp_path);
-		_intermediate_cache_path = temp_path;
+		_intermediate_cache_path = std::filesystem::path(temp_path) / "ReShade";
+
+		std::error_code ec;
+		std::filesystem::create_directory(_intermediate_cache_path, ec);
 	}
 
 	// Use default if the preset file does not exist yet
