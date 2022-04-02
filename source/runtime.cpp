@@ -381,7 +381,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	if (window != nullptr && !_is_vr)
 		_input = input::register_window(window);
 	else
-		_input = std::make_shared<input>(nullptr);
+		_input.reset();
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_framecount = 0;
@@ -573,7 +573,8 @@ void reshade::runtime::on_present()
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
-	const std::unique_lock<std::shared_mutex> input_lock = _input->lock();
+	const std::unique_lock<std::shared_mutex> input_lock = (_input != nullptr) ?
+		_input->lock() : std::unique_lock<std::shared_mutex>();
 #endif
 
 #if RESHADE_GUI
@@ -591,7 +592,7 @@ void reshade::runtime::on_present()
 	_should_save_screenshot = false;
 
 	// Handle keyboard shortcuts
-	if (!_ignore_shortcuts)
+	if (!_ignore_shortcuts && _input != nullptr)
 	{
 		if (_input->is_key_pressed(_effects_key_data, _force_shortcut_modifiers))
 			_effects_enabled = !_effects_enabled;
@@ -674,7 +675,8 @@ void reshade::runtime::on_present()
 #endif
 
 	// Reset input status
-	_input->next_frame();
+	if (_input != nullptr)
+		_input->next_frame();
 
 	// Save modified INI files
 	if (!ini_file::flush_cache())
@@ -3087,7 +3089,8 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	// TODO: This does not catch input happening between now and 'on_present'
-	const std::unique_lock<std::shared_mutex> input_lock = _input->lock();
+	const std::unique_lock<std::shared_mutex> input_lock = (_input != nullptr) ?
+		_input->lock() : std::unique_lock<std::shared_mutex>();
 #endif
 
 	// Update special uniform variables
@@ -3098,7 +3101,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 		for (uniform &variable : effect.uniforms)
 		{
-			if (!_ignore_shortcuts && _input->is_key_pressed(variable.toggle_key_data, _force_shortcut_modifiers))
+			if (!_ignore_shortcuts && _input != nullptr && _input->is_key_pressed(variable.toggle_key_data, _force_shortcut_modifiers))
 			{
 				assert(variable.supports_toggle_key());
 
@@ -3185,7 +3188,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				case special_uniform::date:
 				{
 					const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-					tm tm; localtime_s(&tm, &t);
+					struct tm tm; localtime_s(&tm, &t);
 
 					const int value[4] = {
 						tm.tm_year + 1900,
@@ -3204,6 +3207,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				}
 				case special_uniform::key:
 				{
+					if (_input == nullptr)
+						break;
+
 					if (const int keycode = variable.annotation_as_int("keycode");
 						keycode > 7 && keycode < 256)
 					{
@@ -3224,6 +3230,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				}
 				case special_uniform::mouse_point:
 				{
+					if (_input == nullptr)
+						break;
+
 					uint32_t pos_x = _input->mouse_position_x();
 					uint32_t pos_y = _input->mouse_position_y();
 #if RESHADE_GUI
@@ -3238,11 +3247,17 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				}
 				case special_uniform::mouse_delta:
 				{
+					if (_input == nullptr)
+						break;
+
 					set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
 					break;
 				}
 				case special_uniform::mouse_button:
 				{
+					if (_input == nullptr)
+						break;
+
 					if (const int keycode = variable.annotation_as_int("keycode");
 						keycode >= 0 && keycode < 5)
 					{
@@ -3263,6 +3278,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				}
 				case special_uniform::mouse_wheel:
 				{
+					if (_input == nullptr)
+						break;
+
 					const float min = variable.annotation_as_float("min");
 					const float max = variable.annotation_as_float("max");
 					float step = variable.annotation_as_float("step");
@@ -3314,7 +3332,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	// Render all enabled techniques
 	for (technique &tech : _techniques)
 	{
-		if (!_ignore_shortcuts && _input->is_key_pressed(tech.toggle_key_data, _force_shortcut_modifiers))
+		if (!_ignore_shortcuts && _input != nullptr && _input->is_key_pressed(tech.toggle_key_data, _force_shortcut_modifiers))
 		{
 			if (!tech.enabled)
 				enable_technique(tech);
@@ -3897,7 +3915,7 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 
 	char timestamp[21];
 	const std::time_t t = std::chrono::system_clock::to_time_t(now_seconds);
-	tm tm; localtime_s(&tm, &t);
+	struct tm tm; localtime_s(&tm, &t);
 	sprintf_s(timestamp, "%.4d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 	macros.emplace_back("Date", timestamp);
 	sprintf_s(timestamp, "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);

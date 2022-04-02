@@ -572,10 +572,13 @@ void reshade::runtime::draw_gui()
 	if (show_screenshot_message || !_preset_save_successfull)
 		show_splash = true;
 
-	if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
-		_show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
-	else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
-		_show_overlay = !_show_overlay;
+	if (_input != nullptr)
+	{
+		if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
+			_show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
+		else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
+			_show_overlay = !_show_overlay;
+	}
 
 	_ignore_shortcuts = false;
 	_gather_gpu_statistics = false;
@@ -589,8 +592,11 @@ void reshade::runtime::draw_gui()
 #endif
 		)
 	{
-		_input->block_mouse_input(false);
-		_input->block_keyboard_input(false);
+		if (_input != nullptr)
+		{
+			_input->block_mouse_input(false);
+			_input->block_keyboard_input(false);
+		}
 		return; // Early-out to avoid costly ImGui calls when no GUI elements are on the screen
 	}
 
@@ -604,33 +610,37 @@ void reshade::runtime::draw_gui()
 
 	auto &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
-	imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_gui);
-	imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
-	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
 	imgui_io.Fonts->TexID = _font_atlas_srv.handle;
 
-	// Add wheel delta to the current absolute mouse wheel position
-	imgui_io.MouseWheel += _input->mouse_wheel_delta();
-
-	// Scale mouse position in case render resolution does not match the window size
-	if (_window_width != 0 && _window_height != 0)
+	if (_input != nullptr)
 	{
-		imgui_io.MousePos.x *= imgui_io.DisplaySize.x / _window_width;
-		imgui_io.MousePos.y *= imgui_io.DisplaySize.y / _window_height;
-	}
+		imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_gui);
+		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
+		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 
-	// Update all the button states
-	imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
-	imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
-	imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
-	for (unsigned int i = 0; i < 256; i++)
-		imgui_io.KeysDown[i] = _input->is_key_down(i);
-	for (unsigned int i = 0; i < 5; i++)
-		imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
-	for (wchar_t c : _input->text_input())
-		imgui_io.AddInputCharacter(c);
+		// Add wheel delta to the current absolute mouse wheel position
+		imgui_io.MouseWheel += _input->mouse_wheel_delta();
+
+		// Scale mouse position in case render resolution does not match the window size
+		if (_window_width != 0 && _window_height != 0)
+		{
+			imgui_io.MousePos.x *= imgui_io.DisplaySize.x / _window_width;
+			imgui_io.MousePos.y *= imgui_io.DisplaySize.y / _window_height;
+		}
+
+		// Update all the button states
+		imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
+		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
+		imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
+		for (unsigned int i = 0; i < 256; i++)
+			imgui_io.KeysDown[i] = _input->is_key_down(i);
+		for (unsigned int i = 0; i < 5; i++)
+			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
+		for (wchar_t c : _input->text_input())
+			imgui_io.AddInputCharacter(c);
+	}
 
 	ImGui::NewFrame();
 
@@ -698,26 +708,32 @@ void reshade::runtime::draw_gui()
 					"This might take a while. The application could become unresponsive for some time.",
 					_reload_remaining_effects.load());
 			}
-			else if (_tutorial_index == 0)
-			{
-				ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
-				ImGui::SameLine(15);
-				ImGui::TextUnformatted("ReShade is now installed successfully! Press '");
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextUnformatted("' to start the tutorial.");
-			}
 			else
 #endif
 			{
 				ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
 				ImGui::SameLine(15);
-				ImGui::TextUnformatted("Press '");
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextUnformatted("' to open the configuration overlay.");
+
+				if (_input == nullptr)
+				{
+					ImGui::TextColored(COLOR_YELLOW, "No keyboard or mouse input available.");
+				}
+				else if (_tutorial_index == 0)
+				{
+					ImGui::TextUnformatted("ReShade is now installed successfully! Press '");
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextUnformatted("' to start the tutorial.");
+				}
+				else
+				{
+					ImGui::TextUnformatted("Press '");
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextUnformatted("' to open the configuration overlay.");
+				}
 			}
 
 #if RESHADE_FX
@@ -774,7 +790,7 @@ void reshade::runtime::draw_gui()
 		if (_show_clock)
 		{
 			const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-			tm tm; localtime_s(&tm, &t);
+			struct tm tm; localtime_s(&tm, &t);
 
 			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%02u:%02u:%02u" : "%02u:%02u", tm.tm_hour, tm.tm_min, tm.tm_sec);
 			if (_fps_pos % 2) // Align text to the right of the window
@@ -986,13 +1002,16 @@ void reshade::runtime::draw_gui()
 	// Render ImGui widgets and windows
 	ImGui::Render();
 
-	_input->block_mouse_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
-	_input->block_keyboard_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
-
-	if (_input->is_blocking_mouse_input())
+	if (_input != nullptr)
 	{
-		// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
-		ClipCursor(nullptr);
+		_input->block_mouse_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
+		_input->block_keyboard_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
+
+		if (_input->is_blocking_mouse_input())
+		{
+			// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
+			ClipCursor(nullptr);
+		}
 	}
 
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
@@ -1404,30 +1423,34 @@ void reshade::runtime::draw_gui_settings()
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		modified |= imgui::key_input_box("Overlay key", _overlay_key_data, *_input);
+		if (_input != nullptr)
+		{
+			modified |= imgui::key_input_box("Overlay key", _overlay_key_data, *_input);
 
 #if RESHADE_FX
-		modified |= imgui::key_input_box("Effect toggle key", _effects_key_data, *_input);
-		modified |= imgui::key_input_box("Effect reload key", _reload_key_data, *_input);
+			modified |= imgui::key_input_box("Effect toggle key", _effects_key_data, *_input);
+			modified |= imgui::key_input_box("Effect reload key", _reload_key_data, *_input);
 
-		modified |= imgui::key_input_box("Performance mode toggle key", _performance_mode_key_data, *_input);
+			modified |= imgui::key_input_box("Performance mode toggle key", _performance_mode_key_data, *_input);
 
-		modified |= imgui::key_input_box("Previous preset key", _prev_preset_key_data, *_input);
-		modified |= imgui::key_input_box("Next preset key", _next_preset_key_data, *_input);
+			modified |= imgui::key_input_box("Previous preset key", _prev_preset_key_data, *_input);
+			modified |= imgui::key_input_box("Next preset key", _next_preset_key_data, *_input);
 
-		modified |= ImGui::SliderInt("Preset transition delay", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
+			modified |= ImGui::SliderInt("Preset transition delay", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
 #endif
 
-		modified |= ImGui::Combo("Input processing", reinterpret_cast<int *>(&_input_processing_mode),
-			"Pass on all input\0"
-			"Block input when cursor is on overlay\0"
-			"Block all input when overlay is visible\0");
+			modified |= ImGui::Combo("Input processing", reinterpret_cast<int *>(&_input_processing_mode),
+				"Pass on all input\0"
+				"Block input when cursor is on overlay\0"
+				"Block all input when overlay is visible\0");
+#if RESHADE_FX
+			ImGui::Spacing();
+#endif
+		}
 
 #if RESHADE_FX
-		ImGui::Spacing();
-
 		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 
@@ -1449,7 +1472,11 @@ void reshade::runtime::draw_gui_settings()
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		modified |= imgui::key_input_box("Screenshot key", _screenshot_key_data, *_input);
+		if (_input != nullptr)
+		{
+			modified |= imgui::key_input_box("Screenshot key", _screenshot_key_data, *_input);
+		}
+
 		modified |= imgui::directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
 		char name[260] = "";
@@ -1748,7 +1775,7 @@ void reshade::runtime::draw_gui_statistics()
 			ImVec2(0, 50));
 
 		const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-		tm tm; localtime_s(&tm, &t);
+		struct tm tm; localtime_s(&tm, &t);
 
 		ImGui::BeginGroup();
 
@@ -2800,6 +2827,7 @@ void reshade::runtime::draw_variable_editor()
 			if (ImGui::BeginPopupContextItem("##context"))
 			{
 				if (variable.supports_toggle_key() &&
+					_input != nullptr &&
 					imgui::key_input_box("##toggle_key", variable.toggle_key_data, *_input))
 					modified = true;
 
@@ -3127,7 +3155,8 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 			ImGui::SetNextItemWidth(230.0f);
-			if (imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input))
+			if (_input != nullptr &&
+				imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input))
 				save_current_preset();
 
 			const bool is_not_top = index > 0;
@@ -3362,7 +3391,8 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 void reshade::runtime::draw_code_editor(editor_instance &instance)
 {
 	if (instance.entry_point_name.empty() && (
-		ImGui::Button(ICON_FK_FLOPPY " Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || _input->is_key_pressed('S', true, false, false)))
+		ImGui::Button(ICON_FK_FLOPPY " Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || (
+		_input != nullptr && _input->is_key_pressed('S', true, false, false))))
 	{
 		// Write current editor text to file
 		const std::string text = instance.editor.get_text();
