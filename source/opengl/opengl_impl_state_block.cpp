@@ -31,6 +31,13 @@ void reshade::opengl::state_block::capture(bool compatibility)
 	for (GLuint i = 0; i < 4; i++)
 	{
 		glGetIntegeri_v(GL_UNIFORM_BUFFER_BINDING, i, &_ubo[i]);
+#ifndef _WIN64
+		glGetIntegeri_v(GL_UNIFORM_BUFFER_SIZE, i, reinterpret_cast<GLint *>(&_ubo_sizes[i]));
+		glGetIntegeri_v(GL_UNIFORM_BUFFER_START, i, reinterpret_cast<GLint *>(&_ubo_offsets[i]));
+#else
+		glGetInteger64i_v(GL_UNIFORM_BUFFER_SIZE, i, &_ubo_sizes[i]);
+		glGetInteger64i_v(GL_UNIFORM_BUFFER_START, i, &_ubo_offsets[i]);
+#endif
 	}
 
 	// Technically should capture image bindings here as well ...
@@ -109,8 +116,16 @@ void reshade::opengl::state_block::apply(bool compatibility) const
 
 	for (GLuint i = 0; i < 4; i++)
 	{
-		glBindBufferBase(GL_UNIFORM_BUFFER, i, _ubo[i]);
+		if (_ubo_offsets[i] == 0 && _ubo_sizes[i] == 0)
+		{
+			glBindBufferBase(GL_UNIFORM_BUFFER, i, _ubo[i]);
+		}
+		else
+		{
+			glBindBufferRange(GL_UNIFORM_BUFFER, i, _ubo[i], _ubo_offsets[i], _ubo_sizes[i]);
+		}
 	}
+	// 'glBindBufferBase' and 'glBindBufferRange' also update the general binding point, so set it after these were called
 	glBindBuffer(GL_UNIFORM_BUFFER, _active_ubo);
 
 	for (GLuint i = 0; i < 32; i++)
