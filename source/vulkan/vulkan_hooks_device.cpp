@@ -1539,7 +1539,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			{
 				const uint32_t a = subpass.pColorAttachments[k].attachment;
 				if (a != VK_ATTACHMENT_UNUSED)
-					render_target_formats[i] = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
+					render_target_formats[k] = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
 			}
 		}
 		else
