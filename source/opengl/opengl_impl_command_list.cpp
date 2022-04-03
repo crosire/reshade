@@ -1022,6 +1022,9 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
 
+		GLboolean prev_srgb_enable = glIsEnabled(GL_FRAMEBUFFER_SRGB);
+		GLboolean prev_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
+
 		const GLenum copy_depth = is_depth_stencil_format(src_desc.texture.format);
 		assert(copy_depth != GL_STENCIL_ATTACHMENT && is_depth_stencil_format(dst_desc.texture.format) == copy_depth);
 
@@ -1041,6 +1044,9 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
+
+		glEnableOrDisable(GL_SCISSOR_TEST, prev_scissor_test);
+		glEnableOrDisable(GL_FRAMEBUFFER_SRGB, prev_srgb_enable);
 	}
 }
 void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
