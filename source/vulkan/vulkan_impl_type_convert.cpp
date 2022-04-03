@@ -1838,57 +1838,63 @@ auto reshade::vulkan::convert_render_pass_load_op(api::render_pass_load_op value
 {
 	switch (value)
 	{
+	default:
+		assert(false);
+		[[fallthrough]];
 	case api::render_pass_load_op::load:
 		return VK_ATTACHMENT_LOAD_OP_LOAD;
 	case api::render_pass_load_op::clear:
 		return VK_ATTACHMENT_LOAD_OP_CLEAR;
-	default:
-		assert(false);
-		[[fallthrough]];
 	case api::render_pass_load_op::discard:
-	case api::render_pass_load_op::dont_care:
 		return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	case api::render_pass_load_op::no_access:
+		return VK_ATTACHMENT_LOAD_OP_NONE_EXT;
 	}
 }
 auto reshade::vulkan::convert_render_pass_load_op(VkAttachmentLoadOp value) -> api::render_pass_load_op
 {
 	switch (value)
 	{
+	default:
+		assert(false);
+		[[fallthrough]];
 	case VK_ATTACHMENT_LOAD_OP_LOAD:
 		return api::render_pass_load_op::load;
 	case VK_ATTACHMENT_LOAD_OP_CLEAR:
 		return api::render_pass_load_op::clear;
-	default:
-		assert(false);
-		[[fallthrough]];
 	case VK_ATTACHMENT_LOAD_OP_DONT_CARE:
-		return api::render_pass_load_op::dont_care;
+		return api::render_pass_load_op::discard;
+	case VK_ATTACHMENT_LOAD_OP_NONE_EXT:
+		return api::render_pass_load_op::no_access;
 	}
 }
 auto reshade::vulkan::convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp
 {
 	switch (value)
 	{
-	case api::render_pass_store_op::store:
-		return VK_ATTACHMENT_STORE_OP_STORE;
 	default:
 		assert(false);
 		[[fallthrough]];
+	case api::render_pass_store_op::store:
+		return VK_ATTACHMENT_STORE_OP_STORE;
 	case api::render_pass_store_op::discard:
-	case api::render_pass_store_op::dont_care:
 		return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	case api::render_pass_store_op::no_access:
+		return VK_ATTACHMENT_STORE_OP_NONE_EXT;
 	}
 }
 auto reshade::vulkan::convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op
 {
 	switch (value)
 	{
-	case VK_ATTACHMENT_STORE_OP_STORE:
-		return api::render_pass_store_op::store;
 	default:
 		assert(false);
 		[[fallthrough]];
+	case VK_ATTACHMENT_STORE_OP_STORE:
+		return api::render_pass_store_op::store;
 	case VK_ATTACHMENT_STORE_OP_DONT_CARE:
-		return api::render_pass_store_op::dont_care;
+		return api::render_pass_store_op::discard;
+	case VK_ATTACHMENT_STORE_OP_NONE_EXT:
+		return api::render_pass_store_op::no_access;
 	}
 }

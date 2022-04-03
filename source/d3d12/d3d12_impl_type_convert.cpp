@@ -1309,14 +1309,16 @@ auto reshade::d3d12::convert_render_pass_load_op(api::render_pass_load_op value)
 {
 	switch (value)
 	{
+	default:
+		assert(false);
+		[[fallthrough]];
 	case reshade::api::render_pass_load_op::load:
 		return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
 	case reshade::api::render_pass_load_op::clear:
 		return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
 	case reshade::api::render_pass_load_op::discard:
 		return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
-	default:
-	case reshade::api::render_pass_load_op::dont_care:
+	case reshade::api::render_pass_load_op::no_access:
 		return D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS;
 	}
 }
@@ -1326,25 +1328,29 @@ auto reshade::d3d12::convert_render_pass_load_op(D3D12_RENDER_PASS_BEGINNING_ACC
 	{
 	case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD:
 		return reshade::api::render_pass_load_op::discard;
+	default:
+		assert(false);
+		[[fallthrough]];
 	case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE:
 		return reshade::api::render_pass_load_op::load;
 	case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR:
 		return reshade::api::render_pass_load_op::clear;
-	default:
 	case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS:
-		return reshade::api::render_pass_load_op::dont_care;
+		return reshade::api::render_pass_load_op::no_access;
 	}
 }
 auto reshade::d3d12::convert_render_pass_store_op(api::render_pass_store_op value) -> D3D12_RENDER_PASS_ENDING_ACCESS_TYPE
 {
 	switch (value)
 	{
+	default:
+		assert(false);
+		[[fallthrough]];
 	case reshade::api::render_pass_store_op::store:
 		return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
 	case reshade::api::render_pass_store_op::discard:
 		return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
-	default:
-	case reshade::api::render_pass_store_op::dont_care:
+	case reshade::api::render_pass_store_op::no_access:
 		return D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS;
 	}
 }
@@ -1354,11 +1360,13 @@ auto reshade::d3d12::convert_render_pass_store_op(D3D12_RENDER_PASS_ENDING_ACCES
 	{
 	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD:
 		return reshade::api::render_pass_store_op::discard;
+	default:
+		assert(false);
+		[[fallthrough]];
 	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE:
 	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE:
 		return reshade::api::render_pass_store_op::store;
-	default:
 	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS:
-		return reshade::api::render_pass_store_op::dont_care;
+		return reshade::api::render_pass_store_op::no_access;
 	}
 }
