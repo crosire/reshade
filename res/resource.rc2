@@ -30,14 +30,14 @@ BEGIN
 #ifdef RESHADE_FXC
             VALUE "FileDescription", "ReShade FX compiler"
 #else
-#ifdef WIN32
+    #ifdef RESHADE_32
             VALUE "FileDescription", "crosire's ReShade post-processing injector for 32-bit"
             VALUE "OriginalFilename", "ReShade32.dll"
-#endif
-#ifdef WIN64
+    #endif
+    #ifdef RESHADE_64
             VALUE "FileDescription", "crosire's ReShade post-processing injector for 64-bit"
             VALUE "OriginalFilename", "ReShade64.dll"
-#endif
+    #endif
 #endif
         END
     END

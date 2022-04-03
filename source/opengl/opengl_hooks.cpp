@@ -3083,7 +3083,7 @@ void APIENTRY glTexBufferRange(GLenum target, GLenum internalformat, GLuint buff
 	{
 		if (gl3wGetNamedBufferParameteri64v != nullptr)
 		{
-#ifndef WIN64
+#ifndef _WIN64
 			gl3wGetNamedBufferParameteriv(buffer, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
 #else
 			gl3wGetNamedBufferParameteri64v(buffer, GL_BUFFER_SIZE, &size);
@@ -3094,7 +3094,7 @@ void APIENTRY glTexBufferRange(GLenum target, GLenum internalformat, GLuint buff
 			GLint prev_binding = 0;
 			gl3wGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_binding);
 			gl3wBindBuffer(GL_COPY_READ_BUFFER, buffer);
-#ifndef WIN64
+#ifndef _WIN64
 			gl3wGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
 #else
 			gl3wGetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
@@ -3587,7 +3587,7 @@ void APIENTRY glTextureBufferRange(GLuint texture, GLenum internalformat, GLuint
 	if (size == -1)
 	{
 		assert(gl3wGetNamedBufferParameteri64v != nullptr);
-#ifndef WIN64
+#ifndef _WIN64
 		gl3wGetNamedBufferParameteriv(buffer, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
 #else
 		gl3wGetNamedBufferParameteri64v(buffer, GL_BUFFER_SIZE, &size);

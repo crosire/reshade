@@ -300,7 +300,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	}
 }
 
-#ifdef WIN64
+#ifdef _WIN64
 	#define VR_Interface_Impl(type, method_name, vtable_offset, interface_version, impl, return_type, ...) \
 		static return_type type##_##method_name##_##interface_version(vr::type *pThis, ##__VA_ARGS__) \
 		{ \

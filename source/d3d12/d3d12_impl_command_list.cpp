@@ -153,7 +153,7 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 {
 	assert(count <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_handles_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		rtv_handles_mem[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
@@ -284,7 +284,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	}
 	else if (update.type == api::descriptor_type::sampler || update.type == api::descriptor_type::shader_resource_view || update.type == api::descriptor_type::unordered_access_view)
 	{
-#ifndef WIN64
+#ifndef _WIN64
 		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(update.count);
 		for (uint32_t k = 0; k < update.count; ++k)
 			src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(update.descriptors)[k]) };

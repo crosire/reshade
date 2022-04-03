@@ -152,7 +152,7 @@ void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, U
 	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<reshade::api::sampler, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT> descriptors_mem(count);
 	for (UINT i = 0; i < count; ++i)
 		descriptors_mem[i] = to_handle(objects[i]);
@@ -176,7 +176,7 @@ void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_s
 	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<reshade::api::resource_view, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> descriptors_mem(count);
 	for (UINT i = 0; i < count; ++i)
 		descriptors_mem[i] = to_handle(objects[i]);
@@ -382,7 +382,7 @@ void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT N
 	if (!reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 		return;
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<reshade::api::resource, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> buffer_handles_mem(NumBuffers);
 	for (UINT i = 0; i < NumBuffers; ++i)
 		buffer_handles_mem[i] = to_handle(ppVertexBuffers[i]);
@@ -488,7 +488,7 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 	if (!reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 		return;
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<reshade::api::resource_view, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT> rtvs_mem(NumViews);
 	for (UINT i = 0; i < NumViews; ++i)
 		rtvs_mem[i] = to_handle(ppRenderTargetViews[i]);
@@ -539,7 +539,7 @@ void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffe
 	if (!reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		return;
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<reshade::api::resource, D3D10_SO_BUFFER_SLOT_COUNT> buffer_handles_mem(NumBuffers);
 	for (UINT i = 0; i < NumBuffers; ++i)
 		buffer_handles_mem[i] = to_handle(ppSOTargets[i]);

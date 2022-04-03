@@ -13,7 +13,7 @@
 
 extern bool is_windows7();
 
-#ifdef WIN64
+#ifdef _WIN64
 constexpr size_t heap_index_start = 28;
 #else
 // Make a bit more space for the heap index in descriptor handles, at the cost of less space for the descriptor index, due to overall limit of only 32-bit being available
@@ -1156,7 +1156,7 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const a
 		}
 		else if (update.type == api::descriptor_type::sampler || update.type == api::descriptor_type::shader_resource_view || update.type == api::descriptor_type::unordered_access_view)
 		{
-#ifndef WIN64
+#ifndef _WIN64
 			const UINT src_range_size = 1;
 			std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(update.count);
 			for (UINT k = 0; k < update.count; ++k)
@@ -1397,7 +1397,7 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 	assert(heap_desc.Flags <= 0x1);
 	_internal_base_cpu_handle.ptr |= heap_desc.Flags << 2;
 
-#ifdef WIN64
+#ifdef _WIN64
 	static_assert((D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 * 32) < (1 << heap_index_start));
 #else
 	if (heap_index >= (1ull << std::min(sizeof(SIZE_T) * 8 - heap_index_start, heap_index_start)))
@@ -1424,7 +1424,7 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 
 reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data) const
 {
-#ifdef WIN64
+#ifdef _WIN64
 	assert((handle.ptr >> 56) == 0);
 #endif
 
@@ -1442,7 +1442,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 
 reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data) const
 {
-#ifdef WIN64
+#ifdef _WIN64
 	assert((handle.ptr >> 56) == 0);
 #endif
 

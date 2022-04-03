@@ -837,10 +837,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_NO_PACKAGE_REDIRECTION, nullptr, &appdata_path);
 			const auto common_path = std::filesystem::path(appdata_path) / L"ReShade";
 			const auto appdata_reshade_dll_path = common_path /
-#ifdef WIN64
-				L"ReShade64" / L"ReShade64.dll";
-#else
+#ifndef _WIN64
 				L"ReShade32" / L"ReShade32.dll";
+#else
+				L"ReShade64" / L"ReShade64.dll";
 #endif
 			CoTaskMemFree(appdata_path);
 
@@ -881,10 +881,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		}
 
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' "
-#ifdef WIN64
-			"(64-bit) "
-#else
+#ifndef _WIN64
 			"(32-bit) "
+#else
+			"(64-bit) "
 #endif
 			"built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 
@@ -991,10 +991,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
-#ifdef WIN64
-			reshade::hooks::register_module(L"vrclient_x64.dll");
-#else
+#ifndef _WIN64
 			reshade::hooks::register_module(L"vrclient.dll");
+#else
+			reshade::hooks::register_module(L"vrclient_x64.dll");
 #endif
 
 			// Register DirectInput module in case it was used to load ReShade (but ignore otherwise)

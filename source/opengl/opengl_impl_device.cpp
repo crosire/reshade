@@ -645,7 +645,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 			if (_supports_dsa)
 			{
-#ifndef WIN64
+#ifndef _WIN64
 				glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
 #else
 				glGetNamedBufferParameteri64v(object, GL_BUFFER_SIZE, &size);
@@ -656,7 +656,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 				GLint prev_binding = 0;
 				glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_binding);
 				glBindBuffer(GL_COPY_READ_BUFFER, object);
-#ifndef WIN64
+#ifndef _WIN64
 				glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
 #else
 				glGetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
@@ -1140,7 +1140,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 	{
 		if (size == UINT64_MAX)
 		{
-#ifndef WIN64
+#ifndef _WIN64
 			GLint max_size = 0;
 			glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &max_size);
 #else
@@ -1161,7 +1161,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 
 		if (size == UINT64_MAX)
 		{
-#ifndef WIN64
+#ifndef _WIN64
 			GLint max_size = 0;
 			glGetBufferParameteriv(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_size);
 #else

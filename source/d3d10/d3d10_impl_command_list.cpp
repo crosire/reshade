@@ -86,7 +86,7 @@ void reshade::d3d10::device_impl::bind_render_targets_and_depth_stencil(uint32_t
 {
 	assert(count <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D10RenderTargetView *, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		rtv_ptrs_mem[i] = reinterpret_cast<ID3D10RenderTargetView *>(rtvs[i].handle);
@@ -185,7 +185,7 @@ void reshade::d3d10::device_impl::bind_samplers(api::shader_stage stages, uint32
 {
 	assert(count <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D10SamplerState *, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT> sampler_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		sampler_ptrs_mem[i] = reinterpret_cast<ID3D10SamplerState *>(samplers[i].handle);
@@ -205,7 +205,7 @@ void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage s
 {
 	assert(count <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D10ShaderResourceView *, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> view_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		view_ptrs_mem[i] = reinterpret_cast<ID3D10ShaderResourceView *>(views[i].handle);
@@ -351,7 +351,7 @@ void reshade::d3d10::device_impl::bind_vertex_buffers(uint32_t first, uint32_t c
 {
 	assert(count <= D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D10Buffer *, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> buffer_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		buffer_ptrs_mem[i] = reinterpret_cast<ID3D10Buffer *>(buffers[i].handle);
@@ -370,7 +370,7 @@ void reshade::d3d10::device_impl::bind_stream_output_buffers(uint32_t first, uin
 {
 	assert(first == 0 && count <= D3D10_SO_BUFFER_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D10Buffer *, D3D10_SO_BUFFER_SLOT_COUNT> buffer_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		buffer_ptrs_mem[i] = reinterpret_cast<ID3D10Buffer *>(buffers[i].handle);

@@ -130,7 +130,7 @@ void reshade::d3d11::device_context_impl::bind_render_targets_and_depth_stencil(
 {
 	assert(count <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D11RenderTargetView *, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT> rtv_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		rtv_ptrs_mem[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
@@ -225,7 +225,7 @@ void reshade::d3d11::device_context_impl::bind_samplers(api::shader_stage stages
 {
 	assert(count <= D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D11SamplerState *, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> sampler_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		sampler_ptrs_mem[i] = reinterpret_cast<ID3D11SamplerState *>(samplers[i].handle);
@@ -251,7 +251,7 @@ void reshade::d3d11::device_context_impl::bind_shader_resource_views(api::shader
 {
 	assert(count <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D11ShaderResourceView *, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> view_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		view_ptrs_mem[i] = reinterpret_cast<ID3D11ShaderResourceView *>(views[i].handle);
@@ -277,7 +277,7 @@ void reshade::d3d11::device_context_impl::bind_unordered_access_views(api::shade
 {
 	assert(count <= D3D11_1_UAV_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D11UnorderedAccessView *, D3D11_1_UAV_SLOT_COUNT> view_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		view_ptrs_mem[i] = reinterpret_cast<ID3D11UnorderedAccessView *>(views[i].handle);
@@ -474,7 +474,7 @@ void reshade::d3d11::device_context_impl::bind_vertex_buffers(uint32_t first, ui
 {
 	assert(count <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D11Buffer *, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> buffer_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		buffer_ptrs_mem[i] = reinterpret_cast<ID3D11Buffer *>(buffers[i].handle);
@@ -493,7 +493,7 @@ void reshade::d3d11::device_context_impl::bind_stream_output_buffers(uint32_t fi
 {
 	assert(first == 0 && count <= D3D11_SO_BUFFER_SLOT_COUNT);
 
-#ifndef WIN64
+#ifndef _WIN64
 	temp_mem<ID3D11Buffer *, D3D11_SO_BUFFER_SLOT_COUNT> buffer_ptrs_mem(count);
 	for (uint32_t i = 0; i < count; ++i)
 		buffer_ptrs_mem[i] = reinterpret_cast<ID3D11Buffer *>(buffers[i].handle);
