@@ -63,7 +63,7 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 	invoke_addon_event<addon_event::init_swapchain>(this);
 
 	api::resource_view default_rtv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-	api::resource_view default_dsv = make_resource_view_handle(0, 0);
+	api::resource_view default_dsv = { 0 };
 	if (_default_depth_format != GL_NONE)
 	{
 		default_dsv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
@@ -85,7 +85,7 @@ void reshade::opengl::swapchain_impl::on_reset()
 	runtime::on_reset();
 
 #if RESHADE_ADDON
-	api::resource_view default_dsv = make_resource_view_handle(0, 0);
+	api::resource_view default_dsv = { 0 };
 	if (_default_depth_format != GL_NONE)
 	{
 		default_dsv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);

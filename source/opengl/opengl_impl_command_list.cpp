@@ -237,7 +237,9 @@ void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_
 		{
 			draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
-			if ((rtvs[i].handle >> 32) & 0x2)
+			const api::format format = get_resource_view_format(rtvs[i]);
+			if (format != api::format_to_default_typed(format, 0) &&
+				format == api::format_to_default_typed(format, 1))
 				has_srgb_attachment = true;
 		}
 
@@ -298,7 +300,7 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource(GLenum target,
 		return;
 	}
 
-	assert(glCheckFramebufferStatus(target));
+	assert(glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE);
 }
 void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
@@ -353,6 +355,8 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 
 	if (dsv.handle != 0)
 	{
+		const GLenum attachment = is_depth_stencil_format(get_resource_view_format(dsv));
+
 		switch (dsv.handle >> 40)
 		{
 		case GL_TEXTURE_BUFFER:
@@ -363,10 +367,10 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 		case GL_TEXTURE_2D_MULTISAMPLE:
 		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
 		case GL_TEXTURE_RECTANGLE:
-			glFramebufferTexture(target, GL_DEPTH_STENCIL_ATTACHMENT, dsv.handle & 0xFFFFFFFF, 0);
+			glFramebufferTexture(target, attachment, dsv.handle & 0xFFFFFFFF, 0);
 			break;
 		case GL_RENDERBUFFER:
-			glFramebufferRenderbuffer(target, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, dsv.handle & 0xFFFFFFFF);
+			glFramebufferRenderbuffer(target, attachment, GL_RENDERBUFFER, dsv.handle & 0xFFFFFFFF);
 			break;
 		default:
 			assert(false);
@@ -376,7 +380,7 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 		}
 	}
 
-	assert(glCheckFramebufferStatus(target));
+	assert(glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE);
 
 	_fbo_lookup.emplace(hash, fbo);
 
@@ -1018,11 +1022,11 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
 
-		const bool copy_depth = is_depth_stencil_format(convert_format(src_desc.texture.format), GL_DEPTH);
-		assert(is_depth_stencil_format(convert_format(dst_desc.texture.format), GL_DEPTH) == copy_depth);
+		const GLenum copy_depth = is_depth_stencil_format(src_desc.texture.format);
+		assert(copy_depth != GL_STENCIL_ATTACHMENT && is_depth_stencil_format(dst_desc.texture.format) == copy_depth);
 
-		bind_framebuffer_with_resource(GL_READ_FRAMEBUFFER, copy_depth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, src, src_subresource, src_desc);
-		bind_framebuffer_with_resource(GL_DRAW_FRAMEBUFFER, copy_depth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, dst, dst_subresource, dst_desc);
+		bind_framebuffer_with_resource(GL_READ_FRAMEBUFFER, copy_depth != GL_NONE ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, src, src_subresource, src_desc);
+		bind_framebuffer_with_resource(GL_DRAW_FRAMEBUFFER, copy_depth != GL_NONE ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, dst, dst_subresource, dst_desc);
 
 		glDisable(GL_SCISSOR_TEST);
 		glDisable(GL_FRAMEBUFFER_SRGB);
@@ -1031,9 +1035,9 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		glBlitFramebuffer(
 			src_region[0], src_region[1], src_region[3], src_region[4],
 			dst_region[0], dst_region[4], dst_region[3], dst_region[1],
-			copy_depth ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT,
+			copy_depth != GL_NONE ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT,
 			// Must be nearest filtering for depth or stencil attachments
-			(filter == api::filter_mode::min_mag_mip_linear || filter == api::filter_mode::min_mag_linear_mip_point) && !copy_depth ? GL_LINEAR : GL_NEAREST);
+			(filter == api::filter_mode::min_mag_mip_linear || filter == api::filter_mode::min_mag_linear_mip_point) && copy_depth == GL_NONE ? GL_LINEAR : GL_NEAREST);
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);

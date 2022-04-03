@@ -1005,28 +1005,21 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	return type = GL_NONE;
 }
 
-bool reshade::opengl::is_depth_stencil_format(GLenum internal_format, GLenum usage)
+auto reshade::opengl::is_depth_stencil_format(api::format format) -> GLenum
 {
-	switch (internal_format)
+	switch (format)
 	{
-	case GL_DEPTH_COMPONENT:
-	case GL_DEPTH_COMPONENT16:
-	case GL_DEPTH_COMPONENT24:
-	case GL_DEPTH_COMPONENT32:
-	case GL_DEPTH_COMPONENT32F:
-		return usage == GL_DEPTH_STENCIL || usage == GL_DEPTH;
-	case GL_DEPTH_STENCIL:
-	case GL_DEPTH24_STENCIL8:
-	case GL_DEPTH32F_STENCIL8:
-		return usage == GL_DEPTH_STENCIL || usage == GL_DEPTH || usage == GL_STENCIL;
-	case GL_STENCIL:
-	case GL_STENCIL_INDEX1:
-	case GL_STENCIL_INDEX4:
-	case GL_STENCIL_INDEX8:
-	case GL_STENCIL_INDEX16:
-		return usage == GL_DEPTH_STENCIL || usage == GL_STENCIL;
 	default:
-		return false;
+		return GL_NONE;
+	case api::format::s8_uint:
+		return GL_STENCIL_ATTACHMENT;
+	case api::format::d16_unorm:
+	case api::format::d24_unorm_x8_uint:
+	case api::format::d32_float:
+		return GL_DEPTH_ATTACHMENT;
+	case api::format::d24_unorm_s8_uint:
+	case api::format::d32_float_s8_uint:
+		return GL_DEPTH_STENCIL_ATTACHMENT;
 	}
 }
 
@@ -1232,7 +1225,7 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	if (desc.texture.samples >= 2)
 		desc.usage = api::resource_usage::resolve_source;
 
-	if (is_depth_stencil_format(internal_format))
+	if (is_depth_stencil_format(desc.texture.format))
 		desc.usage |= api::resource_usage::depth_stencil;
 	if (desc.type == api::resource_type::texture_1d || desc.type == api::resource_type::texture_2d || desc.type == api::resource_type::surface)
 		desc.usage |= api::resource_usage::render_target;

@@ -800,20 +800,16 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	if (resource.handle == 0)
 		return false;
 
-	const bool is_srgb_format =
-		desc.format != api::format_to_default_typed(desc.format, 0) &&
-		desc.format == api::format_to_default_typed(desc.format, 1);
-
 	const GLenum resource_target = resource.handle >> 40;
 	const GLenum resource_object = resource.handle & 0xFFFFFFFF;
 	if (resource_target == GL_FRAMEBUFFER_DEFAULT && _default_fbo_stereo && desc.texture.layer_count == 1)
 	{
-		*out_handle = make_resource_view_handle(resource_target, desc.texture.first_layer == 0 ? GL_BACK_LEFT : GL_BACK_RIGHT, is_srgb_format ? 0x2 : 0);
+		*out_handle = make_resource_view_handle(resource_target, desc.texture.first_layer == 0 ? GL_BACK_LEFT : GL_BACK_RIGHT);
 		return true;
 	}
 	else if (resource_target == GL_FRAMEBUFFER_DEFAULT || resource_target == GL_RENDERBUFFER)
 	{
-		*out_handle = make_resource_view_handle(resource_target, resource_object, is_srgb_format ? 0x2 : 0);
+		*out_handle = make_resource_view_handle(resource_target, resource_object);
 		return true;
 	}
 
@@ -882,13 +878,13 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		assert(target != GL_TEXTURE_BUFFER);
 
 		// No need to create a view, so use resource directly, but set a bit so to not destroy it twice via 'destroy_resource_view'
-		*out_handle = make_resource_view_handle(target, resource_object, is_srgb_format ? 0x2 : 0);
+		*out_handle = make_resource_view_handle(target, resource_object);
 		return true;
 	}
 	else if (resource_target == GL_TEXTURE_CUBE_MAP && target == GL_TEXTURE_2D && desc.texture.layer_count == 1)
 	{
 		// Cube map face is handled via special target
-		*out_handle = make_resource_view_handle(GL_TEXTURE_CUBE_MAP_POSITIVE_X + desc.texture.first_layer, resource_object, is_srgb_format ? 0x2 : 0);
+		*out_handle = make_resource_view_handle(GL_TEXTURE_CUBE_MAP_POSITIVE_X + desc.texture.first_layer, resource_object);
 		return true;
 	}
 
@@ -937,11 +933,12 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		return false;
 	}
 
-	*out_handle = make_resource_view_handle(target, object, 0x1 | (is_srgb_format ? 0x2 : 0));
+	*out_handle = make_resource_view_handle(target, object, true);
 	return true;
 }
 void reshade::opengl::device_impl::destroy_resource_view(api::resource_view handle)
 {
+	// Check if this is a standalone object (see 'make_resource_view_handle')
 	if (((handle.handle >> 32) & 0x1) != 0)
 		destroy_resource({ handle.handle });
 
@@ -954,6 +951,77 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view hand
 	_fbo_lookup.clear();
 }
 
+reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api::resource_view view) const
+{
+	const GLenum target = view.handle >> 40;
+	const GLuint object = view.handle & 0xFFFFFFFF;
+
+	GLint internal_format = GL_NONE;
+	GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+
+	switch (target)
+	{
+	case GL_TEXTURE_BUFFER:
+	case GL_TEXTURE_1D:
+	case GL_TEXTURE_1D_ARRAY:
+	case GL_TEXTURE_2D:
+	case GL_TEXTURE_2D_ARRAY:
+	case GL_TEXTURE_2D_MULTISAMPLE:
+	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+	case GL_TEXTURE_3D:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+	case GL_TEXTURE_RECTANGLE:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+		if (_supports_dsa)
+		{
+			glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+		}
+		else
+		{
+			GLint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+			glBindTexture(target, object);
+
+			GLenum level_target = target;
+			if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
+
+			glGetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+
+			glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+
+			glBindTexture(target, prev_binding);
+		}
+		break;
+	case GL_RENDERBUFFER:
+		if (_supports_dsa)
+		{
+			glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
+		}
+		else
+		{
+			GLint prev_binding = 0;
+			glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
+			glBindRenderbuffer(GL_RENDERBUFFER, object);
+
+			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
+
+			glBindRenderbuffer(GL_RENDERBUFFER, prev_binding);
+		}
+		break;
+	case GL_FRAMEBUFFER_DEFAULT:
+		internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
+		break;
+	}
+
+	return convert_format(internal_format, swizzle_mask);
+}
 reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
@@ -998,9 +1066,9 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 	const GLuint object = view.handle & 0xFFFFFFFF;
 
 	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
-		return api::resource_view_desc(get_resource_desc(get_resource_from_view(view)).texture.format, 0, UINT32_MAX, target - GL_TEXTURE_CUBE_MAP_POSITIVE_X, 1);
+		return api::resource_view_desc(get_resource_view_format(view), 0, UINT32_MAX, target - GL_TEXTURE_CUBE_MAP_POSITIVE_X, 1);
 	if (((view.handle >> 32) & 0x1) == 0)
-		return api::resource_view_desc(get_resource_desc(get_resource_from_view(view)).texture.format, 0, UINT32_MAX, 0, UINT32_MAX);
+		return api::resource_view_desc(get_resource_view_format(view), 0, UINT32_MAX, 0, UINT32_MAX);
 
 	if (target != GL_TEXTURE_BUFFER)
 	{
@@ -1504,7 +1572,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 			}
 		}
 
-		return make_resource_view_handle(0, 0);
+		return { 0 };
 	}
 
 	GLenum attachment;
@@ -1528,10 +1596,10 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		attachment = GL_DEPTH_ATTACHMENT;
 		break;
 	default:
-		return make_resource_view_handle(0, 0);
+		return { 0 };
 	}
 
-	GLenum target = GL_NONE, object = 0, format = GL_NONE;
+	GLenum target = GL_NONE, object = 0;
 	if (_supports_dsa)
 	{
 		glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
@@ -1545,12 +1613,6 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 			{
 				// Get actual texture target from the texture object
 				glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
-
-				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
-			}
-			else if (target == GL_RENDERBUFFER)
-			{
-				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
 			}
 		}
 	}
@@ -1570,10 +1632,11 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		glBindFramebuffer(GL_FRAMEBUFFER, prev_object);
 	}
 
-	const bool has_srgb_attachment = convert_format(format) != api::format_to_default_typed(convert_format(format), 0);
+	if (target == GL_NONE)
+		return { 0 };
 
 	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
-	return make_resource_view_handle(target, object, target != GL_NONE && (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT) && has_srgb_attachment ? 0x2 : 0);
+	return make_resource_view_handle(target, object);
 }
 
 void reshade::opengl::device_impl::update_current_window_height(GLuint fbo_object)

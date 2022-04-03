@@ -18,9 +18,9 @@ namespace reshade::opengl
 			return { 0 };
 		return { (static_cast<uint64_t>(target) << 40) | object };
 	}
-	inline auto make_resource_view_handle(GLenum target, GLuint object, uint8_t extra_bits = 0) -> api::resource_view
+	inline auto make_resource_view_handle(GLenum target, GLuint object, bool standalone_object = false) -> api::resource_view
 	{
-		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
+		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(standalone_object ? 0x1 : 0) << 32) | object };
 	}
 
 	class device_impl : public api::api_object_impl<HGLRC, api::device, api::command_queue, api::command_list>
@@ -45,6 +45,7 @@ namespace reshade::opengl
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
 
+		api::format get_resource_view_format(api::resource_view view) const;
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
 

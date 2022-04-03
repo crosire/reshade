@@ -96,7 +96,7 @@ namespace reshade::opengl
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;
 	auto convert_upload_format(GLenum internal_format, GLenum &type) -> GLenum;
 
-	bool is_depth_stencil_format(GLenum internal_format, GLenum usage = GL_DEPTH_STENCIL);
+	auto is_depth_stencil_format(api::format format) -> GLenum;
 
 	void convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage);
 	void convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags);

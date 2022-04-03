@@ -101,7 +101,8 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 
 	// Register all possible views of this texture too
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		g_current_context, resource, usage_type, reshade::api::resource_view_desc(reshade::opengl::convert_resource_view_type(base_target), desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX), reshade::opengl::make_resource_view_handle(base_target, object));
+		g_current_context, resource, usage_type, reshade::api::resource_view_desc(
+			reshade::opengl::convert_resource_view_type(base_target), desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX), reshade::opengl::make_resource_view_handle(base_target, object));
 
 	if (base_target == GL_TEXTURE_CUBE_MAP)
 	{
@@ -110,7 +111,8 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 			const GLenum face_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 
 			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-				g_current_context, resource, usage_type, reshade::api::resource_view_desc(reshade::opengl::convert_resource_view_type(face_target), desc.texture.format, 0, UINT32_MAX, face, 1), reshade::opengl::make_resource_view_handle(face_target, object));
+				g_current_context, resource, usage_type, reshade::api::resource_view_desc(
+					reshade::opengl::convert_resource_view_type(face_target), desc.texture.format, 0, UINT32_MAX, face, 1), reshade::opengl::make_resource_view_handle(face_target, object));
 		}
 	}
 }
