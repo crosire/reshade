@@ -54,6 +54,7 @@ HOOK_EXPORT void WINAPI Direct3D9Force9on12(int Unknown)
 }
 
 // This is called when the 'DXMaximizedWindowedHwndOverride' compatibility fix is active (by AcLayers.dll shim), via export ordinal 22
+// Enabled for e.g. Star Wars: The Old Republic (can be checked with the Compatibility Administrator tool from the Assessment and Deployment Kit in the Windows SDK)
 HOOK_EXPORT void WINAPI Direct3D9SetMaximizedWindowHwndOverride(int Unknown)
 {
 	if (g_export_module_handle != nullptr)
