@@ -27,6 +27,8 @@ inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)
 reshade::vulkan::device_impl::device_impl(
 	VkDevice device,
 	VkPhysicalDevice physical_device,
+	VkInstance instance,
+	uint32_t api_version,
 	const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
 	bool push_descriptors_ext,
 	bool dynamic_rendering_ext,
@@ -62,20 +64,25 @@ reshade::vulkan::device_impl::device_impl(
 		functions.vkCreateImage = device_table.CreateImage;
 		functions.vkDestroyImage = device_table.DestroyImage;
 		functions.vkCmdCopyBuffer = device_table.CmdCopyBuffer;
+#if VMA_VULKAN_VERSION >= 1001000
 		functions.vkGetBufferMemoryRequirements2KHR = device_table.GetBufferMemoryRequirements2;
 		functions.vkGetImageMemoryRequirements2KHR = device_table.GetImageMemoryRequirements2;
 		functions.vkBindBufferMemory2KHR = device_table.BindBufferMemory2;
 		functions.vkBindImageMemory2KHR = device_table.BindImageMemory2;
 		functions.vkGetPhysicalDeviceMemoryProperties2KHR = instance_table.GetPhysicalDeviceMemoryProperties2;
+#endif
+#if VMA_VULKAN_VERSION >= 1003000
+		functions.vkGetDeviceBufferMemoryRequirements = device_table.GetDeviceBufferMemoryRequirements;
+		functions.vkGetDeviceImageMemoryRequirements = device_table.GetDeviceImageMemoryRequirements;
+#endif
 
 		VmaAllocatorCreateInfo create_info = {};
-		// The effect runtime runs in a single thread, so no synchronization necessary
-		create_info.flags = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
 		create_info.physicalDevice = physical_device;
 		create_info.device = device;
 		create_info.preferredLargeHeapBlockSize = 1920 * 1080 * 4 * 16; // Allocate blocks of memory that can comfortably contain 16 Full HD images
 		create_info.pVulkanFunctions = &functions;
-		create_info.vulkanApiVersion = VK_API_VERSION_1_1; // Vulkan 1.1 is guaranteed by code in vulkan_hooks_instance.cpp
+		create_info.instance = instance;
+		create_info.vulkanApiVersion = api_version;
 
 		vmaCreateAllocator(&create_info, &_alloc);
 	}
@@ -279,6 +286,9 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 	switch (desc.heap)
 	{
 	default:
+	case api::memory_heap::unknown:
+		alloc_info.usage = VMA_MEMORY_USAGE_UNKNOWN;
+		break;
 	case api::memory_heap::gpu_only:
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		break;

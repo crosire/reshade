@@ -558,7 +558,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	const auto device_impl = new reshade::vulkan::device_impl(
 		device,
 		physicalDevice,
-		g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
+		instance_dispatch.instance,
+		instance_dispatch.api_version,
+		static_cast<const VkLayerInstanceDispatchTable &>(instance_dispatch),
 		dispatch_table,
 		enabled_features,
 		push_descriptor_ext,

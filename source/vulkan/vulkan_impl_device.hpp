@@ -9,7 +9,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 #pragma warning(push)
-#pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
+#pragma warning(disable: 4100 4127 4324 4703 4189) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include <vk_layer_dispatch_table.h>
@@ -27,6 +27,8 @@ namespace reshade::vulkan
 		device_impl(
 			VkDevice device,
 			VkPhysicalDevice physical_device,
+			VkInstance instance,
+			uint32_t api_version,
 			const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
 			bool push_descriptors_ext,
 			bool dynamic_rendering_ext,
