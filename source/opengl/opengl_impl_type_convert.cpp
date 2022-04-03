@@ -258,6 +258,18 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 }
 auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle_mask[4]) -> api::format
 {
+	assert(
+		internal_format != 1 &&
+		internal_format != 2 &&
+		internal_format != 3 &&
+		internal_format != 4 &&
+		internal_format != GL_RED &&
+		internal_format != GL_RG &&
+		internal_format != GL_RGB &&
+		internal_format != GL_RGBA &&
+		internal_format != GL_DEPTH_COMPONENT &&
+		internal_format != GL_DEPTH_STENCIL);
+
 	switch (internal_format)
 	{
 	default:
@@ -283,6 +295,8 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 			swizzle_mask[2] == GL_ZERO &&
 			swizzle_mask[3] == GL_RED)
 			return api::format::a8_unorm;
+		[[fallthrough]];
+	case GL_RED:
 		return api::format::r8_unorm;
 	case GL_R8_SNORM:
 		return api::format::r8_snorm;
@@ -292,6 +306,7 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r8g8_uint;
 	case GL_RG8I:
 		return api::format::r8g8_sint;
+	case GL_RG:
 	case GL_RG8: // { R, G, 0, 1 }
 		if (swizzle_mask != nullptr &&
 			swizzle_mask[0] == GL_RED &&
@@ -306,12 +321,14 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r8g8b8a8_uint;
 	case GL_RGBA8I:
 		return api::format::r8g8b8a8_sint;
+	case GL_RGBA:
 	case GL_RGBA8:
 		return api::format::r8g8b8a8_unorm;
 	case GL_SRGB8_ALPHA8:
 		return api::format::r8g8b8a8_unorm_srgb;
 	case GL_RGBA8_SNORM:
 		return api::format::r8g8b8a8_snorm;
+	case GL_RGB:
 	case GL_RGB8:
 		return api::format::r8g8b8x8_unorm;
 	case GL_SRGB8:

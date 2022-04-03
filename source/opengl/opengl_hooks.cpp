@@ -417,6 +417,7 @@ HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint interna
 	// Convert base internal formats to sized internal formats
 	switch (internalformat)
 	{
+	case 1:
 	case GL_RED:
 		internalformat = GL_R8;
 		break;
@@ -432,12 +433,15 @@ HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint interna
 	case GL_INTENSITY:
 		internalformat = GL_INTENSITY8;
 		break;
+	case 2:
 	case GL_RG:
 		internalformat = GL_RG8;
 		break;
+	case 3:
 	case GL_RGB:
 		internalformat = GL_RGB8;
 		break;
+	case 4:
 	case GL_RGBA:
 		internalformat = GL_RGBA8;
 		break;
@@ -491,6 +495,7 @@ HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint interna
 	// Convert base internal formats to sized internal formats
 	switch (internalformat)
 	{
+	case 1:
 	case GL_RED:
 		internalformat = GL_R8;
 		break;
@@ -506,12 +511,15 @@ HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint interna
 	case GL_INTENSITY:
 		internalformat = GL_INTENSITY8;
 		break;
+	case 2:
 	case GL_RG:
 		internalformat = GL_RG8;
 		break;
+	case 3:
 	case GL_RGB:
 		internalformat = GL_RGB8;
 		break;
+	case 4:
 	case GL_RGBA:
 		internalformat = GL_RGBA8;
 		break;
@@ -1157,6 +1165,7 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 	// Convert base internal formats to sized internal formats
 	switch (internalformat)
 	{
+	case 1:
 	case GL_RED:
 		internalformat = GL_R8;
 		break;
@@ -1172,12 +1181,15 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 	case GL_INTENSITY:
 		internalformat = GL_INTENSITY8;
 		break;
+	case 2:
 	case GL_RG:
 		internalformat = GL_RG8;
 		break;
+	case 3:
 	case GL_RGB:
 		internalformat = GL_RGB8;
 		break;
+	case 4:
 	case GL_RGBA:
 		internalformat = GL_RGBA8;
 		break;
