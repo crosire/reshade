@@ -889,9 +889,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			"built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 
 #ifndef NDEBUG
-		// Disable exception handler for Java games, since it causing problems with the Java runtime
-		if (g_target_executable_path.filename() != L"java.exe" &&
-			g_target_executable_path.filename() != L"javaw.exe")
+		if (reshade::global_config().get("INSTALL", "DumpExceptions"))
 		{
 			CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(&LoadLibraryW), L"dbghelp.dll", 0, nullptr);
 
@@ -901,7 +899,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 					code == CONTROL_C_EXIT || code == 0x406D1388 /* SetThreadName */ ||
 					code == DBG_PRINTEXCEPTION_C || code == DBG_PRINTEXCEPTION_WIDE_C || code == STATUS_BREAKPOINT ||
 					code == 0xE0434352 /* CLR exception */ ||
-					code == 0xE06D7363 /* Visual C++ exception */)
+					code == 0xE06D7363 /* Visual C++ exception */ ||
+					((code ^ 0xE24C4A00) <= 0xFF) /* LuaJIT exception */)
 					goto continue_search;
 
 				// Create dump with exception information for the first 100 occurrences
