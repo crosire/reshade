@@ -496,15 +496,14 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 }
 static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resource_view *, resource_view depth_stencil_view)
 {
-	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_private_data<state_tracking>();
 
 	resource depth_stencil = { 0 };
 	if (depth_stencil_view != 0)
-		depth_stencil = device->get_resource_from_view(depth_stencil_view);
+		depth_stencil = cmd_list->get_device()->get_resource_from_view(depth_stencil_view);
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
-	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
+	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (cmd_list->get_device()->get_api() == device_api::d3d12 || cmd_list->get_device()->get_api() == device_api::vulkan))
 		on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, true);
 
 	state.current_depth_stencil = depth_stencil;
@@ -517,6 +516,7 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, co
 		auto &state = cmd_list->get_private_data<state_tracking>();
 
 		const resource depth_stencil = cmd_list->get_device()->get_resource_from_view(dsv);
+		// Note: This does not work when called from 'vkCmdClearAttachments', since it is invalid to copy a resource inside an active render pass
 		on_clear_depth_impl(cmd_list, state, depth_stencil, false);
 	}
 
@@ -524,10 +524,9 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, co
 }
 static void on_begin_render_pass_with_depth_stencil(command_list *cmd_list, uint32_t, const render_pass_render_target_desc *, const render_pass_depth_stencil_desc *depth_stencil_desc)
 {
-#if 0
 	if (depth_stencil_desc != nullptr && depth_stencil_desc->depth_load_op == render_pass_load_op::clear)
 		on_clear_depth_stencil(cmd_list, depth_stencil_desc->view, &depth_stencil_desc->clear_depth, &depth_stencil_desc->clear_stencil, 0, nullptr);
-#endif
+	// If render pass has depth store operation set to 'discard', any copy performed after the render pass will likely contain broken data, so can only hope that the depth buffer can be copied before that ...
 
 	on_bind_depth_stencil(cmd_list, 0, nullptr, depth_stencil_desc != nullptr ? depth_stencil_desc->view : resource_view {});
 }
