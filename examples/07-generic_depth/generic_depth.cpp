@@ -772,6 +772,33 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 	}
 }
 
+static inline const char *format_to_string(format format) {
+	switch (format)
+	{
+	case format::d16_unorm:
+	case format::r16_typeless:
+		return "D16  ";
+	case format::d16_unorm_s8_uint:
+		return "D16S8";
+	case format::d24_unorm_x8_uint:
+		return "D24X8";
+	case format::d24_unorm_s8_uint:
+	case format::r24_g8_typeless:
+		return "D24S8";
+	case format::d32_float:
+	case format::r32_float:
+	case format::r32_typeless:
+		return "D32  ";
+	case format::d32_float_s8_uint:
+	case format::r32_g8_typeless:
+		return "D32S8";
+	case format::intz:
+		return "INTZ ";
+	default:
+		return "     ";
+	}
+}
+
 static void draw_settings_overlay(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
@@ -842,33 +869,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	});
 
 	bool has_msaa_depth_stencil = false;
-
-	const auto format_to_string = [](format format) {
-		switch (format)
-		{
-		case format::d16_unorm:
-		case format::r16_typeless:
-			return "D16  ";
-		case format::d16_unorm_s8_uint:
-			return "D16S8";
-		case format::d24_unorm_x8_uint:
-			return "D24X8";
-		case format::d24_unorm_s8_uint:
-		case format::r24_g8_typeless:
-			return "D24S8";
-		case format::d32_float:
-		case format::r32_float:
-		case format::r32_typeless:
-			return "D32  ";
-		case format::d32_float_s8_uint:
-		case format::r32_g8_typeless:
-			return "D32S8";
-		case format::intz:
-			return "INTZ ";
-		default:
-			return "     ";
-		}
-	};
+	bool has_no_clear_operations = false;
 
 	instance.display_count_per_depth_stencil.clear();
 	for (const depth_stencil_item &item : sorted_item_list)
@@ -911,6 +912,12 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 		if (s_preserve_depth_buffers && item.resource == instance.selected_depth_stencil)
 		{
+			if (item.snapshot.clears.empty())
+			{
+				has_no_clear_operations = true;
+				continue;
+			}
+
 			depth_stencil_backup *const depth_stencil_backup = device_state.find_depth_stencil_backup(item.resource);
 			if (depth_stencil_backup == nullptr || depth_stencil_backup->backup_texture == 0)
 				continue;
@@ -949,17 +956,19 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					ImGui::EndDisabled();
 				}
 			}
-
 		}
 	}
 
-	if (has_msaa_depth_stencil)
+	if (has_msaa_depth_stencil || has_no_clear_operations)
 	{
 		ImGui::Spacing();
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		ImGui::TextUnformatted("Not all depth buffers are available.\nYou may have to disable MSAA in the game settings for depth buffer detection to work!");
+		if (has_msaa_depth_stencil)
+			ImGui::TextUnformatted("Not all depth buffers are available.\nYou may have to disable MSAA in the game settings for depth buffer detection to work!");
+		if (has_no_clear_operations)
+			ImGui::TextUnformatted("No clear operations were found for the selected depth buffer.\nDisable \"Copy depth buffer before clear operations\" or select a different depth buffer!");
 	}
 
 	if (modified)
