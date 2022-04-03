@@ -4044,7 +4044,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 				struct write_context { FILE *file; bool write_success = true; } context = { file };
 
 				const auto write_callback = [](void *context, void *data, int size) {
-					if (fwrite(data, 1, size, static_cast<write_context *>(context)->file) != size)
+					if (fwrite(data, 1, size, static_cast<write_context *>(context)->file) != static_cast<size_t>(size))
 						static_cast<write_context *>(context)->write_success = false;
 				};
 
