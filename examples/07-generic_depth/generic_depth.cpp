@@ -552,8 +552,8 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 	if (queue_state.counters_per_used_depth_stencil.empty())
 		return;
 
-	// Also skip update when there has been very little activity (special case for emulators which may present more often than they render a frame)
-	if (queue_state.counters_per_used_depth_stencil.size() == 1 && queue_state.counters_per_used_depth_stencil.begin()->second.total_stats.drawcalls <= 4)
+	// Also skip update when there has been very little activity (special case for emulators like PCSX2 which may present more often than they render a frame)
+	if (queue_state.counters_per_used_depth_stencil.size() == 1 && queue_state.counters_per_used_depth_stencil.begin()->second.total_stats.drawcalls <= 8)
 		return;
 
 	device *const device = swapchain->get_device();
@@ -606,14 +606,14 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	resource best_match = { 0 };
 	resource_desc best_match_desc;
-	depth_stencil_info best_snapshot;
+	depth_stencil_info *best_snapshot = nullptr;
 
 	uint32_t frame_width, frame_height;
 	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
 
 	std::shared_lock<std::shared_mutex> lock(s_mutex);
 
-	for (const auto &[resource, snapshot] : device_state.current_depth_stencil_list)
+	for (auto &[resource, snapshot] : device_state.current_depth_stencil_list)
 	{
 		if (std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application (check here again in case effects are rendered during the frame)
@@ -625,15 +625,15 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
 			continue; // Not a good fit
 
-		if (snapshot.total_stats.drawcalls_indirect < (snapshot.total_stats.drawcalls / 3) ?
+		if (best_snapshot == nullptr || (snapshot.total_stats.drawcalls_indirect < (snapshot.total_stats.drawcalls / 3) ?
 				// Choose snapshot with the most vertices, since that is likely to contain the main scene
-				snapshot.total_stats.vertices > best_snapshot.total_stats.vertices :
+				snapshot.total_stats.vertices > best_snapshot->total_stats.vertices :
 				// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
-				snapshot.total_stats.drawcalls > best_snapshot.total_stats.drawcalls)
+				snapshot.total_stats.drawcalls > best_snapshot->total_stats.drawcalls))
 		{
 			best_match = resource;
 			best_match_desc = desc;
-			best_snapshot = snapshot;
+			best_snapshot = &snapshot;
 		}
 	}
 
@@ -644,7 +644,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		{
 			best_match = it->first;
 			best_match_desc = device->get_resource_desc(it->first);
-			best_snapshot = it->second;
+			best_snapshot = &it->second;
 		}
 	}
 
@@ -705,22 +705,25 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 		if (instance.using_backup_texture)
 		{
-			assert(depth_stencil_backup != nullptr && depth_stencil_backup->backup_texture != 0);
+			assert(depth_stencil_backup != nullptr && depth_stencil_backup->backup_texture != 0 && best_snapshot != nullptr);
 			const resource backup_texture = depth_stencil_backup->backup_texture;
 
 			if (s_preserve_depth_buffers)
 			{
-				depth_stencil_backup->previous_stats = best_snapshot.current_stats;
+				depth_stencil_backup->previous_stats = best_snapshot->current_stats;
 			}
 			else
 			{
 				// Copy to backup texture unless already copied during the current frame
-				if (!best_snapshot.copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
+				if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
 				{
 					cmd_list->barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::copy_source);
 					cmd_list->copy_resource(best_match, backup_texture);
 					cmd_list->barrier(best_match, resource_usage::copy_source, resource_usage::depth_stencil | resource_usage::shader_resource);
 				}
+
+				// Indicate that the copy was now done, so it is not repeated in case effects are rendered by another runtime (e.g. when there are multiple present calls in a frame)
+				best_snapshot->copied_during_frame = true;
 			}
 
 			cmd_list->barrier(backup_texture, resource_usage::copy_dest, resource_usage::shader_resource);
