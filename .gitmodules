@@ -26,3 +26,6 @@
 [submodule "fpng"]
 	path = deps/fpng
 	url = https://github.com/richgel999/fpng
+[submodule "d3d12"]
+	path = deps/d3d12
+	url = https://github.com/microsoft/DirectX-Headers.git
