@@ -8,6 +8,7 @@
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
 #include "d3d12_descriptor_heap.hpp"
+#include "d3d12_pipeline_library.hpp"
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
@@ -1314,7 +1315,43 @@ LUID    STDMETHODCALLTYPE D3D12Device::GetAdapterLuid()
 HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibraryBlob, SIZE_T BlobLength, REFIID riid, void **ppPipelineLibrary)
 {
 	assert(_interface_version >= 1);
-	return static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (ppPipelineLibrary == nullptr) // This can happen when application only wants to validate input parameters
+		return static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, nullptr);
+#endif
+
+	const HRESULT hr = static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+		if (riid == __uuidof(ID3D12PipelineLibrary) ||
+			riid == __uuidof(ID3D12PipelineLibrary1))
+		{
+			const auto pipeline_library_proxy = new D3D12PipelineLibrary(this, static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary));
+
+			// Upgrade to the actual interface version requested here
+			if (pipeline_library_proxy->check_and_upgrade_interface(riid))
+			{
+				*ppPipelineLibrary = pipeline_library_proxy;
+			}
+			else // Do not hook object if we do not support the requested interface
+			{
+				LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device1::CreatePipelineLibrary" << '.';
+
+				delete pipeline_library_proxy; // Delete instead of release to keep reference count untouched
+			}
+		}
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "ID3D12Device1::CreatePipelineLibrary" << " failed with error code " << hr << '.';
+#endif
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::SetEventOnMultipleFenceCompletion(ID3D12Fence *const *ppFences, const UINT64 *pFenceValues, UINT NumFences, D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags, HANDLE hEvent)
 {
@@ -1331,7 +1368,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 {
 	assert(_interface_version >= 2);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
@@ -1489,7 +1526,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (riid == __uuidof(ID3D12PipelineState))
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);

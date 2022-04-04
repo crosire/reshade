@@ -525,6 +525,7 @@
     <ClCompile Include="source\d3d12\d3d12_impl_device.cpp" />
     <ClCompile Include="source\d3d12\d3d12_impl_swapchain.cpp" />
     <ClCompile Include="source\d3d12\d3d12_impl_type_convert.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_pipeline_library.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp">
       <DisableSpecificWarnings Condition="'$(Configuration)'=='Debug App'">4458;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -627,6 +628,7 @@
     <ClInclude Include="source\d3d12\d3d12_impl_device.hpp" />
     <ClInclude Include="source\d3d12\d3d12_impl_swapchain.hpp" />
     <ClInclude Include="source\d3d12\d3d12_impl_type_convert.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_pipeline_library.hpp" />
     <ClInclude Include="source\d3d12\descriptor_heap.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
     <ClInclude Include="source\d3d9\d3d9_impl_device.hpp" />

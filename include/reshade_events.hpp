@@ -585,6 +585,9 @@ namespace reshade
 		/// <item><description>ID3D12Device::CreateComputePipelineState</description></item>
 		/// <item><description>ID3D12Device::CreateGraphicsPipelineState</description></item>
 		/// <item><description>ID3D12Device2::CreatePipelineState</description></item>
+		/// <item><description>ID3D12PipelineLibrary::LoadComputePipeline</description></item>
+		/// <item><description>ID3D12PipelineLibrary::LoadGraphicsPipeline</description></item>
+		/// <item><description>ID3D12PipelineLibrary1::LoadPipeline</description></item>
 		/// <item><description>glLinkProgram</description></item>
 		/// <item><description>vkCreateComputePipelines</description></item>
 		/// <item><description>vkCreateGraphicsPipelines</description></item>
