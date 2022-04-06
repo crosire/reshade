@@ -191,6 +191,19 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) state_tracking_c
 		else if (device->get_api() != device_api::opengl && device->get_api() != device_api::vulkan)
 			desc.texture.format = format_to_typeless(desc.texture.format);
 
+		// First try to revive a backup resource that was previously enqueued for delayed destruction
+		for (auto delayed_destroy_it = delayed_destroy_resources.begin(); delayed_destroy_it != delayed_destroy_resources.end(); ++delayed_destroy_it)
+		{
+			const resource_desc delayed_destroy_desc = device->get_resource_desc(delayed_destroy_it->first);
+
+			if (desc.texture.width == delayed_destroy_desc.texture.width && desc.texture.height == delayed_destroy_desc.texture.height && desc.texture.format == delayed_destroy_desc.texture.format)
+			{
+				backup.backup_texture = delayed_destroy_it->first;
+				delayed_destroy_resources.erase(delayed_destroy_it);
+				return &backup;
+			}
+		}
+
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
 			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
 		else

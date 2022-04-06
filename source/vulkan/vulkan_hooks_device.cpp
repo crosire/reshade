@@ -2127,6 +2127,13 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
+#if 0
+	// Hack that prevents artifacts when trying to use depth buffer after render pass finished (see also comment in 'on_begin_render_pass_with_depth_stencil' in generic depth add-on)
+	for (uint32_t a = 0; a < pCreateInfo->attachmentCount; ++a)
+		if (pCreateInfo->pAttachments[a].storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE)
+			const_cast<VkAttachmentDescription &>(pCreateInfo->pAttachments[a]).storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+#endif
+
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result < VK_SUCCESS)
 	{
