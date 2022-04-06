@@ -18,6 +18,7 @@ namespace reshadefx
 		unknown,
 
 		r8,
+		r16,
 		r16f,
 		r32f,
 		rg8,

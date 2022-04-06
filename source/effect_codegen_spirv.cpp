@@ -596,6 +596,9 @@ private:
 		case texture_format::r8:
 			add_capability(spv::CapabilityStorageImageExtendedFormats);
 			return spv::ImageFormatR8;
+		case texture_format::r16:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatR16;
 		case texture_format::r16f:
 			add_capability(spv::CapabilityStorageImageExtendedFormats);
 			return spv::ImageFormatR16f;

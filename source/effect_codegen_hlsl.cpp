@@ -507,6 +507,7 @@ private:
 			switch (info.format)
 			{
 			case texture_format::r8:
+			case texture_format::r16:
 			case texture_format::r16f:
 			case texture_format::r32f:
 				code += "float";

@@ -512,6 +512,9 @@ private:
 			case texture_format::r8:
 				code += "r8";
 				break;
+			case texture_format::r16:
+				code += "r16";
+				break;
 			case texture_format::r16f:
 				code += "r16f";
 				break;

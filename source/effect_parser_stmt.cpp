@@ -1304,6 +1304,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						{ "CLAMP", uint32_t(texture_address_mode::clamp) },
 						{ "BORDER", uint32_t(texture_address_mode::border) },
 						{ "R8", uint32_t(texture_format::r8) },
+						{ "R16", uint32_t(texture_format::r16) },
 						{ "R16F", uint32_t(texture_format::r16f) },
 						{ "R32F", uint32_t(texture_format::r32f) },
 						{ "RG8", uint32_t(texture_format::rg8) }, { "R8G8", uint32_t(texture_format::rg8) },

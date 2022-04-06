@@ -29,14 +29,14 @@ static inline bool convert_format_internal(reshade::api::format format, D3DFORMA
 	if (format == reshade::api::format::r8_typeless || format == reshade::api::format::r8_unorm ||
 		format == reshade::api::format::r8g8_typeless || format == reshade::api::format::r8g8_unorm)
 	{
-		// Use 4-component format so that unused components are returned as zero and alpha as one (to match behavior from other APIs)
+		// Use 4-component format, so that unused components are returned as zero and alpha as one (to match behavior from other APIs)
 		internal_format = D3DFMT_X8R8G8B8;
 		return true;
 	}
 	if (format == reshade::api::format::r8g8b8a8_typeless || format == reshade::api::format::r8g8b8a8_unorm || format == reshade::api::format::r8g8b8a8_unorm_srgb)
 	{
 		// Use 'D3DFMT_A8R8G8B8' instead of 'D3DFMT_A8B8G8R8', since the later is not supported well
-		// This has to be mitiated in 'update_texture_region' by flipping RGBA to BGRA
+		// This has to be mitigated in 'update_texture_region' by flipping RGBA to BGRA
 		internal_format = D3DFMT_A8R8G8B8;
 		return true;
 	}

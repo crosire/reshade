@@ -2559,6 +2559,9 @@ bool reshade::runtime::create_texture(texture &tex)
 	case reshadefx::texture_format::r8:
 		format = api::format::r8_unorm;
 		break;
+	case reshadefx::texture_format::r16:
+		format = api::format::r16_unorm;
+		break;
 	case reshadefx::texture_format::r16f:
 		format = api::format::r16_float;
 		break;
