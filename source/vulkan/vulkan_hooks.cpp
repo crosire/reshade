@@ -182,8 +182,10 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	HOOK_PROC(CreateWin32SurfaceKHR);
 	HOOK_PROC(DestroySurfaceKHR);
 
+#ifdef VK_EXT_tooling_info
 	// VK_EXT_tooling_info
 	HOOK_PROC(GetPhysicalDeviceToolPropertiesEXT);
+#endif
 
 	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
 	HOOK_PROC(GetInstanceProcAddr);

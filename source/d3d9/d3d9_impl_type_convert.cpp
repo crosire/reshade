@@ -32,7 +32,7 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::r8_uint:
 	case api::format::r8_sint:
 	case api::format::r8_snorm:
-		return D3DFMT_L8;
+		return D3DFMT_L8; // Not a perfect fit for R8, but close enough
 	case api::format::l8a8_unorm:
 		return D3DFMT_A8L8;
 	case api::format::r8g8_typeless:
@@ -76,7 +76,7 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::r16_sint:
 	case api::format::r16_unorm:
 	case api::format::r16_snorm:
-		return D3DFMT_L16;
+		return D3DFMT_L16; // Not a perfect fit for R16, but close enough
 	case api::format::r16_typeless:
 	case api::format::r16_float:
 		return D3DFMT_R16F;

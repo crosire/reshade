@@ -530,6 +530,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 		case D3DRTYPE_SURFACE:
 		{
 			D3DSURFACE_DESC internal_desc;
+			// See 'IDirect3DSurface9_GetDesc' in d3d9_resource.cpp for explanation
 			internal_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			static_cast<IDirect3DSurface9 *>(object)->GetDesc(&internal_desc);
 			return convert_resource_desc(internal_desc, 1, _caps);

@@ -100,7 +100,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 ULONG   STDMETHODCALLTYPE D3D11Device::AddRef()
 {
 	_orig->AddRef();
-
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D11Device::Release()
@@ -325,7 +324,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 #if RESHADE_ADDON
 	if (pResource == nullptr) // This can happen if the passed resource failed creation previously, but application did not do error checking to catch that
 		return E_INVALIDARG;
-	if (ppShaderResourceView == nullptr) // This can happen when application only wants to validate input parameter
+	if (ppShaderResourceView == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateShaderResourceView(pResource, pDesc, nullptr);
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_UNKNOWN };
@@ -652,7 +651,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 	desc.code_size = BytecodeLength;
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &desc },
+		{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
@@ -693,7 +692,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 	desc.code_size = BytecodeLength;
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::hull_shader, 1, &desc },
+		{ reshade::api::pipeline_subobject_type::hull_shader, 1, &desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
@@ -734,7 +733,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 	desc.code_size = BytecodeLength;
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::domain_shader, 1, &desc },
+		{ reshade::api::pipeline_subobject_type::domain_shader, 1, &desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
@@ -775,7 +774,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 	desc.code_size = BytecodeLength;
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::compute_shader, 1, &desc },
+		{ reshade::api::pipeline_subobject_type::compute_shader, 1, &desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
@@ -857,7 +856,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 	if (ppDepthStencilState == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateDepthStencilState(pDepthStencilDesc, nullptr);
 
-	D3D11_DEPTH_STENCIL_DESC internal_desc;
+	D3D11_DEPTH_STENCIL_DESC internal_desc = {};
 	auto desc = reshade::d3d11::convert_depth_stencil_desc(pDepthStencilDesc);
 	reshade::api::dynamic_state dynamic_states[1] = { reshade::api::dynamic_state::stencil_reference_value };
 
@@ -903,7 +902,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 	auto desc = reshade::d3d11::convert_rasterizer_desc(pRasterizerDesc);
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc },
+		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
@@ -1235,7 +1234,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 	auto desc = reshade::d3d11::convert_rasterizer_desc(pRasterizerDesc);
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc },
+		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
@@ -1572,7 +1571,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 	auto desc = reshade::d3d11::convert_rasterizer_desc(pRasterizerDesc);
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc },
+		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d11::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))

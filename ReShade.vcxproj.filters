@@ -153,6 +153,9 @@
     <ClCompile Include="source\d3d9\d3d9_profiling.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9_resource.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
@@ -416,9 +419,6 @@
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_impl_device.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
@@ -429,6 +429,12 @@
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_impl_type_convert.hpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d9\d3d9_resource.hpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10_device.hpp">

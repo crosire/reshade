@@ -821,7 +821,7 @@ bool reshade::d3d10::device_impl::create_depth_stencil_state(const api::depth_st
 }
 void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline handle)
 {
-	if (handle.handle & 1)
+	if (handle.handle & 1) // See 'device_impl::create_pipeline'
 		delete reinterpret_cast<pipeline_impl *>(handle.handle ^ 1);
 	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
@@ -1058,17 +1058,18 @@ bool reshade::d3d10::device_impl::get_query_pool_results(api::query_pool pool, u
 	return true;
 }
 
+// WKPDID_D3DDebugObjectName
+static constexpr GUID s_debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} };
+
 void reshade::d3d10::device_impl::set_resource_name(api::resource handle, const char *name)
 {
 	assert(handle.handle != 0);
 
-	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
-	reinterpret_cast<ID3D10DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+	reinterpret_cast<ID3D10DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
 }
 void reshade::d3d10::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
 {
 	assert(handle.handle != 0);
 
-	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
-	reinterpret_cast<ID3D10DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+	reinterpret_cast<ID3D10DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
 }

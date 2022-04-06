@@ -97,6 +97,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	const unsigned int _direct3d_version;
 	std::shared_mutex _impl_mutex;
 	reshade::runtime *const _impl;
+
 	bool _force_vsync = false;
 	bool _force_windowed = false;
 	bool _force_fullscreen = false;

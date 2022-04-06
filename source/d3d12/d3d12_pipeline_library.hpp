@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Patrick Mours
+ * Copyright (C) 2022 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
@@ -29,7 +29,7 @@ struct DECLSPEC_UUID("2DCF7A2D-3824-4E6A-9F53-FE7C7D8B633D") D3D12PipelineLibrar
 	#pragma region ID3D12DeviceChild
 	HRESULT STDMETHODCALLTYPE GetDevice(REFIID riid, void **ppvDevice) override;
 	#pragma endregion
-	#pragma region ID3D12DescriptorHeap
+	#pragma region ID3D12PipelineLibrary
 	HRESULT STDMETHODCALLTYPE StorePipeline( LPCWSTR pName, ID3D12PipelineState *pPipeline) override;
 	HRESULT STDMETHODCALLTYPE LoadGraphicsPipeline(LPCWSTR pName, const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState) override;
 	HRESULT STDMETHODCALLTYPE LoadComputePipeline(LPCWSTR pName, const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState) override;

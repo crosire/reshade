@@ -62,7 +62,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 ULONG   STDMETHODCALLTYPE D3D10Device::AddRef()
 {
 	_orig->AddRef();
-
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D10Device::Release()

@@ -104,6 +104,7 @@ void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_stage stages, api:
 
 	if (pipeline.handle & 1)
 	{
+		// This is a pipeline handle created with 'device_impl::create_pipeline', which can only contain graphics stages
 		assert((stages & api::pipeline_stage::all_graphics) != 0);
 		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->apply(_orig, stages);
 		return;

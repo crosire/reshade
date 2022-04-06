@@ -22,9 +22,9 @@ auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 	case api::format::r8_sint:
 		return VK_FORMAT_R8_SINT;
 	case api::format::r8_typeless:
-	case api::format::r8_unorm:
 	case api::format::l8_unorm: // { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE }
 	case api::format::a8_unorm: // { VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_R }
+	case api::format::r8_unorm:
 		return VK_FORMAT_R8_UNORM;
 	case api::format::r8_snorm:
 		return VK_FORMAT_R8_SNORM;
@@ -79,8 +79,8 @@ auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 	case api::format::r16_typeless:
 	case api::format::r16_float:
 		return VK_FORMAT_R16_SFLOAT;
-	case api::format::r16_unorm:
 	case api::format::l16_unorm: // { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE }
+	case api::format::r16_unorm:
 		return VK_FORMAT_R16_UNORM;
 	case api::format::r16_snorm:
 		return VK_FORMAT_R16_SNORM;

@@ -7,7 +7,6 @@
 
 #include "addon_manager.hpp"
 #include "d3d9_impl_state_block.hpp"
-#include <unordered_map>
 
 namespace reshade::d3d9
 {

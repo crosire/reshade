@@ -81,9 +81,9 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 		_orig->Clear(
 			0, nullptr,
 			clear_flags,
-			clear_flags & D3DCLEAR_TARGET  ? D3DCOLOR_COLORVALUE(rts->clear_color[0], rts->clear_color[1], rts->clear_color[2], rts->clear_color[3]) : 0,
-			clear_flags & D3DCLEAR_ZBUFFER ? ds->clear_depth : 0.0f,
-			clear_flags & D3DCLEAR_STENCIL ? ds->clear_stencil : 0);
+			rts != nullptr ? D3DCOLOR_COLORVALUE(rts->clear_color[0], rts->clear_color[1], rts->clear_color[2], rts->clear_color[3]) : 0,
+			 ds != nullptr ? ds->clear_depth : 0.0f,
+			 ds != nullptr ? ds->clear_stencil : 0);
 	}
 }
 void reshade::d3d9::device_impl::end_render_pass()
@@ -103,6 +103,7 @@ void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t 
 			srgb_write_enable = true;
 	}
 
+	// Unset remaining render targets
 	for (DWORD i = count; i < _caps.NumSimultaneousRTs; ++i)
 		_orig->SetRenderTarget(i, nullptr);
 
@@ -117,6 +118,7 @@ void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage stages, api::
 
 	if (pipeline.handle & 1)
 	{
+		// This is a pipeline handle created with 'device_impl::create_pipeline', which does not support partial binding of its state
 		assert(stages == api::pipeline_stage::all_graphics);
 		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->state_block->Apply();
 
