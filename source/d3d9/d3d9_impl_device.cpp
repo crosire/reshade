@@ -1159,11 +1159,13 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
 			// TODO: Implement texture upload for 3D textures
+			LOG(ERROR) << "Texture upload is not implemented for 3D textures in D3D9!";
 			break;
 		}
 		case D3DRTYPE_CUBETEXTURE:
 		{
 			// TODO: Implement texture upload for cube textures
+			LOG(ERROR) << "Texture upload is not implemented for cube textures in D3D9!";
 			break;
 		}
 	}

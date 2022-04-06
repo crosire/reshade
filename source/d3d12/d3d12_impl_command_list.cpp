@@ -459,7 +459,7 @@ void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t firs
 
 		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offsets[i];
 		views[i].SizeInBytes = max_sizes != nullptr && max_sizes[i] != UINT64_MAX ? max_sizes[0] : 0;
-		views[i].BufferFilledSizeLocation = 0; // TODO
+		views[i].BufferFilledSizeLocation = NULL; // TODO: Not currently implemented
 	}
 
 	_orig->SOSetTargets(first, count, views.p);
