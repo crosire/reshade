@@ -187,7 +187,8 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) state_tracking_c
 
 		if (device->get_api() == device_api::d3d9)
 			desc.texture.format = format::r32_float; // D3DFMT_R32F, since INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
-		else if (device->get_api() != device_api::vulkan) // Use depth format as-is in Vulkan, since those are valid for shader resource views there
+		// Use depth format as-is in OpenGL and Vulkan, since those are valid for shader resource views there
+		else if (device->get_api() != device_api::opengl && device->get_api() != device_api::vulkan)
 			desc.texture.format = format_to_typeless(desc.texture.format);
 
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
@@ -671,7 +672,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			const device_api api = device->get_api();
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
-			resource_view_desc srv_desc(api != device_api::vulkan ? format_to_default_typed(best_match_desc.texture.format) : best_match_desc.texture.format);
+			resource_view_desc srv_desc(api != device_api::opengl && api != device_api::vulkan ? format_to_default_typed(best_match_desc.texture.format) : best_match_desc.texture.format);
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing
