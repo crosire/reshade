@@ -300,10 +300,19 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 
 	delete this;
 
-	// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
-	const ULONG ref_orig = orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+	// Resident Evil 3 releases the swap chain without first leaving fullscreen, which causes the DXGI runtime to throw an exception
+	if (BOOL fullscreen = FALSE;
+		SUCCEEDED(orig->GetFullscreenState(&fullscreen, nullptr)) && fullscreen)
+	{
+		LOG(WARN) << "Attempted to destroy swap chain while still in fullscreen mode.";
+	}
+	else
+	{
+		// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
+		const ULONG ref_orig = orig->Release();
+		if (ref_orig != 0) // Verify internal reference count
+			LOG(WARN) << "Reference count for " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+	}
 
 	// Release the explicit reference to the device that was added in the 'DXGISwapChain' constructor above now that the effect runtime was destroyed and is longer referencing it
 	if (command_queue != nullptr)
