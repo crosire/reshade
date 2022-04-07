@@ -17,7 +17,7 @@ namespace reshade::vulkan
 		command_list_immediate_impl(device_impl *device, uint32_t queue_family_index);
 		~command_list_immediate_impl();
 
-		bool flush(VkQueue queue, std::vector<VkSemaphore> &wait_semaphores);
+		bool flush(VkQueue queue, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores);
 		bool flush_and_wait(VkQueue queue);
 
 	private:

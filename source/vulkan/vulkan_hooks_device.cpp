@@ -915,8 +915,12 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 {
 	assert(pPresentInfo != nullptr);
 
-	std::vector<VkSemaphore> wait_semaphores(
-		pPresentInfo->pWaitSemaphores, pPresentInfo->pWaitSemaphores + pPresentInfo->waitSemaphoreCount);
+	temp_mem<VkSemaphore> wait_semaphores(pPresentInfo->waitSemaphoreCount + 1); // Add space for one additional wait semaphore that may get appended in 'swapchain_impl::on_present'
+	std::copy_n(pPresentInfo->pWaitSemaphores, pPresentInfo->waitSemaphoreCount, wait_semaphores.p);
+
+	VkPresentInfoKHR present_info = *pPresentInfo;
+	present_info.pWaitSemaphores = wait_semaphores.p;
+	present_info.waitSemaphoreCount = pPresentInfo->waitSemaphoreCount;
 
 	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue); queue_impl != nullptr)
 	{
@@ -977,19 +981,15 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 					dirty_rect_count,
 					dirty_rect_count != 0 ? dirty_rects.p : nullptr);
 #endif
-				swapchain_impl->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
+				swapchain_impl->on_present(queue, pPresentInfo->pImageIndices[i], const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
 			}
 		}
 
-		queue_impl->flush_immediate_command_list(wait_semaphores);
+		// Override wait semaphores based on the last queue submit
+		queue_impl->flush_immediate_command_list(const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
 
 		static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device())->advance_transient_descriptor_pool();
 	}
-
-	// Override wait semaphores based on the last queue submit from above
-	VkPresentInfoKHR present_info = *pPresentInfo;
-	present_info.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size());
-	present_info.pWaitSemaphores = wait_semaphores.data();
 
 	GET_DISPATCH_PTR(QueuePresentKHR, queue);
 	g_in_dxgi_runtime = true;

@@ -73,14 +73,14 @@ void reshade::vulkan::command_queue_impl::wait_idle() const
 
 void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
 {
-	std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
+	uint32_t num_wait_semaphores = 0; // No semaphores to wait on
 	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_orig, wait_semaphores);
+		_immediate_cmd_list->flush(_orig, nullptr, num_wait_semaphores);
 }
-void reshade::vulkan::command_queue_impl::flush_immediate_command_list(std::vector<VkSemaphore> &wait_semaphores) const
+void reshade::vulkan::command_queue_impl::flush_immediate_command_list(VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores) const
 {
 	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_orig, wait_semaphores);
+		_immediate_cmd_list->flush(_orig, wait_semaphores, num_wait_semaphores);
 }
 
 void reshade::vulkan::command_queue_impl::begin_debug_event(const char *label, const float color[4])

@@ -123,7 +123,7 @@ void reshade::vulkan::swapchain_impl::on_reset()
 		semaphore = VK_NULL_HANDLE;
 }
 
-void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
+void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores)
 {
 	_swap_index = swapchain_image_index;
 
@@ -136,13 +136,15 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)
 	if (static_cast<device_impl *>(_device)->_wait_for_idle_happened)
 	{
+		temp_mem<VkPipelineStageFlags> wait_stages(num_wait_semaphores);
+		std::fill_n(wait_stages.p, num_wait_semaphores, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-		std::vector<VkPipelineStageFlags> wait_stages(wait.size(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-		submit_info.waitSemaphoreCount = static_cast<uint32_t>(wait.size());
-		submit_info.pWaitSemaphores = wait.data();
-		submit_info.pWaitDstStageMask = wait_stages.data();
-		submit_info.signalSemaphoreCount = static_cast<uint32_t>(wait.size());
-		submit_info.pSignalSemaphores = wait.data();
+		submit_info.waitSemaphoreCount = num_wait_semaphores;
+		submit_info.pWaitSemaphores = wait_semaphores;
+		submit_info.pWaitDstStageMask = wait_stages.p;
+		submit_info.signalSemaphoreCount = num_wait_semaphores;
+		submit_info.pSignalSemaphores = wait_semaphores;
 		vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
 
 		static_cast<device_impl *>(_device)->_wait_for_idle_happened = false;
@@ -161,10 +163,10 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 		vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
 
 		// Wait on that semaphore before the immediate command list flush below
-		wait.push_back(submit_info.pSignalSemaphores[0]);
+		wait_semaphores[num_wait_semaphores++] = submit_info.pSignalSemaphores[0];
 
 		_queue_sync_index = (_queue_sync_index + 1) % NUM_SYNC_SEMAPHORES;
 
-		static_cast<command_queue_impl *>(_graphics_queue)->flush_immediate_command_list(wait);
+		static_cast<command_queue_impl *>(_graphics_queue)->flush_immediate_command_list(wait_semaphores, num_wait_semaphores);
 	}
 }
