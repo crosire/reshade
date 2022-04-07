@@ -886,7 +886,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #else
 			"(64-bit) "
 #endif
-			"built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
+			"loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 
 #ifndef NDEBUG
 		if (reshade::global_config().get("INSTALL", "DumpExceptions"))

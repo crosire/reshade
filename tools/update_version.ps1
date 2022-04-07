@@ -33,9 +33,6 @@ $official = Test-Path ($path + "\..\sign.pfx")
 @"
 #pragma once
 
-#define VERSION_DATE "$([DateTimeOffset]::Now.ToString('yyyy-MM-dd'))"
-#define VERSION_TIME "$([DateTimeOffset]::Now.ToString('HH:mm:ss'))"
-
 #define VERSION_FULL $([string]::Join('.', $version))
 #define VERSION_MAJOR $($version[0])
 #define VERSION_MINOR $($version[1])
