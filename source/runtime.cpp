@@ -365,7 +365,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 		_window_width = window_rect.right;
 		_window_height = window_rect.bottom;
 	}
-	else
+	if (window == nullptr || _window_width == 0 || _window_height == 0)
 	{
 		_window_width = _width;
 		_window_height = _height;
