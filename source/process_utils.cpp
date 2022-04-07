@@ -12,7 +12,8 @@ bool reshade::open_explorer(const std::filesystem::path &path)
 {
 	// Use absolute path to explorer to avoid potential security issues when executable is replaced
 	WCHAR explorer_path[260] = L"";
-	GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
+	if (GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path)) == 0)
+		return false;
 	wcscat_s(explorer_path, L"\\explorer.exe");
 
 	return ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + path.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT) != nullptr;
@@ -91,6 +92,9 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 		if (CreateProcessW(nullptr, command_line_wide.data(), nullptr, nullptr, FALSE, process_creation_flags, nullptr, working_directory.c_str(), &si, &pi) == FALSE)
 			goto exit_failure;
 	}
+
+	CloseHandle(pi.hThread);
+	CloseHandle(pi.hProcess);
 
 	success = true;
 

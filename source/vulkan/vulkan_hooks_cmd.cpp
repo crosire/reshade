@@ -173,7 +173,7 @@ static void invoke_begin_render_pass_event(reshade::vulkan::object_data<VK_OBJEC
 	}
 	if (rendering_info->pStencilAttachment != nullptr)
 	{
-		ds.view = { (uint64_t)rendering_info->pDepthAttachment->imageView };
+		ds.view = { (uint64_t)rendering_info->pStencilAttachment->imageView };
 		ds.stencil_load_op = reshade::vulkan::convert_render_pass_load_op(rendering_info->pStencilAttachment->loadOp);
 		ds.stencil_store_op = reshade::vulkan::convert_render_pass_store_op(rendering_info->pStencilAttachment->storeOp);
 		ds.clear_stencil = static_cast<uint8_t>(rendering_info->pStencilAttachment->clearValue.depthStencil.stencil);

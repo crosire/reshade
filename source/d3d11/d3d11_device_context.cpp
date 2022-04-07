@@ -315,7 +315,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UIN
 				0,
 				UINT64_MAX,
 				reshade::d3d11::convert_access_flags(MapType),
-				// See https://docs.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-map#null-pointers-for-pmappedresource
+				// See https://docs.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-map#null-pointers-for-pmappedresource
 				pMappedResource != nullptr ? &pMappedResource->pData : nullptr);
 		}
 		else

@@ -236,10 +236,8 @@ static HRESULT STDMETHODCALLTYPE ID3D10Buffer_Unmap(ID3D10Buffer *pResource)
 static HRESULT STDMETHODCALLTYPE ID3D10Texture1D_Map(ID3D10Texture1D *pResource, UINT Subresource, D3D10_MAP MapType, UINT MapFlags, void **ppData)
 {
 	const HRESULT hr = reshade::hooks::call(ID3D10Texture1D_Map, vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, ppData);
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && ppData != nullptr)
 	{
-		assert(ppData != nullptr);
-
 		reshade::api::subresource_data data;
 		data.data = *ppData;
 		data.row_pitch = 0;
@@ -262,16 +260,14 @@ static HRESULT STDMETHODCALLTYPE ID3D10Texture1D_Unmap(ID3D10Texture1D *pResourc
 static HRESULT STDMETHODCALLTYPE ID3D10Texture2D_Map(ID3D10Texture2D *pResource, UINT Subresource, D3D10_MAP MapType, UINT MapFlags, D3D10_MAPPED_TEXTURE2D *pMappedTex2D)
 {
 	const HRESULT hr = reshade::hooks::call(ID3D10Texture2D_Map, vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, pMappedTex2D);
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && pMappedTex2D != nullptr)
 	{
-		assert(pMappedTex2D != nullptr);
-
 		reshade::api::subresource_data data;
 		data.data = pMappedTex2D->pData;
 		data.row_pitch = pMappedTex2D->RowPitch;
 		data.slice_pitch = 0;
 
-		D3D10Device::invoke_map_texture_region_event(pResource, Subresource, MapType, pMappedTex2D != nullptr ? &data : nullptr);
+		D3D10Device::invoke_map_texture_region_event(pResource, Subresource, MapType, &data);
 
 		pMappedTex2D->pData = data.data;
 		pMappedTex2D->RowPitch = data.row_pitch;
@@ -289,10 +285,8 @@ static HRESULT STDMETHODCALLTYPE ID3D10Texture2D_Unmap(ID3D10Texture2D *pResourc
 static HRESULT STDMETHODCALLTYPE ID3D10Texture3D_Map(ID3D10Texture3D *pResource, UINT Subresource, D3D10_MAP MapType, UINT MapFlags, D3D10_MAPPED_TEXTURE3D *pMappedTex3D)
 {
 	const HRESULT hr = reshade::hooks::call(ID3D10Texture3D_Map, vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, pMappedTex3D);
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && pMappedTex3D != nullptr)
 	{
-		assert(pMappedTex3D != nullptr);
-
 		D3D10Device::invoke_map_texture_region_event(pResource, Subresource, MapType, reinterpret_cast<reshade::api::subresource_data *>(pMappedTex3D));
 	}
 

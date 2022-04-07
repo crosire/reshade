@@ -371,7 +371,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 	{
 		convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 		// Volume textures cannot have render target or depth-stencil usage, so do not call 'convert_resource_usage_to_d3d_usage'
-		// See https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dusage
+		// See https://docs.microsoft.com/windows/win32/direct3d9/d3dusage
 
 		if ((desc.flags & api::resource_flags::dynamic) != 0 && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
 		{

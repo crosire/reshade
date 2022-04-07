@@ -488,6 +488,7 @@ private:
 				// No format specified for the storage image
 				if (format == spv::ImageFormatUnknown)
 					add_capability(spv::CapabilityStorageImageWriteWithoutFormat);
+				[[fallthrough]];
 			case type::t_texture:
 				assert(info.rows == 0 && info.cols == 0);
 				elem_type = convert_type({ type::t_float, 1, 1 });
@@ -591,6 +592,7 @@ private:
 		{
 		default:
 			assert(false);
+			[[fallthrough]];
 		case texture_format::unknown:
 			return spv::ImageFormatUnknown;
 		case texture_format::r8:

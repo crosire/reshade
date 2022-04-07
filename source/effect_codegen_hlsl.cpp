@@ -514,6 +514,7 @@ private:
 				break;
 			default:
 				assert(false);
+				[[fallthrough]];
 			case texture_format::unknown:
 			case texture_format::rg8:
 			case texture_format::rg16:
