@@ -33,7 +33,7 @@ struct draw_stats
 };
 struct clear_stats : public draw_stats
 {
-	bool rect = false;
+	bool fullscreen_draw = false;
 };
 
 struct depth_stencil_info
@@ -57,6 +57,7 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 {
 	draw_stats best_copy_stats;
 	bool first_empty_stats = true;
+	bool first_draw_since_bind = true;
 	viewport current_viewport = {};
 	resource current_depth_stencil = { 0 };
 	std::unordered_map<resource, depth_stencil_info, depth_stencil_hash> counters_per_used_depth_stencil;
@@ -248,7 +249,7 @@ static bool check_aspect_ratio(float width_to_check, float height_to_check, uint
 	return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (s_use_aspect_ratio_heuristics == 2 && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 }
 
-static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, resource depth_stencil, bool fullscreen_draw_call)
+static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, resource depth_stencil, bool fullscreen_draw)
 {
 	if (depth_stencil == 0)
 		return;
@@ -262,7 +263,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	depth_stencil_info &counters = state.counters_per_used_depth_stencil[depth_stencil];
 
 	// Update stats with data from previous frame
-	if (!fullscreen_draw_call && counters.current_stats.drawcalls == 0 && state.first_empty_stats)
+	if (!fullscreen_draw && counters.current_stats.drawcalls == 0 && state.first_empty_stats)
 	{
 		counters.current_stats = depth_stencil_backup->previous_stats;
 		state.first_empty_stats = false;
@@ -280,19 +281,17 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 		return;
 	}
 
-	counters.clears.push_back({ counters.current_stats, fullscreen_draw_call });
+	counters.clears.push_back({ counters.current_stats, fullscreen_draw });
 
 	// Make a backup copy of the depth texture before it is cleared
 	if (depth_stencil_backup->force_clear_index == 0 ?
 		// If clear index override is set to zero, always copy any suitable buffers
 		// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge)
-		fullscreen_draw_call || counters.current_stats.vertices >= state.best_copy_stats.vertices :
+		counters.current_stats.vertices >= state.best_copy_stats.vertices :
 		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
 		counters.clears.size() == depth_stencil_backup->force_clear_index)
 	{
-		// Since clears from fullscreen draw calls are selected based on their order (last one wins), their stats are ignored for the regular clear heuristic
-		if (!fullscreen_draw_call)
-			state.best_copy_stats = counters.current_stats;
+		state.best_copy_stats = counters.current_stats;
 
 		// A resource has to be in this state for a clear operation, so can assume it here
 		cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
@@ -456,15 +455,15 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	if (state.current_depth_stencil == 0)
 		return false; // This is a draw call with no depth-stencil bound
 
-#if 0
-	// Check if this draw call likely represets a fullscreen rectangle (one or two triangles), which would clear the depth-stencil
-	if (s_preserve_depth_buffers && (vertices == 3 || vertices == 6))
-	{
-		// TODO: Check pipeline state (cull mode none, depth test enabled, depth write enabled, depth compare function always)
+	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
+	if (s_preserve_depth_buffers &&
+		vertices == 6 && instances == 1 &&
+		state.first_draw_since_bind &&
+		// But ignore that in Vulkan (since it is invalid to copy a resource inside an active render pass)
+		cmd_list->get_device()->get_api() != device_api::vulkan)
 		on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, true);
-		return false;
-	}
-#endif
+
+	state.first_draw_since_bind = false;
 
 	depth_stencil_info &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
 	counters.total_stats.vertices += vertices * instances;
@@ -519,6 +518,8 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
 	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (cmd_list->get_device()->get_api() == device_api::d3d12 || cmd_list->get_device()->get_api() == device_api::vulkan))
 		on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, true);
+	else
+		state.first_draw_since_bind = true;
 
 	state.current_depth_stencil = depth_stencil;
 }
@@ -935,13 +936,15 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			if (depth_stencil_backup == nullptr || depth_stencil_backup->backup_texture == 0)
 				continue;
 
+			const bool is_d3d12_or_vulkan = (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan);
+
 			for (size_t clear_index = 1; clear_index <= item.snapshot.clears.size(); ++clear_index)
 			{
 				sprintf_s(label, "%s  CLEAR %2zu", (clear_index == depth_stencil_backup->force_clear_index ? "> " : "  "), clear_index);
 
 				const auto &clear_stats = item.snapshot.clears[clear_index - 1];
 
-				if (clear_stats.rect)
+				if (clear_stats.fullscreen_draw && is_d3d12_or_vulkan)
 				{
 					ImGui::BeginDisabled();
 					ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -961,9 +964,9 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					clear_stats.drawcalls,
 					clear_stats.drawcalls_indirect,
 					clear_stats.vertices,
-					clear_stats.rect ? " RECT" : "");
+					clear_stats.fullscreen_draw ? (is_d3d12_or_vulkan ? " BIND" : " RECT") : "");
 
-				if (clear_stats.rect)
+				if (clear_stats.fullscreen_draw && is_d3d12_or_vulkan)
 				{
 					ImGui::PopStyleColor();
 					ImGui::EndDisabled();
