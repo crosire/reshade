@@ -623,17 +623,25 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	resource best_match = { 0 };
 	resource_desc best_match_desc;
-	depth_stencil_info *best_snapshot = nullptr;
+	const depth_stencil_info *best_snapshot = nullptr;
 
 	uint32_t frame_width, frame_height;
 	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
 
 	std::shared_lock<std::shared_mutex> lock(s_mutex);
+	const auto current_depth_stencil_list = device_state.current_depth_stencil_list;
+	lock.unlock();
 
-	for (auto &[resource, snapshot] : device_state.current_depth_stencil_list)
+	for (auto &[resource, snapshot] : current_depth_stencil_list)
 	{
-		if (std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
-			continue; // Skip resources that were destroyed by the application (check here again in case effects are rendered during the frame)
+		lock.lock();
+		const bool destroyed = std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end();
+		// Unlock while calling into device below, since device may hold a lock itself and that then can deadlock another thread that calls into 'on_destroy_resource' from the device holds that lock
+		lock.unlock();
+
+		// Skip resources that were destroyed by the application (check here again in case effects are rendered during the frame)
+		if (destroyed)
+			continue;
 
 		const resource_desc desc = device->get_resource_desc(resource);
 		if (desc.texture.samples > 1)
@@ -656,16 +664,15 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	if (instance.override_depth_stencil != 0)
 	{
-		if (const auto it = std::find_if(device_state.current_depth_stencil_list.begin(), device_state.current_depth_stencil_list.end(), [&instance](const auto &current) { return current.first == instance.override_depth_stencil; });
-			it != device_state.current_depth_stencil_list.end())
+		const auto it = std::find_if(current_depth_stencil_list.begin(), current_depth_stencil_list.end(),
+			[&instance](const auto &current) { return current.first == instance.override_depth_stencil; });
+		if (it != current_depth_stencil_list.end())
 		{
 			best_match = it->first;
 			best_match_desc = device->get_resource_desc(it->first);
 			best_snapshot = &it->second;
 		}
 	}
-
-	lock.unlock();
 
 	if (best_match != 0)
 	{
@@ -740,7 +747,12 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				}
 
 				// Indicate that the copy was now done, so it is not repeated in case effects are rendered by another runtime (e.g. when there are multiple present calls in a frame)
-				best_snapshot->copied_during_frame = true;
+				lock.lock();
+				const auto it = std::find_if(device_state.current_depth_stencil_list.begin(), device_state.current_depth_stencil_list.end(),
+					[&best_match](const auto &current) { return current.first == best_match; });
+				if (it != device_state.current_depth_stencil_list.end())
+					it->second.copied_during_frame = true;
+				lock.unlock();
 			}
 
 			cmd_list->barrier(backup_texture, resource_usage::copy_dest, resource_usage::shader_resource);
