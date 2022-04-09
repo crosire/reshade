@@ -234,6 +234,13 @@ void reshade::unload_addons()
 	addon_loaded_info.clear();
 }
 
+bool reshade::has_loaded_addons()
+{
+	// Ignore disabled and built-in add-ons
+	return s_reference_count != 0 && std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
+		[](const reshade::addon_info &info) { return info.handle != nullptr && info.handle != g_module_handle; }) != reshade::addon_loaded_info.end();
+}
+
 reshade::addon_info *reshade::find_addon(void *address)
 {
 	if (address == nullptr)

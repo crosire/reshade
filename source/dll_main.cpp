@@ -7,6 +7,7 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 #include <Windows.h>
 #include <Psapi.h>
 #include <ShlObj.h>
@@ -834,6 +835,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
 		{
 			PWSTR appdata_path = nullptr;
+			// This is unsafe in DllMain, since it is not guaranteed shell32.dll won't try and load other system components behind the scenes, but there is no good alternative right now
 			SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_NO_PACKAGE_REDIRECTION, nullptr, &appdata_path);
 			const auto common_path = std::filesystem::path(appdata_path) / L"ReShade";
 			const auto appdata_reshade_dll_path = common_path /
@@ -1008,6 +1010,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		break;
 	case DLL_PROCESS_DETACH:
 		LOG(INFO) << "Exiting ...";
+
+		if (reshade::has_loaded_addons())
+			LOG(WARN) << "Add-ons are still loaded! Application may crash on exit.";
 
 		reshade::hooks::uninstall();
 

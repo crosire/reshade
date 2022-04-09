@@ -40,6 +40,11 @@ namespace reshade
 	void unload_addons();
 
 	/// <summary>
+	/// Checks whether any add-ons were loaded.
+	/// </summary>
+	bool has_loaded_addons();
+
+	/// <summary>
 	/// Gets the add-on that was loaded at the specified address.
 	/// </summary>
 	addon_info *find_addon(void *address);
