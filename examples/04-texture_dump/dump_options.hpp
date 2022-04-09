@@ -16,7 +16,7 @@
 #define DUMP_HASH DUMP_HASH_TEXMOD
 
 // The subdirectory to place textures in
-// This directory should exist in the same directory as Reshade and the game's executable
+// This directory should exist in the same directory as the executable
 #define DUMP_DIR "texdump"
 
 // Which texture format to output

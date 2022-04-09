@@ -16,7 +16,7 @@
 #define REPLACE_HASH REPLACE_HASH_TEXMOD
 
 // The subdirectory to load textures from
-// This directory should exist in the same directory as Reshade and the game's executable
+// This directory should exist in the same directory as the executable
 #define REPLACE_DIR "texreplace"
 
 // Which texture format to read

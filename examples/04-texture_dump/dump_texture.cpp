@@ -100,7 +100,6 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	// Correct hash calculation using entire resource data
 	const uint32_t hash = compute_crc32(
 		static_cast<const uint8_t *>(data.data),
-		reshade::log_message(4, "Skipped texture that was already dumped");
 		format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
 #elif DUMP_HASH == DUMP_HASH_TEXMOD
 	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
@@ -115,6 +114,7 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 #ifdef DUMP_ENABLE_HASH_SET
 	if (hash_set.find(hash) != hash_set.end())
 	{
+		reshade::log_message(4, "Skipped texture that was already dumped");
 		return true;
 	}
 	else
@@ -417,6 +417,10 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	std::filesystem::path game_file_path = file_prefix;
 	std::filesystem::path dump_path = game_file_path.parent_path();
 	dump_path /= DUMP_DIR;
+
+	if (std::error_code ec; !std::filesystem::exists(dump_path, ec))
+		std::filesystem::create_directory(dump_path, ec);
+
 	dump_path /= hash_string;
 
 #if DUMP_FMT == DUMP_FMT_BMP
@@ -425,5 +429,7 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 #elif DUMP_FMT == DUMP_FMT_PNG
 	dump_path += L".png";
 	return stbi_write_png(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data(), desc.texture.width * 4) != 0;
+#else
+	return false;
 #endif
 }
