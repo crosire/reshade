@@ -10,7 +10,6 @@
 #include "addon_manager.hpp"
 #include <Windows.h>
 #include <Psapi.h>
-#include <ShlObj.h>
 
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
@@ -34,7 +33,7 @@ bool is_windows7()
 }
 
 /// <summary>
-/// Expands any environment variables in the path (like "%userprofile%") and checks whether it points towards an existing directory.
+/// Expands any environment variables in the path (like "%USERPROFILE%") and checks whether it points towards an existing directory.
 /// </summary>
 static bool resolve_env_path(std::filesystem::path &path, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
 {
@@ -103,6 +102,28 @@ std::filesystem::path get_module_path(HMODULE module)
 {
 	WCHAR buf[4096];
 	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
+}
+
+/// <summary>
+/// Returns the path to the local application data directory (also known as "%LOCALAPPDATA%").
+/// </summary>
+std::filesystem::path get_local_appdata_path()
+{
+	static std::filesystem::path result;
+	if (!result.empty())
+		return result; // Return the cached path if it exists
+
+	WCHAR buf[4096] = L"";
+#if 1
+	ExpandEnvironmentStringsW(L"%LOCALAPPDATA%", buf, ARRAYSIZE(buf));
+#else
+	// This is unsafe in 'DllMain', since it is not guaranteed shell32.dll won't try and load other system components behind the scenes
+	PWSTR appdata_path = nullptr;
+	SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_NO_PACKAGE_REDIRECTION, nullptr, &appdata_path);
+	wcscpy_s(buf, appdata_path);
+	CoTaskMemFree(appdata_path);
+#endif
+	return result = buf;
 }
 
 #ifdef RESHADE_TEST_APPLICATION
@@ -834,19 +855,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		// When ReShade is loaded from the location managed by the setup tool (see "ReShade Setup" project), only load when the target executable is in the list of applications managed by the setup tool
 		// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
 		{
-			PWSTR appdata_path = nullptr;
-			// This is unsafe in DllMain, since it is not guaranteed shell32.dll won't try and load other system components behind the scenes, but there is no good alternative right now
-			SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_NO_PACKAGE_REDIRECTION, nullptr, &appdata_path);
-			const auto common_path = std::filesystem::path(appdata_path) / L"ReShade";
+			const auto common_path = get_local_appdata_path() / L"ReShade";
 			const auto appdata_reshade_dll_path = common_path /
 #ifndef _WIN64
 				L"ReShade32" / L"ReShade32.dll";
 #else
 				L"ReShade64" / L"ReShade64.dll";
 #endif
-			CoTaskMemFree(appdata_path);
 
-			if (g_reshade_dll_path == appdata_reshade_dll_path)
+			if (appdata_reshade_dll_path.is_absolute() && g_reshade_dll_path == appdata_reshade_dll_path)
 			{
 				default_base_to_target_executable_path = true;
 

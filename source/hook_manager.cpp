@@ -415,6 +415,7 @@ void reshade::hooks::uninstall()
 
 	// Free reference to the module loaded for export hooks
 	// Otherwise a subsequent call to 'LoadLibrary' could return the handle to the still loaded export module, instead of loading the ReShade module again
+	// Unfortunately this is not technically safe to call from 'DllMain' ...
 	if (g_export_module_handle)
 		FreeLibrary(g_export_module_handle);
 	g_export_module_handle = nullptr;
