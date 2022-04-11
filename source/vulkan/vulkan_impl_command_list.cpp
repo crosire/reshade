@@ -129,11 +129,11 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			const auto image_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(view_data->create_info.image);
 
 			rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, image_data->create_info.extent.width);
-			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.width, image_data->create_info.extent.height);
+			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, image_data->create_info.extent.height);
 			rendering_info.layerCount = std::min(rendering_info.layerCount, image_data->create_info.arrayLayers);
 		}
 
-		if (ds != nullptr)
+		if (ds != nullptr && ds->view.handle != 0)
 		{
 			depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 			depth_attachment.imageView = (VkImageView)ds->view.handle;
@@ -156,7 +156,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			const auto image_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(view_data->create_info.image);
 
 			rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, image_data->create_info.extent.width);
-			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.width, image_data->create_info.extent.height);
+			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, image_data->create_info.extent.height);
 			rendering_info.layerCount = std::min(rendering_info.layerCount, image_data->create_info.arrayLayers);
 		}
 
