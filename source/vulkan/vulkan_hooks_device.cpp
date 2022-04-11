@@ -482,6 +482,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(CmdSetRasterizerDiscardEnable);
 		INIT_DISPATCH_PTR(CmdSetDepthBiasEnable);
 		INIT_DISPATCH_PTR(CmdSetPrimitiveRestartEnable);
+		INIT_DISPATCH_PTR(GetDeviceBufferMemoryRequirements);
+		INIT_DISPATCH_PTR(GetDeviceImageMemoryRequirements);
 	}
 	#pragma endregion
 	#pragma region VK_KHR_swapchain
