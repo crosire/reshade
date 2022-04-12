@@ -105,9 +105,9 @@ std::filesystem::path get_module_path(HMODULE module)
 }
 
 /// <summary>
-/// Returns the path to the local application data directory (also known as "%LOCALAPPDATA%").
+/// Returns the path to the program data directory (also known as "%PROGRAMDATA%").
 /// </summary>
-std::filesystem::path get_local_appdata_path()
+std::filesystem::path get_program_data_path()
 {
 	static std::filesystem::path result;
 	if (!result.empty())
@@ -115,13 +115,13 @@ std::filesystem::path get_local_appdata_path()
 
 	WCHAR buf[4096] = L"";
 #if 1
-	ExpandEnvironmentStringsW(L"%LOCALAPPDATA%", buf, ARRAYSIZE(buf));
+	ExpandEnvironmentStringsW(L"%PROGRAMDATA%", buf, ARRAYSIZE(buf));
 #else
 	// This is unsafe in 'DllMain', since it is not guaranteed shell32.dll won't try and load other system components behind the scenes
-	PWSTR appdata_path = nullptr;
-	SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_NO_PACKAGE_REDIRECTION, nullptr, &appdata_path);
-	wcscpy_s(buf, appdata_path);
-	CoTaskMemFree(appdata_path);
+	PWSTR folder_path = nullptr;
+	SHGetKnownFolderPath(FOLDERID_ProgramData, KF_FLAG_NO_PACKAGE_REDIRECTION, nullptr, &folder_path);
+	wcscpy_s(buf, folder_path);
+	CoTaskMemFree(folder_path);
 #endif
 	return result = buf;
 }
@@ -855,15 +855,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		// When ReShade is loaded from the location managed by the setup tool (see "ReShade Setup" project), only load when the target executable is in the list of applications managed by the setup tool
 		// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
 		{
-			const auto common_path = get_local_appdata_path() / L"ReShade";
-			const auto appdata_reshade_dll_path = common_path /
+			const auto common_path = get_program_data_path() / L"ReShade";
+			const auto common_reshade_dll_path = common_path /
 #ifndef _WIN64
-				L"ReShade32" / L"ReShade32.dll";
+				L"ReShade32.dll";
 #else
-				L"ReShade64" / L"ReShade64.dll";
+				L"ReShade64.dll";
 #endif
 
-			if (appdata_reshade_dll_path.is_absolute() && g_reshade_dll_path == appdata_reshade_dll_path)
+			if (common_reshade_dll_path.is_absolute() && g_reshade_dll_path == common_reshade_dll_path)
 			{
 				default_base_to_target_executable_path = true;
 

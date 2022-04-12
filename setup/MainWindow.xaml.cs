@@ -40,12 +40,13 @@ namespace ReShade.Setup
 		Api targetApi = Api.Unknown;
 		bool is64Bit;
 		bool isUpdate;
+		bool isUninstall;
 		string targetPath;
 		string targetName;
 		string configPath;
 		string modulePath;
 		string presetPath;
-		static readonly string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReShade");
+		static readonly string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade");
 		string tempPath;
 		string tempPathEffects;
 		string tempPathTextures;
@@ -152,11 +153,6 @@ namespace ReShade.Setup
 					isElevated = true;
 					continue;
 				}
-				if (args[i] == "--finished")
-				{
-					isFinished = true;
-					continue;
-				}
 
 				if (i + 1 < args.Length)
 				{
@@ -192,6 +188,23 @@ namespace ReShade.Setup
 						Left = double.Parse(args[++i]);
 						continue;
 					}
+
+					if (args[i] == "--state")
+					{
+						string state = args[++i];
+						if (state == "finished")
+						{
+							isFinished = true;
+						}
+						else if (state == "update")
+						{
+							isUpdate = true;
+						}
+						else if (state == "uninstall")
+						{
+							isUninstall = true;
+						}
+					}
 				}
 
 				if (File.Exists(args[i]))
@@ -212,11 +225,11 @@ namespace ReShade.Setup
 					var peInfo = new PEInfo(targetPath);
 					is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
-					InstallStep2();
+					RunTaskWithExceptionHandling(InstallStep2);
 				}
 				else
 				{
-					InstallStep1();
+					RunTaskWithExceptionHandling(InstallStep1);
 				}
 			}
 			else if (isHeadless)
@@ -343,8 +356,9 @@ namespace ReShade.Setup
 
 		void ResetStatus()
 		{
-			isUpdate = false;
 			isFinished = false;
+			isUpdate = false;
+			isUninstall = false;
 
 			targetApi = Api.Unknown;
 			targetPath = targetName = configPath = modulePath = presetPath = tempPath = tempPathEffects = tempPathTextures = targetPathEffects = targetPathTextures = downloadPath = null;
@@ -430,7 +444,15 @@ namespace ReShade.Setup
 
 			if (isFinished)
 			{
-				startInfo.Arguments += " --finished";
+				startInfo.Arguments += " --state finished";
+			}
+			else if (isUpdate)
+			{
+				startInfo.Arguments += " --state update";
+			}
+			else if (isUninstall)
+			{
+				startInfo.Arguments += " --state uninstall";
 			}
 
 			try
@@ -590,6 +612,12 @@ namespace ReShade.Setup
 
 			configPath = Path.Combine(basePath, "ReShade.ini");
 
+			if (isUninstall)
+			{
+				UninstallStep0();
+				return;
+			}
+
 			var isReShade = false;
 
 			if (targetApi != Api.Vulkan)
@@ -618,7 +646,7 @@ namespace ReShade.Setup
 					configPath = configPathAlt;
 				}
 
-				if (ModuleExists(modulePath, out isReShade))
+				if (!isUpdate && ModuleExists(modulePath, out isReShade))
 				{
 					if (isReShade)
 					{
@@ -648,7 +676,7 @@ namespace ReShade.Setup
 				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
 				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
-				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys) && appKeys.Contains(targetPath))
+				if (!isUpdate && appConfig.GetValue(string.Empty, "Apps", out string[] appKeys) && appKeys.Contains(targetPath))
 				{
 					if (isHeadless)
 					{
@@ -671,7 +699,7 @@ namespace ReShade.Setup
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				if (ModuleExists(conflictingModulePath, out isReShade) && isReShade)
+				if (!isUpdate && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
 				{
 					if (isHeadless)
 					{
@@ -719,25 +747,58 @@ namespace ReShade.Setup
 
 			if (targetApi == Api.Vulkan)
 			{
+				if (!isElevated)
+				{
+					Dispatcher.Invoke(() =>
+					{
+						if (!RestartWithElevatedPrivileges())
+						{
+							UpdateStatusAndFinish(false, "Failed to acquire elevated privileges to install Vulkan layer.");
+						}
+					});
+					return;
+				}
+
 				try
 				{
+					if (!Directory.Exists(commonPath))
+					{
+						Directory.CreateDirectory(commonPath);
+					}
+
+				}
+				catch (Exception ex)
+				{
+					UpdateStatusAndFinish(false, "Failed to create installation directory:\n" + ex.Message);
+					return;
+				}
+
+				try
+				{
+					string commonPathLocal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReShade");
+					string appConfigPath = Path.Combine(commonPath, "ReShadeApps.ini");
+					string appConfigPathLocal = Path.Combine(commonPathLocal, "ReShadeApps.ini");
+
+					// Try to migrate previous ReShade installation
+					if (!File.Exists(appConfigPath) && File.Exists(appConfigPathLocal))
+					{
+						File.Move(appConfigPathLocal, appConfigPath);
+					}
+
 					// Unregister any layers from previous ReShade installations
 					using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Khronos\Vulkan\ExplicitLayers", true))
 					{
-						key.DeleteValue(Path.Combine(commonPath, "ReShade32", "ReShade32.json"), false);
-						key.DeleteValue(Path.Combine(commonPath, "ReShade64", "ReShade64.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade32", "ReShade32.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade64", "ReShade64.json"), false);
 					}
 					using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Khronos\Vulkan\ImplicitLayers", true))
 					{
-						key.DeleteValue(Path.Combine(commonPath, "ReShade.json"), false);
-						key.DeleteValue(Path.Combine(commonPath, "VkLayer_override.json"), false);
-						key.DeleteValue(Path.Combine(commonPath, "ReShade32_vk_override_layer.json"), false);
-						key.DeleteValue(Path.Combine(commonPath, "ReShade64_vk_override_layer.json"), false);
-					}
-					using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"Software\Khronos\Vulkan\ImplicitLayers", true))
-					{
-						key.DeleteValue(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade", "ReShade32.json"), false);
-						key.DeleteValue(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade", "ReShade64.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "VkLayer_override.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade32_vk_override_layer.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade64_vk_override_layer.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade32", "ReShade32.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade64", "ReShade64.json"), false);
 					}
 				}
 				catch
@@ -747,17 +808,11 @@ namespace ReShade.Setup
 
 				foreach (string layerModuleName in new[] { "ReShade32", "ReShade64" })
 				{
-					string parentPath = Path.Combine(commonPath, layerModuleName);
-					string layerModulePath = Path.Combine(parentPath, layerModuleName + ".dll");
-					string layerManifestPath = Path.Combine(parentPath, layerModuleName + ".json");
+					string layerModulePath = Path.Combine(commonPath, layerModuleName + ".dll");
+					string layerManifestPath = Path.Combine(commonPath, layerModuleName + ".json");
 
 					try
 					{
-						if (!Directory.Exists(parentPath))
-						{
-							Directory.CreateDirectory(parentPath);
-						}
-
 						var module = zip.GetEntry(Path.GetFileName(layerModulePath));
 						if (module == null)
 						{
@@ -783,7 +838,7 @@ namespace ReShade.Setup
 						manifest.ExtractToFile(layerManifestPath, true);
 
 						// Register this layer manifest
-						using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
+						using (RegistryKey key = Registry.LocalMachine.CreateSubKey(Environment.Is64BitOperatingSystem && layerModuleName == "ReShade32" ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
 						{
 							key.SetValue(layerManifestPath, 0, RegistryValueKind.DWord);
 						}
@@ -810,11 +865,6 @@ namespace ReShade.Setup
 
 				try
 				{
-					if (!Directory.Exists(parentPath))
-					{
-						Directory.CreateDirectory(parentPath);
-					}
-
 					var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
 					if (module == null)
 					{
@@ -1273,6 +1323,18 @@ In that event here are some steps you can try to resolve this:
 		{
 			if (targetApi == Api.Vulkan)
 			{
+				if (!isElevated)
+				{
+					Dispatcher.Invoke(() =>
+					{
+						if (!RestartWithElevatedPrivileges())
+						{
+							UpdateStatusAndFinish(false, "Failed to acquire elevated privileges to uninstall Vulkan layer.");
+						}
+					});
+					return;
+				}
+
 				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
 				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys))
 				{
@@ -1286,10 +1348,18 @@ In that event here are some steps you can try to resolve this:
 						{
 							Directory.Delete(commonPath, true);
 
-							using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
+							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 							{
-								key.DeleteValue(Path.Combine(commonPath, "ReShade32", "ReShade32.json"), false);
-								key.DeleteValue(Path.Combine(commonPath, "ReShade64", "ReShade64.json"), false);
+								key.DeleteValue(Path.Combine(commonPath, "ReShade32.json"), false);
+								key.DeleteValue(Path.Combine(commonPath, "ReShade64.json"), false);
+							}
+
+							if (Environment.Is64BitOperatingSystem)
+							{
+								using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers"))
+								{
+									key.DeleteValue(Path.Combine(commonPath, "ReShade32.json"), false);
+								}
 							}
 						}
 						catch (Exception ex)
@@ -1415,6 +1485,8 @@ In that event here are some steps you can try to resolve this:
 				}
 				else
 				{
+					isUninstall = true;
+
 					RunTaskWithExceptionHandling(UninstallStep0);
 				}
 				return;
