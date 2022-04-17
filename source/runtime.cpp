@@ -1131,6 +1131,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';
 	attributes += "width=" + std::to_string(_width) + ';';
 	attributes += "height=" + std::to_string(_height) + ';';
+	attributes += "color_space=" + std::to_string(static_cast<uint32_t>(_back_buffer_color_space)) + ';';
 	attributes += "color_bit_depth=" + std::to_string(format_color_bit_depth(_back_buffer_format)) + ';';
 	attributes += "version=" + std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION) + ';';
 	attributes += "performance_mode=" + std::string(_performance_mode ? "1" : "0") + ';';
