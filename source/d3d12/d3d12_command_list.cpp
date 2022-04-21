@@ -622,7 +622,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 	_orig->IASetVertexBuffers(StartSlot, NumViews, pViews);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	assert(pViews != nullptr || NumViews == 0);
 	assert(NumViews <= D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
 	if (!reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
@@ -633,9 +632,18 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 	temp_mem<uint32_t, D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> strides(NumViews);
 	for (UINT i = 0; i < NumViews; ++i)
 	{
-		if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
-			return;
-		strides[i] = pViews[i].StrideInBytes;
+		if (pViews != nullptr)
+		{
+			if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
+				return;
+			strides[i] = pViews[i].StrideInBytes;
+		}
+		else
+		{
+			buffers[i] = { 0 };
+			offsets[i] = 0;
+			strides[i] = 0;
+		}
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumViews, buffers.p, offsets.p, strides.p);
