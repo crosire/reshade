@@ -837,11 +837,16 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 	}
 #endif
 
-	_orig->CreateRenderTargetView(pResource, pDesc, DestDescriptor);
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = convert_to_original_cpu_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+#else
+	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = DestDescriptor;
+#endif
+	_orig->CreateRenderTargetView(pResource, pDesc, original_descriptor_handle);
 
 #if RESHADE_ADDON
-	register_resource_view(DestDescriptor, pResource, desc);
-	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::render_target, desc, to_handle(DestDescriptor));
+	register_resource_view(original_descriptor_handle, pResource, desc);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::render_target, desc, to_handle(original_descriptor_handle));
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -859,11 +864,16 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 	}
 #endif
 
-	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = convert_to_original_cpu_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+#else
+	const D3D12_CPU_DESCRIPTOR_HANDLE original_descriptor_handle = DestDescriptor;
+#endif
+	_orig->CreateDepthStencilView(pResource, pDesc, original_descriptor_handle);
 
 #if RESHADE_ADDON
-	register_resource_view(DestDescriptor, pResource, desc);
-	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::depth_stencil, desc, to_handle(DestDescriptor));
+	register_resource_view(original_descriptor_handle, pResource, desc);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::depth_stencil, desc, to_handle(original_descriptor_handle));
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
