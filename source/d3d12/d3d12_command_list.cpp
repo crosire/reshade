@@ -641,8 +641,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 		else
 		{
 			buffers[i] = { 0 };
-			offsets[i] = 0;
-			strides[i] = 0;
+			offsets[i] = strides[i] = 0;
 		}
 	}
 
@@ -654,7 +653,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 	_orig->SOSetTargets(StartSlot, NumViews, pViews);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	assert(pViews != nullptr || NumViews == 0);
 	assert(NumViews <= D3D12_SO_BUFFER_SLOT_COUNT);
 
 	if (!reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
@@ -665,9 +663,17 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 	temp_mem<uint64_t, D3D12_SO_BUFFER_SLOT_COUNT> max_sizes(NumViews);
 	for (UINT i = 0; i < NumViews; ++i)
 	{
-		if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
-			return;
-		max_sizes[i] = (pViews[i].SizeInBytes != 0) ? pViews[i].SizeInBytes : UINT64_MAX;
+		if (pViews != nullptr)
+		{
+			if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
+				return;
+			max_sizes[i] = (pViews[i].SizeInBytes != 0) ? pViews[i].SizeInBytes : UINT64_MAX;
+		}
+		else
+		{
+			buffers[i] = { 0 };
+			offsets[i] = max_sizes[i] = 0;
+		}
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, StartSlot, NumViews, buffers.p, offsets.p, max_sizes.p);
