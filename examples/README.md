@@ -1,6 +1,8 @@
 ReShade API Examples
 ====================
 
+Detailed API documentation can be found at https://crosire.github.io/reshade-docs/index.html.
+
 ## [00-basic](/examples/00-basic)
 
 Simple project template to get started with.
@@ -47,3 +49,7 @@ Simple [OBS](https://obsproject.com/) capture driver which replaces the one OBS 
 
 Captures the screen after effects were rendered and uses [FFmpeg](https://ffmpeg.org/) to create a video file from that. Currently does a device to host copy before encoding, so is rather slow.\
 To build this example, first place a built version of the FFmpeg SDK into a subdirectory called `ffmpeg` inside the add-on project directory and don't forget to copy the FFmpeg binaries to the location this add-on is to be used as well.
+
+## [11-effects_during_frame](/examples/11-effects_during_frame)
+
+Renders the ReShade post-processing effects at a different point during the frame, e.g. to render them before the user interface of the game.
