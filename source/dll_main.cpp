@@ -67,7 +67,7 @@ std::filesystem::path get_base_path(bool default_to_target_executable_path = fal
 	if (reshade::global_config().get("INSTALL", "BasePath", result) && resolve_env_path(result))
 		return result;
 
-	WCHAR buf[4096] = L"";
+	WCHAR buf[4096];
 	if (GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(result = buf))
 		return result;
 
@@ -86,7 +86,7 @@ std::filesystem::path get_system_path()
 	if (reshade::global_config().get("INSTALL", "ModulePath", result) && resolve_env_path(result))
 		return result;
 
-	WCHAR buf[4096] = L"";
+	WCHAR buf[4096];
 	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(result = buf))
 		return result;
 
@@ -949,6 +949,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 					if (dbghelp_write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr))
 						dump_index++;
+					else
+						LOG(ERROR) << "Failed to write minidump!";
 
 					CloseHandle(file);
 				}

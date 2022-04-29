@@ -270,25 +270,11 @@ bool reshade::runtime::on_init(input::window_handle window)
 		}
 	}
 
-	// Create back buffer resource
+	// Create effect color resource
 	if (_effect_color_tex == 0)
 	{
-		if (!_device->create_resource(
-				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
-				nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
-		{
-			LOG(ERROR) << "Failed to create back buffer resource!";
+		if (!update_effect_color_tex(_back_buffer_format))
 			goto exit_failure;
-		}
-
-		_device->set_resource_name(_effect_color_tex, "ReShade back buffer");
-
-		if (!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 0)), &_effect_color_srv[0]) ||
-			!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)), &_effect_color_srv[1]))
-		{
-			LOG(ERROR) << "Failed to create back buffer resource view!";
-			goto exit_failure;
-		}
 	}
 
 	// Create effect stencil resource
@@ -311,23 +297,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 			}
 		}
 
-		assert(_effect_stencil_format != api::format::unknown);
-
-		if (!_device->create_resource(
-				api::resource_desc(_width, _height, 1, 1, _effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
-				nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
-		{
-			LOG(ERROR) << "Failed to create effect stencil resource!";
+		if (!update_effect_stencil_tex(_effect_stencil_format))
 			goto exit_failure;
-		}
-
-		_device->set_resource_name(_effect_stencil_tex, "ReShade effect stencil");
-
-		if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(_effect_stencil_format), &_effect_stencil_dsv))
-		{
-			LOG(ERROR) << "Failed to create effect stencil resource view!";
-			goto exit_failure;
-		}
 	}
 #endif
 
@@ -702,6 +673,9 @@ void reshade::runtime::on_present()
 
 			for (const auto &info : _backup_texture_semantic_bindings)
 			{
+				if (info.second.first == _effect_color_srv[0] && info.second.second == _effect_color_srv[1])
+					continue;
+
 				update_texture_bindings(info.first.c_str(), addon_enabled ? info.second.first : api::resource_view { 0 }, addon_enabled ? info.second.second : api::resource_view { 0 });
 			}
 		}
@@ -2391,11 +2365,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						write.descriptors = &srv;
 					}
 
-					if (texture->semantic == "COLOR")
-					{
-						srv = _effect_color_srv[info.srgb];
-					}
-					else if (!texture->semantic.empty())
+					if (!texture->semantic.empty())
 					{
 						if (const auto it = _texture_semantic_bindings.find(texture->semantic); it != _texture_semantic_bindings.end())
 							srv = info.srgb ? it->second.second : it->second.first;
@@ -2979,6 +2949,86 @@ void reshade::runtime::clear_effect_cache()
 	}
 }
 
+bool reshade::runtime::update_effect_color_tex(api::format format)
+{
+	assert(format != api::format::unknown);
+
+	if (_effect_color_tex != 0)
+	{
+		if (_effect_color_format == format)
+			return true;
+
+		_graphics_queue->wait_idle();
+
+		_device->destroy_resource(_effect_color_tex);
+		_effect_color_tex = {};
+		_device->destroy_resource_view(_effect_color_srv[0]);
+		_effect_color_srv[0] = {};
+		_device->destroy_resource_view(_effect_color_srv[1]);
+		_effect_color_srv[1] = {};
+	}
+
+	if (!_device->create_resource(
+			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
+	{
+		LOG(ERROR) << "Failed to create effect color resource!";
+		return false;
+	}
+
+	_effect_color_format = format;
+
+	_device->set_resource_name(_effect_color_tex, "ReShade back buffer");
+
+	if (!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(format, 0)), &_effect_color_srv[0]) ||
+		!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(format, 1)), &_effect_color_srv[1]))
+	{
+		LOG(ERROR) << "Failed to create effect color resource view!";
+		return false;
+	}
+
+	update_texture_bindings("COLOR", _effect_color_srv[0], _effect_color_srv[1]);
+
+	return true;
+}
+bool reshade::runtime::update_effect_stencil_tex(api::format format)
+{
+	assert(format != api::format::unknown);
+
+	if (_effect_stencil_tex != 0)
+	{
+		if (_effect_stencil_format == format)
+			return true;
+
+		_graphics_queue->wait_idle();
+
+		_device->destroy_resource(_effect_stencil_tex);
+		_effect_stencil_tex = {};
+		_device->destroy_resource_view(_effect_stencil_dsv);
+		_effect_stencil_dsv = {};
+	}
+
+	if (!_device->create_resource(
+		api::resource_desc(_width, _height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
+		nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
+	{
+		LOG(ERROR) << "Failed to create effect stencil resource!";
+		return false;
+	}
+
+	_effect_stencil_format = format;
+
+	_device->set_resource_name(_effect_stencil_tex, "ReShade effect stencil");
+
+	if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(format), &_effect_stencil_dsv))
+	{
+		LOG(ERROR) << "Failed to create effect stencil resource view!";
+		return false;
+	}
+
+	return true;
+}
+
 void reshade::runtime::update_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
@@ -3090,6 +3140,13 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled || _techniques.empty())
+		return;
+
+	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
+
+	// Ensure format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
+	// TODO: Technically would need to recompile effects as well to update 'BUFFER_COLOR_BIT_DEPTH' etc.
+	if (!update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
 		return;
 
 #ifdef NDEBUG
@@ -3350,7 +3407,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 			continue; // Ignore techniques that are not fully loaded or currently disabled
 
 		const auto time_technique_started = std::chrono::high_resolution_clock::now();
-		render_technique(cmd_list, tech, rtv, rtv_srgb);
+		render_technique(cmd_list, tech, back_buffer_resource, rtv, rtv_srgb);
 		const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 
 		tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
@@ -3367,7 +3424,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 }
-void reshade::runtime::render_technique(api::command_list *cmd_list, technique &tech, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb)
+void reshade::runtime::render_technique(api::command_list *cmd_list, technique &tech, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb)
 {
 	const effect &effect = _effects[tech.effect_index];
 
@@ -3404,8 +3461,6 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_back_buffer_copy = true; // First pass always needs the back buffer updated
-
-	const api::resource back_buffer_resource = _device->get_resource_from_view(back_buffer_rtv);
 
 	for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index)
 	{

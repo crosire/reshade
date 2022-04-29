@@ -298,8 +298,11 @@ namespace reshade
 		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const;
 		void clear_effect_cache();
 
+		bool update_effect_color_tex(api::format format);
+		bool update_effect_stencil_tex(api::format format);
+
 		void update_effects();
-		void render_technique(api::command_list *cmd_list, technique &technique, api::resource_view rtv, api::resource_view rtv_srgb);
+		void render_technique(api::command_list *cmd_list, technique &technique, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb);
 
 		void save_texture(const texture &texture);
 		void update_texture(texture &texture, const uint32_t width, const uint32_t height, const uint8_t *pixels);
@@ -389,6 +392,7 @@ namespace reshade
 #if RESHADE_FX
 		api::resource _empty_tex = {};
 		api::resource_view _empty_srv = {};
+		api::format _effect_color_format = api::format::unknown;
 		api::resource _effect_color_tex = {};
 		api::resource_view _effect_color_srv[2] = {};
 		api::format _effect_stencil_format = api::format::unknown;
