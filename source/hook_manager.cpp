@@ -11,6 +11,8 @@
 #include <shared_mutex>
 #include <Windows.h>
 
+#define USE_LDR_DLL_NOTIFICATION 1
+
 enum class hook_method
 {
 	export_hook,
@@ -322,6 +324,30 @@ static inline T call_unchecked(T replacement)
 	return reinterpret_cast<T>(find_internal(nullptr, reinterpret_cast<reshade::hook::address>(replacement)).call());
 }
 
+#if USE_LDR_DLL_NOTIFICATION
+struct UNICODE_STRING
+{
+	USHORT Length;
+	USHORT MaximumLength;
+	PWSTR  Buffer;
+};
+struct LDR_DLL_NOTIFICATION_DATA
+{
+	ULONG Flags;
+	const UNICODE_STRING *FullDllName;
+	const UNICODE_STRING *BaseDllName;
+	PVOID DllBase;
+	ULONG SizeOfImage;
+};
+
+static VOID CALLBACK DllNotificationCallback(ULONG NotificationReason, const LDR_DLL_NOTIFICATION_DATA *NotificationData, PVOID)
+{
+	if (NotificationReason == 1 /* LDR_DLL_NOTIFICATION_REASON_LOADED */)
+		install_delayed_hooks(NotificationData->FullDllName->Buffer);
+}
+
+static PVOID g_dll_notification_cookie = nullptr;
+#else
 HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName)
 {
 	static const auto trampoline = call_unchecked(&HookLoadLibraryA);
@@ -362,6 +388,7 @@ HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlag
 
 	return handle;
 }
+#endif
 
 bool reshade::hooks::install(const char *name, hook::address target, hook::address replacement, bool queue_enable)
 {
@@ -413,6 +440,16 @@ void reshade::hooks::uninstall()
 
 	s_hooks.clear();
 
+#if USE_LDR_DLL_NOTIFICATION
+	if (g_dll_notification_cookie)
+	{
+		const auto LdrUnregisterDllNotification = reinterpret_cast<LONG(NTAPI *)(PVOID Cookie)>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrUnregisterDllNotification"));
+		if (LdrUnregisterDllNotification != nullptr)
+			LdrUnregisterDllNotification(g_dll_notification_cookie);
+		g_dll_notification_cookie = nullptr;
+	}
+#endif
+
 	// Free reference to the module loaded for export hooks
 	// Otherwise a subsequent call to 'LoadLibrary' could return the handle to the still loaded export module, instead of loading the ReShade module again
 	// Unfortunately this is not technically safe to call from 'DllMain' ...
@@ -424,6 +461,14 @@ void reshade::hooks::uninstall()
 void reshade::hooks::register_module(const std::filesystem::path &target_path)
 {
 #ifndef RESHADE_TEST_APPLICATION
+#if USE_LDR_DLL_NOTIFICATION
+	if (g_dll_notification_cookie == nullptr)
+	{
+		const auto LdrRegisterDllNotification = reinterpret_cast<LONG (NTAPI *)(ULONG Flags, FARPROC NotificationFunction, PVOID Context, PVOID *Cookie)>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrRegisterDllNotification"));
+		if (LdrRegisterDllNotification == nullptr || LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &g_dll_notification_cookie) != 0)
+			LOG(ERROR) << "Failed to register DLL notification callback!";
+	}
+#else
 	install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
 	install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
 	install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
@@ -433,6 +478,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	// Skip this in the test application to make RenderDoc work (which hooks these too)
 	if (!hook::apply_queued_actions())
 		LOG(ERROR) << "Failed to install 'LoadLibrary' hooks!";
+#endif
 #endif
 
 	LOG(INFO) << "Registering hooks for " << target_path << " ...";
@@ -475,7 +521,11 @@ void reshade::hooks::ensure_export_module_loaded()
 	{
 		assert(s_export_hook_path.is_absolute());
 
+#if USE_LDR_DLL_NOTIFICATION
+		const HMODULE handle = LoadLibraryW(s_export_hook_path.c_str());
+#else
 		const HMODULE handle = call_unchecked(&HookLoadLibraryW)(s_export_hook_path.c_str());
+#endif
 
 		LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";
 
