@@ -649,6 +649,8 @@ void reshade::d3d11::device_context_impl::copy_query_pool_results(api::query_poo
 
 void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, const float[4])
 {
+	assert(label != nullptr);
+
 	if (_annotations == nullptr)
 		return;
 
@@ -668,6 +670,8 @@ void reshade::d3d11::device_context_impl::end_debug_event()
 }
 void reshade::d3d11::device_context_impl::insert_debug_marker(const char *label, const float[4])
 {
+	assert(label != nullptr);
+
 	if (_annotations == nullptr)
 		return;
 

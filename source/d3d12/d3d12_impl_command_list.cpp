@@ -821,6 +821,8 @@ void reshade::d3d12::command_list_impl::copy_query_pool_results(api::query_pool 
 
 void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 #if 0
 	// Metadata is WINPIX_EVENT_ANSI_VERSION
 	_orig->BeginEvent(1, label, static_cast<UINT>(strlen(label)));
@@ -837,6 +839,8 @@ void reshade::d3d12::command_list_impl::end_debug_event()
 }
 void reshade::d3d12::command_list_impl::insert_debug_marker(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 #if 0
 	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
 #else

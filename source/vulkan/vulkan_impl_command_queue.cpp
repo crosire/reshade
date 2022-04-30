@@ -85,6 +85,8 @@ void reshade::vulkan::command_queue_impl::flush_immediate_command_list(VkSemapho
 
 void reshade::vulkan::command_queue_impl::begin_debug_event(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 	if (vk.QueueBeginDebugUtilsLabelEXT == nullptr)
 		return;
 
@@ -111,6 +113,8 @@ void reshade::vulkan::command_queue_impl::end_debug_event()
 }
 void reshade::vulkan::command_queue_impl::insert_debug_marker(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 	if (vk.QueueInsertDebugUtilsLabelEXT == nullptr)
 		return;
 

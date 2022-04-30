@@ -836,6 +836,8 @@ void reshade::d3d9::device_impl::copy_query_pool_results(api::query_pool, api::q
 
 void reshade::d3d9::device_impl::begin_debug_event(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 	const size_t label_len = strlen(label);
 	std::wstring label_wide;
 	label_wide.reserve(label_len + 1);
@@ -849,6 +851,8 @@ void reshade::d3d9::device_impl::end_debug_event()
 }
 void reshade::d3d9::device_impl::insert_debug_marker(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 	const size_t label_len = strlen(label);
 	std::wstring label_wide;
 	label_wide.reserve(label_len + 1);

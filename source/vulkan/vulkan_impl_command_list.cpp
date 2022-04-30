@@ -1053,6 +1053,8 @@ void reshade::vulkan::command_list_impl::copy_query_pool_results(api::query_pool
 
 void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 	if (vk.CmdBeginDebugUtilsLabelEXT == nullptr)
 		return;
 
@@ -1079,6 +1081,8 @@ void reshade::vulkan::command_list_impl::end_debug_event()
 }
 void reshade::vulkan::command_list_impl::insert_debug_marker(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 	if (vk.CmdInsertDebugUtilsLabelEXT == nullptr)
 		return;
 

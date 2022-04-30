@@ -103,6 +103,8 @@ void reshade::d3d12::command_queue_impl::flush_immediate_command_list() const
 
 void reshade::d3d12::command_queue_impl::begin_debug_event(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 #if 0
 	_orig->BeginEvent(1, label, static_cast<UINT>(strlen(label)));
 #else
@@ -117,6 +119,8 @@ void reshade::d3d12::command_queue_impl::end_debug_event()
 }
 void reshade::d3d12::command_queue_impl::insert_debug_marker(const char *label, const float color[4])
 {
+	assert(label != nullptr);
+
 #if 0
 	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
 #else
