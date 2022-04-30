@@ -4148,7 +4148,9 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 				}
 #endif
 
+#if RESHADE_ADDON
 				invoke_addon_event<addon_event::reshade_screenshot>(this, screenshot_path.u8string().c_str());
+#endif
 			}
 			else
 			{

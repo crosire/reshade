@@ -1030,8 +1030,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_DETACH:
 		LOG(INFO) << "Exiting ...";
 
+#if RESHADE_ADDON
 		if (reshade::has_loaded_addons())
 			LOG(WARN) << "Add-ons are still loaded! Application may crash on exit.";
+#endif
 
 		reshade::hooks::uninstall();
 
