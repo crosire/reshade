@@ -34,6 +34,10 @@ struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 
 	HRESULT STDMETHODCALLTYPE GetDisplayModeEx(D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 	#pragma endregion
 
+#if RESHADE_ADDON
+	static void reset_back_buffers(IDirect3DSwapChain9 *orig);
+#endif
+
 	static bool is_presenting_entire_surface(const RECT *source_rect, HWND hwnd);
 
 	bool check_and_upgrade_interface(REFIID riid);

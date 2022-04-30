@@ -7,6 +7,7 @@
 
 #include "d3d9_impl_device.hpp"
 
+struct Direct3DSurface9;
 struct Direct3DSwapChain9;
 
 struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 final : IDirect3DDevice9Ex, public reshade::d3d9::device_impl
@@ -155,6 +156,11 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 	#pragma endregion
 
+#if RESHADE_ADDON
+	void init_auto_depth_stencil();
+	void reset_auto_depth_stencil();
+#endif
+
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
@@ -162,4 +168,7 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	const bool _use_software_rendering;
 	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
+#if RESHADE_ADDON
+	com_ptr<Direct3DSurface9> _auto_depth_stencil;
+#endif
 };

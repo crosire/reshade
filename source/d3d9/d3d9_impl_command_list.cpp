@@ -416,10 +416,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			com_ptr<IDirect3DSurface9> dst_surface = static_cast<IDirect3DSurface9 *>(dst_object);
 
 			D3DSURFACE_DESC src_desc;
-			src_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			src_surface->GetDesc(&src_desc);
 			D3DSURFACE_DESC dst_desc;
-			dst_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			dst_surface->GetDesc(&dst_desc);
 
 			if (src_desc.Pool == D3DPOOL_DEFAULT && dst_desc.Pool == D3DPOOL_SYSTEMMEM)
@@ -465,10 +463,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				break;
 
 			D3DSURFACE_DESC src_desc;
-			src_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			src_surface->GetDesc(&src_desc);
 			D3DSURFACE_DESC dst_desc;
-			dst_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			dst_surface->GetDesc(&dst_desc);
 
 			if (src_desc.Pool == D3DPOOL_DEFAULT && dst_desc.Pool == D3DPOOL_SYSTEMMEM)
@@ -514,10 +510,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				break;
 
 			D3DSURFACE_DESC src_desc;
-			src_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			src_surface->GetDesc(&src_desc);
 			D3DSURFACE_DESC dst_desc;
-			dst_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			dst_surface->GetDesc(&dst_desc);
 
 			com_ptr<IDirect3DSurface9> target_surface = dst_surface;
@@ -535,7 +529,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 					dst_desc.Usage = D3DUSAGE_RENDERTARGET;
 					target_surface.reset();
 
-					if (FAILED(create_surface_replacement(dst_desc, dst_desc, &target_surface)))
+					if (FAILED(create_surface_replacement(dst_desc, &target_surface)))
 						break;
 				}
 			}
@@ -692,10 +686,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			com_ptr<IDirect3DSurface9> dst_surface = static_cast<IDirect3DSurface9 *>(dst_object);
 
 			D3DSURFACE_DESC src_desc;
-			src_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			src_surface->GetDesc(&src_desc);
 			D3DSURFACE_DESC dst_desc;
-			dst_desc.Type = static_cast<D3DRESOURCETYPE>(0xBADC0DE);
 			dst_surface->GetDesc(&dst_desc);
 
 			com_ptr<IDirect3DSurface9> target_surface = dst_surface;
@@ -713,7 +705,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 					dst_desc.Usage = D3DUSAGE_RENDERTARGET;
 					target_surface.reset();
 
-					if (FAILED(create_surface_replacement(dst_desc, dst_desc, &target_surface)))
+					if (FAILED(create_surface_replacement(dst_desc, &target_surface)))
 						break;
 				}
 			}

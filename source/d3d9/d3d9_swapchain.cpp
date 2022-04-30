@@ -4,6 +4,7 @@
  */
 
 #include "d3d9_device.hpp"
+#include "d3d9_resource.hpp"
 #include "d3d9_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 
@@ -21,6 +22,33 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
+
+#if RESHADE_ADDON
+void Direct3DSwapChain9::reset_back_buffers(IDirect3DSwapChain9 *orig)
+{
+	D3DPRESENT_PARAMETERS pp = {};
+	orig->GetPresentParameters(&pp);
+
+	for (UINT i = 0; i < pp.BackBufferCount; ++i)
+	{
+		com_ptr<IDirect3DSurface9> surface;
+		if (FAILED(orig->GetBackBuffer(i, D3DBACKBUFFER_TYPE_MONO, &surface)))
+			continue;
+
+		// Do not destroy if application is still holding a reference (it will later get destroyed via 'Direct3DSurface9::Release' in that case)
+		if (surface.ref_count() > 1)
+			continue;
+
+		Direct3DSurface9 *surface_proxy = nullptr;
+		DWORD size = sizeof(surface_proxy);
+		if (SUCCEEDED(surface->GetPrivateData(__uuidof(Direct3DSurface9), &surface_proxy, &size)))
+		{
+			delete surface_proxy;
+			surface->SetPrivateData(__uuidof(Direct3DSurface9), nullptr, 0, 0);
+		}
+	}
+}
+#endif
 
 bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, HWND hwnd)
 {
@@ -100,6 +128,11 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 #endif
 	delete this;
 
+#if RESHADE_ADDON
+	// Destroy back buffer resources after the swap chain implementation, since the latter potentially still had a reference to them
+	reset_back_buffers(orig);
+#endif
+
 	// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
@@ -127,11 +160,21 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetFrontBufferData(IDirect3DSurface9 *pDestSurface)
 {
+#if RESHADE_ADDON
+	pDestSurface = reshade::d3d9::to_orig(pDestSurface);
+#endif
+
 	return _orig->GetFrontBufferData(pDestSurface);
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetBackBuffer(UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9 **ppBackBuffer)
 {
-	return _orig->GetBackBuffer(iBackBuffer, Type, ppBackBuffer);
+	const HRESULT hr = _orig->GetBackBuffer(iBackBuffer, Type, ppBackBuffer);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+		reshade::d3d9::replace_with_resource_proxy<Direct3DSurface9>(_device, ppBackBuffer);
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetRasterStatus(D3DRASTER_STATUS *pRasterStatus)
 {

@@ -128,10 +128,10 @@ namespace reshade::d3d9
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:
-		bool on_init(const D3DPRESENT_PARAMETERS &pp);
+		bool on_init();
 		void on_reset();
 
-		HRESULT create_surface_replacement(const D3DSURFACE_DESC &old_desc, const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
+		HRESULT create_surface_replacement(const D3DSURFACE_DESC &desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
 		IDirect3DVertexBuffer9 *_current_stream_output = nullptr;

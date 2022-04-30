@@ -9,9 +9,6 @@
 #include "reshade_api_pipeline.hpp"
 #include "d3d9_impl_type_convert.hpp"
 
-// {41837295-D178-4DEF-901C-5DD99AE56506}
-const GUID reshade::d3d9::surface_desc_guid = { 0x41837295, 0xd178, 0x4def, { 0x90, 0x1c, 0x5d, 0xd9, 0x9a, 0xe5, 0x65, 0x6 } };
-
 auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORMAT
 {
 	switch (format)

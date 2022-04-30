@@ -41,8 +41,6 @@ namespace reshade::d3d9
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
 	};
 
-	extern const GUID surface_desc_guid;
-
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
 	auto convert_format(api::format format, bool lockable = false) -> D3DFORMAT;
