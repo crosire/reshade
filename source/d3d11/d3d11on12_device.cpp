@@ -28,8 +28,12 @@ bool D3D11On12Device::check_and_upgrade_interface(REFIID riid)
 
 	static const IID iid_lookup[] = {
 		__uuidof(ID3D11On12Device ),
+#ifdef __ID3D11On12Device1_INTERFACE_DEFINED__
 		__uuidof(ID3D11On12Device1),
+#endif
+#ifdef __ID3D11On12Device2_INTERFACE_DEFINED__
 		__uuidof(ID3D11On12Device2),
+#endif
 	};
 
 	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -93,12 +97,15 @@ void    STDMETHODCALLTYPE D3D11On12Device::AcquireWrappedResources(ID3D11Resourc
 	_orig->AcquireWrappedResources(ppResources, NumResources);
 }
 
+#ifdef __ID3D11On12Device1_INTERFACE_DEFINED__
 HRESULT STDMETHODCALLTYPE D3D11On12Device::GetD3D12Device(REFIID riid, void **ppvDevice)
 {
 	assert(_interface_version >= 1);
 	return _parent_device_12->QueryInterface(riid, ppvDevice);
 }
+#endif
 
+#ifdef __ID3D11On12Device2_INTERFACE_DEFINED__
 HRESULT STDMETHODCALLTYPE D3D11On12Device::UnwrapUnderlyingResource(ID3D11Resource *pResource11, ID3D12CommandQueue *pCommandQueue, REFIID riid, void **ppvResource12)
 {
 	if (com_ptr<D3D12CommandQueue> command_queue_proxy;
@@ -113,3 +120,4 @@ HRESULT STDMETHODCALLTYPE D3D11On12Device::ReturnUnderlyingResource(ID3D11Resour
 	assert(_interface_version >= 2);
 	return static_cast<ID3D11On12Device2 *>(_orig)->ReturnUnderlyingResource(pResource11, NumSync, pSignalValues, ppFences);
 }
+#endif
