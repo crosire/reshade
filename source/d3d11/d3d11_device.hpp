@@ -8,6 +8,7 @@
 #include "dxgi/dxgi_device.hpp"
 #include "d3d11_impl_device.hpp"
 
+struct D3D11On12Device;
 struct D3D11DeviceContext;
 
 struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final : DXGIDevice, ID3D11Device5, public reshade::d3d11::device_impl
@@ -104,5 +105,6 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final :
 
 	LONG _ref = 1;
 	unsigned int _interface_version = 0;
+	D3D11On12Device *_d3d11on12_device = nullptr;
 	D3D11DeviceContext *_immediate_context = nullptr;
 };

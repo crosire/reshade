@@ -153,7 +153,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 	std::unique_lock<std::shared_mutex> lock(_mutex);
 
 	temp_mem<ID3D12CommandList *> command_lists(NumCommandLists);
-	for (UINT i = 0; i < NumCommandLists; i++)
+	for (UINT i = 0; i < NumCommandLists; ++i)
 	{
 		assert(ppCommandLists[i] != nullptr);
 

@@ -5,6 +5,7 @@
 
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
+#include "d3d11on12_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
@@ -95,6 +96,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
+	if (riid == __uuidof(ID3D11On12Device) ||
+		riid == __uuidof(ID3D11On12Device1) ||
+		riid == __uuidof(ID3D11On12Device2))
+	{
+		if (_d3d11on12_device != nullptr)
+			return _d3d11on12_device->QueryInterface(riid, ppvObj);
+	}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D11Device::AddRef()
@@ -109,6 +118,13 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 	{
 		_orig->Release();
 		return ref;
+	}
+
+	if (_d3d11on12_device != nullptr)
+	{
+		// Release the reference that was added when the D3D11on12 device was first queried in 'D3D11On12CreateDevice'
+		_d3d11on12_device->_orig->Release();
+		delete _d3d11on12_device;
 	}
 
 	// Release the reference that was added by 'GetImmediateContext' in 'D3D11CreateDeviceAndSwapChain'

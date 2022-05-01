@@ -626,7 +626,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	// Need to extract the original command queue object from the proxies passed in
 	assert(ppPresentQueue != nullptr);
-	std::vector<IUnknown *> present_queues(BufferCount);
+	temp_mem<IUnknown *> present_queues(BufferCount);
 	for (UINT i = 0; i < BufferCount; ++i)
 	{
 		present_queues[i] = ppPresentQueue[i];
@@ -636,7 +636,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	assert(_interface_version >= 3);
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, present_queues.data());
+	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, present_queues.p);
 	g_in_dxgi_runtime = false;
 	if (SUCCEEDED(hr))
 	{

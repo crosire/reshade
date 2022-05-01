@@ -36,6 +36,7 @@ EXPORTS
 	; d3d11.dll
 	D3D11CreateDevice PRIVATE
 	D3D11CreateDeviceAndSwapChain PRIVATE
+	D3D11On12CreateDevice PRIVATE
 
 	; d3d12.dll (Uses ordinals in d3d12.lib for 'D3D12CreateDevice' and 'D3D12GetDebugInterface')
 	D3D12CreateDevice @101 PRIVATE

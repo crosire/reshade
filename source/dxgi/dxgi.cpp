@@ -343,7 +343,7 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 	}
 	else
 	{
-		LOG(WARN) << "Skipping swap chain because it was created without a (hooked) Direct3D device.";
+		LOG(WARN) << "Skipping swap chain because it was created without a hooked Direct3D device.";
 	}
 
 	if (swapchain_proxy != nullptr)

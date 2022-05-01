@@ -213,6 +213,12 @@
     <ClCompile Include="source\d3d11\d3d11_impl_type_convert.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d11\d3d11on12.cpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d11\d3d11on12_device.cpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d12\d3d12.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
@@ -474,6 +480,9 @@
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\d3d11_impl_type_convert.hpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\d3d11on12_device.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_command_list.hpp">
