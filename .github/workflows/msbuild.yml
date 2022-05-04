@@ -24,6 +24,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Build Deps with Python
+      uses: actions/setup-python@v3.1.2
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: python ./gl3w/gl3w_gen.py
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
