@@ -26,7 +26,6 @@ jobs:
     - uses: actions/checkout@v3
     - name: Build Deps with Python
       uses: actions/setup-python@v3.1.2
-      working-directory: ${{env.GITHUB_WORKSPACE}}
       
     - name: Build gl3w
       run: python ./gl3w/gl3w_gen.py
