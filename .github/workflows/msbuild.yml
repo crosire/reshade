@@ -24,8 +24,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build Deps with Python
+    - name: Add Python to PATH
       uses: actions/setup-python@v3.1.2
+      
+    - name: list dir
+      run: dir deps
       
     - name: Build gl3w
       run: python ./deps/gl3w/gl3w_gen.py
