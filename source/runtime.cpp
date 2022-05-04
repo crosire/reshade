@@ -650,20 +650,7 @@ void reshade::runtime::on_present()
 		_preset_save_successfull = false;
 
 #if RESHADE_ADDON_LITE
-	// Detect high network traffic
-	extern volatile long g_network_traffic;
-
-	static int cooldown = 0, traffic = 0;
-	if (cooldown-- > 0)
-	{
-		traffic += g_network_traffic > 0;
-	}
-	else
-	{
-		const bool was_enabled = addon_enabled;
-		addon_enabled = traffic < 10;
-		traffic = 0;
-		cooldown = 60;
+	
 
 #if RESHADE_FX
 		if (addon_enabled != was_enabled)
