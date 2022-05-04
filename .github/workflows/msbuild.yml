@@ -28,7 +28,7 @@ jobs:
       uses: actions/setup-python@v3.1.2
       
     - name: list dir
-      run: dir deps
+      run: dir deps/gl3w
       
     - name: Build gl3w
       run: python ./deps/gl3w/gl3w_gen.py
