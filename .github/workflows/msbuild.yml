@@ -50,6 +50,6 @@ jobs:
       uses: actions/upload-artifact@v3.0.0
       with:
         # Artifact name
-       name: # optional, default is artifact
+       name: ReShade-NetUnlocked # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
        path: ./bin/x64/Release/
