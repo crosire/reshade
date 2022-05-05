@@ -38,6 +38,5 @@ packages/
 Thumbs.db
 
 # Versioning and setup files
-/res/[Vv]ersion.h
 /setup/*.ini
 /setup/Properties/AssemblyInfo.cs
