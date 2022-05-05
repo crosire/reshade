@@ -26,10 +26,11 @@ jobs:
     - name: Check Repo and Sub Modules
       uses: actions/checkout@v3
       with:
-          submodules: recursive
+        submodules: recursive
   
     - name: Add Python to PATH
       uses: actions/setup-python@v3.1.2
+      architecture: x64
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
