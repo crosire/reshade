@@ -30,7 +30,6 @@ jobs:
   
     - name: Add Python to PATH
       uses: actions/setup-python@v3.1.2
-      architecture: x64
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
