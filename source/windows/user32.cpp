@@ -17,7 +17,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassA(const WNDCLASSA *lpWndClass)
 	{
 		LOG(INFO) << "Redirecting " << "RegisterClassA" << '(' << "lpWndClass = " << lpWndClass << " { " << wndclass.lpszClassName << " }" << ')' << " ...";
 
-		if ((wndclass.style & CS_OWNDC) == 0)
+		if ((wndclass.style & (CS_OWNDC | CS_CLASSDC | CS_DBLCLKS)) == 0)
 		{
 			LOG(INFO) << "> Adding 'CS_OWNDC' window class style flag to '" << wndclass.lpszClassName << "'.";
 
@@ -37,7 +37,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
 	{
 		LOG(INFO) << "Redirecting " << "RegisterClassW" << '(' << "lpWndClass = " << lpWndClass << " { " << wndclass.lpszClassName << " }" << ')' << " ...";
 
-		if ((wndclass.style & CS_OWNDC) == 0)
+		if ((wndclass.style & (CS_OWNDC | CS_CLASSDC | CS_DBLCLKS)) == 0)
 		{
 			LOG(INFO) << "> Adding 'CS_OWNDC' window class style flag to '" << wndclass.lpszClassName << "'.";
 
@@ -57,7 +57,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(const WNDCLASSEXA *lpWndClassEx)
 	{
 		LOG(INFO) << "Redirecting " << "RegisterClassExA" << '(' << "lpWndClassEx = " << lpWndClassEx << " { " << wndclass.lpszClassName << " }" << ')' << " ...";
 
-		if ((wndclass.style & CS_OWNDC) == 0)
+		if ((wndclass.style & (CS_OWNDC | CS_CLASSDC | CS_DBLCLKS)) == 0)
 		{
 			LOG(INFO) << "> Adding 'CS_OWNDC' window class style flag to '" << wndclass.lpszClassName << "'.";
 
@@ -77,7 +77,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassExW(const WNDCLASSEXW *lpWndClassEx)
 	{
 		LOG(INFO) << "Redirecting " << "RegisterClassExW" << '(' << "lpWndClassEx = " << lpWndClassEx << " { " << wndclass.lpszClassName << " }" << ')' << " ...";
 
-		if ((wndclass.style & CS_OWNDC) == 0)
+		if ((wndclass.style & (CS_OWNDC | CS_CLASSDC | CS_DBLCLKS)) == 0)
 		{
 			LOG(INFO) << "> Adding 'CS_OWNDC' window class style flag to '" << wndclass.lpszClassName << "'.";
 
