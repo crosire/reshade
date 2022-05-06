@@ -58,7 +58,7 @@ jobs:
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration="Release Setup" ${{env.SOLUTION_FILE_PATH}}
     
-    - name: Upload 64-Bit dll
+    - name: Upload 64-Bit DLL
       uses: actions/upload-artifact@v3.0.0
       with:
         # Artifact name
@@ -66,7 +66,7 @@ jobs:
         # A file, directory or wildcard pattern that describes what to upload
        path: ./bin/x64/Release/ReShade64.dll
        
-    - name: Upload 32-Bit dll
+    - name: Upload 32-Bit DLL
       uses: actions/upload-artifact@v3.0.0
       with:
         # Artifact name
