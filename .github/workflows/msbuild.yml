@@ -66,5 +66,5 @@ jobs:
         # Artifact name
        name: ReShade32-NetUnlocked # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-       path: ./bin/x86/Release/ReShade32.dll
+       path: ./bin/Win32/Release/ReShade32.dll
        
