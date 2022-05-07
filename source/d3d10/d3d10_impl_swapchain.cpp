@@ -96,10 +96,24 @@ void reshade::d3d10::swapchain_impl::on_present()
 #if RESHADE_FX
 void reshade::d3d10::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-	_app_state.capture();
+	const bool backup_state = !_app_state.has_captured();
+	if (backup_state)
+		_app_state.capture();
 
 	runtime::render_effects(cmd_list, rtv, rtv_srgb);
 
-	_app_state.apply_and_release();
+	if (backup_state)
+		_app_state.apply_and_release();
+}
+void reshade::d3d10::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	const bool backup_state = !_app_state.has_captured();
+	if (backup_state)
+		_app_state.capture();
+
+	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
+
+	if (backup_state)
+		_app_state.apply_and_release();
 }
 #endif

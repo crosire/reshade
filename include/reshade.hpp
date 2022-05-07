@@ -10,7 +10,7 @@
 #include <charconv>
 #include <Windows.h>
 
-#define RESHADE_API_VERSION 2
+#define RESHADE_API_VERSION 3
 
  // Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
 extern "C" BOOL WINAPI K32EnumProcessModules(HANDLE hProcess, HMODULE *lphModule, DWORD cb, LPDWORD lpcbNeeded);

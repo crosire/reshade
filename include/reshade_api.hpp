@@ -559,5 +559,18 @@ namespace reshade::api
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Value of the definition.</param>
 		virtual void set_preprocessor_definition(const char *name, const char *value) = 0;
+
+		/// <summary>
+		/// Applies a <paramref name="technique"/> to the specified render targets (regardless of the state of this technique).
+		/// </summary>
+		/// <remarks>
+		/// The width and height of the specified render target have to match those reported by <see cref="effect_runtime::get_screenshot_width_and_height"/>!
+		/// The resource the render target views point to has to be in the <see cref="resource_usage::render_target"/> state.
+		/// </remarks>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <param name="cmd_list">Command list to add effect rendering commands to.</param>
+		/// <param name="rtv">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <c>false</c>.</param>
+		/// <param name="rtv_srgb">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <c>true</c>, or zero in which case the view from <paramref name="rtv"/> is used.</param>
+		virtual void render_technique(effect_technique technique, command_list *cmd_list, resource_view rtv, resource_view rtv_srgb = { 0 }) = 0;
 	};
 }

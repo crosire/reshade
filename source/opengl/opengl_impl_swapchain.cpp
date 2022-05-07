@@ -126,4 +126,12 @@ void reshade::opengl::swapchain_impl::render_effects(api::command_list *cmd_list
 
 	_app_state.apply(_compatibility_context);
 }
+void reshade::opengl::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	_app_state.capture(_compatibility_context);
+
+	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
+
+	_app_state.apply(_compatibility_context);
+}
 #endif

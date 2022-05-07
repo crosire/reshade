@@ -72,8 +72,10 @@ namespace reshade
 		/// Applies post-processing effects to the specified render targets.
 		/// </summary>
 		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
+		virtual void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
 #else
 		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final { cmd_list; rtv; rtv_srgb; }
+		virtual void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final { handle; cmd_list; rtv; rtv_srgb; }
 #endif
 
 		/// <summary>
@@ -302,7 +304,7 @@ namespace reshade
 		bool update_effect_stencil_tex(api::format format);
 
 		void update_effects();
-		void render_technique(api::command_list *cmd_list, technique &technique, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb);
+		void render_technique(technique &technique, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb);
 
 		void save_texture(const texture &texture);
 		void update_texture(texture &texture, const uint32_t width, const uint32_t height, const uint8_t *pixels);

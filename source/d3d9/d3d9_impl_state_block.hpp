@@ -19,6 +19,8 @@ namespace reshade::d3d9
 		void capture();
 		void apply_and_release();
 
+		bool has_captured() const { return _state_block != nullptr; }
+
 	private:
 		void release_all_device_objects();
 

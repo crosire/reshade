@@ -3406,11 +3406,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		if (tech.passes_data.empty() || !tech.enabled)
 			continue; // Ignore techniques that are not fully loaded or currently disabled
 
-		const auto time_technique_started = std::chrono::high_resolution_clock::now();
-		render_technique(cmd_list, tech, back_buffer_resource, rtv, rtv_srgb);
-		const auto time_technique_finished = std::chrono::high_resolution_clock::now();
-
-		tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
+		render_technique(tech, cmd_list, back_buffer_resource, rtv, rtv_srgb);
 
 		if (tech.time_left > 0)
 		{
@@ -3424,11 +3420,13 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 }
-void reshade::runtime::render_technique(api::command_list *cmd_list, technique &tech, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb)
+void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb)
 {
 	const effect &effect = _effects[tech.effect_index];
 
 #if RESHADE_GUI
+	const std::chrono::high_resolution_clock::time_point time_technique_started = std::chrono::high_resolution_clock::now();
+
 	if (_gather_gpu_statistics)
 	{
 		// Evaluate queries from oldest frame in queue
@@ -3622,6 +3620,10 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)
 		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
+
+	const std::chrono::high_resolution_clock::time_point time_technique_finished = std::chrono::high_resolution_clock::now();
+
+	tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 #endif
 }
 
