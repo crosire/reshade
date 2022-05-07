@@ -380,8 +380,11 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 	case device_api::d3d9:
 		if (s_disable_intz)
 			return false;
-		// Skip textures that are sampled as PCF shadow maps using hardware support (see https://aras-p.info/texts/D3D9GPUHacks.html#shadowmap), since changing format would break that
+		// Skip textures that are sampled as PCF shadow maps (see https://aras-p.info/texts/D3D9GPUHacks.html#shadowmap) using hardware support, since changing format would break that
 		if (desc.type == resource_type::texture_2d && (desc.texture.format == format::d16_unorm || desc.texture.format == format::d24_unorm_x8_uint || desc.texture.format == format::d24_unorm_s8_uint))
+			return false;
+		// Skip small textures that are likely just shadow maps too (fixes a hang in Dragon's Dogma: Dark Arisen when changing areas)
+		if (desc.texture.width <= 512 || desc.texture.height <= 512)
 			return false;
 		// Replace texture format with special format that supports normal sampling (see https://aras-p.info/texts/D3D9GPUHacks.html#depth)
 		desc.texture.format = format::intz;
