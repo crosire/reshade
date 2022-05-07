@@ -94,11 +94,11 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 	// Reserve a configurable range of resource names in old OpenGL games (which will use a compatibility context) to work around this
 	auto num_reserve_buffer_names = _compatibility_context ? 2048u : 0u;
 	reshade::global_config().get("APP", "ReserveBufferNames", num_reserve_buffer_names);
-	auto num_reserve_texture_names = _compatibility_context ? 2048u : 0u;
-	reshade::global_config().get("APP", "ReserveTextureNames", num_reserve_texture_names);
 	_reserved_buffer_names.resize(num_reserve_buffer_names);
 	if (!_reserved_buffer_names.empty())
 		glGenBuffers(static_cast<GLsizei>(_reserved_buffer_names.size()), _reserved_buffer_names.data());
+	auto num_reserve_texture_names = _compatibility_context ? 2048u : 0u;
+	reshade::global_config().get("APP", "ReserveTextureNames", num_reserve_texture_names);
 	_reserved_texture_names.resize(num_reserve_texture_names);
 	if (!_reserved_texture_names.empty())
 		glGenTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());

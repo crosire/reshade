@@ -88,6 +88,8 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 }
 void reshade::d3d9::device_impl::end_render_pass()
 {
+	// This fixes artifacts in Dragon's Dogma: Dark Arisen for some reason (even though this render state is reset by the state block in 'swapchain_impl' as well)
+	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
 }
 void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
