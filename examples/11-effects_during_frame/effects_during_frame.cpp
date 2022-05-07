@@ -118,9 +118,13 @@ static void on_present(effect_runtime *runtime)
 	if (runtime != dev_data.main_runtime)
 		return;
 
-	command_list *const immediate_cmd_list = runtime->get_command_queue()->get_immediate_command_list();
-	on_execute(runtime->get_command_queue(), immediate_cmd_list);
-	on_reset_command_list(immediate_cmd_list);
+	// Immediate command list is not used in D3D12/Vulkan
+	if (device->get_api() != device_api::d3d12 && device->get_api() != device_api::vulkan)
+	{
+		command_list *const immediate_cmd_list = runtime->get_command_queue()->get_immediate_command_list();
+		on_execute(runtime->get_command_queue(), immediate_cmd_list);
+		on_reset_command_list(immediate_cmd_list);
+	}
 
 	// Keep track of the total render pass count of this frame
 	dev_data.last_render_pass_count = dev_data.current_render_pass_count > 0 ? dev_data.current_render_pass_count : 1;
