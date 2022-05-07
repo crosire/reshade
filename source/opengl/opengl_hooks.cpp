@@ -1690,55 +1690,53 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 				combined_source.append(string[i]);
 		}
 
-		do
+		GLint type = GL_NONE;
+		glGetShaderiv(shader, GL_SHADER_TYPE, &type);
+
+		reshade::api::pipeline_subobject_type subobject_type;
+		switch (type)
 		{
-			GLint type = GL_NONE;
-			glGetShaderiv(shader, GL_SHADER_TYPE, &type);
+		case GL_VERTEX_SHADER:
+			subobject_type = reshade::api::pipeline_subobject_type::vertex_shader;
+			break;
+		case GL_TESS_CONTROL_SHADER:
+			subobject_type = reshade::api::pipeline_subobject_type::hull_shader;
+			break;
+		case GL_TESS_EVALUATION_SHADER:
+			subobject_type = reshade::api::pipeline_subobject_type::domain_shader;
+			break;
+		case GL_GEOMETRY_SHADER:
+			subobject_type = reshade::api::pipeline_subobject_type::geometry_shader;
+			break;
+		case GL_FRAGMENT_SHADER:
+			subobject_type = reshade::api::pipeline_subobject_type::pixel_shader;
+			break;
+		case GL_COMPUTE_SHADER:
+			subobject_type = reshade::api::pipeline_subobject_type::compute_shader;
+			break;
+		default:
+			assert(false);
+			subobject_type = reshade::api::pipeline_subobject_type::unknown;
+			break;
+		}
 
-			reshade::api::pipeline_subobject_type subobject_type;
-			switch (type)
-			{
-			case GL_VERTEX_SHADER:
-				subobject_type = reshade::api::pipeline_subobject_type::vertex_shader;
-				break;
-			case GL_TESS_CONTROL_SHADER:
-				subobject_type = reshade::api::pipeline_subobject_type::hull_shader;
-				break;
-			case GL_TESS_EVALUATION_SHADER:
-				subobject_type = reshade::api::pipeline_subobject_type::domain_shader;
-				break;
-			case GL_GEOMETRY_SHADER:
-				subobject_type = reshade::api::pipeline_subobject_type::geometry_shader;
-				break;
-			case GL_FRAGMENT_SHADER:
-				subobject_type = reshade::api::pipeline_subobject_type::pixel_shader;
-				break;
-			case GL_COMPUTE_SHADER:
-				subobject_type = reshade::api::pipeline_subobject_type::compute_shader;
-				break;
-			default:
-				assert(false);
-				continue;
-			}
+		reshade::api::shader_desc desc = {};
+		desc.code = combined_source.c_str();
+		desc.code_size = combined_source.size();
+		desc.entry_point = "main";
 
-			reshade::api::shader_desc desc = {};
-			desc.code = combined_source.c_str();
-			desc.code_size = combined_source.size();
-			desc.entry_point = "main";
+		const reshade::api::pipeline_subobject subobject = { subobject_type, 1, &desc };
 
-			const reshade::api::pipeline_subobject subobject = { subobject_type, 1, &desc };
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject))
+		{
+			assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLint>::max()));
+			combined_source_ptr = static_cast<const GLchar *>(desc.code);
+			combined_source_length = static_cast<GLint>(desc.code_size);
 
-			if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject))
-			{
-				assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLint>::max()));
-				combined_source_ptr = static_cast<const GLchar *>(desc.code);
-				combined_source_length = static_cast<GLint>(desc.code_size);
-
-				count = 1;
-				string = &combined_source_ptr;
-				length = &combined_source_length;
-			}
-		} while (false);
+			count = 1;
+			string = &combined_source_ptr;
+			length = &combined_source_length;
+		}
 	}
 #endif
 
@@ -4160,6 +4158,69 @@ void APIENTRY glBindTextureUnit(GLuint unit, GLuint texture)
 #endif
 }
 #endif
+
+void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, const GLvoid *string)
+{
+	static const auto trampoline = reshade::hooks::call(glProgramStringARB);
+
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		reshade::api::pipeline_subobject_type subobject_type;
+		switch (target)
+		{
+		case GL_VERTEX_PROGRAM_ARB:
+			subobject_type = reshade::api::pipeline_subobject_type::vertex_shader;
+			break;
+		case GL_FRAGMENT_PROGRAM_ARB:
+			subobject_type = reshade::api::pipeline_subobject_type::pixel_shader;
+			break;
+		default:
+			assert(false);
+			subobject_type = reshade::api::pipeline_subobject_type::unknown;
+			break;
+		}
+
+		reshade::api::shader_desc desc = {};
+		desc.code = string;
+		desc.code_size = length;
+		desc.entry_point = nullptr;
+
+		const reshade::api::pipeline_subobject subobject = { subobject_type, 1, &desc };
+
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject))
+		{
+			assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
+			string = desc.code;
+			length = static_cast<GLsizei>(desc.code_size);
+		}
+
+		trampoline(target, format, length, string);
+
+		GLuint program = 0;
+		static const auto glGetProgramivARB = reinterpret_cast<void(APIENTRY *)(GLenum target, GLenum pname, GLint *params)>(wglGetProcAddress("glGetProgramivARB"));
+		assert(glGetProgramivARB != nullptr);
+		glGetProgramivARB(target, GL_PROGRAM_BINDING_ARB, reinterpret_cast<GLint *>(&program));
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject, reshade::api::pipeline { program });
+	}
+	else
+#endif
+		trampoline(target, format, length, string);
+}
+void APIENTRY glDeleteProgramsARB(GLsizei n, const GLuint *programs)
+{
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		for (GLsizei i = 0; i < n; ++i)
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { programs[i] });
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glDeleteProgramsARB);
+	trampoline(n, programs);
+}
 
 void APIENTRY glBindFramebufferEXT(GLenum target, GLuint framebuffer)
 {
