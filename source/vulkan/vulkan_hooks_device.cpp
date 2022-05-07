@@ -760,13 +760,22 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
 	reshade::vulkan::convert_image_usage_flags_to_usage(create_info.imageUsage, buffer_desc.usage);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, hwnd))
+	reshade::api::swapchain_desc swapchain_desc = {};
+	swapchain_desc.buffer_count = create_info.minImageCount;
+	swapchain_desc.swap_effect = static_cast<uint32_t>(create_info.presentMode);
+	swapchain_desc.flags = create_info.flags;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, swapchain_desc, hwnd))
 	{
 		create_info.imageFormat = reshade::vulkan::convert_format(buffer_desc.texture.format);
 		create_info.imageExtent.width = buffer_desc.texture.width;
 		create_info.imageExtent.height = buffer_desc.texture.height;
 		create_info.imageArrayLayers = buffer_desc.texture.depth_or_layers;
 		reshade::vulkan::convert_usage_to_image_usage_flags(buffer_desc.usage, create_info.imageUsage);
+
+		create_info.minImageCount = swapchain_desc.buffer_count;
+		create_info.presentMode = static_cast<VkPresentModeKHR>(swapchain_desc.swap_effect);
+		create_info.flags = static_cast<uint32_t>(swapchain_desc.flags);
 	}
 #endif
 

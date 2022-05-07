@@ -95,7 +95,12 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	if (desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
 		buffer_desc.usage |= reshade::api::resource_usage::unordered_access;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, desc.OutputWindow))
+	reshade::api::swapchain_desc swapchain_desc = {};
+	swapchain_desc.buffer_count = desc.BufferCount;
+	swapchain_desc.swap_effect = static_cast<uint32_t>(desc.SwapEffect);
+	swapchain_desc.flags = desc.Flags;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, swapchain_desc, desc.OutputWindow))
 	{
 		desc.BufferDesc.Width = buffer_desc.texture.width;
 		desc.BufferDesc.Height = buffer_desc.texture.height;
@@ -108,6 +113,10 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != 0)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+
+		desc.BufferCount = swapchain_desc.buffer_count;
+		desc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(swapchain_desc.swap_effect);
+		desc.Flags = swapchain_desc.flags;
 
 		modified = true;
 	}
@@ -179,7 +188,12 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND hwnd)
 	if (desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
 		buffer_desc.usage |= reshade::api::resource_usage::unordered_access;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, hwnd))
+	reshade::api::swapchain_desc swapchain_desc = {};
+	swapchain_desc.buffer_count = desc.BufferCount;
+	swapchain_desc.swap_effect = static_cast<uint32_t>(desc.SwapEffect);
+	swapchain_desc.flags = desc.Flags;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, swapchain_desc, hwnd))
 	{
 		desc.Width = buffer_desc.texture.width;
 		desc.Height = buffer_desc.texture.height;
@@ -195,6 +209,10 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND hwnd)
 			desc.BufferUsage |= DXGI_USAGE_SHARED;
 		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != 0)
 			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+
+		desc.BufferCount = swapchain_desc.buffer_count;
+		desc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(swapchain_desc.swap_effect);
+		desc.Flags = swapchain_desc.flags;
 
 		modified = true;
 	}

@@ -92,8 +92,12 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 			buffer_desc.texture.format = reshade::d3d9::convert_format(current_mode.Format);
 		}
 	}
+	reshade::api::swapchain_desc swapchain_desc = {};
+	swapchain_desc.buffer_count = pp.BackBufferCount;
+	swapchain_desc.swap_effect = pp.SwapEffect;
+	swapchain_desc.flags = pp.Flags;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, pp.hDeviceWindow))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, swapchain_desc, pp.hDeviceWindow))
 	{
 		pp.BackBufferWidth = buffer_desc.texture.width;
 		pp.BackBufferHeight = buffer_desc.texture.height;
@@ -103,6 +107,10 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 			pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(buffer_desc.texture.samples);
 		else
 			pp.MultiSampleType = D3DMULTISAMPLE_NONE;
+
+		pp.BackBufferCount = swapchain_desc.buffer_count;
+		pp.SwapEffect = static_cast<D3DSWAPEFFECT>(swapchain_desc.swap_effect);
+		pp.Flags = swapchain_desc.flags;
 	}
 #endif
 
