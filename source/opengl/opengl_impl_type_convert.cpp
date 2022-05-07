@@ -1784,7 +1784,7 @@ auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primiti
 	{
 	default:
 		assert(false);
-		[[fallthrough]];
+		return api::primitive_topology::undefined;
 	case GL_POINTS:
 		return api::primitive_topology::point_list;
 	case GL_LINES:
@@ -1805,6 +1805,10 @@ auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primiti
 		return api::primitive_topology::triangle_list_adj;
 	case GL_TRIANGLE_STRIP_ADJACENCY:
 		return api::primitive_topology::triangle_strip_adj;
+	case GL_QUADS:
+		return api::primitive_topology::quad_list;
+	case GL_QUAD_STRIP:
+		return api::primitive_topology::quad_strip;
 	case GL_PATCHES:
 		GLint cps = 1;
 		glGetIntegerv(GL_PATCH_VERTICES, &cps);
@@ -1815,9 +1819,6 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 {
 	switch (value)
 	{
-	default:
-		assert(false);
-		[[fallthrough]];
 	case api::primitive_topology::point_list:
 		return GL_POINTS;
 	case api::primitive_topology::line_list:
@@ -1830,6 +1831,10 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 		return GL_TRIANGLE_STRIP;
 	case api::primitive_topology::triangle_fan:
 		return GL_TRIANGLE_FAN;
+	case api::primitive_topology::quad_list:
+		return GL_QUADS;
+	case api::primitive_topology::quad_strip:
+		return GL_QUAD_STRIP;
 	case api::primitive_topology::line_list_adj:
 		return GL_LINES_ADJACENCY;
 	case api::primitive_topology::line_strip_adj:
@@ -1871,6 +1876,9 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 	case api::primitive_topology::patch_list_31_cp:
 	case api::primitive_topology::patch_list_32_cp:
 		return GL_PATCHES;
+	default:
+		assert(false);
+		return GL_NONE;
 	}
 }
 GLenum reshade::opengl::convert_query_type(api::query_type value)

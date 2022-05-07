@@ -1647,10 +1647,6 @@ auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) 
 {
 	switch (value)
 	{
-	default:
-	case api::primitive_topology::undefined:
-		assert(false);
-		return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 	case api::primitive_topology::point_list:
 		return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 	case api::primitive_topology::line_list:
@@ -1704,16 +1700,16 @@ auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) 
 	case api::primitive_topology::patch_list_31_cp:
 	case api::primitive_topology::patch_list_32_cp:
 		return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+	default:
+	case api::primitive_topology::undefined:
+		assert(false);
+		return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 	}
 }
 auto reshade::vulkan::convert_primitive_topology(VkPrimitiveTopology value) -> api::primitive_topology
 {
 	switch (value)
 	{
-	default:
-	case VK_PRIMITIVE_TOPOLOGY_MAX_ENUM:
-		assert(false);
-		return api::primitive_topology::undefined;
 	case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
 		return api::primitive_topology::point_list;
 	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
@@ -1736,6 +1732,10 @@ auto reshade::vulkan::convert_primitive_topology(VkPrimitiveTopology value) -> a
 		return api::primitive_topology::triangle_strip_adj;
 	case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
 		return api::primitive_topology::patch_list_01_cp;
+	default:
+	case VK_PRIMITIVE_TOPOLOGY_MAX_ENUM:
+		assert(false);
+		return api::primitive_topology::undefined;
 	}
 }
 

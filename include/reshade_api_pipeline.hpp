@@ -295,6 +295,8 @@ namespace reshade::api
 		triangle_list = 4,
 		triangle_strip = 5,
 		triangle_fan = 6,
+		quad_list = 8,
+		quad_strip = 9,
 		line_list_adj = 10,
 		line_strip_adj = 11,
 		triangle_list_adj = 12,
