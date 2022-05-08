@@ -56,6 +56,8 @@ void reshade::d3d10::state_block::capture()
 	_device->OMGetBlendState(&_om_blend_state, _om_blend_factor, &_om_sample_mask);
 	_device->OMGetDepthStencilState(&_om_depth_stencil_state, &_om_stencil_ref);
 	_device->OMGetRenderTargets(ARRAYSIZE(_om_render_targets), _om_render_targets, &_om_depth_stencil);
+
+	_has_captured = true;
 }
 void reshade::d3d10::state_block::apply_and_release()
 {
@@ -87,6 +89,8 @@ void reshade::d3d10::state_block::apply_and_release()
 	_device->OMSetRenderTargets(ARRAYSIZE(_om_render_targets), _om_render_targets, _om_depth_stencil);
 
 	release_all_device_objects();
+
+	_has_captured = false;
 }
 
 void reshade::d3d10::state_block::release_all_device_objects()

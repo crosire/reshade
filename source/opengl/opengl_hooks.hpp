@@ -113,6 +113,8 @@ extern "C" void APIENTRY glCullFace(GLenum mode);
 extern "C" void APIENTRY glDeleteBuffers(GLsizei n, const GLuint *buffers);
 #undef glDeleteProgram
 extern "C" void APIENTRY glDeleteProgram(GLuint program);
+#undef glDeleteProgramsARB
+extern "C" void APIENTRY glDeleteProgramsARB(GLsizei n, const GLuint *programs);
 #undef glDeleteRenderbuffers
 extern "C" void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers);
 #undef glDeleteTextures
@@ -257,6 +259,8 @@ extern "C" void APIENTRY glPointSize(GLfloat size);
 extern "C" void APIENTRY glPolygonMode(GLenum face, GLenum mode);
 #undef glPolygonOffset
 extern "C" void APIENTRY glPolygonOffset(GLfloat factor, GLfloat units);
+#undef glProgramStringARB
+extern "C" void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, const GLvoid *string);
 #undef glReadBuffer
 extern "C" void APIENTRY glReadBuffer(GLenum mode);
 #undef glReadPixels

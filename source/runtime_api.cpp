@@ -928,3 +928,31 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, char *value
 	*length = 0;
 	return false;
 }
+
+void reshade::runtime::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+#if RESHADE_FX
+	const auto tech = reinterpret_cast<technique *>(handle.handle);
+	if (tech == nullptr)
+		return;
+
+	// Queue effect file for initialization if it was not fully loaded yet
+	if (tech->passes_data.empty() &&
+		std::find(_reload_create_queue.begin(), _reload_create_queue.end(), tech->effect_index) == _reload_create_queue.end())
+		_reload_create_queue.push_back(tech->effect_index);
+
+	if (is_loading() || tech->passes_data.empty() || rtv == 0)
+		return;
+
+	if (rtv_srgb == 0)
+		rtv_srgb = rtv;
+
+	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
+
+	// Ensure format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
+	if (!update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
+		return;
+
+	render_technique(*tech, cmd_list, back_buffer_resource, rtv, rtv_srgb);
+#endif
+}

@@ -951,6 +951,30 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	else if (0 == std::strcmp(lpszProc, "glDrawElementsInstancedARB"))
 		lpszProc = "glDrawElementsInstanced";
 	#pragma endregion
+	#pragma region GL_ARB_vertex_buffer_object
+	else if (0 == std::strcmp(lpszProc, "glIsBufferARB"))
+		lpszProc = "glIsBuffer";
+	else if (0 == std::strcmp(lpszProc, "glBindBufferARB"))
+		lpszProc = "glBindBuffer";
+	else if (0 == std::strcmp(lpszProc, "glGenBuffersARB"))
+		lpszProc = "glGenBuffers";
+	else if (0 == std::strcmp(lpszProc, "glDeleteBuffersARB"))
+		lpszProc = "glDeleteBuffers";
+	else if (0 == std::strcmp(lpszProc, "glBufferDataARB"))
+		lpszProc = "glBufferData";
+	else if (0 == std::strcmp(lpszProc, "glBufferSubDataARB"))
+		lpszProc = "glBufferSubData";
+	else if (0 == std::strcmp(lpszProc, "glGetBufferSubDataARB"))
+		lpszProc = "glGetBufferSubData";
+	else if (0 == std::strcmp(lpszProc, "glMapBufferARB"))
+		lpszProc = "glMapBuffer";
+	else if (0 == std::strcmp(lpszProc, "glUnmapBufferARB"))
+		lpszProc = "glUnmapBuffer";
+	else if (0 == std::strcmp(lpszProc, "glGetBufferParameterivARB"))
+		lpszProc = "glGetBufferParameteriv";
+	else if (0 == std::strcmp(lpszProc, "glGetBufferPointervARB"))
+		lpszProc = "glGetBufferPointerv";
+	#pragma endregion
 	#pragma region GL_EXT_draw_instanced
 	else if (0 == std::strcmp(lpszProc, "glDrawArraysInstancedEXT"))
 		lpszProc = "glDrawArraysInstanced";
@@ -1297,22 +1321,33 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glGenerateTextureMipmap);
 		HOOK_PROC(glBindTextureUnit);
 #endif
+		// GL_ARB_vertex_program / GL_ARB_fragment_program
+		HOOK_PROC(glProgramStringARB);
+		HOOK_PROC(glDeleteProgramsARB);
+		// GL_EXT_framebuffer_object
 		HOOK_PROC(glBindFramebufferEXT);
+		// GL_EXT_direct_state_access
 		HOOK_PROC(glBindMultiTextureEXT);
 #endif
 
-		HOOK_PROC(wglChoosePixelFormatARB);
+		// WGL_ARB_create_context
 		HOOK_PROC(wglCreateContextAttribsARB);
+		// WGL_ARB_pbuffer
 		HOOK_PROC(wglCreatePbufferARB);
 		HOOK_PROC(wglDestroyPbufferARB);
 		HOOK_PROC(wglGetPbufferDCARB);
-		HOOK_PROC(wglGetPixelFormatAttribivARB);
-		HOOK_PROC(wglGetPixelFormatAttribfvARB);
 		HOOK_PROC(wglReleasePbufferDCARB);
 #if 0
 		HOOK_PROC(wglQueryPbufferARB);
-		HOOK_PROC(wglGetSwapIntervalEXT);
+#endif
+		// WGL_ARB_pixel_format
+		HOOK_PROC(wglChoosePixelFormatARB);
+		HOOK_PROC(wglGetPixelFormatAttribivARB);
+		HOOK_PROC(wglGetPixelFormatAttribfvARB);
+#if 0
+		// WGL_EXT_swap_control
 		HOOK_PROC(wglSwapIntervalEXT);
+		HOOK_PROC(wglGetSwapIntervalEXT);
 #endif
 
 		// Install all OpenGL hooks in a single batch job

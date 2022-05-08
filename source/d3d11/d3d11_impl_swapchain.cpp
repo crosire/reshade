@@ -111,11 +111,24 @@ void reshade::d3d11::swapchain_impl::on_present()
 #if RESHADE_FX
 void reshade::d3d11::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(cmd_list)->_orig;
-	_app_state.capture(immediate_context);
+	const bool backup_state = !_app_state.has_captured();
+	if (backup_state)
+		_app_state.capture(static_cast<device_context_impl *>(cmd_list)->_orig);
 
 	runtime::render_effects(cmd_list, rtv, rtv_srgb);
 
-	_app_state.apply_and_release();
+	if (backup_state)
+		_app_state.apply_and_release();
+}
+void reshade::d3d11::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	const bool backup_state = !_app_state.has_captured();
+	if (backup_state)
+		_app_state.capture(static_cast<device_context_impl *>(cmd_list)->_orig);
+
+	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
+
+	if (backup_state)
+		_app_state.apply_and_release();
 }
 #endif

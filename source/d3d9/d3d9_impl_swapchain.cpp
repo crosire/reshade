@@ -100,17 +100,47 @@ void reshade::d3d9::swapchain_impl::on_present()
 void reshade::d3d9::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
 	const auto device_impl = static_cast<class device_impl *>(_device);
+	const bool backup_state = !_app_state.has_captured();
 
-	_app_state.capture();
 	BOOL software_rendering_enabled = FALSE;
-	if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		software_rendering_enabled = device_impl->_orig->GetSoftwareVertexProcessing(),
-		device_impl->_orig->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
+	if (backup_state)
+	{
+		_app_state.capture();
+		if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+			software_rendering_enabled = device_impl->_orig->GetSoftwareVertexProcessing(),
+			device_impl->_orig->SetSoftwareVertexProcessing(FALSE);
+	}
 
 	runtime::render_effects(cmd_list, rtv, rtv_srgb);
 
-	_app_state.apply_and_release();
-	if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		device_impl->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
+	if (backup_state)
+	{
+		_app_state.apply_and_release();
+		if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+			device_impl->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
+	}
+}
+void reshade::d3d9::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	const auto device_impl = static_cast<class device_impl *>(_device);
+	const bool backup_state = !_app_state.has_captured();
+
+	BOOL software_rendering_enabled = FALSE;
+	if (backup_state)
+	{
+		_app_state.capture();
+		if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+			software_rendering_enabled = device_impl->_orig->GetSoftwareVertexProcessing(),
+			device_impl->_orig->SetSoftwareVertexProcessing(FALSE);
+	}
+
+	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
+
+	if (backup_state)
+	{
+		_app_state.apply_and_release();
+		if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+			device_impl->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
+	}
 }
 #endif
