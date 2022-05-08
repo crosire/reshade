@@ -134,10 +134,10 @@ namespace reshade
 		/// <item><description>IDXGISwapChain3::ResizeBuffers1</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::resource_desc &amp;back_buffer_desc, api::swapchain_desc &amp;swapchain_desc, void *hwnd)</c></para>
+		/// <para>Callback function signature: <c>bool (api::swapchain_desc &amp;desc, void *hwnd)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the swap chain description, modify <c>back_buffer_desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// To overwrite the swap chain description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Is not called in OpenGL (since it is not possible to influence swap chain creation there).
 		/// </remarks>
 		create_swapchain,
@@ -1512,7 +1512,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_command_queue, void, api::command_queue *queue);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_swapchain, void, api::swapchain *swapchain);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_swapchain, bool, api::resource_desc &back_buffer_desc, api::swapchain_desc &swapchain_desc, void *hwnd);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_swapchain, bool, api::swapchain_desc &desc, void *hwnd);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_swapchain, void, api::swapchain *swapchain);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_effect_runtime, void, api::effect_runtime *runtime);

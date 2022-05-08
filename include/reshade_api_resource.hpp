@@ -523,29 +523,4 @@ namespace reshade::api
 		/// </summary>
 		float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	};
-
-	/// <summary>
-	/// Describes a swap chain excluding the resource type
-	/// </summary>
-	struct swapchain_desc
-	{
-		constexpr swapchain_desc() {}
-		constexpr swapchain_desc(uint32_t buffer_count, uint32_t swap_effect, uint32_t flags) :
-			buffer_count(buffer_count), swap_effect(swap_effect), flags(flags) {}
-
-		/// <summary>
-		/// Number of buffers the swapchain should have
-		/// </summary>
-		uint32_t buffer_count = 0;
-
-		/// <summary>
-		/// Swap effect how the buffers should swap when a present occurs
-		/// </summary>
-		uint32_t swap_effect = 0;
-
-		/// <summary>
-		/// Swap chain creation flags
-		/// </summary>
-		uint32_t flags = 0;
-	};
 }
