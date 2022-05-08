@@ -415,9 +415,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	if (modify_swapchain_desc(desc))
 	{
+		BufferCount = desc.BufferCount;
 		Width = desc.BufferDesc.Width;
 		Height = desc.BufferDesc.Height;
 		NewFormat = static_cast<DXGI_FORMAT>(desc.BufferDesc.Format);
+		SwapChainFlags = desc.Flags;
 	}
 
 	g_in_dxgi_runtime = true;

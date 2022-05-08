@@ -951,6 +951,27 @@ namespace reshade::api
 	};
 
 	/// <summary>
+	/// Describes a swap chain and its back buffer resources.
+	/// </summary>
+	struct swapchain_desc : resource_desc
+	{
+		/// <summary>
+		/// Number of back buffer resources in the swap chain.
+		/// </summary>
+		uint32_t buffer_count = 0;
+
+		/// <summary>
+		/// Defines how the back buffers should be swapped when a present occurs.
+		/// </summary>
+		uint32_t present_mode = 0;
+
+		/// <summary>
+		/// Swap chain creation flags.
+		/// </summary>
+		uint32_t present_flags = 0;
+	};
+
+	/// <summary>
 	/// A swap chain, used to present images to the screen.
 	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
 	/// </summary>
