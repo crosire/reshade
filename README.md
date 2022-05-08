@@ -2,6 +2,7 @@ Nano's ReShade
 =======
 
 This is Nano's fork of ReShade. Main changes are removal of Network Detection and adding Github Actions.
+Go [HERE](https://github.com/Zayveeo5e/reshade/actions) to download latest build.
 
 
 ## License
