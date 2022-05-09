@@ -62,16 +62,16 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc buffer_desc = {};
-	buffer_desc.type = reshade::api::resource_type::surface;
-	buffer_desc.texture.width = pp.BackBufferWidth;
-	buffer_desc.texture.height = pp.BackBufferHeight;
-	buffer_desc.texture.depth_or_layers = 1;
-	buffer_desc.texture.levels = 1;
-	buffer_desc.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
-	buffer_desc.texture.samples = pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES ? static_cast<uint16_t>(pp.MultiSampleType) : 1;
-	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
-	buffer_desc.usage = reshade::api::resource_usage::render_target;
+	reshade::api::swapchain_desc desc = {};
+	desc.type = reshade::api::resource_type::surface;
+	desc.texture.width = pp.BackBufferWidth;
+	desc.texture.height = pp.BackBufferHeight;
+	desc.texture.depth_or_layers = 1;
+	desc.texture.levels = 1;
+	desc.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
+	desc.texture.samples = pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES ? static_cast<uint16_t>(pp.MultiSampleType) : 1;
+	desc.heap = reshade::api::memory_heap::gpu_only;
+	desc.usage = reshade::api::resource_usage::render_target;
 
 	if (pp.Windowed)
 	{
@@ -80,29 +80,37 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 			RECT window_rect = {};
 			GetClientRect(pp.hDeviceWindow, &window_rect);
 			if (pp.BackBufferWidth == 0)
-				buffer_desc.texture.width = window_rect.right;
+				desc.texture.width = window_rect.right;
 			if (pp.BackBufferHeight == 0)
-				buffer_desc.texture.height = window_rect.bottom;
+				desc.texture.height = window_rect.bottom;
 		}
 
 		if (pp.BackBufferFormat == D3DFMT_UNKNOWN)
 		{
 			D3DDISPLAYMODE current_mode = {};
 			d3d->GetAdapterDisplayMode(adapter_index, &current_mode);
-			buffer_desc.texture.format = reshade::d3d9::convert_format(current_mode.Format);
+			desc.texture.format = reshade::d3d9::convert_format(current_mode.Format);
 		}
 	}
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, pp.hDeviceWindow))
-	{
-		pp.BackBufferWidth = buffer_desc.texture.width;
-		pp.BackBufferHeight = buffer_desc.texture.height;
-		pp.BackBufferFormat = reshade::d3d9::convert_format(buffer_desc.texture.format);
+	desc.buffer_count = pp.BackBufferCount;
+	desc.present_mode = pp.SwapEffect;
+	desc.present_flags = pp.Flags;
 
-		if (buffer_desc.texture.samples > 1)
-			pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(buffer_desc.texture.samples);
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, pp.hDeviceWindow))
+	{
+		pp.BackBufferWidth = desc.texture.width;
+		pp.BackBufferHeight = desc.texture.height;
+		pp.BackBufferFormat = reshade::d3d9::convert_format(desc.texture.format);
+
+		if (desc.texture.samples > 1)
+			pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.texture.samples);
 		else
 			pp.MultiSampleType = D3DMULTISAMPLE_NONE;
+
+		pp.BackBufferCount = desc.buffer_count;
+		pp.SwapEffect = static_cast<D3DSWAPEFFECT>(desc.present_mode);
+		pp.Flags = desc.present_flags;
 	}
 #endif
 
