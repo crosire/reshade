@@ -1,0 +1,7 @@
+#define fLUT_Name Boho_Vintage_MLUT
+#define fLUT_LutList " Beach 01\0 Beach 01_S\0 Beach 02\0 Beach 02_S\0 Beach 03\0 Beach 03_S\0 Beach 04\0 Beach 04_S\0 Beach 05\0 Beach 05_S\0 Beach 06\0 Beach 06_S\0 Beach 07\0 Beach 07_S\0 Beach 08\0 Beach 08_S\0 Beach 09\0 Beach 09_S\0 Beach 10\0 Beach 10_S\0 Caramel 01\0 Caramel 01_S\0 Caramel 02\0 Caramel 02_S\0 Caramel 03\0 Caramel 03_S\0 Caramel 04\0 Caramel 04_S\0 Caramel 05\0 Caramel 05_S\0 Caramel 06\0 Caramel 06_S\0 Caramel 07\0 Caramel 07_S\0 Caramel 08\0 Caramel 08_S\0 Caramel 09\0 Caramel 09_S\0 Caramel 10\0 Caramel 10_S\0 Chic 01\0 Chic 01_S\0 Chic 02\0 Chic 02_S\0 Chic 03\0 Chic 03_S\0 Chic 04\0 Chic 04_S\0 Chic 05\0 Chic 05_S\0 Chic 06\0 Chic 06_S\0 Chic 07\0 Chic 07_S\0 Chic 08\0 Chic 08_S\0 Chic 09\0 Chic 09_S\0 Chic 10\0 Chic 10_S\0 Feather 01\0 Feather 01_S\0 Feather 02\0 Feather 02_S\0 Feather 03\0 Feather 03_S\0 Feather 04\0 Feather 04_S\0 Feather 05\0 Feather 05_S\0 Feather 06\0 Feather 06_S\0 Feather 07\0 Feather 07_S\0 Feather 08\0 Feather 08_S\0 Feather 09\0 Feather 09_S\0 Feather 10\0 Feather 10_S\0 Romper 01\0 Romper 01_S\0 Romper 02\0 Romper 02_S\0 Romper 03\0 Romper 03_S\0 Romper 04\0 Romper 04_S\0 Romper 05\0 Romper 05_S\0 Romper 06\0 Romper 06_S\0 Romper 07\0 Romper 07_S\0 Romper 08\0 Romper 08_S\0 Romper 09\0 Romper 09_S\0 Romper 10\0 Romper 10_S\0"
+#define fLUT_TextureName "Boho Vintage MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"

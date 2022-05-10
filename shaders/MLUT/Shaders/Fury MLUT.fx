@@ -1,0 +1,7 @@
+#define fLUT_Name Fury_MLUT
+#define fLUT_LutList " Flamethrower 01\0 Flamethrower 01_S\0 Flamethrower 02\0 Flamethrower 02_S\0 Flamethrower 03\0 Flamethrower 03_S\0 Flamethrower 04\0 Flamethrower 04_S\0 Flamethrower 05\0 Flamethrower 05_S\0 Flamethrower 06\0 Flamethrower 06_S\0 Flamethrower 07\0 Flamethrower 07_S\0 Flamethrower 08\0 Flamethrower 08_S\0 Flamethrower 09\0 Flamethrower 09_S\0 Flamethrower 10\0 Flamethrower 10_S\0 Flare 01\0 Flare 01_S\0 Flare 02\0 Flare 02_S\0 Flare 03\0 Flare 03_S\0 Flare 04\0 Flare 04_S\0 Flare 05\0 Flare 05_S\0 Flare 06\0 Flare 06_S\0 Flare 07\0 Flare 07_S\0 Flare 08\0 Flare 08_S\0 Flare 09\0 Flare 09_S\0 Flare 10\0 Flare 10_S\0 Fyre 01\0 Fyre 01_S\0 Fyre 02\0 Fyre 02_S\0 Fyre 03\0 Fyre 03_S\0 Fyre 04\0 Fyre 04_S\0 Fyre 05\0 Fyre 05_S\0 Fyre 06\0 Fyre 06_S\0 Fyre 07\0 Fyre 07_S\0 Fyre 08\0 Fyre 08_S\0 Fyre 09\0 Fyre 09_S\0 Fyre 10\0 Fyre 10_S\0 Nergy 01\0 Nergy 01_S\0 Nergy 02\0 Nergy 02_S\0 Nergy 03\0 Nergy 03_S\0 Nergy 04\0 Nergy 04_S\0 Nergy 05\0 Nergy 05_S\0 Nergy 06\0 Nergy 06_S\0 Nergy 07\0 Nergy 07_S\0 Nergy 08\0 Nergy 08_S\0 Nergy 09\0 Nergy 09_S\0 Nergy 10\0 Nergy 10_S\0 Steel 01\0 Steel 01_S\0 Steel 02\0 Steel 02_S\0 Steel 03\0 Steel 03_S\0 Steel 04\0 Steel 04_S\0 Steel 05\0 Steel 05_S\0 Steel 06\0 Steel 06_S\0 Steel 07\0 Steel 07_S\0 Steel 08\0 Steel 08_S\0 Steel 09\0 Steel 09_S\0 Steel 10\0 Steel 10_S\0"
+#define fLUT_TextureName "Fury MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"

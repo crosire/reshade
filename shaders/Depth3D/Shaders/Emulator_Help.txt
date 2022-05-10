@@ -1,0 +1,111 @@
+#SuperDepth3D 2.3.4+                      Search for the Game's Name for Basic Settings
+_____________________________________________________________________________________________________________________________________________
+             -=:[Settings have to be change and adjusted for diffrent Resolutions, screen size, and screen types]:=-
+---------------------------------------------------------------------------------------------------------------------------------------------
+[CI] = Compatablity Info [MI] = Major Issues [NC] = Not Compatible [SI] = Some Issues                   
+.............................................................................................................................................
+[PCSX2]
+=============================================================================================================================================
+{Fatal Frame} -  - You can open SuperDepth3D and enable Legacy Mode on line 64. But, it's somewhat playable with out this. 
+Can't See Ghost fix and other issue listed below. 
+https://wiki.pcsx2.net/Fatal_Frame
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM1    200.0    0.050                0.0     -20000.0  Yes       3      Normal     0.500   1.000,0.438   0.000,-1.285    Alpha
+
+{Fatal Frame III: The Tormented} - You can open SuperDepth3D and enable Legacy Mode on line 64. But, it's somewhat playable with out this.
+As for Fatal Frame 2 You should try the remake for wii or not it's up to you.  
+https://wiki.pcsx2.net/Fatal_Frame_III:_The_Tormented
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM1    250.0    0.050 0.050          0.0     -25000.0  Yes       4      Normal     1.375   1.000,0.876   0.000,-0.144    Alpha
+
+{Silent Hill: Origins} - Open SuperDepth3D and enable Legacy Mode on line 64. Is needed to mask most of the heavy ghosting. Enable cheats in and
+place the noise patch in cheats folder. Then in game look for Extra Options. http://www.mediafire.com/file/xqoe9ccad2bzget/SilentHillOrigins.zip 
+https://wiki.pcsx2.net/Silent_Hill:_Origins
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ MI    DM1    137.5    0.050                0.0     -20750.0  Yes       3      Third Per  1.650   0.800,0.876   0.249,-0.144     Alpha
+                                                                                                  1.000,0.871   0.000,-0.145            
+{Rule of Roses} - Open SuperDepth3D and enable Legacy Mode on line 64. Is needed to mask most of the light ghosting. Good thing you can set the 
+Nose level in game. Same issue as Silent Hill but not as bad. Also To grab the depth buffer on Opengl video settings. [x] Enable HW Hacks.
+https://wiki.pcsx2.net/Rule_of_Rose
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM1    250.0    0.050                0.0     -20000.0  Yes       3       Normal    1.650   1.000,0.876   0.000,-0.144     Alpha
+
+{Ratchet & Clank Size Matters} - Open SuperDepth3D and enable Legacy Mode on line 64. Is needed to mask most of the Medium ghosting.
+Not as Bad as Silent Hill. But, still bad.
+https://wiki.pcsx2.net/Ratchet_%26_Clank:_Size_Matters
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM1    25.00    0.050                0.0     -2500.00  Yes       1       Normal    0.000   0.800,0.815   0.250,-0.230     Alpha
+
+{Ratchet & Clank Up Your Arsenal} - Open SuperDepth3D and enable Legacy Mode on line 64. Is needed to mask most of the Medium ghosting.
+Not as Bad as Silent Hill. But, You get the picture. There is a new issue with DOF. Maybe skipdraw can help here.
+https://wiki.pcsx2.net/Ratchet_%26_Clank:_Up_Your_Arsenal
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM1    25.00    0.050                0.0     -2500.00  Yes       5       Normal    0.000   0.800,0.808   0.251,-0.227     Alpha
+
+{Ratchet & Clank: Going Commando} - Open SuperDepth3D and enable Legacy Mode on line 64. Is needed to mask most of the Medium ghosting.
+Not as Bad as Silent Hill. This seem to be worst when looking out in to the distance edges. :(
+https://wiki.pcsx2.net/Ratchet_%26_Clank:_Going_Commando
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM1    25.00    0.050                0.0     -2500.00  Yes       5       Normal    0.000   0.995,0.815   0.000,-0.230     Alpha
+
+{King's Field: The Ancient City} - You can open SuperDepth3D and enable Legacy Mode on line 64. But, it's somewhat playable with out this.
+Due to the speed of the game. You also need to enable Skip Draw from 1-3 To grab the depth buffer. Not 1-1 like it says in the wiki.
+https://wiki.pcsx2.net/King%27s_Field:_The_Ancient_City < Need to read it. Game is hard.......
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ MI    DM1    37.50    0.050                0.0     -37500.0  Yes       4       Normal    0.940   1.000,0.877   0.000,-0.144     Alpha
+
+{Haunting Ground} - You can open SuperDepth3D and enable Legacy Mode on line 64. But, it's somewhat playable with out this. You also need to set 
+Texture Offsets X: 500 and Y: 500 to fix that shader Layer issue. Also Depth Buffer seems to be shallow in some areas of the game I can't fix this.
+https://wiki.pcsx2.net/Haunting_Ground
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ MI    DM1   150000.0  0.050                0.0     0.000015  Yes       4        Off      130.0   0.800,0.876   0.250,-0.144     Alpha
+
+{Clock Tower 3} - You need to use GSDX 3D Stereo build here. There are some graphics glitches using this. But, It's playable with some eye strain.
+Try this in the other games here.
+https://forums.pcsx2.net/Thread-Gsdx-3D-Stereoscopy-Patch?pid=522990#pid522990 & https://github.com/pcsx2/pcsx2/issues/1461
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ NC    
+
+{Killzone} - You need to use GSDX 3D Stereo build here. There are many graphics glitches using this. But, It's playable with some eye strain.
+https://forums.pcsx2.net/Thread-Gsdx-3D-Stereoscopy-Patch?pid=522990#pid522990 & https://github.com/pcsx2/pcsx2/issues/1461
+https://wiki.pcsx2.net/Killzone <- Since it's a older version of GSDX expect more buggs and more issues.
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ NC
+
+{Siren} - You need to use GSDX 3D Stereo build here. There are minor graphics glitches using this. W 2000 L 70 for me works well.
+https://forums.pcsx2.net/Thread-Gsdx-3D-Stereoscopy-Patch?pid=522990#pid522990 & https://github.com/pcsx2/pcsx2/issues/1461
+https://wiki.pcsx2.net/Siren <- Seems to be a issue with fog. 
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ NC   
+
+{Metal Gear Solid 2} - Open SuperDepth3D and enable Legacy Mode on line 64. Radar Off is the best IMO SkipDraw 3,3 or 3,4 and set Boundary to Normal.
+Radar One & Radar Two set SkipDraw to [4,4] , [4,5] or the values above and set Boundary to Third person. But, don't use Radar One or Two to many issues.
+https://wiki.pcsx2.net/Metal_Gear_Solid_2:_Sons_of_Liberty / https://wiki.pcsx2.net/Metal_Gear_Solid_2:_Substance <- Seems to be a Windows Version Too.
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM1    235.0    0.050   0.050        0.0     -200.00   Yes       4       Normal    0.800   1.000,0.876   0.000,-0.144     Alpha
+
+{Metal Gear Solid 3} - Optional too open SuperDepth3D and enable Legacy Mode on line 64. Since bluring seems not too strong. Make sure you follow the
+Fixes listed in the links below. Because of this you need Hardware Hacks Enabled.
+https://wiki.pcsx2.net/Metal_Gear_Solid_3:_Snake_Eater / https://wiki.pcsx2.net/Metal_Gear_Solid_3:_Subsistence
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM1    30000.   0.050   0.0375       0.0    0.0000025  Yes       4       Normal    130.0   1.000,0.876   0.000,-0.144   Try Them
+
+{Gran Turismo 3: A-Spec} - You need to use GSDX 3D Stereo build here. Too many issues with ReShade. I didn't test GSDX 3D so keep this in mind.
+https://forums.pcsx2.net/Thread-Gsdx-3D-Stereoscopy-Patch?pid=522990#pid522990 & https://github.com/pcsx2/pcsx2/issues/1461
+https://wiki.pcsx2.net/Gran_Turismo_3:_A-Spec
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ NC    DM1    100.0    0.050   0.050        0.0     -200.00   Yes       4       Normal    0.800   1.000,0.876   0.000,-0.144     Alpha
+
+{Gran Turismo 4} - I didn't test GSDX 3D so keep this in mind. ReShade and or GSDX kind of works with Enable HW Hacks with many issues.
+https://forums.pcsx2.net/Thread-Gsdx-3D-Stereoscopy-Patch?pid=522990#pid522990 & https://github.com/pcsx2/pcsx2/issues/1461
+https://wiki.pcsx2.net/Gran_Turismo_4 <- Need to read.
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ MI    DM1    100.0    0.050   0.050        0.0     -200.00   Yes       4       Normal    0.800   1.000,0.876   0.000,-0.144     Alpha
+    
+[CEMU]
+=============================================================================================================================================                   
+{The Legend of Zelda™: Breath of the Wild}
+
+[CI] [Depth] [Adjust] [ZPD & Sepration] [NearDepth] [Offset] [Flip] [Balance & Boundary] [HUD X] [Horz & Vert] [H&V Position] [View Mode]
+ SI    DM0     30.0    0.125  0.0625       0.075     0.000    No        3      Normal     0.000   0.000,0.000   0.000,0.000    You Pick
+_____________________________________________________________________________________________________________________________________________

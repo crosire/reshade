@@ -1,0 +1,7 @@
+#define fLUT_Name Sweet_Pink_MLUT
+#define fLUT_LutList " Avleen 01\0 Avleen 01_S\0 Avleen 02\0 Avleen 02_S\0 Avleen 03\0 Avleen 03_S\0 Avleen 04\0 Avleen 04_S\0 Avleen 05\0 Avleen 05_S\0 Avleen 06\0 Avleen 06_S\0 Avleen 07\0 Avleen 07_S\0 Avleen 08\0 Avleen 08_S\0 Avleen 09\0 Avleen 09_S\0 Avleen 10\0 Avleen 10_S\0 Cerys 01\0 Cerys 01_S\0 Cerys 02\0 Cerys 02_S\0 Cerys 03\0 Cerys 03_S\0 Cerys 04\0 Cerys 04_S\0 Cerys 05\0 Cerys 05_S\0 Cerys 06\0 Cerys 06_S\0 Cerys 07\0 Cerys 07_S\0 Cerys 08\0 Cerys 08_S\0 Cerys 09\0 Cerys 09_S\0 Cerys 10\0 Cerys 10_S\0 Chloe 01\0 Chloe 01_S\0 Chloe 02\0 Chloe 02_S\0 Chloe 03\0 Chloe 03_S\0 Chloe 04\0 Chloe 04_S\0 Chloe 05\0 Chloe 05_S\0 Chloe 06\0 Chloe 06_S\0 Chloe 07\0 Chloe 07_S\0 Chloe 08\0 Chloe 08_S\0 Chloe 09\0 Chloe 09_S\0 Chloe 10\0 Chloe 10_S\0 Inara 01\0 Inara 01_S\0 Inara 02\0 Inara 02_S\0 Inara 03\0 Inara 03_S\0 Inara 04\0 Inara 04_S\0 Inara 05\0 Inara 05_S\0 Inara 06\0 Inara 06_S\0 Inara 07\0 Inara 07_S\0 Inara 08\0 Inara 08_S\0 Inara 09\0 Inara 09_S\0 Inara 10\0 Inara 10_S\0 Jamelia 01\0 Jamelia 01_S\0 Jamelia 02\0 Jamelia 02_S\0 Jamelia 03\0 Jamelia 03_S\0 Jamelia 04\0 Jamelia 04_S\0 Jamelia 05\0 Jamelia 05_S\0 Jamelia 06\0 Jamelia 06_S\0 Jamelia 07\0 Jamelia 07_S\0 Jamelia 08\0 Jamelia 08_S\0 Jamelia 09\0 Jamelia 09_S\0 Jamelia 10\0 Jamelia 10_S\0"
+#define fLUT_TextureName "Sweet Pink MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"

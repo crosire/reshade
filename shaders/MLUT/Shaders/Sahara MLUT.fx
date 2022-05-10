@@ -1,0 +1,7 @@
+#define fLUT_Name Sahara_MLUT
+#define fLUT_LutList " Exploration 01\0 Exploration 01_S\0 Exploration 02\0 Exploration 02_S\0 Exploration 03\0 Exploration 03_S\0 Exploration 04\0 Exploration 04_S\0 Exploration 05\0 Exploration 05_S\0 Exploration 06\0 Exploration 06_S\0 Exploration 07\0 Exploration 07_S\0 Exploration 08\0 Exploration 08_S\0 Exploration 09\0 Exploration 09_S\0 Exploration 10\0 Exploration 10_S\0 Nomadic 01\0 Nomadic 01_S\0 Nomadic 02\0 Nomadic 02_S\0 Nomadic 03\0 Nomadic 03_S\0 Nomadic 04\0 Nomadic 04_S\0 Nomadic 05\0 Nomadic 05_S\0 Nomadic 06\0 Nomadic 06_S\0 Nomadic 07\0 Nomadic 07_S\0 Nomadic 08\0 Nomadic 08_S\0 Nomadic 09\0 Nomadic 09_S\0 Nomadic 10\0 Nomadic 10_S\0 Oasis 01\0 Oasis 01_S\0 Oasis 02\0 Oasis 02_S\0 Oasis 03\0 Oasis 03_S\0 Oasis 04\0 Oasis 04_S\0 Oasis 05\0 Oasis 05_S\0 Oasis 06\0 Oasis 06_S\0 Oasis 07\0 Oasis 07_S\0 Oasis 08\0 Oasis 08_S\0 Oasis 09\0 Oasis 09_S\0 Oasis 10\0 Oasis 10_S\0 Sand 01\0 Sand 01_S\0 Sand 02\0 Sand 02_S\0 Sand 03\0 Sand 03_S\0 Sand 04\0 Sand 04_S\0 Sand 05\0 Sand 05_S\0 Sand 06\0 Sand 06_S\0 Sand 07\0 Sand 07_S\0 Sand 08\0 Sand 08_S\0 Sand 09\0 Sand 09_S\0 Sand 10\0 Sand 10_S\0 Tribe 01\0 Tribe 01_S\0 Tribe 02\0 Tribe 02_S\0 Tribe 03\0 Tribe 03_S\0 Tribe 04\0 Tribe 04_S\0 Tribe 05\0 Tribe 05_S\0 Tribe 06\0 Tribe 06_S\0 Tribe 07\0 Tribe 07_S\0 Tribe 08\0 Tribe 08_S\0 Tribe 09\0 Tribe 09_S\0 Tribe 10\0 Tribe 10_S\0"
+#define fLUT_TextureName "Sahara MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"

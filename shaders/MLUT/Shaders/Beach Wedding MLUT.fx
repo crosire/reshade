@@ -1,0 +1,7 @@
+#define fLUT_Name Beach_Wedding_MLUT
+#define fLUT_LutList " BeachWeddingLUT#01\0 BeachWeddingLUT#02\0 BeachWeddingLUT#03\0 BeachWeddingLUT#04\0 BeachWeddingLUT#05\0 BeachWeddingLUT#06\0 BeachWeddingLUT#07\0 BeachWeddingLUT#08\0 BeachWeddingLUT#09\0 BeachWeddingLUT#10\0 BeachWeddingLUT#11\0 BeachWeddingLUT#12\0 BeachWeddingLUT#13\0 BeachWeddingLUT#14\0 BeachWeddingLUT#15\0 BeachWeddingLUT#16\0 BeachWeddingLUT#17\0 BeachWeddingLUT#18\0 BeachWeddingLUT#19\0 BeachWeddingLUT#20\0 BeachWeddingLUT#21\0 BeachWeddingLUT#22\0 BeachWeddingLUT#23\0 BeachWeddingLUT#24\0 BeachWeddingLUT#25\0 BeachWeddingLUT#26\0 BeachWeddingLUT#27\0 BeachWeddingLUT#28\0 BeachWeddingLUT#29\0 BeachWeddingLUT#30\0 BeachWeddingLUT#31\0 BeachWeddingLUT#32\0 BeachWeddingLUT#33\0 BeachWeddingLUT#34\0 BeachWeddingLUT#35\0 BeachWeddingLUT#36\0 BeachWeddingLUT#37\0 BeachWeddingLUT#38\0 BeachWeddingLUT#39\0 BeachWeddingLUT#40\0 BeachWeddingLUT#41\0 BeachWeddingLUT#42\0 BeachWeddingLUT#43\0 BeachWeddingLUT#44\0 BeachWeddingLUT#45\0 BeachWeddingLUT#46\0 BeachWeddingLUT#47\0 BeachWeddingLUT#48\0 BeachWeddingLUT#49\0 BeachWeddingLUT#50\0"
+#define fLUT_TextureName "Beach Wedding MLUT.png"
+#define fLUT_TileSizeXY 25
+#define fLUT_TileAmount 25
+#define fLUT_LutAmount 50
+#include "_BaseLUT.fxh"

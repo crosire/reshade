@@ -1,0 +1,7 @@
+#define fLUT_Name Sakura_Pink_MLUT
+#define fLUT_LutList " Bloom 01\0 Bloom 01_S\0 Bloom 02\0 Bloom 02_S\0 Bloom 03\0 Bloom 03_S\0 Bloom 04\0 Bloom 04_S\0 Bloom 05\0 Bloom 05_S\0 Bloom 06\0 Bloom 06_S\0 Bloom 07\0 Bloom 07_S\0 Bloom 08\0 Bloom 08_S\0 Bloom 09\0 Bloom 09_S\0 Bloom 10\0 Bloom 10_S\0 Cherry 01\0 Cherry 01_S\0 Cherry 02\0 Cherry 02_S\0 Cherry 03\0 Cherry 03_S\0 Cherry 04\0 Cherry 04_S\0 Cherry 05\0 Cherry 05_S\0 Cherry 06\0 Cherry 06_S\0 Cherry 07\0 Cherry 07_S\0 Cherry 08\0 Cherry 08_S\0 Cherry 09\0 Cherry 09_S\0 Cherry 10\0 Cherry 10_S\0 Floral 01\0 Floral 01_S\0 Floral 02\0 Floral 02_S\0 Floral 03\0 Floral 03_S\0 Floral 04\0 Floral 04_S\0 Floral 05\0 Floral 05_S\0 Floral 06\0 Floral 06_S\0 Floral 07\0 Floral 07_S\0 Floral 08\0 Floral 08_S\0 Floral 09\0 Floral 09_S\0 Floral 10\0 Floral 10_S\0 Pink 01\0 Pink 01_S\0 Pink 02\0 Pink 02_S\0 Pink 03\0 Pink 03_S\0 Pink 04\0 Pink 04_S\0 Pink 05\0 Pink 05_S\0 Pink 06\0 Pink 06_S\0 Pink 07\0 Pink 07_S\0 Pink 08\0 Pink 08_S\0 Pink 09\0 Pink 09_S\0 Pink 10\0 Pink 10_S\0 Spring 01\0 Spring 01_S\0 Spring 02\0 Spring 02_S\0 Spring 03\0 Spring 03_S\0 Spring 04\0 Spring 04_S\0 Spring 05\0 Spring 05_S\0 Spring 06\0 Spring 06_S\0 Spring 07\0 Spring 07_S\0 Spring 08\0 Spring 08_S\0 Spring 09\0 Spring 09_S\0 Spring 10\0 Spring 10_S\0"
+#define fLUT_TextureName "Sakura Pink MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"

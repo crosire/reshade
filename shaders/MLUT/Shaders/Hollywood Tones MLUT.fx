@@ -1,0 +1,7 @@
+#define fLUT_Name Hollywood_Tones_MLUT
+#define fLUT_LutList " Hollywood Tones LUT #1\0 Hollywood Tones LUT #10\0 Hollywood Tones LUT #11\0 Hollywood Tones LUT #12\0 Hollywood Tones LUT #13\0 Hollywood Tones LUT #14\0 Hollywood Tones LUT #15\0 Hollywood Tones LUT #16\0 Hollywood Tones LUT #17\0 Hollywood Tones LUT #18\0 Hollywood Tones LUT #19\0 Hollywood Tones LUT #2\0 Hollywood Tones LUT #20\0 Hollywood Tones LUT #21\0 Hollywood Tones LUT #22\0 Hollywood Tones LUT #23\0 Hollywood Tones LUT #24\0 Hollywood Tones LUT #25\0 Hollywood Tones LUT #26\0 Hollywood Tones LUT #27\0 Hollywood Tones LUT #28\0 Hollywood Tones LUT #29\0 Hollywood Tones LUT #3\0 Hollywood Tones LUT #30\0 Hollywood Tones LUT #31\0 Hollywood Tones LUT #32\0 Hollywood Tones LUT #33\0 Hollywood Tones LUT #34\0 Hollywood Tones LUT #35\0 Hollywood Tones LUT #36\0 Hollywood Tones LUT #37\0 Hollywood Tones LUT #38\0 Hollywood Tones LUT #39\0 Hollywood Tones LUT #4\0 Hollywood Tones LUT #40\0 Hollywood Tones LUT #41\0 Hollywood Tones LUT #42\0 Hollywood Tones LUT #43\0 Hollywood Tones LUT #44\0 Hollywood Tones LUT #45\0 Hollywood Tones LUT #46\0 Hollywood Tones LUT #47\0 Hollywood Tones LUT #48\0 Hollywood Tones LUT #49\0 Hollywood Tones LUT #5\0 Hollywood Tones LUT #50\0 Hollywood Tones LUT #6\0 Hollywood Tones LUT #7\0 Hollywood Tones LUT #8\0 Hollywood Tones LUT #9\0"
+#define fLUT_TextureName "Hollywood Tones MLUT.png"
+#define fLUT_TileSizeXY 25
+#define fLUT_TileAmount 25
+#define fLUT_LutAmount 50
+#include "_BaseLUT.fxh"

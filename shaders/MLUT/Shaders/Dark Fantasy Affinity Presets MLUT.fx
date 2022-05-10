@@ -1,0 +1,7 @@
+#define fLUT_Name Dark_Fantasy_Affinity_Presets_MLUT
+#define fLUT_LutList " Dark Fantasy Affinity Preset #01\0 Dark Fantasy Affinity Preset #02\0 Dark Fantasy Affinity Preset #03\0 Dark Fantasy Affinity Preset #04\0 Dark Fantasy Affinity Preset #05\0 Dark Fantasy Affinity Preset #06\0 Dark Fantasy Affinity Preset #07\0 Dark Fantasy Affinity Preset #08\0 Dark Fantasy Affinity Preset #09\0 Dark Fantasy Affinity Preset #10\0 Dark Fantasy Affinity Preset #11\0 Dark Fantasy Affinity Preset #12\0 Dark Fantasy Affinity Preset #13\0 Dark Fantasy Affinity Preset #14\0 Dark Fantasy Affinity Preset #15\0 Dark Fantasy Affinity Preset #16\0 Dark Fantasy Affinity Preset #17\0 Dark Fantasy Affinity Preset #18\0 Dark Fantasy Affinity Preset #19\0 Dark Fantasy Affinity Preset #20\0 Dark Fantasy Affinity Preset #21\0 Dark Fantasy Affinity Preset #22\0 Dark Fantasy Affinity Preset #23\0 Dark Fantasy Affinity Preset #24\0 Dark Fantasy Affinity Preset #25\0 Dark Fantasy Affinity Preset #26\0 Dark Fantasy Affinity Preset #27\0 Dark Fantasy Affinity Preset #28\0 Dark Fantasy Affinity Preset #29\0 Dark Fantasy Affinity Preset #30\0 Dark Fantasy Affinity Preset #31\0 Dark Fantasy Affinity Preset #32\0 Dark Fantasy Affinity Preset #33\0 Dark Fantasy Affinity Preset #34\0 Dark Fantasy Affinity Preset #35\0 Dark Fantasy Affinity Preset #36\0"
+#define fLUT_TextureName "Dark Fantasy Affinity Presets MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 36
+#include "_BaseLUT.fxh"

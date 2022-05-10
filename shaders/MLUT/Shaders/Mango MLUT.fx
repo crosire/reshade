@@ -1,0 +1,7 @@
+#define fLUT_Name Mango_MLUT
+#define fLUT_LutList " Alphonso 01\0 Alphonso 01_S\0 Alphonso 02\0 Alphonso 02_S\0 Alphonso 03\0 Alphonso 03_S\0 Alphonso 04\0 Alphonso 04_S\0 Alphonso 05\0 Alphonso 05_S\0 Alphonso 06\0 Alphonso 06_S\0 Alphonso 07\0 Alphonso 07_S\0 Alphonso 08\0 Alphonso 08_S\0 Alphonso 09\0 Alphonso 09_S\0 Alphonso 10\0 Alphonso 10_S\0 Green 01\0 Green 01_S\0 Green 02\0 Green 02_S\0 Green 03\0 Green 03_S\0 Green 04\0 Green 04_S\0 Green 05\0 Green 05_S\0 Green 06\0 Green 06_S\0 Green 07\0 Green 07_S\0 Green 08\0 Green 08_S\0 Green 09\0 Green 09_S\0 Green 10\0 Green 10_S\0 Haden 01\0 Haden 01_S\0 Haden 02\0 Haden 02_S\0 Haden 03\0 Haden 03_S\0 Haden 04\0 Haden 04_S\0 Haden 05\0 Haden 05_S\0 Haden 06\0 Haden 06_S\0 Haden 07\0 Haden 07_S\0 Haden 08\0 Haden 08_S\0 Haden 09\0 Haden 09_S\0 Haden 10\0 Haden 10_S\0 Kent 01\0 Kent 01_S\0 Kent 02\0 Kent 02_S\0 Kent 03\0 Kent 03_S\0 Kent 04\0 Kent 04_S\0 Kent 05\0 Kent 05_S\0 Kent 06\0 Kent 06_S\0 Kent 07\0 Kent 07_S\0 Kent 08\0 Kent 08_S\0 Kent 09\0 Kent 09_S\0 Kent 10\0 Kent 10_S\0 Vallenato 01\0 Vallenato 01_S\0 Vallenato 02\0 Vallenato 02_S\0 Vallenato 03\0 Vallenato 03_S\0 Vallenato 04\0 Vallenato 04_S\0 Vallenato 05\0 Vallenato 05_S\0 Vallenato 06\0 Vallenato 06_S\0 Vallenato 07\0 Vallenato 07_S\0 Vallenato 08\0 Vallenato 08_S\0 Vallenato 09\0 Vallenato 09_S\0 Vallenato 10\0 Vallenato 10_S\0"
+#define fLUT_TextureName "Mango MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"

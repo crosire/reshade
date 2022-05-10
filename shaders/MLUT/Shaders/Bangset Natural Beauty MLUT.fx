@@ -1,0 +1,7 @@
+#define fLUT_Name Bangset_Natural_Beauty_MLUT
+#define fLUT_LutList " Natural Beauty LUT #1\0 Natural Beauty LUT #10\0 Natural Beauty LUT #11\0 Natural Beauty LUT #12\0 Natural Beauty LUT #13\0 Natural Beauty LUT #14\0 Natural Beauty LUT #15\0 Natural Beauty LUT #16\0 Natural Beauty LUT #17\0 Natural Beauty LUT #18\0 Natural Beauty LUT #19\0 Natural Beauty LUT #2\0 Natural Beauty LUT #20\0 Natural Beauty LUT #21\0 Natural Beauty LUT #22\0 Natural Beauty LUT #23\0 Natural Beauty LUT #24\0 Natural Beauty LUT #25\0 Natural Beauty LUT #26\0 Natural Beauty LUT #27\0 Natural Beauty LUT #28\0 Natural Beauty LUT #29\0 Natural Beauty LUT #3\0 Natural Beauty LUT #30\0 Natural Beauty LUT #31\0 Natural Beauty LUT #32\0 Natural Beauty LUT #33\0 Natural Beauty LUT #34\0 Natural Beauty LUT #35\0 Natural Beauty LUT #36\0 Natural Beauty LUT #37\0 Natural Beauty LUT #38\0 Natural Beauty LUT #39\0 Natural Beauty LUT #4\0 Natural Beauty LUT #40\0 Natural Beauty LUT #41\0 Natural Beauty LUT #42\0 Natural Beauty LUT #43\0 Natural Beauty LUT #44\0 Natural Beauty LUT #45\0 Natural Beauty LUT #46\0 Natural Beauty LUT #47\0 Natural Beauty LUT #48\0 Natural Beauty LUT #49\0 Natural Beauty LUT #5\0 Natural Beauty LUT #50\0 Natural Beauty LUT #6\0 Natural Beauty LUT #7\0 Natural Beauty LUT #8\0 Natural Beauty LUT #9\0"
+#define fLUT_TextureName "Bangset Natural Beauty MLUT.png"
+#define fLUT_TileSizeXY 25
+#define fLUT_TileAmount 25
+#define fLUT_LutAmount 50
+#include "_BaseLUT.fxh"

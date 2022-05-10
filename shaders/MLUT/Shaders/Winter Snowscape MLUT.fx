@@ -1,0 +1,7 @@
+#define fLUT_Name Winter_Snowscape_MLUT
+#define fLUT_LutList "Blizzard01\0Blizzard01_S\0Blizzard02\0Blizzard02_S\0Blizzard03\0Blizzard03_S\0Blizzard04\0Blizzard04_S\0Blizzard05\0Blizzard05_S\0Blizzard06\0Blizzard06_S\0Blizzard07\0Blizzard07_S\0Blizzard08\0Blizzard08_S\0Blizzard09\0Blizzard09_S\0Blizzard10\0Blizzard10_S\0Brambling01\0Brambling01_S\0Brambling02\0Brambling02_S\0Brambling03\0Brambling03_S\0Brambling04\0Brambling04_S\0Brambling05\0Brambling05_S\0Brambling06\0Brambling06_S\0Brambling07\0Brambling07_S\0Brambling08\0Brambling08_S\0Brambling09\0Brambling09_S\0Brambling10\0Brambling10_S\0Crisp01\0Crisp01_S\0Crisp02\0Crisp02_S\0Crisp03\0Crisp03_S\0Crisp04\0Crisp04_S\0Crisp05\0Crisp05_S\0Crisp06\0Crisp06_S\0Crisp07\0Crisp07_S\0Crisp08\0Crisp08_S\0Crisp09\0Crisp09_S\0Crisp10\0Crisp10_S\0Hyacinth01\0Hyacinth01_S\0Hyacinth02\0Hyacinth02_S\0Hyacinth03\0Hyacinth03_S\0Hyacinth04\0Hyacinth04_S\0Hyacinth05\0Hyacinth05_S\0Hyacinth06\0Hyacinth06_S\0Hyacinth07\0Hyacinth07_S\0Hyacinth08\0Hyacinth08_S\0Hyacinth09\0Hyacinth09_S\0Hyacinth10\0Hyacinth10_S\0PureSnow01\0PureSnow01_S\0PureSnow02\0PureSnow02_S\0PureSnow03\0PureSnow03_S\0PureSnow04\0PureSnow04_S\0PureSnow05\0PureSnow05_S\0PureSnow06\0PureSnow06_S\0PureSnow07\0PureSnow07_S\0PureSnow08\0PureSnow08_S\0PureSnow09\0PureSnow09_S\0PureSnow10\0PureSnow10_S\0"
+#define fLUT_TextureName "Winter Snowscape MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"

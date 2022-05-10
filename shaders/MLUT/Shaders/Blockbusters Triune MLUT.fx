@@ -1,0 +1,7 @@
+#define fLUT_Name Blockbusters_Triune_MLUT
+#define fLUT_LutList " A Quiet Place (2018) - Standard\0 A Star is Born (2018) - Standard\0 Annihilation (2018) - Standard\0 Aquaman (2018) - Standard\0 Avengers Infinity War (2018) - Standard\0 Bad Times at the El Royale (2018) - Standard\0 Black Panther (2018) - Standard\0 Blade Runner 2049 (2017) - Standard\0 Blockbusters Triune.txt Crazy Rich Asians (2018) - Standard\0 Deadpool 2 (2018) - Standard\0 Fantastic Beasts The Crimes of Grindelwald (2018) - Standard\0 First Man (2018) - Standard\0 Halloween (2018) - Standard\0 Hereditary (2018) - Standard\0 Mandy (2018) - Standard\0 Mary Poppins Returns (2019) - Standard\0 Mission Impossible Fallout (2018) - Standard\0 Overlord (2018) - Standard\0 Ready Player One (2018) - Standard\0 Red Sparrow (2018) - Standard\0 Sicario Day of the Soldado (2018) - Standard\0 Solo (2018) - Standard\0 Sorry to Bother You (2018) - Standard\0 Suspiria (1977) - Standard\0 The Girl in the Spiders Web (2018) - Standard\0 The Nun (2018) - Standard\0 Venom (2018) - Standard\0"
+#define fLUT_TextureName "Blockbusters Triune MLUT.png"
+#define fLUT_TileSizeXY 33
+#define fLUT_TileAmount 33
+#define fLUT_LutAmount 27
+#include "_BaseLUT.fxh"

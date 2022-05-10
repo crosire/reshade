@@ -1,0 +1,7 @@
+#define fLUT_Name Vintage_Wedding_MLUT
+#define fLUT_LutList " VintageWeddingLUT#01\0 VintageWeddingLUT#02\0 VintageWeddingLUT#03\0 VintageWeddingLUT#04\0 VintageWeddingLUT#05\0 VintageWeddingLUT#06\0 VintageWeddingLUT#07\0 VintageWeddingLUT#08\0 VintageWeddingLUT#09\0 VintageWeddingLUT#10\0 VintageWeddingLUT#11\0 VintageWeddingLUT#12\0 VintageWeddingLUT#13\0 VintageWeddingLUT#14\0 VintageWeddingLUT#15\0 VintageWeddingLUT#16\0 VintageWeddingLUT#17\0 VintageWeddingLUT#18\0 VintageWeddingLUT#19\0 VintageWeddingLUT#20\0 VintageWeddingLUT#21\0 VintageWeddingLUT#22\0 VintageWeddingLUT#23\0 VintageWeddingLUT#24\0 VintageWeddingLUT#25\0 VintageWeddingLUT#26\0 VintageWeddingLUT#27\0 VintageWeddingLUT#28\0 VintageWeddingLUT#29\0 VintageWeddingLUT#30\0 VintageWeddingLUT#31\0 VintageWeddingLUT#32\0 VintageWeddingLUT#33\0 VintageWeddingLUT#34\0 VintageWeddingLUT#35\0 VintageWeddingLUT#36\0 VintageWeddingLUT#37\0 VintageWeddingLUT#38\0 VintageWeddingLUT#39\0 VintageWeddingLUT#40\0 VintageWeddingLUT#41\0 VintageWeddingLUT#42\0 VintageWeddingLUT#43\0 VintageWeddingLUT#44\0 VintageWeddingLUT#45\0 VintageWeddingLUT#46\0 VintageWeddingLUT#47\0 VintageWeddingLUT#48\0 VintageWeddingLUT#49\0 VintageWeddingLUT#50\0"
+#define fLUT_TextureName "Vintage Wedding MLUT.png"
+#define fLUT_TileSizeXY 25
+#define fLUT_TileAmount 25
+#define fLUT_LutAmount 50
+#include "_BaseLUT.fxh"

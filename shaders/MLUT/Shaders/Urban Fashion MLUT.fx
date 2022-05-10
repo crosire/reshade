@@ -1,0 +1,7 @@
+#define fLUT_Name Urban_Fashion_MLUT
+#define fLUT_LutList " Urban Fashion LUT #1\0 Urban Fashion LUT #10\0 Urban Fashion LUT #11\0 Urban Fashion LUT #12\0 Urban Fashion LUT #13\0 Urban Fashion LUT #14\0 Urban Fashion LUT #15\0 Urban Fashion LUT #16\0 Urban Fashion LUT #17\0 Urban Fashion LUT #18\0 Urban Fashion LUT #19\0 Urban Fashion LUT #2\0 Urban Fashion LUT #20\0 Urban Fashion LUT #21\0 Urban Fashion LUT #22\0 Urban Fashion LUT #23\0 Urban Fashion LUT #24\0 Urban Fashion LUT #25\0 Urban Fashion LUT #26\0 Urban Fashion LUT #27\0 Urban Fashion LUT #28\0 Urban Fashion LUT #29\0 Urban Fashion LUT #3\0 Urban Fashion LUT #30\0 Urban Fashion LUT #31\0 Urban Fashion LUT #32\0 Urban Fashion LUT #33\0 Urban Fashion LUT #34\0 Urban Fashion LUT #35\0 Urban Fashion LUT #36\0 Urban Fashion LUT #37\0 Urban Fashion LUT #38\0 Urban Fashion LUT #39\0 Urban Fashion LUT #4\0 Urban Fashion LUT #40\0 Urban Fashion LUT #41\0 Urban Fashion LUT #42\0 Urban Fashion LUT #43\0 Urban Fashion LUT #44\0 Urban Fashion LUT #45\0 Urban Fashion LUT #46\0 Urban Fashion LUT #47\0 Urban Fashion LUT #48\0 Urban Fashion LUT #49\0 Urban Fashion LUT #5\0 Urban Fashion LUT #50\0 Urban Fashion LUT #6\0 Urban Fashion LUT #7\0 Urban Fashion LUT #8\0 Urban Fashion LUT #9\0"
+#define fLUT_TextureName "Urban Fashion MLUT.png"
+#define fLUT_TileSizeXY 25
+#define fLUT_TileAmount 25
+#define fLUT_LutAmount 50
+#include "_BaseLUT.fxh"

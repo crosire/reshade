@@ -1,0 +1,7 @@
+#define fLUT_Name Mens_fashion_MLUT
+#define fLUT_LutList " Analog 01\0 Analog 01_S\0 Analog 02\0 Analog 02_S\0 Analog 03\0 Analog 03_S\0 Analog 04\0 Analog 04_S\0 Analog 05\0 Analog 05_S\0 Analog 06\0 Analog 06_S\0 Analog 07\0 Analog 07_S\0 Analog 08\0 Analog 08_S\0 Analog 09\0 Analog 09_S\0 Analog 10\0 Analog 10_S\0 Breathe 01\0 Breathe 01_S\0 Breathe 02\0 Breathe 02_S\0 Breathe 03\0 Breathe 03_S\0 Breathe 04\0 Breathe 04_S\0 Breathe 05\0 Breathe 05_S\0 Breathe 06\0 Breathe 06_S\0 Breathe 07\0 Breathe 07_S\0 Breathe 08\0 Breathe 08_S\0 Breathe 09\0 Breathe 09_S\0 Breathe 10\0 Breathe 10_S\0 Copper 01\0 Copper 01_S\0 Copper 02\0 Copper 02_S\0 Copper 03\0 Copper 03_S\0 Copper 04\0 Copper 04_S\0 Copper 05\0 Copper 05_S\0 Copper 06\0 Copper 06_S\0 Copper 07\0 Copper 07_S\0 Copper 08\0 Copper 08_S\0 Copper 09\0 Copper 09_S\0 Copper 10\0 Copper 10_S\0 Crema 01\0 Crema 01_S\0 Crema 02\0 Crema 02_S\0 Crema 03\0 Crema 03_S\0 Crema 04\0 Crema 04_S\0 Crema 05\0 Crema 05_S\0 Crema 06\0 Crema 06_S\0 Crema 07\0 Crema 07_S\0 Crema 08\0 Crema 08_S\0 Crema 09\0 Crema 09_S\0 Crema 10\0 Crema 10_S\0 Vintage 01\0 Vintage 01_S\0 Vintage 02\0 Vintage 02_S\0 Vintage 03\0 Vintage 03_S\0 Vintage 04\0 Vintage 04_S\0 Vintage 05\0 Vintage 05_S\0 Vintage 06\0 Vintage 06_S\0 Vintage 07\0 Vintage 07_S\0 Vintage 08\0 Vintage 08_S\0 Vintage 09\0 Vintage 09_S\0 Vintage 10\0 Vintage 10_S\0"
+#define fLUT_TextureName "Mens Fashion MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"

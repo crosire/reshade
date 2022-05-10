@@ -1,0 +1,7 @@
+#define fLUT_Name Slide_Color_MLUT
+#define fLUT_LutList "agfa_precisa_100\0fuji_astia_100f\0fuji_fp_100c\0fuji_provia_100f\0fuji_provia_400f\0fuji_provia_400x\0fuji_sensia_100\0fuji_superia_200_xpro\0fuji_velvia_50\0generic_fuji_astia_100\0generic_fuji_provia_100\0generic_fuji_velvia_100\0generic_kodachrome_64\0generic_kodak_ektachrome_100_vs\0kodak_e-100_gx_ektachrome_100\0kodak_ektachrome_100_vs\0kodak_elite_chrome_200\0kodak_elite_chrome_400\0kodak_elite_extracolor_100\0kodak_kodachrome_200\0kodak_kodachrome_25\0kodak_kodachrome_64\0lomography_x-pro_slide_200\0polaroid_669\0polaroid_690\0polaroid_polachrome\0"
+#define fLUT_TextureName "Slide Color MLUT.png"
+#define fLUT_TileSizeXY 64
+#define fLUT_TileAmount 64
+#define fLUT_LutAmount 26
+#include "_BaseLUT.fxh"

@@ -1,0 +1,7 @@
+#define fLUT_Name Cross_Process_MLUT
+#define fLUT_LutList " Grape 01\0 Grape 01_S\0 Grape 02\0 Grape 02_S\0 Grape 03\0 Grape 03_S\0 Grape 04\0 Grape 04_S\0 Grape 05\0 Grape 05_S\0 Grape 06\0 Grape 06_S\0 Grape 07\0 Grape 07_S\0 Grape 08\0 Grape 08_S\0 Grape 09\0 Grape 09_S\0 Grape 10\0 Grape 10_S\0 Maroon 01\0 Maroon 01_S\0 Maroon 02\0 Maroon 02_S\0 Maroon 03\0 Maroon 03_S\0 Maroon 04\0 Maroon 04_S\0 Maroon 05\0 Maroon 05_S\0 Maroon 06\0 Maroon 06_S\0 Maroon 07\0 Maroon 07_S\0 Maroon 08\0 Maroon 08_S\0 Maroon 09\0 Maroon 09_S\0 Maroon 10\0 Maroon 10_S\0 Midnight 01\0 Midnight 01_S\0 Midnight 02\0 Midnight 02_S\0 Midnight 03\0 Midnight 03_S\0 Midnight 04\0 Midnight 04_S\0 Midnight 05\0 Midnight 05_S\0 Midnight 06\0 Midnight 06_S\0 Midnight 07\0 Midnight 07_S\0 Midnight 08\0 Midnight 08_S\0 Midnight 09\0 Midnight 09_S\0 Midnight 10\0 Midnight 10_S\0 Pine 01\0 Pine 01_S\0 Pine 02\0 Pine 02_S\0 Pine 03\0 Pine 03_S\0 Pine 04\0 Pine 04_S\0 Pine 05\0 Pine 05_S\0 Pine 06\0 Pine 06_S\0 Pine 07\0 Pine 07_S\0 Pine 08\0 Pine 08_S\0 Pine 09\0 Pine 09_S\0 Pine 10\0 Pine 10_S\0 Turquoise 01\0 Turquoise 01_S\0 Turquoise 02\0 Turquoise 02_S\0 Turquoise 03\0 Turquoise 03_S\0 Turquoise 04\0 Turquoise 04_S\0 Turquoise 05\0 Turquoise 05_S\0 Turquoise 06\0 Turquoise 06_S\0 Turquoise 07\0 Turquoise 07_S\0 Turquoise 08\0 Turquoise 08_S\0 Turquoise 09\0 Turquoise 09_S\0 Turquoise 10\0 Turquoise 10_S\0"
+#define fLUT_TextureName "Cross Process MLUT.png"
+#define fLUT_TileSizeXY 32
+#define fLUT_TileAmount 32
+#define fLUT_LutAmount 100
+#include "_BaseLUT.fxh"
