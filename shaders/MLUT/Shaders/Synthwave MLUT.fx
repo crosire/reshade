@@ -1,7 +1,0 @@
-#define fLUT_Name Synthwave_MLUT
-#define fLUT_LutList "Synthwave Preset #1\0 Synthwave Preset #10\0 Synthwave Preset #11\0 Synthwave Preset #12\0 Synthwave Preset #13\0 Synthwave Preset #14\0 Synthwave Preset #15\0 Synthwave Preset #16\0 Synthwave Preset #17\0 Synthwave Preset #18\0 Synthwave Preset #19\0 Synthwave Preset #2\0 Synthwave Preset #20\0 Synthwave Preset #21\0 Synthwave Preset #22\0 Synthwave Preset #23\0 Synthwave Preset #24\0 Synthwave Preset #25\0 Synthwave Preset #26\0 Synthwave Preset #27\0 Synthwave Preset #28\0 Synthwave Preset #29\0 Synthwave Preset #3\0 Synthwave Preset #30\0 Synthwave Preset #31\0 Synthwave Preset #32\0 Synthwave Preset #33\0 Synthwave Preset #34\0 Synthwave Preset #35\0 Synthwave Preset #36\0 Synthwave Preset #37\0 Synthwave Preset #38\0 Synthwave Preset #39\0 Synthwave Preset #4\0 Synthwave Preset #40\0 Synthwave Preset #41\0 Synthwave Preset #42\0 Synthwave Preset #43\0 Synthwave Preset #44\0 Synthwave Preset #45\0 Synthwave Preset #46\0 Synthwave Preset #47\0 Synthwave Preset #48\0 Synthwave Preset #49\0 Synthwave Preset #5\0 Synthwave Preset #50\0 Synthwave Preset #6\0 Synthwave Preset #7\0 Synthwave Preset #8\0 Synthwave Preset #9\0"
-#define fLUT_TextureName "Synthwave MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 50
-#include "_BaseLUT.fxh"

@@ -1,7 +1,0 @@
-#define fLUT_Name PictureFX_MLUT
-#define fLUT_LutList "analogfx_anno_1870_color\0analogfx_old_style_i\0analogfx_old_style_ii\0analogfx_old_style_iii\0analogfx_sepia_color\0analogfx_soft_sepia_i\0analogfx_soft_sepia_ii\0goldfx_bright_spring_breeze\0goldfx_bright_summer_heat\0goldfx_hot_summer_heat\0goldfx_perfect_sunset_01min\0goldfx_perfect_sunset_05min\0goldfx_perfect_sunset_10min\0goldfx_spring_breeze\0goldfx_summer_heat\0technicalfx_backlight_filter\0zilverfx_b_w_solarization\0zilverfx_infrared\0zilverfx_vintage_b_w\0"
-#define fLUT_TextureName "PictureFX MLUT.png"
-#define fLUT_TileSizeXY 64
-#define fLUT_TileAmount 64
-#define fLUT_LutAmount 19
-#include "_BaseLUT.fxh"

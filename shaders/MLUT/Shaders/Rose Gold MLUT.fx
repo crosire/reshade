@@ -1,7 +1,0 @@
-#define fLUT_Name Rose_Gold_MLUT
-#define fLUT_LutList " Kors 01\0 Kors 01_S\0 Kors 02\0 Kors 02_S\0 Kors 03\0 Kors 03_S\0 Kors 04\0 Kors 04_S\0 Kors 05\0 Kors 05_S\0 Kors 06\0 Kors 06_S\0 Kors 07\0 Kors 07_S\0 Kors 08\0 Kors 08_S\0 Kors 09\0 Kors 09_S\0 Kors 10\0 Kors 10_S\0 Lily 01\0 Lily 01_S\0 Lily 02\0 Lily 02_S\0 Lily 03\0 Lily 03_S\0 Lily 04\0 Lily 04_S\0 Lily 05\0 Lily 05_S\0 Lily 06\0 Lily 06_S\0 Lily 07\0 Lily 07_S\0 Lily 08\0 Lily 08_S\0 Lily 09\0 Lily 09_S\0 Lily 10\0 Lily 10_S\0 Melrose 01\0 Melrose 01_S\0 Melrose 02\0 Melrose 02_S\0 Melrose 03\0 Melrose 03_S\0 Melrose 04\0 Melrose 04_S\0 Melrose 05\0 Melrose 05_S\0 Melrose 06\0 Melrose 06_S\0 Melrose 07\0 Melrose 07_S\0 Melrose 08\0 Melrose 08_S\0 Melrose 09\0 Melrose 09_S\0 Melrose 10\0 Melrose 10_S\0 Nixon 01\0 Nixon 01_S\0 Nixon 02\0 Nixon 02_S\0 Nixon 03\0 Nixon 03_S\0 Nixon 04\0 Nixon 04_S\0 Nixon 05\0 Nixon 05_S\0 Nixon 06\0 Nixon 06_S\0 Nixon 07\0 Nixon 07_S\0 Nixon 08\0 Nixon 08_S\0 Nixon 09\0 Nixon 09_S\0 Nixon 10\0 Nixon 10_S\0 Olivia 01\0 Olivia 01_S\0 Olivia 02\0 Olivia 02_S\0 Olivia 03\0 Olivia 03_S\0 Olivia 04\0 Olivia 04_S\0 Olivia 05\0 Olivia 05_S\0 Olivia 06\0 Olivia 06_S\0 Olivia 07\0 Olivia 07_S\0 Olivia 08\0 Olivia 08_S\0 Olivia 09\0 Olivia 09_S\0 Olivia 10\0 Olivia 10_S\0"
-#define fLUT_TextureName "Rose Gold MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 100
-#include "_BaseLUT.fxh"

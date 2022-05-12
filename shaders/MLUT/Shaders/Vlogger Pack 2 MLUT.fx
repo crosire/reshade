@@ -1,7 +1,0 @@
-#define fLUT_Name Vlogger_Pack_2_MLUT
-#define fLUT_LutList " Vlogger 3 Vol.14\0 Vlogger 3 Vol.15\0 Vlogger 3 Vol.16\0 Vlogger 3 Vol.17\0 Vlogger 3 Vol.18\0 Vlogger 3 Vol.19\0 Vlogger 3 Vol.20\0 Vlogger 3 Vol.21\0 Vlogger 3 Vol.22\0 Vlogger 3 Vol.23\0 Vlogger 3 Vol.24\0 Vlogger 3 Vol.25\0 Vlogger 3 Vol.26\0 Vlogger 3 Vol.27\0 Vlogger 4 Vol.1\0 Vlogger 4 Vol.10\0 Vlogger 4 Vol.11\0 Vlogger 4 Vol.12\0 Vlogger 4 Vol.13\0 Vlogger 4 Vol.14\0 Vlogger 4 Vol.15\0 Vlogger 4 Vol.16\0 Vlogger 4 Vol.17\0 Vlogger 4 Vol.18\0 Vlogger 4 Vol.19\0 Vlogger 4 Vol.2\0 Vlogger 4 Vol.20\0 Vlogger 4 Vol.21\0 Vlogger 4 Vol.22\0 Vlogger 4 Vol.23\0 Vlogger 4 Vol.24\0 Vlogger 4 Vol.25\0 Vlogger 4 Vol.26\0 Vlogger 4 Vol.27\0 Vlogger 4 Vol.3\0 Vlogger 4 Vol.4\0 Vlogger 4 Vol.5\0 Vlogger 4 Vol.6\0 Vlogger 4 Vol.7\0 Vlogger 4 Vol.8\0 Vlogger 4 Vol.9\0 Vlogger 5 Vol.1\0 Vlogger 5 Vol.10\0 Vlogger 5 Vol.11\0 Vlogger 5 Vol.12\0 Vlogger 5 Vol.13\0 Vlogger 5 Vol.14\0 Vlogger 5 Vol.15\0 Vlogger 5 Vol.16\0 Vlogger 5 Vol.17\0 Vlogger 5 Vol.18\0 Vlogger 5 Vol.19\0 Vlogger 5 Vol.2\0 Vlogger 5 Vol.20\0 Vlogger 5 Vol.21\0 Vlogger 5 Vol.22\0 Vlogger 5 Vol.23\0 Vlogger 5 Vol.24\0 Vlogger 5 Vol.25\0 Vlogger 5 Vol.26\0 Vlogger 5 Vol.27\0 Vlogger 5 Vol.3\0 Vlogger 5 Vol.4\0 Vlogger 5 Vol.5\0 Vlogger 5 Vol.6\0 Vlogger 5 Vol.7\0 Vlogger 5 Vol.8\0 Vlogger 5 Vol.9\0"
-#define fLUT_TextureName "Vlogger Pack 2 MLUT.png"
-#define fLUT_TileSizeXY 64
-#define fLUT_TileAmount 64
-#define fLUT_LutAmount 68
-#include "_BaseLUT.fxh"

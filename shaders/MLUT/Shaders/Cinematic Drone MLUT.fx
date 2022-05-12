@@ -1,7 +1,0 @@
-#define fLUT_Name Cinematic_Drone_MLUT
-#define fLUT_LutList " Cinematic Drone LUT #1\0 Cinematic Drone LUT #10\0 Cinematic Drone LUT #11\0 Cinematic Drone LUT #12\0 Cinematic Drone LUT #13\0 Cinematic Drone LUT #14\0 Cinematic Drone LUT #15\0 Cinematic Drone LUT #16\0 Cinematic Drone LUT #17\0 Cinematic Drone LUT #18\0 Cinematic Drone LUT #19\0 Cinematic Drone LUT #2\0 Cinematic Drone LUT #20\0 Cinematic Drone LUT #21\0 Cinematic Drone LUT #22\0 Cinematic Drone LUT #23\0 Cinematic Drone LUT #24\0 Cinematic Drone LUT #25\0 Cinematic Drone LUT #26\0 Cinematic Drone LUT #27\0 Cinematic Drone LUT #28\0 Cinematic Drone LUT #29\0 Cinematic Drone LUT #3\0 Cinematic Drone LUT #30\0 Cinematic Drone LUT #31\0 Cinematic Drone LUT #32\0 Cinematic Drone LUT #33\0 Cinematic Drone LUT #34\0 Cinematic Drone LUT #35\0 Cinematic Drone LUT #36\0 Cinematic Drone LUT #37\0 Cinematic Drone LUT #38\0 Cinematic Drone LUT #39\0 Cinematic Drone LUT #4\0 Cinematic Drone LUT #40\0 Cinematic Drone LUT #41\0 Cinematic Drone LUT #42\0 Cinematic Drone LUT #43\0 Cinematic Drone LUT #44\0 Cinematic Drone LUT #45\0 Cinematic Drone LUT #46\0 Cinematic Drone LUT #47\0 Cinematic Drone LUT #48\0 Cinematic Drone LUT #49\0 Cinematic Drone LUT #5\0 Cinematic Drone LUT #50\0 Cinematic Drone LUT #6\0 Cinematic Drone LUT #7\0 Cinematic Drone LUT #8\0 Cinematic Drone LUT #9\0"
-#define fLUT_TextureName "Cinematic Drone MLUT.png"
-#define fLUT_TileSizeXY 25
-#define fLUT_TileAmount 25
-#define fLUT_LutAmount 50
-#include "_BaseLUT.fxh"

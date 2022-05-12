@@ -1,7 +1,0 @@
-#define fLUT_Name Lifestyle_Bloggers_MLUT
-#define fLUT_LutList " Airy 01\0 Airy 01_S\0 Airy 02\0 Airy 02_S\0 Airy 03\0 Airy 03_S\0 Airy 04\0 Airy 04_S\0 Airy 05\0 Airy 05_S\0 Airy 06\0 Airy 06_S\0 Airy 07\0 Airy 07_S\0 Airy 08\0 Airy 08_S\0 Airy 09\0 Airy 09_S\0 Airy 10\0 Airy 10_S\0 Clean 01\0 Clean 01_S\0 Clean 02\0 Clean 02_S\0 Clean 03\0 Clean 03_S\0 Clean 04\0 Clean 04_S\0 Clean 05\0 Clean 05_S\0 Clean 06\0 Clean 06_S\0 Clean 07\0 Clean 07_S\0 Clean 08\0 Clean 08_S\0 Clean 09\0 Clean 09_S\0 Clean 10\0 Clean 10_S\0 Gold 01\0 Gold 01_S\0 Gold 02\0 Gold 02_S\0 Gold 03\0 Gold 03_S\0 Gold 04\0 Gold 04_S\0 Gold 05\0 Gold 05_S\0 Gold 06\0 Gold 06_S\0 Gold 07\0 Gold 07_S\0 Gold 08\0 Gold 08_S\0 Gold 09\0 Gold 09_S\0 Gold 10\0 Gold 10_S\0 Insta 01\0 Insta 01_S\0 Insta 02\0 Insta 02_S\0 Insta 03\0 Insta 03_S\0 Insta 04\0 Insta 04_S\0 Insta 05\0 Insta 05_S\0 Insta 06\0 Insta 06_S\0 Insta 07\0 Insta 07_S\0 Insta 08\0 Insta 08_S\0 Insta 09\0 Insta 09_S\0 Insta 10\0 Insta 10_S\0 Summer 01\0 Summer 01_S\0 Summer 02\0 Summer 02_S\0 Summer 03\0 Summer 03_S\0 Summer 04\0 Summer 04_S\0 Summer 05\0 Summer 05_S\0 Summer 06\0 Summer 06_S\0 Summer 07\0 Summer 07_S\0 Summer 08\0 Summer 08_S\0 Summer 09\0 Summer 09_S\0 Summer 10\0 Summer 10_S\0"
-#define fLUT_TextureName "Lifestyle Bloggers MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 100
-#include "_BaseLUT.fxh"

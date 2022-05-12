@@ -1,7 +1,0 @@
-#define fLUT_Name Desaturated_City_MLUT
-#define fLUT_LutList "Arrival 01\0Arrival 01_S\0Arrival 02\0Arrival 02_s\0Arrival 03\0Arrival 03_s\0Arrival 04\0Arrival 04_S\0Arrival 05\0Arrival 05_S\0Arrival 06\0Arrival 06_S\0Arrival 07\0Arrival 07_S\0Arrival 08\0Arrival 08_S\0Arrival 09\0Arrival 09_S\0Arrival 10\0Arrival 10_S\0Flame 01\0Flame 01_S\0Flame 02\0Flame 02_S\0Flame 03\0Flame 03_S\0Flame 04\0Flame 04_S\0Flame 05\0Flame 05_S\0Flame 06\0Flame 06_S\0Flame 07\0Flame 07_S\0Flame 08\0Flame 08_S\0Flame 09\0Flame 09_S\0Flame 10\0Flame 10_S\0Gold 01\0Gold 01_S\0Gold 02\0Gold 02_S\0Gold 03\0Gold 03_S\0Gold 04\0Gold 05\0Gold 05_S\0Gold 06\0Gold 06_S\0Gold 07\0Gold 07_S\0Gold 08\0Gold 08_S\0Gold 09\0Gold 09_S\0Gold 10\0Gold 10_S\0Nocturne 01\0Nocturne 01_S\0Nocturne 02\0Nocturne 02_S\0Nocturne 03\0Nocturne 03_S\0Nocturne 04\0Nocturne 04_S\0Nocturne 05\0Nocturne 05_S\0Nocturne 06\0Nocturne 06_S\0Nocturne 07\0Nocturne 07_S\0Nocturne 08\0Nocturne 08_S\0Nocturne 09\0Nocturne 09_S\0Nocturne 10\0Nocturne 10_S\0Turbowave 01\0Turbowave 01_S\0Turbowave 02\0Turbowave 02_S\0Turbowave 03\0Turbowave 03_S\0Turbowave 04\0Turbowave 04_S\0Turbowave 05\0Turbowave 05_S\0Turbowave 06\0Turbowave 06_S\0Turbowave 07\0Turbowave 07_S\0Turbowave 08\0Turbowave 08_S\0Turbowave 09\0Turbowave 09_S\0Turbowave 10\0Turbowave 10_S"
-#define fLUT_TextureName "Desaturated City MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 99
-#include "_BaseLUT.fxh"

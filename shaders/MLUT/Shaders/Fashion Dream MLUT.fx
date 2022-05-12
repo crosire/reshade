@@ -1,7 +1,0 @@
-#define fLUT_Name Fashion_Dream_MLUT
-#define fLUT_LutList " Fashion Dream LUT #1\0 Fashion Dream LUT #10\0 Fashion Dream LUT #11\0 Fashion Dream LUT #12\0 Fashion Dream LUT #13\0 Fashion Dream LUT #14\0 Fashion Dream LUT #15\0 Fashion Dream LUT #16\0 Fashion Dream LUT #17\0 Fashion Dream LUT #18\0 Fashion Dream LUT #19\0 Fashion Dream LUT #2\0 Fashion Dream LUT #20\0 Fashion Dream LUT #21\0 Fashion Dream LUT #22\0 Fashion Dream LUT #23\0 Fashion Dream LUT #24\0 Fashion Dream LUT #25\0 Fashion Dream LUT #26\0 Fashion Dream LUT #27\0 Fashion Dream LUT #28\0 Fashion Dream LUT #29\0 Fashion Dream LUT #3\0 Fashion Dream LUT #30\0 Fashion Dream LUT #31\0 Fashion Dream LUT #32\0 Fashion Dream LUT #33\0 Fashion Dream LUT #34\0 Fashion Dream LUT #35\0 Fashion Dream LUT #36\0 Fashion Dream LUT #37\0 Fashion Dream LUT #38\0 Fashion Dream LUT #39\0 Fashion Dream LUT #4\0 Fashion Dream LUT #40\0 Fashion Dream LUT #41\0 Fashion Dream LUT #42\0 Fashion Dream LUT #43\0 Fashion Dream LUT #44\0 Fashion Dream LUT #45\0 Fashion Dream LUT #46\0 Fashion Dream LUT #47\0 Fashion Dream LUT #48\0 Fashion Dream LUT #49\0 Fashion Dream LUT #5\0 Fashion Dream LUT #50\0 Fashion Dream LUT #6\0 Fashion Dream LUT #7\0 Fashion Dream LUT #8\0 Fashion Dream LUT #9\0"
-#define fLUT_TextureName "Fashion Dream MLUT.png"
-#define fLUT_TileSizeXY 25
-#define fLUT_TileAmount 25
-#define fLUT_LutAmount 50
-#include "_BaseLUT.fxh"

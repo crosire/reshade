@@ -1,7 +1,0 @@
-#define fLUT_Name Moody_Affinity_Presets_2_MLUT
-#define fLUT_LutList " Modern Film 100\0 Modern Film 101\0 Modern Film 102\0 Modern Film 103\0 Modern Film 104\0 Modern Film 105\0 Modern Film 106\0 Modern Film 107\0 Modern Film 108\0 Modern Film 109\0 Modern Film 110\0 Modern Film 111\0 Modern Film 112\0 Modern Film 113\0 Modern Film 114\0 Modern Film 115\0 Modern Film 116\0 Modern Film 117\0 Modern Film 118\0 Modern Film 119\0 Modern Film 120\0 Modern Film 121\0 Modern Film 122\0 Modern Film 123\0 Modern Film 124\0 Modern Film 125\0 Modern Film 126\0 Modern Film 127\0 Modern Film 128\0 Modern Film 129\0 Modern Film 130\0 Modern Film 131\0 Modern Film 132\0 Modern Film 133\0 Modern Film 134\0 Modern Film 135\0 Modern Film 136\0 Modern Film 137\0 Modern Film 138\0 Modern Film 139\0 Modern Film 140\0 Modern Film 141\0 Modern Film 142\0 Modern Film 143\0 Modern Film 144\0 Modern Film 145\0 Modern Film 146\0 Modern Film 147\0 Modern Film 148\0 Modern Film 149\0 Modern Film 76\0 Modern Film 77\0 Modern Film 78\0 Modern Film 79\0 Modern Film 80\0 Modern Film 81\0 Modern Film 82\0 Modern Film 83\0 Modern Film 84\0 Modern Film 85\0 Modern Film 86\0 Modern Film 87\0 Modern Film 88\0 Modern Film 89\0 Modern Film 90\0 Modern Film 91\0 Modern Film 92\0 Modern Film 93\0 Modern Film 94\0 Modern Film 95\0 Modern Film 96\0 Modern Film 97\0 Modern Film 98\0 Modern Film 99\0"
-#define fLUT_TextureName "Moody Affinity Presets 2 MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 74
-#include "_BaseLUT.fxh"

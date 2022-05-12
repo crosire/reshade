@@ -1,7 +1,0 @@
-#define fLUT_Name Instant_Photo_MLUT
-#define fLUT_LutList " Acatia 01\0 Acatia 01_S\0 Acatia 02\0 Acatia 02_S\0 Acatia 03\0 Acatia 03_S\0 Acatia 04\0 Acatia 04_S\0 Acatia 05\0 Acatia 05_S\0 Acatia 06\0 Acatia 06_S\0 Acatia 07\0 Acatia 07_S\0 Acatia 08\0 Acatia 08_S\0 Acatia 09\0 Acatia 09_S\0 Acatia 10\0 Acatia 10_S\0 Elvia 01\0 Elvia 01_S\0 Elvia 02\0 Elvia 02_S\0 Elvia 03\0 Elvia 03_S\0 Elvia 04\0 Elvia 04_S\0 Elvia 05\0 Elvia 05_S\0 Elvia 06\0 Elvia 06_S\0 Elvia 07\0 Elvia 07_S\0 Elvia 08\0 Elvia 08_S\0 Elvia 09\0 Elvia 09_S\0 Elvia 10\0 Elvia 10_S\0 Lalia 01\0 Lalia 01_S\0 Lalia 02\0 Lalia 02_S\0 Lalia 03\0 Lalia 03_S\0 Lalia 04\0 Lalia 04_S\0 Lalia 05\0 Lalia 05_S\0 Lalia 06\0 Lalia 06_S\0 Lalia 07\0 Lalia 07_S\0 Lalia 08\0 Lalia 08_S\0 Lalia 09\0 Lalia 09_S\0 Lalia 10\0 Lalia 10_S\0 Nuria 01\0 Nuria 01_S\0 Nuria 02\0 Nuria 02_S\0 Nuria 03\0 Nuria 03_S\0 Nuria 04\0 Nuria 04_S\0 Nuria 05\0 Nuria 05_S\0 Nuria 06\0 Nuria 06_S\0 Nuria 07\0 Nuria 07_S\0 Nuria 08\0 Nuria 08_S\0 Nuria 09\0 Nuria 09_S\0 Nuria 10\0 Nuria 10_S\0 Vallia 01\0 Vallia 01_S\0 Vallia 02\0 Vallia 02_S\0 Vallia 03\0 Vallia 03_S\0 Vallia 04\0 Vallia 04_S\0 Vallia 05\0 Vallia 05_S\0 Vallia 06\0 Vallia 06_S\0 Vallia 07\0 Vallia 07_S\0 Vallia 08\0 Vallia 08_S\0 Vallia 09\0 Vallia 09_S\0 Vallia 10\0 Vallia 10_S\0"
-#define fLUT_TextureName "Instant Photo MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 100
-#include "_BaseLUT.fxh"

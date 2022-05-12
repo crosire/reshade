@@ -1,7 +1,0 @@
-#define fLUT_Name Tumeric_Yellow_MLUT
-#define fLUT_LutList " Curcumin 01\0 Curcumin 01_S\0 Curcumin 02\0 Curcumin 02_S\0 Curcumin 03\0 Curcumin 03_S\0 Curcumin 04\0 Curcumin 04_S\0 Curcumin 05\0 Curcumin 05_S\0 Curcumin 06\0 Curcumin 06_S\0 Curcumin 07\0 Curcumin 07_S\0 Curcumin 08\0 Curcumin 08_S\0 Curcumin 09\0 Curcumin 09_S\0 Curcumin 10\0 Curcumin 10_S\0 Ginger 01\0 Ginger 01_S\0 Ginger 02\0 Ginger 02_S\0 Ginger 03\0 Ginger 03_S\0 Ginger 04\0 Ginger 04_S\0 Ginger 05\0 Ginger 05_S\0 Ginger 06\0 Ginger 06_S\0 Ginger 07\0 Ginger 07_S\0 Ginger 08\0 Ginger 08_S\0 Ginger 09\0 Ginger 09_S\0 Ginger 10\0 Ginger 10_S\0 Lemon 01\0 Lemon 01_S\0 Lemon 02\0 Lemon 02_S\0 Lemon 03\0 Lemon 03_S\0 Lemon 04\0 Lemon 04_S\0 Lemon 05\0 Lemon 05_S\0 Lemon 06\0 Lemon 06_S\0 Lemon 07\0 Lemon 07_S\0 Lemon 08\0 Lemon 08_S\0 Lemon 09\0 Lemon 09_S\0 Lemon 10\0 Lemon 10_S\0 Milk 01\0 Milk 01_S\0 Milk 02\0 Milk 02_S\0 Milk 03\0 Milk 03_S\0 Milk 04\0 Milk 04_S\0 Milk 05\0 Milk 05_S\0 Milk 06\0 Milk 06_S\0 Milk 07\0 Milk 07_S\0 Milk 08\0 Milk 08_S\0 Milk 09\0 Milk 09_S\0 Milk 10\0 Milk 10_S\0 Root 01\0 Root 01_S\0 Root 02\0 Root 02_S\0 Root 03\0 Root 03_S\0 Root 04\0 Root 04_S\0 Root 05\0 Root 05_S\0 Root 06\0 Root 06_S\0 Root 07\0 Root 07_S\0 Root 08\0 Root 08_S\0 Root 09\0 Root 09_S\0 Root 10\0 Root 10_S\0"
-#define fLUT_TextureName "Tumeric Yellow MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 100
-#include "_BaseLUT.fxh"

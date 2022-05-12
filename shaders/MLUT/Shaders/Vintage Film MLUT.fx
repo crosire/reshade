@@ -1,7 +1,0 @@
-#define fLUT_Name Vintage_Film_MLUT
-#define fLUT_LutList "Vintage Film Preset #1\0 Vintage Film Preset #10\0 Vintage Film Preset #11\0 Vintage Film Preset #12\0 Vintage Film Preset #13\0 Vintage Film Preset #14\0 Vintage Film Preset #15\0 Vintage Film Preset #16\0 Vintage Film Preset #17\0 Vintage Film Preset #18\0 Vintage Film Preset #19\0 Vintage Film Preset #2\0 Vintage Film Preset #20\0 Vintage Film Preset #21\0 Vintage Film Preset #22\0 Vintage Film Preset #23\0 Vintage Film Preset #24\0 Vintage Film Preset #25\0 Vintage Film Preset #26\0 Vintage Film Preset #27\0 Vintage Film Preset #28\0 Vintage Film Preset #29\0 Vintage Film Preset #3\0 Vintage Film Preset #30\0 Vintage Film Preset #31\0 Vintage Film Preset #32\0 Vintage Film Preset #33\0 Vintage Film Preset #34\0 Vintage Film Preset #35\0 Vintage Film Preset #36\0 Vintage Film Preset #37\0 Vintage Film Preset #38\0 Vintage Film Preset #39\0 Vintage Film Preset #4\0 Vintage Film Preset #40\0 Vintage Film Preset #41\0 Vintage Film Preset #42\0 Vintage Film Preset #43\0 Vintage Film Preset #44\0 Vintage Film Preset #45\0 Vintage Film Preset #46\0 Vintage Film Preset #47\0 Vintage Film Preset #48\0 Vintage Film Preset #49\0 Vintage Film Preset #5\0 Vintage Film Preset #50\0 Vintage Film Preset #6\0 Vintage Film Preset #7\0 Vintage Film Preset #8\0 Vintage Film Preset #9\0"
-#define fLUT_TextureName "Vintage Film MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 50
-#include "_BaseLUT.fxh"

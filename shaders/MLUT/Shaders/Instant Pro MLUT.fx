@@ -1,7 +1,0 @@
-#define fLUT_Name Instant_PRO_MLUT
-#define fLUT_LutList "fuji_fp-100c\0fuji_fp-100c_+++\0fuji_fp-100c_++\0fuji_fp-100c_++_alt\0fuji_fp-100c_+\0fuji_fp-100c_--\0fuji_fp-100c_-\0fuji_fp-100c_cool\0fuji_fp-100c_cool_++\0fuji_fp-100c_cool_+\0fuji_fp-100c_cool_--\0fuji_fp-100c_cool_-\0fuji_fp-100c_negative\0fuji_fp-100c_negative_+++\0fuji_fp-100c_negative_++\0fuji_fp-100c_negative_++_alt\0fuji_fp-100c_negative_+\0fuji_fp-100c_negative_--\0fuji_fp-100c_negative_-\0fuji_fp-3000b\0fuji_fp-3000b_+++\0fuji_fp-3000b_++\0fuji_fp-3000b_+\0fuji_fp-3000b_--\0fuji_fp-3000b_-\0fuji_fp-3000b_hc\0fuji_fp-3000b_negative\0fuji_fp-3000b_negative_+++\0fuji_fp-3000b_negative_++\0fuji_fp-3000b_negative_+\0fuji_fp-3000b_negative_--\0fuji_fp-3000b_negative_-\0fuji_fp-3000b_negative_early\0polaroid_665\0polaroid_665_++\0polaroid_665_+\0polaroid_665_--\0polaroid_665_-\0polaroid_665_negative\0polaroid_665_negative_+\0polaroid_665_negative_-\0polaroid_665_negative_hc\0polaroid_669\0polaroid_669_+++\0polaroid_669_++\0polaroid_669_+\0polaroid_669_--\0polaroid_669_-\0polaroid_669_cold\0polaroid_669_cold_+\0polaroid_669_cold_--\0polaroid_669_cold_-\0polaroid_690\0polaroid_690_++\0polaroid_690_+\0polaroid_690_--\0polaroid_690_-\0polaroid_690_cold\0polaroid_690_cold_++\0polaroid_690_cold_+\0polaroid_690_cold_--\0polaroid_690_cold_-\0polaroid_690_warm\0polaroid_690_warm_++\0polaroid_690_warm_+\0polaroid_690_warm_--\0polaroid_690_warm_-\0"
-#define fLUT_TextureName "Instant Pro MLUT.png"
-#define fLUT_TileSizeXY 64
-#define fLUT_TileAmount 64
-#define fLUT_LutAmount 67
-#include "_BaseLUT.fxh"

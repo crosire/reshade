@@ -1,7 +1,0 @@
-#define fLUT_Name Film_Affinity_MLUT
-#define fLUT_LutList "Film Affinity Preset #1\0 Film Affinity Preset #10\0 Film Affinity Preset #11\0 Film Affinity Preset #12\0 Film Affinity Preset #13\0 Film Affinity Preset #14\0 Film Affinity Preset #15\0 Film Affinity Preset #16\0 Film Affinity Preset #17\0 Film Affinity Preset #18\0 Film Affinity Preset #19\0 Film Affinity Preset #2\0 Film Affinity Preset #20\0 Film Affinity Preset #21\0 Film Affinity Preset #22\0 Film Affinity Preset #23\0 Film Affinity Preset #24\0 Film Affinity Preset #25\0 Film Affinity Preset #26\0 Film Affinity Preset #27\0 Film Affinity Preset #28\0 Film Affinity Preset #29\0 Film Affinity Preset #3\0 Film Affinity Preset #30\0 Film Affinity Preset #31\0 Film Affinity Preset #32\0 Film Affinity Preset #33\0 Film Affinity Preset #34\0 Film Affinity Preset #35\0 Film Affinity Preset #36\0 Film Affinity Preset #37\0 Film Affinity Preset #38\0 Film Affinity Preset #39\0 Film Affinity Preset #4\0 Film Affinity Preset #40\0 Film Affinity Preset #41\0 Film Affinity Preset #42\0 Film Affinity Preset #43\0 Film Affinity Preset #44\0 Film Affinity Preset #45\0 Film Affinity Preset #46\0 Film Affinity Preset #47\0 Film Affinity Preset #48\0 Film Affinity Preset #5\0 Film Affinity Preset #6\0 Film Affinity Preset #7\0 Film Affinity Preset #8\0 Film Affinity Preset #9\0"
-#define fLUT_TextureName "Film Affinity MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 48
-#include "_BaseLUT.fxh"

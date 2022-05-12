@@ -1,7 +1,0 @@
-#define fLUT_Name Food_MLUT
-#define fLUT_LutList " Food Affinity Preset #01\0 Food Affinity Preset #02\0 Food Affinity Preset #03\0 Food Affinity Preset #04\0 Food Affinity Preset #05\0 Food Affinity Preset #06\0 Food Affinity Preset #07\0 Food Affinity Preset #08\0 Food Affinity Preset #09\0 Food Affinity Preset #10\0 Food Affinity Preset #11\0 Food Affinity Preset #12\0 Food Affinity Preset #13\0 Food Affinity Preset #14\0 Food Affinity Preset #15\0 Food Affinity Preset #16\0 Food Affinity Preset #17\0 Food Affinity Preset #18\0 Food Affinity Preset #19\0 Food Affinity Preset #20\0 Food Affinity Preset #21\0 Food Affinity Preset #22\0 Food Affinity Preset #23\0 Food Affinity Preset #24\0 Food Affinity Preset #25\0 Food Affinity Preset #26\0 Food Affinity Preset #27\0 Food Affinity Preset #28\0 Food Affinity Preset #29\0 Food Affinity Preset #30\0 Food Affinity Preset #31\0 Food Affinity Preset #32\0 Food Affinity Preset #33\0 Food Affinity Preset #34\0 Food Affinity Preset #35\0 Food Affinity Preset #36\0 Food Affinity Preset #37\0 Food Affinity Preset #38\0 Food Affinity Preset #39\0 Food Affinity Preset #40\0 Food Affinity Preset #41\0 Food Affinity Preset #42\0 Food Affinity Preset #43\0 Food Affinity Preset #44\0 Food Affinity Preset #45\0 Food Affinity Preset #46\0 Food Affinity Preset #47\0 Food Affinity Preset #48\0 Food Affinity Preset #49\0 Food Affinity Preset #50\0 "
-#define fLUT_TextureName "Food MLUT.png"
-#define fLUT_TileSizeXY 32
-#define fLUT_TileAmount 32
-#define fLUT_LutAmount 50
-#include "_BaseLUT.fxh"
