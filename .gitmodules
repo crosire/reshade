@@ -29,3 +29,72 @@
 [submodule "d3d12"]
 	path = deps/d3d12
 	url = https://github.com/microsoft/DirectX-Headers.git
+[submodule "shaders/reshade-shaders"]
+	path = shaders/reshade-shaders
+	url = https://github.com/crosire/reshade-shaders.git
+[submodule "shaders/SweetFX"]
+	path = shaders/SweetFX
+	url = https://github.com/CeeJayDK/SweetFX.git
+[submodule "shaders/qUINT"]
+	path = shaders/qUINT
+	url = https://github.com/martymcmodding/qUINT.git
+[submodule "shaders/OtisFX"]
+	path = shaders/OtisFX
+	url = https://github.com/FransBouma/OtisFX.git
+[submodule "shaders/AstrayFX"]
+	path = shaders/AstrayFX
+	url = https://github.com/BlueSkyDefender/AstrayFX.git
+[submodule "shaders/Depth3D"]
+	path = shaders/Depth3D
+	url = https://github.com/BlueSkyDefender/Depth3D.git
+[submodule "shaders/fubax-shaders"]
+	path = shaders/fubax-shaders
+	url = https://github.com/Fubaxiusz/fubax-shaders.git
+[submodule "shaders/Daodan-shaders"]
+	path = shaders/Daodan-shaders
+	url = https://github.com/Daodan317081/reshade-shaders.git
+[submodule "shaders/brussell1-Shaders"]
+	path = shaders/brussell1-Shaders
+	url = https://github.com/brussell1/Shaders.git
+[submodule "shaders/FXShaders"]
+	path = shaders/FXShaders
+	url = https://github.com/luluco250/FXShaders.git
+[submodule "shaders/Pirate-Shaders"]
+	path = shaders/Pirate-Shaders
+	url = https://github.com/Heathen/Pirate-Shaders.git
+[submodule "shaders/prod80-ReShade-Repository"]
+	path = shaders/prod80-ReShade-Repository
+	url = https://github.com/prod80/prod80-ReShade-Repository.git
+[submodule "shaders/CorgiFX"]
+	path = shaders/CorgiFX
+	url = https://github.com/originalnicodr/CorgiFX.git
+[submodule "shaders/Insane-Shaders"]
+	path = shaders/Insane-Shaders
+	url = https://github.com/LordOfLunacy/Insane-Shaders.git
+[submodule "shaders/RSRetroArch"]
+	path = shaders/RSRetroArch
+	url = https://github.com/Matsilagi/RSRetroArch.git
+[submodule "shaders/Constantine-Shaders"]
+	path = shaders/Constantine-Shaders
+	url = https://github.com/ConstantineRudenko/Shaders.git
+[submodule "shaders/CobraFX"]
+	path = shaders/CobraFX
+	url = https://github.com/LordKobra/CobraFX.git
+[submodule "shaders/brimsonFX"]
+	path = shaders/brimsonFX
+	url = https://github.com/brimson/brimsonFX.git
+[submodule "shaders/Warp-FX"]
+	path = shaders/Warp-FX
+	url = https://github.com/Radegast-FFXIV/Warp-FX.git
+[submodule "shaders/reshade-vrtoolkit"]
+	path = shaders/reshade-vrtoolkit
+	url = https://github.com/retroluxfilm/reshade-vrtoolkit.git
+[submodule "shaders/dh-reshade-shaders"]
+	path = shaders/dh-reshade-shaders
+	url = https://github.com/AlucardDH/dh-reshade-shaders.git
+[submodule "shaders/Glamarye_Fast_Effects_for_ReShade"]
+	path = shaders/Glamarye_Fast_Effects_for_ReShade
+	url = https://github.com/rj200/Glamarye_Fast_Effects_for_ReShade.git
+[submodule "shaders/MLUT"]
+	path = shaders/MLUT
+	url = https://github.com/TheGordinho/MLUT.git
