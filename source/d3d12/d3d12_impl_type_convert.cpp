@@ -60,7 +60,10 @@ D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(api::reso
 	// Depth write state is mutually exclusive with other states, so remove it when read state is specified too
 	if ((usage & api::resource_usage::depth_stencil) == api::resource_usage::depth_stencil)
 	{
-		result ^= D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		if (usage == api::resource_usage::depth_stencil)
+			return D3D12_RESOURCE_STATE_DEPTH_WRITE; // Unless there are no other states specified, in that case only specify write state
+		else
+			result ^= D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	}
 
 	// The separate constant buffer state does not exist in D3D12, so replace it with the combined vertex/constant buffer one

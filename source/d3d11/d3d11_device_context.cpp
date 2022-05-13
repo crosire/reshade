@@ -95,7 +95,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 }
 ULONG   STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 {
-	// The intermediate device context is tightly coupled with its device, so simply use the device reference count
+	// The immediate device context is tightly coupled with its device, so simply use the device reference count
 	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
 		return _device->AddRef();
 
