@@ -553,7 +553,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 				data[0] == DXBC &&
 				data[5] == 0x00000001 /* DXBC version */)
 			{
-				assert((blobLengthInBytes % sizeof(uint32_t)) == 0 && blobLengthInBytes == data[6]);
+				assert(blobLengthInBytes == data[6]);
 
 				std::vector<reshade::api::pipeline_layout_param> params;
 				std::vector<std::vector<reshade::api::descriptor_range>> ranges;
