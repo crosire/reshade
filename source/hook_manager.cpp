@@ -317,7 +317,9 @@ static reshade::hook find_internal(reshade::hook::address target, reshade::hook:
 				(target == nullptr || hook.target == target);
 		});
 
-	return it != s_hooks.cend() ? *it : reshade::hook {};
+	if (it != s_hooks.cend())
+		return *it;
+	return reshade::hook{};
 }
 
 template <typename T>
