@@ -823,6 +823,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	switch (desc.type)
 	{
 	case api::resource_view_type::buffer:
+		assert(resource_target == GL_BUFFER);
 		target = GL_TEXTURE_BUFFER;
 		break;
 	case api::resource_view_type::texture_1d:
@@ -857,19 +858,22 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	}
 
 	GLenum resource_format = GL_NONE;
-	if (_supports_dsa)
+	if (desc.type != api::resource_view_type::buffer)
 	{
-		glGetTextureLevelParameteriv(resource_object, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
-	}
-	else
-	{
-		GLuint prev_binding = 0;
-		glGetIntegerv(reshade::opengl::get_binding_for_target(resource_target), reinterpret_cast<GLint *>(&prev_binding));
-		glBindTexture(resource_target, resource_object);
+		if (_supports_dsa)
+		{
+			glGetTextureLevelParameteriv(resource_object, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
+		}
+		else
+		{
+			GLuint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(resource_target), reinterpret_cast<GLint *>(&prev_binding));
+			glBindTexture(resource_target, resource_object);
 
-		glGetTexLevelParameteriv(resource_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
+			glGetTexLevelParameteriv(resource_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
 
-		glBindTexture(resource_target, prev_binding);
+			glBindTexture(resource_target, prev_binding);
+		}
 	}
 
 	GLint texture_swizzle[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
@@ -1379,10 +1383,9 @@ void reshade::opengl::device_impl::unmap_texture_region(api::resource resource, 
 
 void reshade::opengl::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
-	assert(resource.handle != 0);
+	assert(resource.handle != 0 && (resource.handle >> 40) == GL_BUFFER);
 	assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 
-	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
 	if (_supports_dsa)
@@ -1775,6 +1778,9 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	api::primitive_topology topology = api::primitive_topology::triangle_list;
 	uint32_t sample_mask = UINT32_MAX;
 
+	GLint status = GL_FALSE;
+	const auto impl = new pipeline_impl();
+
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
 		if (subobjects[i].count == 0)
@@ -1869,45 +1875,41 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		}
 	}
 
-	const GLuint program = glCreateProgram();
+	impl->program = glCreateProgram();
 
 	for (const GLuint shader : shaders)
 	{
-		glAttachShader(program, shader);
+		glAttachShader(impl->program, shader);
 	}
 
-	glLinkProgram(program);
+	glLinkProgram(impl->program);
 
 	for (const GLuint shader : shaders)
 	{
-		glDetachShader(program, shader);
+		glDetachShader(impl->program, shader);
 		glDeleteShader(shader);
 	}
 
 	shaders.clear();
 
-	GLint status = GL_FALSE;
-	glGetProgramiv(program, GL_LINK_STATUS, &status);
+	glGetProgramiv(impl->program, GL_LINK_STATUS, &status);
 
 	if (GL_FALSE == status)
 	{
 		GLint log_size = 0;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
+		glGetProgramiv(impl->program, GL_INFO_LOG_LENGTH, &log_size);
 
 		if (0 < log_size)
 		{
 			std::vector<char> log(log_size);
-			glGetProgramInfoLog(program, log_size, nullptr, log.data());
+			glGetProgramInfoLog(impl->program, log_size, nullptr, log.data());
 
 			LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
 		}
 
-		glDeleteProgram(program);
+		glDeleteProgram(impl->program);
 		goto exit_failure;
 	}
-
-	const auto impl = new pipeline_impl();
-	impl->program = program;
 
 	// There always has to be a VAO for graphics pipelines, even if it is empty
 	if (is_graphics_pipeline || input_layout_desc.count != 0)
@@ -1982,6 +1984,7 @@ exit_failure:
 		glDeleteShader(shader);
 	}
 
+	delete impl;
 	*out_handle = { 0 };
 	return false;
 }

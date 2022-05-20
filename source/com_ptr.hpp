@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cassert>
+#include <utility>
 
 template <typename T>
 class com_ptr
