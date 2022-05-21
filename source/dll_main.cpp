@@ -109,28 +109,6 @@ std::filesystem::path get_module_path(HMODULE module)
 	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
 }
 
-/// <summary>
-/// Returns the path to the program data directory (also known as "%PROGRAMDATA%").
-/// </summary>
-std::filesystem::path get_program_data_path()
-{
-	static std::filesystem::path result;
-	if (!result.empty())
-		return result; // Return the cached path if it exists
-
-	WCHAR buf[4096] = L"";
-#if 1
-	ExpandEnvironmentStringsW(L"%PROGRAMDATA%", buf, ARRAYSIZE(buf));
-#else
-	// This is unsafe in 'DllMain', since it is not guaranteed shell32.dll won't try and load other system components behind the scenes
-	PWSTR folder_path = nullptr;
-	SHGetKnownFolderPath(FOLDERID_ProgramData, KF_FLAG_NO_PACKAGE_REDIRECTION, nullptr, &folder_path);
-	wcscpy_s(buf, folder_path);
-	CoTaskMemFree(folder_path);
-#endif
-	return result = buf;
-}
-
 #ifndef RESHADE_TEST_APPLICATION
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
@@ -146,43 +124,27 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_reshade_dll_path = get_module_path(hModule);
 		g_target_executable_path = get_module_path(nullptr);
 
-#if 1
-		// When ReShade is loaded from the location managed by the setup tool (see "ReShade Setup" project), only load when the target executable is in the list of applications managed by the setup tool
+		// When ReShade is not loaded from the application directory, only load when a configuration file exists for the target executable
 		// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
+		if (_wcsnicmp(g_reshade_dll_path.c_str(), g_target_executable_path.parent_path().c_str(), g_target_executable_path.parent_path().native().size()) != 0)
 		{
-			const auto common_path = get_program_data_path() / L"ReShade";
-			const auto common_reshade_dll_path = common_path /
-#ifndef _WIN64
-				L"ReShade32.dll";
-#else
-				L"ReShade64.dll";
-#endif
+			default_base_to_target_executable_path = true;
 
-			if (common_reshade_dll_path.is_absolute() && g_reshade_dll_path == common_reshade_dll_path)
+			std::error_code ec;
+			if (!std::filesystem::exists(reshade::global_config().path(), ec))
 			{
-				default_base_to_target_executable_path = true;
-
-				const ini_file app_config(common_path / L"ReShadeApps.ini");
-				if (std::vector<std::filesystem::path> app_paths;
-					app_config.get(std::string(), "Apps", app_paths))
-				{
-					if (std::find(app_paths.begin(), app_paths.end(), g_target_executable_path) == app_paths.end())
-					{
 #ifndef NDEBUG
-						// Log was not yet opened at this point, so this only writes to debug output
-						LOG(WARN) << "ReShade was not enabled for " << g_target_executable_path << "! Aborting initialization ...";
+				// Log was not yet opened at this point, so this only writes to debug output
+				LOG(WARN) << "ReShade was not enabled for " << g_target_executable_path << "! Aborting initialization ...";
 #endif
-						return FALSE; // Make the "LoadLibrary" call that loaded this instance fail
-					}
-				}
+				return FALSE; // Make the 'LoadLibrary' call that loaded this instance fail
 			}
 		}
-#endif
 
 		g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
 		if (std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
-			reshade::log::open_log_file(log_path) == false)
+			!reshade::log::open_log_file(log_path))
 		{
 			// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
 			std::filesystem::path log_filename = L"ReShade_";
