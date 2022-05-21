@@ -7,10 +7,14 @@
 #define DIRECTINPUT_VERSION 0x0700
 
 #include <dinput.h>
+#include "com_ptr.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "hook_manager.hpp"
 
 #undef IDirectInputDevice_SetCooperativeLevel
+
+extern bool is_blocking_mouse_input();
+extern bool is_blocking_keyboard_input();
 
 HRESULT STDMETHODCALLTYPE IDirectInputDevice_SetCooperativeLevel(IUnknown *pDevice, HWND hwnd, DWORD dwFlags)
 {
@@ -28,6 +32,38 @@ HRESULT STDMETHODCALLTYPE IDirectInputDevice_SetCooperativeLevel(IUnknown *pDevi
 	return reshade::hooks::call(IDirectInputDevice_SetCooperativeLevel, vtable_from_instance(pDevice) + 13)(pDevice, hwnd, dwFlags);
 }
 
+#define IDirectInputDevice_GetDeviceState_Impl(vtable_offset, device_interface_version, encoding) \
+	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_GetDeviceState(IDirectInputDevice##device_interface_version##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
+	{ \
+		DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
+		pDevice->GetDeviceInfo(&info); \
+		switch (LOBYTE(info.dwDevType)) \
+		{ \
+		case DIDEVTYPE_MOUSE: \
+			if (is_blocking_mouse_input()) \
+			{ \
+				std::memset(lpvData, 0, cbData); \
+				return DI_OK; \
+			} \
+			break; \
+		case DIDEVTYPE_KEYBOARD: \
+			if (is_blocking_keyboard_input()) \
+			{ \
+				std::memset(lpvData, 0, cbData); \
+				return DI_OK; \
+			} \
+			break; \
+		} \
+		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceState, vtable_from_instance(pDevice) + vtable_offset)(pDevice, cbData, lpvData); \
+	}
+
+IDirectInputDevice_GetDeviceState_Impl(9,  , A)
+IDirectInputDevice_GetDeviceState_Impl(9,  , W)
+IDirectInputDevice_GetDeviceState_Impl(9, 2, A)
+IDirectInputDevice_GetDeviceState_Impl(9, 2, W)
+IDirectInputDevice_GetDeviceState_Impl(9, 7, A)
+IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
+
 #define IDirectInput_CreateDevice_Impl(vtable_offset, factory_interface_version, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInput##factory_interface_version##encoding##_CreateDevice(IDirectInput##factory_interface_version##encoding *pDI, REFGUID rguid, LPDIRECTINPUTDEVICE##device_interface_version##encoding *lplpDirectInputDevice, LPUNKNOWN pUnkOuter) \
 	{ \
@@ -40,6 +76,7 @@ HRESULT STDMETHODCALLTYPE IDirectInputDevice_SetCooperativeLevel(IUnknown *pDevi
 		const HRESULT hr = reshade::hooks::call(IDirectInput##factory_interface_version##encoding##_CreateDevice, vtable_from_instance(pDI) + vtable_offset)(pDI, rguid, lplpDirectInputDevice, pUnkOuter); \
 		if (SUCCEEDED(hr)) \
 		{ \
+			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", vtable_from_instance(*lplpDirectInputDevice), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceState)); \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::SetCooperativeLevel", vtable_from_instance(*lplpDirectInputDevice), 13, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice_SetCooperativeLevel)); \
 		} \
 		else \

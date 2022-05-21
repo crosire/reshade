@@ -458,7 +458,7 @@ std::string reshade::input::key_name(const unsigned int key[4])
 	return (key[1] ? "Ctrl + " : std::string()) + (key[2] ? "Shift + " : std::string()) + (key[3] ? "Alt + " : std::string()) + key_name(key[0]);
 }
 
-static inline bool is_blocking_mouse_input()
+bool is_blocking_mouse_input()
 {
 	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
@@ -467,7 +467,7 @@ static inline bool is_blocking_mouse_input()
 	};
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 }
-static inline bool is_blocking_keyboard_input()
+bool is_blocking_keyboard_input()
 {
 	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
