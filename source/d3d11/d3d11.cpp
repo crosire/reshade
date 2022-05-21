@@ -84,7 +84,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	if (pFeatureLevel != nullptr) // Copy feature level value to application variable if the argument exists
 		*pFeatureLevel = FeatureLevel;
 
-	LOG(INFO) << "> Using feature level " << std::hex << FeatureLevel << std::dec << '.';
+	LOG(INFO) << "Using feature level " << std::hex << FeatureLevel << std::dec << '.';
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
 	if (ppDevice == nullptr)
@@ -149,7 +149,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(INFO) << "Returning " << "ID3D11Device0" << " object " << static_cast<ID3D11Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
+			LOG(DEBUG) << "Returning " << "ID3D11Device0" << " object " << static_cast<ID3D11Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
 				"IDXGIDevice1" << " object " << static_cast<IDXGIDevice1 *>(device_proxy) << " (" << static_cast<DXGIDevice *>(device_proxy)->_orig << ").";
 #endif
 			*ppDevice = device_proxy;

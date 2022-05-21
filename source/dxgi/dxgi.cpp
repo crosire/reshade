@@ -369,7 +369,7 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 		reshade::global_config().get("APP", "ForceFullscreen", swapchain_proxy->_force_fullscreen);
 
 #if RESHADE_VERBOSE_LOG
-		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
+		LOG(DEBUG) << "Returning " << "IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
 #endif
 		swapchain = swapchain_proxy;
 	}
@@ -563,7 +563,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDXGIFactory object " << factory << '.';
+	LOG(DEBUG) << "Returning " << "IDXGIFactory" << " object " << factory << '.';
 #endif
 	return hr;
 }
@@ -609,7 +609,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning IDXGIFactory object " << factory << '.';
+	LOG(DEBUG) << "Returning " << "IDXGIFactory" << " object " << factory << '.';
 #endif
 	return hr;
 }

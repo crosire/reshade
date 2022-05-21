@@ -163,7 +163,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(INFO) << "Returning " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
+			LOG(DEBUG) << "Returning " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
 				"IDXGIDevice1" << " object " << static_cast<IDXGIDevice1 *>(device_proxy) << " (" << static_cast<DXGIDevice *>(device_proxy)->_orig << ").";
 #endif
 			*ppDevice = device_proxy;

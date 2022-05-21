@@ -280,7 +280,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 		*ppSwapChain = swapchain_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(INFO) << "Returning IDirect3DSwapChain9 object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
+		LOG(DEBUG) << "Returning " << "IDirect3DSwapChain9" << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
 #endif
 	}
 	else
