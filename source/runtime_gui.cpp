@@ -20,8 +20,6 @@
 #include <algorithm>
 #include <Windows.h> // ClipCursor
 
-extern HMODULE g_module_handle;
-
 static bool filter_text(const std::string_view &text, const std::string_view &filter)
 {
 	return filter.empty() ||
@@ -2338,7 +2336,7 @@ void reshade::runtime::draw_gui_addons()
 
 		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, settings_height + _imgui_context->Style.FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
 
-		bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), info.handle == g_module_handle);
+		bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), info.file == g_reshade_dll_path.u8string());
 		if (ImGui::ArrowButton("##addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
 			ImGui::GetStateStorage()->SetBool(ImGui::GetID("##addon_open"), open = !open);
 

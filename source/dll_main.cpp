@@ -164,6 +164,19 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #endif
 			"loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
 
+		// Check if another ReShade instance was already loaded into the process
+		if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
+		{
+			for (DWORD i = 0; i < std::min<DWORD>(fdwReason / sizeof(HMODULE), ARRAYSIZE(modules)); ++i)
+			{
+				if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
+				{
+					LOG(WARN) << "Another ReShade instance was already loaded from " << get_module_path(modules[i]) << "! Aborting initialization ...";
+					return FALSE; // Make the "LoadLibrary" call that loaded this instance fail
+				}
+			}
+		}
+
 #ifndef NDEBUG
 		if (reshade::global_config().get("INSTALL", "DumpExceptions"))
 		{
@@ -218,21 +231,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		}
 #endif
 
-		// Check if another ReShade instance was already loaded into the process
-		if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
-		{
-			for (DWORD i = 0; i < std::min<DWORD>(fdwReason / sizeof(HMODULE), ARRAYSIZE(modules)); ++i)
-			{
-				if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
-				{
-					LOG(WARN) << "Another ReShade instance was already loaded from " << get_module_path(modules[i]) << "! Aborting initialization ...";
-					return FALSE; // Make the "LoadLibrary" call that loaded this instance fail
-				}
-			}
-		}
-
 		if (reshade::global_config().get("INSTALL", "PreventUnloading"))
+		{
 			GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(hModule), &hModule);
+		}
 
 		// Register modules to hook
 		{
@@ -275,7 +277,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			reshade::hooks::register_module(L"vrclient_x64.dll");
 #endif
 
-			// Register DirectInput modules
 			reshade::hooks::register_module(get_system_path() / L"dinput.dll");
 			reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
 		}
@@ -293,7 +294,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::hooks::uninstall();
 
 		// Module is now invalid, so break out of any message loops that may still have it in the call stack (see 'HookGetMessage' implementation in input.cpp)
-		// This is necessary since a different thread may have called into the 'GetMessage' hook from ReShade, but not receive a message until after the module was unloaded
+		// This is necessary since a different thread may have called into the 'GetMessage' hook from ReShade, but may not receive a message until after the ReShade module was unloaded
 		// At that point it would return to code that was already unloaded and crash
 		// Hooks were already uninstalled now, so after returning from any existing 'GetMessage' hook call, application will call the real one next and things continue to work
 		g_module_handle = nullptr;

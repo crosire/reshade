@@ -72,7 +72,7 @@ void ini_file::load()
 			}
 
 			// Append to key if it already exists
-			ini_file::value &elements = _sections[section][key];
+			ini_file::value_type &elements = _sections[section][key];
 			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
 			{
 				// Treat ",," as an escaped comma and only split on single ","
@@ -157,7 +157,7 @@ bool ini_file::save()
 		{
 			data << key_name << '=';
 
-			if (const ini_file::value &elements = keys.at(key_name); !elements.empty())
+			if (const ini_file::value_type &elements = keys.at(key_name); !elements.empty())
 			{
 				std::string value;
 				for (const std::string &element : elements)

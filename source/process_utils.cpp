@@ -11,7 +11,7 @@
 bool reshade::open_explorer(const std::filesystem::path &path)
 {
 	// Use absolute path to explorer to avoid potential security issues when executable is replaced
-	WCHAR explorer_path[260] = L"";
+	WCHAR explorer_path[260];
 	if (GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path)) == 0)
 		return false;
 	wcscat_s(explorer_path, L"\\explorer.exe");

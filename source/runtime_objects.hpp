@@ -256,7 +256,7 @@ namespace reshade
 		std::vector<std::pair<std::string, std::string>> definitions;
 		std::unordered_map<std::string, std::pair<std::string, std::string>> assembly;
 		std::vector<uniform> uniforms;
-		std::vector<unsigned char> uniform_data_storage;
+		std::vector<uint8_t> uniform_data_storage;
 
 		struct binding_data
 		{

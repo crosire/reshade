@@ -1624,7 +1624,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
 				// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
-				// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
+				// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to remove all but a single entry point (and associated functions/variables).
 				uint32_t current_function = 0, current_function_offset = 0;
 				std::vector<uint32_t> spirv = effect.module.spirv; // Copy SPIR-V, so that all but the current entry point are only removed from that copy
 				std::vector<uint32_t> functions_to_remove, variables_to_remove;
@@ -2881,7 +2881,7 @@ void reshade::runtime::destroy_effects()
 	// Reset the effect list after all resources have been destroyed
 	_effects.clear();
 
-	// Unload HLSL compiler which was previously loaded in 'load_effects' again
+	// Unload HLSL compiler which was previously loaded in 'load_effects' above
 	if (_d3d_compiler_module)
 	{
 		FreeLibrary(static_cast<HMODULE>(_d3d_compiler_module));

@@ -547,7 +547,7 @@
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp" />
     <ClCompile Include="source\dll_log.cpp" />
     <ClCompile Include="source\dll_main.cpp" />
-    <ClCompile Include="source\dll_main_app.cpp">
+    <ClCompile Include="source\dll_main_test_app.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)'!='Debug App' And '$(Configuration)'!='Release App'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="source\dll_resources.cpp" />
