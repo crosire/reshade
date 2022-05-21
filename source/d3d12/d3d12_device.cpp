@@ -1335,22 +1335,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		if (riid == __uuidof(ID3D12PipelineLibrary) ||
-			riid == __uuidof(ID3D12PipelineLibrary1))
+		const auto pipeline_library_proxy = new D3D12PipelineLibrary(this, static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary));
+
+		// Upgrade to the actual interface version requested here
+		if (pipeline_library_proxy->check_and_upgrade_interface(riid))
 		{
-			const auto pipeline_library_proxy = new D3D12PipelineLibrary(this, static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary));
+			*ppPipelineLibrary = pipeline_library_proxy;
+		}
+		else // Do not hook object if we do not support the requested interface
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device1::CreatePipelineLibrary" << '.';
 
-			// Upgrade to the actual interface version requested here
-			if (pipeline_library_proxy->check_and_upgrade_interface(riid))
-			{
-				*ppPipelineLibrary = pipeline_library_proxy;
-			}
-			else // Do not hook object if we do not support the requested interface
-			{
-				LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device1::CreatePipelineLibrary" << '.';
-
-				delete pipeline_library_proxy; // Delete instead of release to keep reference count untouched
-			}
+			delete pipeline_library_proxy; // Delete instead of release to keep reference count untouched
 		}
 #endif
 	}

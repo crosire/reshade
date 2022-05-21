@@ -187,7 +187,7 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadGraphicsPipeline(LPCWSTR pNa
 	else
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "D3D12PipelineLibrary::LoadGraphicsPipeline" << " failed with error code " << hr << '.';
+		LOG(WARN) << "ID3D12PipelineLibrary::LoadGraphicsPipeline" << " failed with error code " << hr << '.';
 #endif
 	}
 
@@ -220,7 +220,7 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadComputePipeline(LPCWSTR pNam
 	else
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "D3D12PipelineLibrary::LoadComputePipeline" << " failed with error code " << hr << '.';
+		LOG(WARN) << "ID3D12PipelineLibrary::LoadComputePipeline" << " failed with error code " << hr << '.';
 #endif
 	}
 
@@ -391,7 +391,7 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadPipeline(LPCWSTR pName, cons
 	else
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "D3D12PipelineLibrary1::LoadPipeline" << " failed with error code " << hr << '.';
+		LOG(WARN) << "ID3D12PipelineLibrary1::LoadPipeline" << " failed with error code " << hr << '.';
 #endif
 	}
 
