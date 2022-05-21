@@ -239,8 +239,21 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		// Register modules to hook
 		{
 			reshade::hooks::register_module(L"user32.dll");
+
 #if RESHADE_ADDON_LITE
-			reshade::hooks::register_module(L"ws2_32.dll");
+			// Disable network hooks when requested through an environment variable and always disable add-ons in that case
+			if (WCHAR buf[8];
+				GetEnvironmentVariableW(L"RESHADE_DISABLE_NETWORK_HOOK", buf, ARRAYSIZE(buf)) && buf[0] != L'\0')
+			{
+				extern volatile long g_network_traffic;
+				// Special value to indicate that add-ons should never be enabled
+				g_network_traffic = std::numeric_limits<long>::max();
+				reshade::addon_enabled = false;
+			}
+			else
+			{
+				reshade::hooks::register_module(L"ws2_32.dll");
+			}
 #endif
 
 			const std::filesystem::path module_name = g_reshade_dll_path.stem();

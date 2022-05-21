@@ -682,7 +682,8 @@ void reshade::runtime::on_present()
 #endif
 	}
 
-	g_network_traffic = 0;
+	if (std::numeric_limits<long>::max() != g_network_traffic)
+		g_network_traffic = 0;
 #endif
 }
 
