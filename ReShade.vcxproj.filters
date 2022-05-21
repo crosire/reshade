@@ -66,6 +66,9 @@
     <ClCompile Include="source\dll_main.cpp">
       <Filter>core</Filter>
     </ClCompile>
+    <ClCompile Include="source\dll_main_app.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
     <ClCompile Include="source\dll_resources.cpp">
       <Filter>core</Filter>
     </ClCompile>

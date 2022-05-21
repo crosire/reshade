@@ -547,13 +547,18 @@
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp" />
     <ClCompile Include="source\dll_log.cpp" />
     <ClCompile Include="source\dll_main.cpp" />
+    <ClCompile Include="source\dll_main_app.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'!='Debug App' And '$(Configuration)'!='Release App'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="source\dll_resources.cpp" />
     <ClCompile Include="source\dxgi\dxgi.cpp" />
     <ClCompile Include="source\dxgi\dxgi_d3d10.cpp" />
     <ClCompile Include="source\dxgi\dxgi_device.cpp" />
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp" />
     <ClCompile Include="source\hook.cpp" />
-    <ClCompile Include="source\hook_manager.cpp" />
+    <ClCompile Include="source\hook_manager.cpp">
+      <DisableSpecificWarnings Condition="'$(Configuration)'=='Debug App' Or '$(Configuration)'=='Release App'">4505;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
     <ClCompile Include="source\imgui_code_editor.cpp" />
     <ClCompile Include="source\imgui_function_table.cpp" />
     <ClCompile Include="source\imgui_widgets.cpp" />

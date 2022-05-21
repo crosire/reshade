@@ -320,11 +320,7 @@ static reshade::hook find_internal(reshade::hook::address target, reshade::hook:
 	return it != s_hooks.cend() ? static_cast<const reshade::hook &>(*it) : reshade::hook{};
 }
 
-template <typename T>
-static inline T call_unchecked(T replacement)
-{
-	return reinterpret_cast<T>(find_internal(nullptr, reinterpret_cast<reshade::hook::address>(replacement)).call());
-}
+#ifndef RESHADE_TEST_APPLICATION
 
 struct UNICODE_STRING
 {
@@ -340,6 +336,12 @@ struct LDR_DLL_NOTIFICATION_DATA
 	PVOID DllBase;
 	ULONG SizeOfImage;
 };
+
+template <typename T>
+static inline T call_unchecked(T replacement)
+{
+	return reinterpret_cast<T>(find_internal(nullptr, reinterpret_cast<reshade::hook::address>(replacement)).call());
+}
 
 static VOID CALLBACK DllNotificationCallback(ULONG NotificationReason, const LDR_DLL_NOTIFICATION_DATA *NotificationData, PVOID)
 {
@@ -387,6 +389,8 @@ HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlag
 
 	return handle;
 }
+
+#endif
 
 bool reshade::hooks::install(const char *name, hook::address target, hook::address replacement, bool queue_enable)
 {
