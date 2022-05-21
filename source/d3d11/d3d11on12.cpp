@@ -11,8 +11,15 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "hook_manager.hpp"
 
+extern thread_local bool g_in_dxgi_runtime;
+
 HOOK_EXPORT HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, CONST D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, IUnknown *CONST *ppCommandQueues, UINT NumQueues, UINT NodeMask, ID3D11Device **ppDevice, ID3D11DeviceContext **ppImmediateContext, D3D_FEATURE_LEVEL *pChosenFeatureLevel)
 {
+	// The Steam overlay creates a D3D11on12 device during 'IDXGISwapChain::Present', which can be ignored, so return early in that case
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(D3D11On12CreateDevice)(
+			pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
+
 	LOG(INFO) << "Redirecting " << "D3D11On12CreateDevice" << '('
 		<<   "pDevice = " << pDevice
 		<< ", Flags = " << std::hex << Flags << std::dec
