@@ -87,6 +87,7 @@ static inline int format_color_bit_depth(reshade::api::format value)
 		return 0;
 	case reshade::api::format::b5g6r5_unorm:
 	case reshade::api::format::b5g5r5a1_unorm:
+	case reshade::api::format::b5g5r5x1_unorm:
 		return 5;
 	case reshade::api::format::r8g8b8a8_unorm:
 	case reshade::api::format::r8g8b8a8_unorm_srgb:

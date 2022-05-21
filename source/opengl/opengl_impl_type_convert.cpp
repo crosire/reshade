@@ -561,11 +561,8 @@ auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
 	case GL_RGB_INTEGER:
 		switch (type)
 		{
-		case GL_UNSIGNED_SHORT_5_6_5:
-			return api::format::b5g6r5_unorm;
-		case GL_UNSIGNED_SHORT_5_6_5_REV:
-			assert(false);
-			return api::format::unknown;
+		case GL_UNSIGNED_INT_10F_11F_11F_REV:
+			return api::format::r11g11b10_float;
 		case GL_FLOAT:
 			return api::format::r32g32b32_float;
 		default:
@@ -576,11 +573,10 @@ auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
 	case GL_BGR_INTEGER:
 		switch (type)
 		{
-		case GL_UNSIGNED_SHORT_5_6_5:
-			assert(false);
-			return api::format::unknown;
 		case GL_UNSIGNED_SHORT_5_6_5_REV:
 			return api::format::b5g6r5_unorm;
+		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
+			return api::format::b5g5r5x1_unorm;
 		case GL_FLOAT:
 		default:
 			assert(false);
@@ -597,30 +593,18 @@ auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
 			return api::format::r16g16b16a16_snorm;
 		case GL_UNSIGNED_SHORT:
 			return api::format::r16g16b16a16_unorm;
-		case GL_UNSIGNED_SHORT_4_4_4_4:
-			return api::format::b4g4r4a4_unorm;
-		case GL_UNSIGNED_SHORT_4_4_4_4_REV:
-			assert(false);
-			return api::format::unknown;
-		case GL_UNSIGNED_SHORT_5_5_5_1:
-			return api::format::b5g5r5a1_unorm;
-		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
-			assert(false);
-			return api::format::unknown;
 		case GL_HALF_FLOAT:
 			return api::format::r16g16b16a16_float;
 		case GL_INT:
 			return api::format::r32g32b32a32_sint;
 		case GL_UNSIGNED_INT:
 			return api::format::r32g32b32a32_uint;
-		case GL_UNSIGNED_INT_8_8_8_8:
-			return api::format::b8g8r8a8_unorm;
-		case GL_UNSIGNED_INT_8_8_8_8_REV:
+		case GL_UNSIGNED_INT_8_8_8_8_REV: // On a little endian machine the least-significant byte is stored first
 			return api::format::r8g8b8a8_unorm;
-		case GL_UNSIGNED_INT_10_10_10_2:
-			return api::format::b10g10r10a2_unorm;
 		case GL_UNSIGNED_INT_2_10_10_10_REV:
 			return api::format::r10g10b10a2_unorm;
+		case GL_UNSIGNED_INT_5_9_9_9_REV:
+			return api::format::r9g9b9e5;
 		case GL_FLOAT:
 			return api::format::r32g32b32a32_float;
 		default:
@@ -637,26 +621,18 @@ auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
 			return api::format::b8g8r8a8_unorm;
 		case GL_SHORT:
 		case GL_UNSIGNED_SHORT:
-		case GL_UNSIGNED_SHORT_4_4_4_4:
 			assert(false);
 			return api::format::unknown;
 		case GL_UNSIGNED_SHORT_4_4_4_4_REV:
 			return api::format::b4g4r4a4_unorm;
-		case GL_UNSIGNED_SHORT_5_5_5_1:
-			assert(false);
-			return api::format::unknown;
 		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
 			return api::format::b5g5r5a1_unorm;
 		case GL_INT:
 		case GL_UNSIGNED_INT:
 			assert(false);
 			return api::format::unknown;
-		case GL_UNSIGNED_INT_8_8_8_8:
-			return api::format::r8g8b8a8_unorm;
 		case GL_UNSIGNED_INT_8_8_8_8_REV:
 			return api::format::b8g8r8a8_unorm;
-		case GL_UNSIGNED_INT_10_10_10_2:
-			return api::format::r10g10b10a2_unorm;
 		case GL_UNSIGNED_INT_2_10_10_10_REV:
 			return api::format::b10g10r10a2_unorm;
 		case GL_FLOAT:
@@ -753,6 +729,10 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 		[[fallthrough]];
 	case api::format::r10g10b10a2_uint:
 		size = 4;
+		return GL_UNSIGNED_INT_2_10_10_10_REV;
+	case api::format::b10g10r10a2_unorm:
+		normalized = GL_TRUE;
+		size = GL_BGRA;
 		return GL_UNSIGNED_INT_2_10_10_10_REV;
 	case api::format::r16_unorm:
 		normalized = GL_TRUE;
@@ -952,17 +932,17 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 		type = GL_UNSIGNED_INT_10F_11F_11F_REV;
 		return GL_RGB;
 	case GL_RGB565:
-		type = GL_UNSIGNED_SHORT_5_6_5;
-		return GL_RGB;
+		type = GL_UNSIGNED_SHORT_5_6_5_REV;
+		return GL_BGR;
 	case GL_RGB5_A1:
-		type = GL_UNSIGNED_SHORT_5_5_5_1;
-		return GL_RGBA;
+		type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+		return GL_BGRA;
 	case GL_RGB5:
-		type = GL_UNSIGNED_SHORT_5_5_5_1;
-		return GL_RGB;
+		type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+		return GL_BGR;
 	case GL_RGBA4:
-		type = GL_UNSIGNED_SHORT_4_4_4_4;
-		return GL_RGBA;
+		type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
+		return GL_BGRA;
 	case GL_STENCIL_INDEX:
 	case GL_STENCIL_INDEX8:
 		type = GL_UNSIGNED_BYTE;
