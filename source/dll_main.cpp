@@ -1019,6 +1019,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #endif
 
 			// Register DirectInput module in case it was used to load ReShade (but ignore otherwise)
+			if (_wcsicmp(module_name.c_str(), L"dinput") == 0)
+			{
+				reshade::hooks::register_module(get_system_path() / L"dinput.dll");
+			}
 			if (_wcsicmp(module_name.c_str(), L"dinput8") == 0)
 			{
 				reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
