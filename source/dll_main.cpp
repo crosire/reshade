@@ -107,7 +107,7 @@ std::filesystem::path get_module_path(HMODULE module)
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
-	bool default_base_to_target_executable_path = false;
+	bool default_base_to_target_executable_path = false, enable_log = true;
 
 	switch (fdwReason)
 	{
@@ -137,17 +137,20 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 		g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
-		if (std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
-			!reshade::log::open_log_file(log_path))
+		if (reshade::global_config().get("INSTALL", "EnableLogging", enable_log); enable_log)
 		{
-			// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
-			std::filesystem::path log_filename = L"ReShade_";
-			log_filename += g_target_executable_path.stem();
-			log_filename += L".log";
+			std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
+			if (!reshade::log::open_log_file(log_path))
+			{
+				// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
+				std::filesystem::path log_filename = L"ReShade_";
+				log_filename += g_target_executable_path.stem();
+				log_filename += L".log";
 
-			log_path.replace_filename(log_filename);
+				log_path.replace_filename(log_filename);
 
-			reshade::log::open_log_file(log_path);
+				reshade::log::open_log_file(log_path);
+			}
 		}
 
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' "
