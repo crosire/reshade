@@ -819,7 +819,7 @@ void reshade::runtime::load_current_preset()
 {
 	_preset_save_successfull = true;
 
-	ini_file config = ini_file::load_cache(_config_path); // Copy config, because reference becomes invalid in the next line
+	const ini_file &config = ini_file::load_cache(_config_path);
 	const ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;
@@ -2775,8 +2775,7 @@ void reshade::runtime::load_effects()
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
-		// Create copy of preset instead of reference, so it stays valid even if 'ini_file::load_cache' is called while effects are still being loaded
-		_worker_threads.emplace_back([this, effect_files, offset, num_splits, n, preset]() {
+		_worker_threads.emplace_back([this, effect_files, offset, num_splits, n, &preset]() {
 			// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
 			for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
 				if (i * num_splits / effect_files.size() == n)
