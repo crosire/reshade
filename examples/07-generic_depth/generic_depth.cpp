@@ -18,7 +18,7 @@ static std::shared_mutex s_mutex;
 
 static bool s_disable_intz = false;
 // Enable or disable the creation of backup copies at clear operations on the selected depth-stencil
-static bool s_preserve_depth_buffers = false;
+static unsigned int s_preserve_depth_buffers = 0;
 // Enable or disable the aspect ratio check from 'check_aspect_ratio' in the detection heuristic
 static unsigned int s_use_aspect_ratio_heuristics = 1;
 
@@ -459,7 +459,7 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 		return false; // This is a draw call with no depth-stencil bound
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (s_preserve_depth_buffers &&
+	if (s_preserve_depth_buffers == 2 &&
 		vertices == 6 && instances == 1 &&
 		state.first_draw_since_bind &&
 		// But ignore that in Vulkan (since it is invalid to copy a resource inside an active render pass)
@@ -856,7 +856,16 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics_ex ? 2 : 1;
 	}
 
-	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &s_preserve_depth_buffers);
+	if (bool copy_before_clear_operations = s_preserve_depth_buffers != 0;
+		(modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &copy_before_clear_operations)) != false)
+		s_preserve_depth_buffers = copy_before_clear_operations ? 1 : 0;
+
+	if (s_preserve_depth_buffers)
+	{
+		if (bool copy_before_fullscreen_draws = s_preserve_depth_buffers == 2;
+			(modified |= ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws)) != false)
+			s_preserve_depth_buffers = copy_before_fullscreen_draws ? 2 : 1;
+	}
 
 	ImGui::Spacing();
 	ImGui::Separator();
@@ -985,7 +994,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					clear_stats.drawcalls,
 					clear_stats.drawcalls_indirect,
 					clear_stats.vertices,
-					clear_stats.fullscreen_draw ? (is_d3d12_or_vulkan ? " BIND" : " RECT") : "");
+					clear_stats.fullscreen_draw ? (is_d3d12_or_vulkan ? " BIND" : " DRAW") : "");
 
 				if (clear_stats.fullscreen_draw && is_d3d12_or_vulkan)
 				{
