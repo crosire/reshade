@@ -1809,6 +1809,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			new_technique.effect_index = effect_index;
 
 			new_technique.hidden = new_technique.annotation_as_int("hidden") != 0;
+			new_technique.enabled_in_screenshot = new_technique.annotation_as_int("enabled_in_screenshot", 0, true) != 0;
 
 			if (new_technique.annotation_as_int("enabled"))
 				enable_technique(new_technique);
@@ -3404,7 +3405,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				disable_technique(tech);
 		}
 
-		if (tech.passes_data.empty() || !tech.enabled)
+		if (tech.passes_data.empty() || !tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot))
 			continue; // Ignore techniques that are not fully loaded or currently disabled
 
 		render_technique(tech, cmd_list, back_buffer_resource, rtv, rtv_srgb);

@@ -223,6 +223,7 @@ namespace reshade
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		bool hidden = false;
 		bool enabled = false;
+		bool enabled_in_screenshot = true;
 		int64_t time_left = 0;
 		unsigned int toggle_key_data[4] = {};
 		moving_average<uint64_t, 60> average_cpu_duration;
