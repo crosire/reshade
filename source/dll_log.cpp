@@ -18,10 +18,6 @@ struct scoped_file_handle
 
 	void operator=(HANDLE new_handle)
 	{
-		// Close the previous file first
-		if (handle != INVALID_HANDLE_VALUE)
-			CloseHandle(handle);
-
 		handle = new_handle;
 	}
 
@@ -86,6 +82,11 @@ reshade::log::message::~message()
 
 bool reshade::log::open_log_file(const std::filesystem::path &path)
 {
+	// Close the previous file first
+	// Do this here, instead of in 'scoped_file_handle::operator=', so that the old handle is closed before the new handle is created
+	if (s_file_handle != INVALID_HANDLE_VALUE)
+		CloseHandle(s_file_handle);
+
 	// Open the log file for writing (and flush on each write) and clear previous contents
 	s_file_handle = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, NULL);
 
