@@ -162,7 +162,7 @@ static void destroy_resource_or_view(GLenum target, GLuint object)
 	}
 }
 
-static reshade::api::subresource_data convert_mapped_subresource(GLenum format, GLenum type, const void *pixels, std::vector<uint8_t> *temp_data, GLsizei width, GLsizei height = 1, GLsizei depth = 1)
+static reshade::api::subresource_data convert_mapped_subresource(GLenum format, GLenum type, const void *pixels, std::vector<uint8_t> *temp_data, reshade::api::format texture_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1)
 {
 	GLint unpack = 0;
 	gl3wGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &unpack);
@@ -209,7 +209,47 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 		result.data = temp_data->data();
 	}
 
+	// Convert BGRA to RGBA format (GL_BGRA -> GLRGBA)
+	const bool convert_bgra_to_rgba = (format == GL_BGRA || format == GL_BGRA_INTEGER) && type == GL_UNSIGNED_BYTE;
+	if (convert_bgra_to_rgba && temp_data != nullptr)
+	{
+		switch (format)
+		{
+		case GL_BGRA:
+			format = GL_RGBA;
+			break;
+		case GL_BGRA_INTEGER:
+			format = GL_RGBA_INTEGER;
+			break;
+		}
+
+		temp_data->resize(static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4);
+		for (size_t z = 0; z < static_cast<size_t>(depth); ++z)
+		{
+			for (size_t y = 0; y < static_cast<size_t>(height); ++y)
+			{
+				for (size_t x = 0; x < static_cast<size_t>(width); ++x)
+				{
+					const size_t in_index = (z * width * height + y * width + x) * 4;
+					const size_t out_index = (z * width * height + y * width + x) * 4;
+
+					uint8_t b = static_cast<const uint8_t *>(pixels)[in_index + 0];
+					uint8_t r = static_cast<const uint8_t *>(pixels)[in_index + 2];
+					(*temp_data)[out_index + 0] = r;
+					(*temp_data)[out_index + 1] = static_cast<const uint8_t *>(pixels)[in_index + 1];
+					(*temp_data)[out_index + 2] = b;
+					(*temp_data)[out_index + 3] = static_cast<const uint8_t *>(pixels)[in_index + 3];;
+				}
+			}
+		}
+
+		result.data = temp_data->data();
+	}
+
 	const auto pixels_format = reshade::opengl::convert_format(format, type);
+
+	if (pixels_format != texture_format)
+		return {};
 
 	result.row_pitch = reshade::api::format_row_pitch(pixels_format, width);
 	result.slice_pitch = reshade::api::format_slice_pitch(pixels_format, result.row_pitch, height);
@@ -377,17 +417,18 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	}
 
 	reshade::api::resource dst = reshade::opengl::make_resource_handle(base_target, object);
+	const reshade::api::resource_desc dst_desc = g_current_context->get_resource_desc(dst);
 
 	GLuint subresource = level;
 	if (base_target == GL_TEXTURE_CUBE_MAP)
 	{
-		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * g_current_context->get_resource_desc(dst).texture.levels;
+		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * dst_desc.texture.levels;
 	}
 
 	const reshade::api::subresource_box dst_box = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
 
 	std::vector<uint8_t> temp_data;
-	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth), dst, subresource, &dst_box);
+	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, dst_desc.texture.format, width, height, depth), dst, subresource, &dst_box);
 }
 #endif
 
@@ -471,7 +512,7 @@ HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint interna
 		std::vector<uint8_t> temp_data;
 
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, 1, 1, swizzle_mask);
-		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, width);
+		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, desc.texture.format, width);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
@@ -486,7 +527,7 @@ HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint interna
 
 		trampoline(target, level, internalformat, width, border, format, type, pixels);
 
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != pixels);
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, pixels == nullptr && initial_data.data != nullptr);
 	}
 	else
 #endif
@@ -551,7 +592,7 @@ HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint interna
 		std::vector<uint8_t> temp_data;
 
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1, swizzle_mask);
-		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, width, height);
+		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, desc.texture.format, width, height);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data && target != GL_TEXTURE_CUBE_MAP_POSITIVE_X ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
@@ -567,7 +608,7 @@ HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint interna
 
 		trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 
-		init_resource(target, 0, desc, initial_data.data && target != GL_TEXTURE_CUBE_MAP_POSITIVE_X ? &initial_data : nullptr, initial_data.data != pixels);
+		init_resource(target, 0, desc, initial_data.data && target != GL_TEXTURE_CUBE_MAP_POSITIVE_X ? &initial_data : nullptr, pixels == nullptr && initial_data.data != nullptr);
 	}
 	else
 #endif
@@ -1219,7 +1260,7 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 		std::vector<uint8_t> temp_data;
 
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth, swizzle_mask);
-		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth);
+		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, desc.texture.format, width, height, depth);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
@@ -1236,7 +1277,7 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 
 		trampoline(target, level, internalformat, width, height, depth, border, format, type, pixels);
 
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != pixels);
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, pixels == nullptr && initial_data.data != nullptr);
 	}
 	else
 #endif
@@ -1296,7 +1337,7 @@ void APIENTRY glCompressedTexImage1D(GLenum target, GLint level, GLenum internal
 		level == 0 && !proxy_object)
 	{
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width);
-		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, width);
+		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, desc.texture.format, width);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
@@ -1309,7 +1350,7 @@ void APIENTRY glCompressedTexImage1D(GLenum target, GLint level, GLenum internal
 
 		trampoline(target, level, internalformat, width, border, imageSize, data);
 
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != data);
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, data == nullptr && initial_data.data != nullptr);
 	}
 	else
 #endif
@@ -1330,7 +1371,7 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 		level == 0 && !proxy_object && !cube_map_face)
 	{
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height);
-		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, width, height);
+		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, desc.texture.format, width, height);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
@@ -1344,7 +1385,7 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 
 		trampoline(target, level, internalformat, width, height, border, imageSize, data);
 
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != data);
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, data == nullptr && initial_data.data != nullptr);
 	}
 	else
 #endif
@@ -1363,7 +1404,7 @@ void APIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internal
 		level == 0 && !proxy_object)
 	{
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
-		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, width, height, depth);
+		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, desc.texture.format, width, height, depth);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
@@ -1378,7 +1419,7 @@ void APIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internal
 
 		trampoline(target, level, internalformat, width, height, depth, border, imageSize, data);
 
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != data);
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, data == nullptr && initial_data.data != nullptr);
 	}
 	else
 #endif

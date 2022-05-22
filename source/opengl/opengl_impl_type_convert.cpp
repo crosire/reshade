@@ -274,9 +274,12 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	{
 	default:
 		return api::format::unknown;
+	case GL_LUMINANCE:
 	case GL_LUMINANCE8: // { R, R, R, 1 }
+	case GL_INTENSITY:
 	case GL_INTENSITY8: // { R, R, R, R }
 		return api::format::l8_unorm;
+	case GL_ALPHA:
 	case GL_ALPHA8:
 		return api::format::a8_unorm;
 	case GL_R8UI:
@@ -300,6 +303,7 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r8_unorm;
 	case GL_R8_SNORM:
 		return api::format::r8_snorm;
+	case GL_LUMINANCE_ALPHA:
 	case GL_LUMINANCE8_ALPHA8: // { R, R, R, G }
 		return api::format::l8a8_unorm;
 	case GL_RG8UI:
@@ -621,7 +625,7 @@ auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
 			return api::format::b8g8r8a8_unorm;
 		case GL_SHORT:
 		case GL_UNSIGNED_SHORT:
-			assert(false);
+			// assert(false); // Used by Amnesia: Rebirth
 			return api::format::unknown;
 		case GL_UNSIGNED_SHORT_4_4_4_4_REV:
 			return api::format::b4g4r4a4_unorm;
