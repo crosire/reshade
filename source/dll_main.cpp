@@ -33,7 +33,7 @@ bool is_windows7()
 	VER_SET_CONDITION(condition, VER_MAJORVERSION, VER_LESS_EQUAL);
 	VER_SET_CONDITION(condition, VER_MINORVERSION, VER_LESS_EQUAL);
 
-	OSVERSIONINFOEX verinfo_windows7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
+	OSVERSIONINFOEX verinfo_windows7 = { sizeof(verinfo_windows7), 6, 1 };
 	return VerifyVersionInfo(&verinfo_windows7, VER_MAJORVERSION | VER_MINORVERSION, condition) != FALSE;
 }
 
@@ -45,15 +45,9 @@ static bool resolve_env_path(std::filesystem::path &path, const std::filesystem:
 	WCHAR buf[4096];
 	if (!ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
 		return false;
+
 	path = buf;
-
-	if (path.is_relative())
-		path = base / path;
-
-	if (!GetLongPathNameW(path.c_str(), buf, ARRAYSIZE(buf)))
-		return false;
-	path = buf;
-
+	path = base / path;
 	path = path.lexically_normal();
 	if (!path.has_stem()) // Remove trailing slash
 		path = path.parent_path();

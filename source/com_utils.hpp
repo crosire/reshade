@@ -31,7 +31,7 @@ __forceinline U *get_private_pointer_d3d9(T *object)
  /// Registers a <paramref name="callback"/> with the specified <paramref name="object"/> that is called when the object is being destroyed.
  /// </summary>
 template <typename T, typename L>
-__forceinline void register_destruction_callback(T *object, L &&callback, const UINT unique_tag = 0)
+inline void register_destruction_callback(T *object, L &&callback, const UINT unique_tag = 0)
 {
 	class tracker_instance final : public IUnknown
 	{
@@ -76,7 +76,7 @@ __forceinline void register_destruction_callback(T *object, L &&callback, const 
 	object->SetPrivateDataInterface(private_guid, interface_object);
 }
 template <typename T, typename L>
-__forceinline void register_destruction_callback_d3d9(T *object, L &&callback, const UINT unique_tag = 0)
+inline void register_destruction_callback_d3d9(T *object, L &&callback, const UINT unique_tag = 0)
 {
 	class tracker_instance final : public IUnknown
 	{

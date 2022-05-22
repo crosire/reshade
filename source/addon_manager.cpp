@@ -105,6 +105,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reshade_reloaded_effects);
 		CASE(reshade_set_uniform_value);
 		CASE(reshade_set_technique_state);
+		CASE(reshade_overlay);
+		CASE(reshade_screenshot);
 	}
 #undef  CASE
 	return "unknown";
@@ -134,6 +136,7 @@ void reshade::load_addons()
 	std::vector<std::string> disabled_addons;
 	global_config().get("ADDON", "DisabledAddons", disabled_addons);
 
+#if 1
 	{	addon_info &info = addon_loaded_info.emplace_back();
 		info.name = "Generic Depth";
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
@@ -148,6 +151,7 @@ void reshade::load_addons()
 			register_addon_depth();
 		}
 	}
+#endif
 
 #if !RESHADE_ADDON_LITE
 	// Get directory from where to load add-ons from
@@ -165,7 +169,7 @@ void reshade::load_addons()
 
 		LOG(INFO) << "Loading add-on from " << path << " ...";
 
-		// Use 'LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR' to temporarily add add-on search path to the list of directories "LoadLibraryEx" will use to resolve DLL dependencies
+		// Use 'LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR' to temporarily add add-on search path to the list of directories 'LoadLibraryEx' will use to resolve DLL dependencies
 		const HMODULE module = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 		if (module == nullptr)
 		{

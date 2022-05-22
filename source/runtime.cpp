@@ -112,7 +112,7 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	_device(device),
 	_graphics_queue(graphics_queue),
 	_start_time(std::chrono::high_resolution_clock::now()),
-	_last_present_time(std::chrono::high_resolution_clock::now()),
+	_last_present_time(_start_time),
 	_last_frame_duration(std::chrono::milliseconds(1)),
 #if RESHADE_FX
 	_effect_search_paths({ L".\\" }),
@@ -169,6 +169,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_width = back_buffer_desc.texture.width;
 	_height = back_buffer_desc.texture.height;
 	_back_buffer_format = api::format_to_default_typed(back_buffer_desc.texture.format);
+	_back_buffer_samples = back_buffer_desc.texture.samples;
 
 	// Create resolve texture and copy pipeline (do this before creating effect resources, to ensure correct back buffer format is set up)
 	if (back_buffer_desc.texture.samples > 1
@@ -499,8 +500,7 @@ void reshade::runtime::on_present()
 	// Resolve MSAA back buffer if MSAA is active or copy when format conversion is required
 	if (_back_buffer_resolved != 0)
 	{
-		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
-		if (back_buffer_desc.texture.samples == 1)
+		if (_back_buffer_samples == 1)
 		{
 			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::copy_source);
 			cmd_list->copy_texture_region(back_buffer_resource, 0, nullptr, _back_buffer_resolved, 0, nullptr);
@@ -604,12 +604,17 @@ void reshade::runtime::on_present()
 	// Stretch main render target back into MSAA back buffer if MSAA is active or copy when format conversion is required
 	if (_back_buffer_resolved != 0)
 	{
+		const api::resource resources[2] = { back_buffer_resource, _back_buffer_resolved };
+		const api::resource_usage state_old[2] = { api::resource_usage::copy_source | api::resource_usage::resolve_source, api::resource_usage::render_target };
+		const api::resource_usage state_final[2] = { api::resource_usage::present, api::resource_usage::resolve_dest };
+
 		if (_device->get_api() == api::device_api::d3d10 ||
 			_device->get_api() == api::device_api::d3d11 ||
 			_device->get_api() == api::device_api::d3d12)
 		{
-			cmd_list->barrier(back_buffer_resource, api::resource_usage::copy_source | api::resource_usage::resolve_source, api::resource_usage::render_target);
-			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::render_target, api::resource_usage::shader_resource);
+			const api::resource_usage state_new[2] = { api::resource_usage::render_target, api::resource_usage::shader_resource };
+
+			cmd_list->barrier(2, resources, state_old, state_new);
 
 			cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, _copy_pipeline);
 
@@ -625,16 +630,15 @@ void reshade::runtime::on_present()
 
 			cmd_list->draw(3, 1, 0, 0);
 
-			cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
-			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::shader_resource, api::resource_usage::resolve_dest);
+			cmd_list->barrier(2, resources, state_new, state_final);
 		}
 		else
 		{
-			cmd_list->barrier(back_buffer_resource, api::resource_usage::copy_source | api::resource_usage::resolve_source, api::resource_usage::copy_dest);
-			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::render_target, api::resource_usage::copy_source);
+			const api::resource_usage state_new[2] = { api::resource_usage::copy_dest, api::resource_usage::copy_source };
+
+			cmd_list->barrier(2, resources, state_old, state_new);
 			cmd_list->copy_texture_region(_back_buffer_resolved, 0, nullptr, back_buffer_resource, 0, nullptr);
-			cmd_list->barrier(back_buffer_resource, api::resource_usage::copy_dest, api::resource_usage::present);
-			cmd_list->barrier(_back_buffer_resolved, api::resource_usage::copy_source, api::resource_usage::resolve_dest);
+			cmd_list->barrier(2, resources, state_new, state_final);
 		}
 	}
 
@@ -719,9 +723,9 @@ void reshade::runtime::load_config()
 	// Fall back to temp directory if cache path does not exist
 	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path))
 	{
-		WCHAR temp_path[MAX_PATH] = L"";
-		GetTempPathW(MAX_PATH, temp_path);
-		_intermediate_cache_path = std::filesystem::path(temp_path) / "ReShade";
+		WCHAR temp_path[MAX_PATH];
+		if (GetTempPathW(ARRAYSIZE(temp_path), temp_path))
+			_intermediate_cache_path = std::filesystem::path(temp_path) / "ReShade";
 
 		std::error_code ec;
 		std::filesystem::create_directory(_intermediate_cache_path, ec);
@@ -732,19 +736,17 @@ void reshade::runtime::load_config()
 		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
 #endif
 
+	config.get("SCREENSHOT", "SavePath", _screenshot_path);
 	config.get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.get("SCREENSHOT", "FileNaming", _screenshot_name);
 	config.get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 #if RESHADE_FX
 	config.get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
+	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #endif
 #if RESHADE_GUI
 	config.get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
-#endif
-	config.get("SCREENSHOT", "SavePath", _screenshot_path);
-#if RESHADE_FX
-	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #endif
 	config.get("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
 	config.get("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
@@ -790,19 +792,17 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 #endif
 
+	config.set("SCREENSHOT", "SavePath", _screenshot_path);
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.set("SCREENSHOT", "FileNaming", _screenshot_name);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 #if RESHADE_FX
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
+	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #endif
 #if RESHADE_GUI
 	config.set("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
-#endif
-	config.set("SCREENSHOT", "SavePath", _screenshot_path);
-#if RESHADE_FX
-	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #endif
 	config.set("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
 	config.set("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
@@ -2946,7 +2946,7 @@ void reshade::runtime::clear_effect_cache()
 		if (filename.native().compare(0, 8, L"reshade-") != 0 || (extension != L".i" && extension != L".cso" && extension != L".asm"))
 			continue;
 
-		std::filesystem::remove(entry.path());
+		std::filesystem::remove(entry, ec);
 	}
 }
 

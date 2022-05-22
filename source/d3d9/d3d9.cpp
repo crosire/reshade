@@ -14,7 +14,7 @@
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window)
 {
 	LOG(INFO) << "> Dumping presentation parameters:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -73,23 +73,24 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	desc.heap = reshade::api::memory_heap::gpu_only;
 	desc.usage = reshade::api::resource_usage::render_target;
 
+	const HWND hwnd = (pp.hDeviceWindow != nullptr) ? pp.hDeviceWindow : focus_window;
+
 	if (pp.Windowed)
 	{
-		if (pp.hDeviceWindow != nullptr) // In this case focus window is used instead
-		{
-			RECT window_rect = {};
-			GetClientRect(pp.hDeviceWindow, &window_rect);
-			if (pp.BackBufferWidth == 0)
-				desc.texture.width = window_rect.right;
-			if (pp.BackBufferHeight == 0)
-				desc.texture.height = window_rect.bottom;
-		}
+		RECT window_rect = {};
+		GetClientRect(hwnd, &window_rect);
+		if (pp.BackBufferWidth == 0)
+			desc.texture.width = window_rect.right;
+		if (pp.BackBufferHeight == 0)
+			desc.texture.height = window_rect.bottom;
 
 		if (pp.BackBufferFormat == D3DFMT_UNKNOWN)
 		{
-			D3DDISPLAYMODE current_mode = {};
-			d3d->GetAdapterDisplayMode(adapter_index, &current_mode);
-			desc.texture.format = reshade::d3d9::convert_format(current_mode.Format);
+			D3DDISPLAYMODE current_mode;
+			if (SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
+			{
+				desc.texture.format = reshade::d3d9::convert_format(current_mode.Format);
+			}
 		}
 	}
 
@@ -97,7 +98,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	desc.present_mode = pp.SwapEffect;
 	desc.present_flags = pp.Flags;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, pp.hDeviceWindow))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
 	{
 		pp.BackBufferWidth = desc.texture.width;
 		pp.BackBufferHeight = desc.texture.height;
@@ -126,14 +127,15 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	}
 	if (reshade::global_config().get("APP", "ForceFullscreen"))
 	{
-		D3DDISPLAYMODE current_mode = {};
-		d3d->GetAdapterDisplayMode(adapter_index, &current_mode);
-
-		pp.BackBufferWidth = current_mode.Width;
-		pp.BackBufferHeight = current_mode.Height;
-		pp.BackBufferFormat = current_mode.Format;
-		pp.Windowed = FALSE;
-		pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
+		D3DDISPLAYMODE current_mode;
+		if (SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
+		{
+			pp.BackBufferWidth = current_mode.Width;
+			pp.BackBufferHeight = current_mode.Height;
+			pp.BackBufferFormat = current_mode.Format;
+			pp.Windowed = FALSE;
+			pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
+		}
 	}
 
 	if (unsigned int force_resolution[2] = {};
@@ -148,9 +150,9 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		pp.BackBufferFormat = D3DFMT_A2R10G10B10;
 	}
 }
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window)
 {
-	dump_and_modify_present_parameters(pp, d3d, adapter_index);
+	dump_and_modify_present_parameters(pp, d3d, adapter_index, focus_window);
 
 	assert(fullscreen_desc.Size == sizeof(D3DDISPLAYMODEEX));
 
@@ -243,7 +245,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 #endif
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp, pD3D, Adapter);
+	dump_and_modify_present_parameters(pp, pD3D, Adapter, hFocusWindow);
 
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 	if (use_software_rendering)
@@ -314,7 +316,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	if (pFullscreenDisplayMode != nullptr)
 		fullscreen_mode = *pFullscreenDisplayMode;
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp, fullscreen_mode, pD3D, Adapter);
+	dump_and_modify_present_parameters(pp, fullscreen_mode, pD3D, Adapter, hFocusWindow);
 
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 	if (use_software_rendering)

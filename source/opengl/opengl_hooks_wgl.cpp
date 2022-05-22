@@ -511,7 +511,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		else
 		{
 			// Choose a device context to make current with
-			HDC hdc = *it->second->_hdcs.begin();
+			HDC hdc = reinterpret_cast<HDC>(it->second->get_native());
 			const HDC prev_hdc = wglGetCurrentDC();
 
 			// In case the original was destroyed already, create a dummy window to get a valid context

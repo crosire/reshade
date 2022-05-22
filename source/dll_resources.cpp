@@ -8,7 +8,7 @@
 
 extern HMODULE g_module_handle;
 
-reshade::resources::data_resource reshade::resources::load_data_resource(unsigned int id)
+reshade::resources::data_resource reshade::resources::load_data_resource(unsigned short id)
 {
 	const HRSRC info = FindResource(g_module_handle, MAKEINTRESOURCE(id), RT_RCDATA);
 	const HGLOBAL handle = LoadResource(g_module_handle, info);

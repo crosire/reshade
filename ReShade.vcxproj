@@ -556,9 +556,7 @@
     <ClCompile Include="source\dxgi\dxgi_device.cpp" />
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp" />
     <ClCompile Include="source\hook.cpp" />
-    <ClCompile Include="source\hook_manager.cpp">
-      <DisableSpecificWarnings Condition="'$(Configuration)'=='Debug App' Or '$(Configuration)'=='Release App'">4505;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-    </ClCompile>
+    <ClCompile Include="source\hook_manager.cpp" />
     <ClCompile Include="source\imgui_code_editor.cpp" />
     <ClCompile Include="source\imgui_function_table.cpp" />
     <ClCompile Include="source\imgui_widgets.cpp" />
