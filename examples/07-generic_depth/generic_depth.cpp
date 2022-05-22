@@ -841,30 +841,46 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	state_tracking_inst &instance = runtime->get_private_data<state_tracking_inst>();
 	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
-	bool modified = false;
-	if (device->get_api() == device_api::d3d9)
-		modified |= ImGui::Checkbox("Disable replacement with INTZ format (requires application restart)", &s_disable_intz);
+	bool force_reset = false;
+
+	if (device->get_api() == device_api::d3d9 && ImGui::Checkbox("Disable replacement with INTZ format (requires application restart)", &s_disable_intz))
+		reshade::config_set_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
 
 	if (bool use_aspect_ratio_heuristics = s_use_aspect_ratio_heuristics != 0;
-		(modified |= ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics)) != false)
+		ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics))
+	{
 		s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics ? 1 : 0;
+		reshade::config_set_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+		force_reset = true;
+	}
 
 	if (s_use_aspect_ratio_heuristics)
 	{
 		if (bool use_aspect_ratio_heuristics_ex = s_use_aspect_ratio_heuristics == 2;
-			(modified |= ImGui::Checkbox("Use extended aspect ratio heuristics (enable when DLSS is active)", &use_aspect_ratio_heuristics_ex)) != false)
+			ImGui::Checkbox("Use extended aspect ratio heuristics (enable when DLSS is active)", &use_aspect_ratio_heuristics_ex))
+		{
 			s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics_ex ? 2 : 1;
+			reshade::config_set_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+			force_reset = true;
+		}
 	}
 
 	if (bool copy_before_clear_operations = s_preserve_depth_buffers != 0;
-		(modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &copy_before_clear_operations)) != false)
+		ImGui::Checkbox("Copy depth buffer before clear operations", &copy_before_clear_operations))
+	{
 		s_preserve_depth_buffers = copy_before_clear_operations ? 1 : 0;
+		reshade::config_set_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
+		force_reset = true;
+	}
 
 	if (s_preserve_depth_buffers)
 	{
 		if (bool copy_before_fullscreen_draws = s_preserve_depth_buffers == 2;
-			(modified |= ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws)) != false)
+			ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws))
+		{
 			s_preserve_depth_buffers = copy_before_fullscreen_draws ? 2 : 1;
+			reshade::config_set_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
+		}
 	}
 
 	ImGui::Spacing();
@@ -873,7 +889,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 	std::shared_lock<std::shared_mutex> lock(s_mutex);
 
-	if (device_state.current_depth_stencil_list.empty() && !modified)
+	if (device_state.current_depth_stencil_list.empty())
 	{
 		ImGui::TextUnformatted("No depth buffers found.");
 		return;
@@ -935,7 +951,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			ImGui::Checkbox(label, &value))
 		{
 			instance.override_depth_stencil = value ? item.resource : resource { 0 };
-			modified = true;
+			force_reset = true;
 		}
 
 		ImGui::SameLine();
@@ -984,8 +1000,6 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					ImGui::Checkbox(label, &value))
 				{
 					depth_stencil_backup->force_clear_index = value ? clear_index : 0;
-					modified = true;
-
 					reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				}
 
@@ -1020,7 +1034,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		ImGui::PopTextWrapPos();
 	}
 
-	if (modified)
+	if (force_reset)
 	{
 		// Reset selected depth-stencil to force re-creation of resources next frame (like the backup texture)
 		if (instance.selected_shader_resource != 0)
@@ -1038,10 +1052,6 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		instance.selected_shader_resource = { 0 };
 
 		update_effect_runtime(runtime);
-
-		reshade::config_set_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
-		reshade::config_set_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
-		reshade::config_set_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
 	}
 }
 

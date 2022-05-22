@@ -1547,18 +1547,18 @@ void reshade::runtime::draw_gui_settings()
 				"  %%Date%%            Current date in format 'yyyy-MM-dd'\n"
 				"  %%Time%%            Current time in format 'HH-mm-ss'\n"
 				"  %%TimeMS%%          Milliseconds fraction of current time\n"
-				"  %%TargetPath%%      Full path to the screenshot file (%s%s%s)\n"
+				"  %%TargetPath%%      Full path to the screenshot file (%s)\n"
 				"  %%TargetDir%%       Full path to the screenshot directory (%s)\n"
-				"  %%TargetFileName%%  File name of the screenshot file (%s%s)\n"
+				"  %%TargetFileName%%  File name of the screenshot file (%s)\n"
 				"  %%TargetExt%%       File extension of the screenshot file (%s)\n"
 				"  %%TargetName%%      File name without extension of the screenshot file (%s)",
 				g_target_executable_path.stem().string().c_str(),
 #if RESHADE_FX
 				_current_preset_path.stem().string().c_str(),
 #endif
-				_screenshot_path.u8string().c_str(), _screenshot_name.c_str(), extension.c_str(),
+				(_screenshot_path / (_screenshot_name + extension)).u8string().c_str(),
 				_screenshot_path.u8string().c_str(),
-				_screenshot_name.c_str(), extension.c_str(),
+				(_screenshot_name + extension).c_str(),
 				extension.c_str(),
 				_screenshot_name.c_str());
 		}
