@@ -78,7 +78,7 @@ namespace ReShade.Setup
 					// Look for archive at the end of this executable and copy it to a file
 					while (input.Read(block, 0, block.Length) >= signature.Length)
 					{
-						if (block.Take(signature.Length).SequenceEqual(signature))
+						if (block.Take(signature.Length).SequenceEqual(signature) && block.Skip(signature.Length).Take(26).Max() != 0)
 						{
 							output.Write(block, 0, block.Length);
 							input.CopyTo(output);
