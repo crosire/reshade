@@ -830,9 +830,6 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 	bool force_reset = false;
 
-	if (device->get_api() == device_api::d3d9 && ImGui::Checkbox("Disable replacement with INTZ format (requires application restart)", &s_disable_intz))
-		reshade::config_set_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
-
 	if (bool use_aspect_ratio_heuristics = s_use_aspect_ratio_heuristics != 0;
 		ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics))
 	{
