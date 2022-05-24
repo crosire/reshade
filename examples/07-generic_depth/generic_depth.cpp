@@ -496,8 +496,8 @@ static bool on_draw_indirect(command_list *cmd_list, indirect_command type, reso
 	counters.total_stats.drawcalls += draw_count;
 	counters.total_stats.drawcalls_indirect += draw_count;
 	counters.current_stats.drawcalls += draw_count;
-	counters.current_stats.last_viewport = state.current_viewport;
 	counters.current_stats.drawcalls_indirect += draw_count;
+	counters.current_stats.last_viewport = state.current_viewport;
 
 	return false;
 }
@@ -514,9 +514,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 {
 	auto &state = cmd_list->get_private_data<state_tracking>();
 
-	resource depth_stencil = { 0 };
-	if (depth_stencil_view != 0)
-		depth_stencil = cmd_list->get_device()->get_resource_from_view(depth_stencil_view);
+	const resource depth_stencil = (depth_stencil_view != 0) ? cmd_list->get_device()->get_resource_from_view(depth_stencil_view) : resource { 0 };
 
 	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0)
 	{
@@ -546,7 +544,14 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, co
 static void on_begin_render_pass_with_depth_stencil(command_list *cmd_list, uint32_t, const render_pass_render_target_desc *, const render_pass_depth_stencil_desc *depth_stencil_desc)
 {
 	if (depth_stencil_desc != nullptr && depth_stencil_desc->depth_load_op == render_pass_load_op::clear)
+	{
 		on_clear_depth_stencil(cmd_list, depth_stencil_desc->view, &depth_stencil_desc->clear_depth, &depth_stencil_desc->clear_stencil, 0, nullptr);
+
+		// Prevent 'on_bind_depth_stencil' from copying depth buffer again
+		auto &state = cmd_list->get_private_data<state_tracking>();
+		state.current_depth_stencil = { 0 };
+	}
+
 	// If render pass has depth store operation set to 'discard', any copy performed after the render pass will likely contain broken data, so can only hope that the depth buffer can be copied before that ...
 
 	on_bind_depth_stencil(cmd_list, 0, nullptr, depth_stencil_desc != nullptr ? depth_stencil_desc->view : resource_view {});
