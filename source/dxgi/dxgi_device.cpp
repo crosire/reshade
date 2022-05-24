@@ -21,7 +21,7 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 		return true;
 
 	static const IID iid_lookup[] = {
-		__uuidof(IDXGIDevice ),
+		__uuidof(IDXGIDevice),
 		__uuidof(IDXGIDevice1),
 		__uuidof(IDXGIDevice2),
 		__uuidof(IDXGIDevice3),
