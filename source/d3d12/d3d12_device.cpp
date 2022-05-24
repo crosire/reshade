@@ -468,7 +468,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 #if RESHADE_ADDON
 			// Same implementation as in 'D3D12GraphicsCommandList::Reset'
 			reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(command_list_proxy);
+#endif
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 			if (pInitialState != nullptr)
 				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(command_list_proxy, reshade::api::pipeline_stage::all, to_handle(pInitialState));
 #endif

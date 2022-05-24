@@ -64,7 +64,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 					transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-					transition.image = (VkImage)device_impl->get_resource_from_view(rt.view).handle;;
+					transition.image = (VkImage)device_impl->get_resource_from_view(rt.view).handle;
 					transition.subresourceRange = { aspect_flags_from_format(desc.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 				}
 			}
@@ -111,7 +111,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 					transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-					transition.image = (VkImage)device_impl->get_resource_from_view(ds.view).handle;;
+					transition.image = (VkImage)device_impl->get_resource_from_view(ds.view).handle;
 					transition.subresourceRange = { aspect_flags_from_format(desc.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 				}
 			}
@@ -974,7 +974,7 @@ void VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineSt
 	GET_DISPATCH_PTR_FROM(CmdPipelineBarrier, device_impl);
 	trampoline(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const uint32_t num_barriers = bufferMemoryBarrierCount + imageMemoryBarrierCount;
 
 	if (num_barriers == 0 || !reshade::has_addon_event<reshade::addon_event::barrier>())
@@ -1275,7 +1275,7 @@ void VKAPI_CALL vkCmdPipelineBarrier2(VkCommandBuffer commandBuffer, const VkDep
 	GET_DISPATCH_PTR_FROM(CmdPipelineBarrier2, device_impl);
 	trampoline(commandBuffer, pDependencyInfo);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(pDependencyInfo != nullptr);
 
 	const uint32_t num_barriers = pDependencyInfo->bufferMemoryBarrierCount + pDependencyInfo->imageMemoryBarrierCount;
@@ -1664,7 +1664,8 @@ void VKAPI_CALL vkCmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQuery
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 	const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::begin_query>(cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type, index), query))
+	if (reshade::invoke_addon_event<reshade::addon_event::begin_query>(
+			cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type, index), query))
 		return;
 #endif
 
@@ -1679,7 +1680,8 @@ void VKAPI_CALL vkCmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQueryPo
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 	const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type, index), query))
+	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(
+			cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type, index), query))
 		return;
 #endif
 

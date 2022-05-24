@@ -446,10 +446,12 @@ static __forceinline void update_current_primitive_topology(GLenum mode, GLenum 
 	{
 		g_current_context->_current_prim_mode = mode;
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
 		const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
+#endif
 	}
 }
 #endif

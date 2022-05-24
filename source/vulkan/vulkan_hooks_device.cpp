@@ -868,7 +868,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	assert(pSubmits != nullptr);
 
 #if RESHADE_ADDON
-	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue); queue_impl != nullptr)
+	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue))
 	{
 		const auto device_impl = static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device());
 
@@ -897,7 +897,7 @@ VkResult VKAPI_CALL vkQueueSubmit2(VkQueue queue, uint32_t submitCount, const Vk
 	assert(pSubmits != nullptr);
 
 #if RESHADE_ADDON
-	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue); queue_impl != nullptr)
+	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue))
 	{
 		const auto device_impl = static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device());
 
@@ -932,12 +932,11 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	present_info.pWaitSemaphores = wait_semaphores.p;
 	present_info.waitSemaphoreCount = pPresentInfo->waitSemaphoreCount;
 
-	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue); queue_impl != nullptr)
+	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue))
 	{
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
-			reshade::vulkan::swapchain_impl *const swapchain_impl = s_vulkan_swapchains.at(pPresentInfo->pSwapchains[i]);
-			if (swapchain_impl != nullptr)
+			if (reshade::vulkan::swapchain_impl *const swapchain_impl = s_vulkan_swapchains.at(pPresentInfo->pSwapchains[i]))
 			{
 #if RESHADE_ADDON
 				uint32_t dirty_rect_count = 0;
@@ -952,7 +951,8 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 					if (dirty_rect_count > 16)
 						dirty_rects.p = new reshade::api::rect[dirty_rect_count];
 
-					const VkRectLayerKHR *rects = present_regions->pRegions[i].pRectangles;
+					const VkRectLayerKHR *const rects = present_regions->pRegions[i].pRectangles;
+
 					for (uint32_t k = 0; k < dirty_rect_count; ++k)
 					{
 						dirty_rects[k] = {
@@ -1434,7 +1434,7 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 		return result;
 	}
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_SHADER_MODULE> data;
 	data.spirv.assign(reinterpret_cast<const uint8_t *>(pCreateInfo->pCode), reinterpret_cast<const uint8_t *>(pCreateInfo->pCode) + pCreateInfo->codeSize);
 
@@ -1448,7 +1448,7 @@ void     VKAPI_CALL vkDestroyShaderModule(VkDevice device, VkShaderModule shader
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(DestroyShaderModule, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	device_impl->unregister_object<VK_OBJECT_TYPE_SHADER_MODULE>(shaderModule);
 #endif
 
@@ -1896,7 +1896,7 @@ VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkDescriptorPo
 		return result;
 	}
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_POOL> data;
 	data.max_sets = pCreateInfo->maxSets;
 	data.max_descriptors = 0;
@@ -1917,7 +1917,7 @@ void     VKAPI_CALL vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool de
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(DestroyDescriptorPool, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	device_impl->unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(descriptorPool);
 #endif
 
@@ -1929,7 +1929,7 @@ VkResult VKAPI_CALL vkResetDescriptorPool(VkDevice device, VkDescriptorPool desc
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(ResetDescriptorPool, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(descriptorPool);
 
 	pool_data->next_set = 0;

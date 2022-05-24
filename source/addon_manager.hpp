@@ -65,6 +65,38 @@ namespace reshade
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
 	{
 #if RESHADE_ADDON_LITE
+		// Ensure certain events are not compiled when only lite add-on support is enabled
+		static_assert(
+			ev != addon_event::map_buffer_region &&
+			ev != addon_event::unmap_buffer_region &&
+			ev != addon_event::map_texture_region &&
+			ev != addon_event::unmap_texture_region &&
+			ev != addon_event::update_buffer_region &&
+			ev != addon_event::update_texture_region &&
+			ev != addon_event::copy_descriptor_sets &&
+			ev != addon_event::update_descriptor_sets &&
+			ev != addon_event::get_query_pool_results &&
+			ev != addon_event::barrier &&
+			ev != addon_event::bind_pipeline &&
+			ev != addon_event::bind_pipeline_states &&
+			ev != addon_event::push_constants &&
+			ev != addon_event::push_descriptors &&
+			ev != addon_event::bind_descriptor_sets &&
+			ev != addon_event::bind_index_buffer &&
+			ev != addon_event::bind_vertex_buffers &&
+			ev != addon_event::bind_stream_output_buffers &&
+			ev != addon_event::copy_resource &&
+			ev != addon_event::copy_buffer_region &&
+			ev != addon_event::copy_buffer_to_texture &&
+			ev != addon_event::copy_texture_region &&
+			ev != addon_event::copy_texture_to_buffer &&
+			ev != addon_event::resolve_texture_region &&
+			ev != addon_event::generate_mipmaps &&
+			ev != addon_event::begin_query &&
+			ev != addon_event::end_query &&
+			ev != addon_event::copy_query_pool_results,
+			"Event that is disabled with 'RESHADE_ADDON_LITE' was used!");
+
 		// Allow a subset of events even when add-ons are disabled, to ensure they continue working correctly
 		if constexpr (
 			ev != addon_event::init_device &&
