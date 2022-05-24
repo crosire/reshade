@@ -638,7 +638,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 		IDirect3DVertexBuffer9 *const resource = *ppVertexBuffer;
 		reshade::d3d9::replace_with_resource_proxy<Direct3DVertexBuffer9>(this, ppVertexBuffer);
 
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(*ppVertexBuffer));
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource));
 
 		register_destruction_callback_d3d9(resource, [this, resource]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
@@ -1136,7 +1136,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 				continue;
 
 			if (const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
-				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(this, to_handle(surface.get()), color, Count, reinterpret_cast<const reshade::api::rect *>(pRects)))
+				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
+					this,
+					to_handle(surface.get()),
+					color,
+					Count,
+					reinterpret_cast<const reshade::api::rect *>(pRects)))
 				Flags &= ~(D3DCLEAR_TARGET); // This will prevent all render targets from getting cleared, not just the current one ...
 		}
 	}
@@ -1146,7 +1151,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 		com_ptr<IDirect3DSurface9> surface;
 		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(surface.get()), Flags & D3DCLEAR_ZBUFFER ? &Z : nullptr, Flags & D3DCLEAR_STENCIL ? reinterpret_cast<const uint8_t *>(&Stencil) : nullptr, Count, reinterpret_cast<const reshade::api::rect *>(pRects)))
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
+					this,
+					to_handle(surface.get()),
+					Flags & D3DCLEAR_ZBUFFER ? &Z : nullptr,
+					Flags & D3DCLEAR_STENCIL ? reinterpret_cast<const uint8_t *>(&Stencil) : nullptr,
+					Count,
+					reinterpret_cast<const reshade::api::rect *>(pRects)))
 				Flags &= ~(D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL);
 		}
 	}
@@ -1306,6 +1317,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetTexture(DWORD Stage, IDirect3DBase
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
+		assert(ppTexture != nullptr);
+
 		if (IDirect3DBaseTexture9 *const texture = *ppTexture)
 		{
 			switch (texture->GetType())
