@@ -56,7 +56,6 @@ struct depth_stencil_hash
 struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 {
 	draw_stats best_copy_stats;
-	bool first_empty_stats = true;
 	bool first_draw_since_bind = true;
 	viewport current_viewport = {};
 	resource current_depth_stencil = { 0 };
@@ -76,7 +75,6 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 	void reset_on_present()
 	{
 		best_copy_stats = { 0, 0 };
-		first_empty_stats = true;
 		counters_per_used_depth_stencil.clear();
 	}
 
@@ -84,9 +82,6 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 	{
 		// Executing a command list in a different command list inherits state
 		current_depth_stencil = source.current_depth_stencil;
-
-		if (first_empty_stats)
-			first_empty_stats = source.first_empty_stats;
 
 		if (source.best_copy_stats.vertices > best_copy_stats.vertices)
 			best_copy_stats = source.best_copy_stats;
@@ -142,9 +137,6 @@ struct depth_stencil_backup
 
 	// The depth-stencil that should be copied from
 	resource depth_stencil_resource = { 0 };
-
-	// Stats of the previous frame for this depth-stencil
-	draw_stats previous_stats = {};
 };
 
 struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) state_tracking_context
@@ -262,14 +254,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 
 	depth_stencil_info &counters = state.counters_per_used_depth_stencil[depth_stencil];
 
-	// Update stats with data from previous frame
-	if (!fullscreen_draw && counters.current_stats.drawcalls == 0 && state.first_empty_stats)
-	{
-		counters.current_stats = depth_stencil_backup->previous_stats;
-		state.first_empty_stats = false;
-	}
-
-	// Ignore clears when there was no meaningful workload
+	// Ignore clears when there was no meaningful workload (e.g. at the start of a frame)
 	if (counters.current_stats.drawcalls == 0)
 		return;
 
@@ -535,6 +520,7 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, co
 		auto &state = cmd_list->get_private_data<state_tracking>();
 
 		const resource depth_stencil = cmd_list->get_device()->get_resource_from_view(dsv);
+
 		// Note: This does not work when called from 'vkCmdClearAttachments', since it is invalid to copy a resource inside an active render pass
 		on_clear_depth_impl(cmd_list, state, depth_stencil, false);
 	}
@@ -740,11 +726,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			assert(depth_stencil_backup != nullptr && depth_stencil_backup->backup_texture != 0 && best_snapshot != nullptr);
 			const resource backup_texture = depth_stencil_backup->backup_texture;
 
-			if (s_preserve_depth_buffers)
-			{
-				depth_stencil_backup->previous_stats = best_snapshot->current_stats;
-			}
-			else
+			if (!s_preserve_depth_buffers)
 			{
 				// Copy to backup texture unless already copied during the current frame
 				if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
