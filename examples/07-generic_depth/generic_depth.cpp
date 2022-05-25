@@ -501,13 +501,21 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 	const resource depth_stencil = (depth_stencil_view != 0) ? cmd_list->get_device()->get_resource_from_view(depth_stencil_view) : resource { 0 };
 
-	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0)
+	if (depth_stencil != state.current_depth_stencil)
 	{
-		// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
-		if (cmd_list->get_device()->get_api() == device_api::d3d12 || cmd_list->get_device()->get_api() == device_api::vulkan)
-			on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, true);
-		else
+		if (depth_stencil != 0)
 			state.first_draw_since_bind = true;
+
+		if (state.current_depth_stencil != 0 && depth_stencil == 0)
+		{
+			const depth_stencil_info &previous_counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
+
+			// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
+			if ((cmd_list->get_device()->get_api() == device_api::d3d12 || cmd_list->get_device()->get_api() == device_api::vulkan) &&
+				// But only do this when a sufficient workload has executed before, to avoid too many copies during the frame (values chosen in Cyberpunk 2077)
+				(previous_counters.current_stats.drawcalls > 3 && previous_counters.current_stats.drawcalls_indirect == 0))
+				on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, true);
+		}
 	}
 
 	state.current_depth_stencil = depth_stencil;
@@ -702,7 +710,10 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				if (depth_stencil_backup->backup_texture == 0)
 					return;
 
-				reshade::config_get_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+				if (s_preserve_depth_buffers)
+					reshade::config_get_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+				else
+					depth_stencil_backup->force_clear_index = 0;
 
 				if (api == device_api::d3d9)
 					srv_desc.format = format::r32_float; // Same format as backup texture, as set in 'track_depth_stencil_for_backup'
@@ -829,6 +840,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	state_tracking_context &device_state = device->get_private_data<state_tracking_context>();
 
 	bool force_reset = false;
+	const bool is_d3d12_or_vulkan = (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan);
 
 	if (bool use_aspect_ratio_heuristics = s_use_aspect_ratio_heuristics != 0;
 		ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics))
@@ -857,7 +869,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		force_reset = true;
 	}
 
-	if (s_preserve_depth_buffers)
+	if (s_preserve_depth_buffers && !is_d3d12_or_vulkan)
 	{
 		if (bool copy_before_fullscreen_draws = s_preserve_depth_buffers == 2;
 			ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws))
@@ -966,8 +978,6 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			if (depth_stencil_backup == nullptr || depth_stencil_backup->backup_texture == 0)
 				continue;
 
-			const bool is_d3d12_or_vulkan = (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan);
-
 			for (size_t clear_index = 1; clear_index <= item.snapshot.clears.size(); ++clear_index)
 			{
 				sprintf_s(label, "%s  CLEAR %2zu", (clear_index == depth_stencil_backup->force_clear_index ? "> " : "  "), clear_index);
@@ -1014,7 +1024,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			ImGui::TextUnformatted("Not all depth buffers are available.\nYou may have to disable MSAA in the game settings for depth buffer detection to work!");
 		if (has_no_clear_operations)
 			ImGui::Text("No clear operations were found for the selected depth buffer.\n%sisable \"Copy depth buffer before clear operations\" or select a different depth buffer!",
-				s_preserve_depth_buffers != 2 ? "Try enabling \"Copy depth buffer before fullscreen draw calls\" or d" : "D");
+				s_preserve_depth_buffers != 2 && !is_d3d12_or_vulkan ? "Try enabling \"Copy depth buffer before fullscreen draw calls\" or d" : "D");
 		ImGui::PopTextWrapPos();
 	}
 
