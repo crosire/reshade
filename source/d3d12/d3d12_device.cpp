@@ -169,9 +169,9 @@ static HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, U
 	if (SUCCEEDED(hr))
 	{
 		com_ptr<ID3D12Device> device;
-		pResource->GetDevice(IID_PPV_ARGS(&device));
+		ID3D12Resource_GetDevice(pResource, IID_PPV_ARGS(&device));
 
-		if (const auto device_proxy = get_private_pointer<D3D12Device>(device.get()))
+		if (const auto device_proxy = static_cast<D3D12Device *>(device.get()))
 		{
 			const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
 
@@ -225,9 +225,9 @@ static HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, U
 static HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pWrittenRange)
 {
 	com_ptr<ID3D12Device> device;
-	pResource->GetDevice(IID_PPV_ARGS(&device));
+	ID3D12Resource_GetDevice(pResource, IID_PPV_ARGS(&device));
 
-	if (const auto device_proxy = get_private_pointer<D3D12Device>(device.get()))
+	if (const auto device_proxy = static_cast<D3D12Device *>(device.get()))
 	{
 		const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
 
