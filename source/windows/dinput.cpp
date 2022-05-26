@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#define INITGUID
 // Set version to DirectInput 7
 #define DIRECTINPUT_VERSION 0x0700
 
@@ -11,26 +12,33 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "hook_manager.hpp"
 
-#undef IDirectInputDevice_SetCooperativeLevel
-
 extern bool is_blocking_mouse_input();
 extern bool is_blocking_keyboard_input();
 
-HRESULT STDMETHODCALLTYPE IDirectInputDevice_SetCooperativeLevel(IUnknown *pDevice, HWND hwnd, DWORD dwFlags)
-{
-	LOG(INFO) << "Redirecting " << "IDirectInputDevice::SetCooperativeLevel" << '('
-		<<   "this = " << pDevice
-		<< ", hwnd = " << hwnd
-		<< ", dwFlags = " << std::hex << dwFlags << std::dec
-		<< ')' << " ...";
+#define IDirectInputDevice_SetCooperativeLevel_Impl(vtable_offset, device_interface_version, encoding) \
+	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel(IDirectInputDevice##device_interface_version##encoding *pDevice, HWND hwnd, DWORD dwFlags) \
+	{ \
+		LOG(INFO) << "Redirecting " << "IDirectInputDevice::SetCooperativeLevel" << '(' \
+			<<   "this = " << pDevice \
+			<< ", hwnd = " << hwnd \
+			<< ", dwFlags = " << std::hex << dwFlags << std::dec \
+			<< ')' << " ..."; \
+		if (dwFlags & DISCL_EXCLUSIVE) \
+		{ \
+			/* Need to remove exclusive flag, otherwise DirectInput will block input window messages and input.cpp will not receive input anymore */ \
+			dwFlags = (dwFlags & ~DISCL_EXCLUSIVE) | DISCL_NONEXCLUSIVE; \
+			\
+			LOG(INFO) << "> Replacing flags with " << std::hex << dwFlags << std::dec << " ..."; \
+		} \
+		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel, vtable_from_instance(pDevice) + vtable_offset)(pDevice, hwnd, dwFlags); \
+	}
 
-	// Need to remove exclusive flag, otherwise DirectInput will block input window messages and input.cpp will not receive input anymore
-	dwFlags = (dwFlags & ~DISCL_EXCLUSIVE) | DISCL_NONEXCLUSIVE;
-
-	LOG(INFO) << "> Replacing flags with " << std::hex << dwFlags << std::dec << " ...";
-
-	return reshade::hooks::call(IDirectInputDevice_SetCooperativeLevel, vtable_from_instance(pDevice) + 13)(pDevice, hwnd, dwFlags);
-}
+IDirectInputDevice_SetCooperativeLevel_Impl(13,  , A)
+IDirectInputDevice_SetCooperativeLevel_Impl(13,  , W)
+IDirectInputDevice_SetCooperativeLevel_Impl(13, 2, A)
+IDirectInputDevice_SetCooperativeLevel_Impl(13, 2, W)
+IDirectInputDevice_SetCooperativeLevel_Impl(13, 7, A)
+IDirectInputDevice_SetCooperativeLevel_Impl(13, 7, W)
 
 #define IDirectInputDevice_GetDeviceState_Impl(vtable_offset, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_GetDeviceState(IDirectInputDevice##device_interface_version##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
@@ -77,7 +85,7 @@ IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
 		if (SUCCEEDED(hr)) \
 		{ \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", vtable_from_instance(*lplpDirectInputDevice), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceState)); \
-			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::SetCooperativeLevel", vtable_from_instance(*lplpDirectInputDevice), 13, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice_SetCooperativeLevel)); \
+			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::SetCooperativeLevel", vtable_from_instance(*lplpDirectInputDevice), 13, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel)); \
 		} \
 		else \
 		{ \
@@ -156,17 +164,17 @@ HOOK_EXPORT HRESULT WINAPI DirectInputCreateEx(HINSTANCE hinst, DWORD dwVersion,
 
 	IUnknown *const factory = static_cast<IUnknown *>(*ppvOut);
 
-	if (riidltf == GUID { 0x89521360, 0xAA8A, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00 })
+	if (riidltf == IID_IDirectInputA)
 		reshade::hooks::install("IDirectInputA::CreateDevice",  vtable_from_instance(static_cast<IDirectInputA  *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInputA_CreateDevice));
-	if (riidltf == GUID { 0x89521361, 0xAA8A, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00 })
+	if (riidltf == IID_IDirectInputW)
 		reshade::hooks::install("IDirectInputW::CreateDevice",  vtable_from_instance(static_cast<IDirectInputW  *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInputW_CreateDevice));
-	if (riidltf == GUID { 0x5944E662, 0xAA8A, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00 })
+	if (riidltf == IID_IDirectInput2A)
 		reshade::hooks::install("IDirectInput2A::CreateDevice", vtable_from_instance(static_cast<IDirectInput2A *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput2A_CreateDevice));
-	if (riidltf == GUID { 0x5944E663, 0xAA8A, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00 })
+	if (riidltf == IID_IDirectInput2W)
 		reshade::hooks::install("IDirectInput2W::CreateDevice", vtable_from_instance(static_cast<IDirectInput2W *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput2W_CreateDevice));
-	if (riidltf == GUID { 0x9A4CB684, 0x236D, 0x11D3, 0x8E, 0x9D, 0x00, 0xC0, 0x4F, 0x68, 0x44, 0xAE })
+	if (riidltf == IID_IDirectInput7A)
 		reshade::hooks::install("IDirectInput7A::CreateDevice", vtable_from_instance(static_cast<IDirectInput2A *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput7A_CreateDevice));
-	if (riidltf == GUID { 0x9A4CB685, 0x236D, 0x11D3, 0x8E, 0x9D, 0x00, 0xC0, 0x4F, 0x68, 0x44, 0xAE })
+	if (riidltf == IID_IDirectInput7W)
 		reshade::hooks::install("IDirectInput7W::CreateDevice", vtable_from_instance(static_cast<IDirectInput2W *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput7W_CreateDevice));
 
 	return hr;
