@@ -158,7 +158,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppBuffer == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateBuffer(pDesc, pInitialData, nullptr);
+		return _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
 
 	D3D11_BUFFER_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
@@ -204,7 +204,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture1D == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateTexture1D(pDesc, pInitialData, nullptr);
+		return _orig->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
 
 	D3D11_TEXTURE1D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
@@ -252,7 +252,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture2D == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateTexture2D(pDesc, pInitialData, nullptr);
+		return _orig->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
 
 	D3D11_TEXTURE2D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
@@ -299,7 +299,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture3D == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateTexture3D(pDesc, pInitialData, nullptr);
+		return _orig->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
 
 	D3D11_TEXTURE3D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
@@ -346,7 +346,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 	if (pResource == nullptr) // This can happen if the passed resource failed creation previously, but application did not do error checking to catch that
 		return E_INVALIDARG;
 	if (ppShaderResourceView == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateShaderResourceView(pResource, pDesc, nullptr);
+		return _orig->CreateShaderResourceView(pResource, pDesc, ppShaderResourceView);
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
@@ -384,7 +384,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppUnorderedAccessView == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateUnorderedAccessView(pResource, pDesc, nullptr);
+		return _orig->CreateUnorderedAccessView(pResource, pDesc, ppUnorderedAccessView);
 
 	D3D11_UNORDERED_ACCESS_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D11_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_UAV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
@@ -422,7 +422,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppRenderTargetView == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateRenderTargetView(pResource, pDesc, nullptr);
+		return _orig->CreateRenderTargetView(pResource, pDesc, ppRenderTargetView);
 
 	D3D11_RENDER_TARGET_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D11_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_RTV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
@@ -460,7 +460,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppDepthStencilView == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateDepthStencilView(pResource, pDesc, nullptr);
+		return _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D11_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_DSV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
@@ -496,7 +496,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEME
 {
 #if RESHADE_ADDON
 	if (ppInputLayout == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, nullptr);
+		return _orig->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
 
 	std::vector<D3D11_INPUT_ELEMENT_DESC> internal_elements;
 	auto elements = reshade::d3d11::convert_input_layout_desc(NumElements, pInputElementDescs);
@@ -537,7 +537,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 {
 #if RESHADE_ADDON
 	if (ppVertexShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, nullptr);
+		return _orig->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -578,7 +578,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderB
 {
 #if RESHADE_ADDON
 	if (ppGeometryShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateGeometryShader(pShaderBytecode, BytecodeLength, pClassLinkage, nullptr);
+		return _orig->CreateGeometryShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppGeometryShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -619,7 +619,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 {
 #if RESHADE_ADDON
 	if (ppGeometryShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, nullptr);
+		return _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, ppGeometryShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -665,7 +665,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 {
 #if RESHADE_ADDON
 	if (ppPixelShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreatePixelShader(pShaderBytecode, BytecodeLength, pClassLinkage, nullptr);
+		return _orig->CreatePixelShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppPixelShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -706,7 +706,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 {
 #if RESHADE_ADDON
 	if (ppHullShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateHullShader(pShaderBytecode, BytecodeLength, pClassLinkage, nullptr);
+		return _orig->CreateHullShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppHullShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -747,7 +747,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 {
 #if RESHADE_ADDON
 	if (ppDomainShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateDomainShader(pShaderBytecode, BytecodeLength, pClassLinkage, nullptr);
+		return _orig->CreateDomainShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppDomainShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -788,7 +788,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 {
 #if RESHADE_ADDON
 	if (ppComputeShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateComputeShader(pShaderBytecode, BytecodeLength, pClassLinkage, nullptr);
+		return _orig->CreateComputeShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppComputeShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -833,7 +833,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState(const D3D11_BLEND_DESC *
 {
 #if RESHADE_ADDON
 	if (ppBlendState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateBlendState(pBlendStateDesc, nullptr);
+		return _orig->CreateBlendState(pBlendStateDesc, ppBlendState);
 
 	D3D11_BLEND_DESC internal_desc = {};
 	auto desc = reshade::d3d11::convert_blend_desc(pBlendStateDesc);
@@ -875,7 +875,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 {
 #if RESHADE_ADDON
 	if (ppDepthStencilState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateDepthStencilState(pDepthStencilDesc, nullptr);
+		return _orig->CreateDepthStencilState(pDepthStencilDesc, ppDepthStencilState);
 
 	D3D11_DEPTH_STENCIL_DESC internal_desc = {};
 	auto desc = reshade::d3d11::convert_depth_stencil_desc(pDepthStencilDesc);
@@ -917,7 +917,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 {
 #if RESHADE_ADDON
 	if (ppRasterizerState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateRasterizerState(pRasterizerDesc, nullptr);
+		return _orig->CreateRasterizerState(pRasterizerDesc, ppRasterizerState);
 
 	D3D11_RASTERIZER_DESC internal_desc = {};
 	auto desc = reshade::d3d11::convert_rasterizer_desc(pRasterizerDesc);
@@ -959,7 +959,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateSamplerState(const D3D11_SAMPLER_DE
 	if (pSamplerDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppSamplerState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateSamplerState(pSamplerDesc, nullptr);
+		return _orig->CreateSamplerState(pSamplerDesc, ppSamplerState);
 
 	D3D11_SAMPLER_DESC internal_desc = *pSamplerDesc;
 	auto desc = reshade::d3d11::convert_sampler_desc(internal_desc);
@@ -1205,7 +1205,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1
 
 #if RESHADE_ADDON
 	if (ppBlendState == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D11Device1 *>(_orig)->CreateBlendState1(pBlendStateDesc, nullptr);
+		return static_cast<ID3D11Device1 *>(_orig)->CreateBlendState1(pBlendStateDesc, ppBlendState);
 
 	D3D11_BLEND_DESC1 internal_desc = {};
 	auto desc = reshade::d3d11::convert_blend_desc(pBlendStateDesc);
@@ -1249,7 +1249,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 
 #if RESHADE_ADDON
 	if (ppRasterizerState == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D11Device1 *>(_orig)->CreateRasterizerState1(pRasterizerDesc, nullptr);
+		return static_cast<ID3D11Device1 *>(_orig)->CreateRasterizerState1(pRasterizerDesc, ppRasterizerState);
 
 	D3D11_RASTERIZER_DESC1 internal_desc = {};
 	auto desc = reshade::d3d11::convert_rasterizer_desc(pRasterizerDesc);
@@ -1490,7 +1490,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 	if (pDesc1 == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture2D == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D11Device3 *>(_orig)->CreateTexture2D1(pDesc1, pInitialData, nullptr);
+		return static_cast<ID3D11Device3 *>(_orig)->CreateTexture2D1(pDesc1, pInitialData, ppTexture2D);
 
 	D3D11_TEXTURE2D_DESC1 internal_desc = *pDesc1;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
@@ -1539,7 +1539,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 	if (pDesc1 == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture3D == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D11Device3 *>(_orig)->CreateTexture3D1(pDesc1, pInitialData, nullptr);
+		return static_cast<ID3D11Device3 *>(_orig)->CreateTexture3D1(pDesc1, pInitialData, ppTexture3D);
 
 	D3D11_TEXTURE3D_DESC1 internal_desc = *pDesc1;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
@@ -1586,7 +1586,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 
 #if RESHADE_ADDON
 	if (ppRasterizerState == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D11Device3 *>(_orig)->CreateRasterizerState2(pRasterizerDesc, nullptr);
+		return static_cast<ID3D11Device3 *>(_orig)->CreateRasterizerState2(pRasterizerDesc, ppRasterizerState);
 
 	D3D11_RASTERIZER_DESC2 internal_desc = {};
 	auto desc = reshade::d3d11::convert_rasterizer_desc(pRasterizerDesc);
@@ -1630,7 +1630,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppShaderResourceView1 == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D11Device3 *>(_orig)->CreateShaderResourceView1(pResource, pDesc1, nullptr);
+		return static_cast<ID3D11Device3 *>(_orig)->CreateShaderResourceView1(pResource, pDesc1, ppShaderResourceView1);
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC1 internal_desc = (pDesc1 != nullptr) ? *pDesc1 : D3D11_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
@@ -1670,7 +1670,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppUnorderedAccessView1 == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D11Device3 *>(_orig)->CreateUnorderedAccessView1(pResource, pDesc1, nullptr);
+		return static_cast<ID3D11Device3 *>(_orig)->CreateUnorderedAccessView1(pResource, pDesc1, ppUnorderedAccessView1);
 
 	D3D11_UNORDERED_ACCESS_VIEW_DESC1 internal_desc = (pDesc1 != nullptr) ? *pDesc1 : D3D11_UNORDERED_ACCESS_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D11_UAV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
@@ -1710,7 +1710,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppRenderTargetView1 == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D11Device3 *>(_orig)->CreateRenderTargetView1(pResource, pDesc1, nullptr);
+		return static_cast<ID3D11Device3 *>(_orig)->CreateRenderTargetView1(pResource, pDesc1, ppRenderTargetView1);
 
 	D3D11_RENDER_TARGET_VIEW_DESC1 internal_desc = (pDesc1 != nullptr) ? *pDesc1 : D3D11_RENDER_TARGET_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D11_RTV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);

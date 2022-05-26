@@ -896,7 +896,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppBuffer == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateBuffer(pDesc, pInitialData, nullptr);
+		return _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
 
 	D3D10_BUFFER_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d10::convert_resource_desc(internal_desc);
@@ -949,7 +949,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture1D == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateTexture1D(pDesc, pInitialData, nullptr);
+		return _orig->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
 
 	D3D10_TEXTURE1D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d10::convert_resource_desc(internal_desc);
@@ -1004,7 +1004,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture2D == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateTexture2D(pDesc, pInitialData, nullptr);
+		return _orig->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
 
 	D3D10_TEXTURE2D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d10::convert_resource_desc(internal_desc);
@@ -1058,7 +1058,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture3D == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateTexture3D(pDesc, pInitialData, nullptr);
+		return _orig->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
 
 	D3D10_TEXTURE3D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d10::convert_resource_desc(internal_desc);
@@ -1112,7 +1112,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppShaderResourceView == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateShaderResourceView(pResource, pDesc, nullptr);
+		return _orig->CreateShaderResourceView(pResource, pDesc, ppShaderResourceView);
 
 	D3D10_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_SRV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d10::convert_resource_view_desc(internal_desc);
@@ -1150,7 +1150,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppRenderTargetView == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateRenderTargetView(pResource, pDesc, nullptr);
+		return _orig->CreateRenderTargetView(pResource, pDesc, ppRenderTargetView);
 
 	D3D10_RENDER_TARGET_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D10_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_RTV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d10::convert_resource_view_desc(internal_desc);
@@ -1188,7 +1188,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppDepthStencilView == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateDepthStencilView(pResource, pDesc, nullptr);
+		return _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
 
 	D3D10_DEPTH_STENCIL_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D10_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_DSV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d10::convert_resource_view_desc(internal_desc);
@@ -1224,7 +1224,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 {
 #if RESHADE_ADDON
 	if (ppInputLayout == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, nullptr);
+		return _orig->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
 
 	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_elements;
 	auto elements = reshade::d3d10::convert_input_layout_desc(NumElements, pInputElementDescs);
@@ -1265,7 +1265,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 {
 #if RESHADE_ADDON
 	if (ppVertexShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateVertexShader(pShaderBytecode, BytecodeLength, nullptr);
+		return _orig->CreateVertexShader(pShaderBytecode, BytecodeLength, ppVertexShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -1306,7 +1306,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 {
 #if RESHADE_ADDON
 	if (ppGeometryShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateGeometryShader(pShaderBytecode, BytecodeLength, nullptr);
+		return _orig->CreateGeometryShader(pShaderBytecode, BytecodeLength, ppGeometryShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -1347,7 +1347,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 {
 #if RESHADE_ADDON
 	if (ppGeometryShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, OutputStreamStride, nullptr);
+		return _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -1393,7 +1393,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 {
 #if RESHADE_ADDON
 	if (ppPixelShader == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreatePixelShader(pShaderBytecode, BytecodeLength, nullptr);
+		return _orig->CreatePixelShader(pShaderBytecode, BytecodeLength, ppPixelShader);
 
 	reshade::api::shader_desc desc = {};
 	desc.code = pShaderBytecode;
@@ -1434,7 +1434,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *
 {
 #if RESHADE_ADDON
 	if (ppBlendState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateBlendState(pBlendStateDesc, nullptr);
+		return _orig->CreateBlendState(pBlendStateDesc, ppBlendState);
 
 	D3D10_BLEND_DESC internal_desc = {};
 	auto desc = reshade::d3d10::convert_blend_desc(pBlendStateDesc);
@@ -1476,7 +1476,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilState(const D3D10_DEPTH
 {
 #if RESHADE_ADDON
 	if (ppDepthStencilState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateDepthStencilState(pDepthStencilDesc, nullptr);
+		return _orig->CreateDepthStencilState(pDepthStencilDesc, ppDepthStencilState);
 
 	D3D10_DEPTH_STENCIL_DESC internal_desc = {};
 	auto desc = reshade::d3d10::convert_depth_stencil_desc(pDepthStencilDesc);
@@ -1518,7 +1518,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERI
 {
 #if RESHADE_ADDON
 	if (ppRasterizerState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateRasterizerState(pRasterizerDesc, nullptr);
+		return _orig->CreateRasterizerState(pRasterizerDesc, ppRasterizerState);
 
 	D3D10_RASTERIZER_DESC internal_desc = {};
 	auto desc = reshade::d3d10::convert_rasterizer_desc(pRasterizerDesc);
@@ -1560,7 +1560,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateSamplerState(const D3D10_SAMPLER_DE
 	if (pSamplerDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppSamplerState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateSamplerState(pSamplerDesc, nullptr);
+		return _orig->CreateSamplerState(pSamplerDesc, ppSamplerState);
 
 	D3D10_SAMPLER_DESC internal_desc = *pSamplerDesc;
 	auto desc = reshade::d3d10::convert_sampler_desc(internal_desc);
@@ -1708,7 +1708,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 	if (pResource == nullptr)
 		return E_INVALIDARG;
 	if (ppShaderResourceView == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateShaderResourceView1(pResource, pDesc, nullptr);
+		return _orig->CreateShaderResourceView1(pResource, pDesc, ppShaderResourceView);
 
 	D3D10_SHADER_RESOURCE_VIEW_DESC1 internal_desc = (pDesc != nullptr) ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D10_1_SRV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d10::convert_resource_view_desc(internal_desc);
@@ -1744,7 +1744,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1
 {
 #if RESHADE_ADDON
 	if (ppBlendState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateBlendState1(pBlendStateDesc, nullptr);
+		return _orig->CreateBlendState1(pBlendStateDesc, ppBlendState);
 
 	D3D10_BLEND_DESC1 internal_desc = {};
 	auto desc = reshade::d3d10::convert_blend_desc(pBlendStateDesc);

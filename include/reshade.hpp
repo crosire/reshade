@@ -206,7 +206,8 @@ namespace reshade
 	{
 		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *))>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeRegisterOverlay"));
-		func(title, callback);
+		if (func != nullptr)
+			func(title, callback);
 	}
 	/// <summary>
 	/// Unregisters an overlay that was previously registered via <see cref="register_overlay"/>.
@@ -217,6 +218,7 @@ namespace reshade
 	{
 		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *))>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUnregisterOverlay"));
-		func(title, callback);
+		if (func != nullptr)
+			func(title, callback);
 	}
 }

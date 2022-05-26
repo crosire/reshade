@@ -309,7 +309,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateGraphicsPipelineState(pDesc, riid, nullptr);
+		return _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
 
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc = *pDesc;
 
@@ -401,7 +401,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateComputePipelineState(pDesc, riid, nullptr);
+		return _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
 
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc = *pDesc;
 
@@ -550,16 +550,11 @@ UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DE
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const void *pBlobWithRootSignature, SIZE_T blobLengthInBytes, REFIID riid, void **ppvRootSignature)
 {
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (ppvRootSignature == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, nullptr);
-#endif
-
 	const HRESULT hr = _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		if (riid == __uuidof(ID3D12RootSignature))
+		if (ppvRootSignature != nullptr && riid == __uuidof(ID3D12RootSignature))
 		{
 			const auto data = static_cast<const uint32_t *>(pBlobWithRootSignature);
 
@@ -1042,7 +1037,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	if (pHeapProperties == nullptr || pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, riidResource, nullptr);
+		return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
 
 	auto heap_props = *pHeapProperties;
 
@@ -1110,7 +1105,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	if (pHeap == nullptr || pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreatePlacedResource(pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, nullptr);
+		return _orig->CreatePlacedResource(pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
 
 	const auto heap_desc = pHeap->GetDesc();
 
@@ -1173,7 +1168,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateReservedResource(pDesc, InitialState, pOptimizedClearValue, riid, nullptr);
+		return _orig->CreateReservedResource(pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
 
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
@@ -1230,12 +1225,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID 
 	const HRESULT hr = _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
 	if (SUCCEEDED(hr))
 	{
-		assert(ppvObj != nullptr);
-
 #if RESHADE_ADDON
-		if (riid == __uuidof(ID3D12Resource) ||
+		if (ppvObj != nullptr && (
+			riid == __uuidof(ID3D12Resource) ||
 			riid == __uuidof(ID3D12Resource1) ||
-			riid == __uuidof(ID3D12Resource2))
+			riid == __uuidof(ID3D12Resource2)))
 		{
 			const auto resource = static_cast<ID3D12Resource *>(*ppvObj);
 
@@ -1296,7 +1290,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateQueryHeap(const D3D12_QUERY_HEAP_DE
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppvHeap == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateQueryHeap(pDesc, riid, nullptr);
+		return _orig->CreateQueryHeap(pDesc, riid, ppvHeap);
 
 	D3D12_QUERY_HEAP_DESC internal_desc = *pDesc;
 
@@ -1352,27 +1346,25 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 {
 	assert(_interface_version >= 1);
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (ppPipelineLibrary == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, nullptr);
-#endif
-
 	const HRESULT hr = static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		const auto pipeline_library_proxy = new D3D12PipelineLibrary(this, static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary));
-
-		// Upgrade to the actual interface version requested here
-		if (pipeline_library_proxy->check_and_upgrade_interface(riid))
+		if (ppPipelineLibrary != nullptr)
 		{
-			*ppPipelineLibrary = pipeline_library_proxy;
-		}
-		else // Do not hook object if we do not support the requested interface
-		{
-			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device1::CreatePipelineLibrary" << '.';
+			const auto pipeline_library_proxy = new D3D12PipelineLibrary(this, static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary));
 
-			delete pipeline_library_proxy; // Delete instead of release to keep reference count untouched
+			// Upgrade to the actual interface version requested here
+			if (pipeline_library_proxy->check_and_upgrade_interface(riid))
+			{
+				*ppPipelineLibrary = pipeline_library_proxy;
+			}
+			else // Do not hook object if we do not support the requested interface
+			{
+				LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device1::CreatePipelineLibrary" << '.';
+
+				delete pipeline_library_proxy; // Delete instead of release to keep reference count untouched
+			}
 		}
 #endif
 	}
@@ -1404,7 +1396,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, nullptr);
+		return static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
 
 	reshade::api::pipeline_layout layout = {};
 
@@ -1644,7 +1636,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	if (pHeapProperties == nullptr || pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D12Device4 *>(_orig)->CreateCommittedResource1(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, nullptr);
+		return static_cast<ID3D12Device4 *>(_orig)->CreateCommittedResource1(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
 
 	auto heap_props = *pHeapProperties;
 
@@ -1715,7 +1707,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D12Device4 *>(_orig)->CreateReservedResource1(pDesc, InitialState, pOptimizedClearValue, pProtectedSession, riid, nullptr);
+		return static_cast<ID3D12Device4 *>(_orig)->CreateReservedResource1(pDesc, InitialState, pOptimizedClearValue, pProtectedSession, riid, ppvResource);
 
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
@@ -1840,7 +1832,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP
 	if (pHeapProperties == nullptr || pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D12Device8 *>(_orig)->CreateCommittedResource2(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, nullptr);
+		return static_cast<ID3D12Device8 *>(_orig)->CreateCommittedResource2(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
 
 	auto heap_props = *pHeapProperties;
 
@@ -1906,7 +1898,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource1(ID3D12Heap *pHeap, 
 	if (pHeap == nullptr || pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D12Device8 *>(_orig)->CreatePlacedResource1(pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, nullptr);
+		return static_cast<ID3D12Device8 *>(_orig)->CreatePlacedResource1(pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
 
 	const auto heap_desc = pHeap->GetDesc();
 
