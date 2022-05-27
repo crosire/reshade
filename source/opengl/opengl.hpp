@@ -46,11 +46,12 @@
 		call; \
 		GLenum __e = glGetError(); \
 		if (__e != GL_NO_ERROR) { \
-			char __m[512]; \
-			GLsizei __m_offset = sprintf_s(__m, "OpenGL error %x in %s(%d): %s\n\n", __e, __FILE__, __LINE__, #call), __m_length = 0; \
-			while (glGetDebugMessageLog(1, sizeof(__m) - __m_offset, nullptr, nullptr, nullptr, nullptr, &__m_length, __m + __m_offset)); \
+			char *const __m = new char[512]; \
+			GLsizei __m_offset = sprintf_s(__m, 512, "OpenGL error %x in %s(%d): %s\n\n", __e, __FILE__, __LINE__, #call), __m_length = 0; \
+			while (glGetDebugMessageLog(1, 512 - __m_offset, nullptr, nullptr, nullptr, nullptr, &__m_length, __m + __m_offset)); \
 			__m[__m_offset + __m_length] = '\0'; \
 			MessageBoxA(nullptr, __m, 0, MB_ICONERROR); \
+			delete[] __m; \
 		} \
 	}
 #endif

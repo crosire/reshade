@@ -1613,9 +1613,7 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 		register_object<VK_OBJECT_TYPE_QUERY_POOL>(pool, std::move(data));
 
 		// Reset all queries for initial use
-#if 0
-		vk.ResetQueryPool(_orig, pool, 0, count);
-#else
+#if 1
 		for (command_queue_impl *const queue : _queues)
 		{
 			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
@@ -1628,6 +1626,8 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 				break;
 			}
 		}
+#else
+		vk.ResetQueryPool(_orig, pool, 0, count);
 #endif
 
 		*out_handle = { (uint64_t)pool };

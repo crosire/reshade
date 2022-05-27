@@ -129,6 +129,8 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadGraphicsPipeline(LPCWSTR pNa
 	const HRESULT hr = _orig->LoadGraphicsPipeline(pName, pDesc, riid, ppPipelineState);
 	if (SUCCEEDED(hr))
 	{
+		assert(ppPipelineState != nullptr);
+
 		if (riid == __uuidof(ID3D12PipelineState))
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
@@ -198,6 +200,8 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadComputePipeline(LPCWSTR pNam
 	const HRESULT hr = _orig->LoadComputePipeline(pName, pDesc, riid, ppPipelineState);
 	if (SUCCEEDED(hr))
 	{
+		assert(ppPipelineState != nullptr);
+
 		if (riid == __uuidof(ID3D12PipelineState))
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
@@ -243,6 +247,8 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadPipeline(LPCWSTR pName, cons
 	const HRESULT hr = static_cast<ID3D12PipelineLibrary1 *>(_orig)->LoadPipeline(pName, pDesc, riid, ppPipelineState);
 	if (SUCCEEDED(hr))
 	{
+		assert(ppPipelineState != nullptr);
+
 		if (riid == __uuidof(ID3D12PipelineState))
 		{
 			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);

@@ -222,7 +222,7 @@ void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader
 
 	temp_mem<reshade::api::buffer_range, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> descriptors_mem(count);
 	for (UINT i = 0; i < count; ++i)
-		descriptors_mem[i] = { to_handle(objects[i]), (first_constant != nullptr) ? first_constant[i] * 16 : 0, (constant_count != nullptr) ? constant_count[i] * 16 : UINT64_MAX };
+		descriptors_mem[i] = { to_handle(objects[i]), (first_constant != nullptr) ? static_cast<uint64_t>(first_constant[i]) * 16 : 0, (constant_count != nullptr) ? static_cast<uint64_t>(constant_count[i]) * 16 : UINT64_MAX };
 	const auto descriptors = descriptors_mem.p;
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(

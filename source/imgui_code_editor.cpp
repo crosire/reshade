@@ -132,9 +132,9 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_RightArrow))
 			move_right(1, shift, ctrl);
 		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_PageUp))
-			move_up(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4), shift);
+			move_up(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4.0f), shift);
 		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_PageDown))
-			move_down(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4), shift);
+			move_down(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4.0f), shift);
 		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_Home))
 			if (ctrl)
 				move_top(shift);

@@ -8,8 +8,8 @@
 #include "runtime.hpp"
 #include "addon_manager.hpp"
 #include <openvr.h>
+#include <Unknwn.h>
 
-struct IUnknown;
 struct D3D10Device;
 struct D3D11Device;
 struct D3D12CommandQueue;

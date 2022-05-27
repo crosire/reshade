@@ -599,7 +599,7 @@ namespace reshade::api
 	/// <summary>
 	/// The available pipeline sub-object types.
 	/// </summary>
-	enum class pipeline_subobject_type
+	enum class pipeline_subobject_type : uint32_t
 	{
 		unknown,
 		/// <summary>
