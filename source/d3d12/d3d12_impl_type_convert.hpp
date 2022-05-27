@@ -32,6 +32,7 @@ namespace reshade::d3d12
 	auto convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::color_space;
 
 	auto convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api::resource_usage;
+	auto convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage;
 	D3D12_RESOURCE_STATES convert_resource_usage_to_states(api::resource_usage usage);
 
 	void convert_sampler_desc(const api::sampler_desc &desc, D3D12_SAMPLER_DESC &internal_desc);
