@@ -54,6 +54,8 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 
 	_has_commands = true;
 
+	uint32_t num_mem_barriers = 0;
+	temp_mem<VkMemoryBarrier> mem_barriers(count);
 	uint32_t num_image_barriers = 0;
 	temp_mem<VkImageMemoryBarrier> image_barriers(count);
 	uint32_t num_buffer_barriers = 0;
@@ -64,6 +66,15 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
+		if (resources[i].handle == 0)
+		{
+			VkMemoryBarrier &barrier = mem_barriers[num_mem_barriers++];
+			barrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
+			barrier.srcAccessMask = convert_usage_to_access(old_states[i]);
+			barrier.dstAccessMask = convert_usage_to_access(new_states[i]);
+			continue;
+		}
+
 		const auto data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resources[i].handle);
 		if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 		{
@@ -97,7 +108,7 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 
 	assert(src_stage_mask != 0 && dst_stage_mask != 0);
 
-	vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, num_buffer_barriers, buffer_barriers.p, num_image_barriers, image_barriers.p);
+	vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, num_mem_barriers, mem_barriers.p, num_buffer_barriers, buffer_barriers.p, num_image_barriers, image_barriers.p);
 }
 
 void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)

@@ -43,6 +43,10 @@ auto reshade::d3d12::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 	return api::color_space::unknown;
 }
 
+auto reshade::d3d12::convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api::resource_usage
+{
+	return static_cast<api::resource_usage>(access);
+}
 D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(api::resource_usage usage)
 {
 	// Undefined usage does not exist in D3D12

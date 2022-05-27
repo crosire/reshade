@@ -975,7 +975,7 @@ void VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineSt
 	trampoline(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const uint32_t num_barriers = bufferMemoryBarrierCount + imageMemoryBarrierCount;
+	const uint32_t num_barriers = memoryBarrierCount + bufferMemoryBarrierCount + imageMemoryBarrierCount;
 
 	if (num_barriers == 0 || !reshade::has_addon_event<reshade::addon_event::barrier>())
 		return;
@@ -985,15 +985,23 @@ void VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineSt
 	temp_mem<reshade::api::resource> resources(num_barriers);
 	temp_mem<reshade::api::resource_usage> old_state(num_barriers), new_state(num_barriers);
 
-	for (uint32_t i = 0; i < bufferMemoryBarrierCount; ++i)
+	for (uint32_t i = 0; i < memoryBarrierCount; ++i)
 	{
-		const VkBufferMemoryBarrier &barrier = pBufferMemoryBarriers[i];
+		const VkMemoryBarrier &barrier = pMemoryBarriers[i];
 
-		resources[i] = { (uint64_t)barrier.buffer };
+		resources[i] = { 0 };
 		old_state[i] = reshade::vulkan::convert_access_to_usage(barrier.srcAccessMask);
 		new_state[i] = reshade::vulkan::convert_access_to_usage(barrier.dstAccessMask);
 	}
-	for (uint32_t i = 0, k = bufferMemoryBarrierCount; i < imageMemoryBarrierCount; ++i, ++k)
+	for (uint32_t i = 0, k = memoryBarrierCount; i < bufferMemoryBarrierCount; ++i, ++k)
+	{
+		const VkBufferMemoryBarrier &barrier = pBufferMemoryBarriers[i];
+
+		resources[k] = { (uint64_t)barrier.buffer };
+		old_state[k] = reshade::vulkan::convert_access_to_usage(barrier.srcAccessMask);
+		new_state[k] = reshade::vulkan::convert_access_to_usage(barrier.dstAccessMask);
+	}
+	for (uint32_t i = 0, k = memoryBarrierCount + bufferMemoryBarrierCount; i < imageMemoryBarrierCount; ++i, ++k)
 	{
 		const VkImageMemoryBarrier &barrier = pImageMemoryBarriers[i];
 
@@ -1278,7 +1286,7 @@ void VKAPI_CALL vkCmdPipelineBarrier2(VkCommandBuffer commandBuffer, const VkDep
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(pDependencyInfo != nullptr);
 
-	const uint32_t num_barriers = pDependencyInfo->bufferMemoryBarrierCount + pDependencyInfo->imageMemoryBarrierCount;
+	const uint32_t num_barriers = pDependencyInfo->memoryBarrierCount + pDependencyInfo->bufferMemoryBarrierCount + pDependencyInfo->imageMemoryBarrierCount;
 
 	if (num_barriers == 0 || !reshade::has_addon_event<reshade::addon_event::barrier>())
 		return;
@@ -1288,15 +1296,23 @@ void VKAPI_CALL vkCmdPipelineBarrier2(VkCommandBuffer commandBuffer, const VkDep
 	temp_mem<reshade::api::resource> resources(num_barriers);
 	temp_mem<reshade::api::resource_usage> old_state(num_barriers), new_state(num_barriers);
 
-	for (uint32_t i = 0; i < pDependencyInfo->bufferMemoryBarrierCount; ++i)
+	for (uint32_t i = 0; i < pDependencyInfo->memoryBarrierCount; ++i)
 	{
-		const VkBufferMemoryBarrier2 &barrier = pDependencyInfo->pBufferMemoryBarriers[i];
+		const VkMemoryBarrier2 &barrier = pDependencyInfo->pMemoryBarriers[i];
 
-		resources[i] = { (uint64_t)barrier.buffer };
+		resources[i] = { 0 };
 		old_state[i] = reshade::vulkan::convert_access_to_usage(static_cast<VkAccessFlags>(barrier.srcAccessMask & 0xFFFFFFFF));
 		new_state[i] = reshade::vulkan::convert_access_to_usage(static_cast<VkAccessFlags>(barrier.dstAccessMask & 0xFFFFFFFF));
 	}
-	for (uint32_t i = 0, k = pDependencyInfo->bufferMemoryBarrierCount; i < pDependencyInfo->imageMemoryBarrierCount; ++i, ++k)
+	for (uint32_t i = 0, k = pDependencyInfo->memoryBarrierCount; i < pDependencyInfo->bufferMemoryBarrierCount; ++i, ++k)
+	{
+		const VkBufferMemoryBarrier2 &barrier = pDependencyInfo->pBufferMemoryBarriers[i];
+
+		resources[k] = { (uint64_t)barrier.buffer };
+		old_state[k] = reshade::vulkan::convert_access_to_usage(static_cast<VkAccessFlags>(barrier.srcAccessMask & 0xFFFFFFFF));
+		new_state[k] = reshade::vulkan::convert_access_to_usage(static_cast<VkAccessFlags>(barrier.dstAccessMask & 0xFFFFFFFF));
+	}
+	for (uint32_t i = 0, k = pDependencyInfo->memoryBarrierCount + pDependencyInfo->bufferMemoryBarrierCount; i < pDependencyInfo->imageMemoryBarrierCount; ++i, ++k)
 	{
 		const VkImageMemoryBarrier2 &barrier = pDependencyInfo->pImageMemoryBarriers[i];
 

@@ -35,6 +35,7 @@ bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12GraphicsCommandList4),
 		__uuidof(ID3D12GraphicsCommandList5),
 		__uuidof(ID3D12GraphicsCommandList6),
+		__uuidof(ID3D12GraphicsCommandList7),
 	};
 
 	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -943,4 +944,46 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::DispatchMesh(UINT ThreadGroupCo
 {
 	assert(_interface_version >= 6);
 	static_cast<ID3D12GraphicsCommandList6 *>(_orig)->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+}
+
+void STDMETHODCALLTYPE D3D12GraphicsCommandList::Barrier(UINT32 NumBarrierGroups, const D3D12_BARRIER_GROUP *pBarrierGroups)
+{
+	assert(_interface_version >= 7);
+	static_cast<ID3D12GraphicsCommandList7 *>(_orig)->Barrier(NumBarrierGroups, pBarrierGroups);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (!reshade::has_addon_event<reshade::addon_event::barrier>())
+		return;
+
+	for (UINT32 k = 0; k < NumBarrierGroups; ++k)
+	{
+		const D3D12_BARRIER_GROUP &group = pBarrierGroups[k];
+
+		temp_mem<reshade::api::resource> resources(group.NumBarriers);
+		temp_mem<reshade::api::resource_usage> old_state(group.NumBarriers), new_state(group.NumBarriers);
+		for (UINT i = 0; i < group.NumBarriers; ++i)
+		{
+			switch (group.Type)
+			{
+			case D3D12_BARRIER_TYPE_GLOBAL:
+				resources[i] = { 0 };
+				old_state[i] = reshade::d3d12::convert_access_to_usage(group.pGlobalBarriers[i].AccessBefore);
+				new_state[i] = reshade::d3d12::convert_access_to_usage(group.pGlobalBarriers[i].AccessAfter);
+				break;
+			case D3D12_BARRIER_TYPE_TEXTURE:
+				resources[i] = to_handle(group.pTextureBarriers[i].pResource);
+				old_state[i] = reshade::d3d12::convert_access_to_usage(group.pTextureBarriers[i].AccessBefore);
+				new_state[i] = reshade::d3d12::convert_access_to_usage(group.pTextureBarriers[i].AccessAfter);
+				break;
+			case D3D12_BARRIER_TYPE_BUFFER:
+				resources[i] = to_handle(group.pBufferBarriers[i].pResource);
+				old_state[i] = reshade::d3d12::convert_access_to_usage(group.pBufferBarriers[i].AccessBefore);
+				new_state[i] = reshade::d3d12::convert_access_to_usage(group.pBufferBarriers[i].AccessAfter);
+				break;
+			}
+		}
+
+		reshade::invoke_addon_event<reshade::addon_event::barrier>(this, group.NumBarriers, resources.p, old_state.p, new_state.p);
+	}
+#endif
 }
