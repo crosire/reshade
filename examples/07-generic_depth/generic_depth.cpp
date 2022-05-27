@@ -258,9 +258,8 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	if (counters.current_stats.drawcalls == 0)
 		return;
 
-	// Ignore clears when the last viewport rendered to only affected a subset of the depth-stencil
-	if (const resource_desc desc = device->get_resource_desc(depth_stencil);
-		!check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, desc.texture.width, desc.texture.height))
+	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in Mirror's Edge)
+	if (counters.current_stats.last_viewport.width > 0 && counters.current_stats.last_viewport.width < 128)
 	{
 		counters.current_stats = { 0, 0 };
 		return;
@@ -271,7 +270,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	// Make a backup copy of the depth texture before it is cleared
 	if (depth_stencil_backup->force_clear_index == 0 ?
 		// If clear index override is set to zero, always copy any suitable buffers
-		// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge)
+		// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge main menu)
 		counters.current_stats.vertices >= state.best_copy_stats.vertices :
 		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
 		counters.clears.size() == depth_stencil_backup->force_clear_index)
