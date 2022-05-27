@@ -5,6 +5,7 @@
 
 #include "d3d12_device.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "com_utils.hpp"
 #include "hook_manager.hpp"
 
 extern thread_local bool g_in_dxgi_runtime;
@@ -27,7 +28,14 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 		return hr;
 
 	// The returned device should alway implement the 'ID3D12Device' base interface
-	const auto device_proxy = new D3D12Device(static_cast<ID3D12Device *>(*ppDevice));
+	const auto device = static_cast<ID3D12Device *>(*ppDevice);
+
+	// Direct3D 12 devices are singletons per adapter, so first check if one was already created previously
+	const auto device_proxy_existing = get_private_pointer<D3D12Device>(device);
+	const auto device_proxy = (device_proxy_existing != nullptr) ? device_proxy_existing : new D3D12Device(device);
+
+	if (device_proxy_existing != nullptr)
+		InterlockedIncrement(&device_proxy_existing->_ref);
 
 	// Upgrade to the actual interface version requested here
 	if (device_proxy->check_and_upgrade_interface(riid))
@@ -41,7 +49,8 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 	{
 		LOG(WARN) << "Unknown interface " << riid << " in " << "D3D12CreateDevice" << '.';
 
-		delete device_proxy; // Delete instead of release to keep reference count untouched
+		if (device_proxy != device_proxy_existing)
+			delete device_proxy; // Delete instead of release to keep reference count untouched
 	}
 
 	return hr;
