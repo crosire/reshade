@@ -166,57 +166,58 @@ static HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResou
 static HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pReadRange, void **ppData)
 {
 	const HRESULT hr = reshade::hooks::call(ID3D12Resource_Map, vtable_from_instance(pResource) + 8)(pResource, Subresource, pReadRange, ppData);
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
+		return hr;
+
+	com_ptr<ID3D12Device> device;
+	pResource->GetDevice(IID_PPV_ARGS(&device));
+
+	const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
+	if (device_proxy != nullptr)
 	{
-		com_ptr<ID3D12Device> device;
-		ID3D12Resource_GetDevice(pResource, IID_PPV_ARGS(&device));
+		const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
 
-		if (const auto device_proxy = static_cast<D3D12Device *>(device.get()))
+		if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 		{
-			const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
+			assert(Subresource == 0);
 
-			if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
-			{
-				assert(Subresource == 0);
+			reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
+				device_proxy,
+				to_handle(pResource),
+				0,
+				std::numeric_limits<uint64_t>::max(),
+				reshade::api::map_access::read_write,
+				ppData);
+		}
+		else if (ppData != nullptr)
+		{
+			reshade::api::subresource_data data;
+			data.data = *ppData;
 
-				reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-					device_proxy,
-					to_handle(pResource),
-					0,
-					std::numeric_limits<uint64_t>::max(),
-					reshade::api::map_access::read_write,
-					ppData);
-			}
-			else if (ppData != nullptr)
-			{
-				reshade::api::subresource_data data;
-				data.data = *ppData;
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+			device->GetCopyableFootprints(&desc, Subresource, 1, 0, &layout, &data.slice_pitch, nullptr, nullptr);
+			data.row_pitch = layout.Footprint.RowPitch;
+			data.slice_pitch *= layout.Footprint.RowPitch;
 
-				D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-				device->GetCopyableFootprints(&desc, Subresource, 1, 0, &layout, &data.slice_pitch, nullptr, nullptr);
-				data.row_pitch = layout.Footprint.RowPitch;
-				data.slice_pitch *= layout.Footprint.RowPitch;
+			reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
+				device_proxy,
+				to_handle(pResource),
+				Subresource,
+				nullptr,
+				reshade::api::map_access::read_write,
+				&data);
 
-				reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
-					device_proxy,
-					to_handle(pResource),
-					Subresource,
-					nullptr,
-					reshade::api::map_access::read_write,
-					&data);
-
-				*ppData = data.data;
-			}
-			else
-			{
-				reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
-					device_proxy,
-					to_handle(pResource),
-					Subresource,
-					nullptr,
-					reshade::api::map_access::read_write,
-					nullptr);
-			}
+			*ppData = data.data;
+		}
+		else
+		{
+			reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
+				device_proxy,
+				to_handle(pResource),
+				Subresource,
+				nullptr,
+				reshade::api::map_access::read_write,
+				nullptr);
 		}
 	}
 
@@ -225,9 +226,10 @@ static HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, U
 static HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pWrittenRange)
 {
 	com_ptr<ID3D12Device> device;
-	ID3D12Resource_GetDevice(pResource, IID_PPV_ARGS(&device));
+	pResource->GetDevice(IID_PPV_ARGS(&device));
 
-	if (const auto device_proxy = static_cast<D3D12Device *>(device.get()))
+	const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
+	if (device_proxy != nullptr)
 	{
 		const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
 
@@ -326,8 +328,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	reshade::api::primitive_topology topology = reshade::d3d12::convert_primitive_topology_type(internal_desc.PrimitiveTopologyType);
 
 	reshade::api::format depth_stencil_format = reshade::d3d12::convert_format(internal_desc.DSVFormat);
-	assert(internal_desc.NumRenderTargets <= 8);
-	reshade::api::format render_target_formats[8] = {};
+	assert(internal_desc.NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::format render_target_formats[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < internal_desc.NumRenderTargets; ++i)
 		render_target_formats[i] = reshade::d3d12::convert_format(internal_desc.RTVFormats[i]);
 
@@ -1524,6 +1526,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING:
 			assert(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING *>(p)->data.ViewInstanceCount <= D3D12_MAX_VIEW_INSTANCE_COUNT);
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS:
+			assert(false); // Not implemented
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_AS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS:
+			assert(false); // Not implemented
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_MS);
 			continue;
 		default:
 			// Unknown sub-object type, break out of the loop

@@ -148,8 +148,8 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadGraphicsPipeline(LPCWSTR pNa
 			reshade::api::primitive_topology topology = reshade::d3d12::convert_primitive_topology_type(internal_desc.PrimitiveTopologyType);
 
 			reshade::api::format depth_stencil_format = reshade::d3d12::convert_format(internal_desc.DSVFormat);
-			assert(internal_desc.NumRenderTargets <= 8);
-			reshade::api::format render_target_formats[8] = {};
+			assert(internal_desc.NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+			reshade::api::format render_target_formats[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 			for (UINT i = 0; i < internal_desc.NumRenderTargets; ++i)
 				render_target_formats[i] = reshade::d3d12::convert_format(internal_desc.RTVFormats[i]);
 
@@ -373,6 +373,14 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadPipeline(LPCWSTR pName, cons
 				case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING:
 					assert(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING *>(p)->data.ViewInstanceCount <= D3D12_MAX_VIEW_INSTANCE_COUNT);
 					p += sizeof(D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING);
+					continue;
+				case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS:
+					assert(false); // Not implemented
+					p += sizeof(D3D12_PIPELINE_STATE_STREAM_AS);
+					continue;
+				case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS:
+					assert(false); // Not implemented
+					p += sizeof(D3D12_PIPELINE_STATE_STREAM_MS);
 					continue;
 				default:
 					// Unknown sub-object type, break out of the loop

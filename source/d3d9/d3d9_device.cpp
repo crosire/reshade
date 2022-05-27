@@ -1184,8 +1184,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pView
 {
 	const HRESULT hr = _orig->SetViewport(pViewport);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::bind_viewports>())
+	if (SUCCEEDED(hr))
 	{
 		const reshade::api::viewport viewport_data = {
 			static_cast<float>(pViewport->X),
@@ -1414,8 +1413,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetScissorRect(const RECT *pRect)
 {
 	const HRESULT hr = _orig->SetScissorRect(pRect);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
+	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, 1, reinterpret_cast<const reshade::api::rect *>(pRect));
 	}

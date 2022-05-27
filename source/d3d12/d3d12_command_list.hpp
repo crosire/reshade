@@ -109,8 +109,8 @@ struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsComman
 	void    STDMETHODCALLTYPE DispatchRays(const D3D12_DISPATCH_RAYS_DESC *pDesc) override;
 	#pragma endregion
 	#pragma region ID3D12GraphicsCommandList5
-	void   STDMETHODCALLTYPE RSSetShadingRate(D3D12_SHADING_RATE baseShadingRate, const D3D12_SHADING_RATE_COMBINER *combiners) override;
-	void   STDMETHODCALLTYPE RSSetShadingRateImage(ID3D12Resource *shadingRateImage) override;
+	void   STDMETHODCALLTYPE RSSetShadingRate(D3D12_SHADING_RATE BaseShadingRate, const D3D12_SHADING_RATE_COMBINER *pCombiners) override;
+	void   STDMETHODCALLTYPE RSSetShadingRateImage(ID3D12Resource *pShadingRateImage) override;
 	#pragma endregion
 	#pragma region ID3D12GraphicsCommandList6
 	void   STDMETHODCALLTYPE DispatchMesh(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ) override;
