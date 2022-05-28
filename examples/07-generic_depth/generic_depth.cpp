@@ -674,6 +674,8 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	if (best_match != 0)
 	{
+		const device_api api = device->get_api();
+
 		depth_stencil_backup *depth_stencil_backup = device_data.find_depth_stencil_backup(best_match);
 
 		if (best_match != data.selected_depth_stencil || data.selected_shader_resource == 0 || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))
@@ -690,8 +692,6 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			data.using_backup_texture = false;
 			data.selected_depth_stencil = best_match;
 			data.selected_shader_resource = { 0 };
-
-			const device_api api = device->get_api();
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
 			resource_view_desc srv_desc(api != device_api::opengl && api != device_api::vulkan ? format_to_default_typed(best_match_desc.texture.format) : best_match_desc.texture.format);
@@ -759,6 +759,10 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		}
 		else
 		{
+			// Unset current depth-stencil view, in case it is bound to an effect as a shader resource (which will fail if it is still bound on output)
+			if (api <= device_api::d3d11)
+				cmd_list->bind_render_targets_and_depth_stencil(0, nullptr);
+
 			cmd_list->barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::shader_resource);
 		}
 	}
