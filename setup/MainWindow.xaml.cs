@@ -123,6 +123,9 @@ namespace ReShade.Setup
 			// Attempt to download effect package and compatibility list
 			using (var client = new WebClient())
 			{
+				// Ensure files are downloaded again if they changed
+				client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
+
 				try
 				{
 					using (var packagesStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini"))
