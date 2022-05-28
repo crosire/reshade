@@ -258,8 +258,8 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	if (counters.current_stats.drawcalls == 0)
 		return;
 
-	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in Mirror's Edge)
-	if (counters.current_stats.last_viewport.width > 0 && counters.current_stats.last_viewport.width < 128)
+	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in Mirror's Edge and Portal)
+	if (counters.current_stats.last_viewport.width > 0 && counters.current_stats.last_viewport.width <= 512)
 	{
 		counters.current_stats = { 0, 0 };
 		return;
