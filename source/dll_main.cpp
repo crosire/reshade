@@ -118,9 +118,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_reshade_dll_path = get_module_path(hModule);
 		g_target_executable_path = get_module_path(nullptr);
 
-		// When ReShade is not loaded from the application directory, only load when a configuration file exists for the target executable
+		// When ReShade is not loaded by proxy, only actually load when a configuration file exists for the target executable
 		// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
-		if (_wcsnicmp(g_reshade_dll_path.c_str(), g_target_executable_path.parent_path().c_str(), g_target_executable_path.parent_path().native().size()) != 0)
+		if (const std::filesystem::path module_name = g_reshade_dll_path.stem();
+			_wcsicmp(module_name.c_str(), L"dxgi") != 0 &&
+			_wcsicmp(module_name.c_str(), L"opengl32") != 0 &&
+			_wcsnicmp(module_name.c_str(), L"d3d", 3) != 0 &&
+			_wcsnicmp(module_name.c_str(), L"dinput", 6) != 0)
 		{
 			default_base_to_target_executable_path = true;
 
