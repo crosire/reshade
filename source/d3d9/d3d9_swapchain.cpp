@@ -7,6 +7,7 @@
 #include "d3d9_resource.hpp"
 #include "d3d9_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "com_utils.hpp"
 
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
 	swapchain_impl(device, original),
@@ -39,9 +40,8 @@ void Direct3DSwapChain9::reset_back_buffers(IDirect3DSwapChain9 *orig)
 		if (surface.ref_count() > 1)
 			continue;
 
-		Direct3DSurface9 *surface_proxy = nullptr;
-		DWORD size = sizeof(surface_proxy);
-		if (SUCCEEDED(surface->GetPrivateData(__uuidof(Direct3DSurface9), &surface_proxy, &size)))
+		const auto surface_proxy = get_private_pointer_d3d9<Direct3DSurface9>(surface.get());
+		if (surface_proxy != nullptr)
 		{
 			delete surface_proxy;
 			surface->SetPrivateData(__uuidof(Direct3DSurface9), nullptr, 0, 0);
