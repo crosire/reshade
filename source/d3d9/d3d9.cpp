@@ -113,6 +113,8 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		pp.SwapEffect = static_cast<D3DSWAPEFFECT>(desc.present_mode);
 		pp.Flags = desc.present_flags;
 	}
+#else
+	UNREFERENCED_PARAMETER(focus_window);
 #endif
 
 	if (reshade::global_config().get("APP", "ForceVSync"))

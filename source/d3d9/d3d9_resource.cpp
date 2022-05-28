@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#if RESHADE_ADDON
-
 #include "d3d9_device.hpp"
 #include "d3d9_resource.hpp"
 #include "d3d9_impl_type_convert.hpp"
@@ -17,7 +15,9 @@ Direct3DSurface9::Direct3DSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *o
 	resource_impl(device, original, __uuidof(this)),
 	_parent(parent)
 {
+#if RESHADE_ADDON
 	_orig->GetDesc(&_orig_desc);
+#endif
 }
 
 HRESULT STDMETHODCALLTYPE Direct3DSurface9::QueryInterface(REFIID riid, void **ppvObj)
@@ -97,6 +97,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetContainer(REFIID riid, void **ppC
 }
 HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetDesc(D3DSURFACE_DESC *pDesc)
 {
+#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return D3DERR_INVALIDCALL;
 
@@ -104,6 +105,9 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetDesc(D3DSURFACE_DESC *pDesc)
 	// This is necessary to e.g. fix missing GUI elements in The Elder Scrolls IV: Oblivion and Fallout: New Vegas, since those game verify the format of created surfaces, and returning the modified one can fail that
 	*pDesc = _orig_desc;
 	return S_OK;
+#else
+	return _orig->GetDesc(pDesc);
+#endif
 }
 HRESULT STDMETHODCALLTYPE Direct3DSurface9::LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
 {
@@ -964,5 +968,3 @@ HRESULT STDMETHODCALLTYPE Direct3DIndexBuffer9::GetDesc(D3DINDEXBUFFER_DESC *pDe
 {
 	return _orig->GetDesc(pDesc);
 }
-
-#endif

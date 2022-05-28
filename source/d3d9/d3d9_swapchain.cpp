@@ -7,24 +7,9 @@
 #include "d3d9_resource.hpp"
 #include "d3d9_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
+#if RESHADE_ADDON
 #include "com_utils.hpp"
 
-Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
-	swapchain_impl(device, original),
-	_extended_interface(0),
-	_device(device)
-{
-	assert(_orig != nullptr && _device != nullptr);
-}
-Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
-	swapchain_impl(device, original),
-	_extended_interface(1),
-	_device(device)
-{
-	assert(_orig != nullptr && _device != nullptr);
-}
-
-#if RESHADE_ADDON
 void Direct3DSwapChain9::reset_back_buffers(IDirect3DSwapChain9 *orig)
 {
 	D3DPRESENT_PARAMETERS pp = {};
@@ -59,6 +44,21 @@ bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, H
 	GetClientRect(hwnd, &window_rect);
 	return source_rect->left == window_rect.left && source_rect->top == window_rect.top &&
 	       source_rect->right == window_rect.right && source_rect->bottom == window_rect.bottom;
+}
+
+Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
+	swapchain_impl(device, original),
+	_extended_interface(0),
+	_device(device)
+{
+	assert(_orig != nullptr && _device != nullptr);
+}
+Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
+	swapchain_impl(device, original),
+	_extended_interface(1),
+	_device(device)
+{
+	assert(_orig != nullptr && _device != nullptr);
 }
 
 bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)

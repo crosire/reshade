@@ -5,8 +5,6 @@
 
 #pragma once
 
-#if RESHADE_ADDON
-
 #include <d3d9.h>
 
 struct Direct3DDevice9;
@@ -47,7 +45,7 @@ namespace reshade::d3d9
 	}
 
 	template <typename ProxyT, typename T>
-	inline auto replace_with_resource_proxy(Direct3DDevice9 *device, T **out_resource) -> ProxyT *
+	inline auto replace_with_resource_proxy(Direct3DDevice9 *device, T **out_resource) -> T *
 	{
 		static_assert(std::is_base_of_v<resource_impl<T>, ProxyT>);
 
@@ -67,7 +65,7 @@ namespace reshade::d3d9
 		}
 
 		*out_resource = resource_proxy;
-		return resource_proxy;
+		return resource;
 	}
 }
 
@@ -100,7 +98,9 @@ struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DSurface9 fi
 	#pragma endregion
 
 	IDirect3DResource9 *const _parent;
-	D3DSURFACE_DESC _orig_desc = {};
+#if RESHADE_ADDON
+	D3DSURFACE_DESC _orig_desc;
+#endif
 };
 
 struct DECLSPEC_UUID("264D345D-81E7-4B0D-AB6D-B7A947766844") Direct3DVolume9 final : reshade::d3d9::resource_impl<IDirect3DVolume9>
@@ -291,5 +291,3 @@ struct DECLSPEC_UUID("AEEDCCA1-9489-4C7E-AE78-12147B437001") Direct3DIndexBuffer
 	HRESULT STDMETHODCALLTYPE GetDesc(D3DINDEXBUFFER_DESC *pDesc) override;
 	#pragma endregion
 };
-
-#endif
