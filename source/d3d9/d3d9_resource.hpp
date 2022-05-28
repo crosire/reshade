@@ -39,9 +39,13 @@ namespace reshade::d3d9
 	};
 
 	template <typename T>
-	inline auto to_orig(T *ptr)
+	inline auto to_orig(Direct3DDevice9 *device, T *ptr)
 	{
-		return ptr != nullptr ? static_cast<resource_impl<T> *>(ptr)->_orig : nullptr;
+		return ptr != nullptr ?
+#if RESHADE_ADDON
+			device->_has_video_present_flag ? ptr :
+#endif
+			static_cast<resource_impl<T> *>(ptr)->_orig : nullptr;
 	}
 
 	template <typename ProxyT, typename T>
@@ -50,8 +54,13 @@ namespace reshade::d3d9
 		static_assert(std::is_base_of_v<resource_impl<T>, ProxyT>);
 
 		const auto resource = *out_resource;
-		if (resource == nullptr)
-			return nullptr;
+		if (resource == nullptr
+#if RESHADE_ADDON
+			// Replacing resource pointers is a bad idea when 'D3DPRESENTFLAG_VIDEO' is set, since none of the video interface that accept them are hooked currently, so just don't do it
+			|| device->_has_video_present_flag
+#endif
+			)
+			return resource;
 
 		ProxyT *resource_proxy = nullptr;
 		DWORD size = sizeof(resource_proxy);

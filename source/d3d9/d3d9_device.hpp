@@ -169,6 +169,7 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
 #if RESHADE_ADDON
+	bool _has_video_present_flag = false;
 	com_ptr<Direct3DSurface9> _auto_depth_stencil;
 #endif
 };

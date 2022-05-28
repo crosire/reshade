@@ -161,7 +161,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetFrontBufferData(IDirect3DSurface9 *pDestSurface)
 {
 #if RESHADE_ADDON
-	pDestSurface = reshade::d3d9::to_orig(pDestSurface);
+	pDestSurface = reshade::d3d9::to_orig(_device, pDestSurface);
 #endif
 
 	return _orig->GetFrontBufferData(pDestSurface);
