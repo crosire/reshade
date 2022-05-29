@@ -132,7 +132,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -162,7 +162,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -192,7 +192,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -222,7 +222,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -261,7 +261,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -300,7 +300,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -338,7 +338,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -376,7 +376,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -416,7 +416,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -459,7 +459,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>

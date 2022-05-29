@@ -64,7 +64,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_FXC;RESHADE_64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_FXC;_WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration) FXC" -platform "$(Platform)"</Command>
@@ -86,7 +86,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_FXC;RESHADE_32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_FXC;_WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration) FXC" -platform "$(Platform)"</Command>
@@ -113,7 +113,7 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_FXC;RESHADE_64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_FXC;_WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration) FXC" -platform "$(Platform)"</Command>
@@ -140,7 +140,7 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_FXC;RESHADE_32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_FXC;_WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration) FXC" -platform "$(Platform)"</Command>
