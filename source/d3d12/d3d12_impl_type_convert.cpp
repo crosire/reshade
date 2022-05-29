@@ -45,7 +45,7 @@ auto reshade::d3d12::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 
 auto reshade::d3d12::convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api::resource_usage
 {
-	return static_cast<api::resource_usage>(access);
+	return access == D3D12_BARRIER_ACCESS_COMMON ? reshade::api::resource_usage::general : static_cast<api::resource_usage>(access);
 }
 auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage
 {
@@ -77,6 +77,10 @@ auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout
 	case D3D12_BARRIER_LAYOUT_RESOLVE_DEST:
 		return api::resource_usage::resolve_dest;
 	}
+}
+auto reshade::d3d12::convert_resource_states_to_usage(D3D12_RESOURCE_STATES states) -> api::resource_usage
+{
+	return states == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<api::resource_usage>(states);
 }
 D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(api::resource_usage usage)
 {

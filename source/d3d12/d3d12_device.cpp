@@ -944,8 +944,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
-
-	const auto initial_state = (InitialResourceState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState);
+	const auto initial_state = reshade::d3d12::convert_resource_states_to_usage(InitialResourceState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
@@ -1012,8 +1011,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_desc.Properties, heap_desc.Flags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
-
-	const auto initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
+	const auto initial_state = reshade::d3d12::convert_resource_states_to_usage(InitialState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
@@ -1073,8 +1071,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
-
-	const auto initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
+	const auto initial_state = reshade::d3d12::convert_resource_states_to_usage(InitialState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
@@ -1551,8 +1548,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
-
-	const auto initial_state = (InitialResourceState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState);
+	const auto initial_state = reshade::d3d12::convert_resource_states_to_usage(InitialResourceState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
@@ -1620,8 +1616,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
-
-	const auto initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
+	const auto initial_state = reshade::d3d12::convert_resource_states_to_usage(InitialState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
@@ -1747,8 +1742,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP
 	D3D12_RESOURCE_DESC1 internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
-
-	const auto initial_state = (InitialResourceState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState);
+	const auto initial_state = reshade::d3d12::convert_resource_states_to_usage(InitialResourceState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
@@ -1813,8 +1807,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource1(ID3D12Heap *pHeap, 
 	D3D12_RESOURCE_DESC1 internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_desc.Properties, heap_desc.Flags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
-
-	const auto initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
+	const auto initial_state = reshade::d3d12::convert_resource_states_to_usage(InitialState);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
@@ -1954,7 +1947,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource3(const D3D12_HEAP
 	D3D12_RESOURCE_DESC1 internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
-
 	const auto initial_state = reshade::d3d12::convert_barrier_layout_to_usage(InitialLayout);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
@@ -2020,7 +2012,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource2(ID3D12Heap *pHeap, 
 	D3D12_RESOURCE_DESC1 internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_desc.Properties, heap_desc.Flags);
 	assert(desc.heap != reshade::api::memory_heap::unknown);
-
 	const auto initial_state = reshade::d3d12::convert_barrier_layout_to_usage(InitialLayout);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
@@ -2083,7 +2074,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource2(const D3D12_RESOU
 	D3D12_RESOURCE_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
-
 	const auto initial_state = reshade::d3d12::convert_barrier_layout_to_usage(InitialLayout);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))

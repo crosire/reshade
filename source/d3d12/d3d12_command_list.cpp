@@ -395,8 +395,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 		{
 		case D3D12_RESOURCE_BARRIER_TYPE_TRANSITION:
 			resources[i] = to_handle(pBarriers[i].Transition.pResource);
-			old_state[i] = static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateBefore);
-			new_state[i] = static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateAfter);
+			old_state[i] = reshade::d3d12::convert_resource_states_to_usage(pBarriers[i].Transition.StateBefore);
+			new_state[i] = reshade::d3d12::convert_resource_states_to_usage(pBarriers[i].Transition.StateAfter);
 			break;
 		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
 			resources[i] = to_handle(pBarriers[i].Aliasing.pResourceAfter != nullptr ? pBarriers[i].Aliasing.pResourceAfter : pBarriers[i].Aliasing.pResourceBefore);
