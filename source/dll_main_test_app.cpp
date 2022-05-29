@@ -67,10 +67,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	RegisterClass(&wc);
 
+	const UINT window_w = 1024;
+	const UINT window_h = 800;
+	const UINT window_x = (GetSystemMetrics(SM_CXSCREEN) - window_w) / 2;
+	const UINT window_y = (GetSystemMetrics(SM_CYSCREEN) - window_h) / 2;
+
 	// Create and show window instance
 	const HWND window_handle = CreateWindow(
 		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_PRODUCT), WS_OVERLAPPEDWINDOW,
-		0, 0, 1024, 800, nullptr, nullptr, hInstance, nullptr);
+		window_x, window_y, window_w, window_h, nullptr, nullptr, hInstance, nullptr);
 
 	if (window_handle == nullptr)
 		return 0;
