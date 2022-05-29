@@ -144,10 +144,8 @@ auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 	case api::format::b5g5r5a1_unorm:
 	case api::format::b5g5r5x1_unorm:
 		return VK_FORMAT_A1R5G5B5_UNORM_PACK16;
-#if 0
 	case api::format::b4g4r4a4_unorm:
-		return VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT;
-#endif
+		return VK_FORMAT_A4R4G4B4_UNORM_PACK16;
 	case api::format::s8_uint:
 		return VK_FORMAT_S8_UINT;
 	case api::format::d16_unorm:
@@ -218,10 +216,8 @@ auto reshade::vulkan::convert_format(VkFormat vk_format) -> api::format
 	default:
 	case VK_FORMAT_UNDEFINED:
 		return api::format::unknown;
-#if 0
-	case VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT:
+	case VK_FORMAT_A4R4G4B4_UNORM_PACK16:
 		return api::format::b4g4r4a4_unorm;
-#endif
 	case VK_FORMAT_R5G6B5_UNORM_PACK16:
 		return api::format::b5g6r5_unorm;
 	case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
@@ -492,15 +488,8 @@ auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAc
 #endif
 	return result;
 }
-auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state, bool src_stage) -> VkImageLayout
+auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout
 {
-#if 0 // Only valid for the very first layout transition after image creation
-	if (src_stage && state == api::resource_usage::cpu_access)
-		return VK_IMAGE_LAYOUT_PREINITIALIZED;
-#else
-		src_stage;
-#endif
-
 	switch (state)
 	{
 	case api::resource_usage::undefined:

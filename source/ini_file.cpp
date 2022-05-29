@@ -7,9 +7,10 @@
 #include <cassert>
 #include <fstream>
 #include <sstream>
+#include <shared_mutex>
 
-// TODO: This is unsafe if there are multiple threads accessing the cache simultaneously
-static std::unordered_map<std::wstring, ini_file> s_ini_cache;
+static std::shared_mutex s_ini_cache_mutex;
+static std::unordered_map<std::wstring, std::unique_ptr<ini_file>> s_ini_cache;
 
 ini_file &reshade::global_config()
 {
@@ -72,7 +73,7 @@ void ini_file::load()
 			}
 
 			// Append to key if it already exists
-			ini_file::value &elements = _sections[section][key];
+			ini_file::value_type &elements = _sections[section][key];
 			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
 			{
 				// Treat ",," as an escaped comma and only split on single ","
@@ -157,7 +158,7 @@ bool ini_file::save()
 		{
 			data << key_name << '=';
 
-			if (const ini_file::value &elements = keys.at(key_name); !elements.empty())
+			if (const ini_file::value_type &elements = keys.at(key_name); !elements.empty())
 			{
 				std::string value;
 				for (const std::string &element : elements)
@@ -201,30 +202,34 @@ bool ini_file::flush_cache()
 {
 	bool success = true;
 
+	const std::shared_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+
 	// Save all files that were modified in one second intervals
-	for (std::pair<const std::wstring, ini_file> &file : s_ini_cache)
-	{
+	for (auto &file : s_ini_cache)
 		// Check modified status before requesting file time, since the latter is costly and therefore should be avoided when not necessary
-		if (file.second._modified && (std::filesystem::file_time_type::clock::now() - file.second._modified_at) > std::chrono::seconds(1))
-			success &= file.second.save();
-	}
+		if (file.second->_modified && (std::filesystem::file_time_type::clock::now() - file.second->_modified_at) > std::chrono::seconds(1))
+			success &= file.second->save();
 
 	return success;
 }
 bool ini_file::flush_cache(const std::filesystem::path &path)
 {
+	const std::shared_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+
 	const auto it = s_ini_cache.find(path);
-	return it != s_ini_cache.end() && it->second.save();
+	return it != s_ini_cache.end() && it->second->save();
 }
 
 ini_file &ini_file::load_cache(const std::filesystem::path &path)
 {
-	const auto it = s_ini_cache.try_emplace(path, path);
-	std::pair<const std::wstring, ini_file> &file = *it.first;
+	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+
+	const auto insert = s_ini_cache.try_emplace(path, std::make_unique<ini_file>(path));
+	const auto it = insert.first;
 
 	// Don't reload file when it was just loaded or there are still modifications pending
-	if (!it.second && !file.second._modified)
-		file.second.load();
+	if (!insert.second && !it->second->_modified)
+		it->second->load();
 
-	return file.second;
+	return *it->second;
 }

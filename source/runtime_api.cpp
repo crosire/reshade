@@ -929,9 +929,9 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, char *value
 	return false;
 }
 
+#if RESHADE_FX
 void reshade::runtime::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-#if RESHADE_FX
 	const auto tech = reinterpret_cast<technique *>(handle.handle);
 	if (tech == nullptr)
 		return;
@@ -954,5 +954,5 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 		return;
 
 	render_technique(*tech, cmd_list, back_buffer_resource, rtv, rtv_srgb);
-#endif
 }
+#endif

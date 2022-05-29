@@ -465,6 +465,11 @@ EXPORTS
 	WSARecv = HookWSARecv @91 PRIVATE
 	WSARecvFrom = HookWSARecvFrom @93 PRIVATE
 
+	; dinput.dll
+	DirectInputCreateA PRIVATE
+	DirectInputCreateW PRIVATE
+	DirectInputCreateEx PRIVATE
+
 	; dinput8.dll
 	DirectInput8Create PRIVATE
 	GetdfDIJoystick PRIVATE

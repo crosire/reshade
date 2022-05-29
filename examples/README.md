@@ -33,11 +33,11 @@ Can use the [texture_dump](#04-texture_dump) add-on to dump all textures, then m
 
 Adds an overlay that keeps track of changes to techniques and uniform variables and allows reverting and redoing them.
 
-## [07-generic_depth](/examples/10-generic_depth)
+## [07-generic_depth](/examples/07-generic_depth)
 
 Built-in add-on that attempts to find the depth buffer used for most scene rendering and makes it available to ReShade effects.
 
-## [08-texture_overlay](/examples/07-texture_overlay)
+## [08-texture_overlay](/examples/08-texture_overlay)
 
 Adds an overlay to inspect textures used by the application in-game and allows dumping individual ones to disk. This allows for more control over which textures to dump, in constrast to the [texture_dump](#04-texture_dump) add-on, which simply dumps them all.
 

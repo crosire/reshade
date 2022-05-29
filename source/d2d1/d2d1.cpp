@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+#include <d2d1_3.h>
 #include "dxgi/dxgi_device.hpp"
+#include "com_ptr.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "hook_manager.hpp"
-#include "com_ptr.hpp"
-#include <d2d1_3.h>
 
 #define ID2D1Factory_CreateDevice_Impl(vtable_offset, factory_interface_version, device_interface_version) \
 	HRESULT STDMETHODCALLTYPE ID2D1Factory##factory_interface_version##_CreateDevice(ID2D1Factory##factory_interface_version *factory, IDXGIDevice *dxgiDevice, ID2D1Device##device_interface_version **d2dDevice) \

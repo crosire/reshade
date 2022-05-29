@@ -270,34 +270,6 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 	return true;
 }
 
-static void install_delayed_hooks(const std::filesystem::path &loaded_path)
-{
-	if (loaded_path == s_export_hook_path)
-		return;
-
-	// Ignore this call if unable to acquire the mutex to avoid possible deadlock
-	if (std::unique_lock<std::shared_mutex> lock(s_delayed_hook_paths_mutex, std::try_to_lock); lock.owns_lock())
-	{
-		const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-			[&loaded_path](const std::filesystem::path &path) {
-				// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
-				HMODULE delayed_handle = nullptr;
-				if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
-					return false;
-
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via LoadLibrary(" << loaded_path << ")) ...";
-
-				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
-			});
-
-		s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
-	}
-	else
-	{
-		LOG(WARN) << "Ignoring LoadLibrary(" << loaded_path << ") call to avoid possible deadlock.";
-	}
-}
-
 static reshade::hook find_internal(reshade::hook::address target, reshade::hook::address replacement)
 {
 	assert(target != nullptr || replacement != nullptr);
@@ -317,13 +289,43 @@ static reshade::hook find_internal(reshade::hook::address target, reshade::hook:
 				(target == nullptr || hook.target == target);
 		});
 
-	return it != s_hooks.cend() ? *it : reshade::hook {};
+	return it != s_hooks.cend() ? static_cast<const reshade::hook &>(*it) : reshade::hook {};
 }
 
+#ifndef RESHADE_TEST_APPLICATION
+
 template <typename T>
-static inline T call_unchecked(T replacement)
+static T call_unchecked(T replacement)
 {
 	return reinterpret_cast<T>(find_internal(nullptr, reinterpret_cast<reshade::hook::address>(replacement)).call());
+}
+
+static void install_delayed_hooks(const std::filesystem::path &loaded_path)
+{
+	if (loaded_path == s_export_hook_path)
+		return;
+
+	// Ignore this call if unable to acquire the mutex to avoid possible deadlock
+	if (std::unique_lock<std::shared_mutex> lock(s_delayed_hook_paths_mutex, std::try_to_lock); lock.owns_lock())
+	{
+		const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
+			[&loaded_path](const std::filesystem::path &path) {
+			// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
+			HMODULE delayed_handle = nullptr;
+			if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
+				return false;
+
+			LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via LoadLibrary(" << loaded_path << ")) ...";
+
+			return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
+		});
+
+		s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+	}
+	else
+	{
+		LOG(WARN) << "Ignoring LoadLibrary(" << loaded_path << ") call to avoid possible deadlock.";
+	}
 }
 
 struct UNICODE_STRING
@@ -388,6 +390,8 @@ HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlag
 	return handle;
 }
 
+#endif
+
 bool reshade::hooks::install(const char *name, hook::address target, hook::address replacement, bool queue_enable)
 {
 	if (target == nullptr)
@@ -438,13 +442,16 @@ void reshade::hooks::uninstall()
 
 	s_hooks.clear();
 
+#ifndef RESHADE_TEST_APPLICATION
 	if (s_dll_notification_cookie && s_dll_notification_cookie != reinterpret_cast<PVOID>(-1))
 	{
-		const auto LdrUnregisterDllNotification = reinterpret_cast<LONG(NTAPI *)(PVOID Cookie)>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrUnregisterDllNotification"));
+		const auto LdrUnregisterDllNotification = reinterpret_cast<LONG(NTAPI *)(PVOID Cookie)>(
+			GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrUnregisterDllNotification"));
 		if (LdrUnregisterDllNotification != nullptr)
 			LdrUnregisterDllNotification(s_dll_notification_cookie);
 	}
 	s_dll_notification_cookie = nullptr;
+#endif
 
 	// Free reference to the module loaded for export hooks
 	// Otherwise a subsequent call to 'LoadLibrary' could return the handle to the still loaded export module, instead of loading the ReShade module again
@@ -459,7 +466,8 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 #ifndef RESHADE_TEST_APPLICATION
 	if (s_dll_notification_cookie == nullptr)
 	{
-		const auto LdrRegisterDllNotification = reinterpret_cast<LONG (NTAPI *)(ULONG Flags, FARPROC NotificationFunction, PVOID Context, PVOID *Cookie)>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrRegisterDllNotification"));
+		const auto LdrRegisterDllNotification = reinterpret_cast<LONG (NTAPI *)(ULONG Flags, FARPROC NotificationFunction, PVOID Context, PVOID *Cookie)>(
+			GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrRegisterDllNotification"));
 		if (LdrRegisterDllNotification == nullptr || LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &s_dll_notification_cookie) != 0 /* STATUS_SUCCESS */)
 		{
 			// Fall back "LoadLibrary" hooks if DLL notification registration failed

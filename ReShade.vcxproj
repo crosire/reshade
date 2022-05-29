@@ -46,13 +46,14 @@
     <ProjectGuid>{0401ADF5-D085-4A3D-95B2-D9B7896BB338}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
-    <WindowsTargetPlatformVersion Condition="'$(VisualStudioVersion)'=='16.0'">10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion Condition="'$(VisualStudioVersion)'&gt;='16.0'">10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v141</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioVersion)'=='16.0'">v142</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioVersion)'=='17.0'">v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Platform)'=='Win32'">
     <TargetName>ReShade32</TargetName>
@@ -114,7 +115,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_GUI;RESHADE_ADDON;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -131,7 +132,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -144,7 +145,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_GUI;RESHADE_ADDON;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -161,7 +162,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -174,7 +175,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_GUI;RESHADE_ADDON;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -191,7 +192,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -204,7 +205,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_GUI;RESHADE_ADDON;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -221,7 +222,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -235,7 +236,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_GUI;RESHADE_ADDON;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -244,6 +245,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -259,7 +261,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -273,7 +275,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_GUI;RESHADE_ADDON;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -282,6 +284,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -297,7 +300,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -311,7 +314,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -319,10 +322,11 @@
       <ExceptionHandling>false</ExceptionHandling>
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(TargetDir)\..\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -334,7 +338,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -348,7 +352,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -356,10 +360,11 @@
       <ExceptionHandling>false</ExceptionHandling>
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(TargetDir)\..\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -371,7 +376,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -385,7 +390,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LITE;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -394,6 +399,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -410,7 +416,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -427,7 +433,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>res;source;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_FX;RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LITE;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4351;26812;28251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -436,6 +442,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -452,7 +459,7 @@
       <ObjectFileOutput>res\shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>RESHADE_64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent Condition="'$(BuildingSetupTool)'!='true'">
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
@@ -500,6 +507,7 @@
     <ClCompile Include="source\d3d10\d3d10_impl_state_block.cpp" />
     <ClCompile Include="source\d3d10\d3d10_impl_swapchain.cpp" />
     <ClCompile Include="source\d3d10\d3d10_impl_type_convert.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_resource.cpp" />
     <ClCompile Include="source\d3d11\d3d11.cpp" />
     <ClCompile Include="source\d3d11\d3d11on12.cpp" />
     <ClCompile Include="source\d3d11\d3d11on12_device.cpp" />
@@ -528,6 +536,7 @@
     <ClCompile Include="source\d3d12\d3d12_impl_swapchain.cpp" />
     <ClCompile Include="source\d3d12\d3d12_impl_type_convert.cpp" />
     <ClCompile Include="source\d3d12\d3d12_pipeline_library.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_resource.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp">
       <DisableSpecificWarnings Condition="'$(Configuration)'=='Debug App'">4458;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -546,6 +555,9 @@
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp" />
     <ClCompile Include="source\dll_log.cpp" />
     <ClCompile Include="source\dll_main.cpp" />
+    <ClCompile Include="source\dll_main_test_app.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'!='Debug App' And '$(Configuration)'!='Release App'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="source\dll_resources.cpp" />
     <ClCompile Include="source\dxgi\dxgi.cpp" />
     <ClCompile Include="source\dxgi\dxgi_d3d10.cpp" />
@@ -588,6 +600,7 @@
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_impl_swapchain.cpp" />
     <ClCompile Include="source\vulkan\vulkan_impl_type_convert.cpp" />
+    <ClCompile Include="source\windows\dinput.cpp" />
     <ClCompile Include="source\windows\dinput8.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
@@ -613,6 +626,7 @@
     <ClInclude Include="source\d3d10\d3d10_impl_state_block.hpp" />
     <ClInclude Include="source\d3d10\d3d10_impl_swapchain.hpp" />
     <ClInclude Include="source\d3d10\d3d10_impl_type_convert.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_resource.hpp" />
     <ClInclude Include="source\d3d11\d3d11on12_device.hpp" />
     <ClInclude Include="source\d3d11\d3d11_command_list.hpp" />
     <ClInclude Include="source\d3d11\d3d11_device.hpp" />
@@ -635,6 +649,7 @@
     <ClInclude Include="source\d3d12\d3d12_impl_swapchain.hpp" />
     <ClInclude Include="source\d3d12\d3d12_impl_type_convert.hpp" />
     <ClInclude Include="source\d3d12\d3d12_pipeline_library.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_resource.hpp" />
     <ClInclude Include="source\d3d12\descriptor_heap.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
     <ClInclude Include="source\d3d9\d3d9_impl_device.hpp" />

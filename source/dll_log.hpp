@@ -39,11 +39,6 @@ namespace reshade::log
 	bool open_log_file(const std::filesystem::path &path);
 
 	/// <summary>
-	/// The current log line stream.
-	/// </summary>
-	extern std::ostringstream line_stream;
-
-	/// <summary>
 	/// Constructs a single log message including current time and level and writes it to the open log file.
 	/// </summary>
 	struct message
@@ -54,7 +49,7 @@ namespace reshade::log
 		template <typename T>
 		message &operator<<(const T &value)
 		{
-			line_stream << value;
+			_line_stream << value;
 			return *this;
 		}
 
@@ -129,7 +124,7 @@ namespace reshade::log
 		inline message &operator<<(const char *message)
 		{
 			assert(message != nullptr);
-			line_stream << message;
+			_line_stream << message;
 			return *this;
 		}
 
@@ -141,5 +136,8 @@ namespace reshade::log
 			utf8::unchecked::utf16to8(message, message + wcslen(message), std::back_inserter(utf8_message));
 			return operator<<(utf8_message);
 		}
+
+	private:
+		std::ostringstream _line_stream;
 	};
 }

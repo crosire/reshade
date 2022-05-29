@@ -78,7 +78,7 @@ namespace ReShade.Setup
 					// Look for archive at the end of this executable and copy it to a file
 					while (input.Read(block, 0, block.Length) >= signature.Length)
 					{
-						if (block.Take(signature.Length).SequenceEqual(signature))
+						if (block.Take(signature.Length).SequenceEqual(signature) && block.Skip(signature.Length).Take(26).Max() != 0)
 						{
 							output.Write(block, 0, block.Length);
 							input.CopyTo(output);
@@ -123,6 +123,9 @@ namespace ReShade.Setup
 			// Attempt to download effect package and compatibility list
 			using (var client = new WebClient())
 			{
+				// Ensure files are downloaded again if they changed
+				client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
+
 				try
 				{
 					using (var packagesStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini"))
@@ -601,7 +604,9 @@ namespace ReShade.Setup
 
 			var basePath = Path.GetDirectoryName(targetPath);
 			var executableName = Path.GetFileName(targetPath);
-			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "InstallTarget"))
+
+			if (targetApi != Api.Vulkan &&
+				compatibilityIni != null && compatibilityIni.HasValue(executableName, "InstallTarget"))
 			{
 				basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
 
@@ -620,7 +625,30 @@ namespace ReShade.Setup
 
 			var isReShade = false;
 
-			if (targetApi != Api.Vulkan)
+			if (targetApi == Api.Vulkan)
+			{
+				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
+				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
+
+				if (!isUpdate && File.Exists(configPath))
+				{
+					if (isHeadless)
+					{
+						UpdateStatusAndFinish(false, "Existing ReShade installation found. Please uninstall it first.");
+					}
+					else
+					{
+						Dispatcher.Invoke(() =>
+						{
+							var page = new SelectUninstallPage();
+
+							CurrentPage.Navigate(page);
+						});
+					}
+					return;
+				}
+			}
+			else
 			{
 				switch (targetApi)
 				{
@@ -666,30 +694,6 @@ namespace ReShade.Setup
 					else
 					{
 						UpdateStatusAndFinish(false, Path.GetFileName(modulePath) + " already exists, but does not belong to ReShade.\nPlease make sure this is not a system file required by the game.");
-					}
-					return;
-				}
-			}
-			else
-			{
-				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
-				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
-
-				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
-				if (!isUpdate && appConfig.GetValue(string.Empty, "Apps", out string[] appKeys) && appKeys.Contains(targetPath))
-				{
-					if (isHeadless)
-					{
-						UpdateStatusAndFinish(false, "Existing ReShade installation found. Please uninstall it first.");
-					}
-					else
-					{
-						Dispatcher.Invoke(() =>
-						{
-							var page = new SelectUninstallPage();
-
-							CurrentPage.Navigate(page);
-						});
 					}
 					return;
 				}

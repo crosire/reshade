@@ -46,7 +46,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 	if (device_proxy == nullptr)
 		goto normal_submit; // No proxy device found, so just submit normally
 	else if (s_vr_swapchain == nullptr)
-		s_vr_swapchain = new reshade::openvr::swapchain_impl(device_proxy, device_proxy, compositor);
+		s_vr_swapchain = new reshade::openvr::swapchain_d3d10_impl(device_proxy, compositor);
 	// It is not valid to switch the texture type once submitted for the first time
 	else if (s_vr_swapchain->get_device() != device_proxy)
 		return vr::VRCompositorError_InvalidTexture;
@@ -102,7 +102,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 	if (device_proxy == nullptr)
 		goto normal_submit; // No proxy device found, so just submit normally
 	else if (s_vr_swapchain == nullptr)
-		s_vr_swapchain = new reshade::openvr::swapchain_impl(device_proxy, device_proxy->_immediate_context, compositor);
+		s_vr_swapchain = new reshade::openvr::swapchain_d3d11_impl(device_proxy, compositor);
 	// It is not valid to switch the texture type once submitted for the first time
 	else if (s_vr_swapchain->get_device() != device_proxy)
 		return vr::VRCompositorError_InvalidTexture;
@@ -145,7 +145,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 	if (FAILED(texture->m_pCommandQueue->QueryInterface(IID_PPV_ARGS(&command_queue_proxy))))
 		goto normal_submit; // No proxy command queue found, so just submit normally
 	else if (s_vr_swapchain == nullptr)
-		s_vr_swapchain = new reshade::openvr::swapchain_impl(command_queue_proxy->_device, command_queue_proxy.get(), compositor);
+		s_vr_swapchain = new reshade::openvr::swapchain_d3d12_impl(command_queue_proxy.get(), compositor);
 	else if (s_vr_swapchain->get_device() != command_queue_proxy->_device)
 		return vr::VRCompositorError_InvalidTexture;
 
@@ -242,10 +242,11 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 	reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
+	reshade::vulkan::command_queue_impl *queue = nullptr;
+
 	if (device == nullptr)
 		goto normal_submit;
 
-	reshade::vulkan::command_queue_impl *queue = nullptr;
 	if (const auto queue_it = std::find_if(device->_queues.begin(), device->_queues.end(),
 		[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
 		queue_it != device->_queues.end())

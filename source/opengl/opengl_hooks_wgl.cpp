@@ -511,7 +511,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		else
 		{
 			// Choose a device context to make current with
-			HDC hdc = *it->second->_hdcs.begin();
+			HDC hdc = reinterpret_cast<HDC>(it->second->get_native());
 			const HDC prev_hdc = wglGetCurrentDC();
 
 			// In case the original was destroyed already, create a dummy window to get a valid context
@@ -1151,7 +1151,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	#define HOOK_PROC(name) \
 		reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 #else
-	// This does not work because the hooks are not registered then and thus 'reshade::hooks::call' will fail
+	// This does not work because the hooks are not registered and thus 'reshade::hooks::call' will fail
 	#define HOOK_PROC(name) \
 		if (0 == std::strcmp(lpszProc, #name)) \
 			return reinterpret_cast<PROC>(name)

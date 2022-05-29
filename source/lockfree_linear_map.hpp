@@ -102,10 +102,10 @@ public:
 	{
 		for (size_t i = 0; i < MAX_ENTRIES; ++i)
 		{
-			TValue *const old_value = _data[i].second;
+			TValue *const old_value = lockfree_linear_map<TKey, TValue *, MAX_ENTRIES>::_data[i].second;
 
 			// Clear this entry so it can be used again
-			if (TKey current_key = _data[i].first.exchange(no_value);
+			if (TKey current_key = lockfree_linear_map<TKey, TValue *, MAX_ENTRIES>::_data[i].first.exchange(no_value);
 				current_key != no_value && current_key != update_value) // If this in update mode, we can assume the thread updating will reset the key to its intended value
 			{
 				// Delete any value attached to the entry, but only if there was one to begin with

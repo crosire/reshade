@@ -8,6 +8,11 @@
 #include "runtime.hpp"
 #include "addon_manager.hpp"
 #include <openvr.h>
+#include <Unknwn.h>
+
+struct D3D10Device;
+struct D3D11Device;
+struct D3D12CommandQueue;
 
 namespace reshade::openvr
 {
@@ -32,8 +37,29 @@ namespace reshade::openvr
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 #endif
 
+	protected:
+		IUnknown *_direct3d_device = nullptr;
+
 	private:
 		void *_app_state = nullptr;
 		api::resource _side_by_side_texture = {};
+	};
+
+	class swapchain_d3d10_impl : public swapchain_impl
+	{
+	public:
+		swapchain_d3d10_impl(D3D10Device *device, vr::IVRCompositor *compositor);
+	};
+
+	class swapchain_d3d11_impl : public swapchain_impl
+	{
+	public:
+		swapchain_d3d11_impl(D3D11Device *device, vr::IVRCompositor *compositor);
+	};
+
+	class swapchain_d3d12_impl : public swapchain_impl
+	{
+	public:
+		swapchain_d3d12_impl(D3D12CommandQueue *queue, vr::IVRCompositor *compositor);
 	};
 }

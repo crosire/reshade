@@ -248,10 +248,15 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("config") ||
 								path.ContainsIgnoreCase("launch") ||
 								path.ContainsIgnoreCase("plugin") ||
+								path.ContainsIgnoreCase("console") ||
+								path.ContainsIgnoreCase("compile") ||
 								path.ContainsIgnoreCase("benchmark") ||
+								path.ContainsIgnoreCase("openvr") ||
 								path.ContainsIgnoreCase("steamvr") ||
 								path.ContainsIgnoreCase("cefprocess") ||
+								path.Contains("7za") ||
 								path.Contains("svc") ||
+								path.Contains("SystemSoftware") ||
 								// Ignore certain folders that are unlikely to contain useful executables
 								path.ContainsIgnoreCase("docs") ||
 								path.ContainsIgnoreCase("cache") ||
@@ -262,7 +267,8 @@ namespace ReShade.Setup.Pages
 								path.Contains("\\$") ||
 								path.Contains("\\.") ||
 								path.Contains("\\Windows") ||
-								path.ContainsIgnoreCase("steamvr"))
+								path.ContainsIgnoreCase("steamvr") ||
+								path.Contains("\\Portal\\bin"))
 							{
 								continue;
 							}

@@ -35,6 +35,7 @@ bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12GraphicsCommandList4),
 		__uuidof(ID3D12GraphicsCommandList5),
 		__uuidof(ID3D12GraphicsCommandList6),
+		__uuidof(ID3D12GraphicsCommandList7),
 	};
 
 	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -192,6 +193,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::Dispatch(UINT ThreadGroupCountX
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyBufferRegion(ID3D12Resource *pDstBuffer, UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset, UINT64 NumBytes)
 {
+	assert(pDstBuffer != nullptr && pSrcBuffer != nullptr);
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(this, to_handle(pSrcBuffer), SrcOffset, to_handle(pDstBuffer), DstOffset, NumBytes))
 		return;
@@ -200,10 +203,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyBufferRegion(ID3D12Resource
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_TEXTURE_COPY_LOCATION *pDst, UINT DstX, UINT DstY, UINT DstZ, const D3D12_TEXTURE_COPY_LOCATION *pSrc, const D3D12_BOX *pSrcBox)
 {
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	assert(pSrc != nullptr && pDst != nullptr);
+	assert(pDst != nullptr && pSrc != nullptr && pDst->pResource != nullptr && pSrc->pResource != nullptr);
 
-	if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX &&
+		reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		const bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
 		reshade::api::subresource_box dst_box;
@@ -241,7 +245,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 				reshade::api::filter_mode::min_mag_mip_point))
 			return;
 	}
-	else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX)
+	else
+	if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX &&
+		reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>())
 	{
 		reshade::api::subresource_box dst_box;
 		dst_box.left = static_cast<int32_t>(DstX);
@@ -272,7 +278,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 				&dst_box))
 			return;
 	}
-	else if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT)
+	else
+	if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT &&
+		reshade::has_addon_event<reshade::addon_event::copy_texture_to_buffer>())
 	{
 		assert(DstX == 0 && DstY == 0 && DstZ == 0);
 
@@ -292,6 +300,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyResource(ID3D12Resource *pDstResource, ID3D12Resource *pSrcResource)
 {
+	assert(pDstResource != nullptr && pSrcResource != nullptr);
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, to_handle(pSrcResource), to_handle(pDstResource)))
 		return;
@@ -304,6 +314,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTiles(ID3D12Resource *pTile
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresource(ID3D12Resource *pDstResource, UINT DstSubresource, ID3D12Resource *pSrcResource, UINT SrcSubresource, DXGI_FORMAT Format)
 {
+	assert(pDstResource != nullptr && pSrcResource != nullptr);
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, to_handle(pSrcResource), SrcSubresource, nullptr, to_handle(pDstResource), DstSubresource, 0, 0, 0, reshade::d3d12::convert_format(Format)))
 		return;
@@ -371,7 +383,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 {
 	_orig->ResourceBarrier(NumBarriers, pBarriers);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (!reshade::has_addon_event<reshade::addon_event::barrier>())
 		return;
 
@@ -383,8 +395,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 		{
 		case D3D12_RESOURCE_BARRIER_TYPE_TRANSITION:
 			resources[i] = to_handle(pBarriers[i].Transition.pResource);
-			old_state[i] = static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateBefore);
-			new_state[i] = static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateAfter);
+			old_state[i] = reshade::d3d12::convert_resource_states_to_usage(pBarriers[i].Transition.StateBefore);
+			new_state[i] = reshade::d3d12::convert_resource_states_to_usage(pBarriers[i].Transition.StateAfter);
 			break;
 		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
 			resources[i] = to_handle(pBarriers[i].Aliasing.pResourceAfter != nullptr ? pBarriers[i].Aliasing.pResourceAfter : pBarriers[i].Aliasing.pResourceBefore);
@@ -423,17 +435,13 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDesc
 	temp_mem<ID3D12DescriptorHeap *, 2> heaps(NumDescriptorHeaps);
 	for (UINT i = 0; i < NumDescriptorHeaps; ++i)
 		heaps[i] = static_cast<D3D12DescriptorHeap *>(ppDescriptorHeaps[i])->_orig;
+	ppDescriptorHeaps = heaps.p;
+#endif
 
-	_orig->SetDescriptorHeaps(NumDescriptorHeaps, heaps.p);
-
-	for (UINT i = 0; i < 2; ++i)
-		_current_descriptor_heaps[i] = i < NumDescriptorHeaps ? heaps[i] : nullptr;
-#else
 	_orig->SetDescriptorHeaps(NumDescriptorHeaps, ppDescriptorHeaps);
 
 	for (UINT i = 0; i < 2; ++i)
 		_current_descriptor_heaps[i] = i < NumDescriptorHeaps ? ppDescriptorHeaps[i] : nullptr;
-#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12RootSignature *pRootSignature)
 {
@@ -622,8 +630,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 	_orig->IASetVertexBuffers(StartSlot, NumViews, pViews);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	assert(NumViews <= D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
-
 	if (!reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 		return;
 
@@ -653,8 +659,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 	_orig->SOSetTargets(StartSlot, NumViews, pViews);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	assert(NumViews <= D3D12_SO_BUFFER_SLOT_COUNT);
-
 	if (!reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		return;
 
@@ -684,8 +688,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 	_orig->OMSetRenderTargets(NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
 
 #if RESHADE_ADDON
-	assert(NumRenderTargetDescriptors <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
-
 	if (!reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 		return;
 
@@ -699,7 +701,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(DepthStencilView), ClearFlags & D3D12_CLEAR_FLAG_DEPTH ? &Depth : nullptr, ClearFlags & D3D12_CLEAR_FLAG_STENCIL ? &Stencil : nullptr, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, to_handle(DepthStencilView), (ClearFlags & D3D12_CLEAR_FLAG_DEPTH) ? &Depth : nullptr, (ClearFlags & D3D12_CLEAR_FLAG_STENCIL) ? &Stencil : nullptr, NumRects, reinterpret_cast<const reshade::api::rect *>(pRects)))
 		return;
 #endif
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
@@ -811,6 +813,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetSamplePositions(UINT NumSamp
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresourceRegion(ID3D12Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, ID3D12Resource *pSrcResource, UINT SrcSubresource, D3D12_RECT *pSrcRect, DXGI_FORMAT Format, D3D12_RESOLVE_MODE ResolveMode)
 {
+	assert(pDstResource != nullptr && pSrcResource != nullptr);
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const bool use_src_box = pSrcRect != nullptr;
 	reshade::api::subresource_box src_box;
@@ -853,8 +857,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetProtectedResourceSession(ID3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags)
 {
 #if RESHADE_ADDON
-	assert(NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
-
 	temp_mem<reshade::api::render_pass_render_target_desc, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rts(NumRenderTargets);
 	for (UINT i = 0; i < NumRenderTargets; ++i)
 	{
@@ -927,19 +929,61 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::DispatchRays(const D3D12_DISPAT
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->DispatchRays(pDesc);
 }
 
-void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetShadingRate(D3D12_SHADING_RATE baseShadingRate, const D3D12_SHADING_RATE_COMBINER *combiners)
+void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetShadingRate(D3D12_SHADING_RATE BaseShadingRate, const D3D12_SHADING_RATE_COMBINER *pCombiners)
 {
 	assert(_interface_version >= 5);
-	static_cast<ID3D12GraphicsCommandList5 *>(_orig)->RSSetShadingRate(baseShadingRate, combiners);
+	static_cast<ID3D12GraphicsCommandList5 *>(_orig)->RSSetShadingRate(BaseShadingRate, pCombiners);
 }
-void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetShadingRateImage(ID3D12Resource *shadingRateImage)
+void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetShadingRateImage(ID3D12Resource *pShadingRateImage)
 {
 	assert(_interface_version >= 5);
-	static_cast<ID3D12GraphicsCommandList5 *>(_orig)->RSSetShadingRateImage(shadingRateImage);
+	static_cast<ID3D12GraphicsCommandList5 *>(_orig)->RSSetShadingRateImage(pShadingRateImage);
 }
 
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DispatchMesh(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
 	assert(_interface_version >= 6);
 	static_cast<ID3D12GraphicsCommandList6 *>(_orig)->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+}
+
+void STDMETHODCALLTYPE D3D12GraphicsCommandList::Barrier(UINT32 NumBarrierGroups, const D3D12_BARRIER_GROUP *pBarrierGroups)
+{
+	assert(_interface_version >= 7);
+	static_cast<ID3D12GraphicsCommandList7 *>(_orig)->Barrier(NumBarrierGroups, pBarrierGroups);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (!reshade::has_addon_event<reshade::addon_event::barrier>())
+		return;
+
+	for (UINT32 k = 0; k < NumBarrierGroups; ++k)
+	{
+		const D3D12_BARRIER_GROUP &group = pBarrierGroups[k];
+
+		temp_mem<reshade::api::resource> resources(group.NumBarriers);
+		temp_mem<reshade::api::resource_usage> old_state(group.NumBarriers), new_state(group.NumBarriers);
+		for (UINT i = 0; i < group.NumBarriers; ++i)
+		{
+			switch (group.Type)
+			{
+			case D3D12_BARRIER_TYPE_GLOBAL:
+				resources[i] = { 0 };
+				old_state[i] = reshade::d3d12::convert_access_to_usage(group.pGlobalBarriers[i].AccessBefore);
+				new_state[i] = reshade::d3d12::convert_access_to_usage(group.pGlobalBarriers[i].AccessAfter);
+				break;
+			case D3D12_BARRIER_TYPE_TEXTURE:
+				resources[i] = to_handle(group.pTextureBarriers[i].pResource);
+				old_state[i] = reshade::d3d12::convert_access_to_usage(group.pTextureBarriers[i].AccessBefore);
+				new_state[i] = reshade::d3d12::convert_access_to_usage(group.pTextureBarriers[i].AccessAfter);
+				break;
+			case D3D12_BARRIER_TYPE_BUFFER:
+				resources[i] = to_handle(group.pBufferBarriers[i].pResource);
+				old_state[i] = reshade::d3d12::convert_access_to_usage(group.pBufferBarriers[i].AccessBefore);
+				new_state[i] = reshade::d3d12::convert_access_to_usage(group.pBufferBarriers[i].AccessAfter);
+				break;
+			}
+		}
+
+		reshade::invoke_addon_event<reshade::addon_event::barrier>(this, group.NumBarriers, resources.p, old_state.p, new_state.p);
+	}
+#endif
 }

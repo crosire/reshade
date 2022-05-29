@@ -43,6 +43,45 @@ auto reshade::d3d12::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 	return api::color_space::unknown;
 }
 
+auto reshade::d3d12::convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api::resource_usage
+{
+	return access == D3D12_BARRIER_ACCESS_COMMON ? reshade::api::resource_usage::general : static_cast<api::resource_usage>(access);
+}
+auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage
+{
+	switch (layout)
+	{
+	case D3D12_BARRIER_LAYOUT_UNDEFINED:
+		return api::resource_usage::undefined;
+	default:
+	case D3D12_BARRIER_LAYOUT_COMMON:
+		return api::resource_usage::general;
+	case D3D12_BARRIER_LAYOUT_GENERIC_READ:
+		return api::resource_usage::cpu_access;
+	case D3D12_BARRIER_LAYOUT_RENDER_TARGET:
+		return api::resource_usage::render_target;
+	case D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS:
+		return api::resource_usage::unordered_access;
+	case D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE:
+		return api::resource_usage::depth_stencil_write;
+	case D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ:
+		return api::resource_usage::depth_stencil_read;
+	case D3D12_BARRIER_LAYOUT_SHADER_RESOURCE:
+		return api::resource_usage::shader_resource;
+	case D3D12_BARRIER_LAYOUT_COPY_SOURCE:
+		return api::resource_usage::copy_source;
+	case D3D12_BARRIER_LAYOUT_COPY_DEST:
+		return api::resource_usage::copy_dest;
+	case D3D12_BARRIER_LAYOUT_RESOLVE_SOURCE:
+		return api::resource_usage::resolve_source;
+	case D3D12_BARRIER_LAYOUT_RESOLVE_DEST:
+		return api::resource_usage::resolve_dest;
+	}
+}
+auto reshade::d3d12::convert_resource_states_to_usage(D3D12_RESOURCE_STATES states) -> api::resource_usage
+{
+	return states == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<api::resource_usage>(states);
+}
 D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(api::resource_usage usage)
 {
 	// Undefined usage does not exist in D3D12

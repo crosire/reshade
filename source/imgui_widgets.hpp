@@ -77,7 +77,7 @@ namespace reshade::imgui
 	/// <summary>
 	/// Adds a button with a visible toggle state. Clicking it toggles that state.
 	/// </summary>
-	bool toggle_button(const char *label, bool &v, float width = 0.0f, ImGuiWindowFlags flags = 0);
+	bool toggle_button(const char *label, bool &v, float width = 0.0f, ImGuiButtonFlags flags = 0);
 
 	/// <summary>
 	/// Adds an ImGui drag widget but with additional "&lt;" and "&gt;" buttons to decrease/increase the value.

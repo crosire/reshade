@@ -18,5 +18,5 @@ namespace reshade::resources
 	/// <summary>
 	/// Loads the raw data associated with the specified <paramref name="id"/> from the DLL resources.
 	/// </summary>
-	data_resource load_data_resource(unsigned int id);
+	data_resource load_data_resource(unsigned short id);
 }

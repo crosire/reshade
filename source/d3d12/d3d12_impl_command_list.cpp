@@ -50,6 +50,12 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 	temp_mem<D3D12_RESOURCE_BARRIER> barriers(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
+		if (resources[i].handle == 0)
+		{
+			assert(false); // TODO: Implement with 'ID3D12GraphicsCommandList7::Barrier'
+			continue;
+		}
+
 		if (old_states[i] == api::resource_usage::unordered_access && new_states[i] == api::resource_usage::unordered_access)
 		{
 			barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;

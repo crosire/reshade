@@ -223,6 +223,7 @@ namespace reshade
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		bool hidden = false;
 		bool enabled = false;
+		bool enabled_in_screenshot = true;
 		int64_t time_left = 0;
 		unsigned int toggle_key_data[4] = {};
 		moving_average<uint64_t, 60> average_cpu_duration;
@@ -256,7 +257,7 @@ namespace reshade
 		std::vector<std::pair<std::string, std::string>> definitions;
 		std::unordered_map<std::string, std::pair<std::string, std::string>> assembly;
 		std::vector<uniform> uniforms;
-		std::vector<unsigned char> uniform_data_storage;
+		std::vector<uint8_t> uniform_data_storage;
 
 		struct binding_data
 		{

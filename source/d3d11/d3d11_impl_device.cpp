@@ -681,6 +681,8 @@ bool reshade::d3d11::device_impl::create_pipeline(api::pipeline_layout, uint32_t
 	uint32_t stencil_reference_value = 0;
 	float blend_constant[4] = {};
 
+	pipeline_impl *impl = nullptr;
+
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
 		if (subobjects[i].count == 0)
@@ -797,7 +799,7 @@ bool reshade::d3d11::device_impl::create_pipeline(api::pipeline_layout, uint32_t
 	if (!create_input_layout(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_shader_desc, &input_layout))
 		goto exit_failure;
 
-	const auto impl = new pipeline_impl();
+	impl = new pipeline_impl();
 
 	impl->vs = std::move(vertex_shader);
 	impl->hs = std::move(hull_shader);

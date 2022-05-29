@@ -18,8 +18,9 @@ elseif ($(git describe --tags) -match "v(\d+)\.(\d+)\.(\d+)(-\d+-\w+)?") {
 	$version = [int]::Parse($matches[1]), [int]::Parse($matches[2]), [int]::Parse($matches[3]), 0
 }
 
-# Increment build version for Release builds
-if ($config.StartsWith("Release")) {
+# Increment build version for release builds
+if (($config -eq "Release") -or
+    ($config -eq "Release Signed")) {
 	$version[3] += 1
 	"Updating version to $([string]::Join('.', $version)) ..."
 }

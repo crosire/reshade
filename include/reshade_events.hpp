@@ -9,7 +9,7 @@
 
 namespace reshade
 {
-	enum class addon_event
+	enum class addon_event : uint32_t
 	{
 		/// <summary>
 		/// Called after successfull device creation, from:

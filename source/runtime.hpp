@@ -342,6 +342,7 @@ namespace reshade
 		bool _preset_save_successfull = true;
 		bool _effects_enabled = true;
 		bool _effects_rendered_this_frame = false;
+		uint16_t _back_buffer_samples = 1;
 
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;
