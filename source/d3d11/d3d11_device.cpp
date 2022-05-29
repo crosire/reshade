@@ -1748,7 +1748,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateQuery1(const D3D11_QUERY_DESC1 *pQu
 void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext3(ID3D11DeviceContext3 **ppImmediateContext)
 {
 	assert(_interface_version >= 3);
-	static_cast<ID3D11Device3 *>(_orig)->GetImmediateContext3(ppImmediateContext);
+	assert(ppImmediateContext != nullptr);
+	assert(_immediate_context != nullptr);
+
+	// Upgrade immediate context to interface version 3
+	_immediate_context->check_and_upgrade_interface(__uuidof(**ppImmediateContext));
+
+	_immediate_context->AddRef();
+	*ppImmediateContext = _immediate_context;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags, ID3D11DeviceContext3 **ppDeferredContext)
 {
