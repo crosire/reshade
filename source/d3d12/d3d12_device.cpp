@@ -1163,10 +1163,36 @@ HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandleByName(LPCWSTR Name, DWOR
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::MakeResident(UINT NumObjects, ID3D12Pageable *const *ppObjects)
 {
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	temp_mem<ID3D12Pageable *> objects(NumObjects);
+	for (UINT i = 0; i < NumObjects; ++i)
+	{
+		if (com_ptr<D3D12DescriptorHeap> descriptor_heap_proxy;
+			SUCCEEDED(ppObjects[i]->QueryInterface(&descriptor_heap_proxy)))
+			objects[i] = descriptor_heap_proxy->_orig;
+		else
+			objects[i] = ppObjects[i];
+	}
+	ppObjects = objects.p;
+#endif
+
 	return _orig->MakeResident(NumObjects, ppObjects);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::Evict(UINT NumObjects, ID3D12Pageable *const *ppObjects)
 {
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	temp_mem<ID3D12Pageable *> objects(NumObjects);
+	for (UINT i = 0; i < NumObjects; ++i)
+	{
+		if (com_ptr<D3D12DescriptorHeap> descriptor_heap_proxy;
+			SUCCEEDED(ppObjects[i]->QueryInterface(&descriptor_heap_proxy)))
+			objects[i] = descriptor_heap_proxy->_orig;
+		else
+			objects[i] = ppObjects[i];
+	}
+	ppObjects = objects.p;
+#endif
+
 	return _orig->Evict(NumObjects, ppObjects);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateFence(UINT64 InitialValue, D3D12_FENCE_FLAGS Flags, REFIID riid, void **ppFence)
@@ -1281,6 +1307,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::SetEventOnMultipleFenceCompletion(ID3D12F
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::SetResidencyPriority(UINT NumObjects, ID3D12Pageable *const *ppObjects, const D3D12_RESIDENCY_PRIORITY *pPriorities)
 {
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	temp_mem<ID3D12Pageable *> objects(NumObjects);
+	for (UINT i = 0; i < NumObjects; ++i)
+	{
+		if (com_ptr<D3D12DescriptorHeap> descriptor_heap_proxy;
+			SUCCEEDED(ppObjects[i]->QueryInterface(&descriptor_heap_proxy)))
+			objects[i] = descriptor_heap_proxy->_orig;
+		else
+			objects[i] = ppObjects[i];
+	}
+	ppObjects = objects.p;
+#endif
+
 	assert(_interface_version >= 1);
 	return static_cast<ID3D12Device1 *>(_orig)->SetResidencyPriority(NumObjects, ppObjects, pPriorities);
 }
@@ -1490,6 +1529,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::OpenExistingHeapFromFileMapping(HANDLE hF
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::EnqueueMakeResident(D3D12_RESIDENCY_FLAGS Flags, UINT NumObjects, ID3D12Pageable *const *ppObjects, ID3D12Fence *pFenceToSignal, UINT64 FenceValueToSignal)
 {
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	temp_mem<ID3D12Pageable *> objects(NumObjects);
+	for (UINT i = 0; i < NumObjects; ++i)
+	{
+		if (com_ptr<D3D12DescriptorHeap> descriptor_heap_proxy;
+			SUCCEEDED(ppObjects[i]->QueryInterface(&descriptor_heap_proxy)))
+			objects[i] = descriptor_heap_proxy->_orig;
+		else
+			objects[i] = ppObjects[i];
+	}
+	ppObjects = objects.p;
+#endif
+
 	assert(_interface_version >= 3);
 	return static_cast<ID3D12Device3 *>(_orig)->EnqueueMakeResident(Flags, NumObjects, ppObjects, pFenceToSignal, FenceValueToSignal);
 }
