@@ -1873,13 +1873,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	// Create query pool for time measurements
 	if (!_device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_pool))
-	{
-		effect.compiled = false;
-		_last_reload_successfull = false;
-
 		LOG(ERROR) << "Failed to create query pool for effect file " << effect.source_file << '!';
-		return false;
-	}
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
@@ -3429,7 +3423,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #if RESHADE_GUI
 	const std::chrono::high_resolution_clock::time_point time_technique_started = std::chrono::high_resolution_clock::now();
 
-	if (_gather_gpu_statistics)
+	if (_gather_gpu_statistics && effect.query_pool != 0)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
@@ -3620,7 +3614,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #endif
 
 #if RESHADE_GUI
-	if (_gather_gpu_statistics)
+	if (_gather_gpu_statistics && effect.query_pool != 0)
 		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
 
 	const std::chrono::high_resolution_clock::time_point time_technique_finished = std::chrono::high_resolution_clock::now();
