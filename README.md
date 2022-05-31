@@ -44,3 +44,8 @@ See the [ReShade Forum](https://reshade.me/forum) and [Discord](https://discord.
 
 ReShade is licensed under the terms of the [BSD 3-clause license](LICENSE.md).\
 Some source code files are dual-licensed and are also available under the terms of the MIT license, when stated as such at the top of those files.
+
+## Signature
+The releases are signed using [public](./reshade.cer) with a figerprint `589690208a5e52fb96980c4a6698f50acd47c49f`
+
+You can easily validate a relase in the explorer: `Properties > Digital Signatures > ReShade > Details > Avanced > Serial ID` should be `77 82 d6 29 97 92 5a a1 46 ab 3b 81 72 65 ab ca`.
