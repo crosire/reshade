@@ -772,6 +772,7 @@ namespace reshade
 		/// Called after:
 		/// <list type="bullet">
 		/// <item><description>ID3D12GraphicsCommandList::ResourceBarrier</description></item>
+		/// <item><description>ID3D12GraphicsCommandList7::Barrier</description></item>
 		/// <item><description>vkCmdPipelineBarrier</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)</c></para>
