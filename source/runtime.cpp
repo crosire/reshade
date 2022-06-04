@@ -1171,8 +1171,24 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if (source_file.is_absolute())
 		include_paths.emplace(source_file.parent_path());
 	for (std::filesystem::path include_path : _effect_search_paths)
+	{
+		const bool recursive_search = include_path.filename() == L"**";
+		if (recursive_search)
+			include_path.remove_filename();
+
 		if (resolve_path(include_path))
-			include_paths.emplace(std::move(include_path));
+		{
+			include_paths.emplace(include_path);
+
+			if (recursive_search)
+			{
+				std::error_code ec;
+				for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
+					if (entry.is_directory(ec))
+						include_paths.emplace(entry);
+			}
+		}
+	}
 
 	for (const std::filesystem::path &include_path : include_paths)
 	{
