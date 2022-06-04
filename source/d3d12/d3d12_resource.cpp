@@ -23,7 +23,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, RE
 		if (const auto device_proxy = get_private_pointer<D3D12Device>(static_cast<ID3D12Object *>(*ppvDevice)))
 		{
 			*ppvDevice = device_proxy;
-			device_proxy->_ref++;
+			InterlockedIncrement(&device_proxy->_ref);
 		}
 	}
 

@@ -16,7 +16,7 @@
 
 void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window)
 {
-	LOG(INFO) << "> Dumping presentation parameters:";
+	LOG(INFO) << "Dumping presentation parameters:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(INFO) << "  | Parameter                               | Value                                   |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";

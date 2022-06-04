@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2022 Patrick Mours
- * SPDX-License-Identifier: BSD-3-Clause OR MIT
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
@@ -8,6 +8,8 @@
 #if RESHADE_ADDON
 
 #include <d3d9.h>
+
+struct Direct3DDevice9;
 
 struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DSurface9 final : IDirect3DSurface9
 {
@@ -37,7 +39,7 @@ struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DSurface9 fi
 	HRESULT STDMETHODCALLTYPE ReleaseDC(HDC hdc) override;
 	#pragma endregion
 
-	IDirect3DSurface9 *const _orig;
+	IDirect3DSurface9 *_orig;
 	Direct3DDevice9 *const _device;
 	const D3DSURFACE_DESC _orig_desc;
 };

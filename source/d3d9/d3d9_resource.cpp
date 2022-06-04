@@ -1,7 +1,9 @@
 /*
  * Copyright (C) 2022 Patrick Mours
- * SPDX-License-Identifier: BSD-3-Clause OR MIT
+ * SPDX-License-Identifier: BSD-3-Clause
  */
+
+#if RESHADE_ADDON
 
 #include "d3d9_device.hpp"
 #include "d3d9_resource.hpp"
@@ -9,7 +11,6 @@
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
 
-#if RESHADE_ADDON
 Direct3DSurface9::Direct3DSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc) :
 	_orig(original),
 	_device(device),
@@ -123,6 +124,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface9::ReleaseDC(HDC hdc)
 {
 	return _orig->ReleaseDC(hdc);
 }
+
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
