@@ -154,6 +154,7 @@ reshade::runtime::~runtime()
 
 	// Save configuration before shutting down to ensure the current window state is written to disk
 	save_config();
+	ini_file::flush_cache(_config_path);
 
 #if RESHADE_GUI
 	 deinit_gui();
