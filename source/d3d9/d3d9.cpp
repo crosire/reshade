@@ -189,7 +189,6 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 	device_proxy->_implicit_swapchain = new Direct3DSwapChain9(device_proxy, swapchain);
 
 #if RESHADE_ADDON
-	device_proxy->_has_video_present_flag = (pp.Flags & D3DPRESENTFLAG_VIDEO) != 0;
 	if (pp.EnableAutoDepthStencil)
 		device_proxy->init_auto_depth_stencil();
 #else

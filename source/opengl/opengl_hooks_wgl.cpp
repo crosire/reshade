@@ -535,7 +535,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			}
 			else
 			{
-				LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << "), leaking resources ...";
+				LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << ")! Leaking resources ...";
 			}
 
 			if (dummy_window_handle != nullptr)

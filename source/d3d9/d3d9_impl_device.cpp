@@ -173,6 +173,12 @@ void reshade::d3d9::device_impl::on_reset()
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_command_list>(this);
 
+	for (DWORD i = 0; i < _caps.MaxSimultaneousTextures; ++i)
+		_orig->SetTexture(i, nullptr);
+	for (DWORD i = 0; i < _caps.MaxStreams; ++i)
+		_orig->SetStreamSource(0, nullptr, 0, 0);
+	_orig->SetIndices(nullptr);
+
 	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
 		_orig->SetRenderTarget(i, nullptr);
 	// Release reference to the potentially replaced auto depth-stencil resource
