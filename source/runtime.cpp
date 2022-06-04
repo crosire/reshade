@@ -59,22 +59,74 @@ static bool find_file(const std::vector<std::filesystem::path> &search_paths, st
 	// Do not have to perform a search if the path is already absolute
 	if (path.is_absolute())
 		return std::filesystem::exists(path, ec);
+
 	for (std::filesystem::path search_path : search_paths)
+	{
+		const bool recursive_search = search_path.filename() == L"**";
+		if (recursive_search)
+			search_path.remove_filename();
+
 		// Append relative file path to absolute search path
-		if (search_path /= path; resolve_path(search_path))
-			return path = std::move(search_path), true;
+		if (std::filesystem::path search_sub_path = search_path / path;
+			resolve_path(search_sub_path))
+		{
+			path = std::move(search_sub_path);
+			return true;
+		}
+
+		if (recursive_search)
+		{
+			for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			{
+				if (!entry.is_directory(ec))
+					continue;
+
+				if (std::filesystem::path search_sub_path = entry / path;
+					resolve_path(search_sub_path))
+				{
+					path = std::move(search_sub_path);
+					return true;
+				}
+			}
+		}
+	}
+
 	return false;
 }
 static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path> &search_paths, std::initializer_list<std::filesystem::path> extensions)
 {
 	std::error_code ec;
 	std::vector<std::filesystem::path> files;
+
 	for (std::filesystem::path search_path : search_paths)
+	{
+		const bool recursive_search = search_path.filename() == L"**";
+		if (recursive_search)
+			search_path.remove_filename();
+
 		if (resolve_path(search_path))
-			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
-				if (!entry.is_directory(ec) &&
-					std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
-					files.emplace_back(entry); // Construct path from directory entry in-place
+		{
+			if (recursive_search)
+			{
+				for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+				{
+					if (!entry.is_directory(ec) &&
+						std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
+						files.emplace_back(entry); // Construct path from directory entry in-place
+				}
+			}
+			else
+			{
+				for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+				{
+					if (!entry.is_directory(ec) &&
+						std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
+						files.emplace_back(entry);
+				}
+			}
+		}
+	}
+
 	return files;
 }
 

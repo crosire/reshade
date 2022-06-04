@@ -1454,7 +1454,11 @@ void reshade::runtime::draw_gui_settings()
 
 #if RESHADE_FX
 		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("List of directory paths to be searched for effect files (*.fx).\nPaths that end in \"\\**\" are searched recursively.");
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("List of directory paths to be searched for texture image files.\nPaths that end in \"\\**\" are searched recursively.");
 
 		if (ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping))
 		{
