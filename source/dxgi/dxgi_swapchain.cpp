@@ -276,12 +276,8 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		return ref;
 	}
 
-	const auto orig = _orig;
-	const auto device = _direct3d_device;
-	const auto command_queue = _direct3d_command_queue;
-	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
+	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ").";
 #endif
 
 	// Destroy effect runtime first to release all internal references to device objects
@@ -298,27 +294,26 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		break;
 	}
 
-	delete this;
-
 	// Resident Evil 3 releases the swap chain without first leaving fullscreen, which causes the DXGI runtime to throw an exception
 	if (BOOL fullscreen = FALSE;
-		SUCCEEDED(orig->GetFullscreenState(&fullscreen, nullptr)) && fullscreen)
+		SUCCEEDED(_orig->GetFullscreenState(&fullscreen, nullptr)) && fullscreen)
 	{
 		LOG(WARN) << "Attempted to destroy swap chain while still in fullscreen mode.";
 	}
 	else
 	{
 		// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
-		const ULONG ref_orig = orig->Release();
+		const ULONG ref_orig = _orig->Release();
 		if (ref_orig != 0) // Verify internal reference count
-			LOG(WARN) << "Reference count for " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+			LOG(WARN) << "Reference count for " << "IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent (" << ref_orig << ").";
 	}
 
 	// Release the explicit reference to the device that was added in the 'DXGISwapChain' constructor above now that the effect runtime was destroyed and is longer referencing it
-	if (command_queue != nullptr)
-		command_queue->Release();
-	device->Release();
+	if (_direct3d_command_queue != nullptr)
+		_direct3d_command_queue->Release();
+	_direct3d_device->Release();
 
+	delete this;
 	return 0;
 }
 

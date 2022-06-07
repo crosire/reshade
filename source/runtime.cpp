@@ -59,22 +59,74 @@ static bool find_file(const std::vector<std::filesystem::path> &search_paths, st
 	// Do not have to perform a search if the path is already absolute
 	if (path.is_absolute())
 		return std::filesystem::exists(path, ec);
+
 	for (std::filesystem::path search_path : search_paths)
+	{
+		const bool recursive_search = search_path.filename() == L"**";
+		if (recursive_search)
+			search_path.remove_filename();
+
 		// Append relative file path to absolute search path
-		if (search_path /= path; resolve_path(search_path))
-			return path = std::move(search_path), true;
+		if (std::filesystem::path search_sub_path = search_path / path;
+			resolve_path(search_sub_path))
+		{
+			path = std::move(search_sub_path);
+			return true;
+		}
+
+		if (recursive_search)
+		{
+			for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			{
+				if (!entry.is_directory(ec))
+					continue;
+
+				if (std::filesystem::path search_sub_path = entry / path;
+					resolve_path(search_sub_path))
+				{
+					path = std::move(search_sub_path);
+					return true;
+				}
+			}
+		}
+	}
+
 	return false;
 }
 static std::vector<std::filesystem::path> find_files(const std::vector<std::filesystem::path> &search_paths, std::initializer_list<std::filesystem::path> extensions)
 {
 	std::error_code ec;
 	std::vector<std::filesystem::path> files;
+
 	for (std::filesystem::path search_path : search_paths)
+	{
+		const bool recursive_search = search_path.filename() == L"**";
+		if (recursive_search)
+			search_path.remove_filename();
+
 		if (resolve_path(search_path))
-			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
-				if (!entry.is_directory(ec) &&
-					std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
-					files.emplace_back(entry); // Construct path from directory entry in-place
+		{
+			if (recursive_search)
+			{
+				for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+				{
+					if (!entry.is_directory(ec) &&
+						std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
+						files.emplace_back(entry); // Construct path from directory entry in-place
+				}
+			}
+			else
+			{
+				for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+				{
+					if (!entry.is_directory(ec) &&
+						std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
+						files.emplace_back(entry);
+				}
+			}
+		}
+	}
+
 	return files;
 }
 
@@ -154,6 +206,7 @@ reshade::runtime::~runtime()
 
 	// Save configuration before shutting down to ensure the current window state is written to disk
 	save_config();
+	ini_file::flush_cache(_config_path);
 
 #if RESHADE_GUI
 	 deinit_gui();
@@ -1105,8 +1158,24 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if (source_file.is_absolute())
 		include_paths.emplace(source_file.parent_path());
 	for (std::filesystem::path include_path : _effect_search_paths)
+	{
+		const bool recursive_search = include_path.filename() == L"**";
+		if (recursive_search)
+			include_path.remove_filename();
+
 		if (resolve_path(include_path))
-			include_paths.emplace(std::move(include_path));
+		{
+			include_paths.emplace(include_path);
+
+			if (recursive_search)
+			{
+				std::error_code ec;
+				for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
+					if (entry.is_directory(ec))
+						include_paths.emplace(entry);
+			}
+		}
+	}
 
 	for (const std::filesystem::path &include_path : include_paths)
 	{
@@ -1860,13 +1929,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	// Create query pool for time measurements
 	if (!_device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_pool))
-	{
-		effect.compiled = false;
-		_last_reload_successfull = false;
-
 		LOG(ERROR) << "Failed to create query pool for effect file " << effect.source_file << '!';
-		return false;
-	}
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
@@ -3416,7 +3479,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #if RESHADE_GUI
 	const std::chrono::high_resolution_clock::time_point time_technique_started = std::chrono::high_resolution_clock::now();
 
-	if (_gather_gpu_statistics)
+	if (_gather_gpu_statistics && effect.query_pool != 0)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
@@ -3607,7 +3670,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #endif
 
 #if RESHADE_GUI
-	if (_gather_gpu_statistics)
+	if (_gather_gpu_statistics && effect.query_pool != 0)
 		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
 
 	const std::chrono::high_resolution_clock::time_point time_technique_finished = std::chrono::high_resolution_clock::now();

@@ -51,7 +51,7 @@ Overlays are created with the use of [Dear ImGui version 1.86](https://github.co
 
 ```cpp
 #define IMGUI_DISABLE_INCLUDE_IMCONFIG_H
-#define ImTextureID uint64_t // Change ImGui texture ID type to that of a 'reshade::api::resource_view' handle
+#define ImTextureID unsigned long long // Change ImGui texture ID type to that of a 'reshade::api::resource_view' handle
 
 #include <imgui.h>
 #include <reshade.hpp>
@@ -170,14 +170,14 @@ static bool on_draw(reshade::api::command_list *cmd_list, uint32_t vertices, uin
 Showing results on the screen is done through a `reshade::api::swapchain` object. This is a collection of back buffers that the application can render into, which will eventually be presented to the screen. There may be multiple swap chains, if for example the application is rendering to multiple windows, or to a screen and a VR headset. ReShade again will call the `reshade::addon_event::init_swapchain` event after such an object was created by the application (and `reshade::addon_event::destroy_swapchain` on destruction). In addition ReShade will call the `reshade::addon_event::create_swapchain` event before a swap chain is created, so an add-on may modify its description before that happens. For example, to force the resolution to a specific value, one can do the following:
 ```cpp
 // Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::create_swapchain>(&on_create_swapchain)'.
-static bool on_create_swapchain(reshade::api::resource_desc &back_buffer_desc, void *hwnd)
+static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *hwnd)
 {
     // Change resolution to 1920x1080 if the application is trying to create a swap chain at 800x600.
-    if (back_buffer_desc.texture.width == 800 &&
-        back_buffer_desc.texture.height == 600)
+    if (desc.texture.width == 800 &&
+        desc.texture.height == 600)
     {
-        back_buffer_desc.texture.width = 1920;
-        back_buffer_desc.texture.height = 1080;
+        desc.texture.width = 1920;
+        desc.texture.height = 1080;
     }
 
     // Return 'true' for ReShade to overwrite the swap chain description of the application with the values set in this callback.

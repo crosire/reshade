@@ -30,5 +30,7 @@ namespace reshade::d3d9
 		D3DVIEWPORT9 _viewport = {};
 		com_ptr<IDirect3DSurface9> _depth_stencil;
 		com_ptr<IDirect3DSurface9> _render_targets[8];
+		DWORD _srgb_write = FALSE;
+		DWORD _srgb_texture = FALSE;
 	};
 }

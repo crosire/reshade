@@ -384,6 +384,9 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 		// D3D12 and Vulkan always use backup texture, but need to be able to copy to it
 		desc.usage |= resource_usage::copy_source;
 		break;
+	case device_api::opengl:
+		// No need to change anything in OpenGL
+		return false;
 	}
 
 	return true;

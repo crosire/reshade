@@ -664,9 +664,9 @@ void reshade::runtime::draw_gui()
 		if (!_preset_save_successfull)
 		{
 #if RESHADE_FX
-			ImGui::TextColored(COLOR_RED, "Unable to save current preset. Make sure you have write permissions to %s.", _current_preset_path.u8string().c_str());
+			ImGui::TextColored(COLOR_RED, "Unable to save configuration and/or current preset. Make sure file permissions are set up to allow writing to these paths:\n%s\n%s", _config_path.u8string().c_str(), _current_preset_path.u8string().c_str());
 #else
-			ImGui::TextColored(COLOR_RED, "Unable to save configuration.");
+			ImGui::TextColored(COLOR_RED, "Unable to save configuration. Make sure file permissions are set up to allow writing to %s.", _config_path.u8string().c_str());
 #endif
 		}
 		else if (show_screenshot_message)
@@ -1454,7 +1454,11 @@ void reshade::runtime::draw_gui_settings()
 
 #if RESHADE_FX
 		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("List of directory paths to be searched for effect files (*.fx).\nPaths that end in \"\\**\" are searched recursively.");
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("List of directory paths to be searched for texture image files.\nPaths that end in \"\\**\" are searched recursively.");
 
 		if (ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping))
 		{
