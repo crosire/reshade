@@ -218,51 +218,53 @@ bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::file
 		return false;
 
 	std::error_code ec;
-	if (path.is_relative())
-		path = g_reshade_base_path / path;
-	std::filesystem::path parent_path = path.parent_path();
+	bool changed = false;
 
-	{	char buf[4096]; buf[0] = '\0';
+	int favorites = *use_favorite_preset_save_path ? 1 : 0;
+	ImGui::Text("%s", desc);
+	ImGui::SameLine();
+	changed |= ImGui::RadioButton("Favorites", &favorites, 1);
+	ImGui::SameLine();
+	changed |= ImGui::RadioButton("Browse", &favorites, 0);
+	*use_favorite_preset_save_path = favorites == 1;
+
+	if (changed)
+	{
+		if (*use_favorite_preset_save_path)
+			path = g_reshade_base_path / favorite_preset_save_path / path.filename();
+		else
+			path = g_reshade_base_path / path;
+	}
+
+	path = std::filesystem::weakly_canonical(path, ec);
+	if (std::filesystem::is_directory(path, ec))
+		path += std::filesystem::path::preferred_separator;
+
+	const std::filesystem::path parent_path = path.parent_path();
+
+	if (!(*use_favorite_preset_save_path))
+	{
+		char buf[4096]; buf[0] = '\0';
 		const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0'; // Null-terminate string
 
 		ImGui::SetNextItemWidth(width);
-		int favorites = *use_favorite_preset_save_path ? 1 : 0;
-		ImGui::Text("%s", desc);
-		ImGui::SameLine();
-		ImGui::RadioButton("Favorites", &favorites, 1);
-		ImGui::SameLine();
-		ImGui::RadioButton("Browse", &favorites, 0);
-		*use_favorite_preset_save_path = favorites == 1;
-
-		if (*use_favorite_preset_save_path)
+		if (ImGui::InputTextWithHint("##path", g_reshade_base_path.generic_u8string().c_str(), buf, sizeof(buf)))
 		{
-			path = favorite_preset_save_path / std::filesystem::u8path(buf).filename( );
+			path = parent_path / std::filesystem::u8path(buf);
+			if (path.has_stem() && std::filesystem::is_directory(path, ec))
+				path += std::filesystem::path::preferred_separator;
 		}
-		else
-		{
-			ImGui::SetNextItemWidth(width);
-			if (ImGui::InputTextWithHint("##path", g_reshade_base_path.generic_u8string().c_str(), buf, sizeof(buf)))
-			{
-				path = g_reshade_base_path / std::filesystem::u8path(buf);
-				if (path.has_stem() && std::filesystem::is_directory(path, ec))
-					path += std::filesystem::path::preferred_separator;
-			}
 
-			if (ImGui::IsItemActivated())
-				ImGui::GetCurrentContext()->InputTextState.ClearSelection();
-			if (ImGui::IsWindowAppearing())
-				ImGui::SetKeyboardFocusHere(1);
-		}
+		if (ImGui::IsItemActivated())
+			ImGui::GetCurrentContext()->InputTextState.ClearSelection();
+		if (ImGui::IsWindowAppearing())
+			ImGui::SetKeyboardFocusHere(1);
 	}
 
 	ImGui::BeginChild("##files", ImVec2(width, 200), true, ImGuiWindowFlags_NavFlattened);
 
-	if (*use_favorite_preset_save_path)
-	{
-		parent_path = g_reshade_base_path / favorite_preset_save_path;
-	}
-	else
+	if (!(*use_favorite_preset_save_path))
 	{
 		if (parent_path.has_parent_path())
 		{
@@ -355,6 +357,8 @@ bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::file
 	}
 
 	const bool result = select && (exts.empty() || std::find(exts.begin(), exts.end(), path.extension()) != exts.end());
+	if (result)
+		path = std::filesystem::weakly_canonical(path, ec);
 	if (result || cancel)
 		ImGui::CloseCurrentPopup();
 
