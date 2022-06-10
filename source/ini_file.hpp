@@ -40,6 +40,11 @@ public:
 	/// </summary>
 	const std::filesystem::path &path() const { return _path; }
 
+	bool empty() const noexcept
+	{
+		return _sections.empty();
+	}
+
 	/// <summary>
 	/// Checks whether the specified <paramref name="section"/> and <paramref name="key"/> currently exist in the INI.
 	/// </summary>
@@ -207,6 +212,7 @@ public:
 	static bool flush_cache();
 	static bool flush_cache(const std::filesystem::path &path);
 
+	static bool regist_preset_cache(const std::filesystem::path &path);
 	/// <summary>
 	/// Gets the specified INI file from cache or opens it when it was not cached yet.
 	/// </summary>

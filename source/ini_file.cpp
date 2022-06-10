@@ -220,15 +220,32 @@ bool ini_file::flush_cache(const std::filesystem::path &path)
 	return it != s_ini_cache.end() && it->second->save();
 }
 
-ini_file &ini_file::load_cache(const std::filesystem::path &path)
+bool ini_file::regist_preset_cache(const std::filesystem::path &path)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
 	const auto insert = s_ini_cache.try_emplace(path, std::make_unique<ini_file>(path));
 	const auto it = insert.first;
 
+	if (insert.first->second.get()->has("", "Techniques"))
+		return true;
+
 	if (insert.first->second.get()->_sections.empty())
+	{
 		insert.first->second.get()->set("", "Techniques", std::vector<std::string>());
+		return true;
+	}
+
+	s_ini_cache.erase(path);
+	return false;
+}
+
+ini_file &ini_file::load_cache(const std::filesystem::path &path)
+{
+	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+
+	const auto insert = s_ini_cache.try_emplace(path, std::make_unique<ini_file>(path));
+	const auto it = insert.first;
 
 	// Don't reload file when it was just loaded or there are still modifications pending
 	if (!insert.second && !it->second->_modified)

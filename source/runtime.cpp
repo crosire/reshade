@@ -169,6 +169,7 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 #if RESHADE_FX
 	_effect_search_paths({ L".\\" }),
 	_texture_search_paths({ L".\\" }),
+	_favorite_preset_save_path(L".\\"),
 #endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path),
@@ -771,6 +772,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
 
 	config.get("GENERAL", "PresetPath", _current_preset_path);
+	config.get("GENERAL", "TrimPresetWhenSaving", _trim_preset_when_saving);
 	config.get("GENERAL", "UseFavoritePresetSavePath", _use_favorite_preset_save_path);
 	config.get("GENERAL", "FavoritePresetSavePath", _favorite_preset_save_path);
 	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
@@ -844,6 +846,7 @@ void reshade::runtime::save_config() const
 	if (relative_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
 		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
+	config.set("GENERAL", "TrimPresetWhenSaving", _trim_preset_when_saving);
 	config.set("GENERAL", "UseFavoritePresetSavePath", _use_favorite_preset_save_path);
 	config.set("GENERAL", "FavoritePresetSavePath", _favorite_preset_save_path);
 	config.set("GENERAL", "PresetTransitionDuration", _preset_transition_duration);

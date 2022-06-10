@@ -1079,6 +1079,7 @@ void reshade::runtime::draw_gui_home()
 			if (switch_to_next_preset(_current_preset_path.parent_path(), true))
 				reload_preset = true;
 		ImGui::SameLine(0, button_spacing);
+
 		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), false))
 				reload_preset = true;
@@ -1102,7 +1103,7 @@ void reshade::runtime::draw_gui_home()
 				ImGui::OpenPopup("##export");
 
 			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
+				ImGui::SetTooltip("Export the preset to another folder");
 		}
 
 		if (is_loading())
@@ -1115,7 +1116,7 @@ void reshade::runtime::draw_gui_home()
 		if (imgui::preset_dialog("##browse", "Open from: ", _file_selection_path, browse_button_width, { L".ini", L".txt" }, _favorite_preset_save_path, &_use_favorite_preset_save_path))
 		{
 			// Check that this is actually a valid preset file
-			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
+			if (ini_file::regist_preset_cache(_file_selection_path))
 			{
 				reload_preset = true;
 				_current_preset_path = _file_selection_path;
@@ -1125,17 +1126,35 @@ void reshade::runtime::draw_gui_home()
 		ImGui::SetNextWindowPos(popup_pos);
 		if (imgui::preset_dialog("##export", "Export to: ", _file_selection_path, browse_button_width, { L".ini", L".txt" }, _favorite_preset_save_path, &_use_favorite_preset_save_path))
 		{
-			std::error_code ec;
-			wchar_t temp_file_name[MAX_PATH]; temp_file_name[0] = L'\0';
-			GetTempFileNameW(std::filesystem::temp_directory_path(ec).c_str(), L"ReS", 0, temp_file_name);
-			_current_preset_path = temp_file_name;
-			save_current_preset(true);
-			ini_file::delete_cache(temp_file_name);
-			_current_preset_path = _file_selection_path;
-			std::filesystem::copy_file(temp_file_name, _file_selection_path, std::filesystem::copy_options::overwrite_existing, ec);
-			std::filesystem::remove(temp_file_name, ec);
+			// Check that this is actually a valid preset file
+			if (ini_file::regist_preset_cache(_file_selection_path))
+			{
+				std::error_code ec;
+				if (_trim_preset_when_saving)
+				{
+					wchar_t temp_file_name[MAX_PATH]; temp_file_name[0] = L'\0';
+					GetTempFileNameW(std::filesystem::temp_directory_path(ec).c_str(), L"ReS", 0, temp_file_name);
 
-			reload_preset = true;
+					_current_preset_path = temp_file_name;
+					save_current_preset(true);
+					_current_preset_path = _file_selection_path;
+
+					std::filesystem::copy_file(temp_file_name, _file_selection_path, std::filesystem::copy_options::overwrite_existing, ec);
+					std::filesystem::remove(temp_file_name, ec);
+
+					ini_file::delete_cache(temp_file_name);
+				}
+				else
+				{
+					save_current_preset(true);
+
+					std::filesystem::copy_file(_current_preset_path, _file_selection_path, std::filesystem::copy_options::overwrite_existing, ec);
+					_current_preset_path = _file_selection_path;
+				}
+				ini_file::delete_cache(_file_selection_path);
+				reload_preset = true;
+			}
+			
 		}
 
 		if (reload_preset)
@@ -1419,7 +1438,6 @@ void reshade::runtime::draw_gui_settings()
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("List of directory paths to be searched for texture image files.\nPaths that end in \"\\**\" are searched recursively.");
-		modified |= imgui::directory_input_box("Favorite preset save path", _favorite_preset_save_path, _file_selection_path);
 
 		if (ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping))
 		{
@@ -1429,6 +1447,11 @@ void reshade::runtime::draw_gui_settings()
 			_load_option_disable_skipping = !_effect_load_skipping;
 			reload_effects();
 		}
+
+		modified |= ImGui::Checkbox("Trim preset when saving", &_trim_preset_when_saving);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
+		modified |= imgui::directory_input_box("Favorite preset save path", _favorite_preset_save_path, _file_selection_path);
 
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
 			clear_effect_cache();
