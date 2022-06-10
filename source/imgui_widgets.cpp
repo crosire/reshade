@@ -8,6 +8,8 @@
 #include "fonts/forkawesome.h"
 #include <cassert>
 
+extern std::filesystem::path g_reshade_base_path;
+
 bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path)
 {
 	bool res = false;
@@ -94,17 +96,17 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 	std::error_code ec;
 	if (path.is_relative())
-		path = std::filesystem::absolute(path);
+		path = g_reshade_base_path / path;
 	std::filesystem::path parent_path = path.parent_path();
 
-	{	char buf[260];
-		const size_t buf_len = parent_path.u8string().copy(buf, sizeof(buf) - 1);
-		buf[buf_len] = '\0';
+	{	char buf[4096]; buf[0] = '\0';
+		const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
+		buf[buf_len] = '\0'; // Null-terminate string
 
 		ImGui::SetNextItemWidth(width);
-		if (ImGui::InputText("##path", buf, sizeof(buf)))
+		if (ImGui::InputTextWithHint("##path", g_reshade_base_path.generic_u8string( ).c_str( ), buf, sizeof(buf)))
 		{
-			path = std::filesystem::u8path(buf);
+			path = g_reshade_base_path / std::filesystem::u8path(buf);
 			if (path.has_stem() && std::filesystem::is_directory(path, ec))
 				path += std::filesystem::path::preferred_separator;
 		}
@@ -202,6 +204,155 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		path += std::filesystem::path::preferred_separator;
 
 	const bool result = (select || ImGui::IsKeyPressedMap(ImGuiKey_Enter) || has_double_clicked_file) && (exts.empty() || std::find(exts.begin(), exts.end(), path.extension()) != exts.end());
+	if (result || cancel)
+		ImGui::CloseCurrentPopup();
+
+	ImGui::EndPopup();
+
+	return result;
+}
+
+bool reshade::imgui::preset_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts, std::filesystem::path &favorite_preset_save_path, bool *use_favorite_preset_save_path)
+{
+	if (!ImGui::BeginPopup(name))
+		return false;
+
+	std::error_code ec;
+	if (path.is_relative())
+		path = g_reshade_base_path / path;
+	std::filesystem::path parent_path = path.parent_path();
+
+	{	char buf[4096]; buf[0] = '\0';
+		const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
+		buf[buf_len] = '\0'; // Null-terminate string
+
+		ImGui::SetNextItemWidth(width);
+		int favorites = *use_favorite_preset_save_path ? 1 : 0;
+		ImGui::RadioButton("Favorites", &favorites, 1);
+		ImGui::SameLine();
+		ImGui::RadioButton("Browse", &favorites, 0);
+		*use_favorite_preset_save_path = favorites == 1;
+
+		if (*use_favorite_preset_save_path)
+		{
+			ImGui::Dummy(ImVec2(0, 0));
+		}
+		else
+		{
+			ImGui::SetNextItemWidth(width);
+			if (ImGui::InputTextWithHint("##path", g_reshade_base_path.generic_u8string().c_str(), buf, sizeof(buf)))
+			{
+				path = g_reshade_base_path / std::filesystem::u8path(buf);
+				if (path.has_stem() && std::filesystem::is_directory(path, ec))
+					path += std::filesystem::path::preferred_separator;
+			}
+
+			if (ImGui::IsItemActivated())
+				ImGui::GetCurrentContext()->InputTextState.ClearSelection();
+			if (ImGui::IsWindowAppearing())
+				ImGui::SetKeyboardFocusHere(1);
+		}
+	}
+
+	ImGui::BeginChild("##files", ImVec2(width, 200), true, ImGuiWindowFlags_NavFlattened);
+
+	if (*use_favorite_preset_save_path)
+	{
+		parent_path = g_reshade_base_path / favorite_preset_save_path;
+	}
+	else
+	{
+		if (parent_path.has_parent_path())
+		{
+			if (ImGui::Selectable(ICON_FK_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) &&
+				ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+			{
+				path = parent_path.parent_path();
+				if (path.has_stem())
+					path += std::filesystem::path::preferred_separator;
+			}
+		}
+	}
+
+	std::vector<std::filesystem::path> file_entries;
+	for (const auto &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	{
+		if (entry.is_directory())
+		{
+			const bool is_selected = entry == path;
+			const std::string label = ICON_FK_FOLDER " " + entry.path().filename().u8string();
+			if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+			{
+				path = entry;
+
+				// Navigate into directory when double clicking one
+				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+					path += std::filesystem::path::preferred_separator;
+			}
+
+			if (is_selected && ImGui::IsWindowAppearing())
+				ImGui::SetScrollHereY();
+		}
+		else if (std::find(exts.begin(), exts.end(), entry.path().extension()) != exts.end())
+		{
+			file_entries.push_back(entry);
+		}
+	}
+
+	// Always show file entries after all directory entries
+	bool has_double_clicked_file = false;
+	for (std::filesystem::path &file_path : file_entries)
+	{
+		std::string label = ICON_FK_FILE " ";
+		if (const std::filesystem::path ext = file_path.extension();
+			ext == L".fx" || ext == L".fxh")
+			label = ICON_FK_FILE_CODE " " + label;
+		else if (ext == L".bmp" || ext == L".png" || ext == L".jpg" || ext == L".jpeg" || ext == L".dds")
+			label = ICON_FK_FILE_IMAGE " " + label;
+		label += file_path.filename().u8string();
+
+		const bool is_selected = file_path == path;
+		if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+		{
+			path = std::move(file_path);
+
+			// Double clicking a file on the other hand acts as if pressing the ok button
+			if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				has_double_clicked_file = true;
+		}
+
+		if (is_selected && ImGui::IsWindowAppearing())
+			ImGui::SetScrollHereY();
+	}
+
+	ImGui::EndChild();
+
+	std::filesystem::path path_name = path.has_filename() || !exts.empty() ? path.filename() : path.parent_path().filename();
+
+	{	char buf[260]; buf[0] = '\0';
+		buf[path_name.u8string().copy(buf, sizeof(buf) - 1)] = '\0';
+
+		ImGui::SetNextItemWidth(width - (2 * (80 + ImGui::GetStyle().ItemSpacing.x)));
+		if (ImGui::InputText("##name", buf, sizeof(buf)))
+			path = path.parent_path() / buf;
+	}
+
+	ImGui::SameLine();
+	bool select = ImGui::Button(std::filesystem::is_regular_file(path, ec) ? (ICON_FK_OK " Select") : (ICON_FK_PLUS " Create"), ImVec2(80, 0));
+	select |= select || ImGui::IsKeyPressedMap(ImGuiKey_Enter) || has_double_clicked_file;
+	ImGui::SameLine();
+	const bool cancel = ImGui::Button(ICON_FK_CANCEL " Cancel", ImVec2(80, 0));
+
+	if (select)
+	{
+		// Navigate into directory when clicking select button
+		if (std::filesystem::is_directory(path, ec))
+			path += std::filesystem::path::preferred_separator;
+		else if (!path.has_extension() && !std::filesystem::is_regular_file(path, ec))
+			path += L".ini";
+	}
+
+	const bool result = select && (exts.empty() || std::find(exts.begin(), exts.end(), path.extension()) != exts.end());
 	if (result || cancel)
 		ImGui::CloseCurrentPopup();
 
@@ -313,9 +464,18 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	ImGui::PushID(name);
 	ImGui::BeginGroup();
 
-	char buf[260];
-	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
-	buf[buf_len] = '\0'; // Null-terminate string
+	char buf[4096]; buf[0] = '\0';
+
+	ImGuiInputTextState* state = ImGui::GetInputTextState(ImGui::GetID("##path"));
+	if (state)
+	{
+		strncpy_s(buf, state->TextA.begin(), state->BufCapacityA);
+	}
+	else
+	{
+		const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
+		buf[buf_len] = '\0'; // Null-terminate string	
+	}
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))

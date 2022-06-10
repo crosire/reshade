@@ -771,6 +771,8 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
 
 	config.get("GENERAL", "PresetPath", _current_preset_path);
+	config.get("GENERAL", "UseFavoritePresetSavePath", _use_favorite_preset_save_path);
+	config.get("GENERAL", "FavoritePresetSavePath", _favorite_preset_save_path);
 	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 
 	// Fall back to temp directory if cache path does not exist
@@ -842,6 +844,8 @@ void reshade::runtime::save_config() const
 	if (relative_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
 		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
+	config.set("GENERAL", "UseFavoritePresetSavePath", _use_favorite_preset_save_path);
+	config.set("GENERAL", "FavoritePresetSavePath", _favorite_preset_save_path);
 	config.set("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 #endif
 

@@ -227,6 +227,9 @@ ini_file &ini_file::load_cache(const std::filesystem::path &path)
 	const auto insert = s_ini_cache.try_emplace(path, std::make_unique<ini_file>(path));
 	const auto it = insert.first;
 
+	if (insert.first->second.get()->_sections.empty())
+		insert.first->second.get()->set("", "Techniques", std::vector<std::string>());
+
 	// Don't reload file when it was just loaded or there are still modifications pending
 	if (!insert.second && !it->second->_modified)
 		it->second->load();

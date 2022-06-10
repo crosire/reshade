@@ -1125,7 +1125,7 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		ImGui::SetNextWindowPos(popup_pos);
-		if (imgui::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }))
+		if (imgui::preset_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }, _favorite_preset_save_path, &_use_favorite_preset_save_path))
 		{
 			// Check that this is actually a valid preset file
 			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
@@ -1459,6 +1459,7 @@ void reshade::runtime::draw_gui_settings()
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("List of directory paths to be searched for texture image files.\nPaths that end in \"\\**\" are searched recursively.");
+		modified |= imgui::directory_input_box("Favorite preset save path", _favorite_preset_save_path, _file_selection_path);
 
 		if (ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping))
 		{
