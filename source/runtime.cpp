@@ -1015,7 +1015,7 @@ void reshade::runtime::load_current_preset()
 	// Reverse queue so that effects are enabled in the order they are defined in the preset (since the queue is worked from back to front)
 	std::reverse(_reload_create_queue.begin(), _reload_create_queue.end());
 }
-void reshade::runtime::save_current_preset() const
+void reshade::runtime::save_current_preset(bool force_flush) const
 {
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
 
@@ -1096,6 +1096,9 @@ void reshade::runtime::save_current_preset() const
 			}
 		}
 	}
+
+	if (force_flush)
+		ini_file::flush_cache(_current_preset_path);
 }
 
 bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, bool reversed)

@@ -1065,7 +1065,7 @@ void reshade::runtime::draw_gui_home()
 
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-		const float browse_button_width = ImGui::GetContentRegionAvail().x - (button_spacing + button_size) * (_performance_mode ? 3 : 4);
+		const float browse_button_width = ImGui::GetContentRegionAvail().x - (button_spacing + button_size) * (_performance_mode ? 2 : 3);
 
 		bool reload_preset = false;
 
@@ -1099,24 +1099,11 @@ void reshade::runtime::draw_gui_home()
 		{
 			ImGui::SameLine(0, button_spacing);
 			if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
-			{
-				std::error_code ec; std::filesystem::remove(_current_preset_path, ec);
-				save_current_preset();
-			}
+				ImGui::OpenPopup("##export");
 
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
 		}
-
-		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx(ICON_FK_PLUS, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | ImGuiButtonFlags_PressedOnClick))
-		{
-			_file_selection_path = _current_preset_path.parent_path();
-			ImGui::OpenPopup("##create");
-		}
-
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Add a new preset");
 
 		if (is_loading())
 		{
@@ -1125,7 +1112,7 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		ImGui::SetNextWindowPos(popup_pos);
-		if (imgui::preset_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }, _favorite_preset_save_path, &_use_favorite_preset_save_path))
+		if (imgui::preset_dialog("##browse", "Open from: ", _file_selection_path, browse_button_width, { L".ini", L".txt" }, _favorite_preset_save_path, &_use_favorite_preset_save_path))
 		{
 			// Check that this is actually a valid preset file
 			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
@@ -1135,47 +1122,20 @@ void reshade::runtime::draw_gui_home()
 			}
 		}
 
-		if (ImGui::BeginPopup("##create"))
+		ImGui::SetNextWindowPos(popup_pos);
+		if (imgui::preset_dialog("##export", "Export to: ", _file_selection_path, browse_button_width, { L".ini", L".txt" }, _favorite_preset_save_path, &_use_favorite_preset_save_path))
 		{
-			ImGui::Checkbox("Duplicate current preset", &_duplicate_current_preset);
+			std::error_code ec;
+			wchar_t temp_file_name[MAX_PATH]; temp_file_name[0] = L'\0';
+			GetTempFileNameW(std::filesystem::temp_directory_path(ec).c_str(), L"ReS", 0, temp_file_name);
+			_current_preset_path = temp_file_name;
+			save_current_preset(true);
+			ini_file::delete_cache(temp_file_name);
+			_current_preset_path = _file_selection_path;
+			std::filesystem::copy_file(temp_file_name, _file_selection_path, std::filesystem::copy_options::overwrite_existing, ec);
+			std::filesystem::remove(temp_file_name, ec);
 
-			char preset_name[260] = "";
-			if (ImGui::InputText("Name", preset_name, sizeof(preset_name), ImGuiInputTextFlags_EnterReturnsTrue) && preset_name[0] != '\0')
-			{
-				std::filesystem::path new_preset_path = _file_selection_path / std::filesystem::u8path(preset_name);
-				if (new_preset_path.extension() != L".ini" && new_preset_path.extension() != L".txt")
-					new_preset_path += L".ini";
-
-				std::error_code ec;
-				const std::filesystem::file_type file_type = std::filesystem::status(new_preset_path, ec).type();
-				if (file_type != std::filesystem::file_type::directory)
-				{
-					reload_preset =
-						file_type == std::filesystem::file_type::not_found ||
-						ini_file::load_cache(new_preset_path).has({}, "Techniques");
-
-					if (_duplicate_current_preset && file_type == std::filesystem::file_type::not_found)
-						std::filesystem::copy_file(_current_preset_path, new_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
-				}
-
-				if (reload_preset)
-				{
-					ImGui::CloseCurrentPopup();
-					_current_preset_path = new_preset_path;
-				}
-				else
-				{
-					ImGui::SetKeyboardFocusHere();
-				}
-			}
-
-			if (ImGui::IsWindowAppearing())
-				ImGui::SetKeyboardFocusHere();
-
-			if (preset_name[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
-				ImGui::CloseCurrentPopup();
-
-			ImGui::EndPopup();
+			reload_preset = true;
 		}
 
 		if (reload_preset)

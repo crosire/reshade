@@ -236,3 +236,10 @@ ini_file &ini_file::load_cache(const std::filesystem::path &path)
 
 	return *it->second;
 }
+
+size_t ini_file::delete_cache(const std::filesystem::path &path)
+{
+	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+
+	return s_ini_cache.erase(path);
+}

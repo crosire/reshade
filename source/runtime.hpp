@@ -275,7 +275,7 @@ namespace reshade
 
 #if RESHADE_FX
 		void load_current_preset();
-		void save_current_preset() const;
+		void save_current_preset(bool overwrite_nocache = false) const;
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 

@@ -213,6 +213,7 @@ public:
 	/// <param name="path">The path to the INI file to access.</param>
 	/// <returns>A reference to the cached data.</returns>
 	static ini_file &load_cache(const std::filesystem::path &path);
+	static size_t delete_cache(const std::filesystem::path &path);
 
 private:
 	template <typename T>

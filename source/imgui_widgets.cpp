@@ -212,7 +212,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	return result;
 }
 
-bool reshade::imgui::preset_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts, std::filesystem::path &favorite_preset_save_path, bool *use_favorite_preset_save_path)
+bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts, std::filesystem::path &favorite_preset_save_path, bool *use_favorite_preset_save_path)
 {
 	if (!ImGui::BeginPopup(name))
 		return false;
@@ -228,6 +228,8 @@ bool reshade::imgui::preset_dialog(const char *name, std::filesystem::path &path
 
 		ImGui::SetNextItemWidth(width);
 		int favorites = *use_favorite_preset_save_path ? 1 : 0;
+		ImGui::Text("%s", desc);
+		ImGui::SameLine();
 		ImGui::RadioButton("Favorites", &favorites, 1);
 		ImGui::SameLine();
 		ImGui::RadioButton("Browse", &favorites, 0);
@@ -235,7 +237,7 @@ bool reshade::imgui::preset_dialog(const char *name, std::filesystem::path &path
 
 		if (*use_favorite_preset_save_path)
 		{
-			ImGui::Dummy(ImVec2(0, 0));
+			path = favorite_preset_save_path / std::filesystem::u8path(buf).filename( );
 		}
 		else
 		{
@@ -279,19 +281,22 @@ bool reshade::imgui::preset_dialog(const char *name, std::filesystem::path &path
 	{
 		if (entry.is_directory())
 		{
-			const bool is_selected = entry == path;
-			const std::string label = ICON_FK_FOLDER " " + entry.path().filename().u8string();
-			if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+			if (!(*use_favorite_preset_save_path))
 			{
-				path = entry;
+				const bool is_selected = entry == path;
+				const std::string label = ICON_FK_FOLDER " " + entry.path().filename().u8string();
+				if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+				{
+					path = entry;
 
-				// Navigate into directory when double clicking one
-				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-					path += std::filesystem::path::preferred_separator;
+					// Navigate into directory when double clicking one
+					if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+						path += std::filesystem::path::preferred_separator;
+				}
+
+				if (is_selected && ImGui::IsWindowAppearing())
+					ImGui::SetScrollHereY();
 			}
-
-			if (is_selected && ImGui::IsWindowAppearing())
-				ImGui::SetScrollHereY();
 		}
 		else if (std::find(exts.begin(), exts.end(), entry.path().extension()) != exts.end())
 		{
@@ -303,15 +308,12 @@ bool reshade::imgui::preset_dialog(const char *name, std::filesystem::path &path
 	bool has_double_clicked_file = false;
 	for (std::filesystem::path &file_path : file_entries)
 	{
-		std::string label = ICON_FK_FILE " ";
-		if (const std::filesystem::path ext = file_path.extension();
-			ext == L".fx" || ext == L".fxh")
-			label = ICON_FK_FILE_CODE " " + label;
-		else if (ext == L".bmp" || ext == L".png" || ext == L".jpg" || ext == L".jpeg" || ext == L".dds")
-			label = ICON_FK_FILE_IMAGE " " + label;
-		label += file_path.filename().u8string();
+		if (const std::wstring ext = file_path.extension().wstring();
+			ext != L".ini" && ext != L".txt")
+			continue;
 
-		const bool is_selected = file_path == path;
+		const std::string label = ICON_FK_FILE " " + file_path.filename().u8string();
+		const bool is_selected = std::filesystem::equivalent(file_path, path, ec) && !ec;
 		if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
 		{
 			path = std::move(file_path);
