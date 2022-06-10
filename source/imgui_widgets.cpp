@@ -467,17 +467,8 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	ImGui::BeginGroup();
 
 	char buf[4096]; buf[0] = '\0';
-
-	ImGuiInputTextState* state = ImGui::GetInputTextState(ImGui::GetID("##path"));
-	if (state)
-	{
-		strncpy_s(buf, state->TextA.begin(), state->BufCapacityA);
-	}
-	else
-	{
-		const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
-		buf[buf_len] = '\0'; // Null-terminate string	
-	}
+	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
+	buf[buf_len] = '\0'; // Null-terminate string
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
