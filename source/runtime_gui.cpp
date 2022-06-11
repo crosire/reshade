@@ -1100,7 +1100,10 @@ void reshade::runtime::draw_gui_home()
 		{
 			ImGui::SameLine(0, button_spacing);
 			if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+			{
+				_file_selection_path = _current_preset_path;
 				ImGui::OpenPopup("##export");
+			}
 
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Export the preset to another folder");
@@ -1130,7 +1133,7 @@ void reshade::runtime::draw_gui_home()
 			if (ini_file::regist_preset_cache(_file_selection_path))
 			{
 				std::error_code ec;
-				if (_trim_preset_when_saving)
+				if (_trim_preset_when_export)
 				{
 					wchar_t temp_file_name[MAX_PATH]; temp_file_name[0] = L'\0';
 					GetTempFileNameW(std::filesystem::temp_directory_path(ec).c_str(), L"ReS", 0, temp_file_name);
@@ -1448,7 +1451,7 @@ void reshade::runtime::draw_gui_settings()
 			reload_effects();
 		}
 
-		modified |= ImGui::Checkbox("Trim preset when saving", &_trim_preset_when_saving);
+		modified |= ImGui::Checkbox("Trim preset when export", &_trim_preset_when_export);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
 		modified |= imgui::directory_input_box("Favorite preset save path", _favorite_preset_save_path, _file_selection_path);
