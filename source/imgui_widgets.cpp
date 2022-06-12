@@ -106,7 +106,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		ImGui::SetNextItemWidth(width);
 		if (ImGui::InputTextWithHint("##path", g_reshade_base_path.generic_u8string( ).c_str( ), buf, sizeof(buf)))
 		{
-			path = g_reshade_base_path / std::filesystem::u8path(buf);
+			path = parent_path / std::filesystem::u8path(buf);
 			if (path.has_stem() && std::filesystem::is_directory(path, ec))
 				path += std::filesystem::path::preferred_separator;
 		}
@@ -212,7 +212,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	return result;
 }
 
-bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts, std::filesystem::path &favorite_preset_save_path, bool *use_favorite_preset_save_path)
+bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts, std::filesystem::path &favorite_preset_save_path, bool &use_favorite_preset_save_path)
 {
 	if (!ImGui::BeginPopup(name))
 		return false;
@@ -220,17 +220,17 @@ bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::file
 	std::error_code ec;
 	bool changed = false;
 
-	int favorites = *use_favorite_preset_save_path ? 1 : 0;
+	int favorites = use_favorite_preset_save_path ? 1 : 0;
 	ImGui::Text("%s", desc);
 	ImGui::SameLine();
 	changed |= ImGui::RadioButton("Favorites", &favorites, 1);
 	ImGui::SameLine();
 	changed |= ImGui::RadioButton("Browse", &favorites, 0);
-	*use_favorite_preset_save_path = favorites == 1;
+	use_favorite_preset_save_path = favorites == 1;
 
 	if (changed)
 	{
-		if (*use_favorite_preset_save_path)
+		if (use_favorite_preset_save_path)
 			path = g_reshade_base_path / favorite_preset_save_path / path.filename();
 		else
 			path = g_reshade_base_path / path;
@@ -242,7 +242,7 @@ bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::file
 
 	const std::filesystem::path parent_path = path.parent_path();
 
-	if (!(*use_favorite_preset_save_path))
+	if (!use_favorite_preset_save_path)
 	{
 		char buf[4096]; buf[0] = '\0';
 		const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
@@ -264,7 +264,7 @@ bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::file
 
 	ImGui::BeginChild("##files", ImVec2(width, 200), true, ImGuiWindowFlags_NavFlattened);
 
-	if (!(*use_favorite_preset_save_path))
+	if (!use_favorite_preset_save_path)
 	{
 		if (parent_path.has_parent_path())
 		{
@@ -283,7 +283,7 @@ bool reshade::imgui::preset_dialog(const char *name, const char *desc, std::file
 	{
 		if (entry.is_directory())
 		{
-			if (!(*use_favorite_preset_save_path))
+			if (!use_favorite_preset_save_path)
 			{
 				const bool is_selected = entry == path;
 				const std::string label = ICON_FK_FOLDER " " + entry.path().filename().u8string();

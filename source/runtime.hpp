@@ -447,7 +447,7 @@ namespace reshade
 		unsigned int _next_preset_key_data[4] = {};
 		unsigned int _preset_transition_duration = 1000;
 		std::filesystem::path _current_preset_path;
-		bool _trim_preset_when_saving;
+		bool _trim_preset_when_export;
 		bool _use_favorite_preset_save_path;
 		std::filesystem::path _favorite_preset_save_path;
 
