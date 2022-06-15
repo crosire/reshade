@@ -1864,9 +1864,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				}
 			}
 
-			if (!new_texture.semantic.empty() && (new_texture.semantic != "COLOR" && new_texture.semantic != "DEPTH"))
-				effect.errors += "warning: " + new_texture.unique_name + ": unknown semantic '" + new_texture.semantic + "'\n";
-
 			// This is the first effect using this texture
 			new_texture.shared.push_back(effect_index);
 
