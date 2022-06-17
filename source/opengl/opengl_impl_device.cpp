@@ -90,14 +90,16 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 	glDebugMessageCallback(debug_message_callback, nullptr);
 #endif
 
-	// Some games (like Call of Duty 1 and Hot Wheels Velocity X) use fixed resource names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
+	// Some games use fixed resource names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
 	// Reserve a configurable range of resource names in old OpenGL games (which will use a compatibility context) to work around this
-	auto num_reserve_buffer_names = _compatibility_context ? 2048u : 0u;
+	// - Call of Duty uses buffer and texture names in range 0-1500
+	// - Star Wars Jedi Knight II: Jedi Outcast uses texture names in range 2000-3000
+	auto num_reserve_buffer_names = _compatibility_context ? 2000 : 0u;
 	reshade::global_config().get("APP", "ReserveBufferNames", num_reserve_buffer_names);
 	_reserved_buffer_names.resize(num_reserve_buffer_names);
 	if (!_reserved_buffer_names.empty())
 		glGenBuffers(static_cast<GLsizei>(_reserved_buffer_names.size()), _reserved_buffer_names.data());
-	auto num_reserve_texture_names = _compatibility_context ? 2048u : 0u;
+	auto num_reserve_texture_names = _compatibility_context ? 4000 : 0u;
 	reshade::global_config().get("APP", "ReserveTextureNames", num_reserve_texture_names);
 	_reserved_texture_names.resize(num_reserve_texture_names);
 	if (!_reserved_texture_names.empty())
