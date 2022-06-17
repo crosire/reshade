@@ -143,8 +143,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
-			bool enable_log = true;
-			if (reshade::global_config().get("INSTALL", "EnableLogging", enable_log); enable_log)
+			if (reshade::global_config().get("INSTALL", "EnableLogging") || !reshade::global_config().has("INSTALL", "EnableLogging"))
 			{
 				std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
 				if (!reshade::log::open_log_file(log_path))
@@ -279,9 +278,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 				// Only register OpenGL hooks when module is not called any D3D module name
 				if (!is_d3d && !is_dxgi)
-				{
 					reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
-				}
 
 				// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 

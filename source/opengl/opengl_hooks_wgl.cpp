@@ -499,7 +499,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		it != s_opengl_contexts.end())
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Cleaning up runtime " << it->second << " ...";
+		LOG(DEBUG) << "> Cleaning up runtime " << static_cast<reshade::runtime *>(it->second) << " ...";
 #endif
 
 		// Set the render context current so its resources can be cleaned up
@@ -643,7 +643,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			g_current_context = it->second;
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Switched to existing runtime " << it->second << '.';
+			LOG(DEBUG) << "Switched to existing runtime " << static_cast<reshade::runtime *>(it->second) << '.';
 #endif
 		}
 
@@ -697,7 +697,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			g_current_context = s_opengl_contexts[hglrc] = runtime;
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Switched to new runtime " << runtime << '.';
+			LOG(DEBUG) << "Switched to new runtime " << static_cast<reshade::runtime *>(runtime) << '.';
 #endif
 		}
 		else
@@ -871,7 +871,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 		if (width != runtime_width || height != runtime_height)
 		{
-			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
+			LOG(INFO) << "Resizing runtime " << static_cast<reshade::runtime *>(runtime) << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
 			runtime->on_reset();
 

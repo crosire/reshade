@@ -2662,7 +2662,7 @@ bool reshade::runtime::create_texture(texture &tex)
 
 	if (!_device->create_resource(api::resource_desc(tex.width, tex.height, 1, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
 	{
-		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "'!";
+		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "'! Make sure the texture dimensions are reasonable.";
 		LOG(DEBUG) << "> Details: Width = " << tex.width << ", Height = " << tex.height << ", Levels = " << tex.levels << ", Format = " << static_cast<uint32_t>(format) << ", Usage = " << std::hex << static_cast<uint32_t>(usage) << std::dec;
 		return false;
 	}
