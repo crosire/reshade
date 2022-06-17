@@ -7,6 +7,7 @@
 #include "d3d12_impl_command_queue.hpp"
 #include "d3d12_impl_type_convert.hpp"
 #include "d3d12_descriptor_heap.hpp"
+#include "d3d12_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include <algorithm>
@@ -489,7 +490,7 @@ bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint
 
 	const D3D12_RANGE no_read = { 0, 0 };
 
-	if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(0, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, out_data)))
+	if (SUCCEEDED(ID3D12Resource_Map(reinterpret_cast<ID3D12Resource *>(resource.handle), 0, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, out_data)))
 	{
 		*out_data = static_cast<uint8_t *>(*out_data) + offset;
 		return true;
@@ -503,7 +504,7 @@ void reshade::d3d12::device_impl::unmap_buffer_region(api::resource resource)
 {
 	assert(resource.handle != 0);
 
-	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(0, nullptr);
+	ID3D12Resource_Unmap(reinterpret_cast<ID3D12Resource *>(resource.handle), 0, nullptr);
 }
 bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
 {
@@ -528,14 +529,14 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 	out_data->row_pitch = layout.Footprint.RowPitch;
 	out_data->slice_pitch *= layout.Footprint.RowPitch;
 
-	return SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(
+	return SUCCEEDED(ID3D12Resource_Map(reinterpret_cast<ID3D12Resource *>(resource.handle),
 		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, &out_data->data));
 }
 void reshade::d3d12::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
 {
 	assert(resource.handle != 0);
 
-	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(subresource, nullptr);
+	ID3D12Resource_Unmap(reinterpret_cast<ID3D12Resource *>(resource.handle), subresource, nullptr);
 }
 
 void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
@@ -564,12 +565,12 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data;
-	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
+	if (FAILED(ID3D12Resource_Map(intermediate.get(), 0, nullptr, reinterpret_cast<void **>(&mapped_data))))
 		return;
 
 	std::memcpy(mapped_data, data, static_cast<size_t>(size));
 
-	intermediate->Unmap(0, nullptr);
+	ID3D12Resource_Unmap(intermediate.get(), 0, nullptr);
 
 	assert(!_queues.empty());
 
@@ -629,7 +630,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data;
-	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
+	if (FAILED(ID3D12Resource_Map(intermediate.get(), 0, nullptr, reinterpret_cast<void **>(&mapped_data))))
 		return;
 
 	for (size_t z = 0; z < num_slices; ++z)
@@ -647,7 +648,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 		}
 	}
 
-	intermediate->Unmap(0, nullptr);
+	ID3D12Resource_Unmap(intermediate.get(), 0, nullptr);
 
 	assert(!_queues.empty());
 
@@ -1239,14 +1240,14 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 		const D3D12_RANGE write_range = { 0, 0 };
 
 		void *mapped_data = nullptr;
-		if (SUCCEEDED(readback_resource->Map(0, &read_range, &mapped_data)))
+		if (SUCCEEDED(ID3D12Resource_Map(readback_resource.get(), 0, &read_range, &mapped_data)))
 		{
 			for (size_t i = 0; i < count; ++i)
 			{
 				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[first + i];
 			}
 
-			readback_resource->Unmap(0, &write_range);
+			ID3D12Resource_Unmap(readback_resource.get(), 0, &write_range);
 
 			return true;
 		}

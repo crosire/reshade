@@ -452,6 +452,9 @@
     <ClInclude Include="source\d3d9\d3d9_resource.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
+    <ClInclude Include="source\d3d9\d3d9_resource_call_vtable.inl">
+      <Filter>hooks\d3d9</Filter>
+    </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
@@ -471,6 +474,9 @@
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10_resource.hpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d10\d3d10_resource_call_vtable.inl">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\d3d11_command_list.hpp">
@@ -540,6 +546,9 @@
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_resource.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_resource_call_vtable.inl">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\descriptor_heap.hpp">

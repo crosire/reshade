@@ -5,10 +5,11 @@
 
 #include "d3d9_impl_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
+#include "d3d9_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include <algorithm>
 
-inline const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &rect)
+const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &rect)
 {
 	if (box == nullptr)
 		return nullptr;
@@ -843,12 +844,12 @@ bool reshade::d3d9::device_impl::map_buffer_region(api::resource resource, uint6
 	{
 		case D3DRTYPE_VERTEXBUFFER:
 		{
-			return SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(
+			return SUCCEEDED(IDirect3DVertexBuffer9_Lock(static_cast<IDirect3DVertexBuffer9 *>(object),
 				static_cast<UINT>(offset), size != UINT64_MAX ? static_cast<UINT>(size) : 0, out_data, convert_access_flags(access)));
 		}
 		case D3DRTYPE_INDEXBUFFER:
 		{
-			return SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(
+			return SUCCEEDED(IDirect3DIndexBuffer9_Lock(static_cast<IDirect3DIndexBuffer9 *>(object),
 				static_cast<UINT>(offset), size != UINT64_MAX ? static_cast<UINT>(size) : 0, out_data, convert_access_flags(access)));
 		}
 	}
@@ -866,12 +867,12 @@ void reshade::d3d9::device_impl::unmap_buffer_region(api::resource resource)
 	{
 		case D3DRTYPE_VERTEXBUFFER:
 		{
-			static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
+			IDirect3DVertexBuffer9_Unlock(static_cast<IDirect3DVertexBuffer9 *>(object));
 			return;
 		}
 		case D3DRTYPE_INDEXBUFFER:
 		{
-			static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
+			IDirect3DIndexBuffer9_Unlock(static_cast<IDirect3DIndexBuffer9 *>(object));
 			return;
 		}
 	}
@@ -899,7 +900,7 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 
 			RECT rect;
 			D3DLOCKED_RECT locked_rect;
-			if (SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
+			if (SUCCEEDED(IDirect3DSurface9_LockRect(static_cast<IDirect3DSurface9 *>(object), &locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
 			{
 				out_data->data = locked_rect.pBits;
 				out_data->row_pitch = locked_rect.Pitch;
@@ -911,7 +912,7 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 		{
 			RECT rect;
 			D3DLOCKED_RECT locked_rect;
-			if (SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
+			if (SUCCEEDED(IDirect3DTexture9_LockRect(static_cast<IDirect3DTexture9 *>(object), subresource, &locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
 			{
 				out_data->data = locked_rect.pBits;
 				out_data->row_pitch = locked_rect.Pitch;
@@ -922,7 +923,7 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
 			D3DLOCKED_BOX locked_box;
-			if (SUCCEEDED(static_cast<IDirect3DVolumeTexture9 *>(object)->LockBox(subresource, &locked_box, reinterpret_cast<const D3DBOX *>(box), convert_access_flags(access))))
+			if (SUCCEEDED(IDirect3DVolumeTexture9_LockBox(static_cast<IDirect3DVolumeTexture9 *>(object), subresource, &locked_box, reinterpret_cast<const D3DBOX *>(box), convert_access_flags(access))))
 			{
 				out_data->data = locked_box.pBits;
 				out_data->row_pitch = locked_box.RowPitch;
@@ -937,7 +938,7 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 
 			RECT rect;
 			D3DLOCKED_RECT locked_rect;
-			if (SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
+			if (SUCCEEDED(IDirect3DCubeTexture9_LockRect(static_cast<IDirect3DCubeTexture9 *>(object), static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, convert_box_to_rect(box, rect), convert_access_flags(access))))
 			{
 				out_data->data = locked_rect.pBits;
 				out_data->row_pitch = locked_rect.Pitch;
@@ -962,24 +963,24 @@ void reshade::d3d9::device_impl::unmap_texture_region(api::resource resource, ui
 		{
 			assert(subresource == 0);
 
-			static_cast<IDirect3DSurface9 *>(object)->UnlockRect();
+			IDirect3DSurface9_UnlockRect(static_cast<IDirect3DSurface9 *>(object));
 			return;
 		}
 		case D3DRTYPE_TEXTURE:
 		{
-			static_cast<IDirect3DTexture9 *>(object)->UnlockRect(subresource);
+			IDirect3DTexture9_UnlockRect(static_cast<IDirect3DTexture9 *>(object), subresource);
 			return;
 		}
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
-			static_cast<IDirect3DVolumeTexture9 *>(object)->UnlockBox(subresource);
+			IDirect3DVolumeTexture9_UnlockBox(static_cast<IDirect3DVolumeTexture9 *>(object), subresource);
 			return;
 		}
 		case D3DRTYPE_CUBETEXTURE:
 		{
 			const UINT levels = static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount();
 
-			static_cast<IDirect3DCubeTexture9 *>(object)->UnlockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels);
+			IDirect3DCubeTexture9_UnlockRect(static_cast<IDirect3DCubeTexture9 *>(object), static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels);
 			return;
 		}
 	}
@@ -999,20 +1000,20 @@ void reshade::d3d9::device_impl::update_buffer_region(const void *data, api::res
 		case D3DRTYPE_VERTEXBUFFER:
 		{
 			void *mapped_ptr;
-			if (SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
+			if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(static_cast<IDirect3DVertexBuffer9 *>(object), static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
 			{
 				std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
-				static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
+				IDirect3DVertexBuffer9_Unlock(static_cast<IDirect3DVertexBuffer9 *>(object));
 			}
 			return;
 		}
 		case D3DRTYPE_INDEXBUFFER:
 		{
 			void *mapped_ptr;
-			if (SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
+			if (SUCCEEDED(IDirect3DIndexBuffer9_Lock(static_cast<IDirect3DIndexBuffer9 *>(object), static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
 			{
 				std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
-				static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
+				IDirect3DIndexBuffer9_Unlock(static_cast<IDirect3DIndexBuffer9 *>(object));
 			}
 			return;
 		}
@@ -1049,7 +1050,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			}
 
 			D3DLOCKED_RECT locked_rect;
-			if (FAILED(intermediate->LockRect(0, &locked_rect, nullptr, 0)))
+			if (FAILED(IDirect3DTexture9_LockRect(intermediate.get(), 0, &locked_rect, static_cast<const RECT *>(nullptr), 0)))
 				return;
 			auto mapped_data = static_cast<uint8_t *>(locked_rect.pBits);
 			auto upload_data = static_cast<const uint8_t *>(data.data);
@@ -1095,7 +1096,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 				}
 			}
 
-			intermediate->UnlockRect(0);
+			IDirect3DTexture9_UnlockRect(intermediate.get(), 0);
 
 			if (use_systemmem_texture)
 			{
@@ -1282,11 +1283,11 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 			}
 
 			if (float *data;
-				SUCCEEDED(_default_input_stream->Lock(0, max_vertices * sizeof(float), reinterpret_cast<void **>(&data), 0)))
+				SUCCEEDED(IDirect3DVertexBuffer9_Lock(_default_input_stream.get(), 0, max_vertices * sizeof(float), reinterpret_cast<void **>(&data), 0)))
 			{
 				for (UINT i = 0; i < max_vertices; ++i)
 					data[i] = static_cast<float>(i);
-				_default_input_stream->Unlock();
+				IDirect3DVertexBuffer9_Unlock(_default_input_stream.get());
 			}
 		}
 
