@@ -1587,6 +1587,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				if (!load_effect_cache(cache_id, "cso", cso))
 				{
 					const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DCompile"));
+					assert(D3DCompile != nullptr);
 
 					com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 					const HRESULT hr = D3DCompile(
@@ -1646,6 +1647,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				if (!load_effect_cache(cache_id, "asm", cso_text))
 				{
 					const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DDisassemble"));
+					assert(D3DDisassemble != nullptr);
 
 					if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 						cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
@@ -3133,7 +3135,8 @@ void reshade::runtime::update_effects()
 #endif
 
 #if RESHADE_ADDON
-		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+		if (_reload_create_queue.empty())
+			invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
 #endif
 	}
 	else if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
