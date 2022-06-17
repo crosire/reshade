@@ -65,8 +65,9 @@ namespace reshadefx
 		/// Parses the specified string and appends it to the output.
 		/// </summary>
 		/// <param name="source_code">String to parse.</param>
+		/// <param name="path">Optional file path to identify this string with.</param>
 		/// <returns><see langword="true"/> if parsing was successful, <see langword="false"/> otherwise.</returns>
-		bool append_string(const std::string &source_code);
+		bool append_string(std::string source_code, const std::filesystem::path &path = std::filesystem::path());
 
 		/// <summary>
 		/// Gets the list of error messages.
