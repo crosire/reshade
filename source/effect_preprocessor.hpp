@@ -32,23 +32,23 @@ namespace reshadefx
 		~preprocessor();
 
 		/// <summary>
-		/// Add an include directory to the list of search paths used when resolving #include directives.
+		/// Adds an include directory to the list of search paths used when resolving #include directives.
 		/// </summary>
-		/// <param name="path">The path to the directory to add.</param>
+		/// <param name="path">Path to the directory to add.</param>
 		void add_include_path(const std::filesystem::path &path);
 
 		/// <summary>
-		/// Add a new macro definition. This is equal to appending '#define name macro' to this preprocessor instance.
+		/// Adds a new macro definition. This is equal to appending '#define name macro' to this preprocessor instance.
 		/// </summary>
-		/// <param name="name">The name of the macro to define.</param>
-		/// <param name="macro">The definition of the macro function or value.</param>
+		/// <param name="name">Name of the macro to define.</param>
+		/// <param name="macro">Definition of the macro function or value.</param>
 		/// <returns></returns>
 		bool add_macro_definition(const std::string &name, const macro &macro);
 		/// <summary>
-		/// Add a new macro value definition. This is equal to appending '#define name macro' to this preprocessor instance.
+		/// Adds a new macro value definition. This is equal to appending '#define name macro' to this preprocessor instance.
 		/// </summary>
-		/// <param name="name">The name of the macro to define.</param>
-		/// <param name="value">The value to define that macro to.</param>
+		/// <param name="name">Name of the macro to define.</param>
+		/// <param name="value">Value to define that macro to.</param>
 		/// <returns></returns>
 		bool add_macro_definition(const std::string &name, std::string value = "1")
 		{
@@ -56,42 +56,42 @@ namespace reshadefx
 		}
 
 		/// <summary>
-		/// Open the specified file, parse its contents and append them to the output.
+		/// Opens the specified file, parses its contents and appends them to the output.
 		/// </summary>
-		/// <param name="path">The path to the file to parse.</param>
-		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
+		/// <param name="path">Path to the file to parse.</param>
+		/// <returns><see langword="true"/> if parsing was successful, <see langword="false"/> otherwise.</returns>
 		bool append_file(const std::filesystem::path &path);
 		/// <summary>
-		/// Parse the specified string and append it to the output.
+		/// Parses the specified string and appends it to the output.
 		/// </summary>
-		/// <param name="source_code">The string to parse.</param>
-		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
+		/// <param name="source_code">String to parse.</param>
+		/// <returns><see langword="true"/> if parsing was successful, <see langword="false"/> otherwise.</returns>
 		bool append_string(const std::string &source_code);
 
 		/// <summary>
-		/// Get the list of error messages.
+		/// Gets the list of error messages.
 		/// </summary>
 		std::string &errors() { return _errors; }
 		const std::string &errors() const { return _errors; }
 		/// <summary>
-		/// Get the current pre-processed output string.
+		/// Gets the current pre-processed output string.
 		/// </summary>
 		std::string &output() { return _output; }
 		const std::string &output() const { return _output; }
 
 		/// <summary>
-		/// Get a list of all included files.
+		/// Gets a list of all included files.
 		/// </summary>
 		std::vector<std::filesystem::path> included_files() const;
 
 		/// <summary>
-		/// Get a list of all defines that were used in #ifdef and #ifndef lines.
+		/// Gets a list of all defines that were used in #ifdef and #ifndef lines.
 		/// </summary>
 		/// <returns></returns>
 		std::vector<std::pair<std::string, std::string>> used_macro_definitions() const;
 
 		/// <summary>
-		/// Get a list of pragmas that occured.
+		/// Gets a list of pragmas that occured.
 		/// </summary>
 		const std::unordered_map<std::string, std::vector<std::string>> &used_pragmas() const { return _used_pragmas; }
 

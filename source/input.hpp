@@ -24,15 +24,15 @@ namespace reshade
 		/// <summary>
 		/// Registers a window using raw input with the input manager.
 		/// </summary>
-		/// <param name="window">The window handle.</param>
-		/// <param name="no_legacy_keyboard"><c>true</c> if 'RIDEV_NOLEGACY' is set for the keyboard device, <c>false</c> otherwise.</param>
-		/// <param name="no_legacy_mouse"><c>true</c> if 'RIDEV_NOLEGACY' is set for the mouse device, <c>false</c> otherwise.</param>
+		/// <param name="window">Window handle of the target window.</param>
+		/// <param name="no_legacy_keyboard">Set to <see langword="true"/> if 'RIDEV_NOLEGACY' is set for the keyboard device, <see langword="false"/> otherwise.</param>
+		/// <param name="no_legacy_mouse">Set to <see langword="true"/> if 'RIDEV_NOLEGACY' is set for the mouse device, <see langword="false"/> otherwise.</param>
 		static void register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse);
 		/// <summary>
 		/// Registers a window using normal input window messages with the input manager.
 		/// </summary>
-		/// <param name="window">The window handle.</param>
-		/// <returns>A pointer to the input manager for the <paramref name="window"/>.</returns>
+		/// <param name="window">Window handle of the target window.</param>
+		/// <returns>Pointer to the input manager registered for this <paramref name="window"/>.</returns>
 		static std::shared_ptr<input> register_window(window_handle window);
 
 		window_handle get_window_handle() const { return _window; }
@@ -67,12 +67,12 @@ namespace reshade
 		const std::wstring &text_input() const { return _text_input; }
 
 		/// <summary>
-		/// Set to <c>true</c> to prevent mouse input window messages from reaching the application.
+		/// Set to <see langword="true"/> to prevent mouse input window messages from reaching the application.
 		/// </summary>
 		void block_mouse_input(bool enable) { _block_mouse = enable; }
 		bool is_blocking_mouse_input() const { return _block_mouse; }
 		/// <summary>
-		/// Set to <c>true</c> to prevent keyboard input window messages from reaching the application.
+		/// Set to <see langword="true"/> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
 		void block_keyboard_input(bool enable) { _block_keyboard = enable; }
 		bool is_blocking_keyboard_input() const { return _block_keyboard; }
@@ -80,7 +80,7 @@ namespace reshade
 		/// <summary>
 		/// Locks access to the input data to the current thread.
 		/// </summary>
-		/// <returns>A RAII object holding the lock, which releases it after going out of scope.</returns>
+		/// <returns>RAII object holding the lock, which releases it after going out of scope.</returns>
 		auto lock() { return std::unique_lock<std::shared_mutex>(_mutex); }
 
 		/// <summary>
@@ -92,19 +92,19 @@ namespace reshade
 		/// <summary>
 		/// Generates a human-friendly text representation of the specified <paramref name="keycode"/>.
 		/// </summary>
-		/// <param name="keycode">The virtual key code to use.</param>
+		/// <param name="keycode">Virtual key code to use.</param>
 		static std::string key_name(unsigned int keycode);
 		/// <summary>
 		/// Generates a human-friendly text representation of the specified <paramref name="key"/> shortcut.
 		/// </summary>
-		/// <param name="key">The shortcut, consisting of the [virtual key code, Ctrl, Shift, Alt].</param>
+		/// <param name="key">Key shortcut, consisting of [virtual key code, Ctrl, Shift, Alt].</param>
 		static std::string key_name(const unsigned int key[4]);
 
 		/// <summary>
 		/// Internal window message procedure. This looks for input messages and updates state for the corresponding windows accordingly.
 		/// </summary>
-		/// <param name="message_data">A pointer to a <see cref="MSG"/> with the message data.</param>
-		/// <returns><c>true</c> if the called should ignore this message, or <c>false</c> if it should pass it on to the application.</returns>
+		/// <param name="message_data">Pointer to a <see cref="MSG"/> with the message data.</param>
+		/// <returns><see langword="true"/> if the called should ignore this message, or <see langword="false"/> if it should pass it on to the application.</returns>
 		static bool handle_window_message(const void *message_data);
 
 	private:

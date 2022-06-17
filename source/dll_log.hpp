@@ -33,9 +33,9 @@ namespace reshade::log
 	};
 
 	/// <summary>
-	/// Open a log file for writing.
+	/// Opens a log file for writing.
 	/// </summary>
-	/// <param name="path">The path to the log file.</param>
+	/// <param name="path">Path to the log file.</param>
 	bool open_log_file(const std::filesystem::path &path);
 
 	/// <summary>

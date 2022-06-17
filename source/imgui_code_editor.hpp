@@ -81,9 +81,9 @@ namespace reshade::imgui
 		/// Performs all input logic and renders this text editor to the current ImGui window.
 		/// </summary>
 		/// <param name="title">Name of the child window the editor is rendered into.</param>
-		/// <param name="palette">The color palette used for syntax highlighting.</param>
-		/// <param name="border">Set to <c>true</c> to surround the child window with a border line.</param>
-		/// <param name="font">The font used for rendering the text (<c>nullptr</c> to use the default).</param>
+		/// <param name="palette">Color palette used for syntax highlighting.</param>
+		/// <param name="border">Set to <see langword="true"/> to surround the child window with a border line.</param>
+		/// <param name="font">Font used for rendering the text (<see langword="nullptr"/> to use the default).</param>
 		void render(const char *title, const uint32_t palette[color_palette_max], bool border = false, ImFont *font = nullptr);
 
 		/// <summary>
@@ -105,10 +105,10 @@ namespace reshade::imgui
 		/// <summary>
 		/// Searches the text of this text editor for the specific search <paramref name="text"/>, starting at the cursor and scrolls to its position when found.
 		/// </summary>
-		/// <param name="text">The text to find.</param>
-		/// <param name="backwards">Set to <c>true</c> to search in reverse direction, otherwise searches forwards.</param>
-		/// <param name="with_selection">Set to <c>true</c> to start search at selection boundaries, rather than the cursor position.</param>
-		/// <returns><c>true</c> when the search <paramref name="text"/> was found, <c>false</c> otherwise.</returns>
+		/// <param name="text">Text snippet to find.</param>
+		/// <param name="backwards">Set to <see langword="true"/> to search in reverse direction, otherwise searches forwards.</param>
+		/// <param name="with_selection">Set to <see langword="true"/> to start search at selection boundaries, rather than the cursor position.</param>
+		/// <returns><see langword="true"/> when the search <paramref name="text"/> was found, <see langword="false"/> otherwise.</returns>
 		bool find_and_scroll_to_text(const std::string &text, bool backwards = false, bool with_selection = false);
 
 		/// <summary>
@@ -141,7 +141,7 @@ namespace reshade::imgui
 		/// <summary>
 		/// Reverts the last action(s) performed on this text editor.
 		/// </summary>
-		/// <param name="steps">The number of actions to undo.</param>
+		/// <param name="steps">Number of actions to undo.</param>
 		void undo(unsigned int steps = 1);
 		/// <summary>
 		/// Returns whether any actions have been recorded which can be reverted.
@@ -150,7 +150,7 @@ namespace reshade::imgui
 		/// <summary>
 		/// Applies any last action(s) again that were previously reverted.
 		/// </summary>
-		/// <param name="steps">The number of actions to redo.</param>
+		/// <param name="steps">Number of actions to redo.</param>
 		void redo(unsigned int steps = 1);
 		/// <summary>
 		/// Returns whether any actions have been recorded which can be applied again.
@@ -165,9 +165,9 @@ namespace reshade::imgui
 		/// <summary>
 		/// Adds an error to be displayed at the specified <paramref name="line"/>.
 		/// </summary>
-		/// <param name="line">The line that should be highlighted and show an error message when hovered with the mouse.</param>
-		/// <param name="message">The error message that should be displayed.</param>
-		/// <param name="warning">Set to <c>true</c> to indicate that this is a warning instead of an error, which uses different color coding.</param>
+		/// <param name="line">Line that should be highlighted and show an error message when hovered with the mouse.</param>
+		/// <param name="message">Error message that should be displayed.</param>
+		/// <param name="warning">Set to <see langword="true"/> to indicate that this is a warning instead of an error, which uses different color coding.</param>
 		void add_error(size_t line, const std::string &message, bool warning = false) { _errors.emplace(line, std::make_pair(message, warning)); }
 		/// <summary>
 		/// Removes all displayed errors that were previously added via <see cref="add_error"/>.
@@ -180,7 +180,7 @@ namespace reshade::imgui
 
 		/// <summary>
 		/// Changes the read-only state of this text editor.
-		/// Set to <c>true</c> to prevent user from being able to modify the text, <c>false</c> to behave like a normal editor.
+		/// Set to <see langword="true"/> to prevent user from being able to modify the text, or <see langword="false"/> to behave like a normal editor.
 		/// </summary>
 		void set_readonly(bool state) { _readonly = state; }
 		/// <summary>

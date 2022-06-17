@@ -29,8 +29,8 @@ public:
 	/// Gets the value associated with the specified <paramref name="key"/>.
 	/// This is a weak look up and may fail if another thread is erasing a value at the same time.
 	/// </summary>
-	/// <param name="key">The key to look up.</param>
-	/// <returns>A reference to the associated value.</returns>
+	/// <param name="key">Key to look up.</param>
+	/// <returns>Reference to the associated value.</returns>
 	TValue &at(TKey key) const
 	{
 		TValue *const value = lockfree_linear_map<TKey, TValue *, MAX_ENTRIES>::at(key);
@@ -44,9 +44,9 @@ public:
 	/// <summary>
 	/// Adds the specified key-value pair to the table.
 	/// </summary>
-	/// <param name="key">The key to add.</param>
-	/// <param name="args">The constructor arguments to use for creation.</param>
-	/// <returns>A reference to the newly added value.</returns>
+	/// <param name="key">Key to add.</param>
+	/// <param name="args">Constructor arguments to use for creation.</param>
+	/// <returns>Reference to the newly added value.</returns>
 	template <typename... Args>
 	TValue &emplace(TKey key, Args... args)
 	{
@@ -63,8 +63,8 @@ public:
 	/// <summary>
 	/// Removes the value associated with the specified <paramref name="key"/> from the table.
 	/// </summary>
-	/// <param name="key">The key to look up.</param>
-	/// <returns><c>true</c> if the key existed and was removed, <c>false</c> otherwise.</returns>
+	/// <param name="key">Key to look up.</param>
+	/// <returns><see langword="true"/> if the key existed and was removed, <see langword="false"/> otherwise.</returns>
 	bool erase(TKey key)
 	{
 		TValue *const old_value = lockfree_linear_map<TKey, TValue *, MAX_ENTRIES>::erase(key);
@@ -78,9 +78,9 @@ public:
 	/// <summary>
 	/// Removes and returns the value associated with the specified <paramref name="key"/> from the table.
 	/// </summary>
-	/// <param name="key">The key to look up.</param>
-	/// <param name="value">The value associated with that key.</param>
-	/// <returns><c>true</c> if the key existed and was removed, <c>false</c> otherwise.</returns>
+	/// <param name="key">Key to look up.</param>
+	/// <param name="value">Value associated with that key.</param>
+	/// <returns><see langword="true"/> if the key existed and was removed, <see langword="false"/> otherwise.</returns>
 	bool erase(TKey key, TValue &value)
 	{
 		TValue *const old_value = lockfree_linear_map<TKey, TValue *, MAX_ENTRIES>::erase(key);
@@ -149,8 +149,8 @@ public:
 	/// Gets the pointer associated with the specified <paramref name="key"/>.
 	/// This is a weak look up and may fail if another thread is erasing a value at the same time.
 	/// </summary>
-	/// <param name="key">The key to look up.</param>
-	/// <returns>The pointer associated with the key or <c>nullptr</c> if it was not found.</returns>
+	/// <param name="key">Key to look up.</param>
+	/// <returns>Pointer associated with the key, or <see langword="nullptr"/> if it was not found.</returns>
 	TValuePtr at(TKey key) const
 	{
 		assert(key != no_value && key != update_value);
@@ -175,9 +175,9 @@ public:
 	/// <summary>
 	/// Adds the specified key-pointer pair to the table.
 	/// </summary>
-	/// <param name="key">The key to add.</param>
-	/// <param name="value">The pointer to add.</param>
-	/// <returns>The <c>true</c> if the key-pointer pair was added successfully or <c>false</c> if the table is full.</returns>
+	/// <param name="key">Key to add.</param>
+	/// <param name="value">Pointer to add.</param>
+	/// <returns><see langword="true"/> if the key-pointer pair was added successfully, or <see langword="false"/> if the table is full.</returns>
 	bool emplace(TKey key, TValuePtr value)
 	{
 		assert(key != no_value && key != update_value);
@@ -206,8 +206,8 @@ public:
 	/// <summary>
 	/// Removes and returns the pointer associated with the specified <paramref name="key"/> from the table.
 	/// </summary>
-	/// <param name="key">The key to look up.</param>
-	/// <returns>The removed pointer if the key existed, <c>nullptr</c> otherwise.</returns>
+	/// <param name="key">Key to look up.</param>
+	/// <returns>Removed pointer if the key existed, <see langword="nullptr"/> otherwise.</returns>
 	TValuePtr erase(TKey key)
 	{
 		if (key == no_value || key == update_value) // Cannot remove special keys

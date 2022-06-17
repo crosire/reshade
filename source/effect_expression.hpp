@@ -50,12 +50,12 @@ namespace reshadefx
 		};
 
 		/// <summary>
-		/// Get the result type of an operation involving the two input types.
+		/// Gets the result type of an operation involving the two input types.
 		/// </summary>
 		static type merge(const type &lhs, const type &rhs);
 
 		/// <summary>
-		/// Calculate the ranking between two types which can be used to select the best matching function overload. The higher the rank, the better the match. A value of zero indicates that the types are not compatible.
+		/// Calculates the ranking between two types which can be used to select the best matching function overload. The higher the rank, the better the match. A value of zero indicates that the types are not compatible.
 		/// </summary>
 		static unsigned int rank(const type &src, const type &dst);
 
@@ -156,25 +156,25 @@ namespace reshadefx
 		std::vector<operation> chain;
 
 		/// <summary>
-		/// Initialize the expression to a l-value.
+		/// Initializes the expression to a l-value.
 		/// </summary>
-		/// <param name="loc">The code location of the expression.</param>
-		/// <param name="base">The SSA ID of the l-value.</param>
-		/// <param name="type">The value type of the expression result.</param>
+		/// <param name="loc">Code location of the expression.</param>
+		/// <param name="base">SSA ID of the l-value.</param>
+		/// <param name="type">Value type of the expression result.</param>
 		void reset_to_lvalue(const reshadefx::location &loc, uint32_t base, const reshadefx::type &type);
 		/// <summary>
-		/// Initialize the expression to a r-value.
+		/// Initializes the expression to a r-value.
 		/// </summary>
-		/// <param name="loc">The code location of the expression.</param>
-		/// <param name="base">The SSA ID of the r-value.</param>
-		/// <param name="type">The value type of the expression result.</param>
+		/// <param name="loc">Code location of the expression.</param>
+		/// <param name="base">SSA ID of the r-value.</param>
+		/// <param name="type">Value type of the expression result.</param>
 		void reset_to_rvalue(const reshadefx::location &loc, uint32_t base, const reshadefx::type &type);
 
 		/// <summary>
-		/// Initialize the expression to a constant value.
+		/// Initializes the expression to a constant value.
 		/// </summary>
-		/// <param name="loc">The code location of the constant expression.</param>
-		/// <param name="data">The constant value.</param>
+		/// <param name="loc">Code location of the constant expression.</param>
+		/// <param name="data">Constant value to initialize to.</param>
 		void reset_to_rvalue_constant(const reshadefx::location &loc, bool data);
 		void reset_to_rvalue_constant(const reshadefx::location &loc, float data);
 		void reset_to_rvalue_constant(const reshadefx::location &loc, int32_t data);
@@ -183,43 +183,43 @@ namespace reshadefx
 		void reset_to_rvalue_constant(const reshadefx::location &loc, reshadefx::constant data, const reshadefx::type &type);
 
 		/// <summary>
-		/// Add a cast operation to the current access chain.
+		/// Adds a cast operation to the current access chain.
 		/// </summary>
-		/// <param name="type">The type to cast the expression to.</param>
+		/// <param name="type">Type to cast the expression to.</param>
 		void add_cast_operation(const reshadefx::type &type);
 		/// <summary>
-		/// Add a structure member lookup to the current access chain.
+		/// Adds a structure member lookup to the current access chain.
 		/// </summary>
-		/// <param name="index">The index of the member to dereference.</param>
-		/// <param name="type">The value type of the member.</param>
+		/// <param name="index">Index of the member to dereference.</param>
+		/// <param name="type">Value type of the member.</param>
 		void add_member_access(unsigned int index, const reshadefx::type &type);
 		/// <summary>
-		/// Add an index operation to the current access chain.
+		/// Adds an index operation to the current access chain.
 		/// </summary>
-		/// <param name="index_expression">The SSA ID of the indexing value.</param>
+		/// <param name="index_expression">SSA ID of the indexing value.</param>
 		void add_dynamic_index_access(uint32_t index_expression);
 		/// <summary>
-		/// Add an constant index operation to the current access chain.
+		/// Adds an constant index operation to the current access chain.
 		/// </summary>
-		/// <param name="index">The constant indexing value.</param>
+		/// <param name="index">Constant indexing value.</param>
 		void add_constant_index_access(unsigned int index);
 		/// <summary>
-		/// Add a swizzle operation to the current access chain.
+		/// Adds a swizzle operation to the current access chain.
 		/// </summary>
-		/// <param name="swizzle">The swizzle for each component. -1 = unused, 0 = x, 1 = y, 2 = z, 3 = w.</param>
-		/// <param name="length">The number of components in the swizzle. The maximum is 4.</param>
+		/// <param name="swizzle">Swizzle for each component. -1 = unused, 0 = x, 1 = y, 2 = z, 3 = w.</param>
+		/// <param name="length">Number of components in the swizzle. The maximum is 4.</param>
 		void add_swizzle_access(const signed char swizzle[4], unsigned int length);
 
 		/// <summary>
-		/// Apply an unary operation to this constant expression.
+		/// Applies an unary operation to this constant expression.
 		/// </summary>
-		/// <param name="op">The unary operator to apply.</param>
+		/// <param name="op">Unary operator to apply.</param>
 		bool evaluate_constant_expression(reshadefx::tokenid op);
 		/// <summary>
-		/// Apply a binary operation to this constant expression.
+		/// Applies a binary operation to this constant expression.
 		/// </summary>
-		/// <param name="op">The binary operator to apply.</param>
-		/// <param name="rhs">The constant to use as right-hand side of the binary operation.</param>
+		/// <param name="op">Binary operator to apply.</param>
+		/// <param name="rhs">Constant value to use as right-hand side of the binary operation.</param>
 		bool evaluate_constant_expression(reshadefx::tokenid op, const reshadefx::constant &rhs);
 	};
 }
