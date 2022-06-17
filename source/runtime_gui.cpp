@@ -1100,8 +1100,9 @@ void reshade::runtime::draw_gui_home()
 			ImGui::SameLine(0, button_spacing);
 			if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 			{
-				std::error_code ec; std::filesystem::remove(_current_preset_path, ec);
+				ini_file::load_cache(_current_preset_path).clear();
 				save_current_preset();
+				ini_file::flush_cache(_current_preset_path);
 			}
 
 			if (ImGui::IsItemHovered())
@@ -1132,6 +1133,10 @@ void reshade::runtime::draw_gui_home()
 			{
 				reload_preset = true;
 				_current_preset_path = _file_selection_path;
+			}
+			else
+			{
+				ini_file::clear_cache(_file_selection_path);
 			}
 		}
 

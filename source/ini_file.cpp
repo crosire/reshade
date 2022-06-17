@@ -220,6 +220,19 @@ bool ini_file::flush_cache(const std::filesystem::path &path)
 	return it != s_ini_cache.end() && it->second->save();
 }
 
+void ini_file::clear_cache()
+{
+	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+
+	s_ini_cache.clear();
+}
+void ini_file::clear_cache(const std::filesystem::path &path)
+{
+	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+
+	s_ini_cache.erase(path);
+}
+
 ini_file &ini_file::load_cache(const std::filesystem::path &path)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);

@@ -4208,7 +4208,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 					screenshot_preset_path.replace_extension(L".ini");
 
 					// Preset was flushed to disk, so can just copy it over to the new location
-					std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
+					std::error_code ec;
+					std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
 				}
 #endif
 

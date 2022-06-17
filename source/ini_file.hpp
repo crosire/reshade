@@ -181,15 +181,25 @@ public:
 	}
 
 	/// <summary>
+	/// Removes all values.
+	/// </summary>
+	void clear()
+	{
+		_sections.clear();
+		_modified = true;
+		_modified_at = std::filesystem::file_time_type::clock::now();
+	}
+
+	/// <summary>
 	/// Removes the specified <paramref name="key"/> from the <paramref name="section"/>.
 	/// </summary>
-	/// <param name="section"></param>
-	/// <param name="key"></param>
 	void remove_key(const std::string &section, const std::string &key)
 	{
 		const auto it = _sections.find(section);
 		if (it != _sections.end())
 			it->second.erase(key);
+		_modified = true;
+		_modified_at = std::filesystem::file_time_type::clock::now();
 	}
 
 	/// <summary>
@@ -206,6 +216,12 @@ public:
 	/// </summary>
 	static bool flush_cache();
 	static bool flush_cache(const std::filesystem::path &path);
+
+	/// <summary>
+	/// Removes all INI files from cache, without saving changes.
+	/// </summary>
+	static void clear_cache();
+	static void clear_cache(const std::filesystem::path &path);
 
 	/// <summary>
 	/// Gets the specified INI file from cache or opens it when it was not cached yet.
@@ -282,7 +298,7 @@ private:
 	/// </summary>
 	using section_type = std::unordered_map<std::string, value_type>;
 
-	std::filesystem::path _path;
+	const std::filesystem::path _path;
 	std::unordered_map<std::string, section_type> _sections;
 	bool _modified = false;
 	std::filesystem::file_time_type _modified_at;
