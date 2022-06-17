@@ -1145,24 +1145,33 @@ In that event here are some steps you can try to resolve this:
 		{
 			var effectFiles = new List<string>();
 
-			if (!string.IsNullOrEmpty(presetPath) && File.Exists(presetPath))
+			if (!string.IsNullOrEmpty(presetPath))
 			{
-				var config = new IniFile(configPath);
-				config.SetValue("GENERAL", "PresetPath", presetPath);
-				config.SaveFile();
+				// Change current directory so that "Path.GetFullPath" resolves correctly
+				string currentPath = Directory.GetCurrentDirectory();
+				Directory.SetCurrentDirectory(Path.GetDirectoryName(configPath));
+				presetPath = Path.GetFullPath(presetPath);
+				Directory.SetCurrentDirectory(currentPath);
 
-				var preset = new IniFile(presetPath);
-
-				if (preset.GetValue(string.Empty, "Techniques", out string[] techniques))
+				if (File.Exists(presetPath))
 				{
-					foreach (string technique in techniques)
-					{
-						var filenameIndex = technique.IndexOf('@');
-						if (filenameIndex > 0)
-						{
-							string filename = technique.Substring(filenameIndex + 1);
+					var config = new IniFile(configPath);
+					config.SetValue("GENERAL", "PresetPath", presetPath);
+					config.SaveFile();
 
-							effectFiles.Add(filename);
+					var preset = new IniFile(presetPath);
+
+					if (preset.GetValue(string.Empty, "Techniques", out string[] techniques))
+					{
+						foreach (string technique in techniques)
+						{
+							var filenameIndex = technique.IndexOf('@');
+							if (filenameIndex > 0)
+							{
+								string filename = technique.Substring(filenameIndex + 1);
+
+								effectFiles.Add(filename);
+							}
 						}
 					}
 				}
