@@ -28,6 +28,7 @@ struct DrawElementsIndirectCommand
 thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
 
 #if RESHADE_ADDON
+
 #define gl3wGetFloatv gl3wProcs.gl.GetFloatv
 #define gl3wGetIntegerv gl3wProcs.gl.GetIntegerv
 #define gl3wBindBuffer gl3wProcs.gl.BindBuffer
@@ -41,6 +42,7 @@ thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
 #define gl3wGetNamedBufferParameteri64v gl3wProcs.gl.GetNamedBufferParameteri64v
 #define gl3wNamedFramebufferTexture gl3wProcs.gl.NamedFramebufferTexture
 #define gl3wNamedFramebufferRenderbuffer gl3wProcs.gl.NamedFramebufferRenderbuffer
+#define gl3wClipControl gl3wProcs.gl.ClipControl
 
 static void init_resource(GLenum target, GLuint object, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data = nullptr, bool update_texture = false)
 {
@@ -302,6 +304,7 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer)
 }
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
+
 static bool copy_buffer_region(GLenum src_target, GLuint src_object, GLintptr src_offset, GLenum dst_target, GLuint dst_object, GLintptr dst_offset, GLsizeiptr size)
 {
 	if (!g_current_context || !reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
@@ -430,6 +433,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	std::vector<uint8_t> temp_data;
 	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, dst_desc.texture.format, width, height, depth), dst, subresource, &dst_box);
 }
+
 #endif
 
 static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLuint
@@ -454,6 +458,7 @@ static __forceinline void update_current_primitive_topology(GLenum mode, GLenum 
 #endif
 	}
 }
+
 #endif
 
 #ifdef GL_VERSION_1_0
@@ -1006,8 +1011,8 @@ HOOK_EXPORT void APIENTRY glScissor(GLint left, GLint bottom, GLsizei width, GLs
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+		if (gl3wClipControl != nullptr)
+			gl3wGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
 		rect_data.left = left;
@@ -2782,8 +2787,8 @@ void APIENTRY glScissorArrayv(GLuint first, GLsizei count, const GLint *v)
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+		if (gl3wClipControl != nullptr)
+			gl3wGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		temp_mem<reshade::api::rect> rect_data(count);
 		for (GLsizei i = 0; i < count; ++i, v += 4)
@@ -2818,8 +2823,8 @@ void APIENTRY glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei w
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+		if (gl3wClipControl != nullptr)
+			gl3wGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
 		rect_data.left = left;
@@ -2851,8 +2856,8 @@ void APIENTRY glScissorIndexedv(GLuint index, const GLint *v)
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+		if (gl3wClipControl != nullptr)
+			gl3wGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
 		rect_data.left = v[0];
