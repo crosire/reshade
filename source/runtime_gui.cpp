@@ -1126,7 +1126,7 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		ImGui::SetNextWindowPos(popup_pos);
-		if (imgui::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }))
+		if (imgui::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }, { _config_path, reshade::global_config().path(), (_config_path.parent_path() / L"ReShadeGUI.ini") }))
 		{
 			// Check that this is actually a valid preset file
 			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
@@ -1137,6 +1137,7 @@ void reshade::runtime::draw_gui_home()
 			else
 			{
 				ini_file::clear_cache(_file_selection_path);
+				ImGui::OpenPopup("##preseterror");
 			}
 		}
 
@@ -1180,6 +1181,12 @@ void reshade::runtime::draw_gui_home()
 			if (preset_name[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
 				ImGui::CloseCurrentPopup();
 
+			ImGui::EndPopup();
+		}
+
+		if (ImGui::BeginPopup("##preseterror"))
+		{
+			ImGui::TextColored(COLOR_RED, "The selected file is not a valid preset, so it was reverted back to the previous one.");
 			ImGui::EndPopup();
 		}
 

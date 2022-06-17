@@ -87,7 +87,7 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 	return res;
 }
 
-bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts)
+bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts, const std::vector<std::filesystem::path> &hidden_paths)
 {
 	if (!ImGui::BeginPopup(name))
 		return false;
@@ -146,11 +146,12 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 			if (is_selected && ImGui::IsWindowAppearing())
 				ImGui::SetScrollHereY();
+			continue;
 		}
-		else if (std::find(exts.begin(), exts.end(), entry.path().extension()) != exts.end())
-		{
+
+		if (std::find(exts.begin(), exts.end(), entry.path().extension()) != exts.end() &&
+			std::find(hidden_paths.begin(), hidden_paths.end(), entry.path()) == hidden_paths.end())
 			file_entries.push_back(entry);
-		}
 	}
 
 	// Always show file entries after all directory entries

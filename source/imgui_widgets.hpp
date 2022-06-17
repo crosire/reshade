@@ -29,8 +29,9 @@ namespace reshade::imgui
 	/// <param name="name">Name of the popup window.</param>
 	/// <param name="path">Reference that should initially be set to path to start the selection at and is then set to the chosen file or directory path by this widget.</param>
 	/// <param name="width">Width of the popup window (in pixels).</param>
-	/// <param name="exts">List of file extensions that are valid for selection, or an empty list to make this a directory selection.</param>
-	bool file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts);
+	/// <param name="extensions">List of file extensions that are valid for selection, or an empty list to make this a directory selection.</param>
+	/// <param name="hidden_paths">Optional list of file paths that are hidden.</param>
+	bool file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &extensions, const std::vector<std::filesystem::path> &hidden_paths = {});
 
 	/// <summary>
 	/// Adds a keyboard shortcut widget.
