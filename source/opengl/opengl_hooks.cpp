@@ -1469,22 +1469,32 @@ void APIENTRY glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffse
 void APIENTRY glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < drawcount; ++i)
-		glDrawArrays(mode, first[i], count[i]);
-#else
+	if (g_current_context)
+	{
+		for (GLsizei i = 0; i < drawcount; ++i)
+			if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_current_context, count[i], 1, first[i], 0))
+				return;
+	}
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArrays);
 	trampoline(mode, first, count, drawcount);
-#endif
 }
 void APIENTRY glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < drawcount; ++i)
-		glDrawElements(mode, count[i], type, indices[i]);
-#else
+	if (g_current_context)
+	{
+		update_current_primitive_topology(mode, type);
+
+		for (GLsizei i = 0; i < drawcount; ++i)
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count[i], 1, get_index_buffer_offset(indices[i]), 0, 0))
+				return;
+	}
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElements);
 	trampoline(mode, count, type, indices, drawcount);
-#endif
 }
 #endif
 
@@ -2709,12 +2719,18 @@ void APIENTRY glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLen
 void APIENTRY glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < drawcount; ++i)
-		glDrawElementsBaseVertex(mode, count[i], type, indices[i], basevertex[i]);
-#else
+	if (g_current_context)
+	{
+		update_current_primitive_topology(mode, type);
+
+		for (GLsizei i = 0; i < drawcount; ++i)
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count[i], 1, get_index_buffer_offset(indices[i]), basevertex[i], 0))
+				return;
+	}
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, drawcount, basevertex);
-#endif
 }
 #endif
 
@@ -2758,7 +2774,7 @@ void APIENTRY glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *ind
 			update_current_primitive_topology(mode, type);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-				g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
+					g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
 				return;
 		}
 		else
@@ -3291,7 +3307,6 @@ void APIENTRY glDispatchComputeIndirect(GLintptr indirect)
 
 void APIENTRY glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
-
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
@@ -3301,7 +3316,7 @@ void APIENTRY glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsiz
 		if (0 != indirect_buffer_binding)
 		{
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-				g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+					g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
 				return;
 		}
 		else
@@ -3333,7 +3348,7 @@ void APIENTRY glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *
 			update_current_primitive_topology(mode, type);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-				g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+					g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
 				return;
 		}
 		else
