@@ -387,8 +387,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 	if (!reshade::has_addon_event<reshade::addon_event::barrier>())
 		return;
 
-	temp_mem<reshade::api::resource> resources(NumBarriers);
-	temp_mem<reshade::api::resource_usage> old_state(NumBarriers), new_state(NumBarriers);
+	temp_mem<reshade::api::resource, 32> resources(NumBarriers);
+	temp_mem<reshade::api::resource_usage, 32> old_state(NumBarriers), new_state(NumBarriers);
 	for (UINT i = 0; i < NumBarriers; ++i)
 	{
 		switch (pBarriers[i].Type)
@@ -399,8 +399,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 			new_state[i] = reshade::d3d12::convert_resource_states_to_usage(pBarriers[i].Transition.StateAfter);
 			break;
 		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
-			resources[i] = to_handle(pBarriers[i].Aliasing.pResourceAfter != nullptr ? pBarriers[i].Aliasing.pResourceAfter : pBarriers[i].Aliasing.pResourceBefore);
-			old_state[i] = reshade::api::resource_usage::general;
+			resources[i] = to_handle(pBarriers[i].Aliasing.pResourceAfter);
+			old_state[i] = reshade::api::resource_usage::undefined;
 			new_state[i] = reshade::api::resource_usage::general;
 			break;
 		case D3D12_RESOURCE_BARRIER_TYPE_UAV:

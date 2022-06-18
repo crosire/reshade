@@ -982,8 +982,8 @@ void VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineSt
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	temp_mem<reshade::api::resource> resources(num_barriers);
-	temp_mem<reshade::api::resource_usage> old_state(num_barriers), new_state(num_barriers);
+	temp_mem<reshade::api::resource, 32> resources(num_barriers);
+	temp_mem<reshade::api::resource_usage, 32> old_state(num_barriers), new_state(num_barriers);
 
 	for (uint32_t i = 0; i < memoryBarrierCount; ++i)
 	{
@@ -1293,8 +1293,8 @@ void VKAPI_CALL vkCmdPipelineBarrier2(VkCommandBuffer commandBuffer, const VkDep
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	temp_mem<reshade::api::resource> resources(num_barriers);
-	temp_mem<reshade::api::resource_usage> old_state(num_barriers), new_state(num_barriers);
+	temp_mem<reshade::api::resource, 32> resources(num_barriers);
+	temp_mem<reshade::api::resource_usage, 32> old_state(num_barriers), new_state(num_barriers);
 
 	for (uint32_t i = 0; i < pDependencyInfo->memoryBarrierCount; ++i)
 	{
