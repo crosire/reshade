@@ -13,6 +13,8 @@
 
 using reshade::d3d12::to_handle;
 
+extern std::shared_mutex g_d3d12_adapter_mutex;
+
 // Monster Hunter Rise calls 'ID3D12Device::CopyDescriptorsSimple' on a device queried from a resource
 // This crashes if that device pointer is not pointing to the proxy device, due to our modified descriptor handles, so need to make sure that is the case
 HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, REFIID riid, void **ppvDevice)
@@ -20,10 +22,12 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, RE
 	const HRESULT hr = reshade::hooks::call(ID3D12Resource_GetDevice, vtable_from_instance(pResource) + 7)(pResource, riid, ppvDevice);
 	if (SUCCEEDED(hr))
 	{
+		const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
+
 		if (const auto device_proxy = get_private_pointer<D3D12Device>(static_cast<ID3D12Object *>(*ppvDevice)))
 		{
 			*ppvDevice = device_proxy;
-			InterlockedIncrement(&device_proxy->_ref);
+			device_proxy->_ref++;
 		}
 	}
 

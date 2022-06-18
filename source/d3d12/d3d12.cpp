@@ -8,10 +8,15 @@
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
 
+std::shared_mutex g_d3d12_adapter_mutex;
+
 extern thread_local bool g_in_dxgi_runtime;
 
 HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid, void **ppDevice)
 {
+	// Need to lock during device creation to ensure an existing device proxy cannot be destroyed in while it is queried below
+	const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
+
 	LOG(INFO) << "Redirecting " << "D3D12CreateDevice" << '(' << "pAdapter = " << pAdapter << ", MinimumFeatureLevel = " << std::hex << MinimumFeatureLevel << std::dec << ", riid = " << riid << ", ppDevice = " << ppDevice << ')' << " ...";
 
 	// NVIDIA Ansel creates a D3D11 device internally, so to avoid hooking that, set the flag that forces 'D3D11CreateDevice' to return early
@@ -35,7 +40,7 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 	const auto device_proxy = (device_proxy_existing != nullptr) ? device_proxy_existing : new D3D12Device(device);
 
 	if (device_proxy_existing != nullptr)
-		InterlockedIncrement(&device_proxy_existing->_ref);
+		device_proxy_existing->_ref++;
 
 	// Upgrade to the actual interface version requested here
 	if (device_proxy->check_and_upgrade_interface(riid))

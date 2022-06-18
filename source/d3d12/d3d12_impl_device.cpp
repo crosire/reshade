@@ -355,7 +355,7 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 {
 	assert(resource.handle != 0);
 
-	// This will retrieve the heap properties for placed and comitted resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
+	// This will retrieve the heap properties for placed and committed resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
 	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
