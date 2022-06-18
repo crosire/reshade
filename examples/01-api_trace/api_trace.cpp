@@ -242,6 +242,30 @@ static inline auto to_string(reshade::api::resource_usage value)
 		return "cpu_access";
 	}
 }
+static inline auto to_string(reshade::api::query_type value)
+{
+	switch (value)
+	{
+	case reshade::api::query_type::occlusion:
+		return "occlusion";
+	case reshade::api::query_type::binary_occlusion:
+		return "binary_occlusion";
+	case reshade::api::query_type::timestamp:
+		return "timestamp";
+	case reshade::api::query_type::pipeline_statistics:
+		return "pipeline_statistics";
+	case reshade::api::query_type::stream_output_statistics_0:
+		return "stream_output_statistics_0";
+	case reshade::api::query_type::stream_output_statistics_1:
+		return "stream_output_statistics_1";
+	case reshade::api::query_type::stream_output_statistics_2:
+		return "stream_output_statistics_2";
+	case reshade::api::query_type::stream_output_statistics_3:
+		return "stream_output_statistics_3";
+	default:
+		return "unknown";
+	}
+}
 
 static void on_init_swapchain(reshade::api::swapchain *swapchain)
 {
@@ -734,6 +758,42 @@ static bool on_generate_mipmaps(reshade::api::command_list *, reshade::api::reso
 	return false;
 }
 
+static bool on_begin_query(reshade::api::command_list *cmd_list, reshade::api::query_pool pool, reshade::api::query_type type, uint32_t index)
+{
+	if (!s_do_capture)
+		return false;
+
+	std::stringstream s; s << "begin_query(" << (void *)pool.handle << ", " << to_string(type) << ", " << index << ")";
+	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
+
+	return false;
+}
+static bool on_end_query(reshade::api::command_list *cmd_list, reshade::api::query_pool pool, reshade::api::query_type type, uint32_t index)
+{
+	if (!s_do_capture)
+		return false;
+
+	std::stringstream s; s << "end_query(" << (void *)pool.handle << ", " << to_string(type) << ", " << index << ")";
+	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
+
+	return false;
+}
+static bool on_copy_query_pool_results(reshade::api::command_list *cmd_list, reshade::api::query_pool pool, reshade::api::query_type type, uint32_t first, uint32_t count, reshade::api::resource dest, uint64_t dest_offset, uint32_t stride)
+{
+	if (!s_do_capture)
+		return false;
+
+	{	const std::lock_guard<std::mutex> lock(s_mutex);
+
+		assert(s_resources.find(dest.handle) != s_resources.end());
+	}
+
+	std::stringstream s; s << "copy_query_pool_results(" << (void *)pool.handle << ", " << to_string(type) << ", " << first << ", " << count << (void *)dest.handle << ", " << dest_offset << ", " << stride << ")";
+	const std::lock_guard<std::mutex> lock(s_mutex); s_capture_log.push_back(s.str());
+
+	return false;
+}
+
 static void on_present(reshade::api::command_queue *, reshade::api::swapchain *, const reshade::api::rect *, const reshade::api::rect *, uint32_t, const reshade::api::rect *)
 {
 	if (!s_do_capture)
@@ -819,6 +879,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::clear_unordered_access_view_uint>(on_clear_unordered_access_view_uint);
 		reshade::register_event<reshade::addon_event::clear_unordered_access_view_float>(on_clear_unordered_access_view_float);
 		reshade::register_event<reshade::addon_event::generate_mipmaps>(on_generate_mipmaps);
+		reshade::register_event<reshade::addon_event::begin_query>(on_begin_query);
+		reshade::register_event<reshade::addon_event::end_query>(on_end_query);
+		reshade::register_event<reshade::addon_event::copy_query_pool_results>(on_copy_query_pool_results);
 
 		reshade::register_event<reshade::addon_event::present>(on_present);
 		break;
