@@ -26,9 +26,8 @@ using namespace reshade::api;
 
 enum class clear_op
 {
-	unknown,
-	fullscreen_draw,
 	clear_depth_stencil_view,
+	fullscreen_draw,
 	unbind_depth_stencil_view,
 };
 
@@ -41,7 +40,7 @@ struct draw_stats
 };
 struct clear_stats : public draw_stats
 {
-	clear_op clear_op = clear_op::unknown;
+	clear_op clear_op = clear_op::clear_depth_stencil_view;
 	bool copied_during_frame = false;
 };
 
@@ -273,23 +272,23 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in some games)
 	switch (op)
 	{
-	case clear_op::fullscreen_draw:
-		// Mass Effect 3 in Mass Effect Legendary Edition sometimes uses a larger common depth buffer for shadow map and scene rendering, where the former uses a 1024x1024 viewport and the latter uses a viewport matching the render resolution
-		do_copy = check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, depth_stencil_backup->frame_width, depth_stencil_backup->frame_height);
-		break;
 	case clear_op::clear_depth_stencil_view:
 		// Mirror's Edge and Portal occasionally render something into a small viewport (16x16 in Mirror's Edge, 512x512 in Portal to render underwater geometry)
 		do_copy = counters.current_stats.last_viewport.width > 1024 || (counters.current_stats.last_viewport.width == 0 || depth_stencil_backup->frame_width <= 1024);
 		break;
+	case clear_op::fullscreen_draw:
+		// Mass Effect 3 in Mass Effect Legendary Edition sometimes uses a larger common depth buffer for shadow map and scene rendering, where the former uses a 1024x1024 viewport and the latter uses a viewport matching the render resolution
+		do_copy = check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, depth_stencil_backup->frame_width, depth_stencil_backup->frame_height);
+		break;
 	case clear_op::unbind_depth_stencil_view:
-		// Only copy after unbinding when a sufficient workload has executed before, to avoid too many copies during the frame (values chosen in Cyberpunk 2077)
-		do_copy = counters.current_stats.drawcalls > 3 && counters.current_stats.drawcalls_indirect == 0;
+		// DOOM Eternal only shows a single draw call in the current stats here, Cyberpunk 2077 on the other hand has multiple occurences with many draw calls, ... so have to be very carefull with any heuristics here
+		do_copy = counters.clears.empty() || (counters.current_stats.drawcalls > 8 && counters.current_stats.drawcalls_indirect == 0);
 		break;
 	}
 
 	if (do_copy)
 	{
-		if (op != clear_op::unbind_depth_stencil_view || s_preserve_depth_buffers == 2)
+		if (op != clear_op::unbind_depth_stencil_view)
 		{
 			// If clear index override is set to zero, always copy any suitable buffers
 			if (depth_stencil_backup->force_clear_index == 0)
@@ -883,7 +882,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	if (s_use_aspect_ratio_heuristics)
 	{
 		if (bool use_aspect_ratio_heuristics_ex = s_use_aspect_ratio_heuristics == 2;
-			ImGui::Checkbox("Use extended aspect ratio heuristics (enable when DLSS or resolution scaling is active)", &use_aspect_ratio_heuristics_ex))
+			ImGui::Checkbox("Use extended aspect ratio heuristics (for DLSS or resolution scaling)", &use_aspect_ratio_heuristics_ex))
 		{
 			s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics_ex ? 2 : 1;
 			reshade::config_set_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
@@ -899,7 +898,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		force_reset = true;
 	}
 
-	if (s_preserve_depth_buffers)
+	if (s_preserve_depth_buffers && device->get_api() != device_api::vulkan)
 	{
 		if (bool copy_before_fullscreen_draws = s_preserve_depth_buffers == 2;
 			ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws))
@@ -1026,7 +1025,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					clear_stats.drawcalls,
 					clear_stats.drawcalls_indirect,
 					clear_stats.vertices,
-					clear_stats.clear_op == clear_op::fullscreen_draw ? " DRAW" : clear_stats.clear_op == clear_op::unbind_depth_stencil_view ? " BIND" : "");
+					clear_stats.clear_op == clear_op::fullscreen_draw ? " Fullscreen draw call" : "");
 			}
 		}
 	}
@@ -1041,8 +1040,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		if (has_msaa_depth_stencil)
 			ImGui::TextUnformatted("Not all depth buffers are available.\nYou may have to disable MSAA in the game settings for depth buffer detection to work!");
 		if (has_no_clear_operations)
-			ImGui::Text("No clear operations were found for the selected depth buffer.\n%sisable \"Copy depth buffer before clear operations\" or select a different depth buffer!",
-				s_preserve_depth_buffers != 2 ? "Try enabling \"Copy depth buffer before fullscreen draw calls\" or d" : "D");
+			ImGui::Text("No clear operations were found for the selected depth buffer.\n%s",
+				s_preserve_depth_buffers != 2 && device->get_api() != device_api::vulkan ? "Try enabling \"Copy depth buffer before fullscreen draw calls\" or disable \"Copy depth buffer before clear operations\"!" : "Disable \"Copy depth buffer before clear operations\" or select a different depth buffer!");
 		ImGui::PopTextWrapPos();
 	}
 
