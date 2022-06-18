@@ -295,7 +295,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 			if (depth_stencil_backup->force_clear_index == 0)
 			{
 				// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge main menu)
-				do_copy = counters.current_stats.vertices >= state.best_copy_stats.vertices;
+				do_copy = counters.current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && counters.current_stats.drawcalls >= state.best_copy_stats.drawcalls);
 			}
 			else
 			{
