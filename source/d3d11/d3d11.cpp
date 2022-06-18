@@ -74,7 +74,9 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	// Use local feature level variable in case the application did not pass one in
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
+	g_in_dxgi_runtime = true;
 	HRESULT hr = reshade::hooks::call(D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &FeatureLevel, nullptr);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "D3D11CreateDeviceAndSwapChain" << " failed with error code " << hr << '.';
