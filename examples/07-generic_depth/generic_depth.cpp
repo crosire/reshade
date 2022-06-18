@@ -281,8 +281,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 		do_copy = check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, depth_stencil_backup->frame_width, depth_stencil_backup->frame_height);
 		break;
 	case clear_op::unbind_depth_stencil_view:
-		// DOOM Eternal only shows a single draw call in the current stats here, Cyberpunk 2077 on the other hand has multiple occurences with many draw calls, ... so have to be very carefull with any heuristics here
-		do_copy = counters.clears.empty() || (counters.current_stats.drawcalls > 8 && counters.current_stats.drawcalls_indirect == 0);
+		// DOOM Eternal only shows a single draw call in the current stats here, Cyberpunk 2077 on the other hand has multiple occurences with many draw calls, ... so avoid trying heuristics here
 		break;
 	}
 
@@ -542,7 +541,8 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 			state.first_draw_since_bind = true;
 
 		// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
-		if (state.current_depth_stencil != 0 && depth_stencil == 0 && (
+		if (s_preserve_depth_buffers == 2 &&
+			state.current_depth_stencil != 0 && depth_stencil == 0 && (
 			cmd_list->get_device()->get_api() == device_api::d3d12 || cmd_list->get_device()->get_api() == device_api::vulkan))
 			on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, clear_op::unbind_depth_stencil_view);
 	}
@@ -898,10 +898,12 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		force_reset = true;
 	}
 
-	if (s_preserve_depth_buffers && device->get_api() != device_api::vulkan)
+	const bool is_d3d12_or_vulkan = device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan;
+
+	if (s_preserve_depth_buffers || is_d3d12_or_vulkan)
 	{
 		if (bool copy_before_fullscreen_draws = s_preserve_depth_buffers == 2;
-			ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws))
+			ImGui::Checkbox(is_d3d12_or_vulkan ? "Copy depth buffer during frame to prevent artifacts" : "Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws))
 		{
 			s_preserve_depth_buffers = copy_before_fullscreen_draws ? 2 : 1;
 			reshade::config_set_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
@@ -999,7 +1001,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		{
 			if (item.snapshot.clears.empty())
 			{
-				has_no_clear_operations = true;
+				has_no_clear_operations = !is_d3d12_or_vulkan;
 				continue;
 			}
 
@@ -1041,7 +1043,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			ImGui::TextUnformatted("Not all depth buffers are available.\nYou may have to disable MSAA in the game settings for depth buffer detection to work!");
 		if (has_no_clear_operations)
 			ImGui::Text("No clear operations were found for the selected depth buffer.\n%s",
-				s_preserve_depth_buffers != 2 && device->get_api() != device_api::vulkan ? "Try enabling \"Copy depth buffer before fullscreen draw calls\" or disable \"Copy depth buffer before clear operations\"!" : "Disable \"Copy depth buffer before clear operations\" or select a different depth buffer!");
+				s_preserve_depth_buffers != 2 ? "Try enabling \"Copy depth buffer before fullscreen draw calls\" or disable \"Copy depth buffer before clear operations\"!" : "Disable \"Copy depth buffer before clear operations\" or select a different depth buffer!");
 		ImGui::PopTextWrapPos();
 	}
 
