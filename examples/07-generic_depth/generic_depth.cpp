@@ -744,18 +744,15 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			depth_stencil_backup->frame_width = frame_width;
 			depth_stencil_backup->frame_height = frame_height;
 
-			if (!s_preserve_depth_buffers)
+			// Copy to backup texture unless already copied during the current frame
+			if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
 			{
-				// Copy to backup texture unless already copied during the current frame
-				if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
-				{
-					// Ensure barriers are not created with 'D3D12_RESOURCE_STATE_[...]_SHADER_RESOURCE' when resource has 'D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE' flag set
-					const resource_usage old_state = best_match_desc.usage & (resource_usage::depth_stencil | resource_usage::shader_resource);
+				// Ensure barriers are not created with 'D3D12_RESOURCE_STATE_[...]_SHADER_RESOURCE' when resource has 'D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE' flag set
+				const resource_usage old_state = best_match_desc.usage & (resource_usage::depth_stencil | resource_usage::shader_resource);
 
-					cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
-					cmd_list->copy_resource(best_match, backup_texture);
-					cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
-				}
+				cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
+				cmd_list->copy_resource(best_match, backup_texture);
+				cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
 
 				// Indicate that the copy was now done, so it is not repeated in case effects are rendered by another runtime (e.g. when there are multiple present calls in a frame)
 				lock.lock();
