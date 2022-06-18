@@ -137,6 +137,9 @@ struct depth_stencil_backup
 
 	// The depth-stencil that should be copied from
 	resource depth_stencil_resource = { 0 };
+
+	uint32_t frame_width = 0;
+	uint32_t frame_height = 0;
 };
 
 struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_device_data
@@ -258,8 +261,10 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	if (counters.current_stats.drawcalls == 0)
 		return;
 
-	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in Mirror's Edge and Portal)
-	if (counters.current_stats.last_viewport.width > 0 && counters.current_stats.last_viewport.width <= 512)
+	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in Mirror's Edge, Portal and Mass Effect 3)
+	if (fullscreen_draw ?
+		!check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, depth_stencil_backup->frame_width, depth_stencil_backup->frame_height) :
+		counters.current_stats.last_viewport.width > 0 && counters.current_stats.last_viewport.width <= 1024 && depth_stencil_backup->frame_width > 1024)
 	{
 		counters.current_stats = { 0, 0 };
 		return;
@@ -735,6 +740,9 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		{
 			assert(depth_stencil_backup != nullptr && depth_stencil_backup->backup_texture != 0 && best_snapshot != nullptr);
 			const resource backup_texture = depth_stencil_backup->backup_texture;
+
+			depth_stencil_backup->frame_width = frame_width;
+			depth_stencil_backup->frame_height = frame_height;
 
 			if (!s_preserve_depth_buffers)
 			{
