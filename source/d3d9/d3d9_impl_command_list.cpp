@@ -548,11 +548,6 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			// Capture and restore state, render targets, depth stencil surface and viewport (which all may change next)
 			_backup_state.capture();
 
-			// For some reason rendering below water acts up in Source Engine games if the active clip plane is not cleared to zero before executing any draw calls ...
-			// Also copying with a fullscreen triangle rather than a quad of two triangles solves some artifacts that otherwise occur in the second triangle there as well. Not sure what is going on ...
-			const float zero_clip_plane[4] = { 0, 0, 0, 0 };
-			_orig->SetClipPlane(0, zero_clip_plane);
-
 			// Perform copy using rasterization pipeline
 			_copy_state->Apply();
 

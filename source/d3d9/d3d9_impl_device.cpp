@@ -117,6 +117,15 @@ bool reshade::d3d9::device_impl::on_init()
 		_orig->SetTransform(D3DTS_PROJECTION, &identity_matrix);
 		_orig->SetTransform(D3DTS_WORLD, &identity_matrix);
 
+		// For some reason rendering below water acts up in Source Engine games if the active clip plane is not cleared to zero before executing any draw calls ...
+		// Also copying with a fullscreen triangle rather than a quad of two triangles solves some artifacts that otherwise occur in the second triangle there as well. Not sure what is going on ...
+		const float zero_clip_plane[4] = { 0, 0, 0, 0 };
+		_orig->SetClipPlane(0, zero_clip_plane);
+
+		// Drawing the texture fails sometimes in Star Wars: Republic Commando if the unused stages are not unset
+		for (UINT i = 1; i < _caps.MaxSimultaneousTextures; ++i)
+			_orig->SetTexture(i, nullptr);
+
 		hr = _orig->EndStateBlock(&_copy_state);
 	}
 
