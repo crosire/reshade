@@ -679,7 +679,8 @@ void reshade::runtime::on_present()
 			const api::rect scissor_rect = { 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height) };
 			cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
 
-			cmd_list->bind_render_targets_and_depth_stencil(1, &_back_buffer_targets[2 + back_buffer_index * 2]);
+			const bool srgb_write_enable = (_back_buffer_format == api::format::r8g8b8a8_unorm_srgb || _back_buffer_format == api::format::b8g8r8a8_unorm_srgb);
+			cmd_list->bind_render_targets_and_depth_stencil(1, &_back_buffer_targets[2 + back_buffer_index * 2 + srgb_write_enable]);
 
 			cmd_list->draw(3, 1, 0, 0);
 
