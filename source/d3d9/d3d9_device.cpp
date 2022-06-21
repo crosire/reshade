@@ -632,7 +632,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 				com_ptr<IDirect3DSurface9> surface;
 				if (SUCCEEDED(resource->GetCubeMapSurface(face, level, &surface)))
 				{
-					surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
+					surface->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
 
 					if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 						reshade::hooks::install("IDirect3DSurface9::LockRect", vtable_from_instance(surface.get()), 13, reinterpret_cast<reshade::hook::address>(&IDirect3DSurface9_LockRect));

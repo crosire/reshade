@@ -17,7 +17,7 @@ Direct3DSurface9::Direct3DSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *o
 	_orig_desc(desc)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const auto device_proxy = this;
+	const auto device_proxy = device;
 	_orig->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
 #endif
 	const auto surface_proxy = this;

@@ -75,6 +75,9 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 		return ref;
 	}
 
+	// Remove pointer to this proxy object from the private data of the device (in case the device unexpectedly survives)
+	_orig->SetPrivateData(__uuidof(D3D10Device), 0, nullptr);
+
 	const auto orig = _orig;
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") and " <<
