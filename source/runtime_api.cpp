@@ -612,7 +612,8 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	}
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
-	_graphics_queue->wait_idle();
+	if (_is_initialized)
+		_graphics_queue->wait_idle();
 
 	// Update texture bindings
 	size_t num_bindings = 0;

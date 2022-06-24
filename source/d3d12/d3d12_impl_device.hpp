@@ -16,6 +16,7 @@ namespace reshade::d3d12
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
 	{
 		friend class command_list_impl;
+		friend class command_list_immediate_impl;
 		friend class command_queue_impl;
 
 	public:
@@ -77,6 +78,8 @@ namespace reshade::d3d12
 
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view, const char * ) final {}
+
+		command_list_immediate_impl *get_first_immediate_command_list();
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;

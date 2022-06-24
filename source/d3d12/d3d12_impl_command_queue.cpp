@@ -19,7 +19,7 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
-		_immediate_cmd_list = new command_list_immediate_impl(device);
+		_immediate_cmd_list = new command_list_immediate_impl(device, queue);
 		// Ensure the immediate command list was initialized successfully, otherwise disable it
 		if (_immediate_cmd_list->_orig == nullptr)
 		{
@@ -98,7 +98,7 @@ void reshade::d3d12::command_queue_impl::wait_idle() const
 void reshade::d3d12::command_queue_impl::flush_immediate_command_list() const
 {
 	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_orig);
+		_immediate_cmd_list->flush();
 }
 
 void reshade::d3d12::command_queue_impl::begin_debug_event(const char *label, const float color[4])

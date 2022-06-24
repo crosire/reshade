@@ -9,8 +9,8 @@
 
 #define vk _device_impl->_dispatch_table
 
-reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, uint32_t queue_family_index) :
-	command_list_impl(device, VK_NULL_HANDLE)
+reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, uint32_t queue_family_index, VkQueue queue) :
+	command_list_impl(device, VK_NULL_HANDLE), _parent_queue(queue)
 {
 	{	VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 		create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -83,7 +83,7 @@ reshade::vulkan::command_list_immediate_impl::~command_list_immediate_impl()
 	_orig = VK_NULL_HANDLE;
 }
 
-bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores)
+bool reshade::vulkan::command_list_immediate_impl::flush(VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores)
 {
 	if (!_has_commands)
 		return true;
@@ -122,7 +122,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, VkSemaph
 	// Only reset fence before an actual submit which can signal it again
 	vk.ResetFences(_device_impl->_orig, 1, &_cmd_fences[_cmd_index]);
 
-	if (vk.QueueSubmit(queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
+	if (vk.QueueSubmit(_parent_queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
 	{
 		LOG(ERROR) << "Failed to submit immediate command list!";
 
@@ -157,7 +157,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, VkSemaph
 	_orig = _cmd_buffers[_cmd_index];
 	return true;
 }
-bool reshade::vulkan::command_list_immediate_impl::flush_and_wait(VkQueue queue)
+bool reshade::vulkan::command_list_immediate_impl::flush_and_wait()
 {
 	if (!_has_commands)
 		return true;
@@ -166,7 +166,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush_and_wait(VkQueue queue)
 	const uint32_t cmd_index_to_wait_on = _cmd_index;
 
 	uint32_t num_wait_semaphores = 0; // No semaphores to wait on
-	if (!flush(queue, nullptr, num_wait_semaphores))
+	if (!flush(nullptr, num_wait_semaphores))
 		return false;
 
 	// Wait for the submitted work to finish and reset fence again for next use

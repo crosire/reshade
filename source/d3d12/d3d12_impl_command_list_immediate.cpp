@@ -7,8 +7,8 @@
 #include "d3d12_impl_command_list_immediate.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 
-reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device) :
-	command_list_impl(device, nullptr)
+reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, ID3D12CommandQueue *queue) :
+	command_list_impl(device, nullptr), _parent_queue(queue)
 {
 	// Create multiple command allocators to buffer for multiple frames
 	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
@@ -39,7 +39,7 @@ reshade::d3d12::command_list_immediate_impl::~command_list_immediate_impl()
 	_orig = nullptr;
 }
 
-bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queue)
+bool reshade::d3d12::command_list_immediate_impl::flush()
 {
 	if (!_has_commands)
 		return true;
@@ -64,10 +64,10 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 	}
 
 	ID3D12CommandList *const cmd_lists[] = { _orig };
-	queue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
+	_parent_queue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
 
 	if (const UINT64 sync_value = _fence_value[_cmd_index] + NUM_COMMAND_FRAMES;
-		SUCCEEDED(queue->Signal(_fence[_cmd_index].get(), sync_value)))
+		SUCCEEDED(_parent_queue->Signal(_fence[_cmd_index].get(), sync_value)))
 		_fence_value[_cmd_index] = sync_value;
 
 	// Continue with next command list now that the current one was submitted
@@ -86,7 +86,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 	// Reset command list using current command allocator and put it into the recording state
 	return SUCCEEDED(_orig->Reset(_cmd_alloc[_cmd_index].get(), nullptr));
 }
-bool reshade::d3d12::command_list_immediate_impl::flush_and_wait(ID3D12CommandQueue *queue)
+bool reshade::d3d12::command_list_immediate_impl::flush_and_wait()
 {
 	if (!_has_commands)
 		return true;
@@ -94,7 +94,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush_and_wait(ID3D12CommandQu
 	// Index is updated during flush below, so keep track of the current one to wait on
 	const UINT cmd_index_to_wait_on = _cmd_index;
 
-	if (!flush(queue))
+	if (!flush())
 		return false;
 
 	if (FAILED(_fence[cmd_index_to_wait_on]->SetEventOnCompletion(_fence_value[cmd_index_to_wait_on], _fence_event)))
