@@ -436,6 +436,40 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 
 #endif
 
+static auto get_sized_internal_format(GLenum internalformat) -> GLenum
+{
+	// Convert base internal formats to sized internal formats
+	switch (internalformat)
+	{
+	case 1:
+	case GL_RED:
+		return GL_R8;
+	case GL_ALPHA:
+		return GL_ALPHA8;
+	case GL_LUMINANCE:
+		return GL_LUMINANCE8;
+	case GL_LUMINANCE_ALPHA:
+		return GL_LUMINANCE8_ALPHA8;
+	case GL_INTENSITY:
+		return GL_INTENSITY8;
+	case 2:
+	case GL_RG:
+		return GL_RG8;
+	case 3:
+	case GL_RGB:
+		return GL_RGB8;
+	case 4:
+	case GL_RGBA:
+		return GL_RGBA8;
+	case GL_DEPTH_STENCIL:
+		return GL_DEPTH24_STENCIL8;
+	case GL_DEPTH_COMPONENT:
+		return GL_DEPTH_COMPONENT16;
+	default:
+		return internalformat;
+	}
+}
+
 static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLuint
 {
 	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
@@ -464,48 +498,11 @@ static __forceinline void update_current_primitive_topology(GLenum mode, GLenum 
 #ifdef GL_VERSION_1_0
 HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
-	// Convert base internal formats to sized internal formats
-	switch (internalformat)
-	{
-	case 1:
-	case GL_RED:
-		internalformat = GL_R8;
-		break;
-	case GL_ALPHA:
-		internalformat = GL_ALPHA8;
-		break;
-	case GL_LUMINANCE:
-		internalformat = GL_LUMINANCE8;
-		break;
-	case GL_LUMINANCE_ALPHA:
-		internalformat = GL_LUMINANCE8_ALPHA8;
-		break;
-	case GL_INTENSITY:
-		internalformat = GL_INTENSITY8;
-		break;
-	case 2:
-	case GL_RG:
-		internalformat = GL_RG8;
-		break;
-	case 3:
-	case GL_RGB:
-		internalformat = GL_RGB8;
-		break;
-	case 4:
-	case GL_RGBA:
-		internalformat = GL_RGBA8;
-		break;
-	case GL_DEPTH_STENCIL:
-		internalformat = GL_DEPTH24_STENCIL8;
-		break;
-	case GL_DEPTH_COMPONENT:
-		internalformat = GL_DEPTH_COMPONENT16;
-		break;
-	}
-
 	static const auto trampoline = reshade::hooks::call(glTexImage1D);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_1D);
 
@@ -542,48 +539,11 @@ HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint interna
 }
 HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
-	// Convert base internal formats to sized internal formats
-	switch (internalformat)
-	{
-	case 1:
-	case GL_RED:
-		internalformat = GL_R8;
-		break;
-	case GL_ALPHA:
-		internalformat = GL_ALPHA8;
-		break;
-	case GL_LUMINANCE:
-		internalformat = GL_LUMINANCE8;
-		break;
-	case GL_LUMINANCE_ALPHA:
-		internalformat = GL_LUMINANCE8_ALPHA8;
-		break;
-	case GL_INTENSITY:
-		internalformat = GL_INTENSITY8;
-		break;
-	case 2:
-	case GL_RG:
-		internalformat = GL_RG8;
-		break;
-	case 3:
-	case GL_RGB:
-		internalformat = GL_RGB8;
-		break;
-	case 4:
-	case GL_RGBA:
-		internalformat = GL_RGBA8;
-		break;
-	case GL_DEPTH_STENCIL:
-		internalformat = GL_DEPTH24_STENCIL8;
-		break;
-	case GL_DEPTH_COMPONENT:
-		internalformat = GL_DEPTH_COMPONENT16;
-		break;
-	}
-
 	static const auto trampoline = reshade::hooks::call(glTexImage2D);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D || target == GL_PROXY_TEXTURE_1D_ARRAY || target == GL_PROXY_TEXTURE_RECTANGLE || target == GL_PROXY_TEXTURE_CUBE_MAP);
 	// Ignore all cube map faces except for the first
@@ -1212,48 +1172,11 @@ HOOK_EXPORT void APIENTRY glDrawElements(GLenum mode, GLsizei count, GLenum type
 #ifdef GL_VERSION_1_2
 void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
-	// Convert base internal formats to sized internal formats
-	switch (internalformat)
-	{
-	case 1:
-	case GL_RED:
-		internalformat = GL_R8;
-		break;
-	case GL_ALPHA:
-		internalformat = GL_ALPHA8;
-		break;
-	case GL_LUMINANCE:
-		internalformat = GL_LUMINANCE8;
-		break;
-	case GL_LUMINANCE_ALPHA:
-		internalformat = GL_LUMINANCE8_ALPHA8;
-		break;
-	case GL_INTENSITY:
-		internalformat = GL_INTENSITY8;
-		break;
-	case 2:
-	case GL_RG:
-		internalformat = GL_RG8;
-		break;
-	case 3:
-	case GL_RGB:
-		internalformat = GL_RGB8;
-		break;
-	case 4:
-	case GL_RGBA:
-		internalformat = GL_RGBA8;
-		break;
-	case GL_DEPTH_STENCIL:
-		internalformat = GL_DEPTH24_STENCIL8;
-		break;
-	case GL_DEPTH_COMPONENT:
-		internalformat = GL_DEPTH_COMPONENT16;
-		break;
-	}
-
 	static const auto trampoline = reshade::hooks::call(glTexImage3D);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_3D || target == GL_PROXY_TEXTURE_2D_ARRAY || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY);
 
@@ -2614,6 +2537,8 @@ void APIENTRY glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum int
 	static const auto trampoline = reshade::hooks::call(glTexImage2DMultisample);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	if (g_current_context)
 	{
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
@@ -2644,6 +2569,8 @@ void APIENTRY glTexImage3DMultisample(GLenum target, GLsizei samples, GLenum int
 	static const auto trampoline = reshade::hooks::call(glTexImage3DMultisample);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	if (g_current_context)
 	{
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
