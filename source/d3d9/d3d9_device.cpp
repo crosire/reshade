@@ -81,16 +81,14 @@ void Direct3DDevice9::init_auto_depth_stencil()
 		// Need to replace auto depth-stencil if an add-on modified the description
 		if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
 			SUCCEEDED(create_surface_replacement(new_desc, &auto_depth_stencil_replacement)))
-		{
-			// The device will hold a reference to the surface after binding it, so can release this one afterwards
-			_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
-
 			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
-		}
 	}
 
-	const auto surface = auto_depth_stencil.get();
-	_auto_depth_stencil = new Direct3DSurface9(this, surface, old_desc);
+	const auto surface = auto_depth_stencil.release(); // This internal reference is later released in 'reset_auto_depth_stencil' below
+	_auto_depth_stencil = new Direct3DDepthStencilSurface9(this, surface, old_desc);
+
+	// The auto depth-stencil starts with a public reference count of zero
+	_auto_depth_stencil->_ref = 0;
 
 	// In case surface was replaced with a texture resource
 	const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
@@ -118,12 +116,18 @@ void Direct3DDevice9::init_auto_depth_stencil()
 	}, to_handle(surface).handle == resource.handle ? 1 : 0);
 
 	// Communicate default state to add-ons
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, to_handle(surface));
+	SetDepthStencilSurface(_auto_depth_stencil);
 }
 void Direct3DDevice9::reset_auto_depth_stencil()
 {
-	assert(_auto_depth_stencil == nullptr || _auto_depth_stencil.ref_count() == 1);
-	_auto_depth_stencil.reset();
+	if (_auto_depth_stencil == nullptr)
+		return;
+
+	assert(_auto_depth_stencil->_ref == 0);
+	_auto_depth_stencil->_orig->Release();
+
+	delete _auto_depth_stencil;
+	_auto_depth_stencil = nullptr;
 }
 #endif
 
@@ -894,7 +898,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 
 #if RESHADE_ADDON
 		const auto surface = *ppSurface;
-		*ppSurface = new Direct3DSurface9(this, surface, old_desc);
+		*ppSurface = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 
 		// In case surface was replaced with a texture resource
 		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
@@ -1011,10 +1015,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSu
 	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
 
 #if RESHADE_ADDON
-	if (com_ptr<Direct3DSurface9> surface_proxy;
+	if (com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
 		SUCCEEDED(pSrcSurface->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
 		pSrcSurface = surface_proxy->_orig;
-	if (com_ptr<Direct3DSurface9> surface_proxy;
+	if (com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
 		SUCCEEDED(pDstSurface->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
 		pDstSurface = surface_proxy->_orig;
 #endif
@@ -1182,7 +1186,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
 #if RESHADE_ADDON
-	if (com_ptr<Direct3DSurface9> surface_proxy;
+	if (com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
 		pNewZStencil != nullptr &&
 		SUCCEEDED(pNewZStencil->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
 		pNewZStencil = surface_proxy->_orig;
@@ -1220,11 +1224,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 		assert(ppZStencilSurface != nullptr);
 
 		const auto surface = *ppZStencilSurface;
-		const auto surface_proxy = get_private_pointer_d3d9<Direct3DSurface9>(surface);
+		const auto surface_proxy = get_private_pointer_d3d9<Direct3DDepthStencilSurface9>(surface);
 		if (surface_proxy != nullptr)
 		{
-			surface->Release();
 			surface_proxy->AddRef();
+			surface->Release();
 			*ppZStencilSurface = surface_proxy;
 		}
 	}
@@ -2259,7 +2263,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 
 #if RESHADE_ADDON
 		const auto surface = *ppSurface;
-		*ppSurface = new Direct3DSurface9(this, surface, old_desc);
+		*ppSurface = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 
 		// In case surface was replaced with a texture resource
 		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
