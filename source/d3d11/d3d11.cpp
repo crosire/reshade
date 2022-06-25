@@ -59,7 +59,9 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 #ifndef NDEBUG
 	// Remove flag that prevents turning on the debug layer
 	Flags &= ~D3D11_CREATE_DEVICE_PREVENT_ALTERING_LAYER_SETTINGS_FROM_REGISTRY;
+#endif
 
+#ifdef RESHADE_TEST_APPLICATION
 	// Perform dummy call to 'CreateDXGIFactory1' to ensure virtual function table hooks are set up correctly
 	// This is done here in case a third party is hooking the factory too, to ensure the call chain of the factory methods is consistent:
 	//    App -> ReShade -> X (some third party that installed hooks) -> driver
