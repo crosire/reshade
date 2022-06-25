@@ -478,8 +478,9 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 		return false; // This is a draw call with no depth-stencil bound
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (s_preserve_depth_buffers == 2 &&
-		vertices == 6 && instances == 1 &&
+	const bool fullscreen_draw = vertices == 6 && instances == 1;
+	if (fullscreen_draw &&
+		s_preserve_depth_buffers == 2 &&
 		state.first_draw_since_bind &&
 		// But ignore that in Vulkan (since it is invalid to copy a resource inside an active render pass)
 		cmd_list->get_device()->get_api() != device_api::vulkan)
@@ -492,7 +493,10 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices * instances;
 	counters.current_stats.drawcalls += 1;
-	counters.current_stats.last_viewport = state.current_viewport;
+
+	// Skip updating last viewport for fullscreen draw calls, to prevent a clear operation in Prince of Persia: The Sands of Time from getting filtered out
+	if (!fullscreen_draw)
+		counters.current_stats.last_viewport = state.current_viewport;
 
 	return false;
 }
