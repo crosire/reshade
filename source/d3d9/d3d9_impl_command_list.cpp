@@ -408,7 +408,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 	if ((src_box != nullptr || dst_box != nullptr) && (filter == api::filter_mode::min_mag_mip_linear || filter == api::filter_mode::min_mag_linear_mip_point))
 		stretch_filter_type = D3DTEXF_LINEAR;
 
-	switch (src_object->GetType() | (dst_object->GetType() << 4))
+	switch (IDirect3DResource9_GetType(src_object) | (IDirect3DResource9_GetType(dst_object) << 4))
 	{
 		case D3DRTYPE_SURFACE | (D3DRTYPE_SURFACE << 4):
 		{
@@ -418,9 +418,9 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			com_ptr<IDirect3DSurface9> dst_surface = static_cast<IDirect3DSurface9 *>(dst_object);
 
 			D3DSURFACE_DESC src_desc;
-			src_surface->GetDesc(&src_desc);
+			IDirect3DSurface9_GetDesc(src_surface.get(), &src_desc);
 			D3DSURFACE_DESC dst_desc;
-			dst_surface->GetDesc(&dst_desc);
+			IDirect3DSurface9_GetDesc(dst_surface.get(), &dst_desc);
 
 			if (src_desc.Pool == D3DPOOL_DEFAULT && dst_desc.Pool == D3DPOOL_SYSTEMMEM)
 			{
@@ -453,21 +453,21 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 		{
 			assert(src_subresource == 0);
 
-			const DWORD dst_level_count = static_cast<IDirect3DBaseTexture9 *>(dst_object)->GetLevelCount();
+			const DWORD dst_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(dst_object));
 			const DWORD dst_level = dst_subresource % dst_level_count;
 
 			com_ptr<IDirect3DSurface9> src_surface = static_cast<IDirect3DSurface9 *>(src_object);
 
 			com_ptr<IDirect3DSurface9> dst_surface;
 			if (FAILED(dst_is_regular_texture ?
-					static_cast<IDirect3DTexture9 *>(dst_object)->GetSurfaceLevel(dst_level, &dst_surface) :
-					static_cast<IDirect3DCubeTexture9 *>(dst_object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(dst_subresource / dst_level_count), dst_level, &dst_surface)))
+					IDirect3DTexture9_GetSurfaceLevel(static_cast<IDirect3DTexture9 *>(dst_object), dst_level, &dst_surface) :
+					IDirect3DCubeTexture9_GetCubeMapSurface(static_cast<IDirect3DCubeTexture9 *>(dst_object), static_cast<D3DCUBEMAP_FACES>(dst_subresource / dst_level_count), dst_level, &dst_surface)))
 				break;
 
 			D3DSURFACE_DESC src_desc;
-			src_surface->GetDesc(&src_desc);
+			IDirect3DSurface9_GetDesc(src_surface.get(), &src_desc);
 			D3DSURFACE_DESC dst_desc;
-			dst_surface->GetDesc(&dst_desc);
+			IDirect3DSurface9_GetDesc(dst_surface.get(), &dst_desc);
 
 			if (src_desc.Pool == D3DPOOL_DEFAULT && dst_desc.Pool == D3DPOOL_SYSTEMMEM)
 			{
@@ -498,23 +498,23 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 		}
 		case D3DRTYPE_CUBETEXTURE | (D3DRTYPE_TEXTURE << 4):
 		{
-			const DWORD src_level_count = static_cast<IDirect3DBaseTexture9 *>(src_object)->GetLevelCount();
+			const DWORD src_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(src_object));
 			const DWORD src_level = src_subresource % src_level_count;
 
 			com_ptr<IDirect3DSurface9> src_surface;
 			if (FAILED(src_is_regular_texture ?
-					static_cast<IDirect3DTexture9 *>(src_object)->GetSurfaceLevel(src_level, &src_surface) :
-					static_cast<IDirect3DCubeTexture9 *>(src_object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(src_subresource / src_level_count), src_level, &src_surface)))
+					IDirect3DTexture9_GetSurfaceLevel(static_cast<IDirect3DTexture9 *>(src_object), src_level, &src_surface) :
+					IDirect3DCubeTexture9_GetCubeMapSurface(static_cast<IDirect3DCubeTexture9 *>(src_object), static_cast<D3DCUBEMAP_FACES>(src_subresource / src_level_count), src_level, &src_surface)))
 				break;
 
 			com_ptr<IDirect3DSurface9> dst_surface;
-			if (FAILED(static_cast<IDirect3DTexture9 *>(dst_object)->GetSurfaceLevel(dst_subresource, &dst_surface)))
+			if (FAILED(IDirect3DTexture9_GetSurfaceLevel(static_cast<IDirect3DTexture9 *>(dst_object), dst_subresource, &dst_surface)))
 				break;
 
 			D3DSURFACE_DESC src_desc;
-			src_surface->GetDesc(&src_desc);
+			IDirect3DSurface9_GetDesc(src_surface.get(), &src_desc);
 			D3DSURFACE_DESC dst_desc;
-			dst_surface->GetDesc(&dst_desc);
+			IDirect3DSurface9_GetDesc(dst_surface.get(), &dst_desc);
 
 			com_ptr<IDirect3DSurface9> target_surface = dst_surface;
 
@@ -671,21 +671,21 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 		{
 			assert(dst_subresource == 0);
 
-			const DWORD src_level_count = static_cast<IDirect3DBaseTexture9 *>(src_object)->GetLevelCount();
+			const DWORD src_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(src_object));
 			const DWORD src_level = src_subresource % src_level_count;
 
 			com_ptr<IDirect3DSurface9> src_surface;
 			if (FAILED(src_is_regular_texture ?
-					static_cast<IDirect3DTexture9 *>(src_object)->GetSurfaceLevel(src_level, &src_surface) :
-					static_cast<IDirect3DCubeTexture9 *>(src_object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(src_subresource / src_level_count), src_level, &src_surface)))
+					IDirect3DTexture9_GetSurfaceLevel(static_cast<IDirect3DTexture9 *>(src_object), src_level, &src_surface) :
+					IDirect3DCubeTexture9_GetCubeMapSurface(static_cast<IDirect3DCubeTexture9 *>(src_object), static_cast<D3DCUBEMAP_FACES>(src_subresource / src_level_count), src_level, &src_surface)))
 				break;
 
 			com_ptr<IDirect3DSurface9> dst_surface = static_cast<IDirect3DSurface9 *>(dst_object);
 
 			D3DSURFACE_DESC src_desc;
-			src_surface->GetDesc(&src_desc);
+			IDirect3DSurface9_GetDesc(src_surface.get(), &src_desc);
 			D3DSURFACE_DESC dst_desc;
-			dst_surface->GetDesc(&dst_desc);
+			IDirect3DSurface9_GetDesc(dst_surface.get(), &dst_desc);
 
 			com_ptr<IDirect3DSurface9> target_surface = dst_surface;
 
