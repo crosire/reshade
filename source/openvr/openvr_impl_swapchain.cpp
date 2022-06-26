@@ -12,6 +12,7 @@
 #include "d3d11/d3d11_impl_state_block.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
+#include "opengl/opengl_impl_swapchain.hpp"
 #include "opengl/opengl_impl_state_block.hpp"
 
 reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor) :
@@ -60,6 +61,10 @@ reshade::openvr::swapchain_d3d12_impl::swapchain_d3d12_impl(D3D12CommandQueue *q
 
 reshade::openvr::swapchain_impl::~swapchain_impl()
 {
+	extern thread_local reshade::opengl::swapchain_impl *g_current_context;
+	if (static_cast<api::device_api>(_renderer_id) == api::device_api::opengl && g_current_context == nullptr)
+		return; // Cannot clean up if OpenGL context was already destroyed
+
 	on_reset();
 
 	switch (_device->get_api())
