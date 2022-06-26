@@ -398,10 +398,12 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		format != D3DFMT_UNKNOWN)
 		internal_desc.Format = format;
 
-	if (desc.texture.samples > 1)
+	if (desc.texture.samples <= 1)
+		internal_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
+	else if (internal_desc.MultiSampleType != D3DMULTISAMPLE_NONMASKABLE)
 		internal_desc.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.texture.samples);
 	else
-		internal_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
+		internal_desc.MultiSampleQuality = desc.texture.samples - 1;
 
 	if (internal_desc.Pool != D3DPOOL_MANAGED)
 	{
@@ -559,6 +561,8 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 
 	if (internal_desc.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
 		desc.texture.samples = static_cast<uint16_t>(internal_desc.MultiSampleType);
+	else if (internal_desc.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
+		desc.texture.samples = static_cast<uint16_t>(internal_desc.MultiSampleQuality + 1);
 	else
 		desc.texture.samples = 1;
 
