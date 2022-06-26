@@ -1415,35 +1415,10 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 		_orig_base_gpu_handle = _orig->GetGPUDescriptorHandleForHeapStart();
 	}
 }
-
-reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data) const
-{
-#ifdef _WIN64
-	assert((handle.ptr >> 56) == 0);
-#endif
-
-	return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE  reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type) const
-{
-	if (type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-	{
-		D3D12_DESCRIPTOR_HEAP_TYPE actual_type;
-		handle = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_set(handle), actual_type);
-		assert(type == actual_type);
-	}
-
-	return handle;
-}
 #endif
 
 reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data) const
 {
-#ifdef _WIN64
-	assert((handle.ptr >> 56) == 0);
-#endif
-
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const std::shared_lock<std::shared_mutex> lock(_mutex);
 
@@ -1465,6 +1440,9 @@ reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_
 	assert(false);
 	return { 0 };
 #else
+#ifdef _WIN64
+	assert((handle.ptr >> 56) == 0);
+#endif
 	return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
 #endif
 }
