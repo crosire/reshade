@@ -1098,12 +1098,14 @@ void reshade::runtime::draw_gui_home()
 		if (!_performance_mode)
 		{
 			ImGui::SameLine(0, button_spacing);
+			ImGui::BeginDisabled(_is_in_between_presets_transition);
 			if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 			{
 				ini_file::load_cache(_current_preset_path).clear();
 				save_current_preset();
 				ini_file::flush_cache(_current_preset_path);
 			}
+			ImGui::EndDisabled();
 
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
