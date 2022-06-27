@@ -261,35 +261,77 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 	return true;
 }
 
-#if RESHADE_FX
+#if RESHADE_ADDON && RESHADE_FX
 void reshade::openvr::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-	switch (_device->get_api())
+	if (!_is_in_present_call)
 	{
-	case api::device_api::d3d10:
-		static_cast<d3d10::state_block *>(_app_state)->capture();
-		break;
-	case api::device_api::d3d11:
-		static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native()));
-		break;
-	case api::device_api::opengl:
-		static_cast<opengl::state_block *>(_app_state)->capture(false);
-		break;
+		switch (_device->get_api())
+		{
+		case api::device_api::d3d10:
+			static_cast<d3d10::state_block *>(_app_state)->capture();
+			break;
+		case api::device_api::d3d11:
+			static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native()));
+			break;
+		case api::device_api::opengl:
+			static_cast<opengl::state_block *>(_app_state)->capture(false);
+			break;
+		}
 	}
 
 	runtime::render_effects(cmd_list, rtv, rtv_srgb);
 
-	switch (_device->get_api())
+	if (!_is_in_present_call)
 	{
-	case api::device_api::d3d10:
-		static_cast<d3d10::state_block *>(_app_state)->apply_and_release();
-		break;
-	case api::device_api::d3d11:
-		static_cast<d3d11::state_block *>(_app_state)->apply_and_release();
-		break;
-	case api::device_api::opengl:
-		static_cast<opengl::state_block *>(_app_state)->apply(false);
-		break;
+		switch (_device->get_api())
+		{
+		case api::device_api::d3d10:
+			static_cast<d3d10::state_block *>(_app_state)->apply_and_release();
+			break;
+		case api::device_api::d3d11:
+			static_cast<d3d11::state_block *>(_app_state)->apply_and_release();
+			break;
+		case api::device_api::opengl:
+			static_cast<opengl::state_block *>(_app_state)->apply(false);
+			break;
+		}
+	}
+}
+void reshade::openvr::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	if (!_is_in_present_call)
+	{
+		switch (_device->get_api())
+		{
+		case api::device_api::d3d10:
+			static_cast<d3d10::state_block *>(_app_state)->capture();
+			break;
+		case api::device_api::d3d11:
+			static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native()));
+			break;
+		case api::device_api::opengl:
+			static_cast<opengl::state_block *>(_app_state)->capture(false);
+			break;
+		}
+	}
+
+	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
+
+	if (!_is_in_present_call)
+	{
+		switch (_device->get_api())
+		{
+		case api::device_api::d3d10:
+			static_cast<d3d10::state_block *>(_app_state)->apply_and_release();
+			break;
+		case api::device_api::d3d11:
+			static_cast<d3d11::state_block *>(_app_state)->apply_and_release();
+			break;
+		case api::device_api::opengl:
+			static_cast<opengl::state_block *>(_app_state)->apply(false);
+			break;
+		}
 	}
 }
 #endif

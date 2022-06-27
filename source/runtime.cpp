@@ -545,6 +545,10 @@ void reshade::runtime::on_present()
 {
 	assert(is_initialized());
 
+#if RESHADE_ADDON
+	_is_in_present_call = true;
+#endif
+
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	uint32_t back_buffer_index = get_current_back_buffer_index();
@@ -697,8 +701,9 @@ void reshade::runtime::on_present()
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_present>(this);
-#endif
 
+	_is_in_present_call = false;
+#endif
 	_effects_rendered_this_frame = false;
 
 	// Reset input status

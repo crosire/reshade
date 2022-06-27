@@ -19,13 +19,10 @@ namespace reshade::d3d10
 		void capture();
 		void apply_and_release();
 
-		bool has_captured() const { return _has_captured; }
-
 	private:
 		void release_all_device_objects();
 
 		com_ptr<ID3D10Device> _device;
-		bool _has_captured = false;
 		ID3D10InputLayout *_ia_input_layout;
 		D3D10_PRIMITIVE_TOPOLOGY _ia_primitive_topology;
 		ID3D10Buffer *_ia_vertex_buffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];

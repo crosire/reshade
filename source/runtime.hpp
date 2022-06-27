@@ -267,6 +267,11 @@ namespace reshade
 		api::color_space _back_buffer_color_space = api::color_space::srgb_nonlinear;
 		bool _is_vr = false;
 
+#if RESHADE_ADDON
+		bool _is_in_api_call = false;
+		bool _is_in_present_call = false;
+#endif
+
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
@@ -353,10 +358,6 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 		unsigned long long _framecount = 0;
-
-#if RESHADE_ADDON
-		bool _is_in_api_call = false;
-#endif
 		#pragma endregion
 
 		#pragma region Effect Loading

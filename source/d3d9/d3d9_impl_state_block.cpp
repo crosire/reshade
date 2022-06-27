@@ -26,7 +26,7 @@ reshade::d3d9::state_block::~state_block()
 
 void reshade::d3d9::state_block::capture()
 {
-	assert(!has_captured());
+	assert(_state_block == nullptr);
 
 	if (SUCCEEDED(_device->CreateStateBlock(D3DSBT_ALL, &_state_block)))
 		_state_block->Capture();

@@ -69,7 +69,7 @@ bool reshade::d3d12::swapchain_impl::on_init()
 	assert(_orig != nullptr);
 
 	DXGI_SWAP_CHAIN_DESC swap_desc;
-	// Get description from IDXGISwapChain interface, since later versions are slightly different
+	// Get description from 'IDXGISwapChain' interface, since later versions are slightly different
 	if (FAILED(_orig->GetDesc(&swap_desc)))
 		return false;
 
@@ -114,7 +114,7 @@ void reshade::d3d12::swapchain_impl::on_reset()
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
-	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
+	// Make sure none of the resources below are currently in use (in case the runtime was initialized previously)
 	_graphics_queue->wait_idle();
 
 	_backbuffers.clear();
