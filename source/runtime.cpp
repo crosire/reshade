@@ -594,7 +594,6 @@ void reshade::runtime::on_present()
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
 	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
-	_effects_rendered_this_frame = false;
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
@@ -699,6 +698,8 @@ void reshade::runtime::on_present()
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_present>(this);
 #endif
+
+	_effects_rendered_this_frame = false;
 
 	// Reset input status
 	if (_input != nullptr)
@@ -3196,10 +3197,11 @@ void reshade::runtime::update_effects()
 }
 void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-	_effects_rendered_this_frame = true;
-
-	if (is_loading() || rtv == 0)
+	// Cannot render effects twice in a frame or while they are still loading
+	if (is_loading() || _effects_rendered_this_frame || rtv == 0)
 		return;
+
+	_effects_rendered_this_frame = true;
 
 	if (rtv_srgb == 0)
 		rtv_srgb = rtv;
