@@ -1116,20 +1116,13 @@ In that event here are some steps you can try to resolve this:
 			{
 				presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
 
-				if (isUpdate)
+				Dispatcher.Invoke(() =>
 				{
-					InstallStep4();
-				}
-				else
-				{
-					Dispatcher.Invoke(() =>
-					{
-						var page = new SelectPresetPage();
-						page.FileName = presetPath;
+					var page = new SelectPresetPage();
+					page.FileName = presetPath;
 
-						CurrentPage.Navigate(page);
-					});
-				}
+					CurrentPage.Navigate(page);
+				});
 				return;
 			}
 
