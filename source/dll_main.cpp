@@ -25,6 +25,20 @@ std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
 
 /// <summary>
+/// Checks whether the current application is running on UWP.
+/// </summary>
+bool is_uwp_app()
+{
+	const auto GetCurrentPackageFullName = reinterpret_cast<LONG(WINAPI *)(UINT32 *, PWSTR)>(
+		GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetCurrentPackageFullName"));
+	if (GetCurrentPackageFullName == nullptr)
+		return false;
+	// This will return APPMODEL_ERROR_NO_PACKAGE if not a packaged UWP app
+	UINT32 length = 0;
+	return GetCurrentPackageFullName(&length, nullptr) == ERROR_INSUFFICIENT_BUFFER;
+}
+
+/// <summary>
 /// Checks whether the current operation system is Windows 7 or earlier.
 /// </summary>
 bool is_windows7()
@@ -124,7 +138,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			const bool is_opengl = _wcsicmp(module_name.c_str(), L"opengl32") == 0;
 			const bool is_dinput = _wcsnicmp(module_name.c_str(), L"dinput", 6) == 0;
 
-			const bool default_base_to_target_executable_path = !is_d3d && !is_dxgi && !is_opengl && !is_dinput;
+			// UWP apps do not have write access to the application directory, so never default the base path to it for them
+			const bool default_base_to_target_executable_path = !is_d3d && !is_dxgi && !is_opengl && !is_dinput && !is_uwp_app();
 
 			// When ReShade is not loaded by proxy, only actually load when a configuration file exists for the target executable
 			// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
