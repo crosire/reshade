@@ -135,8 +135,8 @@ namespace reshade::vulkan
 		VkQueryType type;
 	};
 
-	auto convert_format(api::format format) -> VkFormat;
-	auto convert_format(VkFormat vk_format) -> api::format;
+	auto convert_format(api::format format, VkComponentMapping *components = nullptr) -> VkFormat;
+	auto convert_format(VkFormat vk_format, const VkComponentMapping *components = nullptr) -> api::format;
 
 	auto convert_color_space(VkColorSpaceKHR color_space) -> api::color_space;
 
