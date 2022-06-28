@@ -8,7 +8,8 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 
 reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, ID3D12CommandQueue *queue) :
-	command_list_impl(device, nullptr), _parent_queue(queue)
+	command_list_impl(device, nullptr),
+	_parent_queue(queue)
 {
 	// Create multiple command allocators to buffer for multiple frames
 	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)

@@ -10,7 +10,8 @@
 #define vk _device_impl->_dispatch_table
 
 reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, uint32_t queue_family_index, VkQueue queue) :
-	command_list_impl(device, VK_NULL_HANDLE), _parent_queue(queue)
+	command_list_impl(device, VK_NULL_HANDLE),
+	_parent_queue(queue)
 {
 	{	VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 		create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;

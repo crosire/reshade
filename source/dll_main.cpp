@@ -190,7 +190,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 					if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 					{
 						LOG(WARN) << "Another ReShade instance was already loaded from " << get_module_path(modules[i]) << "! Aborting initialization ...";
-						return FALSE; // Make the "LoadLibrary" call that loaded this instance fail
+						return FALSE; // Make the 'LoadLibrary' call that loaded this instance fail
 					}
 				}
 			}
@@ -303,7 +303,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				reshade::hooks::register_module(L"vrclient_x64.dll");
 #endif
 
-				// Always register DirectInput 1-7 module
+				// Always register DirectInput 1-7 module (to overwrite cooperative level)
 				reshade::hooks::register_module(get_system_path() / L"dinput.dll");
 				// Register DirectInput 8 module in case it was used to load ReShade (but ignore otherwise)
 				if (_wcsicmp(module_name.c_str(), L"dinput8") == 0)

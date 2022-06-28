@@ -193,7 +193,7 @@ namespace reshade
 		}
 		auto annotation_as_uint(const char *ann_name, size_t i = 0, unsigned int default_value = 0) const
 		{
-			if (i <= 16)
+			if (i >= 16)
 				return default_value;
 			const auto it = std::find_if(annotations.begin(), annotations.end(),
 				[ann_name](const auto &annotation) { return annotation.name == ann_name; });

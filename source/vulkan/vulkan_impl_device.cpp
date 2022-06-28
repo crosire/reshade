@@ -13,17 +13,6 @@
 
 extern bool is_windows7();
 
-inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)
-{
-	if (format >= VK_FORMAT_D16_UNORM && format <= VK_FORMAT_D32_SFLOAT)
-		return VK_IMAGE_ASPECT_DEPTH_BIT;
-	if (format == VK_FORMAT_S8_UINT)
-		return VK_IMAGE_ASPECT_STENCIL_BIT;
-	if (format >= VK_FORMAT_D16_UNORM_S8_UINT && format <= VK_FORMAT_D32_SFLOAT_S8_UINT)
-		return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-	return VK_IMAGE_ASPECT_COLOR_BIT;
-}
-
 reshade::vulkan::device_impl::device_impl(
 	VkDevice device,
 	VkPhysicalDevice physical_device,
@@ -1186,7 +1175,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			subpass.pColorAttachments = attach_refs;
 			subpass.pDepthStencilAttachment = (depth_stencil_format != api::format::unknown) ? &attach_refs[color_blend_state_info.attachmentCount] : nullptr;
 
-			VkRenderPassCreateInfo render_pass_create_info{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+			VkRenderPassCreateInfo render_pass_create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 			render_pass_create_info.attachmentCount = subpass.colorAttachmentCount + (subpass.pDepthStencilAttachment != nullptr ? 1 : 0);
 			render_pass_create_info.pAttachments = attach_descs;
 			render_pass_create_info.subpassCount = 1;

@@ -126,7 +126,8 @@ namespace ReShade.Setup.Utilities
 			window.Background = Brushes.Transparent;
 			HwndSource.FromHwnd(hwnd).CompositionTarget.BackgroundColor = Colors.Transparent;
 
-			var margins = new MARGINS {
+			var margins = new MARGINS
+			{
 				cxLeftWidth = (int)margin.Left,
 				cxRightWidth = (int)margin.Right,
 				cyTopHeight = (int)margin.Top,

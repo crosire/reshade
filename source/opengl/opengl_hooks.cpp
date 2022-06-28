@@ -2242,7 +2242,7 @@ void APIENTRY glBindBufferBase(GLenum target, GLuint index, GLuint buffer)
 				reshade::api::shader_stage::all,
 				// See global pipeline layout specified in 'device_impl::device_impl'
 				reshade::opengl::global_pipeline_layout, layout_param,
-				reshade::api::descriptor_set_update{ {}, index, 0, 1, type, &descriptor_data });
+				reshade::api::descriptor_set_update { {}, index, 0, 1, type, &descriptor_data });
 		}
 		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{
@@ -2279,7 +2279,7 @@ void APIENTRY glBindBufferRange(GLenum target, GLuint index, GLuint buffer, GLin
 				reshade::api::shader_stage::all,
 				// See global pipeline layout specified in 'device_impl::device_impl'
 				reshade::opengl::global_pipeline_layout, layout_param,
-				reshade::api::descriptor_set_update{ {}, index, 0, 1, type, &descriptor_data });
+				reshade::api::descriptor_set_update { {}, index, 0, 1, type, &descriptor_data });
 		}
 		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{
@@ -3358,7 +3358,7 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 				reshade::api::shader_stage::all,
 				// See global pipeline layout specified in 'device_impl::device_impl'
 				reshade::opengl::global_pipeline_layout, layout_param,
-				reshade::api::descriptor_set_update{ {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
+				reshade::api::descriptor_set_update { {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
 		}
 		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{
@@ -3421,7 +3421,7 @@ void APIENTRY glBindBuffersRange(GLenum target, GLuint first, GLsizei count, con
 				reshade::api::shader_stage::all,
 				// See global pipeline layout specified in 'device_impl::device_impl'
 				reshade::opengl::global_pipeline_layout, layout_param,
-				reshade::api::descriptor_set_update{ {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
+				reshade::api::descriptor_set_update { {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
 		}
 		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{

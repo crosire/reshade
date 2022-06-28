@@ -10,7 +10,9 @@
 #define vk _device_impl->_dispatch_table
 
 reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
-	api_object_impl(queue), _device_impl(device), _queue_flags(queue_family.queueFlags)
+	api_object_impl(queue),
+	_device_impl(device),
+	_queue_flags(queue_family.queueFlags)
 {
 	// Register queue to device (no need to lock, since all command queues are created single threaded in 'vkCreateDevice')
 	_device_impl->_queues.push_back(this);

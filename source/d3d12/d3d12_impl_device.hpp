@@ -7,7 +7,6 @@
 
 #include "addon_manager.hpp"
 #include "descriptor_heap.hpp"
-#include <shared_mutex>
 
 struct D3D12DescriptorHeap;
 
@@ -127,8 +126,6 @@ namespace reshade::d3d12
 			_views.insert_or_assign(handle.ptr, std::make_pair(resource, desc));
 		}
 
-		mutable std::shared_mutex _mutex; // 'ID3D12Device' is thread-safe, so need to lock when accessed from multiple threads
-
 	private:
 		std::vector<command_queue_impl *> _queues;
 
@@ -138,6 +135,7 @@ namespace reshade::d3d12
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 50000, 2048> _gpu_view_heap;
 
+		mutable std::shared_mutex _mutex;
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		std::vector<D3D12DescriptorHeap *> _descriptor_heaps;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses; // TODO: Replace with interval tree

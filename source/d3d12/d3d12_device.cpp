@@ -17,7 +17,7 @@
 
 using reshade::d3d12::to_handle;
 
-extern std::shared_mutex g_d3d12_adapter_mutex;
+extern std::shared_mutex g_adapter_mutex;
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	device_impl(original)
@@ -100,16 +100,16 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 }
 ULONG   STDMETHODCALLTYPE D3D12Device::AddRef()
 {
-	const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
+	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
 
 	_orig->AddRef();
-	return ++_ref;
+	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 {
-	const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
+	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
 
-	const ULONG ref = --_ref;
+	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
 	{
 		_orig->Release();

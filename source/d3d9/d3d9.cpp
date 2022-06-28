@@ -41,6 +41,9 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	case D3DFMT_X1R5G5B5:
 		format_string = "D3DFMT_X1R5G5B5";
 		break;
+	case D3DFMT_A2R10G10B10:
+		format_string = "D3DFMT_A2R10G10B10";
+		break;
 	}
 
 	if (format_string != nullptr)
@@ -169,7 +172,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMOD
 }
 
 template <typename T>
-static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESENT_PARAMETERS &pp, bool use_software_rendering)
+static void init_device_proxy(T *&device, D3DDEVTYPE device_type, bool use_software_rendering)
 {
 	// Enable software vertex processing if the application requested a software device
 	if (use_software_rendering)
@@ -187,13 +190,6 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 
 	const auto device_proxy = new Direct3DDevice9(device, use_software_rendering);
 	device_proxy->_implicit_swapchain = new Direct3DSwapChain9(device_proxy, swapchain);
-
-#if RESHADE_ADDON
-	if (pp.EnableAutoDepthStencil)
-		device_proxy->init_auto_depth_stencil();
-#else
-	UNREFERENCED_PARAMETER(pp);
-#endif
 
 	// Overwrite returned device with hooked one
 	device = device_proxy;
@@ -242,7 +238,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	}
 
 #if RESHADE_ADDON
-	// Load add-ons before 'create_swapchain' event
+	// Load add-ons before 'create_swapchain' event in 'dump_and_modify_present_parameters'
 	reshade::load_addons();
 #endif
 
@@ -256,6 +252,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
+	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDirect3D9_CreateDevice, vtable_from_instance(pD3D) + 16)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, ppReturnedDeviceInterface);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
@@ -268,7 +265,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	if (SUCCEEDED(hr))
 	{
-		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
+		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
 	}
 	else
 	{
@@ -310,7 +307,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	}
 
 #if RESHADE_ADDON
-	// Load add-ons before 'create_swapchain' event
+	// Load add-ons before 'create_swapchain' event in 'dump_and_modify_present_parameters'
 	reshade::load_addons();
 #endif
 
@@ -327,6 +324,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
+	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, vtable_from_instance(pD3D) + 20)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, pp.Windowed ? nullptr : &fullscreen_mode, ppReturnedDeviceInterface);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
@@ -339,7 +337,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	if (SUCCEEDED(hr))
 	{
-		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
+		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
 	}
 	else
 	{

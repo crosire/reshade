@@ -32,9 +32,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	_gpu_sampler_heap(device)
 {
 	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
-	{
 		_descriptor_handle_size[type] = device->GetDescriptorHandleIncrementSize(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type));
-	}
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// Make some space in the descriptor heap array, so that it is unlikely to need reallocation
@@ -44,6 +42,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	register_descriptor_heap(gpu_view_heap);
 	const auto gpu_sampler_heap = new D3D12DescriptorHeap(device, _gpu_sampler_heap.get());
 	register_descriptor_heap(gpu_sampler_heap);
+
 	assert(_descriptor_heaps.size() == 2);
 #endif
 
@@ -118,6 +117,16 @@ reshade::d3d12::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
+#if RESHADE_ADDON
+	// Do not call add-on events if initialization failed
+	if (_mipmap_pipeline != nullptr)
+	{
+		invoke_addon_event<addon_event::destroy_device>(this);
+
+		unload_addons();
+	}
+#endif
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const auto gpu_view_heap = _descriptor_heaps[0];
 	unregister_descriptor_heap(gpu_view_heap);
@@ -125,17 +134,8 @@ reshade::d3d12::device_impl::~device_impl()
 	const auto gpu_sampler_heap = _descriptor_heaps[1];
 	unregister_descriptor_heap(gpu_sampler_heap);
 	delete gpu_sampler_heap;
+
 	assert(_descriptor_heaps.empty());
-#endif
-
-	// Do not call add-on events if initialization failed
-	if (_mipmap_pipeline == nullptr)
-		return;
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_device>(this);
-
-	unload_addons();
 #endif
 }
 
@@ -567,8 +567,6 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 
 	ID3D12Resource_Unmap(intermediate.get(), 0, nullptr);
 
-	assert(!_queues.empty());
-
 	// Copy data from upload buffer into target texture using the first available immediate command list
 	if (const auto immediate_command_list = get_first_immediate_command_list())
 	{
@@ -600,7 +598,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
-	intermediate_desc.Width = num_slices * slice_pitch;
+	intermediate_desc.Width = static_cast<UINT64>(num_slices) * static_cast<UINT64>(slice_pitch);
 	intermediate_desc.Height = 1;
 	intermediate_desc.DepthOrArraySize = 1;
 	intermediate_desc.MipLevels = 1;
@@ -639,8 +637,6 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	}
 
 	ID3D12Resource_Unmap(intermediate.get(), 0, nullptr);
-
-	assert(!_queues.empty());
 
 	// Copy data from upload buffer into target texture using the first available immediate command list
 	if (const auto immediate_command_list = get_first_immediate_command_list())
@@ -1299,6 +1295,8 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 
 reshade::d3d12::command_list_immediate_impl *reshade::d3d12::device_impl::get_first_immediate_command_list()
 {
+	assert(!_queues.empty());
+
 	for (command_queue_impl *const queue : _queues)
 		if (const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
 			return immediate_command_list;
@@ -1440,9 +1438,8 @@ reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_
 	assert(false);
 	return { 0 };
 #else
-#ifdef _WIN64
-	assert((handle.ptr >> 56) == 0);
-#endif
+	assert((handle.ptr >> 56) == 0 || extra_data == 0);
+
 	return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
 #endif
 }

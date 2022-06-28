@@ -51,13 +51,15 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software
 	_use_software_rendering(use_software_rendering)
 {
 	assert(_orig != nullptr);
+
+#if RESHADE_ADDON
+	init_auto_depth_stencil();
+#endif
 }
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
-	device_impl(original),
-	_extended_interface(1),
-	_use_software_rendering(use_software_rendering)
+	Direct3DDevice9(static_cast<IDirect3DDevice9 *>(original), use_software_rendering)
 {
-	assert(_orig != nullptr);
+	_extended_interface = 1;
 }
 
 #if RESHADE_ADDON
@@ -124,6 +126,7 @@ void Direct3DDevice9::reset_auto_depth_stencil()
 		return;
 
 	assert(_auto_depth_stencil->_ref == 0);
+	// Release the internal reference that was added in 'init_auto_depth_stencil' above
 	_auto_depth_stencil->_orig->Release();
 
 	delete _auto_depth_stencil;
@@ -188,7 +191,7 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	const bool extended_interface = _extended_interface;
 
 	// Borderlands 2 is not counting references correctly and will release the device before 'IDirect3DDevice9::Reset' calls, so try and detect this
-	if (_resource_ref > static_cast<LONG>(_caps.MaxSimultaneousTextures + _caps.MaxStreams + 1 /* Indices */))
+	if (_resource_ref > 25)
 	{
 		LOG(WARN) << "Reference count for " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent! Leaking resources ...";
 		return _ref = 1;
@@ -349,12 +352,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	if (SUCCEEDED(hr))
 	{
 		device_impl::on_init();
-		_implicit_swapchain->on_init();
-
 #if RESHADE_ADDON
-		if (pp.EnableAutoDepthStencil)
-			init_auto_depth_stencil();
+		init_auto_depth_stencil();
 #endif
+		_implicit_swapchain->on_init();
 	}
 	else
 	{
@@ -1275,8 +1276,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 					this,
 					to_handle(surface.get()),
-					Flags & D3DCLEAR_ZBUFFER ? &Z : nullptr,
-					Flags & D3DCLEAR_STENCIL ? reinterpret_cast<const uint8_t *>(&Stencil) : nullptr,
+					(Flags & D3DCLEAR_ZBUFFER) ? &Z : nullptr,
+					(Flags & D3DCLEAR_STENCIL) ? reinterpret_cast<const uint8_t *>(&Stencil) : nullptr,
 					Count,
 					reinterpret_cast<const reshade::api::rect *>(pRects)))
 				Flags &= ~(D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL);
@@ -2333,12 +2334,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	if (SUCCEEDED(hr))
 	{
 		device_impl::on_init();
-		_implicit_swapchain->on_init();
-
 #if RESHADE_ADDON
-		if (pp.EnableAutoDepthStencil)
-			init_auto_depth_stencil();
+		init_auto_depth_stencil();
 #endif
+		_implicit_swapchain->on_init();
 	}
 	else
 	{

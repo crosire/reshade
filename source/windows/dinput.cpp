@@ -8,7 +8,6 @@
 #define DIRECTINPUT_VERSION 0x0700
 
 #include <dinput.h>
-#include "com_ptr.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "hook_manager.hpp"
 

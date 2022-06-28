@@ -20,7 +20,8 @@ void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color
 }
 
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
-	api_object_impl(cmd_list), _device_impl(device)
+	api_object_impl(cmd_list),
+	_device_impl(device)
 {
 #if RESHADE_ADDON
 	if (_orig != nullptr) // Do not call add-on event for immediate command list
@@ -62,6 +63,12 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 			barriers[i].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 			barriers[i].UAV.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
 		}
+		else if (old_states[i] == api::resource_usage::undefined && new_states[i] == api::resource_usage::general)
+		{
+			barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+			barriers[i].Aliasing.pResourceBefore = nullptr;
+			barriers[i].Aliasing.pResourceAfter = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
+		}
 		else
 		{
 			barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -99,7 +106,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 			}
 		}
 
-		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depth_stencil_desc = {};
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depth_stencil_desc;
 		if (ds != nullptr && ds->view.handle != 0)
 		{
 			depth_stencil_desc.cpuDescriptor = { static_cast<SIZE_T>(ds->view.handle) };
@@ -120,7 +127,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 			}
 		}
 
-		cmd_list4->BeginRenderPass(count, rt_desc.p, ds != nullptr ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+		cmd_list4->BeginRenderPass(count, rt_desc.p, ds != nullptr && ds->view.handle != 0 ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
 	}
 	else
 	{
@@ -133,7 +140,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 				_orig->ClearRenderTargetView(rtv_handles[i], rts[i].clear_color, 0, nullptr);
 		}
 
-		D3D12_CPU_DESCRIPTOR_HANDLE depth_stencil_handle = {};
+		D3D12_CPU_DESCRIPTOR_HANDLE depth_stencil_handle;
 		if (ds != nullptr && ds->view.handle != 0)
 		{
 			depth_stencil_handle = { static_cast<SIZE_T>(ds->view.handle) };
@@ -142,7 +149,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 				_orig->ClearDepthStencilView(depth_stencil_handle, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), ds->clear_depth, ds->clear_stencil, 0, nullptr);
 		}
 
-		_orig->OMSetRenderTargets(count, rtv_handles.p, FALSE, ds != nullptr ? &depth_stencil_handle : nullptr);
+		_orig->OMSetRenderTargets(count, rtv_handles.p, FALSE, ds != nullptr && ds->view.handle != 0 ? &depth_stencil_handle : nullptr);
 	}
 }
 void reshade::d3d12::command_list_impl::end_render_pass()

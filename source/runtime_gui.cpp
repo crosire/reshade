@@ -716,6 +716,7 @@ void reshade::runtime::draw_gui()
 				{
 					ImGui::TextColored(COLOR_YELLOW, "No keyboard or mouse input available.");
 				}
+#if RESHADE_FX
 				else if (_tutorial_index == 0)
 				{
 					ImGui::TextUnformatted("ReShade is now installed successfully! Press '");
@@ -724,6 +725,7 @@ void reshade::runtime::draw_gui()
 					ImGui::SameLine(0.0f, 0.0f);
 					ImGui::TextUnformatted("' to start the tutorial.");
 				}
+#endif
 				else
 				{
 					ImGui::TextUnformatted("Press '");

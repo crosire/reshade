@@ -10,24 +10,17 @@
 
 #define vk _device_impl->_dispatch_table
 
-template <typename T>
-inline void hash_combine(size_t &seed, const T &v)
-{
-	seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
-extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
-
 static inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &result)
 {
-	result.aspectMask = aspect_flags_from_format(create_info.format);
+	result.aspectMask = reshade::vulkan::aspect_flags_from_format(create_info.format);
 	result.mipLevel = subresource % create_info.mipLevels;
 	result.baseArrayLayer = subresource / create_info.mipLevels;
 	result.layerCount = 1;
 }
 
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
-	api_object_impl(cmd_list), _device_impl(device)
+	api_object_impl(cmd_list),
+	_device_impl(device)
 {
 #if RESHADE_ADDON
 	if (_orig != VK_NULL_HANDLE) // Do not call add-on event for immediate command list
@@ -117,16 +110,12 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 	if (_device_impl->_dynamic_rendering_ext)
 	{
-		temp_mem<VkRenderingAttachmentInfo, 8> color_attachments(count);
-		VkRenderingAttachmentInfo depth_attachment, stencil_attachment;
-
 		VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
 		rendering_info.renderArea.extent.width = std::numeric_limits<uint32_t>::max();
 		rendering_info.renderArea.extent.height = std::numeric_limits<uint32_t>::max();
 		rendering_info.layerCount = std::numeric_limits<uint32_t>::max();
-		rendering_info.colorAttachmentCount = count;
-		rendering_info.pColorAttachments = color_attachments.p;
 
+		temp_mem<VkRenderingAttachmentInfo, 8> color_attachments(count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			color_attachments[i] = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
@@ -144,6 +133,10 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			rendering_info.layerCount = std::min(rendering_info.layerCount, image_data->create_info.arrayLayers);
 		}
 
+		rendering_info.colorAttachmentCount = count;
+		rendering_info.pColorAttachments = color_attachments.p;
+
+		VkRenderingAttachmentInfo depth_attachment, stencil_attachment;
 		if (ds != nullptr && ds->view.handle != 0)
 		{
 			depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
@@ -161,6 +154,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			stencil_attachment.loadOp = convert_render_pass_load_op(ds->stencil_load_op);
 			stencil_attachment.storeOp = convert_render_pass_store_op(ds->stencil_store_op);
 			stencil_attachment.clearValue.depthStencil.stencil = ds->clear_stencil;
+
 			rendering_info.pStencilAttachment = &stencil_attachment;
 
 			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(depth_attachment.imageView);
@@ -229,7 +223,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 			subpass.colorAttachmentCount = count;
 			subpass.pColorAttachments = attach_refs.p;
-			subpass.pDepthStencilAttachment = ds != nullptr && ds->view.handle != 0 ? &attach_refs[count] : nullptr;
+			subpass.pDepthStencilAttachment = (ds != nullptr && ds->view.handle != 0) ? &attach_refs[count] : nullptr;
 
 			VkRenderPassCreateInfo render_pass_create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 			render_pass_create_info.attachmentCount = subpass.colorAttachmentCount + (subpass.pDepthStencilAttachment != nullptr ? 1 : 0);

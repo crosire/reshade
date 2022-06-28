@@ -195,9 +195,13 @@ public:
 	/// </summary>
 	void remove_key(const std::string &section, const std::string &key)
 	{
-		const auto it = _sections.find(section);
-		if (it != _sections.end())
-			it->second.erase(key);
+		const auto it1 = _sections.find(section);
+		if (it1 == _sections.end())
+			return;
+		const auto it2 = it1->second.find(key);
+		if (it2 == it1->second.end())
+			return;
+		it1->second.erase(it2);
 		_modified = true;
 		_modified_at = std::filesystem::file_time_type::clock::now();
 	}

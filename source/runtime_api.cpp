@@ -170,7 +170,7 @@ bool reshade::runtime::get_annotation_bool_from_uniform_variable(api::effect_uni
 		if (it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_uint(name, i + array_index);
+				values[i] = variable->annotation_as_int(name, i + array_index) != 0;
 			return true;
 		}
 	}
@@ -468,7 +468,7 @@ bool reshade::runtime::get_annotation_bool_from_texture_variable(api::effect_tex
 		if (it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_uint(name, array_index + i) != 0;
+				values[i] = variable->annotation_as_int(name, array_index + i) != 0;
 			return true;
 		}
 	}
@@ -722,7 +722,7 @@ bool reshade::runtime::get_annotation_bool_from_technique(api::effect_technique 
 		if (it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = tech->annotation_as_uint(name, array_index + i) != 0;
+				values[i] = tech->annotation_as_int(name, array_index + i) != 0;
 			return true;
 		}
 	}
