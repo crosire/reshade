@@ -7,6 +7,7 @@
 
 #include "addon_manager.hpp"
 #include "descriptor_heap.hpp"
+#include <concurrent_vector.h>
 
 struct D3D12DescriptorHeap;
 
@@ -122,7 +123,7 @@ namespace reshade::d3d12
 
 		inline void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource, const api::resource_view_desc &desc)
 		{
-			const std::unique_lock<std::shared_mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 			_views.insert_or_assign(handle.ptr, std::make_pair(resource, desc));
 		}
 
@@ -135,9 +136,9 @@ namespace reshade::d3d12
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 50000, 2048> _gpu_view_heap;
 
-		mutable std::shared_mutex _mutex;
+		mutable std::shared_mutex _resource_mutex;
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		std::vector<D3D12DescriptorHeap *> _descriptor_heaps;
+		concurrency::concurrent_vector<D3D12DescriptorHeap *> _descriptor_heaps;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses; // TODO: Replace with interval tree
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;
