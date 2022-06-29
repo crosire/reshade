@@ -444,6 +444,19 @@ std::string reshade::input::key_name(const unsigned int key[4])
 	return (key[1] ? "Ctrl + " : std::string()) + (key[2] ? "Shift + " : std::string()) + (key[3] ? "Alt + " : std::string()) + key_name(key[0]);
 }
 
+void reshade::input::block_mouse_input(bool enable)
+{
+	_block_mouse = enable;
+
+	// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
+	if (enable)
+		ClipCursor(nullptr);
+}
+void reshade::input::block_keyboard_input(bool enable)
+{
+	_block_keyboard = enable;
+}
+
 bool is_blocking_mouse_input()
 {
 	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);

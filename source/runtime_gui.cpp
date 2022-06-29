@@ -18,7 +18,6 @@
 #include "fonts/forkawesome.inl"
 #include <fstream>
 #include <algorithm>
-#include <Windows.h> // ClipCursor
 
 static bool filter_text(const std::string_view &text, const std::string_view &filter)
 {
@@ -1006,12 +1005,6 @@ void reshade::runtime::draw_gui()
 	{
 		_input->block_mouse_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
 		_input->block_keyboard_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
-
-		if (_input->is_blocking_mouse_input())
-		{
-			// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
-			ClipCursor(nullptr);
-		}
 	}
 
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
