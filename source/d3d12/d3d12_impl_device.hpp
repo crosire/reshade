@@ -7,6 +7,7 @@
 
 #include "addon_manager.hpp"
 #include "descriptor_heap.hpp"
+#include <unordered_map>
 #include <concurrent_vector.h>
 
 struct D3D12DescriptorHeap;

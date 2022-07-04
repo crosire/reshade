@@ -17,6 +17,7 @@
 #include "vulkan/vulkan_impl_device.hpp"
 #include "vulkan/vulkan_impl_command_queue.hpp"
 #include "openvr_impl_swapchain.hpp"
+#include <functional>
 #include <ivrclientcore.h>
 
 // There can only be a single global effect runtime in OpenVR (since its API is based on singletons)
