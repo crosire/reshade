@@ -12,6 +12,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -281,6 +282,21 @@ namespace ReShade.Setup
 			try
 			{
 				File.Create(Path.Combine(targetPath, Path.GetRandomFileName()), 1, FileOptions.DeleteOnClose);
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+		static bool MakeWritable(string targetPath)
+		{
+			try
+			{
+				var user = WindowsIdentity.GetCurrent().User;
+				var access = File.GetAccessControl(targetPath);
+				access.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.Modify, AccessControlType.Allow));
+				File.SetAccessControl(targetPath, access);
 				return true;
 			}
 			catch
@@ -1111,6 +1127,11 @@ In that event here are some steps you can try to resolve this:
 
 			config.SaveFile();
 
+			// Change file permissions for files ReShade needs write access to
+			MakeWritable(configPath);
+			MakeWritable(Path.Combine(basePath, "ReShade.log"));
+			MakeWritable(Path.Combine(basePath, "ReShadePreset.ini"));
+
 			// Only show the selection dialog if there are actually packages to choose
 			if (!isHeadless && packagesIni != null && packagesIni.GetSections().Length != 0)
 			{
@@ -1167,6 +1188,8 @@ In that event here are some steps you can try to resolve this:
 							}
 						}
 					}
+
+					MakeWritable(presetPath);
 				}
 			}
 
