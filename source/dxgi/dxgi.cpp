@@ -154,7 +154,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 
 	return modified;
 }
-bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, HWND hwnd)
+bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]] HWND hwnd)
 {
 	bool modified = false;
 
@@ -215,8 +215,6 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, HWND hwnd)
 
 		modified = true;
 	}
-#else
-	UNREFERENCED_PARAMETER(hwnd);
 #endif
 
 	if (unsigned int force_resolution[2] = {};

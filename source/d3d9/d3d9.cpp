@@ -14,7 +14,7 @@
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window)
 {
 	LOG(INFO) << "Dumping presentation parameters:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -116,8 +116,6 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		pp.SwapEffect = static_cast<D3DSWAPEFFECT>(desc.present_mode);
 		pp.Flags = desc.present_flags;
 	}
-#else
-	UNREFERENCED_PARAMETER(focus_window);
 #endif
 
 	if (reshade::global_config().get("APP", "ForceVSync"))

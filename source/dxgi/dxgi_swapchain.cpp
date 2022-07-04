@@ -115,7 +115,7 @@ void DXGISwapChain::runtime_resize()
 		break;
 	}
 }
-void DXGISwapChain::runtime_present(UINT flags, const DXGI_PRESENT_PARAMETERS *params)
+void DXGISwapChain::runtime_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params)
 {
 	// Some D3D11 games test presentation for timing and composition purposes
 	// These calls are not rendering related, but rather a status request for the D3D runtime and as such should be ignored
@@ -138,8 +138,6 @@ void DXGISwapChain::runtime_present(UINT flags, const DXGI_PRESENT_PARAMETERS *p
 			nullptr,
 			params != nullptr ? params->DirtyRectsCount : 0,
 			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
-#else
-		UNREFERENCED_PARAMETER(params);
 #endif
 		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_present();
 		break;
@@ -152,8 +150,6 @@ void DXGISwapChain::runtime_present(UINT flags, const DXGI_PRESENT_PARAMETERS *p
 			nullptr,
 			params != nullptr ? params->DirtyRectsCount : 0,
 			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
-#else
-		UNREFERENCED_PARAMETER(params);
 #endif
 		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_present();
 		break;
@@ -166,8 +162,6 @@ void DXGISwapChain::runtime_present(UINT flags, const DXGI_PRESENT_PARAMETERS *p
 			nullptr,
 			params != nullptr ? params->DirtyRectsCount : 0,
 			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
-#else
-		UNREFERENCED_PARAMETER(params);
 #endif
 		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_present();
 		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();

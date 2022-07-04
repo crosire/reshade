@@ -293,7 +293,7 @@ void reshade::d3d9::device_impl::bind_descriptor_sets(api::shader_stage stages, 
 	}
 }
 
-void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
+void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, [[maybe_unused]] uint64_t offset, [[maybe_unused]] uint32_t index_size)
 {
 #ifndef NDEBUG
 	assert(offset == 0);
@@ -306,9 +306,6 @@ void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, uint64_
 		reinterpret_cast<IDirect3DIndexBuffer9 *>(buffer.handle)->GetDesc(&desc);
 		assert(desc.Format == (index_size == 2 ? D3DFMT_INDEX16 : D3DFMT_INDEX32));
 	}
-#else
-	UNREFERENCED_PARAMETER(offset);
-	UNREFERENCED_PARAMETER(index_size);
 #endif
 
 	_orig->SetIndices(reinterpret_cast<IDirect3DIndexBuffer9 *>(buffer.handle));
