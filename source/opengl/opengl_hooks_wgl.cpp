@@ -880,6 +880,9 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		}
 
 #if RESHADE_ADDON
+		// Behave as if immediate command list is flushed
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(runtime, runtime);
+
 		reshade::invoke_addon_event<reshade::addon_event::present>(runtime, runtime, nullptr, nullptr, 0, nullptr);
 #endif
 

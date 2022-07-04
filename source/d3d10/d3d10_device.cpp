@@ -745,6 +745,10 @@ void    STDMETHODCALLTYPE D3D10Device::ClearState()
 }
 void    STDMETHODCALLTYPE D3D10Device::Flush()
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+#endif
+
 	_orig->Flush();
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Buffer **ppBuffer)

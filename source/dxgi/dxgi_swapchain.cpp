@@ -131,6 +131,11 @@ void DXGISwapChain::runtime_present(UINT flags, [[maybe_unused]] const DXGI_PRES
 	{
 	case 10:
 #if RESHADE_ADDON
+		// Behave as if immediate command list is flushed
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
+			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
+			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)));
+
 		reshade::invoke_addon_event<reshade::addon_event::present>(
 			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
 			_impl,
@@ -143,6 +148,10 @@ void DXGISwapChain::runtime_present(UINT flags, [[maybe_unused]] const DXGI_PRES
 		break;
 	case 11:
 #if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
+			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
+			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context);
+
 		reshade::invoke_addon_event<reshade::addon_event::present>(
 			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
 			_impl,

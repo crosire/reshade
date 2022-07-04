@@ -1129,6 +1129,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearState()
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush()
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+#endif
+
 	_orig->Flush();
 }
 UINT    STDMETHODCALLTYPE D3D11DeviceContext::GetContextFlags()

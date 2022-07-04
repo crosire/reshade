@@ -1403,10 +1403,14 @@ namespace reshade
 		close_command_list,
 
 		/// <summary>
-		/// Called when a command list is submitted to a command queue, before:
+		/// Called when a command list is submitted to a command queue (or an immediate command list is flushed), before:
 		/// <list type="bullet">
+		/// <item><description>IDirect3DDevice9::EndScene</description></item>
+		/// <item><description>ID3D10Device::Flush</description></item>
 		/// <item><description>ID3D11DeviceContext::ExecuteCommandList</description></item>
+		/// <item><description>ID3D11DeviceContext::Flush</description></item>
 		/// <item><description>ID3D12CommandQueue::ExecuteCommandLists</description></item>
+		/// <item><description>glFlush</description></item>
 		/// <item><description>vkQueueSubmit</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::command_list *cmd_list)</c></para>

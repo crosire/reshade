@@ -246,9 +246,6 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 {
 	device *const device = swapchain->get_device();
 
-	if (device->get_api() != device_api::d3d12 && device->get_api() != device_api::vulkan)
-		on_execute(queue, queue->get_immediate_command_list());
-
 	auto &data = device->get_private_data<device_data>();
 	data.frame_index++;
 

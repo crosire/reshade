@@ -459,11 +459,11 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 }
 static void on_destroy_resource(device *device, resource resource)
 {
-	generic_depth_device_data &device_data = device->get_private_data<generic_depth_device_data>();
+	auto &device_data = device->get_private_data<generic_depth_device_data>();
 
 	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
 	// The state tracking context would have been destroyed already in that case, so return early if it does not exist
-	if (&device_data == nullptr)
+	if ((&device_data) == nullptr)
 		return;
 
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
@@ -593,6 +593,11 @@ static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 {
 	auto &target_state = queue_or_cmd_list->get_private_data<state_tracking>();
 	const auto &source_state = cmd_list->get_private_data<state_tracking>();
+
+	// Skip merging state when this execution event is just the immediate command list getting flushed
+	if ((&target_state) == (&source_state))
+		return;
+
 	target_state.merge(source_state);
 }
 

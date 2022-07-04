@@ -1243,6 +1243,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::BeginScene()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+#endif
+
 	return _orig->EndScene();
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
