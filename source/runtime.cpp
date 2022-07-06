@@ -4056,7 +4056,30 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 	macros.emplace_back("Date", timestamp);
 	sprintf_s(timestamp, "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
 	macros.emplace_back("Time", timestamp);
+	
+	sprintf_s(timestamp, "%.4d", tm.tm_year + 1900);
+	macros.emplace_back("TimeYear", timestamp);
+	macros.emplace_back("Year", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_mon + 1);
+	macros.emplace_back("TimeMonth", timestamp);
+	macros.emplace_back("Month", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_mday);
+	macros.emplace_back("TimeDay", timestamp);
+	macros.emplace_back("Day", timestamp);
+	
+	sprintf_s(timestamp, "%.2d", tm.tm_hour);
+	macros.emplace_back("TimeHour", timestamp);
+	macros.emplace_back("Hour", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_min);
+	macros.emplace_back("TimeMinute", timestamp);
+	macros.emplace_back("Minute", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_sec);
+	macros.emplace_back("TimeSecond", timestamp);
+	macros.emplace_back("Second", timestamp);
+			  
 	sprintf_s(timestamp, "%.3lld", std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count());
+	macros.emplace_back("TimeMillisecond", timestamp);
+	macros.emplace_back("Millisecond", timestamp);
 	macros.emplace_back("TimeMS", timestamp);
 
 	std::string result;
