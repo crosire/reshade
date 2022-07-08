@@ -1512,6 +1512,12 @@ void reshade::runtime::draw_gui_settings()
 #endif
 				"  %%Date%%            Current date in format '%s'\n"
 				"  %%Time%%            Current time in format '%s'\n"
+				"  %%TimeYear%%        Year component of current time\n"
+				"  %%TimeMonth%%       Month component of current time\n"
+				"  %%TimeDay%%         Day component of current time\n"
+				"  %%TimeHour%%        Hour component of current time\n"
+				"  %%TimeMinute%%      Minute component of current time\n"
+				"  %%TimeSecond%%      Second component of current time\n"
 				"  %%TimeMS%%          Milliseconds fraction of current time",
 				g_target_executable_path.stem().string().c_str(),
 #if RESHADE_FX
