@@ -1511,10 +1511,10 @@ void reshade::runtime::draw_gui_settings()
 				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
 #endif
 				"  %%Date%%            Current date in format '%s'\n"
+				"  %%DateYear%%        Year component of current date\n"
+				"  %%DateMonth%%       Month component of current date\n"
+				"  %%DateDay%%         Day component of current date\n"
 				"  %%Time%%            Current time in format '%s'\n"
-				"  %%TimeYear%%        Year component of current time\n"
-				"  %%TimeMonth%%       Month component of current time\n"
-				"  %%TimeDay%%         Day component of current time\n"
 				"  %%TimeHour%%        Hour component of current time\n"
 				"  %%TimeMinute%%      Minute component of current time\n"
 				"  %%TimeSecond%%      Second component of current time\n"
@@ -1563,8 +1563,14 @@ void reshade::runtime::draw_gui_settings()
 #if RESHADE_FX
 				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
 #endif
-				"  %%Date%%            Current date in format 'yyyy-MM-dd'\n"
-				"  %%Time%%            Current time in format 'HH-mm-ss'\n"
+				"  %%Date%%            Current date in format '%s'\n"
+				"  %%DateYear%%        Year component of current date\n"
+				"  %%DateMonth%%       Month component of current date\n"
+				"  %%DateDay%%         Day component of current date\n"
+				"  %%Time%%            Current time in format '%s'\n"
+				"  %%TimeHour%%        Hour component of current time\n"
+				"  %%TimeMinute%%      Minute component of current time\n"
+				"  %%TimeSecond%%      Second component of current time\n"
 				"  %%TimeMS%%          Milliseconds fraction of current time\n"
 				"  %%TargetPath%%      Full path to the screenshot file (%s)\n"
 				"  %%TargetDir%%       Full path to the screenshot directory (%s)\n"
@@ -1575,6 +1581,8 @@ void reshade::runtime::draw_gui_settings()
 #if RESHADE_FX
 				_current_preset_path.stem().string().c_str(),
 #endif
+				"yyyy-MM-dd",
+				"HH-mm-ss",
 				(_screenshot_path / (_screenshot_name + extension)).u8string().c_str(),
 				_screenshot_path.u8string().c_str(),
 				(_screenshot_name + extension).c_str(),
