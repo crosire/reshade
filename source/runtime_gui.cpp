@@ -2399,7 +2399,8 @@ void reshade::runtime::draw_gui_addons()
 			ImGui::Text("File:");
 			if (!info.author.empty())
 				ImGui::Text("Author:");
-			ImGui::Text("Version:");
+			if (!info.version.empty())
+				ImGui::Text("Version:");
 			if (!info.description.empty())
 				ImGui::Text("Description:");
 			ImGui::EndGroup();
@@ -2408,7 +2409,8 @@ void reshade::runtime::draw_gui_addons()
 			ImGui::TextUnformatted(info.file.c_str());
 			if (!info.author.empty())
 				ImGui::TextUnformatted(info.author.c_str());
-			ImGui::TextUnformatted(info.version.c_str());
+			if (!info.version.empty())
+				ImGui::TextUnformatted(info.version.c_str());
 			if (!info.description.empty())
 			{
 				ImGui::PushTextWrapPos();

@@ -5,7 +5,6 @@
 
 #if RESHADE_ADDON
 
-#include "version.h"
 #include "reshade.hpp"
 #include "addon_manager.hpp"
 #include "dll_log.hpp"
@@ -142,7 +141,6 @@ void reshade::load_addons()
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
 		info.file = g_reshade_dll_path.u8string();
 		info.author = "crosire";
-		info.version = VERSION_STRING_FILE;
 
 		if (std::find(disabled_addons.begin(), disabled_addons.end(), info.name) == disabled_addons.end())
 		{
@@ -321,9 +319,6 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 	if (const char *const *description = reinterpret_cast<const char *const *>(GetProcAddress(module, "DESCRIPTION"));
 		description != nullptr)
 		info.description = *description;
-
-	if (info.version.empty())
-		info.version = "1.0.0.0";
 
 	if (std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
 			[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
