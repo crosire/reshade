@@ -71,6 +71,41 @@ IDirectInputDevice_GetDeviceState_Impl(9, 2, W)
 IDirectInputDevice_GetDeviceState_Impl(9, 7, A)
 IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
 
+#define IDirectInputDevice_GetDeviceData_Impl(vtable_offset, device_interface_version, encoding) \
+	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_GetDeviceData(IDirectInputDevice##device_interface_version##encoding *pDevice, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags) \
+	{ \
+		if ((dwFlags & DIGDD_PEEK) == 0) \
+		{ \
+			DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
+			pDevice->GetDeviceInfo(&info); \
+			switch (LOBYTE(info.dwDevType)) \
+			{ \
+			case DIDEVTYPE_MOUSE: \
+				if (is_blocking_mouse_input()) \
+				{ \
+					*pdwInOut = 0; \
+					return DI_OK; \
+				} \
+				break; \
+			case DIDEVTYPE_KEYBOARD: \
+				if (is_blocking_keyboard_input()) \
+				{ \
+					*pdwInOut = 0; \
+					return DI_OK; \
+				} \
+				break; \
+			} \
+		} \
+		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceData, vtable_from_instance(pDevice) + vtable_offset)(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
+	}
+
+IDirectInputDevice_GetDeviceData_Impl(10,  , A)
+IDirectInputDevice_GetDeviceData_Impl(10,  , W)
+IDirectInputDevice_GetDeviceData_Impl(10, 2, A)
+IDirectInputDevice_GetDeviceData_Impl(10, 2, W)
+IDirectInputDevice_GetDeviceData_Impl(10, 7, A)
+IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
+
 #define IDirectInput_CreateDevice_Impl(vtable_offset, factory_interface_version, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInput##factory_interface_version##encoding##_CreateDevice(IDirectInput##factory_interface_version##encoding *pDI, REFGUID rguid, LPDIRECTINPUTDEVICE##device_interface_version##encoding *lplpDirectInputDevice, LPUNKNOWN pUnkOuter) \
 	{ \
@@ -84,6 +119,7 @@ IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
 		if (SUCCEEDED(hr)) \
 		{ \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", vtable_from_instance(*lplpDirectInputDevice), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceState)); \
+			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", vtable_from_instance(*lplpDirectInputDevice), 10, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceData)); \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::SetCooperativeLevel", vtable_from_instance(*lplpDirectInputDevice), 13, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel)); \
 		} \
 		else \
@@ -106,6 +142,7 @@ IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
 		if (SUCCEEDED(hr)) \
 		{ \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceState)); \
+			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 10, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceData)); \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::SetCooperativeLevel", vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 13, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel)); \
 		} \
 		else \
