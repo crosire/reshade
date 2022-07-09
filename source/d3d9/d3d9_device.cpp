@@ -367,13 +367,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(
-		this,
-		_implicit_swapchain,
-		reinterpret_cast<const reshade::api::rect *>(pSourceRect),
-		reinterpret_cast<const reshade::api::rect *>(pDestRect),
-		pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
-		pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
+	if (device_impl::is_initialized())
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			this,
+			_implicit_swapchain,
+			reinterpret_cast<const reshade::api::rect *>(pSourceRect),
+			reinterpret_cast<const reshade::api::rect *>(pDestRect),
+			pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
+			pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
 #endif
 
 	// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
@@ -1244,7 +1245,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::BeginScene()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+	if (device_impl::is_initialized())
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
 #endif
 
 	return _orig->EndScene();
@@ -2057,13 +2059,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	assert(_extended_interface);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(
-		this,
-		_implicit_swapchain,
-		reinterpret_cast<const reshade::api::rect *>(pSourceRect),
-		reinterpret_cast<const reshade::api::rect *>(pDestRect),
-		pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
-		pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
+	if (device_impl::is_initialized())
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			this,
+			_implicit_swapchain,
+			reinterpret_cast<const reshade::api::rect *>(pSourceRect),
+			reinterpret_cast<const reshade::api::rect *>(pDestRect),
+			pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
+			pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
 #endif
 
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))

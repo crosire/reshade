@@ -175,7 +175,7 @@ bool reshade::d3d9::device_impl::on_init()
 void reshade::d3d9::device_impl::on_reset()
 {
 	// Do not call add-on events if initialization failed or this device was already reset
-	if (_copy_state == nullptr)
+	if (!is_initialized())
 		return;
 
 #if RESHADE_ADDON
@@ -490,7 +490,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
-	switch (object->GetType())
+	switch (IDirect3DResource9_GetType(object))
 	{
 		case D3DRTYPE_SURFACE:
 		{
@@ -742,7 +742,7 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 
 	const auto resource = reinterpret_cast<IDirect3DResource9 *>(get_resource_from_view(view).handle);
 
-	switch (resource->GetType())
+	switch (IDirect3DResource9_GetType(resource))
 	{
 		case D3DRTYPE_TEXTURE:
 		{
