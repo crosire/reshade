@@ -122,7 +122,7 @@ static unsigned long s_reference_count = 0;
 void reshade::load_addons()
 {
 	// Only load add-ons the first time a reference is added
-	if (s_reference_count++ != 0)
+	if (InterlockedIncrement(&s_reference_count) != 1)
 		return;
 
 #if RESHADE_VERBOSE_LOG
@@ -202,7 +202,7 @@ void reshade::load_addons()
 void reshade::unload_addons()
 {
 	// Only unload add-ons after the last reference to the manager was released
-	if (--s_reference_count != 0)
+	if (InterlockedDecrement(&s_reference_count) != 0)
 		return;
 
 #if !RESHADE_ADDON_LITE
@@ -239,8 +239,8 @@ void reshade::unload_addons()
 bool reshade::has_loaded_addons()
 {
 	// Ignore disabled and built-in add-ons
-	return s_reference_count != 0 && std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
-		[](const reshade::addon_info &info) { return info.handle != nullptr && info.handle != g_module_handle; }) != reshade::addon_loaded_info.end();
+	return s_reference_count != 0 && std::find_if(addon_loaded_info.begin(), addon_loaded_info.end(),
+		[](const addon_info &info) { return info.handle != nullptr && info.handle != g_module_handle; }) != addon_loaded_info.end();
 }
 
 reshade::addon_info *reshade::find_addon(void *address)
@@ -321,7 +321,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		info.description = *description;
 
 	if (std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
-			[&info](const auto &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
+			[&info](const reshade::addon_info &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
 	{
 		// Prevent registration if another add-on with the same name already exists
 		LOG(ERROR) << "Failed to register an add-on, because another one with the same name (\"" << info.name << "\") was already registered.";

@@ -470,13 +470,13 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 			GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrRegisterDllNotification"));
 		if (LdrRegisterDllNotification == nullptr || LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &s_dll_notification_cookie) != 0 /* STATUS_SUCCESS */)
 		{
-			// Fall back "LoadLibrary" hooks if DLL notification registration failed
+			// Fall back 'LoadLibrary' hooks if DLL notification registration failed
 			install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
 			install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
 			install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
 			install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
 
-			// Install all "LoadLibrary" hooks in one go immediately
+			// Install all 'LoadLibrary' hooks in one go immediately
 			// Skip this in the test application to make RenderDoc work (which hooks these too)
 			if (hook::apply_queued_actions())
 				s_dll_notification_cookie = reinterpret_cast<PVOID>(-1); // Set cookie to something so that these hooks are only installed once
