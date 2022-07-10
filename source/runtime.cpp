@@ -171,10 +171,10 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	_texture_search_paths({ L".\\" }),
 #endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
-	_screenshot_path(g_reshade_base_path),
+	_screenshot_path(L".\\"),
 	_screenshot_name("%AppName% %Date% %Time%"),
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
-	_screenshot_post_save_command_working_directory(g_reshade_base_path)
+	_screenshot_post_save_command_working_directory(L".\\")
 {
 	assert(device != nullptr && graphics_queue != nullptr);
 
@@ -4307,21 +4307,13 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		});
 	}
 
-	std::filesystem::path working_directory;
-	if (_screenshot_post_save_command_working_directory.empty() || !std::filesystem::is_directory(_screenshot_post_save_command_working_directory, ec))
-		working_directory = g_reshade_base_path;
-	else
-		working_directory = _screenshot_post_save_command_working_directory;
-
-	if (execute_command(command_line, working_directory, _screenshot_post_save_command_no_window))
-	{
-		return true;
-	}
-	else
+	if (!execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_no_window))
 	{
 		LOG(ERROR) << "Failed to execute screenshot post-save command.";
 		return false;
 	}
+
+	return true;
 }
 
 bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)
