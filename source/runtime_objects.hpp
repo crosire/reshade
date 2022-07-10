@@ -116,7 +116,7 @@ namespace reshade
 		api::resource resource = {};
 		api::resource_view srv[2] = {};
 		api::resource_view rtv[2] = {};
-		api::resource_view uav = {};
+		std::vector<api::resource_view> uav;
 	};
 
 	struct uniform final : reshadefx::uniform_info

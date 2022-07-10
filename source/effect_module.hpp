@@ -214,6 +214,7 @@ namespace reshadefx
 		std::string unique_name;
 		std::string texture_name;
 		texture_format format = texture_format::unknown;
+		uint16_t level = 0;
 	};
 
 	/// <summary>
@@ -274,6 +275,7 @@ namespace reshadefx
 		std::string vs_entry_point;
 		std::string ps_entry_point;
 		std::string cs_entry_point;
+		uint8_t generate_mipmaps = true;
 		uint8_t clear_render_targets = false;
 		uint8_t srgb_write_enable = false;
 		uint8_t blend_enable[8] = { false, false, false, false, false, false, false, false };

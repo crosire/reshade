@@ -1389,6 +1389,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						sampler_info.max_lod = static_cast<float>(value);
 					else if (property_name == "MipLODBias" || property_name == "MipMapLodBias")
 						sampler_info.lod_bias = static_cast<float>(value);
+					else if (property_name == "MipLOD" || property_name == "MipLevel")
+						storage_info.level = value > 0 && value < std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 0;
 					else
 						return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
 				}
@@ -1460,6 +1462,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		std::replace(storage_info.unique_name.begin(), storage_info.unique_name.end(), ':', '_');
 
 		storage_info.format = texture_info.format;
+		if (storage_info.level > texture_info.levels - 1)
+			storage_info.level = texture_info.levels - 1;
 
 		symbol = { symbol_type::variable, 0, type };
 		symbol.id = _codegen->define_storage(location, storage_info);
@@ -1793,6 +1797,8 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.viewport_height = value;
 			else if (state == "DispatchSizeZ")
 				info.viewport_dispatch_z = value;
+			else if (state == "GenerateMipmaps" || state == "GenerateMipMaps")
+				info.generate_mipmaps = (value != 0);
 			else
 				parse_success = false,
 				error(location, 3004, "unrecognized pass state '" + state + '\'');

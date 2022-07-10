@@ -2261,7 +2261,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						{
 							pass_data.modified_resources.push_back(texture->resource);
 
-							if (texture->levels > 1)
+							if (pass_info.generate_mipmaps && texture->levels > 1)
 								pass_data.generate_mipmap_views.push_back(texture->srv[pass_info.srgb_write_enable]);
 						}
 
@@ -2465,13 +2465,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = info.texture_name](const auto &item) {
 						return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
 					assert(texture != _textures.end());
-					assert(texture->semantic.empty() && texture->uav != 0);
+					assert(texture->semantic.empty() && texture->uav[info.level] != 0);
 
 					if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), texture->resource) == pass_data.modified_resources.end())
 					{
 						pass_data.modified_resources.push_back(texture->resource);
 
-						if (texture->levels > 1)
+						if (pass_info.generate_mipmaps && texture->levels > 1)
 							pass_data.generate_mipmap_views.push_back(texture->srv[0]);
 					}
 
@@ -2480,7 +2480,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
-					write.descriptors = &texture->uav;
+					write.descriptors = &texture->uav[info.level];
 				}
 			}
 		}
@@ -2719,11 +2719,16 @@ bool reshade::runtime::create_texture(texture &tex)
 
 	if (tex.storage_access && _renderer_id >= 0xb000)
 	{
-		if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format), &tex.uav))
+		tex.uav.resize(tex.levels);
+
+		for (uint16_t level = 0; level < tex.levels; ++level)
 		{
-			LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "'!";
-			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
-			return false;
+			if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format, level, 1, 0, 1), &tex.uav[level]))
+			{
+				LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "'!";
+				LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format) << ", Level = " << level;
+				return false;
+			}
 		}
 	}
 
@@ -2746,8 +2751,9 @@ void reshade::runtime::destroy_texture(texture &tex)
 	tex.rtv[0] = {};
 	tex.rtv[1] = {};
 
-	_device->destroy_resource_view(tex.uav);
-	tex.uav = {};
+	for (api::resource_view uav : tex.uav)
+		_device->destroy_resource_view(uav);
+	tex.uav.clear();
 }
 
 void reshade::runtime::enable_technique(technique &tech)
