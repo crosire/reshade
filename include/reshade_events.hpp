@@ -1407,7 +1407,6 @@ namespace reshade
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::EndScene</description></item>
 		/// <item><description>ID3D10Device::Flush</description></item>
-		/// <item><description>ID3D11DeviceContext::ExecuteCommandList</description></item>
 		/// <item><description>ID3D11DeviceContext::Flush</description></item>
 		/// <item><description>ID3D12CommandQueue::ExecuteCommandLists</description></item>
 		/// <item><description>glFlush</description></item>
@@ -1420,12 +1419,13 @@ namespace reshade
 		/// <summary>
 		/// Called when a secondary command list is executed on a primary command list, before:
 		/// <list type="bullet">
+		/// <item><description>ID3D11DeviceContext::ExecuteCommandList</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::ExecuteBundle</description></item>
 		/// <item><description>vkCmdExecuteCommands</description></item>
 		/// </list>
 		/// In addition, called after:
 		/// <list type="bullet">
-		/// <item><description>ID3D11DeviceContext::FinishCommandList
+		/// <item><description>ID3D11DeviceContext::FinishCommandList</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::command_list *secondary_cmd_list)</c></para>
 		/// </summary>

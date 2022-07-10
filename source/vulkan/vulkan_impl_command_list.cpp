@@ -23,7 +23,7 @@ reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCom
 	_device_impl(device)
 {
 #if RESHADE_ADDON
-	if (_orig != VK_NULL_HANDLE) // Do not call add-on event for immediate command list
+	if (_orig != VK_NULL_HANDLE) // Do not call add-on event for immediate command list (since it is internal and not used by the application)
 		invoke_addon_event<addon_event::init_command_list>(this);
 #endif
 }

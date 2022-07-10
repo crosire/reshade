@@ -91,19 +91,19 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 			FAILED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&_mipmap_signature))))
 		{
 			LOG(ERROR) << "Failed to create mipmap generation signature!";
-			return;
 		}
-
-		D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
-		pso_desc.pRootSignature = _mipmap_signature.get();
-
-		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
-		pso_desc.CS = { cs.data, cs.data_size };
-
-		if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
+		else
 		{
-			LOG(ERROR) << "Failed to create mipmap generation pipeline!";
-			return;
+			D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
+			pso_desc.pRootSignature = _mipmap_signature.get();
+
+			const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
+			pso_desc.CS = { cs.data, cs.data_size };
+
+			if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
+			{
+				LOG(ERROR) << "Failed to create mipmap generation pipeline!";
+			}
 		}
 	}
 
@@ -118,13 +118,9 @@ reshade::d3d12::device_impl::~device_impl()
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
 #if RESHADE_ADDON
-	// Do not call add-on events if initialization failed
-	if (_mipmap_pipeline != nullptr)
-	{
-		invoke_addon_event<addon_event::destroy_device>(this);
+	invoke_addon_event<addon_event::destroy_device>(this);
 
-		unload_addons();
-	}
+	unload_addons();
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE

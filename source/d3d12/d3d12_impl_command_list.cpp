@@ -24,7 +24,7 @@ reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12
 	_device_impl(device)
 {
 #if RESHADE_ADDON
-	if (_orig != nullptr) // Do not call add-on event for immediate command list
+	if (_orig != nullptr) // Do not call add-on event for immediate command list (since it is internal and not used by the application)
 		invoke_addon_event<addon_event::init_command_list>(this);
 #endif
 }
@@ -716,6 +716,9 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 
 void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 {
+	if (_device_impl->_mipmap_pipeline == nullptr)
+		return;
+
 	_has_commands = true;
 
 	assert(srv.handle != 0);

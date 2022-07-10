@@ -69,7 +69,7 @@ reshade::d3d9::device_impl::~device_impl()
 #endif
 }
 
-bool reshade::d3d9::device_impl::on_init()
+void reshade::d3d9::device_impl::on_init()
 {
 	// Create state block used for resource copying
 	HRESULT hr = _orig->BeginStateBlock();
@@ -132,21 +132,6 @@ bool reshade::d3d9::device_impl::on_init()
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create copy pipeline!";
-		return false;
-	}
-
-	// Create input layout for vertex buffer which holds vertex indices
-	{
-		const D3DVERTEXELEMENT9 declaration[] = {
-			{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-			D3DDECL_END()
-		};
-
-		if (FAILED(_orig->CreateVertexDeclaration(declaration, &_default_input_layout)))
-		{
-			LOG(ERROR) << "Failed to create default vertex declaration!";
-			return false;
-		}
 	}
 
 #if RESHADE_ADDON
@@ -169,15 +154,9 @@ bool reshade::d3d9::device_impl::on_init()
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 #endif
-
-	return true;
 }
 void reshade::d3d9::device_impl::on_reset()
 {
-	// Do not call add-on events if initialization failed or this device was already reset
-	if (!is_initialized())
-		return;
-
 #if RESHADE_ADDON
 	// Force add-ons to release all resources associated with this device before performing reset
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
@@ -1302,7 +1281,7 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 			if (FAILED(_orig->CreateVertexBuffer(max_vertices * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_default_input_stream, nullptr)))
 			{
 				LOG(ERROR) << "Failed to create default input stream!";
-				return false;
+				goto exit_failure;
 			}
 
 			if (float *data;
@@ -1311,6 +1290,21 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 				for (UINT i = 0; i < max_vertices; ++i)
 					data[i] = static_cast<float>(i);
 				IDirect3DVertexBuffer9_Unlock(_default_input_stream.get());
+			}
+		}
+
+		// Create input layout for vertex buffer which holds vertex indices
+		if (_default_input_layout == nullptr)
+		{
+			const D3DVERTEXELEMENT9 declaration[] = {
+				{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+				D3DDECL_END()
+			};
+
+			if (FAILED(_orig->CreateVertexDeclaration(declaration, &_default_input_layout)))
+			{
+				LOG(ERROR) << "Failed to create default vertex declaration!";
+				goto exit_failure;
 			}
 		}
 

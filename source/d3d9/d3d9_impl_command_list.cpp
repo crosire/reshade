@@ -542,6 +542,9 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			assert((src_desc.Pool == D3DPOOL_DEFAULT || src_desc.Pool == D3DPOOL_MANAGED) && dst_desc.Pool == D3DPOOL_DEFAULT);
 
+			if (_copy_state == nullptr)
+				return;
+
 			// Capture and restore state, render targets, depth stencil surface and viewport (which all may change next)
 			_backup_state.capture();
 

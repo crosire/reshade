@@ -873,7 +873,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 	D3D11CommandList *const command_list_proxy = static_cast<D3D11CommandList *>(pCommandList);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, command_list_proxy);
+	// Use secondary command list event here, since this may be called on deferred contexts as well
+	reshade::invoke_addon_event<reshade::addon_event::execute_secondary_command_list>(this, command_list_proxy);
 #endif
 
 	// Get original command list pointer from proxy object and execute with it

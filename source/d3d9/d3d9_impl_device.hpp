@@ -128,10 +128,8 @@ namespace reshade::d3d9
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:
-		bool on_init();
+		void on_init();
 		void on_reset();
-
-		bool is_initialized() const { return _copy_state != nullptr; }
 
 		HRESULT create_surface_replacement(const D3DSURFACE_DESC &desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 
