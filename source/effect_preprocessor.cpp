@@ -79,11 +79,11 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 	std::string file_data(static_cast<size_t>(std::filesystem::file_size(path)) + 1, '\0');
 	const size_t eof = fread((char *)file_data.data(), 1, file_data.size() - 1, file);
 
-	// Append a new line feed to the end of the input string to avoid issues with parsing
-	file_data[eof] = '\n';
-
 	// No longer need to have a handle open to the file, since all data was read, so can safely close it
 	fclose(file);
+
+	// Append a new line feed to the end of the input string to avoid issues with parsing
+	file_data[eof] = '\n';
 
 	// Remove BOM (0xefbbbf means 0xfeff)
 	if (file_data.size() >= 3 &&

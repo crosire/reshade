@@ -3384,39 +3384,44 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 			effect.module.hlsl : effect.assembly.at(instance.entry_point_name).second);
 		instance.editor.set_readonly(true);
 	}
-	else if (!instance.editor.is_modified())
+
+	// Only update text if there is no undo history (in which case it can be assumed that the text is already up-to-date)
+	if (!instance.editor.is_modified() && !instance.editor.can_undo())
 	{
-		// Only update text if there is no undo history (in which case it can be assumed that the text is already up-to-date)
-		if (!instance.editor.can_undo())
+		if (FILE *file = nullptr;
+			_wfopen_s(&file, instance.file_path.c_str(), L"rb") == 0)
 		{
-			instance.editor.set_text(
-				std::string(std::istreambuf_iterator<char>(std::ifstream(instance.file_path).rdbuf()), std::istreambuf_iterator<char>()));
+			std::string text(static_cast<size_t>(std::filesystem::file_size(instance.file_path)), '\0');
+			fread(text.data(), 1, text.size(), file);
+			fclose(file);
+
+			instance.editor.set_text(text);
 			instance.editor.set_readonly(false);
 		}
+	}
 
-		instance.editor.clear_errors();
+	instance.editor.clear_errors();
 
-		for (size_t offset = 0, next; offset != std::string::npos; offset = next)
-		{
-			const size_t pos_error = effect.errors.find(": ", offset);
-			const size_t pos_error_line = effect.errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
-			if (pos_error == std::string::npos || pos_error_line == std::string::npos)
-				break;
+	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
+	{
+		const size_t pos_error = effect.errors.find(": ", offset);
+		const size_t pos_error_line = effect.errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
+		if (pos_error == std::string::npos || pos_error_line == std::string::npos)
+			break;
 
-			const size_t pos_linefeed = effect.errors.find('\n', pos_error);
+		const size_t pos_linefeed = effect.errors.find('\n', pos_error);
 
-			next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
+		next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
 
-			// Ignore errors that aren't in the current source file
-			if (const std::string_view error_file(effect.errors.c_str() + offset, pos_error_line - offset);
-				error_file != instance.file_path.u8string())
-				continue;
+		// Ignore errors that aren't in the current source file
+		if (const std::string_view error_file(effect.errors.c_str() + offset, pos_error_line - offset);
+			error_file != instance.file_path.u8string())
+			continue;
 
-			const int error_line = std::strtol(effect.errors.c_str() + pos_error_line + 1, nullptr, 10);
-			const std::string error_text = effect.errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
+		const int error_line = std::strtol(effect.errors.c_str() + pos_error_line + 1, nullptr, 10);
+		const std::string error_text = effect.errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
 
-			instance.editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
-		}
+		instance.editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
 	}
 }
 void reshade::runtime::draw_code_editor(editor_instance &instance)
@@ -3426,8 +3431,13 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 		_input != nullptr && _input->is_key_pressed('S', true, false, false))))
 	{
 		// Write current editor text to file
-		const std::string text = instance.editor.get_text();
-		std::ofstream(instance.file_path, std::ios::trunc).write(text.c_str(), text.size());
+		if (FILE *file = nullptr;
+			_wfopen_s(&file, instance.file_path.c_str(), L"wt") == 0)
+		{
+			const std::string text = instance.editor.get_text();
+			fwrite(text.data(), 1, text.size(), file);
+			fclose(file);
+		}
 
 		if (!is_loading() && instance.effect_index < _effects.size())
 		{

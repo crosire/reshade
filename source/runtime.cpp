@@ -2885,7 +2885,8 @@ void reshade::runtime::load_textures()
 		stbi_uc *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE *file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)
+		if (FILE *file = nullptr;
+			_wfopen_s(&file, source_path.c_str(), L"rb") == 0)
 		{
 			// Read texture data into memory in one go since that is faster than reading chunk by chunk
 			std::vector<uint8_t> mem(static_cast<size_t>(std::filesystem::file_size(source_path)));
@@ -3722,7 +3723,8 @@ void reshade::runtime::save_texture(const texture &tex)
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+			if (FILE *file = nullptr;
+				_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 			{
 				const auto write_callback = [](void *context, void *data, int size) {
 					fwrite(data, 1, size, static_cast<FILE *>(context));
@@ -4201,7 +4203,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+			if (FILE *file = nullptr;
+				_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 			{
 				struct write_context { FILE *file; bool write_success = true; } context = { file };
 
