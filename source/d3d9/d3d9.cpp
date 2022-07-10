@@ -72,9 +72,15 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	desc.texture.depth_or_layers = 1;
 	desc.texture.levels = 1;
 	desc.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
-	desc.texture.samples = pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES ? static_cast<uint16_t>(pp.MultiSampleType) : 1;
 	desc.heap = reshade::api::memory_heap::gpu_only;
 	desc.usage = reshade::api::resource_usage::render_target;
+
+	if (pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
+		desc.texture.samples = static_cast<uint16_t>(pp.MultiSampleType);
+	else if (pp.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
+		desc.texture.samples = static_cast<uint16_t>(1 << pp.MultiSampleQuality);
+	else
+		desc.texture.samples = 1;
 
 	const HWND hwnd = (pp.hDeviceWindow != nullptr) ? pp.hDeviceWindow : focus_window;
 
@@ -108,9 +114,22 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		pp.BackBufferFormat = reshade::d3d9::convert_format(desc.texture.format);
 
 		if (desc.texture.samples > 1)
-			pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.texture.samples);
+		{
+			if (pp.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
+			{
+				BitScanReverse(&pp.MultiSampleQuality, desc.texture.samples);
+			}
+			else
+			{
+				pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.texture.samples);
+				pp.MultiSampleQuality = 0;
+			}
+		}
 		else
+		{
 			pp.MultiSampleType = D3DMULTISAMPLE_NONE;
+			pp.MultiSampleQuality = 0;
+		}
 
 		pp.BackBufferCount = desc.buffer_count;
 		pp.SwapEffect = static_cast<D3DSWAPEFFECT>(desc.present_mode);
@@ -153,7 +172,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		pp.BackBufferFormat = D3DFMT_A2R10G10B10;
 	}
 }
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window)
 {
 	dump_and_modify_present_parameters(pp, d3d, adapter_index, focus_window);
 
