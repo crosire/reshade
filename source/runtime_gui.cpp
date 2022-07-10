@@ -2334,10 +2334,7 @@ void reshade::runtime::draw_gui_addons()
 	std::filesystem::path addon_search_path = g_reshade_base_path;
 	global_config().get("INSTALL", "AddonPath", addon_search_path);
 	if (imgui::directory_input_box("Add-on search path", addon_search_path, _file_selection_path))
-	{
 		global_config().set("INSTALL", "AddonPath", addon_search_path);
-		global_config().save();
-	}
 #endif
 
 	ImGui::Spacing();
@@ -2380,7 +2377,6 @@ void reshade::runtime::draw_gui_addons()
 				disabled_addons.push_back(info.name);
 
 			global_config().set("ADDON", "DisabledAddons", disabled_addons);
-			global_config().save();
 		}
 
 		ImGui::PopStyleColor();

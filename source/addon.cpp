@@ -45,8 +45,6 @@ extern "C" __declspec(dllexport) void ReShadeSetConfigValue(void *, reshade::api
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
 	config.set(section, key, std::string(value));
-
-	config.save();
 }
 
 #if RESHADE_GUI
