@@ -179,6 +179,10 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 			std::strcmp(symbol.name, "DXGID3D10ETWRundown") != 0 &&
 			std::strcmp(symbol.name, "DXGID3D10GetLayeredDeviceSize") != 0 &&
 			std::strcmp(symbol.name, "DXGID3D10RegisterLayers") != 0 &&
+			std::strcmp(symbol.name, "D3D12PIXEventsReplaceBlock") != 0 &&
+			std::strcmp(symbol.name, "D3D12PIXGetThreadInfo") != 0 &&
+			std::strcmp(symbol.name, "D3D12PIXNotifyWakeFromFenceSignal") != 0 &&
+			std::strcmp(symbol.name, "D3D12PIXReportCounter") != 0 &&
 			std::strcmp(symbol.name, "Direct3D9EnableMaximizedWindowedModeShim") != 0)
 		{
 #if RESHADE_VERBOSE_LOG

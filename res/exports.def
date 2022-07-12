@@ -45,6 +45,10 @@ EXPORTS
 	D3D12CreateVersionedRootSignatureDeserializer @108 PRIVATE
 	D3D12EnableExperimentalFeatures @110 PRIVATE
 	D3D12GetInterface @111 PRIVATE
+	D3D12PIXEventsReplaceBlock PRIVATE
+	D3D12PIXGetThreadInfo PRIVATE
+	D3D12PIXNotifyWakeFromFenceSignal PRIVATE
+	D3D12PIXReportCounter PRIVATE
 	D3D12SerializeRootSignature PRIVATE
 	D3D12SerializeVersionedRootSignature PRIVATE
 

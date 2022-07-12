@@ -153,7 +153,7 @@
     <ClCompile Include="source\d3d9\d3d9_internal.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_profiling.cpp">
+    <ClCompile Include="source\d3d9\d3d9_pix.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_resource.cpp">
@@ -265,6 +265,9 @@
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\d3d12_pipeline_library.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_pix.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\d3d12_resource.cpp">
