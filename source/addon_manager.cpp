@@ -171,6 +171,8 @@ void reshade::load_addons()
 		const HMODULE module = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 		if (module == nullptr)
 		{
+			const DWORD error_code = GetLastError();
+
 			if (!addon_loaded_info.empty() && std::filesystem::equivalent(std::filesystem::u8path(addon_loaded_info.back().file), path, ec))
 			{
 				// Avoid logging an error if loading failed because the add-on is disabled
@@ -180,7 +182,7 @@ void reshade::load_addons()
 			}
 			else
 			{
-				LOG(WARN) << "Failed to load add-on from " << path << " with error code " << GetLastError() << '.';
+				LOG(WARN) << "Failed to load add-on from " << path << " with error code " << error_code << '.';
 			}
 			continue;
 		}
