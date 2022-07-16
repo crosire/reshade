@@ -47,7 +47,7 @@ std::shared_ptr<reshade::input> reshade::input::register_window(window_handle wi
 	if (insert.second || insert.first->second.expired())
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Starting input capture for window " << window << " ...";
+		LOG(DEBUG) << "Starting input capture for window " << window << '.';
 #endif
 
 		const auto instance = std::make_shared<input>(window);

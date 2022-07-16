@@ -2860,8 +2860,6 @@ void reshade::runtime::load_effects()
 }
 void reshade::runtime::load_textures()
 {
-	LOG(INFO) << "Loading image files for textures ...";
-
 	for (texture &tex : _textures)
 	{
 		if (tex.resource == 0 || !tex.semantic.empty())
@@ -3769,7 +3767,7 @@ void reshade::runtime::update_texture(texture &tex, const uint32_t width, const 
 	// Need to potentially resize image data to the texture dimensions
 	if (tex.width != width || tex.height != height)
 	{
-		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << " ...";
+		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << '.';
 
 		stbir_resize_uint8(pixels, width, height, 0, resized.data(), tex.width, tex.height, 0, 4);
 	}
@@ -4171,7 +4169,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name);
 
-	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
+	LOG(INFO) << "Saving screenshot to " << screenshot_path << '.';
 
 	_last_screenshot_save_successfull = true;
 

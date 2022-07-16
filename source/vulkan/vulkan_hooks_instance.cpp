@@ -108,12 +108,12 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	if (pCreateInfo->pApplicationInfo != nullptr)
 		app_info = *pCreateInfo->pApplicationInfo;
 
-	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << " ...";
+	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << ".";
 
 	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
 	if (app_info.apiVersion < VK_API_VERSION_1_1)
 	{
-		LOG(INFO) << "> Replacing requested version with 1.1 ...";
+		LOG(INFO) << "> Replacing requested version with 1.1.";
 
 		app_info.apiVersion = VK_API_VERSION_1_1;
 	}

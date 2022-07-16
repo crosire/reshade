@@ -410,11 +410,11 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	attribs[i].name = attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
 	attribs[i++].value = compatibility ? attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 
-	LOG(INFO) << "> Requesting " << (compatibility ? "compatibility" : "core") << " OpenGL context for version " << major << '.' << minor << " ...";
+	LOG(INFO) << "> Requesting " << (compatibility ? "compatibility" : "core") << " OpenGL context for version " << major << '.' << minor << '.';
 
 	if (major < 4 || (major == 4 && minor < 3))
 	{
-		LOG(INFO) << "> Replacing requested version with 4.3 ...";
+		LOG(INFO) << "> Replacing requested version with 4.3.";
 
 		for (int k = 0; k < i; ++k)
 		{

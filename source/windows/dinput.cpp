@@ -27,7 +27,7 @@ extern bool is_blocking_keyboard_input();
 			/* Need to remove exclusive flag, otherwise DirectInput will block input window messages and input.cpp will not receive input anymore */ \
 			dwFlags = (dwFlags & ~DISCL_EXCLUSIVE) | DISCL_NONEXCLUSIVE; \
 			\
-			LOG(INFO) << "> Replacing flags with " << std::hex << dwFlags << std::dec << " ..."; \
+			LOG(INFO) << "> Replacing flags with " << std::hex << dwFlags << std::dec << '.'; \
 		} \
 		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel, vtable_from_instance(pDevice) + vtable_offset)(pDevice, hwnd, dwFlags); \
 	}
