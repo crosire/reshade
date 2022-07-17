@@ -3418,9 +3418,8 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 			effect.module.hlsl : effect.assembly.at(instance.entry_point_name).second);
 		instance.editor.set_readonly(true);
 	}
-
 	// Only update text if there is no undo history (in which case it can be assumed that the text is already up-to-date)
-	if (!instance.editor.is_modified() && !instance.editor.can_undo())
+	else if (!instance.editor.is_modified() && !instance.editor.can_undo())
 	{
 		if (FILE *file = nullptr;
 			_wfopen_s(&file, instance.file_path.c_str(), L"rb") == 0)
