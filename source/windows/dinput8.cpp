@@ -20,13 +20,7 @@ HOOK_EXPORT HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, 
 		<< ", pUnkOuter = " << pUnkOuter
 		<< ')' << " ...";
 
-	const HRESULT hr = reshade::hooks::call(DirectInput8Create)(hinst, dwVersion, riidltf, ppvOut, pUnkOuter);
-	if (FAILED(hr))
-	{
-		LOG(WARN) << "DirectInput8Create" << " failed with error code " << hr << '.';
-	}
-
-	return hr;
+	return reshade::hooks::call(DirectInput8Create)(hinst, dwVersion, riidltf, ppvOut, pUnkOuter);
 }
 
 HOOK_EXPORT LPCDIDATAFORMAT WINAPI GetdfDIJoystick()

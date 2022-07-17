@@ -40,7 +40,7 @@ void reshade::runtime::init_gui_vr()
 	const vr::EVROverlayError overlay_e = s_overlay->CreateDashboardOverlay("reshade", "ReShade " VERSION_STRING_PRODUCT, &s_main_handle, &s_thumbnail_handle);
 	if (overlay_e != vr::VROverlayError_None)
 	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay with error code " << static_cast<int>(overlay_e) << '.';
+		LOG(ERROR) << "Failed to create VR dashboard overlay with error code " << static_cast<int>(overlay_e) << '!';
 		return;
 	}
 

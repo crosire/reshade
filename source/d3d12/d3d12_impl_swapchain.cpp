@@ -29,7 +29,7 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queu
 				_vendor_id = desc.VendorId;
 				_device_id = desc.DeviceId;
 
-				LOG(INFO) << "Running on " << desc.Description;
+				LOG(INFO) << "Running on " << desc.Description << '.';
 			}
 		}
 	}

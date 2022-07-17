@@ -17,7 +17,7 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compa
 
 	const GLubyte *const name = glGetString(GL_RENDERER);
 	const GLubyte *const version = glGetString(GL_VERSION);
-	LOG(INFO) << "Running on " << name << " using OpenGL " << version;
+	LOG(INFO) << "Running on " << name << " using OpenGL " << version << '.';
 
 	// Query vendor and device ID from Windows assuming we are running on the primary display device
 	// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)

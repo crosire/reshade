@@ -25,7 +25,7 @@ reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 				_vendor_id = desc.VendorId;
 				_device_id = desc.DeviceId;
 
-				LOG(INFO) << "Running on " << desc.Description;
+				LOG(INFO) << "Running on " << desc.Description << '.';
 			}
 		}
 	}

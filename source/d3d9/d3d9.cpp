@@ -383,7 +383,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 	g_in_d3d9_runtime = false;
 	if (res == nullptr)
 	{
-		LOG(WARN) << "Direct3DCreate9" << " failed!";
+		LOG(WARN) << "Direct3DCreate9" << " failed.";
 		return nullptr;
 	}
 
