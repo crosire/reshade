@@ -21,15 +21,16 @@ bool reshade::open_explorer(const std::filesystem::path &path)
 
 bool reshade::execute_command(const std::string &command_line, const std::filesystem::path &working_directory, bool no_window)
 {
-	HANDLE process_token_handle = nullptr;
-	if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &process_token_handle) == FALSE)
-		return false;
-
 	std::wstring command_line_wide;
 	command_line_wide.reserve(command_line.size());
 	utf8::unchecked::utf8to16(command_line.cbegin(), command_line.cend(), std::back_inserter(command_line_wide));
 
-	DWORD  process_creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP;
+	// Check if this is actually a website URL that should be opened in the default web browser via the shell
+	if (command_line.find("http") == 0 && command_line.find_first_of(" \t") == std::string::npos)
+		return ShellExecuteW(nullptr, L"open", command_line_wide.c_str(), nullptr, nullptr, SW_SHOWDEFAULT) != nullptr;
+
+	DWORD state_buffer_size;
+	DWORD process_creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP;
 	STARTUPINFOW si = { sizeof(si) };
 	PROCESS_INFORMATION pi = { 0 };
 	if (no_window)
@@ -40,7 +41,9 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 		si.wShowWindow = SW_HIDE;
 	}
 
-	DWORD state_buffer_size;
+	HANDLE process_token_handle = nullptr;
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &process_token_handle))
+		return false;
 	GetTokenInformation(process_token_handle, TOKEN_INFORMATION_CLASS::TokenPrivileges, nullptr, 0, &state_buffer_size);
 
 	const auto new_state = static_cast<PTOKEN_PRIVILEGES>(operator new(state_buffer_size));
@@ -68,14 +71,14 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 			goto exit_failure;
 
 		HANDLE desktop_token_handle = nullptr;
-		if (OpenProcessToken(shell_process_handle, TOKEN_DUPLICATE, &desktop_token_handle) == FALSE)
+		if (!OpenProcessToken(shell_process_handle, TOKEN_DUPLICATE, &desktop_token_handle))
 			goto exit_failure;
 
 		HANDLE duplicated_token_handle = nullptr;
-		if (DuplicateTokenEx(desktop_token_handle, TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityImpersonation, TOKEN_TYPE::TokenPrimary, &duplicated_token_handle) == FALSE)
+		if (!DuplicateTokenEx(desktop_token_handle, TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityImpersonation, TOKEN_TYPE::TokenPrimary, &duplicated_token_handle))
 			goto exit_failure;
 
-		if (CreateProcessWithTokenW(duplicated_token_handle, 0, nullptr, command_line_wide.data(), process_creation_flags, nullptr, working_directory.c_str(), &si, &pi) == FALSE)
+		if (!CreateProcessWithTokenW(duplicated_token_handle, 0, nullptr, command_line_wide.data(), process_creation_flags, nullptr, working_directory.c_str(), &si, &pi))
 			goto exit_failure;
 
 		if (duplicated_token_handle)
@@ -89,7 +92,7 @@ bool reshade::execute_command(const std::string &command_line, const std::filesy
 	{
 		// Current process is not elevated
 
-		if (CreateProcessW(nullptr, command_line_wide.data(), nullptr, nullptr, FALSE, process_creation_flags, nullptr, working_directory.c_str(), &si, &pi) == FALSE)
+		if (!CreateProcessW(nullptr, command_line_wide.data(), nullptr, nullptr, FALSE, process_creation_flags, nullptr, working_directory.c_str(), &si, &pi))
 			goto exit_failure;
 	}
 
@@ -105,10 +108,8 @@ exit_failure:
 	if (process_token_handle)
 		CloseHandle(process_token_handle);
 
-	if (previous_state)
-		operator delete(previous_state);
-	if (new_state)
-		operator delete(new_state);
+	operator delete(previous_state);
+	operator delete(new_state);
 
 	return success;
 }
