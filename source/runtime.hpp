@@ -532,6 +532,7 @@ namespace reshade
 #if RESHADE_FX
 		char _effect_filter[32] = {};
 		bool _variable_editor_tabs = false;
+		bool _save_present_on_modification = true;
 		bool _duplicate_current_preset = false;
 		bool _was_preprocessor_popup_edited = false;
 		size_t _focused_effect = std::numeric_limits<size_t>::max();
