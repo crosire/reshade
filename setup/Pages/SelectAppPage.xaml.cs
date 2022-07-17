@@ -384,6 +384,19 @@ namespace ReShade.Setup.Pages
 				return;
 			}
 
+			var invalidChars = Path.GetInvalidPathChars();
+			for (int i = 0; i < PathBox.Text.Length;)
+			{
+				if (invalidChars.Contains(PathBox.Text[i]))
+				{
+					PathBox.Text = PathBox.Text.Remove(i, 1);
+				}
+				else
+				{
+					i++;
+				}
+			}
+
 			OnSortByChanged(sender, null);
 
 			if (PathBox.IsFocused)
