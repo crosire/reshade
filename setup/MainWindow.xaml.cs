@@ -167,7 +167,19 @@ namespace ReShade.Setup
 						{
 							targetApi = Api.D3D9;
 						}
-						else if (api == "dxgi" || api == "d3d10" || api == "d3d11")
+						else if (api == "d3d10")
+						{
+							targetApi = Api.D3D10;
+						}
+						else if (api == "d3d11")
+						{
+							targetApi = Api.D3D11;
+						}
+						else if (api == "d3d12")
+						{
+							targetApi = Api.D3D12;
+						}
+						else if (api == "dxgi")
 						{
 							targetApi = Api.DXGI;
 						}
@@ -450,6 +462,15 @@ namespace ReShade.Setup
 				case Api.D3D9:
 					startInfo.Arguments += " --api d3d9";
 					break;
+				case Api.D3D10:
+					startInfo.Arguments += " --api d3d10";
+					break;
+				case Api.D3D11:
+					startInfo.Arguments += " --api d3d11";
+					break;
+				case Api.D3D12:
+					startInfo.Arguments += " --api d3d12";
+					break;
 				case Api.DXGI:
 					startInfo.Arguments += " --api dxgi";
 					break;
@@ -621,14 +642,31 @@ namespace ReShade.Setup
 			var basePath = Path.GetDirectoryName(targetPath);
 			var executableName = Path.GetFileName(targetPath);
 
-			if (targetApi != Api.Vulkan &&
-				compatibilityIni != null && compatibilityIni.HasValue(executableName, "InstallTarget"))
+			if (targetApi != Api.Vulkan && compatibilityIni != null)
 			{
-				basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
+				// Change DXGI to D3D11/D3D12 when render API is known
+				if (targetApi == Api.DXGI && compatibilityIni.HasValue(executableName, "RenderApi"))
+				{
+					string api = compatibilityIni.GetString(executableName, "RenderApi");
 
-				var globalConfig = new IniFile(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.ini"));
-				globalConfig.SetValue("INSTALL", "BasePath", basePath);
-				globalConfig.SaveFile();
+					if (api == "D3D11")
+					{
+						targetApi = Api.D3D11;
+					}
+					else if (api == "D3D12")
+					{
+						targetApi = Api.D3D12;
+					}
+				}
+
+				if (compatibilityIni.HasValue(executableName, "InstallTarget"))
+				{
+					basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
+
+					var globalConfig = new IniFile(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.ini"));
+					globalConfig.SetValue("INSTALL", "BasePath", basePath);
+					globalConfig.SaveFile();
+				}
 			}
 
 			configPath = Path.Combine(basePath, "ReShade.ini");
@@ -670,6 +708,15 @@ namespace ReShade.Setup
 				{
 					case Api.D3D9:
 						modulePath = "d3d9.dll";
+						break;
+					case Api.D3D10:
+						modulePath = "d3d10.dll";
+						break;
+					case Api.D3D11:
+						modulePath = "d3d11.dll";
+						break;
+					case Api.D3D12:
+						modulePath = "d3d12.dll";
 						break;
 					case Api.DXGI:
 						modulePath = "dxgi.dll";
@@ -715,7 +762,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
+			foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
@@ -747,7 +794,7 @@ namespace ReShade.Setup
 			string basePath = Path.GetDirectoryName(configPath);
 
 			// Delete any existing and conflicting ReShade installations first
-			foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
+			foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
@@ -1443,7 +1490,7 @@ In that event here are some steps you can try to resolve this:
 				}
 
 				// Delete all other existing ReShade installations too
-				foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
+				foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
 				{
 					string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
