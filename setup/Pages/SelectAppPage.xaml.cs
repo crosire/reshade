@@ -284,6 +284,7 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("install") ||
 								path.ContainsIgnoreCase("launch") ||
 								path.ContainsIgnoreCase("openvr") ||
+								path.ContainsIgnoreCase("overlay") ||
 								path.ContainsIgnoreCase("patch") ||
 								path.ContainsIgnoreCase("plugin") ||
 								path.ContainsIgnoreCase("redis") ||
@@ -292,13 +293,16 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("server") ||
 								path.ContainsIgnoreCase("setup") ||
 								path.ContainsIgnoreCase("steamvr") ||
+								path.ContainsIgnoreCase("subprocess") ||
 								path.ContainsIgnoreCase("support") ||
 								path.ContainsIgnoreCase("tool") ||
 								path.ContainsIgnoreCase("unins") ||
 								path.ContainsIgnoreCase("update") ||
+								path.ContainsIgnoreCase("webview") ||
 								path.Contains("7za") ||
 								path.Contains("svc") ||
-								path.Contains("SystemSoftware"))
+								path.Contains("SystemSoftware") ||
+								path.Contains("TagesClient"))
 							{
 								continue;
 							}
