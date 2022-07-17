@@ -644,21 +644,6 @@ namespace ReShade.Setup
 
 			if (targetApi != Api.Vulkan && compatibilityIni != null)
 			{
-				// Change DXGI to D3D11/D3D12 when render API is known
-				if (targetApi == Api.DXGI && compatibilityIni.HasValue(executableName, "RenderApi"))
-				{
-					string api = compatibilityIni.GetString(executableName, "RenderApi");
-
-					if (api == "D3D11")
-					{
-						targetApi = Api.D3D11;
-					}
-					else if (api == "D3D12")
-					{
-						targetApi = Api.D3D12;
-					}
-				}
-
 				if (compatibilityIni.HasValue(executableName, "InstallTarget"))
 				{
 					basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
@@ -666,6 +651,32 @@ namespace ReShade.Setup
 					var globalConfig = new IniFile(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.ini"));
 					globalConfig.SetValue("INSTALL", "BasePath", basePath);
 					globalConfig.SaveFile();
+				}
+
+				if (compatibilityIni.GetString(executableName, "ForceInstallApi") == "1")
+				{
+					string api = compatibilityIni.GetString(executableName, "RenderApi");
+
+					if (api == "D3D8" || api == "D3D9")
+					{
+						targetApi = Api.D3D9;
+					}
+					else if (api == "D3D10")
+					{
+						targetApi = Api.D3D10;
+					}
+					else if (api == "D3D11")
+					{
+						targetApi = Api.D3D11;
+					}
+					else if (api == "D3D12")
+					{
+						targetApi = Api.D3D12;
+					}
+					else if (api == "OpenGL")
+					{
+						targetApi = Api.OpenGL;
+					}
 				}
 			}
 
