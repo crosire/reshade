@@ -300,7 +300,11 @@ void reshade::runtime::draw_gui_vr()
 
 	vr::Texture_t texture;
 	texture.eColorSpace = vr::ColorSpace_Auto;
-	vr::VRVulkanTextureData_t vulkan_data;
+	union
+	{
+		vr::D3D12TextureData_t d3d12;
+		vr::VRVulkanTextureData_t vulkan;
+	} texture_data;
 
 	switch (_device->get_api())
 	{
@@ -310,7 +314,10 @@ void reshade::runtime::draw_gui_vr()
 		texture.eType = vr::TextureType_DirectX;
 		break;
 	case api::device_api::d3d12:
-		texture.handle = reinterpret_cast<void *>(_vr_overlay_tex.handle);
+		texture_data.d3d12.m_pResource = reinterpret_cast<ID3D12Resource *>(_vr_overlay_tex.handle);
+		texture_data.d3d12.m_pCommandQueue = reinterpret_cast<ID3D12CommandQueue *>(_graphics_queue->get_native());
+		texture_data.d3d12.m_nNodeMask = 0;
+		texture.handle = &texture_data.d3d12;
 		texture.eType = vr::TextureType_DirectX12;
 		break;
 	case api::device_api::opengl:
@@ -319,17 +326,17 @@ void reshade::runtime::draw_gui_vr()
 		break;
 	case api::device_api::vulkan:
 		const auto device_impl = static_cast<vulkan::device_impl *>(_device);
-		vulkan_data.m_nImage = _vr_overlay_tex.handle;
-		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(_device->get_native());
-		vulkan_data.m_pPhysicalDevice = device_impl->_physical_device;
-		vulkan_data.m_pInstance = VK_NULL_HANDLE;
-		vulkan_data.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native());
-		vulkan_data.m_nQueueFamilyIndex = device_impl->_graphics_queue_family_index;
-		vulkan_data.m_nWidth = OVERLAY_WIDTH;
-		vulkan_data.m_nHeight = OVERLAY_HEIGHT;
-		vulkan_data.m_nFormat = VK_FORMAT_R8G8B8A8_UNORM;
-		vulkan_data.m_nSampleCount = 1;
-		texture.handle = &vulkan_data;
+		texture_data.vulkan.m_nImage = _vr_overlay_tex.handle;
+		texture_data.vulkan.m_pDevice = reinterpret_cast<VkDevice_T *>(_device->get_native());
+		texture_data.vulkan.m_pPhysicalDevice = device_impl->_physical_device;
+		texture_data.vulkan.m_pInstance = VK_NULL_HANDLE;
+		texture_data.vulkan.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native());
+		texture_data.vulkan.m_nQueueFamilyIndex = device_impl->_graphics_queue_family_index;
+		texture_data.vulkan.m_nWidth = OVERLAY_WIDTH;
+		texture_data.vulkan.m_nHeight = OVERLAY_HEIGHT;
+		texture_data.vulkan.m_nFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		texture_data.vulkan.m_nSampleCount = 1;
+		texture.handle = &texture_data.vulkan;
 		texture.eType = vr::TextureType_Vulkan;
 		break;
 	}
