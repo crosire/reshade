@@ -1308,9 +1308,8 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::Spacing();
 
-		float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y;
-		if (!_performance_mode)
-			bottom_height += 17 /* splitter */ + (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0));
+		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (
+			_performance_mode ? 0 : (17 /* splitter */ + (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0))));
 
 		if (ImGui::BeginChild("##techniques", ImVec2(0, -bottom_height), true))
 		{
@@ -2368,6 +2367,10 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::Spacing();
 
+	const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y;
+
+	ImGui::BeginChild("##addons", ImVec2(0, -bottom_height), false, ImGuiWindowFlags_NavFlattened);
+
 	std::vector<std::string> disabled_addons;
 	global_config().get("ADDON", "DisabledAddons", disabled_addons);
 
@@ -2454,6 +2457,8 @@ void reshade::runtime::draw_gui_addons()
 
 		ImGui::GetStateStorage()->SetFloat(settings_id, settings_height);
 	}
+
+	ImGui::EndChild();
 
 	ImGui::Spacing();
 
