@@ -97,7 +97,9 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 {
 	std::error_code ec;
 	std::vector<std::filesystem::path> files;
+	std::vector<std::pair<std::filesystem::path, bool>> resolved_search_paths;
 
+	// First resolve all search paths and ensure they are all unique
 	for (std::filesystem::path search_path : search_paths)
 	{
 		const bool recursive_search = search_path.filename() == L"**";
@@ -106,25 +108,29 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 
 		if (resolve_path(search_path))
 		{
-			if (recursive_search)
-			{
-				for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
-				{
-					if (!entry.is_directory(ec) &&
-						std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
-						files.emplace_back(entry); // Construct path from directory entry in-place
-				}
-			}
+			if (const auto it = std::find_if(resolved_search_paths.begin(), resolved_search_paths.end(), [&search_path](const auto &recursive_search_path) { return recursive_search_path.first == search_path; });
+				it != resolved_search_paths.end())
+				it->second |= recursive_search;
 			else
-			{
-				for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
-				{
-					if (!entry.is_directory(ec) &&
-						std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
-						files.emplace_back(entry);
-				}
-			}
+				resolved_search_paths.push_back(std::make_pair(std::move(search_path), recursive_search));
 		}
+	}
+
+	// Then iterate through all files in those search paths and add those with a matching extension
+	const auto check_and_add_file = [&extensions, &ec, &files](const std::filesystem::directory_entry &entry) {
+		if (!entry.is_directory(ec) &&
+			std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
+			files.emplace_back(entry); // Construct path from directory entry in-place
+	};
+
+	for (const std::pair<std::filesystem::path, bool> &resolved_search_path : resolved_search_paths)
+	{
+		if (resolved_search_path.second)
+			for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(resolved_search_path.first, std::filesystem::directory_options::skip_permission_denied, ec))
+				check_and_add_file(entry);
+		else
+			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(resolved_search_path.first, std::filesystem::directory_options::skip_permission_denied, ec))
+				check_and_add_file(entry);
 	}
 
 	return files;
