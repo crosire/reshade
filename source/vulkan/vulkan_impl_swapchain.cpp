@@ -27,7 +27,7 @@ reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_que
 	// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
 	const uint32_t driver_minor_version = _vendor_id == 0x10DE ?
 		(device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(device_props.driverVersion);
-	LOG(INFO) << "Running on " << device_props.deviceName << " Driver " << VK_VERSION_MAJOR(device_props.driverVersion) << '.' << driver_minor_version;
+	LOG(INFO) << "Running on " << device_props.deviceName << " Driver " << VK_VERSION_MAJOR(device_props.driverVersion) << '.' << driver_minor_version << '.';
 }
 reshade::vulkan::swapchain_impl::~swapchain_impl()
 {

@@ -21,15 +21,15 @@ namespace reshadefx
 		~parser();
 
 		/// <summary>
-		/// Parse the provided input string.
+		/// Parses the provided input string.
 		/// </summary>
-		/// <param name="source">The string to analyze.</param>
-		/// <param name="backend">The code generation implementation to use.</param>
-		/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
+		/// <param name="source">String to analyze.</param>
+		/// <param name="backend">Code generation implementation to use.</param>
+		/// <returns><see langword="true"/> if parsing was successfull, <see langword="false"/> otherwise.</returns>
 		bool parse(std::string source, class codegen *backend);
 
 		/// <summary>
-		/// Get the list of error messages.
+		/// Gets the list of error messages.
 		/// </summary>
 		std::string &errors() { return _errors; }
 		const std::string &errors() const { return _errors; }

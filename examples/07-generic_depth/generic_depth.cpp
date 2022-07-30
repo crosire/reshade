@@ -24,6 +24,13 @@ static unsigned int s_use_aspect_ratio_heuristics = 1;
 
 using namespace reshade::api;
 
+enum class clear_op
+{
+	clear_depth_stencil_view,
+	fullscreen_draw,
+	unbind_depth_stencil_view,
+};
+
 struct draw_stats
 {
 	uint32_t vertices = 0;
@@ -33,7 +40,8 @@ struct draw_stats
 };
 struct clear_stats : public draw_stats
 {
-	bool fullscreen_draw = false;
+	clear_op clear_op = clear_op::clear_depth_stencil_view;
+	bool copied_during_frame = false;
 };
 
 struct depth_stencil_info
@@ -129,14 +137,16 @@ struct depth_stencil_backup
 {
 	size_t references = 1;
 
-	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
-	size_t force_clear_index = 0;
-
 	// A resource used as target for a backup copy of this depth-stencil
 	resource backup_texture = { 0 };
 
 	// The depth-stencil that should be copied from
 	resource depth_stencil_resource = { 0 };
+
+	uint32_t frame_width = 0;
+	uint32_t frame_height = 0;
+	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
+	size_t   force_clear_index = 0;
 };
 
 struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_device_data
@@ -241,7 +251,7 @@ static bool check_aspect_ratio(float width_to_check, float height_to_check, uint
 	return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (s_use_aspect_ratio_heuristics == 2 && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 }
 
-static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, resource depth_stencil, bool fullscreen_draw)
+static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, resource depth_stencil, clear_op op)
 {
 	if (depth_stencil == 0)
 		return;
@@ -252,37 +262,60 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	if (depth_stencil_backup == nullptr || depth_stencil_backup->backup_texture == 0)
 		return;
 
+	bool do_copy = true;
 	depth_stencil_info &counters = state.counters_per_used_depth_stencil[depth_stencil];
 
 	// Ignore clears when there was no meaningful workload (e.g. at the start of a frame)
 	if (counters.current_stats.drawcalls == 0)
 		return;
 
-	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in Mirror's Edge and Portal)
-	if (counters.current_stats.last_viewport.width > 0 && counters.current_stats.last_viewport.width <= 512)
+	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in some games)
+	switch (op)
 	{
-		counters.current_stats = { 0, 0 };
-		return;
+	case clear_op::clear_depth_stencil_view:
+		// Mirror's Edge and Portal occasionally render something into a small viewport (16x16 in Mirror's Edge, 512x512 in Portal to render underwater geometry)
+		do_copy = counters.current_stats.last_viewport.width > 1024 || (counters.current_stats.last_viewport.width == 0 || depth_stencil_backup->frame_width <= 1024);
+		break;
+	case clear_op::fullscreen_draw:
+		// Mass Effect 3 in Mass Effect Legendary Edition sometimes uses a larger common depth buffer for shadow map and scene rendering, where the former uses a 1024x1024 viewport and the latter uses a viewport matching the render resolution
+		do_copy = check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, depth_stencil_backup->frame_width, depth_stencil_backup->frame_height);
+		break;
+	case clear_op::unbind_depth_stencil_view:
+		// DOOM Eternal only shows a single draw call in the current stats here, Cyberpunk 2077 on the other hand has multiple occurences with many draw calls, ... so avoid trying heuristics here
+		break;
 	}
 
-	counters.clears.push_back({ counters.current_stats, fullscreen_draw });
-
-	// Make a backup copy of the depth texture before it is cleared
-	if (depth_stencil_backup->force_clear_index == 0 ?
-		// If clear index override is set to zero, always copy any suitable buffers
-		// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge main menu)
-		counters.current_stats.vertices >= state.best_copy_stats.vertices :
-		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
-		counters.clears.size() == depth_stencil_backup->force_clear_index)
+	if (do_copy)
 	{
-		state.best_copy_stats = counters.current_stats;
+		if (op != clear_op::unbind_depth_stencil_view)
+		{
+			// If clear index override is set to zero, always copy any suitable buffers
+			if (depth_stencil_backup->force_clear_index == 0)
+			{
+				// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge main menu)
+				do_copy = counters.current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && counters.current_stats.drawcalls >= state.best_copy_stats.drawcalls);
+			}
+			else
+			{
+				// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
+				do_copy = counters.clears.size() == (depth_stencil_backup->force_clear_index - 1);
+			}
 
-		// A resource has to be in this state for a clear operation, so can assume it here
-		cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
-		cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture);
-		cmd_list->barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
+			counters.clears.push_back({ counters.current_stats, op, do_copy });
+		}
 
-		counters.copied_during_frame = true;
+		// Make a backup copy of the depth texture before it is cleared
+		if (do_copy)
+		{
+			state.best_copy_stats = counters.current_stats;
+
+			// A resource has to be in this state for a clear operation, so can assume it here
+			cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
+			cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture);
+			cmd_list->barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
+
+			counters.copied_during_frame = true;
+		}
 	}
 
 	// Reset draw call stats for clears
@@ -426,11 +459,11 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 }
 static void on_destroy_resource(device *device, resource resource)
 {
-	generic_depth_device_data &device_data = device->get_private_data<generic_depth_device_data>();
+	auto &device_data = device->get_private_data<generic_depth_device_data>();
 
 	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
 	// The state tracking context would have been destroyed already in that case, so return early if it does not exist
-	if (&device_data == nullptr)
+	if ((&device_data) == nullptr)
 		return;
 
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
@@ -445,12 +478,13 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 		return false; // This is a draw call with no depth-stencil bound
 
 	// Check if this draw call likely represets a fullscreen rectangle (two triangles), which would clear the depth-stencil
-	if (s_preserve_depth_buffers == 2 &&
-		vertices == 6 && instances == 1 &&
+	const bool fullscreen_draw = vertices == 6 && instances == 1;
+	if (fullscreen_draw &&
+		s_preserve_depth_buffers == 2 &&
 		state.first_draw_since_bind &&
 		// But ignore that in Vulkan (since it is invalid to copy a resource inside an active render pass)
 		cmd_list->get_device()->get_api() != device_api::vulkan)
-		on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, true);
+		on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, clear_op::fullscreen_draw);
 
 	state.first_draw_since_bind = false;
 
@@ -459,7 +493,10 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices * instances;
 	counters.current_stats.drawcalls += 1;
-	counters.current_stats.last_viewport = state.current_viewport;
+
+	// Skip updating last viewport for fullscreen draw calls, to prevent a clear operation in Prince of Persia: The Sands of Time from getting filtered out
+	if (!fullscreen_draw)
+		counters.current_stats.last_viewport = state.current_viewport;
 
 	return false;
 }
@@ -508,15 +545,10 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 			state.first_draw_since_bind = true;
 
 		// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
-		if (state.current_depth_stencil != 0 && depth_stencil == 0 && (
+		if (s_preserve_depth_buffers == 2 &&
+			state.current_depth_stencil != 0 && depth_stencil == 0 && (
 			cmd_list->get_device()->get_api() == device_api::d3d12 || cmd_list->get_device()->get_api() == device_api::vulkan))
-		{
-			const depth_stencil_info &previous_counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
-
-			// But only do this when a sufficient workload has executed before, to avoid too many copies during the frame (values chosen in Cyberpunk 2077)
-			if (previous_counters.current_stats.drawcalls > 3 && previous_counters.current_stats.drawcalls_indirect == 0)
-				on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, true);
-		}
+			on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, clear_op::unbind_depth_stencil_view);
 	}
 
 	state.current_depth_stencil = depth_stencil;
@@ -531,7 +563,7 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, co
 		const resource depth_stencil = cmd_list->get_device()->get_resource_from_view(dsv);
 
 		// Note: This does not work when called from 'vkCmdClearAttachments', since it is invalid to copy a resource inside an active render pass
-		on_clear_depth_impl(cmd_list, state, depth_stencil, false);
+		on_clear_depth_impl(cmd_list, state, depth_stencil, clear_op::clear_depth_stencil_view);
 	}
 
 	return false;
@@ -561,6 +593,11 @@ static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 {
 	auto &target_state = queue_or_cmd_list->get_private_data<state_tracking>();
 	const auto &source_state = cmd_list->get_private_data<state_tracking>();
+
+	// Skip merging state when this execution event is just the immediate command list getting flushed
+	if ((&target_state) == (&source_state))
+		return;
+
 	target_state.merge(source_state);
 }
 
@@ -709,6 +746,9 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				if (depth_stencil_backup->backup_texture == 0)
 					return;
 
+				depth_stencil_backup->frame_width = frame_width;
+				depth_stencil_backup->frame_height = frame_height;
+
 				if (s_preserve_depth_buffers)
 					reshade::config_get_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				else
@@ -736,18 +776,15 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			assert(depth_stencil_backup != nullptr && depth_stencil_backup->backup_texture != 0 && best_snapshot != nullptr);
 			const resource backup_texture = depth_stencil_backup->backup_texture;
 
-			if (!s_preserve_depth_buffers)
+			// Copy to backup texture unless already copied during the current frame
+			if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
 			{
-				// Copy to backup texture unless already copied during the current frame
-				if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
-				{
-					// Ensure barriers are not created with 'D3D12_RESOURCE_STATE_[...]_SHADER_RESOURCE' when resource has 'D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE' flag set
-					const resource_usage old_state = best_match_desc.usage & (resource_usage::depth_stencil | resource_usage::shader_resource);
+				// Ensure barriers are not created with 'D3D12_RESOURCE_STATE_[...]_SHADER_RESOURCE' when resource has 'D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE' flag set
+				const resource_usage old_state = best_match_desc.usage & (resource_usage::depth_stencil | resource_usage::shader_resource);
 
-					cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
-					cmd_list->copy_resource(best_match, backup_texture);
-					cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
-				}
+				cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
+				cmd_list->copy_resource(best_match, backup_texture);
+				cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
 
 				// Indicate that the copy was now done, so it is not repeated in case effects are rendered by another runtime (e.g. when there are multiple present calls in a frame)
 				lock.lock();
@@ -842,7 +879,6 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	generic_depth_device_data &device_data = device->get_private_data<generic_depth_device_data>();
 
 	bool force_reset = false;
-	const bool is_d3d12_or_vulkan = (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan);
 
 	if (bool use_aspect_ratio_heuristics = s_use_aspect_ratio_heuristics != 0;
 		ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics))
@@ -855,7 +891,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	if (s_use_aspect_ratio_heuristics)
 	{
 		if (bool use_aspect_ratio_heuristics_ex = s_use_aspect_ratio_heuristics == 2;
-			ImGui::Checkbox("Use extended aspect ratio heuristics (enable when DLSS or resolution scaling is active)", &use_aspect_ratio_heuristics_ex))
+			ImGui::Checkbox("Use extended aspect ratio heuristics (for DLSS or resolution scaling)", &use_aspect_ratio_heuristics_ex))
 		{
 			s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics_ex ? 2 : 1;
 			reshade::config_set_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
@@ -871,10 +907,12 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		force_reset = true;
 	}
 
-	if (s_preserve_depth_buffers && !is_d3d12_or_vulkan)
+	const bool is_d3d12_or_vulkan = device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan;
+
+	if (s_preserve_depth_buffers || is_d3d12_or_vulkan)
 	{
 		if (bool copy_before_fullscreen_draws = s_preserve_depth_buffers == 2;
-			ImGui::Checkbox("Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws))
+			ImGui::Checkbox(is_d3d12_or_vulkan ? "Copy depth buffer during frame to prevent artifacts" : "Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws))
 		{
 			s_preserve_depth_buffers = copy_before_fullscreen_draws ? 2 : 1;
 			reshade::config_set_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
@@ -935,7 +973,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		data.display_count_per_depth_stencil[item.resource] = item.display_count;
 
 		char label[512] = "";
-		sprintf_s(label, "%s0x%016llx", (item.resource == data.selected_depth_stencil ? "> " : "  "), item.resource.handle);
+		sprintf_s(label, "%c 0x%016llx", (item.resource == data.selected_depth_stencil ? '>' : ' '), item.resource.handle);
 
 		if (item.desc.texture.samples > 1) // Disable widget for MSAA textures
 		{
@@ -972,7 +1010,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		{
 			if (item.snapshot.clears.empty())
 			{
-				has_no_clear_operations = true;
+				has_no_clear_operations = !is_d3d12_or_vulkan;
 				continue;
 			}
 
@@ -982,15 +1020,9 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 			for (size_t clear_index = 1; clear_index <= item.snapshot.clears.size(); ++clear_index)
 			{
-				sprintf_s(label, "%s  CLEAR %2zu", (clear_index == depth_stencil_backup->force_clear_index ? "> " : "  "), clear_index);
-
 				const auto &clear_stats = item.snapshot.clears[clear_index - 1];
 
-				if (clear_stats.fullscreen_draw && is_d3d12_or_vulkan)
-				{
-					ImGui::BeginDisabled();
-					ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-				}
+				sprintf_s(label, "%c   CLEAR %2zu", clear_stats.copied_during_frame ? '>' : ' ', clear_index);
 
 				if (bool value = (depth_stencil_backup->force_clear_index == clear_index);
 					ImGui::Checkbox(label, &value))
@@ -1004,13 +1036,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					clear_stats.drawcalls,
 					clear_stats.drawcalls_indirect,
 					clear_stats.vertices,
-					clear_stats.fullscreen_draw ? (is_d3d12_or_vulkan ? " BIND" : " DRAW") : "");
-
-				if (clear_stats.fullscreen_draw && is_d3d12_or_vulkan)
-				{
-					ImGui::PopStyleColor();
-					ImGui::EndDisabled();
-				}
+					clear_stats.clear_op == clear_op::fullscreen_draw ? " Fullscreen draw call" : "");
 			}
 		}
 	}
@@ -1025,8 +1051,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		if (has_msaa_depth_stencil)
 			ImGui::TextUnformatted("Not all depth buffers are available.\nYou may have to disable MSAA in the game settings for depth buffer detection to work!");
 		if (has_no_clear_operations)
-			ImGui::Text("No clear operations were found for the selected depth buffer.\n%sisable \"Copy depth buffer before clear operations\" or select a different depth buffer!",
-				s_preserve_depth_buffers != 2 && !is_d3d12_or_vulkan ? "Try enabling \"Copy depth buffer before fullscreen draw calls\" or d" : "D");
+			ImGui::Text("No clear operations were found for the selected depth buffer.\n%s",
+				s_preserve_depth_buffers != 2 ? "Try enabling \"Copy depth buffer before fullscreen draw calls\" or disable \"Copy depth buffer before clear operations\"!" : "Disable \"Copy depth buffer before clear operations\" or select a different depth buffer!");
 		ImGui::PopTextWrapPos();
 	}
 

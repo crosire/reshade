@@ -17,12 +17,13 @@
 #include "vulkan/vulkan_impl_device.hpp"
 #include "vulkan/vulkan_impl_command_queue.hpp"
 #include "openvr_impl_swapchain.hpp"
+#include <functional>
 #include <ivrclientcore.h>
 
 // There can only be a single global effect runtime in OpenVR (since its API is based on singletons)
 static reshade::openvr::swapchain_impl *s_vr_swapchain = nullptr;
 
-static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, const vr::VRTextureBounds_t *orig_bounds, bool flip_y = false)
+static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, const vr::VRTextureBounds_t *orig_bounds)
 {
 	vr::VRTextureBounds_t bounds = (eye != vr::Eye_Right) ?
 		vr::VRTextureBounds_t { 0.0f, 0.0f, 0.5f, 1.0f } : // Left half of the texture
@@ -30,7 +31,7 @@ static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, con
 
 	if (orig_bounds != nullptr && orig_bounds->uMin > orig_bounds->uMax)
 		std::swap(bounds.uMin, bounds.uMax);
-	if (orig_bounds != nullptr ? (orig_bounds->vMin > orig_bounds->vMax) != flip_y : flip_y)
+	if (orig_bounds != nullptr && orig_bounds->vMin > orig_bounds->vMax)
 		std::swap(bounds.vMin, bounds.vMax);
 
 	return bounds;
@@ -230,9 +231,9 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 		// Target object created in 'on_vr_submit' is a 2D texture
 		flags = static_cast<vr::EVRSubmitFlags>(flags & ~(vr::Submit_GlRenderBuffer | vr::Submit_GlArrayTexture));
 
-		const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds, true);
+		const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
 		submit(vr::Eye_Left, reinterpret_cast<void *>(static_cast<uintptr_t>(target_rbo)), &left_bounds, flags);
-		const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds, true);
+		const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
 		return submit(vr::Eye_Right, reinterpret_cast<void *>(static_cast<uintptr_t>(target_rbo)), &right_bounds, flags);
 	}
 }

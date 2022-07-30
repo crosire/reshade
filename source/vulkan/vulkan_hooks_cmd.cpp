@@ -21,8 +21,6 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 	assert(trampoline != nullptr)
 
 #if RESHADE_ADDON
-extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
-
 static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info)
 {
 	if (!reshade::has_addon_event<reshade::addon_event::begin_render_pass>())
@@ -65,7 +63,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.image = (VkImage)device_impl->get_resource_from_view(rt.view).handle;
-					transition.subresourceRange = { aspect_flags_from_format(desc.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+					transition.subresourceRange = { reshade::vulkan::aspect_flags_from_format(desc.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 				}
 			}
 		}
@@ -112,7 +110,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.image = (VkImage)device_impl->get_resource_from_view(ds.view).handle;
-					transition.subresourceRange = { aspect_flags_from_format(desc.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+					transition.subresourceRange = { reshade::vulkan::aspect_flags_from_format(desc.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 				}
 			}
 		}
@@ -982,8 +980,8 @@ void VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineSt
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	temp_mem<reshade::api::resource> resources(num_barriers);
-	temp_mem<reshade::api::resource_usage> old_state(num_barriers), new_state(num_barriers);
+	temp_mem<reshade::api::resource, 32> resources(num_barriers);
+	temp_mem<reshade::api::resource_usage, 32> old_state(num_barriers), new_state(num_barriers);
 
 	for (uint32_t i = 0; i < memoryBarrierCount; ++i)
 	{
@@ -1293,8 +1291,8 @@ void VKAPI_CALL vkCmdPipelineBarrier2(VkCommandBuffer commandBuffer, const VkDep
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	temp_mem<reshade::api::resource> resources(num_barriers);
-	temp_mem<reshade::api::resource_usage> old_state(num_barriers), new_state(num_barriers);
+	temp_mem<reshade::api::resource, 32> resources(num_barriers);
+	temp_mem<reshade::api::resource_usage, 32> old_state(num_barriers), new_state(num_barriers);
 
 	for (uint32_t i = 0; i < pDependencyInfo->memoryBarrierCount; ++i)
 	{

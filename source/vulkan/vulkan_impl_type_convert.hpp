@@ -135,10 +135,21 @@ namespace reshade::vulkan
 		VkQueryType type;
 	};
 
-	auto convert_format(api::format format) -> VkFormat;
-	auto convert_format(VkFormat vk_format) -> api::format;
+	auto convert_format(api::format format, VkComponentMapping *components = nullptr) -> VkFormat;
+	auto convert_format(VkFormat vk_format, const VkComponentMapping *components = nullptr) -> api::format;
 
 	auto convert_color_space(VkColorSpaceKHR color_space) -> api::color_space;
+
+	inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)
+	{
+		if (format >= VK_FORMAT_D16_UNORM && format <= VK_FORMAT_D32_SFLOAT)
+			return VK_IMAGE_ASPECT_DEPTH_BIT;
+		if (format == VK_FORMAT_S8_UINT)
+			return VK_IMAGE_ASPECT_STENCIL_BIT;
+		if (format >= VK_FORMAT_D16_UNORM_S8_UINT && format <= VK_FORMAT_D32_SFLOAT_S8_UINT)
+			return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+		return VK_IMAGE_ASPECT_COLOR_BIT;
+	}
 
 	auto convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage;
 	auto convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage;
@@ -207,4 +218,10 @@ namespace reshade::vulkan
 	auto convert_render_pass_load_op(VkAttachmentLoadOp value) -> api::render_pass_load_op;
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp;
 	auto convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op;
+}
+
+template <typename T>
+inline void hash_combine(size_t &seed, const T &v)
+{
+	seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }

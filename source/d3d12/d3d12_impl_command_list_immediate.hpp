@@ -14,13 +14,14 @@ namespace reshade::d3d12
 		static constexpr uint32_t NUM_COMMAND_FRAMES = 4; // Use power of two so that modulo can be replaced with bitwise operation
 
 	public:
-		command_list_immediate_impl(device_impl *device);
+		command_list_immediate_impl(device_impl *device, ID3D12CommandQueue *queue);
 		~command_list_immediate_impl();
 
-		bool flush(ID3D12CommandQueue *queue);
-		bool flush_and_wait(ID3D12CommandQueue *queue);
+		bool flush();
+		bool flush_and_wait();
 
 	private:
+		ID3D12CommandQueue *const _parent_queue;
 		UINT32 _cmd_index = 0;
 		HANDLE _fence_event = nullptr;
 		UINT64 _fence_value[NUM_COMMAND_FRAMES] = {};

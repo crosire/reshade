@@ -7,7 +7,8 @@
 
 #include "addon_manager.hpp"
 #include "descriptor_heap.hpp"
-#include <shared_mutex>
+#include <unordered_map>
+#include <concurrent_vector.h>
 
 struct D3D12DescriptorHeap;
 
@@ -16,6 +17,7 @@ namespace reshade::d3d12
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
 	{
 		friend class command_list_impl;
+		friend class command_list_immediate_impl;
 		friend class command_queue_impl;
 
 	public:
@@ -78,11 +80,23 @@ namespace reshade::d3d12
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view, const char * ) final {}
 
+		command_list_immediate_impl *get_first_immediate_command_list();
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
 
-		api::descriptor_set convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data = 0) const;
-		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type) const;
+		static  __forceinline api::descriptor_set convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data = 0)
+		{
+#ifdef _WIN64
+			assert((handle.ptr >> 56) == 0);
+#endif
+			return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
+		}
+		__forceinline D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
+		{
+			D3D12_DESCRIPTOR_HEAP_TYPE actual_type;
+			return convert_to_original_cpu_descriptor_handle(convert_to_descriptor_set(handle), actual_type);
+		}
 #endif
 		api::descriptor_set convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data = 0) const;
 		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_set set) const;
@@ -110,11 +124,9 @@ namespace reshade::d3d12
 
 		inline void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource, const api::resource_view_desc &desc)
 		{
-			const std::unique_lock<std::shared_mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 			_views.insert_or_assign(handle.ptr, std::make_pair(resource, desc));
 		}
-
-		mutable std::shared_mutex _mutex; // 'ID3D12Device' is thread-safe, so need to lock when accessed from multiple threads
 
 	private:
 		std::vector<command_queue_impl *> _queues;
@@ -125,8 +137,9 @@ namespace reshade::d3d12
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 50000, 2048> _gpu_view_heap;
 
+		mutable std::shared_mutex _resource_mutex;
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		std::vector<D3D12DescriptorHeap *> _descriptor_heaps;
+		concurrency::concurrent_vector<D3D12DescriptorHeap *> _descriptor_heaps;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses; // TODO: Replace with interval tree
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;

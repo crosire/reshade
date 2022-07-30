@@ -79,11 +79,11 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 	std::string file_data(static_cast<size_t>(std::filesystem::file_size(path)) + 1, '\0');
 	const size_t eof = fread((char *)file_data.data(), 1, file_data.size() - 1, file);
 
-	// Append a new line feed to the end of the input string to avoid issues with parsing
-	file_data[eof] = '\n';
-
 	// No longer need to have a handle open to the file, since all data was read, so can safely close it
 	fclose(file);
+
+	// Append a new line feed to the end of the input string to avoid issues with parsing
+	file_data[eof] = '\n';
 
 	// Remove BOM (0xefbbbf means 0xfeff)
 	if (file_data.size() >= 3 &&
@@ -134,7 +134,7 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 
 	return _success;
 }
-bool reshadefx::preprocessor::append_string(const std::string &source_code)
+bool reshadefx::preprocessor::append_string(std::string source_code, const std::filesystem::path &path)
 {
 	// Enforce all input strings to end with a line feed
 	assert(!source_code.empty() && source_code.back() == '\n');
@@ -144,7 +144,7 @@ bool reshadefx::preprocessor::append_string(const std::string &source_code)
 	// Give this push a name, so that lexer location starts at a new line
 	// This is necessary in case this string starts with a preprocessor directive, since the lexer only reports those as such if they appear at the beginning of a new line
 	// But without a name, the lexer location is set to the last token location, which most likely will not be at the start of the line
-	push(source_code, "unknown");
+	push(std::move(source_code), path.empty() ? "unknown" : path.u8string());
 	parse();
 
 	return _success;

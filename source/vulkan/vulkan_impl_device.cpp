@@ -13,17 +13,6 @@
 
 extern bool is_windows7();
 
-inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)
-{
-	if (format >= VK_FORMAT_D16_UNORM && format <= VK_FORMAT_D32_SFLOAT)
-		return VK_IMAGE_ASPECT_DEPTH_BIT;
-	if (format == VK_FORMAT_S8_UINT)
-		return VK_IMAGE_ASPECT_STENCIL_BIT;
-	if (format >= VK_FORMAT_D16_UNORM_S8_UINT && format <= VK_FORMAT_D32_SFLOAT_S8_UINT)
-		return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-	return VK_IMAGE_ASPECT_COLOR_BIT;
-}
-
 reshade::vulkan::device_impl::device_impl(
 	VkDevice device,
 	VkPhysicalDevice physical_device,
@@ -519,30 +508,28 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				if (initial_state != api::resource_usage::undefined)
 				{
 					// Transition resource into the initial state using the first available immediate command list
-					for (command_queue_impl *const queue : _queues)
+					if (const auto immediate_command_list = get_first_immediate_command_list())
 					{
-						const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-						if (immediate_command_list != nullptr)
+						if (initial_data != nullptr)
 						{
-							if (initial_data != nullptr)
-							{
-								const api::resource_usage states_upload[2] = { api::resource_usage::undefined, api::resource_usage::copy_dest };
-								immediate_command_list->barrier(1, out_handle, &states_upload[0], &states_upload[1]);
+							const api::resource_usage states_upload[2] = { api::resource_usage::undefined, api::resource_usage::copy_dest };
+							immediate_command_list->barrier(1, out_handle, &states_upload[0], &states_upload[1]);
 
-								for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
-									update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
+							for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+								update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
 
-								const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
-								immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
-							}
-							else
-							{
-								const api::resource_usage states_finalize[2] = { api::resource_usage::undefined, initial_state };
-								immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
-							}
+							const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
+							immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
 
-							queue->flush_immediate_command_list();
-							break;
+							uint32_t num_wait_semaphores = 0;
+							immediate_command_list->flush(nullptr, num_wait_semaphores);
+						}
+						else
+						{
+							const api::resource_usage states_finalize[2] = { api::resource_usage::undefined, initial_state };
+							immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
+
+							// No need to flush immediate command list just yet
 						}
 					}
 				}
@@ -625,21 +612,6 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		convert_resource_view_desc(desc, create_info);
 		create_info.image = (VkImage)resource.handle;
 		create_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
-
-		if (desc.format == api::format::a8_unorm)
-			create_info.components = { VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_R };
-		else if (
-			desc.format == api::format::l8_unorm || desc.format == api::format::l16_unorm)
-			create_info.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE };
-		else if (
-			desc.format == api::format::l8a8_unorm || desc.format == api::format::l16a16_unorm)
-			create_info.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
-		else if (
-			desc.format == api::format::r8g8b8x8_unorm || desc.format == api::format::r8g8b8x8_unorm_srgb ||
-			desc.format == api::format::b8g8r8x8_unorm || desc.format == api::format::b8g8r8x8_unorm_srgb || desc.format == api::format::b5g5r5x1_unorm)
-			create_info.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE };
-		else
-			create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
 
 		// Shader resource views can never access stencil data (except for the explicit formats that do that), so remove that aspect flag for views created with a format that supports stencil
 		if (desc.format == api::format::x24_unorm_g8_uint || desc.format == api::format::x32_float_g8_uint)
@@ -820,20 +792,13 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 {
 	assert(resource.handle != 0);
 
-	assert(!_queues.empty());
-
-	for (command_queue_impl *const queue : _queues)
+	if (const auto immediate_command_list = get_first_immediate_command_list())
 	{
-		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-		if (immediate_command_list != nullptr)
-		{
-			immediate_command_list->_has_commands = true;
+		immediate_command_list->_has_commands = true;
 
-			vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)resource.handle, offset, size, data);
+		vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)resource.handle, offset, size, data);
 
-			immediate_command_list->flush_and_wait(queue->_orig);
-			break;
-		}
+		immediate_command_list->flush_and_wait();
 	}
 }
 void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
@@ -891,20 +856,13 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 
 		vmaUnmapMemory(_alloc, intermediate_mem);
 
-		assert(!_queues.empty());
-
 		// Copy data from upload buffer into target texture using the first available immediate command list
-		for (command_queue_impl *const queue : _queues)
+		if (const auto immediate_command_list = get_first_immediate_command_list())
 		{
-			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-			if (immediate_command_list != nullptr)
-			{
-				immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, resource, subresource, box);
+			immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, resource, subresource, box);
 
-				// Wait for command to finish executing before destroying the upload buffer
-				immediate_command_list->flush_and_wait(queue->_orig);
-				break;
-			}
+			// Wait for command to finish executing before destroying the upload buffer
+			immediate_command_list->flush_and_wait();
 		}
 	}
 
@@ -1217,7 +1175,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			subpass.pColorAttachments = attach_refs;
 			subpass.pDepthStencilAttachment = (depth_stencil_format != api::format::unknown) ? &attach_refs[color_blend_state_info.attachmentCount] : nullptr;
 
-			VkRenderPassCreateInfo render_pass_create_info{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+			VkRenderPassCreateInfo render_pass_create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 			render_pass_create_info.attachmentCount = subpass.colorAttachmentCount + (subpass.pDepthStencilAttachment != nullptr ? 1 : 0);
 			render_pass_create_info.pAttachments = attach_descs;
 			render_pass_create_info.subpassCount = 1;
@@ -1614,17 +1572,14 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 
 		// Reset all queries for initial use
 #if 1
-		for (command_queue_impl *const queue : _queues)
+		if (const auto immediate_command_list = get_first_immediate_command_list())
 		{
-			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-			if (immediate_command_list != nullptr)
-			{
-				vk.CmdResetQueryPool(immediate_command_list->_orig, pool, 0, count);
+			vk.CmdResetQueryPool(immediate_command_list->_orig, pool, 0, count);
 
-				immediate_command_list->_has_commands = true;
-				queue->flush_immediate_command_list();
-				break;
-			}
+			immediate_command_list->_has_commands = true;
+
+			uint32_t num_wait_semaphores = 0;
+			immediate_command_list->flush(nullptr, num_wait_semaphores);
 		}
 #else
 		vk.ResetQueryPool(_orig, pool, 0, count);
@@ -1700,4 +1655,14 @@ void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 	// This assumes that no other thread is currently allocating from the transient descriptor pool
 	const VkDescriptorPool next_pool = _transient_descriptor_pool[++_transient_index % 4];
 	vk.ResetDescriptorPool(_orig, next_pool, 0);
+}
+
+reshade::vulkan::command_list_immediate_impl *reshade::vulkan::device_impl::get_first_immediate_command_list()
+{
+	assert(!_queues.empty());
+
+	for (command_queue_impl *const queue : _queues)
+		if (const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
+			return immediate_command_list;
+	return nullptr;
 }

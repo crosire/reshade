@@ -267,6 +267,11 @@ namespace reshade
 		api::color_space _back_buffer_color_space = api::color_space::srgb_nonlinear;
 		bool _is_vr = false;
 
+#if RESHADE_ADDON
+		bool _is_in_api_call = false;
+		bool _is_in_present_call = false;
+#endif
+
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
@@ -353,10 +358,6 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _start_time;
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 		unsigned long long _framecount = 0;
-
-#if RESHADE_ADDON
-		bool _is_in_api_call = false;
-#endif
 		#pragma endregion
 
 		#pragma region Effect Loading
@@ -380,7 +381,7 @@ namespace reshade
 		bool _textures_loaded = false;
 		std::shared_mutex _reload_mutex;
 		std::vector<size_t> _reload_create_queue;
-		std::atomic<size_t> _reload_remaining_effects = 0;
+		std::atomic<size_t> _reload_remaining_effects = std::numeric_limits<size_t>::max();
 		void *_d3d_compiler_module = nullptr;
 
 		std::vector<effect> _effects;
@@ -531,6 +532,7 @@ namespace reshade
 #if RESHADE_FX
 		char _effect_filter[32] = {};
 		bool _variable_editor_tabs = false;
+		bool _save_present_on_modification = true;
 		bool _duplicate_current_preset = false;
 		bool _was_preprocessor_popup_edited = false;
 		size_t _focused_effect = std::numeric_limits<size_t>::max();

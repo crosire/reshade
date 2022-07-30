@@ -33,6 +33,7 @@ struct module_export
 
 extern HMODULE g_module_handle;
 HMODULE g_export_module_handle = nullptr;
+static bool s_is_loading_export_module = false;
 extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
 static std::shared_mutex s_hooks_mutex;
@@ -179,6 +180,10 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 			std::strcmp(symbol.name, "DXGID3D10ETWRundown") != 0 &&
 			std::strcmp(symbol.name, "DXGID3D10GetLayeredDeviceSize") != 0 &&
 			std::strcmp(symbol.name, "DXGID3D10RegisterLayers") != 0 &&
+			std::strcmp(symbol.name, "D3D12PIXEventsReplaceBlock") != 0 &&
+			std::strcmp(symbol.name, "D3D12PIXGetThreadInfo") != 0 &&
+			std::strcmp(symbol.name, "D3D12PIXNotifyWakeFromFenceSignal") != 0 &&
+			std::strcmp(symbol.name, "D3D12PIXReportCounter") != 0 &&
 			std::strcmp(symbol.name, "Direct3D9EnableMaximizedWindowedModeShim") != 0)
 		{
 #if RESHADE_VERBOSE_LOG
@@ -302,7 +307,7 @@ static T call_unchecked(T replacement)
 
 static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 {
-	if (loaded_path == s_export_hook_path)
+	if (s_is_loading_export_module)
 		return;
 
 	// Ignore this call if unable to acquire the mutex to avoid possible deadlock
@@ -417,8 +422,8 @@ bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned 
 
 	hook hook = find_internal(nullptr, replacement);
 	// Check if the hook was already installed to this virtual function table
-	if (hook.installed() && vtable[offset] == hook.replacement)
-		return true;
+	if (hook.installed())
+		return vtable[offset] == hook.replacement;
 
 	hook.target = &vtable[offset]; // Target is the address of the virtual function table entry
 	hook.trampoline = vtable[offset]; // The current function in that entry is the original function to call
@@ -470,13 +475,13 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 			GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrRegisterDllNotification"));
 		if (LdrRegisterDllNotification == nullptr || LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &s_dll_notification_cookie) != 0 /* STATUS_SUCCESS */)
 		{
-			// Fall back "LoadLibrary" hooks if DLL notification registration failed
+			// Fall back 'LoadLibrary' hooks if DLL notification registration failed
 			install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
 			install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
 			install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
 			install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
 
-			// Install all "LoadLibrary" hooks in one go immediately
+			// Install all 'LoadLibrary' hooks in one go immediately
 			// Skip this in the test application to make RenderDoc work (which hooks these too)
 			if (hook::apply_queued_actions())
 				s_dll_notification_cookie = reinterpret_cast<PVOID>(-1); // Set cookie to something so that these hooks are only installed once
@@ -499,6 +504,9 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 		LOG(INFO) << "> Delayed until first call to an exported function.";
 
 		s_export_hook_path = target_path;
+
+		// Register for function hooking as well, in case a third party (like NVIDIA Streamline) explicitly loads the system library between now and the first call to an exported function
+		s_delayed_hook_paths.push_back(target_path);
 	}
 	// Similarly, if the target module was not loaded yet, wait for it to get loaded in one of the 'LoadLibrary' hooks and install it then
 	// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
@@ -524,9 +532,11 @@ void reshade::hooks::ensure_export_module_loaded()
 
 	if (!g_export_module_handle && !s_export_hook_path.empty())
 	{
-		assert(s_export_hook_path.is_absolute());
+		assert(s_export_hook_path.is_absolute() && !s_is_loading_export_module);
 
+		s_is_loading_export_module = true;
 		const HMODULE handle = LoadLibraryW(s_export_hook_path.c_str());
+		s_is_loading_export_module = false;
 
 		LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";
 
@@ -537,6 +547,7 @@ void reshade::hooks::ensure_export_module_loaded()
 			install_internal(handle, g_module_handle, hook_method::export_hook);
 
 			g_export_module_handle = handle;
+			s_delayed_hook_paths.erase(std::remove(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(), s_export_hook_path), s_delayed_hook_paths.end());
 		}
 		else
 		{

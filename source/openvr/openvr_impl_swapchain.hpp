@@ -33,8 +33,9 @@ namespace reshade::openvr
 		void on_present();
 		bool on_vr_submit(vr::EVREye eye, api::resource eye_texture, const vr::VRTextureBounds_t *bounds, uint32_t layer);
 
-#if RESHADE_FX
+#if RESHADE_ADDON && RESHADE_FX
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
+		void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 #endif
 
 	protected:

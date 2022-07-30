@@ -97,7 +97,9 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 {
 	std::error_code ec;
 	std::vector<std::filesystem::path> files;
+	std::vector<std::pair<std::filesystem::path, bool>> resolved_search_paths;
 
+	// First resolve all search paths and ensure they are all unique
 	for (std::filesystem::path search_path : search_paths)
 	{
 		const bool recursive_search = search_path.filename() == L"**";
@@ -106,25 +108,29 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 
 		if (resolve_path(search_path))
 		{
-			if (recursive_search)
-			{
-				for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
-				{
-					if (!entry.is_directory(ec) &&
-						std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
-						files.emplace_back(entry); // Construct path from directory entry in-place
-				}
-			}
+			if (const auto it = std::find_if(resolved_search_paths.begin(), resolved_search_paths.end(), [&search_path](const auto &recursive_search_path) { return recursive_search_path.first == search_path; });
+				it != resolved_search_paths.end())
+				it->second |= recursive_search;
 			else
-			{
-				for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
-				{
-					if (!entry.is_directory(ec) &&
-						std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
-						files.emplace_back(entry);
-				}
-			}
+				resolved_search_paths.push_back(std::make_pair(std::move(search_path), recursive_search));
 		}
+	}
+
+	// Then iterate through all files in those search paths and add those with a matching extension
+	const auto check_and_add_file = [&extensions, &ec, &files](const std::filesystem::directory_entry &entry) {
+		if (!entry.is_directory(ec) &&
+			std::find(extensions.begin(), extensions.end(), entry.path().extension()) != extensions.end())
+			files.emplace_back(entry); // Construct path from directory entry in-place
+	};
+
+	for (const std::pair<std::filesystem::path, bool> &resolved_search_path : resolved_search_paths)
+	{
+		if (resolved_search_path.second)
+			for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(resolved_search_path.first, std::filesystem::directory_options::skip_permission_denied, ec))
+				check_and_add_file(entry);
+		else
+			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(resolved_search_path.first, std::filesystem::directory_options::skip_permission_denied, ec))
+				check_and_add_file(entry);
 	}
 
 	return files;
@@ -171,10 +177,10 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	_texture_search_paths({ L".\\" }),
 #endif
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
-	_screenshot_path(g_reshade_base_path),
+	_screenshot_path(L".\\"),
 	_screenshot_name("%AppName% %Date% %Time%"),
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
-	_screenshot_post_save_command_working_directory(g_reshade_base_path)
+	_screenshot_post_save_command_working_directory(L".\\")
 {
 	assert(device != nullptr && graphics_queue != nullptr);
 
@@ -545,6 +551,10 @@ void reshade::runtime::on_present()
 {
 	assert(is_initialized());
 
+#if RESHADE_ADDON
+	_is_in_present_call = true;
+#endif
+
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	uint32_t back_buffer_index = get_current_back_buffer_index();
@@ -594,7 +604,6 @@ void reshade::runtime::on_present()
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
 	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
-	_effects_rendered_this_frame = false;
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
@@ -679,7 +688,8 @@ void reshade::runtime::on_present()
 			const api::rect scissor_rect = { 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height) };
 			cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
 
-			cmd_list->bind_render_targets_and_depth_stencil(1, &_back_buffer_targets[2 + back_buffer_index * 2]);
+			const bool srgb_write_enable = (_back_buffer_format == api::format::r8g8b8a8_unorm_srgb || _back_buffer_format == api::format::b8g8r8a8_unorm_srgb);
+			cmd_list->bind_render_targets_and_depth_stencil(1, &_back_buffer_targets[2 + back_buffer_index * 2 + srgb_write_enable]);
 
 			cmd_list->draw(3, 1, 0, 0);
 
@@ -697,7 +707,10 @@ void reshade::runtime::on_present()
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_present>(this);
+
+	_is_in_present_call = false;
 #endif
+	_effects_rendered_this_frame = false;
 
 	// Reset input status
 	if (_input != nullptr)
@@ -1574,6 +1587,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				if (!load_effect_cache(cache_id, "cso", cso))
 				{
 					const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DCompile"));
+					assert(D3DCompile != nullptr);
 
 					com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 					const HRESULT hr = D3DCompile(
@@ -1633,6 +1647,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				if (!load_effect_cache(cache_id, "asm", cso_text))
 				{
 					const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DDisassemble"));
+					assert(D3DDisassemble != nullptr);
 
 					if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 						cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
@@ -1850,9 +1865,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					continue;
 				}
 			}
-
-			if (!new_texture.semantic.empty() && (new_texture.semantic != "COLOR" && new_texture.semantic != "DEPTH"))
-				effect.errors += "warning: " + new_texture.unique_name + ": unknown semantic '" + new_texture.semantic + "'\n";
 
 			// This is the first effect using this texture
 			new_texture.shared.push_back(effect_index);
@@ -2242,7 +2254,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						{
 							pass_data.modified_resources.push_back(texture->resource);
 
-							if (texture->levels > 1)
+							if (pass_info.generate_mipmaps && texture->levels > 1)
 								pass_data.generate_mipmap_views.push_back(texture->srv[pass_info.srgb_write_enable]);
 						}
 
@@ -2446,13 +2458,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = info.texture_name](const auto &item) {
 						return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
 					assert(texture != _textures.end());
-					assert(texture->semantic.empty() && texture->uav != 0);
+					assert(texture->semantic.empty() && texture->uav[info.level] != 0);
 
 					if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), texture->resource) == pass_data.modified_resources.end())
 					{
 						pass_data.modified_resources.push_back(texture->resource);
 
-						if (texture->levels > 1)
+						if (pass_info.generate_mipmaps && texture->levels > 1)
 							pass_data.generate_mipmap_views.push_back(texture->srv[0]);
 					}
 
@@ -2461,7 +2473,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
-					write.descriptors = &texture->uav;
+					write.descriptors = &texture->uav[info.level];
 				}
 			}
 		}
@@ -2650,7 +2662,7 @@ bool reshade::runtime::create_texture(texture &tex)
 
 	if (!_device->create_resource(api::resource_desc(tex.width, tex.height, 1, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
 	{
-		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "'!";
+		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "'! Make sure the texture dimensions are reasonable.";
 		LOG(DEBUG) << "> Details: Width = " << tex.width << ", Height = " << tex.height << ", Levels = " << tex.levels << ", Format = " << static_cast<uint32_t>(format) << ", Usage = " << std::hex << static_cast<uint32_t>(usage) << std::dec;
 		return false;
 	}
@@ -2700,11 +2712,16 @@ bool reshade::runtime::create_texture(texture &tex)
 
 	if (tex.storage_access && _renderer_id >= 0xb000)
 	{
-		if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format), &tex.uav))
+		tex.uav.resize(tex.levels);
+
+		for (uint16_t level = 0; level < tex.levels; ++level)
 		{
-			LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "'!";
-			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
-			return false;
+			if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format, level, 1, 0, 1), &tex.uav[level]))
+			{
+				LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "'!";
+				LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format) << ", Level = " << level;
+				return false;
+			}
 		}
 	}
 
@@ -2727,8 +2744,9 @@ void reshade::runtime::destroy_texture(texture &tex)
 	tex.rtv[0] = {};
 	tex.rtv[1] = {};
 
-	_device->destroy_resource_view(tex.uav);
-	tex.uav = {};
+	for (api::resource_view uav : tex.uav)
+		_device->destroy_resource_view(uav);
+	tex.uav.clear();
 }
 
 void reshade::runtime::enable_technique(technique &tech)
@@ -2835,8 +2853,6 @@ void reshade::runtime::load_effects()
 }
 void reshade::runtime::load_textures()
 {
-	LOG(INFO) << "Loading image files for textures ...";
-
 	for (texture &tex : _textures)
 	{
 		if (tex.resource == 0 || !tex.semantic.empty())
@@ -2860,7 +2876,8 @@ void reshade::runtime::load_textures()
 		stbi_uc *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE *file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)
+		if (FILE *file = nullptr;
+			_wfopen_s(&file, source_path.c_str(), L"rb") == 0)
 		{
 			// Read texture data into memory in one go since that is faster than reading chunk by chunk
 			std::vector<uint8_t> mem(static_cast<size_t>(std::filesystem::file_size(source_path)));
@@ -3123,7 +3140,8 @@ void reshade::runtime::update_effects()
 #endif
 
 #if RESHADE_ADDON
-		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+		if (_reload_create_queue.empty())
+			invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
 #endif
 	}
 	else if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
@@ -3182,10 +3200,11 @@ void reshade::runtime::update_effects()
 }
 void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-	_effects_rendered_this_frame = true;
-
-	if (is_loading() || rtv == 0)
+	// Cannot render effects twice in a frame or while they are still loading
+	if (is_loading() || _effects_rendered_this_frame || rtv == 0)
 		return;
+
+	_effects_rendered_this_frame = true;
 
 	if (rtv_srgb == 0)
 		rtv_srgb = rtv;
@@ -3695,7 +3714,8 @@ void reshade::runtime::save_texture(const texture &tex)
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+			if (FILE *file = nullptr;
+				_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 			{
 				const auto write_callback = [](void *context, void *data, int size) {
 					fwrite(data, 1, size, static_cast<FILE *>(context));
@@ -3740,7 +3760,7 @@ void reshade::runtime::update_texture(texture &tex, const uint32_t width, const 
 	// Need to potentially resize image data to the texture dimensions
 	if (tex.width != width || tex.height != height)
 	{
-		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << " ...";
+		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << '.';
 
 		stbir_resize_uint8(pixels, width, height, 0, resized.data(), tex.width, tex.height, 0, 4);
 	}
@@ -4031,11 +4051,33 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 	char timestamp[21];
 	const std::time_t t = std::chrono::system_clock::to_time_t(now_seconds);
 	struct tm tm; localtime_s(&tm, &t);
+
 	sprintf_s(timestamp, "%.4d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 	macros.emplace_back("Date", timestamp);
+	sprintf_s(timestamp, "%.4d", tm.tm_year + 1900);
+	macros.emplace_back("DateYear", timestamp);
+	macros.emplace_back("Year", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_mon + 1);
+	macros.emplace_back("DateMonth", timestamp);
+	macros.emplace_back("Month", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_mday);
+	macros.emplace_back("DateDay", timestamp);
+	macros.emplace_back("Day", timestamp);
+
 	sprintf_s(timestamp, "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
 	macros.emplace_back("Time", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_hour);
+	macros.emplace_back("TimeHour", timestamp);
+	macros.emplace_back("Hour", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_min);
+	macros.emplace_back("TimeMinute", timestamp);
+	macros.emplace_back("Minute", timestamp);
+	sprintf_s(timestamp, "%.2d", tm.tm_sec);
+	macros.emplace_back("TimeSecond", timestamp);
+	macros.emplace_back("Second", timestamp);
 	sprintf_s(timestamp, "%.3lld", std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count());
+	macros.emplace_back("TimeMillisecond", timestamp);
+	macros.emplace_back("Millisecond", timestamp);
 	macros.emplace_back("TimeMS", timestamp);
 
 	std::string result;
@@ -4120,7 +4162,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name);
 
-	LOG(INFO) << "Saving screenshot to " << screenshot_path << " ...";
+	LOG(INFO) << "Saving screenshot to " << screenshot_path << '.';
 
 	_last_screenshot_save_successfull = true;
 
@@ -4152,7 +4194,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+			if (FILE *file = nullptr;
+				_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 			{
 				struct write_context { FILE *file; bool write_success = true; } context = { file };
 
@@ -4198,7 +4241,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 					screenshot_preset_path.replace_extension(L".ini");
 
 					// Preset was flushed to disk, so can just copy it over to the new location
-					std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
+					std::error_code ec;
+					std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
 				}
 #endif
 
@@ -4229,7 +4273,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 
 	if (_screenshot_post_save_command.extension() != L".exe" || !std::filesystem::is_regular_file(g_reshade_base_path / _screenshot_post_save_command, ec))
 	{
-		LOG(ERROR) << "Failed to execute screenshot post-save command, since path is not a valid executable.";
+		LOG(ERROR) << "Failed to execute screenshot post-save command, since path is not a valid executable!";
 		return false;
 	}
 
@@ -4254,21 +4298,13 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		});
 	}
 
-	std::filesystem::path working_directory;
-	if (_screenshot_post_save_command_working_directory.empty() || !std::filesystem::is_directory(_screenshot_post_save_command_working_directory, ec))
-		working_directory = g_reshade_base_path;
-	else
-		working_directory = _screenshot_post_save_command_working_directory;
-
-	if (execute_command(command_line, working_directory, _screenshot_post_save_command_no_window))
+	if (!execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_no_window))
 	{
-		return true;
-	}
-	else
-	{
-		LOG(ERROR) << "Failed to execute screenshot post-save command.";
+		LOG(ERROR) << "Failed to execute screenshot post-save command!";
 		return false;
 	}
+
+	return true;
 }
 
 bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)

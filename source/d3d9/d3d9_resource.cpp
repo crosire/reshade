@@ -11,20 +11,20 @@
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
 
-Direct3DSurface9::Direct3DSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc) :
+Direct3DDepthStencilSurface9::Direct3DDepthStencilSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc) :
 	_orig(original),
 	_device(device),
 	_orig_desc(desc)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const auto device_proxy = this;
+	const auto device_proxy = device;
 	_orig->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
 #endif
 	const auto surface_proxy = this;
 	_orig->SetPrivateData(__uuidof(surface_proxy), &surface_proxy, sizeof(surface_proxy), 0);
 }
 
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::QueryInterface(REFIID riid, void **ppvObj)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
 		return E_POINTER;
@@ -41,56 +41,75 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface9::QueryInterface(REFIID riid, void **p
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
-ULONG   STDMETHODCALLTYPE Direct3DSurface9::AddRef()
+ULONG   STDMETHODCALLTYPE Direct3DDepthStencilSurface9::AddRef()
 {
-	return _orig->AddRef();
+	if (_ref != 0)
+		_orig->AddRef();
+	else
+		assert(this == _device->_auto_depth_stencil);
+
+	return InterlockedIncrement(&_ref);
 }
-ULONG   STDMETHODCALLTYPE Direct3DSurface9::Release()
+ULONG   STDMETHODCALLTYPE Direct3DDepthStencilSurface9::Release()
 {
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig == 0)
-		delete this;
-	return ref_orig;
+	// Star Wars: The Force Unleashed incorrectly releases the auto depth-stencil it retrieved via 'IDirect3DDevice9::GetDepthStencilSurface' twice, so detect this
+	if (_ref == 0)
+		return 0;
+
+	const ULONG ref = InterlockedDecrement(&_ref);
+
+	if (this == _device->_auto_depth_stencil)
+	{
+		if (ref != 0)
+			_orig->Release();
+	}
+	else
+	{
+		if (_orig->Release() == 0)
+			delete this;
+	}
+
+	return ref;
 }
 
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetDevice(IDirect3DDevice9 **ppDevice)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::GetDevice(IDirect3DDevice9 **ppDevice)
 {
 	return _device->QueryInterface(IID_PPV_ARGS(ppDevice));
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::SetPrivateData(REFGUID refguid, CONST void *pData, DWORD SizeOfData, DWORD Flags)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::SetPrivateData(REFGUID refguid, CONST void *pData, DWORD SizeOfData, DWORD Flags)
 {
-	return _orig->SetPrivateData(refguid, pData, SizeOfData, Flags);
+	return IDirect3DSurface9_SetPrivateData(_orig, refguid, pData, SizeOfData, Flags);
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData)
 {
-	return _orig->GetPrivateData(refguid, pData, pSizeOfData);
+	return IDirect3DSurface9_GetPrivateData(_orig, refguid, pData, pSizeOfData);
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::FreePrivateData(REFGUID refguid)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::FreePrivateData(REFGUID refguid)
 {
-	return _orig->FreePrivateData(refguid);
+	return IDirect3DSurface9_FreePrivateData(_orig, refguid);
 }
-DWORD   STDMETHODCALLTYPE Direct3DSurface9::SetPriority(DWORD PriorityNew)
+DWORD   STDMETHODCALLTYPE Direct3DDepthStencilSurface9::SetPriority(DWORD PriorityNew)
 {
-	return _orig->SetPriority(PriorityNew);
+	return IDirect3DSurface9_SetPriority(_orig, PriorityNew);
 }
-DWORD   STDMETHODCALLTYPE Direct3DSurface9::GetPriority()
+DWORD   STDMETHODCALLTYPE Direct3DDepthStencilSurface9::GetPriority()
 {
-	return _orig->GetPriority();
+	return IDirect3DSurface9_GetPriority(_orig);
 }
-void    STDMETHODCALLTYPE Direct3DSurface9::PreLoad()
+void    STDMETHODCALLTYPE Direct3DDepthStencilSurface9::PreLoad()
 {
-	_orig->PreLoad();
+	IDirect3DSurface9_PreLoad(_orig);
 }
-D3DRESOURCETYPE STDMETHODCALLTYPE Direct3DSurface9::GetType()
+D3DRESOURCETYPE STDMETHODCALLTYPE Direct3DDepthStencilSurface9::GetType()
 {
-	return _orig->GetType();
+	return IDirect3DSurface9_GetType(_orig);
 }
 
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetContainer(REFIID riid, void **ppContainer)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::GetContainer(REFIID riid, void **ppContainer)
 {
-	return _orig->GetContainer(riid, ppContainer);
+	return IDirect3DSurface9_GetContainer(_orig, riid, ppContainer);
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetDesc(D3DSURFACE_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::GetDesc(D3DSURFACE_DESC *pDesc)
 {
 	if (pDesc == nullptr)
 		return D3DERR_INVALIDCALL;
@@ -100,29 +119,21 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetDesc(D3DSURFACE_DESC *pDesc)
 	*pDesc = _orig_desc;
 	return S_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
 {
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	return IDirect3DSurface9_LockRect(_orig, pLockedRect, pRect, Flags);
-#else
-	return _orig->LockRect(pLockedRect, pRect, Flags);
-#endif
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::UnlockRect()
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::UnlockRect()
 {
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	return IDirect3DSurface9_UnlockRect(_orig);
-#else
-	return _orig->UnlockRect();
-#endif
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::GetDC(HDC *phdc)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::GetDC(HDC *phdc)
 {
-	return _orig->GetDC(phdc);
+	return IDirect3DSurface9_GetDC(_orig, phdc);
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface9::ReleaseDC(HDC hdc)
+HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::ReleaseDC(HDC hdc)
 {
-	return _orig->ReleaseDC(hdc);
+	return IDirect3DSurface9_ReleaseDC(_orig, hdc);
 }
 
 #endif

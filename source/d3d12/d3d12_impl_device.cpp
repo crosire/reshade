@@ -7,6 +7,7 @@
 #include "d3d12_impl_command_queue.hpp"
 #include "d3d12_impl_type_convert.hpp"
 #include "d3d12_descriptor_heap.hpp"
+#include "d3d12_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include <algorithm>
@@ -31,9 +32,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	_gpu_sampler_heap(device)
 {
 	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
-	{
 		_descriptor_handle_size[type] = device->GetDescriptorHandleIncrementSize(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type));
-	}
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// Make some space in the descriptor heap array, so that it is unlikely to need reallocation
@@ -43,6 +42,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	register_descriptor_heap(gpu_view_heap);
 	const auto gpu_sampler_heap = new D3D12DescriptorHeap(device, _gpu_sampler_heap.get());
 	register_descriptor_heap(gpu_sampler_heap);
+
 	assert(_descriptor_heaps.size() == 2);
 #endif
 
@@ -91,19 +91,19 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 			FAILED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&_mipmap_signature))))
 		{
 			LOG(ERROR) << "Failed to create mipmap generation signature!";
-			return;
 		}
-
-		D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
-		pso_desc.pRootSignature = _mipmap_signature.get();
-
-		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
-		pso_desc.CS = { cs.data, cs.data_size };
-
-		if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
+		else
 		{
-			LOG(ERROR) << "Failed to create mipmap generation pipeline!";
-			return;
+			D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
+			pso_desc.pRootSignature = _mipmap_signature.get();
+
+			const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
+			pso_desc.CS = { cs.data, cs.data_size };
+
+			if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
+			{
+				LOG(ERROR) << "Failed to create mipmap generation pipeline!";
+			}
 		}
 	}
 
@@ -117,6 +117,12 @@ reshade::d3d12::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::destroy_device>(this);
+
+	unload_addons();
+#endif
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const auto gpu_view_heap = _descriptor_heaps[0];
 	unregister_descriptor_heap(gpu_view_heap);
@@ -124,17 +130,8 @@ reshade::d3d12::device_impl::~device_impl()
 	const auto gpu_sampler_heap = _descriptor_heaps[1];
 	unregister_descriptor_heap(gpu_sampler_heap);
 	delete gpu_sampler_heap;
+
 	assert(_descriptor_heaps.empty());
-#endif
-
-	// Do not call add-on events if initialization failed
-	if (_mipmap_pipeline == nullptr)
-		return;
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_device>(this);
-
-	unload_addons();
 #endif
 }
 
@@ -306,30 +303,25 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 			assert(initial_state != api::resource_usage::undefined);
 
 			// Transition resource into the initial state using the first available immediate command list
-			for (command_queue_impl *const queue : _queues)
+			if (const auto immediate_command_list = get_first_immediate_command_list())
 			{
-				const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-				if (immediate_command_list != nullptr)
+				const api::resource_usage states_upload[2] = { initial_state, api::resource_usage::copy_dest };
+				immediate_command_list->barrier(1, out_handle, &states_upload[0], &states_upload[1]);
+
+				if (desc.type == api::resource_type::buffer)
 				{
-					const api::resource_usage states_upload[2] = { initial_state, api::resource_usage::copy_dest };
-					immediate_command_list->barrier(1, out_handle, &states_upload[0], &states_upload[1]);
-
-					if (desc.type == api::resource_type::buffer)
-					{
-						update_buffer_region(initial_data->data, *out_handle, 0, desc.buffer.size);
-					}
-					else
-					{
-						for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
-							update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
-					}
-
-					const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
-					immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
-
-					queue->flush_immediate_command_list();
-					break;
+					update_buffer_region(initial_data->data, *out_handle, 0, desc.buffer.size);
 				}
+				else
+				{
+					for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+						update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
+				}
+
+				const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
+				immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
+
+				immediate_command_list->flush();
 			}
 		}
 
@@ -354,7 +346,7 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 {
 	assert(resource.handle != 0);
 
-	// This will retrieve the heap properties for placed and comitted resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
+	// This will retrieve the heap properties for placed and committed resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
 	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
@@ -446,7 +438,7 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(handle.handle) };
 
-	const std::unique_lock<std::shared_mutex> lock(_mutex);
+	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 	_views.erase(descriptor_handle.ptr);
 
 	for (UINT i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
@@ -459,7 +451,7 @@ reshade::api::resource reshade::d3d12::device_impl::get_resource_from_view(api::
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
 
-	const std::shared_lock<std::shared_mutex> lock(_mutex);
+	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
 
 	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
 		return to_handle(it->second.first);
@@ -472,7 +464,7 @@ reshade::api::resource_view_desc reshade::d3d12::device_impl::get_resource_view_
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
 
-	const std::shared_lock<std::shared_mutex> lock(_mutex);
+	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
 
 	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
 		return it->second.second;
@@ -489,7 +481,7 @@ bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint
 
 	const D3D12_RANGE no_read = { 0, 0 };
 
-	if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(0, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, out_data)))
+	if (SUCCEEDED(ID3D12Resource_Map(reinterpret_cast<ID3D12Resource *>(resource.handle), 0, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, out_data)))
 	{
 		*out_data = static_cast<uint8_t *>(*out_data) + offset;
 		return true;
@@ -503,7 +495,7 @@ void reshade::d3d12::device_impl::unmap_buffer_region(api::resource resource)
 {
 	assert(resource.handle != 0);
 
-	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(0, nullptr);
+	ID3D12Resource_Unmap(reinterpret_cast<ID3D12Resource *>(resource.handle), 0, nullptr);
 }
 bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
 {
@@ -528,14 +520,14 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 	out_data->row_pitch = layout.Footprint.RowPitch;
 	out_data->slice_pitch *= layout.Footprint.RowPitch;
 
-	return SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(
+	return SUCCEEDED(ID3D12Resource_Map(reinterpret_cast<ID3D12Resource *>(resource.handle),
 		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, &out_data->data));
 }
 void reshade::d3d12::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
 {
 	assert(resource.handle != 0);
 
-	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(subresource, nullptr);
+	ID3D12Resource_Unmap(reinterpret_cast<ID3D12Resource *>(resource.handle), subresource, nullptr);
 }
 
 void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
@@ -564,27 +556,20 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data;
-	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
+	if (FAILED(ID3D12Resource_Map(intermediate.get(), 0, nullptr, reinterpret_cast<void **>(&mapped_data))))
 		return;
 
 	std::memcpy(mapped_data, data, static_cast<size_t>(size));
 
-	intermediate->Unmap(0, nullptr);
-
-	assert(!_queues.empty());
+	ID3D12Resource_Unmap(intermediate.get(), 0, nullptr);
 
 	// Copy data from upload buffer into target texture using the first available immediate command list
-	for (command_queue_impl *const queue : _queues)
+	if (const auto immediate_command_list = get_first_immediate_command_list())
 	{
-		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-		if (immediate_command_list != nullptr)
-		{
-			immediate_command_list->copy_buffer_region(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, resource, offset, size);
+		immediate_command_list->copy_buffer_region(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, resource, offset, size);
 
-			// Wait for command to finish executing before destroying the upload buffer
-			immediate_command_list->flush_and_wait(queue->_orig);
-			break;
-		}
+		// Wait for command to finish executing before destroying the upload buffer
+		immediate_command_list->flush_and_wait();
 	}
 }
 void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
@@ -609,7 +594,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
-	intermediate_desc.Width = num_slices * slice_pitch;
+	intermediate_desc.Width = static_cast<UINT64>(num_slices) * static_cast<UINT64>(slice_pitch);
 	intermediate_desc.Height = 1;
 	intermediate_desc.DepthOrArraySize = 1;
 	intermediate_desc.MipLevels = 1;
@@ -629,7 +614,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data;
-	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
+	if (FAILED(ID3D12Resource_Map(intermediate.get(), 0, nullptr, reinterpret_cast<void **>(&mapped_data))))
 		return;
 
 	for (size_t z = 0; z < num_slices; ++z)
@@ -647,22 +632,15 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 		}
 	}
 
-	intermediate->Unmap(0, nullptr);
-
-	assert(!_queues.empty());
+	ID3D12Resource_Unmap(intermediate.get(), 0, nullptr);
 
 	// Copy data from upload buffer into target texture using the first available immediate command list
-	for (command_queue_impl *const queue : _queues)
+	if (const auto immediate_command_list = get_first_immediate_command_list())
 	{
-		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-		if (immediate_command_list != nullptr)
-		{
-			immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, 0, 0, resource, subresource, box);
+		immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, 0, 0, resource, subresource, box);
 
-			// Wait for command to finish executing before destroying the upload buffer
-			immediate_command_list->flush_and_wait(queue->_orig);
-			break;
-		}
+		// Wait for command to finish executing before destroying the upload buffer
+		immediate_command_list->flush_and_wait();
 	}
 }
 
@@ -1062,8 +1040,6 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 	assert(set.handle != 0 && array_offset == 0);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const std::shared_lock<std::shared_mutex> lock(_mutex);
-
 	const size_t heap_index = (set.handle >> heap_index_start) & 0xFFFFFFF;
 	D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(set.handle & 0x3);
 	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
@@ -1239,14 +1215,14 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 		const D3D12_RANGE write_range = { 0, 0 };
 
 		void *mapped_data = nullptr;
-		if (SUCCEEDED(readback_resource->Map(0, &read_range, &mapped_data)))
+		if (SUCCEEDED(ID3D12Resource_Map(readback_resource.get(), 0, &read_range, &mapped_data)))
 		{
 			for (size_t i = 0; i < count; ++i)
 			{
 				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[first + i];
 			}
 
-			readback_resource->Unmap(0, &write_range);
+			ID3D12Resource_Unmap(readback_resource.get(), 0, &write_range);
 
 			return true;
 		}
@@ -1273,7 +1249,7 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 		desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
-		const std::unique_lock<std::shared_mutex> lock(_mutex);
+		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 		const D3D12_GPU_VIRTUAL_ADDRESS address = resource->GetGPUVirtualAddress();
 		if (address != 0)
@@ -1289,7 +1265,7 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 		desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
-		const std::unique_lock<std::shared_mutex> lock(_mutex);
+		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 		const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(), [resource](const auto &buffer_info) { return buffer_info.first == resource; });
 		if (it != _buffer_gpu_addresses.end())
@@ -1311,6 +1287,16 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 #endif
 }
 
+reshade::d3d12::command_list_immediate_impl *reshade::d3d12::device_impl::get_first_immediate_command_list()
+{
+	assert(!_queues.empty());
+
+	for (command_queue_impl *const queue : _queues)
+		if (const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
+			return immediate_command_list;
+	return nullptr;
+}
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const
 {
@@ -1322,7 +1308,7 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 	if (!address)
 		return true;
 
-	const std::shared_lock<std::shared_mutex> lock(_mutex);
+	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
 
 	for (const auto &buffer_info : _buffer_gpu_addresses)
 	{
@@ -1344,16 +1330,12 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 
 void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *heap)
 {
-	const std::unique_lock<std::shared_mutex> lock(_mutex);
+	const auto it = _descriptor_heaps.push_back(heap);
 
-	_descriptor_heaps.push_back(heap);
-
-	heap->initialize_descriptor_base_handle(_descriptor_heaps.size() - 1);
+	heap->initialize_descriptor_base_handle(std::distance(_descriptor_heaps.begin(), it));
 }
 void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap *heap)
 {
-	const std::unique_lock<std::shared_mutex> lock(_mutex);
-
 	size_t num_heaps = _descriptor_heaps.size();
 
 	for (size_t heap_index = 0; heap_index < num_heaps; ++heap_index)
@@ -1421,38 +1403,11 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 		_orig_base_gpu_handle = _orig->GetGPUDescriptorHandleForHeapStart();
 	}
 }
-
-reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data) const
-{
-#ifdef _WIN64
-	assert((handle.ptr >> 56) == 0);
-#endif
-
-	return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE  reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type) const
-{
-	if (type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-	{
-		D3D12_DESCRIPTOR_HEAP_TYPE actual_type;
-		handle = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_set(handle), actual_type);
-		assert(type == actual_type);
-	}
-
-	return handle;
-}
 #endif
 
 reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data) const
 {
-#ifdef _WIN64
-	assert((handle.ptr >> 56) == 0);
-#endif
-
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const std::shared_lock<std::shared_mutex> lock(_mutex);
-
 	for (D3D12DescriptorHeap *const heap : _descriptor_heaps)
 	{
 		if (heap == nullptr || handle.ptr < heap->_orig_base_gpu_handle.ptr)
@@ -1471,6 +1426,8 @@ reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_
 	assert(false);
 	return { 0 };
 #else
+	assert((handle.ptr >> 56) == 0 || extra_data == 0);
+
 	return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
 #endif
 }
@@ -1478,8 +1435,6 @@ reshade::api::descriptor_set reshade::d3d12::device_impl::convert_to_descriptor_
 D3D12_GPU_DESCRIPTOR_HANDLE  reshade::d3d12::device_impl::convert_to_original_gpu_descriptor_handle(api::descriptor_set set) const
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const std::shared_lock<std::shared_mutex> lock(_mutex);
-
 	const size_t heap_index = (set.handle >> heap_index_start) & 0xFFFFFFF;
 	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
@@ -1492,8 +1447,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE  reshade::d3d12::device_impl::convert_to_original_gp
 D3D12_CPU_DESCRIPTOR_HANDLE  reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(api::descriptor_set set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const std::shared_lock<std::shared_mutex> lock(_mutex);
-
 	const size_t heap_index = (set.handle >> heap_index_start) & 0xFFFFFFF;
 	type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(set.handle & 0x3);
 	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);

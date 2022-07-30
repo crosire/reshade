@@ -25,6 +25,20 @@ std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
 
 /// <summary>
+/// Checks whether the current application is running on UWP.
+/// </summary>
+bool is_uwp_app()
+{
+	const auto GetCurrentPackageFullName = reinterpret_cast<LONG(WINAPI *)(UINT32 *, PWSTR)>(
+		GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetCurrentPackageFullName"));
+	if (GetCurrentPackageFullName == nullptr)
+		return false;
+	// This will return APPMODEL_ERROR_NO_PACKAGE if not a packaged UWP app
+	UINT32 length = 0;
+	return GetCurrentPackageFullName(&length, nullptr) == ERROR_INSUFFICIENT_BUFFER;
+}
+
+/// <summary>
 /// Checks whether the current operation system is Windows 7 or earlier.
 /// </summary>
 bool is_windows7()
@@ -124,11 +138,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			const bool is_opengl = _wcsicmp(module_name.c_str(), L"opengl32") == 0;
 			const bool is_dinput = _wcsnicmp(module_name.c_str(), L"dinput", 6) == 0;
 
-			const bool default_base_to_target_executable_path = !is_d3d && !is_dxgi && !is_opengl && !is_dinput;
+			// UWP apps do not have write access to the application directory, so never default the base path to it for them
+			const bool default_base_to_target_executable_path = !is_d3d && !is_dxgi && !is_opengl && !is_dinput && !is_uwp_app();
 
 			// When ReShade is not loaded by proxy, only actually load when a configuration file exists for the target executable
 			// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
-			if (default_base_to_target_executable_path)
+			if (default_base_to_target_executable_path && !GetEnvironmentVariableW(L"RESHADE_DISABLE_LOADING_CHECK", nullptr, 0))
 			{
 				std::error_code ec;
 				if (!std::filesystem::exists(reshade::global_config().path(), ec))
@@ -143,8 +158,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
-			bool enable_log = true;
-			if (reshade::global_config().get("INSTALL", "EnableLogging", enable_log); enable_log)
+			if (reshade::global_config().get("INSTALL", "EnableLogging") || !reshade::global_config().has("INSTALL", "EnableLogging"))
 			{
 				std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
 				if (!reshade::log::open_log_file(log_path))
@@ -176,7 +190,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 					if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 					{
 						LOG(WARN) << "Another ReShade instance was already loaded from " << get_module_path(modules[i]) << "! Aborting initialization ...";
-						return FALSE; // Make the "LoadLibrary" call that loaded this instance fail
+						return FALSE; // Make the 'LoadLibrary' call that loaded this instance fail
 					}
 				}
 			}
@@ -279,9 +293,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 				// Only register OpenGL hooks when module is not called any D3D module name
 				if (!is_d3d && !is_dxgi)
-				{
 					reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
-				}
 
 				// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
@@ -291,7 +303,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				reshade::hooks::register_module(L"vrclient_x64.dll");
 #endif
 
-				// Always register DirectInput 1-7 module
+				// Always register DirectInput 1-7 module (to overwrite cooperative level)
 				reshade::hooks::register_module(get_system_path() / L"dinput.dll");
 				// Register DirectInput 8 module in case it was used to load ReShade (but ignore otherwise)
 				if (_wcsicmp(module_name.c_str(), L"dinput8") == 0)

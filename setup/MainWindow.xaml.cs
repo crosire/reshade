@@ -12,6 +12,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -166,7 +167,19 @@ namespace ReShade.Setup
 						{
 							targetApi = Api.D3D9;
 						}
-						else if (api == "dxgi" || api == "d3d10" || api == "d3d11")
+						else if (api == "d3d10")
+						{
+							targetApi = Api.D3D10;
+						}
+						else if (api == "d3d11")
+						{
+							targetApi = Api.D3D11;
+						}
+						else if (api == "d3d12")
+						{
+							targetApi = Api.D3D12;
+						}
+						else if (api == "dxgi")
 						{
 							targetApi = Api.DXGI;
 						}
@@ -281,6 +294,21 @@ namespace ReShade.Setup
 			try
 			{
 				File.Create(Path.Combine(targetPath, Path.GetRandomFileName()), 1, FileOptions.DeleteOnClose);
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+		static bool MakeWritable(string targetPath)
+		{
+			try
+			{
+				var user = WindowsIdentity.GetCurrent().User;
+				var access = File.GetAccessControl(targetPath);
+				access.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.Modify, AccessControlType.Allow));
+				File.SetAccessControl(targetPath, access);
 				return true;
 			}
 			catch
@@ -433,6 +461,15 @@ namespace ReShade.Setup
 			{
 				case Api.D3D9:
 					startInfo.Arguments += " --api d3d9";
+					break;
+				case Api.D3D10:
+					startInfo.Arguments += " --api d3d10";
+					break;
+				case Api.D3D11:
+					startInfo.Arguments += " --api d3d11";
+					break;
+				case Api.D3D12:
+					startInfo.Arguments += " --api d3d12";
 					break;
 				case Api.DXGI:
 					startInfo.Arguments += " --api dxgi";
@@ -605,14 +642,42 @@ namespace ReShade.Setup
 			var basePath = Path.GetDirectoryName(targetPath);
 			var executableName = Path.GetFileName(targetPath);
 
-			if (targetApi != Api.Vulkan &&
-				compatibilityIni != null && compatibilityIni.HasValue(executableName, "InstallTarget"))
+			if (targetApi != Api.Vulkan && compatibilityIni != null)
 			{
-				basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
+				if (compatibilityIni.HasValue(executableName, "InstallTarget"))
+				{
+					basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
 
-				var globalConfig = new IniFile(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.ini"));
-				globalConfig.SetValue("INSTALL", "BasePath", basePath);
-				globalConfig.SaveFile();
+					var globalConfig = new IniFile(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.ini"));
+					globalConfig.SetValue("INSTALL", "BasePath", basePath);
+					globalConfig.SaveFile();
+				}
+
+				if (compatibilityIni.GetString(executableName, "ForceInstallApi") == "1")
+				{
+					string api = compatibilityIni.GetString(executableName, "RenderApi");
+
+					if (api == "D3D8" || api == "D3D9")
+					{
+						targetApi = Api.D3D9;
+					}
+					else if (api == "D3D10")
+					{
+						targetApi = Api.D3D10;
+					}
+					else if (api == "D3D11")
+					{
+						targetApi = Api.D3D11;
+					}
+					else if (api == "D3D12")
+					{
+						targetApi = Api.D3D12;
+					}
+					else if (api == "OpenGL")
+					{
+						targetApi = Api.OpenGL;
+					}
+				}
 			}
 
 			configPath = Path.Combine(basePath, "ReShade.ini");
@@ -654,6 +719,15 @@ namespace ReShade.Setup
 				{
 					case Api.D3D9:
 						modulePath = "d3d9.dll";
+						break;
+					case Api.D3D10:
+						modulePath = "d3d10.dll";
+						break;
+					case Api.D3D11:
+						modulePath = "d3d11.dll";
+						break;
+					case Api.D3D12:
+						modulePath = "d3d12.dll";
 						break;
 					case Api.DXGI:
 						modulePath = "dxgi.dll";
@@ -699,7 +773,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
+			foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
@@ -731,7 +805,7 @@ namespace ReShade.Setup
 			string basePath = Path.GetDirectoryName(configPath);
 
 			// Delete any existing and conflicting ReShade installations first
-			foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
+			foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
@@ -803,6 +877,15 @@ namespace ReShade.Setup
 						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade64_vk_override_layer.json"), false);
 						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade32", "ReShade32.json"), false);
 						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade64", "ReShade64.json"), false);
+					}
+					using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"Software\Khronos\Vulkan\ImplicitLayers", true))
+					{
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade32", "ReShade32.json"), false);
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade64", "ReShade64.json"), false);
+					}
+					using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers", true))
+					{
+						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade32", "ReShade32.json"), false);
 					}
 				}
 				catch
@@ -1102,25 +1185,23 @@ In that event here are some steps you can try to resolve this:
 
 			config.SaveFile();
 
+			// Change file permissions for files ReShade needs write access to
+			MakeWritable(configPath);
+			MakeWritable(Path.Combine(basePath, "ReShade.log"));
+			MakeWritable(Path.Combine(basePath, "ReShadePreset.ini"));
+
 			// Only show the selection dialog if there are actually packages to choose
 			if (!isHeadless && packagesIni != null && packagesIni.GetSections().Length != 0)
 			{
 				presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
 
-				if (isUpdate)
+				Dispatcher.Invoke(() =>
 				{
-					InstallStep4();
-				}
-				else
-				{
-					Dispatcher.Invoke(() =>
-					{
-						var page = new SelectPresetPage();
-						page.FileName = presetPath;
+					var page = new SelectPresetPage();
+					page.FileName = presetPath;
 
-						CurrentPage.Navigate(page);
-					});
-				}
+					CurrentPage.Navigate(page);
+				});
 				return;
 			}
 
@@ -1136,26 +1217,37 @@ In that event here are some steps you can try to resolve this:
 		{
 			var effectFiles = new List<string>();
 
-			if (!string.IsNullOrEmpty(presetPath) && File.Exists(presetPath))
+			if (!string.IsNullOrEmpty(presetPath))
 			{
-				var config = new IniFile(configPath);
-				config.SetValue("GENERAL", "PresetPath", presetPath);
-				config.SaveFile();
+				// Change current directory so that "Path.GetFullPath" resolves correctly
+				string currentPath = Directory.GetCurrentDirectory();
+				Directory.SetCurrentDirectory(Path.GetDirectoryName(configPath));
+				presetPath = Path.GetFullPath(presetPath);
+				Directory.SetCurrentDirectory(currentPath);
 
-				var preset = new IniFile(presetPath);
-
-				if (preset.GetValue(string.Empty, "Techniques", out string[] techniques))
+				if (File.Exists(presetPath))
 				{
-					foreach (string technique in techniques)
-					{
-						var filenameIndex = technique.IndexOf('@');
-						if (filenameIndex > 0)
-						{
-							string filename = technique.Substring(filenameIndex + 1);
+					var config = new IniFile(configPath);
+					config.SetValue("GENERAL", "PresetPath", presetPath);
+					config.SaveFile();
 
-							effectFiles.Add(filename);
+					var preset = new IniFile(presetPath);
+
+					if (preset.GetValue(string.Empty, "Techniques", out string[] techniques))
+					{
+						foreach (string technique in techniques)
+						{
+							var filenameIndex = technique.IndexOf('@');
+							if (filenameIndex > 0)
+							{
+								string filename = technique.Substring(filenameIndex + 1);
+
+								effectFiles.Add(filename);
+							}
 						}
 					}
+
+					MakeWritable(presetPath);
 				}
 			}
 
@@ -1409,7 +1501,7 @@ In that event here are some steps you can try to resolve this:
 				}
 
 				// Delete all other existing ReShade installations too
-				foreach (string conflictingModuleName in new[] { "d3d9.dll", "dxgi.dll", "opengl32.dll" })
+				foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
 				{
 					string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 

@@ -9,6 +9,7 @@
 #include "d3d12/d3d12_command_queue.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "ini_file.hpp"
+#include "com_utils.hpp"
 #include "hook_manager.hpp"
 
 extern bool is_windows7();
@@ -153,7 +154,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 
 	return modified;
 }
-bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, HWND hwnd)
+bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]] HWND hwnd)
 {
 	bool modified = false;
 
@@ -214,8 +215,6 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, HWND hwnd)
 
 		modified = true;
 	}
-#else
-	UNREFERENCED_PARAMETER(hwnd);
 #endif
 
 	if (unsigned int force_resolution[2] = {};
@@ -317,6 +316,28 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 		device = command_queue_d3d12->_orig;
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(command_queue_d3d12));
 		return 12;
+	}
+
+	// Fall back to checking private data in case original device pointer was passed in (e.g. because D3D11 device was created with video support and then queried though 'D3D11Device::QueryInterface')
+	if (com_ptr<ID3D10Device> device_d3d10_orig;
+		SUCCEEDED(device->QueryInterface(&device_d3d10_orig)))
+	{
+		if (com_ptr<D3D10Device> device_d3d10 = get_private_pointer<D3D10Device>(device_d3d10_orig.get());
+			device_d3d10 != nullptr)
+		{
+			device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d10));
+			return 10;
+		}
+	}
+	if (com_ptr<ID3D11Device> device_d3d11_orig;
+		SUCCEEDED(device->QueryInterface(&device_d3d11_orig)))
+	{
+		if (com_ptr<D3D11Device> device_d3d11 = get_private_pointer<D3D11Device>(device_d3d11_orig.get());
+			device_d3d11 != nullptr)
+		{
+			device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d11));
+			return 11;
+		}
 	}
 
 	// Did not find a hooked device

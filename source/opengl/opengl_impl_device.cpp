@@ -90,14 +90,16 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 	glDebugMessageCallback(debug_message_callback, nullptr);
 #endif
 
-	// Some games (like Call of Duty 1 and Hot Wheels Velocity X) use fixed resource names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
+	// Some games use fixed resource names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
 	// Reserve a configurable range of resource names in old OpenGL games (which will use a compatibility context) to work around this
-	auto num_reserve_buffer_names = _compatibility_context ? 2048u : 0u;
+	// - Call of Duty uses buffer and texture names in range 0-1500
+	// - Star Wars Jedi Knight II: Jedi Outcast uses texture names in range 2000-3000
+	auto num_reserve_buffer_names = _compatibility_context ? 2000 : 0u;
 	reshade::global_config().get("APP", "ReserveBufferNames", num_reserve_buffer_names);
 	_reserved_buffer_names.resize(num_reserve_buffer_names);
 	if (!_reserved_buffer_names.empty())
 		glGenBuffers(static_cast<GLsizei>(_reserved_buffer_names.size()), _reserved_buffer_names.data());
-	auto num_reserve_texture_names = _compatibility_context ? 2048u : 0u;
+	auto num_reserve_texture_names = _compatibility_context ? 4000 : 0u;
 	reshade::global_config().get("APP", "ReserveTextureNames", num_reserve_texture_names);
 	_reserved_texture_names.resize(num_reserve_texture_names);
 	if (!_reserved_texture_names.empty())
@@ -378,7 +380,7 @@ void reshade::opengl::device_impl::destroy_sampler(api::sampler handle)
 	glDeleteSamplers(1, &object);
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE *shared_handle)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE * /* shared_handle */)
 {
 	*out_handle = { 0 };
 
@@ -441,8 +443,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT;
 	}
 #else
-	UNREFERENCED_PARAMETER(shared_handle);
-
 	if ((desc.flags & api::resource_flags::shared) != 0)
 		return false;
 #endif

@@ -120,6 +120,8 @@ private:
 	T *_object;
 };
 
+#if 0
+
 #include <functional> // std::hash
 
 namespace std
@@ -133,3 +135,5 @@ namespace std
 		}
 	};
 }
+
+#endif

@@ -34,8 +34,6 @@ static lockfree_linear_map<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16
 		dispatch_table.name  = reinterpret_cast<PFN_vk##name##suffix>(get_device_proc(device, "vk" #name #suffix))
 
 #if RESHADE_ADDON
-extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
-
 static void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
 {
 	if (image == VK_NULL_HANDLE)
@@ -52,7 +50,7 @@ static void create_default_view(reshade::vulkan::device_impl *device_impl, VkIma
 		default_view_info.image = image;
 		default_view_info.viewType = static_cast<VkImageViewType>(data->create_info.imageType); // Map 'VK_IMAGE_TYPE_1D' to VK_IMAGE_VIEW_TYPE_1D' and so on
 		default_view_info.format = data->create_info.format;
-		default_view_info.subresourceRange.aspectMask = aspect_flags_from_format(data->create_info.format);
+		default_view_info.subresourceRange.aspectMask = reshade::vulkan::aspect_flags_from_format(data->create_info.format);
 		default_view_info.subresourceRange.baseMipLevel = 0;
 		default_view_info.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
 		default_view_info.subresourceRange.baseArrayLayer = 0;
@@ -1603,7 +1601,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		if (result >= VK_SUCCESS)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
-				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reshade::api::pipeline{ (uint64_t)pPipelines[i] });
+				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reshade::api::pipeline { (uint64_t)pPipelines[i] });
 		}
 		else
 		{

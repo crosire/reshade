@@ -14,7 +14,7 @@
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window)
 {
 	LOG(INFO) << "Dumping presentation parameters:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -40,6 +40,9 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		break;
 	case D3DFMT_X1R5G5B5:
 		format_string = "D3DFMT_X1R5G5B5";
+		break;
+	case D3DFMT_A2R10G10B10:
+		format_string = "D3DFMT_A2R10G10B10";
 		break;
 	}
 
@@ -69,9 +72,15 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	desc.texture.depth_or_layers = 1;
 	desc.texture.levels = 1;
 	desc.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
-	desc.texture.samples = pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES ? static_cast<uint16_t>(pp.MultiSampleType) : 1;
 	desc.heap = reshade::api::memory_heap::gpu_only;
 	desc.usage = reshade::api::resource_usage::render_target;
+
+	if (pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
+		desc.texture.samples = static_cast<uint16_t>(pp.MultiSampleType);
+	else if (pp.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
+		desc.texture.samples = static_cast<uint16_t>(1 << pp.MultiSampleQuality);
+	else
+		desc.texture.samples = 1;
 
 	const HWND hwnd = (pp.hDeviceWindow != nullptr) ? pp.hDeviceWindow : focus_window;
 
@@ -105,16 +114,27 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		pp.BackBufferFormat = reshade::d3d9::convert_format(desc.texture.format);
 
 		if (desc.texture.samples > 1)
-			pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.texture.samples);
+		{
+			if (pp.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
+			{
+				BitScanReverse(&pp.MultiSampleQuality, desc.texture.samples);
+			}
+			else
+			{
+				pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.texture.samples);
+				pp.MultiSampleQuality = 0;
+			}
+		}
 		else
+		{
 			pp.MultiSampleType = D3DMULTISAMPLE_NONE;
+			pp.MultiSampleQuality = 0;
+		}
 
 		pp.BackBufferCount = desc.buffer_count;
 		pp.SwapEffect = static_cast<D3DSWAPEFFECT>(desc.present_mode);
 		pp.Flags = desc.present_flags;
 	}
-#else
-	UNREFERENCED_PARAMETER(focus_window);
 #endif
 
 	if (reshade::global_config().get("APP", "ForceVSync"))
@@ -152,7 +172,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		pp.BackBufferFormat = D3DFMT_A2R10G10B10;
 	}
 }
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window)
 {
 	dump_and_modify_present_parameters(pp, d3d, adapter_index, focus_window);
 
@@ -169,7 +189,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMOD
 }
 
 template <typename T>
-static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESENT_PARAMETERS &pp, bool use_software_rendering)
+static void init_device_proxy(T *&device, D3DDEVTYPE device_type, bool use_software_rendering)
 {
 	// Enable software vertex processing if the application requested a software device
 	if (use_software_rendering)
@@ -187,13 +207,6 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 
 	const auto device_proxy = new Direct3DDevice9(device, use_software_rendering);
 	device_proxy->_implicit_swapchain = new Direct3DSwapChain9(device_proxy, swapchain);
-
-#if RESHADE_ADDON
-	if (pp.EnableAutoDepthStencil)
-		device_proxy->init_auto_depth_stencil();
-#else
-	UNREFERENCED_PARAMETER(pp);
-#endif
 
 	// Overwrite returned device with hooked one
 	device = device_proxy;
@@ -242,7 +255,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	}
 
 #if RESHADE_ADDON
-	// Load add-ons before 'create_swapchain' event
+	// Load add-ons before 'create_swapchain' event in 'dump_and_modify_present_parameters'
 	reshade::load_addons();
 #endif
 
@@ -252,10 +265,12 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 	if (use_software_rendering)
 	{
-		LOG(INFO) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering ...";
+		LOG(INFO) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering.";
+
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
+	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDirect3D9_CreateDevice, vtable_from_instance(pD3D) + 16)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, ppReturnedDeviceInterface);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
@@ -268,7 +283,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	if (SUCCEEDED(hr))
 	{
-		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
+		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
 	}
 	else
 	{
@@ -310,7 +325,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	}
 
 #if RESHADE_ADDON
-	// Load add-ons before 'create_swapchain' event
+	// Load add-ons before 'create_swapchain' event in 'dump_and_modify_present_parameters'
 	reshade::load_addons();
 #endif
 
@@ -323,10 +338,12 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 	if (use_software_rendering)
 	{
-		LOG(INFO) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering ...";
+		LOG(INFO) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering.";
+
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
+	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, vtable_from_instance(pD3D) + 20)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, pp.Windowed ? nullptr : &fullscreen_mode, ppReturnedDeviceInterface);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
@@ -339,7 +356,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	if (SUCCEEDED(hr))
 	{
-		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
+		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
 	}
 	else
 	{
@@ -366,7 +383,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 	g_in_d3d9_runtime = false;
 	if (res == nullptr)
 	{
-		LOG(WARN) << "Direct3DCreate9" << " failed!";
+		LOG(WARN) << "Direct3DCreate9" << " failed.";
 		return nullptr;
 	}
 

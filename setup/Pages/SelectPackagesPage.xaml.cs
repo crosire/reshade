@@ -131,7 +131,8 @@ namespace ReShade.Setup.Pages
 
 			PathBox.Text = string.Empty;
 
-			Items.Add(new EffectPackage {
+			Items.Add(new EffectPackage
+			{
 				Enabled = true,
 				PackageName = Path.GetFileName(url),
 				InstallPath = ".\\reshade-shaders\\Shaders",

@@ -22,7 +22,7 @@ namespace ReShade.Setup.Pages
 		{
 			var dlg = new OpenFileDialog
 			{
-				Filter = "Presets|*.ini",
+				Filter = "Presets|*.ini;*.txt",
 				DefaultExt = ".ini",
 				Multiselect = false,
 				ValidateNames = true,

@@ -9,11 +9,16 @@
 #include <AclAPI.h>
 #include <TlHelp32.h>
 
+#define RESHADE_LOADING_THREAD_FUNC 1
+
 struct loading_data
 {
 	WCHAR load_path[MAX_PATH] = L"";
 	decltype(&GetLastError) GetLastError = nullptr;
 	decltype(&LoadLibraryW) LoadLibraryW = nullptr;
+	const WCHAR env_var_name[30] = L"RESHADE_DISABLE_LOADING_CHECK";
+	const WCHAR env_var_value[2] = L"1";
+	decltype(&SetEnvironmentVariableW) SetEnvironmentVariableW = nullptr;
 };
 
 struct scoped_handle
@@ -79,6 +84,7 @@ static void update_acl_for_uwp(LPWSTR path)
 #if RESHADE_LOADING_THREAD_FUNC
 static DWORD WINAPI loading_thread_func(loading_data *arg)
 {
+	arg->SetEnvironmentVariableW(arg->env_var_name, arg->env_var_value);
 	if (arg->LoadLibraryW(arg->load_path) == NULL)
 		return arg->GetLastError();
 	return ERROR_SUCCESS;
@@ -158,9 +164,10 @@ int wmain(int argc, wchar_t *argv[])
 	// This happens to work because kernel32.dll is always loaded to the same base address, so the address of 'LoadLibrary' is the same in the target application and the current one
 	arg.GetLastError = GetLastError;
 	arg.LoadLibraryW = LoadLibraryW;
+	arg.SetEnvironmentVariableW = SetEnvironmentVariableW;
 
 #if RESHADE_LOADING_THREAD_FUNC
-	const auto loading_thread_func_size = 64; // An estimate of the size of the 'loading_thread_func' function
+	const auto loading_thread_func_size = 256; // An estimate of the size of the 'loading_thread_func' function
 #else
 	const auto loading_thread_func_size = 0;
 #endif

@@ -5,6 +5,7 @@
 
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_type_convert.hpp"
+#include "d3d10_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include <algorithm>
 
@@ -404,7 +405,7 @@ bool reshade::d3d10::device_impl::map_buffer_region(api::resource resource, uint
 
 	assert(resource.handle != 0);
 
-	if (SUCCEEDED(reinterpret_cast<ID3D10Buffer *>(resource.handle)->Map(convert_access_flags(access), 0, out_data)))
+	if (SUCCEEDED(ID3D10Buffer_Map(reinterpret_cast<ID3D10Buffer *>(resource.handle), convert_access_flags(access), 0, out_data)))
 	{
 		*out_data = static_cast<uint8_t *>(*out_data) + offset;
 		return true;
@@ -418,7 +419,7 @@ void reshade::d3d10::device_impl::unmap_buffer_region(api::resource resource)
 {
 	assert(resource.handle != 0);
 
-	reinterpret_cast<ID3D10Buffer *>(resource.handle)->Unmap();
+	ID3D10Buffer_Unmap(reinterpret_cast<ID3D10Buffer *>(resource.handle));
 }
 bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
 {
@@ -442,15 +443,15 @@ bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uin
 	switch (dimension)
 	{
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		return SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(
+		return SUCCEEDED(ID3D10Texture1D_Map(static_cast<ID3D10Texture1D *>(object),
 			subresource, convert_access_flags(access), 0, &out_data->data));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 		static_assert(sizeof(api::subresource_data) >= sizeof(D3D10_MAPPED_TEXTURE2D));
-		return SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(
+		return SUCCEEDED(ID3D10Texture2D_Map(static_cast<ID3D10Texture2D *>(object),
 			subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data)));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
 		static_assert(sizeof(api::subresource_data) == sizeof(D3D10_MAPPED_TEXTURE3D));
-		return SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(
+		return SUCCEEDED(ID3D10Texture3D_Map(static_cast<ID3D10Texture3D *>(object),
 			subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data)));
 	}
 
@@ -467,13 +468,13 @@ void reshade::d3d10::device_impl::unmap_texture_region(api::resource resource, u
 	switch (dimension)
 	{
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		static_cast<ID3D10Texture1D *>(object)->Unmap(subresource);
+		ID3D10Texture1D_Unmap(static_cast<ID3D10Texture1D *>(object), subresource);
 		break;
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
-		static_cast<ID3D10Texture2D *>(object)->Unmap(subresource);
+		ID3D10Texture2D_Unmap(static_cast<ID3D10Texture2D *>(object), subresource);
 		break;
 	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
-		static_cast<ID3D10Texture3D *>(object)->Unmap(subresource);
+		ID3D10Texture3D_Unmap(static_cast<ID3D10Texture3D *>(object), subresource);
 		break;
 	}
 }

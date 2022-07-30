@@ -19,8 +19,6 @@ namespace reshade::d3d11
 		void capture(ID3D11DeviceContext *device_context);
 		void apply_and_release();
 
-		bool has_captured() const { return _device_context != nullptr; }
-
 	private:
 		void release_all_device_objects();
 

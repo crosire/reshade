@@ -10,7 +10,9 @@
 #define vk _device_impl->_dispatch_table
 
 reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
-	api_object_impl(queue), _device_impl(device), _queue_flags(queue_family.queueFlags)
+	api_object_impl(queue),
+	_device_impl(device),
+	_queue_flags(queue_family.queueFlags)
 {
 	// Register queue to device (no need to lock, since all command queues are created single threaded in 'vkCreateDevice')
 	_device_impl->_queues.push_back(this);
@@ -18,7 +20,7 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if ((queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
 	{
-		_immediate_cmd_list = new command_list_immediate_impl(device, queue_family_index);
+		_immediate_cmd_list = new command_list_immediate_impl(device, queue_family_index, queue);
 		// Ensure the immediate command list was initialized successfully, otherwise disable it
 		if (_immediate_cmd_list->_orig == VK_NULL_HANDLE)
 		{
@@ -75,12 +77,12 @@ void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
 {
 	uint32_t num_wait_semaphores = 0; // No semaphores to wait on
 	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_orig, nullptr, num_wait_semaphores);
+		_immediate_cmd_list->flush(nullptr, num_wait_semaphores);
 }
 void reshade::vulkan::command_queue_impl::flush_immediate_command_list(VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores) const
 {
 	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_orig, wait_semaphores, num_wait_semaphores);
+		_immediate_cmd_list->flush(wait_semaphores, num_wait_semaphores);
 }
 
 void reshade::vulkan::command_queue_impl::begin_debug_event(const char *label, const float color[4])

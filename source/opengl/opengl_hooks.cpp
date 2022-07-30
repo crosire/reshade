@@ -28,6 +28,7 @@ struct DrawElementsIndirectCommand
 thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
 
 #if RESHADE_ADDON
+
 #define gl3wGetFloatv gl3wProcs.gl.GetFloatv
 #define gl3wGetIntegerv gl3wProcs.gl.GetIntegerv
 #define gl3wBindBuffer gl3wProcs.gl.BindBuffer
@@ -41,6 +42,7 @@ thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
 #define gl3wGetNamedBufferParameteri64v gl3wProcs.gl.GetNamedBufferParameteri64v
 #define gl3wNamedFramebufferTexture gl3wProcs.gl.NamedFramebufferTexture
 #define gl3wNamedFramebufferRenderbuffer gl3wProcs.gl.NamedFramebufferRenderbuffer
+#define gl3wClipControl gl3wProcs.gl.ClipControl
 
 static void init_resource(GLenum target, GLuint object, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data = nullptr, bool update_texture = false)
 {
@@ -302,6 +304,7 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer)
 }
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
+
 static bool copy_buffer_region(GLenum src_target, GLuint src_object, GLintptr src_offset, GLenum dst_target, GLuint dst_object, GLintptr dst_offset, GLsizeiptr size)
 {
 	if (!g_current_context || !reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
@@ -430,7 +433,42 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	std::vector<uint8_t> temp_data;
 	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, dst_desc.texture.format, width, height, depth), dst, subresource, &dst_box);
 }
+
 #endif
+
+static auto get_sized_internal_format(GLenum internalformat) -> GLenum
+{
+	// Convert base internal formats to sized internal formats
+	switch (internalformat)
+	{
+	case 1:
+	case GL_RED:
+		return GL_R8;
+	case GL_ALPHA:
+		return GL_ALPHA8;
+	case GL_LUMINANCE:
+		return GL_LUMINANCE8;
+	case GL_LUMINANCE_ALPHA:
+		return GL_LUMINANCE8_ALPHA8;
+	case GL_INTENSITY:
+		return GL_INTENSITY8;
+	case 2:
+	case GL_RG:
+		return GL_RG8;
+	case 3:
+	case GL_RGB:
+		return GL_RGB8;
+	case 4:
+	case GL_RGBA:
+		return GL_RGBA8;
+	case GL_DEPTH_STENCIL:
+		return GL_DEPTH24_STENCIL8;
+	case GL_DEPTH_COMPONENT:
+		return GL_DEPTH_COMPONENT16;
+	default:
+		return internalformat;
+	}
+}
 
 static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLuint
 {
@@ -454,53 +492,17 @@ static __forceinline void update_current_primitive_topology(GLenum mode, GLenum 
 #endif
 	}
 }
+
 #endif
 
 #ifdef GL_VERSION_1_0
 HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
-	// Convert base internal formats to sized internal formats
-	switch (internalformat)
-	{
-	case 1:
-	case GL_RED:
-		internalformat = GL_R8;
-		break;
-	case GL_ALPHA:
-		internalformat = GL_ALPHA8;
-		break;
-	case GL_LUMINANCE:
-		internalformat = GL_LUMINANCE8;
-		break;
-	case GL_LUMINANCE_ALPHA:
-		internalformat = GL_LUMINANCE8_ALPHA8;
-		break;
-	case GL_INTENSITY:
-		internalformat = GL_INTENSITY8;
-		break;
-	case 2:
-	case GL_RG:
-		internalformat = GL_RG8;
-		break;
-	case 3:
-	case GL_RGB:
-		internalformat = GL_RGB8;
-		break;
-	case 4:
-	case GL_RGBA:
-		internalformat = GL_RGBA8;
-		break;
-	case GL_DEPTH_STENCIL:
-		internalformat = GL_DEPTH24_STENCIL8;
-		break;
-	case GL_DEPTH_COMPONENT:
-		internalformat = GL_DEPTH_COMPONENT16;
-		break;
-	}
-
 	static const auto trampoline = reshade::hooks::call(glTexImage1D);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_1D);
 
@@ -537,48 +539,11 @@ HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint interna
 }
 HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
-	// Convert base internal formats to sized internal formats
-	switch (internalformat)
-	{
-	case 1:
-	case GL_RED:
-		internalformat = GL_R8;
-		break;
-	case GL_ALPHA:
-		internalformat = GL_ALPHA8;
-		break;
-	case GL_LUMINANCE:
-		internalformat = GL_LUMINANCE8;
-		break;
-	case GL_LUMINANCE_ALPHA:
-		internalformat = GL_LUMINANCE8_ALPHA8;
-		break;
-	case GL_INTENSITY:
-		internalformat = GL_INTENSITY8;
-		break;
-	case 2:
-	case GL_RG:
-		internalformat = GL_RG8;
-		break;
-	case 3:
-	case GL_RGB:
-		internalformat = GL_RGB8;
-		break;
-	case 4:
-	case GL_RGBA:
-		internalformat = GL_RGBA8;
-		break;
-	case GL_DEPTH_STENCIL:
-		internalformat = GL_DEPTH24_STENCIL8;
-		break;
-	case GL_DEPTH_COMPONENT:
-		internalformat = GL_DEPTH_COMPONENT16;
-		break;
-	}
-
 	static const auto trampoline = reshade::hooks::call(glTexImage2D);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D || target == GL_PROXY_TEXTURE_1D_ARRAY || target == GL_PROXY_TEXTURE_RECTANGLE || target == GL_PROXY_TEXTURE_CUBE_MAP);
 	// Ignore all cube map faces except for the first
@@ -1006,8 +971,8 @@ HOOK_EXPORT void APIENTRY glScissor(GLint left, GLint bottom, GLsizei width, GLs
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+		if (gl3wClipControl != nullptr)
+			gl3wGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
 		rect_data.left = left;
@@ -1207,48 +1172,11 @@ HOOK_EXPORT void APIENTRY glDrawElements(GLenum mode, GLsizei count, GLenum type
 #ifdef GL_VERSION_1_2
 void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
-	// Convert base internal formats to sized internal formats
-	switch (internalformat)
-	{
-	case 1:
-	case GL_RED:
-		internalformat = GL_R8;
-		break;
-	case GL_ALPHA:
-		internalformat = GL_ALPHA8;
-		break;
-	case GL_LUMINANCE:
-		internalformat = GL_LUMINANCE8;
-		break;
-	case GL_LUMINANCE_ALPHA:
-		internalformat = GL_LUMINANCE8_ALPHA8;
-		break;
-	case GL_INTENSITY:
-		internalformat = GL_INTENSITY8;
-		break;
-	case 2:
-	case GL_RG:
-		internalformat = GL_RG8;
-		break;
-	case 3:
-	case GL_RGB:
-		internalformat = GL_RGB8;
-		break;
-	case 4:
-	case GL_RGBA:
-		internalformat = GL_RGBA8;
-		break;
-	case GL_DEPTH_STENCIL:
-		internalformat = GL_DEPTH24_STENCIL8;
-		break;
-	case GL_DEPTH_COMPONENT:
-		internalformat = GL_DEPTH_COMPONENT16;
-		break;
-	}
-
 	static const auto trampoline = reshade::hooks::call(glTexImage3D);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_3D || target == GL_PROXY_TEXTURE_2D_ARRAY || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY);
 
@@ -1464,22 +1392,32 @@ void APIENTRY glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffse
 void APIENTRY glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < drawcount; ++i)
-		glDrawArrays(mode, first[i], count[i]);
-#else
+	if (g_current_context)
+	{
+		for (GLsizei i = 0; i < drawcount; ++i)
+			if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_current_context, count[i], 1, first[i], 0))
+				return;
+	}
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArrays);
 	trampoline(mode, first, count, drawcount);
-#endif
 }
 void APIENTRY glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < drawcount; ++i)
-		glDrawElements(mode, count[i], type, indices[i]);
-#else
+	if (g_current_context)
+	{
+		update_current_primitive_topology(mode, type);
+
+		for (GLsizei i = 0; i < drawcount; ++i)
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count[i], 1, get_index_buffer_offset(indices[i]), 0, 0))
+				return;
+	}
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElements);
 	trampoline(mode, count, type, indices, drawcount);
-#endif
 }
 #endif
 
@@ -2304,7 +2242,7 @@ void APIENTRY glBindBufferBase(GLenum target, GLuint index, GLuint buffer)
 				reshade::api::shader_stage::all,
 				// See global pipeline layout specified in 'device_impl::device_impl'
 				reshade::opengl::global_pipeline_layout, layout_param,
-				reshade::api::descriptor_set_update{ {}, index, 0, 1, type, &descriptor_data });
+				reshade::api::descriptor_set_update { {}, index, 0, 1, type, &descriptor_data });
 		}
 		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{
@@ -2341,7 +2279,7 @@ void APIENTRY glBindBufferRange(GLenum target, GLuint index, GLuint buffer, GLin
 				reshade::api::shader_stage::all,
 				// See global pipeline layout specified in 'device_impl::device_impl'
 				reshade::opengl::global_pipeline_layout, layout_param,
-				reshade::api::descriptor_set_update{ {}, index, 0, 1, type, &descriptor_data });
+				reshade::api::descriptor_set_update { {}, index, 0, 1, type, &descriptor_data });
 		}
 		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{
@@ -2599,6 +2537,8 @@ void APIENTRY glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum int
 	static const auto trampoline = reshade::hooks::call(glTexImage2DMultisample);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	if (g_current_context)
 	{
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
@@ -2629,6 +2569,8 @@ void APIENTRY glTexImage3DMultisample(GLenum target, GLsizei samples, GLenum int
 	static const auto trampoline = reshade::hooks::call(glTexImage3DMultisample);
 
 #if RESHADE_ADDON
+	internalformat = get_sized_internal_format(internalformat);
+
 	if (g_current_context)
 	{
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
@@ -2704,12 +2646,18 @@ void APIENTRY glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLen
 void APIENTRY glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < drawcount; ++i)
-		glDrawElementsBaseVertex(mode, count[i], type, indices[i], basevertex[i]);
-#else
+	if (g_current_context)
+	{
+		update_current_primitive_topology(mode, type);
+
+		for (GLsizei i = 0; i < drawcount; ++i)
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count[i], 1, get_index_buffer_offset(indices[i]), basevertex[i], 0))
+				return;
+	}
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, drawcount, basevertex);
-#endif
 }
 #endif
 
@@ -2753,7 +2701,7 @@ void APIENTRY glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *ind
 			update_current_primitive_topology(mode, type);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-				g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
+					g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
 				return;
 		}
 		else
@@ -2782,8 +2730,8 @@ void APIENTRY glScissorArrayv(GLuint first, GLsizei count, const GLint *v)
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+		if (gl3wClipControl != nullptr)
+			gl3wGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		temp_mem<reshade::api::rect> rect_data(count);
 		for (GLsizei i = 0; i < count; ++i, v += 4)
@@ -2818,8 +2766,8 @@ void APIENTRY glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei w
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+		if (gl3wClipControl != nullptr)
+			gl3wGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
 		rect_data.left = left;
@@ -2851,8 +2799,8 @@ void APIENTRY glScissorIndexedv(GLuint index, const GLint *v)
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl3wProcs.gl.ClipControl != nullptr)
-			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+		if (gl3wClipControl != nullptr)
+			gl3wGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
 		rect_data.left = v[0];
@@ -3286,7 +3234,6 @@ void APIENTRY glDispatchComputeIndirect(GLintptr indirect)
 
 void APIENTRY glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
-
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
@@ -3296,7 +3243,7 @@ void APIENTRY glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsiz
 		if (0 != indirect_buffer_binding)
 		{
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-				g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+					g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
 				return;
 		}
 		else
@@ -3328,7 +3275,7 @@ void APIENTRY glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *
 			update_current_primitive_topology(mode, type);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-				g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+					g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
 				return;
 		}
 		else
@@ -3411,7 +3358,7 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 				reshade::api::shader_stage::all,
 				// See global pipeline layout specified in 'device_impl::device_impl'
 				reshade::opengl::global_pipeline_layout, layout_param,
-				reshade::api::descriptor_set_update{ {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
+				reshade::api::descriptor_set_update { {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
 		}
 		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{
@@ -3474,7 +3421,7 @@ void APIENTRY glBindBuffersRange(GLenum target, GLuint first, GLsizei count, con
 				reshade::api::shader_stage::all,
 				// See global pipeline layout specified in 'device_impl::device_impl'
 				reshade::opengl::global_pipeline_layout, layout_param,
-				reshade::api::descriptor_set_update{ {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
+				reshade::api::descriptor_set_update { {}, first, 0, static_cast<uint32_t>(count), type, descriptor_data.p });
 		}
 		else if ((target == GL_TRANSFORM_FEEDBACK_BUFFER) && reshade::has_addon_event<reshade::addon_event::bind_stream_output_buffers>())
 		{

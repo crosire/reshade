@@ -26,18 +26,19 @@ namespace reshade::imgui
 	/// <summary>
 	/// Adds a file or directory selection popup window.
 	/// </summary>
-	/// <param name="name">The name of the popup window.</param>
-	/// <param name="path">A reference that should initially be set to path to start the selection at and is then set to the chosen file or directory path by this widget.</param>
-	/// <param name="width">The with of the popup window (in pixels).</param>
-	/// <param name="exts">A list of file extensions that are valid for selection, or an empty list to make this a directory selection.</param>
-	bool file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts);
+	/// <param name="name">Name of the popup window.</param>
+	/// <param name="path">Reference that should initially be set to path to start the selection at and is then set to the chosen file or directory path by this widget.</param>
+	/// <param name="width">Width of the popup window (in pixels).</param>
+	/// <param name="extensions">List of file extensions that are valid for selection, or an empty list to make this a directory selection.</param>
+	/// <param name="hidden_paths">Optional list of file paths that are hidden.</param>
+	bool file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &extensions, const std::vector<std::filesystem::path> &hidden_paths = {});
 
 	/// <summary>
 	/// Adds a keyboard shortcut widget.
 	/// </summary>
-	/// <param name="label">The label text describing this widget.</param>
-	/// <param name="key">The shortcut, consisting of the [virtual key code, Ctrl, Shift, Alt].</param>
-	/// <param name="input">A reference to the input state.</param>
+	/// <param name="label">Label text describing this widget.</param>
+	/// <param name="key">Shortcut, consisting of the [virtual key code, Ctrl, Shift, Alt].</param>
+	/// <param name="input">Reference to the input state.</param>
 	bool key_input_box(const char *label, unsigned int key[4], const reshade::input &input);
 
 	/// <summary>
@@ -63,14 +64,14 @@ namespace reshade::imgui
 	/// <summary>
 	/// Adds a widget which shows a vertical list of radio buttons plus a label to the right.
 	/// </summary>
-	/// <param name="label">The label text describing this widget.</param>
-	/// <param name="ui_items">A list of labels for the items, separated with '\0' characters.</param>
-	/// <param name="v">The index of the active item in the <paramref name="ui_items"/> list.</param>
+	/// <param name="label">Label text describing this widget.</param>
+	/// <param name="ui_items">List of labels for the items, separated with '\0' characters.</param>
+	/// <param name="v">Index of the active item in the <paramref name="ui_items"/> list.</param>
 	bool radio_list(const char *label, const std::string_view ui_items, int &v);
 
 	/// <summary>
 	/// Convenience function which adds a button that when pressed opens a popup window.
-	/// Begins the popup window and returns <c>true</c> if it is open. Don't forget to call 'ImGui::EndPopup'.
+	/// Begins the popup window and returns <see langword="true"/> if it is open. Don't forget to call 'ImGui::EndPopup'.
 	/// </summary>
 	bool popup_button(const char *label, float width = 0.0f, ImGuiWindowFlags flags = 0);
 
@@ -108,8 +109,8 @@ namespace reshade::imgui
 	/// <summary>
 	/// Adds an image widget which has a checkerboard background for transparent images.
 	/// </summary>
-	/// <param name="user_texture_id">The texture to be rendered as the image.</param>
-	/// <param name="size">The size of the widget.</param>
+	/// <param name="user_texture_id">Texture handle to be rendered as the image.</param>
+	/// <param name="size">Size of the widget.</param>
 	/// <param name="tint_col">Optional tint color mulitplied with each pixel of the image during rendering.</param>
 	void image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col = 0xFFFFFFFF);
 }

@@ -25,7 +25,7 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 		{
 			ImGui::PushID(static_cast<int>(i));
 
-			char buf[260];
+			char buf[4096];
 			const size_t buf_len = paths[i].u8string().copy(buf, sizeof(buf) - 1);
 			buf[buf_len] = '\0';
 
@@ -87,17 +87,17 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 	return res;
 }
 
-bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts)
+bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, float width, const std::vector<std::wstring> &exts, const std::vector<std::filesystem::path> &hidden_paths)
 {
 	if (!ImGui::BeginPopup(name))
 		return false;
 
 	std::error_code ec;
 	if (path.is_relative())
-		path = std::filesystem::absolute(path);
+		path = std::filesystem::absolute(path, ec);
 	std::filesystem::path parent_path = path.parent_path();
 
-	{	char buf[260];
+	{	char buf[4096];
 		const size_t buf_len = parent_path.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0';
 
@@ -146,11 +146,12 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 			if (is_selected && ImGui::IsWindowAppearing())
 				ImGui::SetScrollHereY();
+			continue;
 		}
-		else if (std::find(exts.begin(), exts.end(), entry.path().extension()) != exts.end())
-		{
+
+		if (std::find(exts.begin(), exts.end(), entry.path().extension()) != exts.end() &&
+			std::find(hidden_paths.begin(), hidden_paths.end(), entry.path()) == hidden_paths.end())
 			file_entries.push_back(entry);
-		}
 	}
 
 	// Always show file entries after all directory entries
@@ -183,7 +184,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 	std::filesystem::path path_name = path.has_filename() || !exts.empty() ? path.filename() : path.parent_path().filename();
 
-	{	char buf[260];
+	{	char buf[4096];
 		const size_t buf_len = path_name.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0';
 
@@ -313,7 +314,7 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	ImGui::PushID(name);
 	ImGui::BeginGroup();
 
-	char buf[260];
+	char buf[4096];
 	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
 	buf[buf_len] = '\0'; // Null-terminate string
 
@@ -358,7 +359,7 @@ bool reshade::imgui::directory_input_box(const char *name, std::filesystem::path
 	ImGui::PushID(name);
 	ImGui::BeginGroup();
 
-	char buf[260];
+	char buf[4096];
 	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
 	buf[buf_len] = '\0'; // Null-terminate string
 

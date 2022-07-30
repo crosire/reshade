@@ -401,6 +401,11 @@ HOOK_EXPORT void APIENTRY glFinish()
 }
 HOOK_EXPORT void APIENTRY glFlush()
 {
+#if RESHADE_ADDON
+	if (g_current_context)
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(g_current_context, g_current_context);
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glFlush);
 	trampoline();
 }

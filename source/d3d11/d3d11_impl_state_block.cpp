@@ -28,6 +28,8 @@ reshade::d3d11::state_block::~state_block()
 
 void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 {
+	assert(_device_context == nullptr);
+
 	_device_context = device_context;
 
 	_device_context->IAGetPrimitiveTopology(&_ia_primitive_topology);

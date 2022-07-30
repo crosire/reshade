@@ -26,11 +26,9 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	assert(_orig != nullptr && _device != nullptr);
 }
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
-	swapchain_impl(device, original),
-	_extended_interface(1),
-	_device(device)
+	Direct3DSwapChain9(device, static_cast<IDirect3DSwapChain9 *>(original))
 {
-	assert(_orig != nullptr && _device != nullptr);
+	_extended_interface = 1;
 }
 
 bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)

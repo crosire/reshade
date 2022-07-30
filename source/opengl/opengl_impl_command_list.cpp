@@ -996,12 +996,13 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		dst_region[5] = static_cast<GLint>(dst_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(dst_desc.texture.depth_or_layers) >> (dst_subresource % dst_desc.texture.levels)) : 1u);
 	}
 
-	if (src_target != GL_FRAMEBUFFER_DEFAULT &&
-		dst_target != GL_FRAMEBUFFER_DEFAULT &&
+	const bool flip_y = (src_target == GL_FRAMEBUFFER_DEFAULT) || (dst_target == GL_FRAMEBUFFER_DEFAULT);
+
+	if (!flip_y &&
 		src_desc.texture.samples == dst_desc.texture.samples &&
 		(src_region[3] - src_region[0]) == (dst_region[3] - dst_region[0]) &&
 		(src_region[4] - src_region[1]) == (dst_region[4] - dst_region[1]) &&
-		(src_region[5] - src_region[0]) == (dst_region[5] - dst_region[2]))
+		(src_region[5] - src_region[2]) == (dst_region[5] - dst_region[2]))
 	{
 		if (src_box != nullptr)
 		{
@@ -1037,7 +1038,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		assert(src_region[2] == 0 && dst_region[2] == 0 && src_region[5] == 1 && dst_region[5] == 1);
 		glBlitFramebuffer(
 			src_region[0], src_region[1], src_region[3], src_region[4],
-			dst_region[0], dst_region[4], dst_region[3], dst_region[1],
+			dst_region[0], dst_region[flip_y ? 4 : 1], dst_region[3], dst_region[flip_y ? 1 : 4],
 			copy_depth != GL_NONE ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT,
 			// Must be nearest filtering for depth or stencil attachments
 			(filter == api::filter_mode::min_mag_mip_linear || filter == api::filter_mode::min_mag_linear_mip_point) && copy_depth == GL_NONE ? GL_LINEAR : GL_NEAREST);

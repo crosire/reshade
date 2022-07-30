@@ -21,6 +21,7 @@ namespace reshade::vulkan
 	class device_impl : public api::api_object_impl<VkDevice, api::device>
 	{
 		friend class command_list_impl;
+		friend class command_list_immediate_impl;
 		friend class command_queue_impl;
 
 	public:
@@ -87,6 +88,8 @@ namespace reshade::vulkan
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
 
 		void advance_transient_descriptor_pool();
+
+		command_list_immediate_impl *get_first_immediate_command_list();
 
 		template <VkObjectType type, typename... Args>
 		void register_object(typename object_data<type>::Handle object, Args... args)

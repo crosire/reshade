@@ -32,7 +32,7 @@ public:
 	/// <summary>
 	/// Opens the INI file at the specified <paramref name="path"/>.
 	/// </summary>
-	/// <param name="path">The path to the INI file to access.</param>
+	/// <param name="path">Path to the INI file to access.</param>
 	explicit ini_file(const std::filesystem::path &path);
 
 	/// <summary>
@@ -57,8 +57,8 @@ public:
 	/// <summary>
 	/// Gets the value of the specified <paramref name="section"/> and <paramref name="key"/> from the INI.
 	/// </summary>
-	/// <param name="value">A reference filled with the data of this INI entry.</param>
-	/// <returns><c>true</c> if the key exists, <c>false</c>otherwise.</returns>
+	/// <param name="value">Reference filled with the data of this INI entry.</param>
+	/// <returns><see langword="true"/> if the key exists, <see langword="false"/> otherwise.</returns>
 	template <typename T>
 	bool get(const std::string &section, const std::string &key, T &value) const
 	{
@@ -100,9 +100,9 @@ public:
 	}
 
 	/// <summary>
-	/// Returns <c>true</c> only if the specified <paramref name="section"/> and <paramref name="key"/> exists and is not zero.
+	/// Returns <see langword="true"/> only if the specified <paramref name="section"/> and <paramref name="key"/> exists and is not zero.
 	/// </summary>
-	/// <returns><c>true</c> if the key exists and is not zero, <c>false</c>otherwise.</returns>
+	/// <returns><see langword="true"/> if the key exists and is not zero, <see langword="false"/> otherwise.</returns>
 	bool get(const std::string &section, const std::string &key) const
 	{
 		bool value = false;
@@ -112,7 +112,7 @@ public:
 	/// <summary>
 	/// Sets the value of the specified <paramref name="section"/> and <paramref name="key"/> to a new <paramref name="value"/>.
 	/// </summary>
-	/// <param name="value">The data to set this INI entry to.</param>
+	/// <param name="value">Data to set this INI entry to.</param>
 	template <typename T>
 	void set(const std::string &section, const std::string &key, const T &value)
 	{
@@ -181,15 +181,29 @@ public:
 	}
 
 	/// <summary>
+	/// Removes all values.
+	/// </summary>
+	void clear()
+	{
+		_sections.clear();
+		_modified = true;
+		_modified_at = std::filesystem::file_time_type::clock::now();
+	}
+
+	/// <summary>
 	/// Removes the specified <paramref name="key"/> from the <paramref name="section"/>.
 	/// </summary>
-	/// <param name="section"></param>
-	/// <param name="key"></param>
 	void remove_key(const std::string &section, const std::string &key)
 	{
-		const auto it = _sections.find(section);
-		if (it != _sections.end())
-			it->second.erase(key);
+		const auto it1 = _sections.find(section);
+		if (it1 == _sections.end())
+			return;
+		const auto it2 = it1->second.find(key);
+		if (it2 == it1->second.end())
+			return;
+		it1->second.erase(it2);
+		_modified = true;
+		_modified_at = std::filesystem::file_time_type::clock::now();
 	}
 
 	/// <summary>
@@ -208,10 +222,16 @@ public:
 	static bool flush_cache(const std::filesystem::path &path);
 
 	/// <summary>
+	/// Removes all INI files from cache, without saving changes.
+	/// </summary>
+	static void clear_cache();
+	static void clear_cache(const std::filesystem::path &path);
+
+	/// <summary>
 	/// Gets the specified INI file from cache or opens it when it was not cached yet.
 	/// </summary>
-	/// <param name="path">The path to the INI file to access.</param>
-	/// <returns>A reference to the cached data.</returns>
+	/// <param name="path">Path to the INI file to access.</param>
+	/// <returns>Reference to the cached data.</returns>
 	static ini_file &load_cache(const std::filesystem::path &path);
 
 private:
@@ -282,7 +302,7 @@ private:
 	/// </summary>
 	using section_type = std::unordered_map<std::string, value_type>;
 
-	std::filesystem::path _path;
+	const std::filesystem::path _path;
 	std::unordered_map<std::string, section_type> _sections;
 	bool _modified = false;
 	std::filesystem::file_time_type _modified_at;

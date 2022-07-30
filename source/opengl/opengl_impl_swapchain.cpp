@@ -17,7 +17,7 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compa
 
 	const GLubyte *const name = glGetString(GL_RENDERER);
 	const GLubyte *const version = glGetString(GL_VERSION);
-	LOG(INFO) << "Running on " << name << " using OpenGL " << version;
+	LOG(INFO) << "Running on " << name << " using OpenGL " << version << '.';
 
 	// Query vendor and device ID from Windows assuming we are running on the primary display device
 	// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)
@@ -117,21 +117,25 @@ void reshade::opengl::swapchain_impl::on_present()
 #endif
 }
 
-#if RESHADE_FX
+#if RESHADE_ADDON && RESHADE_FX
 void reshade::opengl::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-	_app_state.capture(_compatibility_context);
+	if (!_is_in_present_call)
+		_app_state.capture(_compatibility_context);
 
 	runtime::render_effects(cmd_list, rtv, rtv_srgb);
 
-	_app_state.apply(_compatibility_context);
+	if (!_is_in_present_call)
+		_app_state.apply(_compatibility_context);
 }
 void reshade::opengl::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-	_app_state.capture(_compatibility_context);
+	if (!_is_in_present_call)
+		_app_state.capture(_compatibility_context);
 
 	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
 
-	_app_state.apply(_compatibility_context);
+	if (!_is_in_present_call)
+		_app_state.apply(_compatibility_context);
 }
 #endif

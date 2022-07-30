@@ -15,7 +15,7 @@ namespace reshade
 	bool open_explorer(const std::filesystem::path &path);
 
 	/// <summary>
-	/// Executes the specified command as a new process, which basic (not elevated) user privileges.
+	/// Executes the specified command as a new process, with basic (not elevated) user privileges.
 	/// </summary>
 	bool execute_command(const std::string &command_line, const std::filesystem::path &working_directory = L".", bool no_window = false);
 }

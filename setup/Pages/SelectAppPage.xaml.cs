@@ -67,13 +67,13 @@ namespace ReShade.Setup.Pages
 
 				Name += " (" + System.IO.Path.GetFileName(path) + ")";
 
-				using (var ico = System.Drawing.Icon.ExtractAssociatedIcon(path))
-				{
-					Icon = Imaging.CreateBitmapSourceFromHIcon(ico.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-				}
-
 				try
 				{
+					using (var ico = System.Drawing.Icon.ExtractAssociatedIcon(path))
+					{
+						Icon = Imaging.CreateBitmapSourceFromHIcon(ico.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+					}
+
 					LastAccess = File.GetLastAccessTime(path).ToString("s");
 				}
 				catch
@@ -148,13 +148,21 @@ namespace ReShade.Setup.Pages
 				catch { }
 
 				// Add Epic Games Launcher install location
+				try
 				{
-					string epicGamesInstallPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Epic Games");
-					if (Directory.Exists(epicGamesInstallPath))
+					string epicGamesConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EpicGamesLauncher", "Saved", "Config", "Windows", "GameUserSettings.ini");
+					if (File.Exists(epicGamesConfigPath))
 					{
-						searchPaths.Add(epicGamesInstallPath);
+						var epicGamesConfig = new Utilities.IniFile(epicGamesConfigPath);
+						var searchPath = epicGamesConfig.GetString("Launcher", "DefaultAppInstallLocation");
+
+						if (!string.IsNullOrEmpty(searchPath) && Directory.Exists(searchPath))
+						{
+							searchPaths.Add(searchPath);
+						}
 					}
 				}
+				catch { }
 
 				// Add GOG Galaxy install locations
 				try
@@ -204,8 +212,41 @@ namespace ReShade.Setup.Pages
 				{
 					string searchPath = searchPaths.Dequeue();
 
+					if (searchPath.Last() != Path.DirectorySeparatorChar)
+					{
+						searchPath += Path.DirectorySeparatorChar;
+					}
+
+					// Ignore certain folders that are unlikely to contain useful executables
+					if (searchPath.ContainsIgnoreCase("docs") ||
+						searchPath.ContainsIgnoreCase("cache") ||
+						searchPath.ContainsIgnoreCase("support") ||
+						searchPath.Contains("Data") || // AppData, ProgramData, _Data
+						searchPath.Contains("_CommonRedist") ||
+						searchPath.Contains("__Installer") ||
+						searchPath.Contains("\\$") ||
+						searchPath.Contains("\\.") ||
+						searchPath.Contains("\\Windows") ||
+						searchPath.Contains("\\System Volume Information") ||
+						searchPath.ContainsIgnoreCase("java") ||
+						searchPath.ContainsIgnoreCase("steamvr") ||
+						searchPath.Contains("\\Portal\\bin"))
+					{
+						continue;
+					}
+
 					try
 					{
+						if (searchPath != Path.GetPathRoot(searchPath))
+						{
+							// Ignore hidden directories and symlinks
+							var attributes = File.GetAttributes(searchPath);
+							if (attributes.HasFlag(FileAttributes.Hidden) || attributes.HasFlag(FileAttributes.ReparsePoint))
+							{
+								continue;
+							}
+						}
+
 						files = Directory.GetFiles(searchPath, "*.exe", SearchOption.TopDirectoryOnly).ToList();
 					}
 					catch
@@ -232,43 +273,36 @@ namespace ReShade.Setup.Pages
 							}
 
 							// Exclude common installer, support and launcher executables
-							if (path.ContainsIgnoreCase("redis") ||
-								path.ContainsIgnoreCase("unins") ||
-								path.ContainsIgnoreCase("setup") ||
-								path.ContainsIgnoreCase("patch") ||
-								path.ContainsIgnoreCase("update") ||
-								path.ContainsIgnoreCase("install") ||
-								path.ContainsIgnoreCase("report") ||
-								path.ContainsIgnoreCase("support") ||
-								path.ContainsIgnoreCase("register") ||
-								path.ContainsIgnoreCase("activation") ||
-								path.ContainsIgnoreCase("diagnostics") ||
-								path.ContainsIgnoreCase("tool") ||
-								path.ContainsIgnoreCase("crash") ||
-								path.ContainsIgnoreCase("config") ||
-								path.ContainsIgnoreCase("launch") ||
-								path.ContainsIgnoreCase("plugin") ||
-								path.ContainsIgnoreCase("console") ||
-								path.ContainsIgnoreCase("compile") ||
+							if (path.ContainsIgnoreCase("activation") ||
 								path.ContainsIgnoreCase("benchmark") ||
-								path.ContainsIgnoreCase("openvr") ||
-								path.ContainsIgnoreCase("steamvr") ||
 								path.ContainsIgnoreCase("cefprocess") ||
+								path.ContainsIgnoreCase("compile") ||
+								path.ContainsIgnoreCase("config") ||
+								path.ContainsIgnoreCase("console") ||
+								path.ContainsIgnoreCase("crash") ||
+								path.ContainsIgnoreCase("diagnostics") ||
+								path.ContainsIgnoreCase("install") ||
+								path.ContainsIgnoreCase("launch") ||
+								path.ContainsIgnoreCase("openvr") ||
+								path.ContainsIgnoreCase("overlay") ||
+								path.ContainsIgnoreCase("patch") ||
+								path.ContainsIgnoreCase("plugin") ||
+								path.ContainsIgnoreCase("redis") ||
+								path.ContainsIgnoreCase("register") ||
+								path.ContainsIgnoreCase("report") ||
+								path.ContainsIgnoreCase("server") ||
+								path.ContainsIgnoreCase("setup") ||
+								path.ContainsIgnoreCase("steamvr") ||
+								path.ContainsIgnoreCase("subprocess") ||
+								path.ContainsIgnoreCase("support") ||
+								path.ContainsIgnoreCase("tool") ||
+								path.ContainsIgnoreCase("unins") ||
+								path.ContainsIgnoreCase("update") ||
+								path.ContainsIgnoreCase("webview") ||
 								path.Contains("7za") ||
 								path.Contains("svc") ||
 								path.Contains("SystemSoftware") ||
-								// Ignore certain folders that are unlikely to contain useful executables
-								path.ContainsIgnoreCase("docs") ||
-								path.ContainsIgnoreCase("cache") ||
-								path.ContainsIgnoreCase("support") ||
-								path.Contains("Data") || // AppData, ProgramData, _Data
-								path.Contains("_CommonRedist") ||
-								path.Contains("__Installer") ||
-								path.Contains("\\$") ||
-								path.Contains("\\.") ||
-								path.Contains("\\Windows") ||
-								path.ContainsIgnoreCase("steamvr") ||
-								path.Contains("\\Portal\\bin"))
+								path.Contains("TagesClient"))
 							{
 								continue;
 							}
@@ -348,6 +382,19 @@ namespace ReShade.Setup.Pages
 			if (IgnorePathBoxChanged)
 			{
 				return;
+			}
+
+			var invalidChars = Path.GetInvalidPathChars();
+			for (int i = 0; i < PathBox.Text.Length;)
+			{
+				if (invalidChars.Contains(PathBox.Text[i]))
+				{
+					PathBox.Text = PathBox.Text.Remove(i, 1);
+				}
+				else
+				{
+					i++;
+				}
 			}
 
 			OnSortByChanged(sender, null);

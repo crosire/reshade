@@ -5,6 +5,7 @@
 
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_type_convert.hpp"
+#include "d3d10_resource_call_vtable.inl"
 #include "dll_log.hpp"
 
 void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx, api::pipeline_stage stages) const
@@ -272,10 +273,10 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 
 	// Discard the buffer to so driver can return a new memory region to avoid stalls
 	if (uint32_t *mapped_data;
-		SUCCEEDED(push_constants->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&mapped_data))))
+		SUCCEEDED(ID3D10Buffer_Map(push_constants, D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&mapped_data))))
 	{
 		std::memcpy(mapped_data + first, values, count * sizeof(uint32_t));
-		push_constants->Unmap();
+		ID3D10Buffer_Unmap(push_constants);
 	}
 
 	UINT push_constants_slot = 0;

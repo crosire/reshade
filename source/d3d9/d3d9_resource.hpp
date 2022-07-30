@@ -11,9 +11,9 @@
 
 struct Direct3DDevice9;
 
-struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DSurface9 final : IDirect3DSurface9
+struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DDepthStencilSurface9 final : IDirect3DSurface9
 {
-	Direct3DSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc);
+	Direct3DDepthStencilSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc);
 
 	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -39,6 +39,7 @@ struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DSurface9 fi
 	HRESULT STDMETHODCALLTYPE ReleaseDC(HDC hdc) override;
 	#pragma endregion
 
+	ULONG _ref = 1;
 	IDirect3DSurface9 *_orig;
 	Direct3DDevice9 *const _device;
 	const D3DSURFACE_DESC _orig_desc;
