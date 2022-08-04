@@ -616,18 +616,13 @@ void reshade::runtime::draw_gui()
 	if (_input != nullptr)
 	{
 		imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_gui);
-		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
-		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
+
+		// Scale mouse position in case render resolution does not match the window size
+		imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / _input->mouse_position_max_x());
+		imgui_io.MousePos.y = _input->mouse_position_y() * (imgui_io.DisplaySize.y / _input->mouse_position_max_y());
 
 		// Add wheel delta to the current absolute mouse wheel position
 		imgui_io.MouseWheel += _input->mouse_wheel_delta();
-
-		// Scale mouse position in case render resolution does not match the window size
-		if (_window_width != 0 && _window_height != 0)
-		{
-			imgui_io.MousePos.x *= imgui_io.DisplaySize.x / _window_width;
-			imgui_io.MousePos.y *= imgui_io.DisplaySize.y / _window_height;
-		}
 
 		// Update all the button states
 		imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU

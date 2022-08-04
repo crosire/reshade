@@ -3438,16 +3438,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 					if (_input == nullptr)
 						break;
 
-					uint32_t pos_x = _input->mouse_position_x();
-					uint32_t pos_y = _input->mouse_position_y();
-#if RESHADE_GUI
-					if (pos_x > _window_width)
-						pos_x = _window_width;
-					if (pos_y > _window_height)
-						pos_y = _window_height;
-#endif
-
-					set_uniform_value(variable, pos_x, pos_y);
+					set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
 					break;
 				}
 				case special_uniform::mouse_delta:
