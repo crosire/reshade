@@ -451,6 +451,13 @@ namespace reshade
 
 		bool _is_in_between_presets_transition = false;
 		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
+
+		struct preset_shortcut
+		{
+			std::filesystem::path preset_path;
+			unsigned int key_data[4] = {};
+		};
+		std::vector<preset_shortcut> _preset_shortcuts;
 #endif
 		#pragma endregion
 

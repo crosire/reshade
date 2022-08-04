@@ -154,6 +154,16 @@ public:
 		_modified = true;
 		_modified_at = std::filesystem::file_time_type::clock::now();
 	}
+	template <typename T>
+	void set(const std::string &section, const std::string &key, const std::vector<T> &values)
+	{
+		auto &v = _sections[section][key];
+		v.resize(values.size());
+		for (size_t i = 0; i < values.size(); ++i)
+			v[i] = std::to_string(values[i]);
+		_modified = true;
+		_modified_at = std::filesystem::file_time_type::clock::now();
+	}
 	template <>
 	void set(const std::string &section, const std::string &key, const std::vector<std::string> &values)
 	{

@@ -1091,6 +1091,30 @@ void reshade::runtime::draw_gui_home()
 		}
 		ImGui::PopStyleVar();
 
+		if (_input != nullptr &&
+			ImGui::BeginPopupContextItem())
+		{
+			auto preset_shortcut_it = std::find_if(_preset_shortcuts.begin(), _preset_shortcuts.end(),
+				[this](const preset_shortcut &shortcut) { return shortcut.preset_path == _current_preset_path; });
+
+			preset_shortcut shortcut;
+			if (preset_shortcut_it != _preset_shortcuts.end())
+				shortcut = *preset_shortcut_it;
+			else
+				shortcut.preset_path = _current_preset_path;
+
+			ImGui::SetNextItemWidth(230.0f);
+			if (imgui::key_input_box("##toggle_key", shortcut.key_data, *_input))
+			{
+				if (preset_shortcut_it != _preset_shortcuts.end())
+					*preset_shortcut_it = std::move(shortcut);
+				else
+					_preset_shortcuts.push_back(std::move(shortcut));
+			}
+
+			ImGui::EndPopup();
+		}
+
 		// Cannot save in performance mode, since there are no variables to retrieve values from then
 		if (!_performance_mode)
 		{
@@ -1166,8 +1190,9 @@ void reshade::runtime::draw_gui_home()
 					new_preset_path += L".ini";
 
 				std::error_code ec;
-				const std::filesystem::file_type file_type = std::filesystem::status(new_preset_path, ec).type();
-				if (file_type != std::filesystem::file_type::directory)
+
+				if (const std::filesystem::file_type file_type = std::filesystem::status(new_preset_path, ec).type();
+					file_type != std::filesystem::file_type::directory)
 				{
 					reload_preset =
 						file_type == std::filesystem::file_type::not_found ||
@@ -2889,14 +2914,13 @@ void reshade::runtime::draw_variable_editor()
 			// Create context menu
 			if (ImGui::BeginPopupContextItem("##context"))
 			{
+				ImGui::SetNextItemWidth(230.0f);
 				if (variable.supports_toggle_key() &&
 					_input != nullptr &&
 					imgui::key_input_box("##toggle_key", variable.toggle_key_data, *_input))
 					modified = true;
 
-				const float button_width = ImGui::CalcItemWidth();
-
-				if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(button_width, 0)))
+				if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(230.0f, 0)))
 				{
 					modified = true;
 					reset_uniform_value(variable);
@@ -2982,9 +3006,7 @@ void reshade::runtime::draw_variable_editor()
 					if (!force_reload_effect && // Cannot compare iterators if definitions were just modified above
 						ImGui::BeginPopupContextItem())
 					{
-						const float button_width = ImGui::CalcItemWidth();
-
-						if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(button_width, 0)))
+						if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(230.0f, 0)))
 						{
 							if (preset_it != _preset_preprocessor_definitions.end())
 							{

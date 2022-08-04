@@ -655,6 +655,18 @@ void reshade::runtime::on_present()
 				if (switch_to_next_preset(_current_preset_path.parent_path(), reversed))
 					save_config();
 			}
+			else
+			{
+				for (const preset_shortcut &shortcut : _preset_shortcuts)
+				{
+					if (_input->is_key_pressed(shortcut.key_data, _force_shortcut_modifiers))
+					{
+						if (switch_to_next_preset(shortcut.preset_path))
+							save_config();
+						break;
+					}
+				}
+			}
 
 			// Continuously update preset values while a transition is in progress
 			if (_is_in_between_presets_transition)
@@ -800,6 +812,19 @@ void reshade::runtime::load_config()
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
 		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
+
+	std::vector<unsigned int> preset_key_data;
+	std::vector<std::filesystem::path> preset_shortcut_paths;
+	config.get("GENERAL", "PresetShortcutKeys", preset_key_data);
+	config.get("GENERAL", "PresetShortcutPaths", preset_shortcut_paths);
+
+	for (size_t i = 0; i < preset_shortcut_paths.size() && (i * 4 + 4) <= preset_key_data.size(); ++i)
+	{
+		preset_shortcut shortcut;
+		shortcut.preset_path = preset_shortcut_paths[i];
+		std::copy_n(&preset_key_data[i * 4], 4, shortcut.key_data);
+		_preset_shortcuts.push_back(std::move(shortcut));
+	}
 #endif
 
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
@@ -856,6 +881,22 @@ void reshade::runtime::save_config() const
 		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
+
+	std::vector<unsigned int> preset_key_data;
+	std::vector<std::filesystem::path> preset_shortcut_paths;
+	for (const preset_shortcut &shortcut : _preset_shortcuts)
+	{
+		if (shortcut.key_data[0] == 0)
+			continue;
+
+		preset_key_data.push_back(shortcut.key_data[0]);
+		preset_key_data.push_back(shortcut.key_data[1]);
+		preset_key_data.push_back(shortcut.key_data[2]);
+		preset_key_data.push_back(shortcut.key_data[3]);
+		preset_shortcut_paths.push_back(shortcut.preset_path);
+	}
+	config.set("GENERAL", "PresetShortcutKeys", preset_key_data);
+	config.set("GENERAL", "PresetShortcutPaths", preset_shortcut_paths);
 #endif
 
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
@@ -1109,12 +1150,29 @@ void reshade::runtime::save_current_preset() const
 
 bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, bool reversed)
 {
-	std::error_code ec; // This is here to ignore file system errors below
+	resolve_path(filter_path);
 
+	std::error_code ec; // This is here to ignore file system errors below
 	std::filesystem::path filter_text;
-	if (resolve_path(filter_path); !std::filesystem::is_directory(filter_path, ec))
-		if (filter_text = filter_path.filename(); !filter_text.empty())
-			filter_path = filter_path.parent_path();
+
+	if (const std::filesystem::file_type file_type = std::filesystem::status(filter_path, ec).type();
+		file_type != std::filesystem::file_type::directory)
+	{
+		if (file_type == std::filesystem::file_type::not_found)
+		{
+			filter_text = filter_path.filename();
+			if (!filter_text.empty())
+				filter_path = filter_path.parent_path();
+		}
+		else
+		{
+			_current_preset_path = filter_path;
+			_last_preset_switching_time = _last_present_time;
+			_is_in_between_presets_transition = true;
+
+			return true;
+		}
+	}
 
 	size_t current_preset_index = std::numeric_limits<size_t>::max();
 	std::vector<std::filesystem::path> preset_paths;
