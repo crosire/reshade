@@ -400,7 +400,7 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 		if (desc.type == resource_type::texture_2d && (desc.texture.format == format::d16_unorm || desc.texture.format == format::d24_unorm_x8_uint || desc.texture.format == format::d24_unorm_s8_uint))
 			return false;
 		// Skip small textures that are likely just shadow maps too (fixes a hang in Dragon's Dogma: Dark Arisen when changing areas)
-		if (desc.texture.width <= 512 || desc.texture.height <= 512)
+		if (desc.texture.width <= 512)
 			return false;
 		// Replace texture format with special format that supports normal sampling (see https://aras-p.info/texts/D3D9GPUHacks.html#depth)
 		desc.texture.format = format::intz;

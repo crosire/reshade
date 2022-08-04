@@ -122,6 +122,8 @@ void Direct3DDevice9::init_auto_depth_stencil()
 }
 void Direct3DDevice9::reset_auto_depth_stencil()
 {
+	_current_depth_stencil.reset();
+
 	if (_auto_depth_stencil == nullptr)
 		return;
 
@@ -1190,30 +1192,34 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
 #if RESHADE_ADDON
-	if (com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
-		pNewZStencil != nullptr &&
+	com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
+	if (pNewZStencil != nullptr &&
 		SUCCEEDED(pNewZStencil->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
 		pNewZStencil = surface_proxy->_orig;
 #endif
 
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
+	if (SUCCEEDED(hr))
 	{
-		DWORD count = 0;
-		com_ptr<IDirect3DSurface9> surface;
-		reshade::api::resource_view rtvs[8] = {};
-		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
+		_current_depth_stencil = std::move(surface_proxy);
+
+		if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 		{
-			if (FAILED(_orig->GetRenderTarget(i, &surface)))
-				continue;
+			DWORD count = 0;
+			com_ptr<IDirect3DSurface9> surface;
+			reshade::api::resource_view rtvs[8] = {};
+			for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
+			{
+				if (FAILED(_orig->GetRenderTarget(i, &surface)))
+					continue;
 
-			rtvs[i] = to_handle(surface.get());
-			count = i + 1;
+				rtvs[i] = to_handle(surface.get());
+				count = i + 1;
+			}
+
+			reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, count, rtvs, to_handle(pNewZStencil));
 		}
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, count, rtvs, to_handle(pNewZStencil));
 	}
 #endif
 
@@ -1227,10 +1233,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 	{
 		assert(ppZStencilSurface != nullptr);
 
-		const auto surface = *ppZStencilSurface;
-		const auto surface_proxy = get_private_pointer_d3d9<Direct3DDepthStencilSurface9>(surface);
-		if (surface_proxy != nullptr)
+		if (_current_depth_stencil != nullptr)
 		{
+			const auto surface = *ppZStencilSurface;
+			const auto surface_proxy = _current_depth_stencil.get();
+
 			surface_proxy->AddRef();
 			surface->Release();
 			*ppZStencilSurface = surface_proxy;

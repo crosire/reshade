@@ -66,7 +66,12 @@ ULONG   STDMETHODCALLTYPE Direct3DDepthStencilSurface9::Release()
 	else
 	{
 		if (_orig->Release() == 0)
+		{
+			// Remove pointer to this proxy object from the private data of the device
+			_orig->SetPrivateData(__uuidof(this), nullptr, 0, 0);
+
 			delete this;
+		}
 	}
 
 	return ref;
