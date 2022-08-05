@@ -296,6 +296,11 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 				// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge main menu)
 				do_copy = counters.current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && counters.current_stats.drawcalls >= state.best_copy_stats.drawcalls);
 			}
+			else if (std::numeric_limits<size_t>::max() == depth_stencil_backup->force_clear_index)
+			{
+				// Special case for Garry's Mod which chooses the last clear operation that has a high workload
+				do_copy = counters.current_stats.vertices >= 5000;
+			}
 			else
 			{
 				// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
@@ -1038,6 +1043,16 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					clear_stats.drawcalls_indirect,
 					clear_stats.vertices,
 					clear_stats.clear_op == clear_op::fullscreen_draw ? " Fullscreen draw call" : "");
+			}
+
+			if (sorted_item_list.size() == 1 && !is_d3d12_or_vulkan)
+			{
+				if (bool value = (depth_stencil_backup->force_clear_index == std::numeric_limits<size_t>::max());
+					ImGui::Checkbox("    Choose last clear operation with high number of draw calls", &value))
+				{
+					depth_stencil_backup->force_clear_index = value ? std::numeric_limits<size_t>::max() : 0;
+					reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+				}
 			}
 		}
 	}
