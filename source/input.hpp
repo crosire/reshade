@@ -60,8 +60,7 @@ namespace reshade
 		auto mouse_movement_delta_y() const { return static_cast<int>(_mouse_position[1] - _last_mouse_position[1]); }
 		unsigned int mouse_position_x() const { return _mouse_position[0]; }
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
-		unsigned int mouse_position_max_x() const;
-		unsigned int mouse_position_max_y() const;
+		void max_mouse_position(unsigned int position[2]) const;
 
 		/// <summary>
 		/// Returns the character input as captured by 'WM_CHAR' for the current frame.

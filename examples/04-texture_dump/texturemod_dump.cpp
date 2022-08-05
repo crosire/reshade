@@ -4,7 +4,6 @@
  */
 
 #include <reshade.hpp>
-#include <filesystem>
 
 using namespace reshade::api;
 

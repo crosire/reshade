@@ -23,10 +23,10 @@ static vr::VROverlayHandle_t s_thumbnail_handle = vr::k_ulOverlayHandleInvalid;
 static const uint32_t OVERLAY_WIDTH = 400;
 static const uint32_t OVERLAY_HEIGHT = 400;
 
-void reshade::runtime::init_gui_vr()
+bool reshade::runtime::init_gui_vr()
 {
 	if (s_main_handle != vr::k_ulOverlayHandleInvalid)
-		return;
+		return true;
 
 	if (s_overlay == nullptr)
 	{
@@ -34,14 +34,14 @@ void reshade::runtime::init_gui_vr()
 
 		vr::EVRInitError init_e;
 		if ((s_overlay = static_cast<vr::IVROverlay *>(g_client_core->GetGenericInterface(vr::IVROverlay_Version, &init_e))) == nullptr)
-			return;
+			return false;
 	}
 
 	const vr::EVROverlayError overlay_e = s_overlay->CreateDashboardOverlay("reshade", "ReShade " VERSION_STRING_PRODUCT, &s_main_handle, &s_thumbnail_handle);
 	if (overlay_e != vr::VROverlayError_None)
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay with error code " << static_cast<int>(overlay_e) << '!';
-		return;
+		return false;
 	}
 
 	if (s_thumbnail_handle != vr::k_ulOverlayHandleInvalid)
@@ -65,13 +65,15 @@ void reshade::runtime::init_gui_vr()
 	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_tex))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay texture!";
-		return;
+		return false;
 	}
 	if (!_device->create_resource_view(_vr_overlay_tex, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_vr_overlay_target))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render target!";
-		return;
+		return false;
 	}
+
+	return true;
 }
 
 void reshade::runtime::deinit_gui_vr()

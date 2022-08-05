@@ -3,93 +3,15 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#define STB_IMAGE_IMPLEMENTATION
-
 #include <reshade.hpp>
-#include "replace_options.hpp"
-#include "crc32_hash.hpp"
-#include <fstream>
-#include <filesystem>
-#include <stb_image.h>
+#include <vector>
 
 using namespace reshade::api;
 
-static thread_local std::vector<std::vector<uint8_t>> data_to_delete;
+static thread_local std::vector<std::vector<uint8_t>> s_data_to_delete;
 
-static bool replace_texture(const resource_desc &desc, subresource_data &data)
-{
-	if (desc.texture.format != format::r8g8b8a8_typeless && desc.texture.format != format::r8g8b8a8_unorm && desc.texture.format != format::r8g8b8a8_unorm_srgb &&
-		desc.texture.format != format::b8g8r8a8_typeless && desc.texture.format != format::b8g8r8a8_unorm && desc.texture.format != format::b8g8r8a8_unorm_srgb &&
-		desc.texture.format != format::r8g8b8x8_typeless && desc.texture.format != format::r8g8b8x8_unorm && desc.texture.format != format::r8g8b8x8_unorm_srgb &&
-		desc.texture.format != format::b8g8r8x8_typeless && desc.texture.format != format::b8g8r8x8_unorm && desc.texture.format != format::b8g8r8x8_unorm_srgb)
-		return false;
-
-#if REPLACE_HASH == REPLACE_HASH_FULL
-	// Correct hash calculation using entire resource data
-	const uint32_t hash = compute_crc32(
-		static_cast<const uint8_t *>(data.data),
-		format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
-#elif REPLACE_HASH == REPLACE_HASH_TEXMOD
-	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
-	const uint32_t hash = ~compute_crc32(
-		static_cast<const uint8_t *>(data.data),
-		desc.texture.height * (
-			(desc.texture.format >= format::bc1_typeless && desc.texture.format <= format::bc1_unorm_srgb) || (desc.texture.format >= format::bc4_typeless && desc.texture.format <= format::bc4_snorm) ? (desc.texture.width * 4) / 8 :
-			(desc.texture.format >= format::bc2_typeless && desc.texture.format <= format::bc2_unorm_srgb) || (desc.texture.format >= format::bc3_typeless && desc.texture.format <= format::bc3_unorm_srgb) || (desc.texture.format >= format::bc5_typeless && desc.texture.format <= format::bc7_unorm_srgb) ? desc.texture.width :
-			format_row_pitch(desc.texture.format, desc.texture.width)));
-#endif
-
-	char hash_string[11];
-	sprintf_s(hash_string, "0x%08X", hash);
-
-	// Prepend executable file name to image files
-	WCHAR file_prefix[MAX_PATH] = L"";
-	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
-
-	std::filesystem::path game_file_path = file_prefix;
-	std::filesystem::path replace_path = game_file_path.parent_path();
-	replace_path /= REPLACE_DIR;
-	replace_path /= hash_string;
-
-#if REPLACE_FMT == REPLACE_FMT_BMP
-	replace_path += L".bmp";
-#elif REPLACE_FMT == REPLACE_FMT_PNG
-	replace_path += L".png";
-#endif
-
-	// Check if a replacement file for this texture hash exists and if so, overwrite the texture data with its contents
-	if (std::filesystem::exists(replace_path))
-	{
-		std::ifstream file(replace_path, std::ios::binary);
-		file.seekg(0, std::ios::end);
-		std::vector<uint8_t> file_data(static_cast<size_t>(file.tellg()));
-		file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(file_data.data()), file_data.size());
-
-		int width = 0, height = 0, channels = 0;
-		stbi_uc *const texture_data = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
-		if (texture_data != nullptr)
-		{
-			// Only support changing pixel data, but not texture dimensions
-			if (desc.texture.width != static_cast<uint32_t>(width) ||
-				desc.texture.height != static_cast<uint32_t>(height))
-			{
-				stbi_image_free(texture_data);
-				return false;
-			}
-
-			data_to_delete.emplace_back(texture_data, texture_data + width * height * 4);
-
-			stbi_image_free(texture_data);
-
-			data.data = data_to_delete.back().data();
-			data.row_pitch = 4 * width;
-			data.slice_pitch = data.row_pitch * height;
-			return true;
-		}
-	}
-
-	return false;
-}
+// See implementation in 'replace_texture.cpp'
+extern bool replace_texture(const resource_desc &desc, subresource_data &data, std::vector<std::vector<uint8_t>> &data_to_delete);
 
 static inline bool filter_texture(device *device, const resource_desc &desc, const subresource_box *box)
 {
@@ -116,12 +38,12 @@ static bool on_create_texture(device *device, resource_desc &desc, subresource_d
 	if (!filter_texture(device, desc, nullptr))
 		return false;
 
-	return initial_data != nullptr && replace_texture(desc, *initial_data);
+	return initial_data != nullptr && replace_texture(desc, *initial_data, s_data_to_delete);
 }
 static void on_after_create_texture(device *, const resource_desc &, const subresource_data *, resource_usage, resource)
 {
 	// Free the memory allocated in 'replace_texture' above
-	data_to_delete.clear();
+	s_data_to_delete.clear();
 }
 
 static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_subresource, const subresource_box *, resource dst, uint32_t dst_subresource, const subresource_box *dst_box, filter_mode)
@@ -144,7 +66,7 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 	subresource_data new_data;
 	if (device->map_texture_region(src, src_subresource, nullptr, map_access::read_only, &new_data))
 	{
-		replace = replace_texture(dst_desc, new_data);
+		replace = replace_texture(dst_desc, new_data, s_data_to_delete);
 
 		device->unmap_texture_region(src, src_subresource);
 	}
@@ -155,7 +77,7 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
 
 		// Free the memory allocated in 'replace_texture' above
-		data_to_delete.clear();
+		s_data_to_delete.clear();
 
 		return true; // Texture was already updated now, so skip the original copy command from the application
 	}
@@ -172,13 +94,13 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 		return false;
 
 	subresource_data new_data = data;
-	if (replace_texture(dst_desc, new_data))
+	if (replace_texture(dst_desc, new_data, s_data_to_delete))
 	{
 		// Update texture with the new data
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
 
 		// Free the memory allocated in 'replace_texture' above
-		data_to_delete.clear();
+		s_data_to_delete.clear();
 
 		return true; // Texture was already updated now, so skip the original update command from the application
 	}
@@ -215,12 +137,12 @@ static void on_unmap_texture(device *, resource resource, uint32_t subresource)
 
 	void *mapped_data = s_current_mapping.data.data;
 
-	if (replace_texture(s_current_mapping.desc, s_current_mapping.data))
+	if (replace_texture(s_current_mapping.desc, s_current_mapping.data, s_data_to_delete))
 	{
 		std::memcpy(mapped_data, s_current_mapping.data.data, s_current_mapping.data.slice_pitch);
 
 		// Free the memory allocated in 'replace_texture' above
-		data_to_delete.clear();
+		s_data_to_delete.clear();
 	}
 }
 

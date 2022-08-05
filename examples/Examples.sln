@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.1705
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "00-basic", "00-basic\basic.vcxproj", "{5B28920F-F397-4185-8040-94D62D02D946}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "01-api_trace", "01-api_trace\api_trace.vcxproj", "{5F86B6C7-D5F9-4EF1-AD3E-AE465CDB5CB7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "02-shader_dump", "02-shader_dump\shader_dump.vcxproj", "{F1541A1E-CE3E-4D1B-87B7-F6E0D5C68B73}"
@@ -35,10 +33,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{5B28920F-F397-4185-8040-94D62D02D946}.Debug|x64.ActiveCfg = Debug|x64
-		{5B28920F-F397-4185-8040-94D62D02D946}.Debug|x86.ActiveCfg = Debug|Win32
-		{5B28920F-F397-4185-8040-94D62D02D946}.Release|x64.ActiveCfg = Release|x64
-		{5B28920F-F397-4185-8040-94D62D02D946}.Release|x86.ActiveCfg = Release|Win32
 		{5F86B6C7-D5F9-4EF1-AD3E-AE465CDB5CB7}.Debug|x64.ActiveCfg = Debug|x64
 		{5F86B6C7-D5F9-4EF1-AD3E-AE465CDB5CB7}.Debug|x64.Build.0 = Debug|x64
 		{5F86B6C7-D5F9-4EF1-AD3E-AE465CDB5CB7}.Debug|x86.ActiveCfg = Debug|Win32

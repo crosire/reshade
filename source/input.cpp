@@ -352,17 +352,12 @@ bool reshade::input::is_any_mouse_button_released() const
 	return false;
 }
 
-unsigned int reshade::input::mouse_position_max_x() const
+void reshade::input::max_mouse_position(unsigned int position[2]) const
 {
 	RECT rect = {};
 	GetClientRect(static_cast<HWND>(_window), &rect);
-	return rect.right;
-}
-unsigned int reshade::input::mouse_position_max_y() const
-{
-	RECT rect = {};
-	GetClientRect(static_cast<HWND>(_window), &rect);
-	return rect.bottom;
+	position[0] = rect.right;
+	position[1] = rect.bottom;
 }
 
 void reshade::input::next_frame()

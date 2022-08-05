@@ -3,16 +3,35 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+// The subdirectory to write textures to
+#define DUMP_DIR "texdump"
+
+// The hash method to use
+#define DUMP_HASH DUMP_HASH_TEXMOD
+
+// The image file format to write
+#define DUMP_FORMAT DUMP_FORMAT_PNG
+
+// Skip any textures that were already dumped this session, to reduce lag at the cost of increased memory usage
+#define DUMP_ENABLE_HASH_SET 1
+
+// --- END OPTIONS --- //
+
+#define DUMP_HASH_FULL 0
+#define DUMP_HASH_TEXMOD 1
+
+#define DUMP_FORMAT_BMP 0
+#define DUMP_FORMAT_PNG 1
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include <reshade.hpp>
-#include "dump_options.hpp"
 #include "crc32_hash.hpp"
 #include <vector>
 #include <filesystem>
 #include <stb_image_write.h>
 
-#ifdef DUMP_ENABLE_HASH_SET
+#if DUMP_ENABLE_HASH_SET
 #include <set>
 #endif
 
@@ -89,7 +108,7 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 
 bool dump_texture(const resource_desc &desc, const subresource_data &data)
 {
-#ifdef DUMP_ENABLE_HASH_SET
+#if DUMP_ENABLE_HASH_SET
 	static std::set<uint32_t> hash_set;
 #endif
 
@@ -111,7 +130,7 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 			format_row_pitch(desc.texture.format, desc.texture.width)));
 #endif
 
-#ifdef DUMP_ENABLE_HASH_SET
+#if DUMP_ENABLE_HASH_SET
 	if (hash_set.find(hash) != hash_set.end())
 	{
 		reshade::log_message(4, "Skipped texture that was already dumped");
@@ -407,26 +426,26 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 		return false;
 	}
 
-	char hash_string[11];
-	sprintf_s(hash_string, "0x%08X", hash);
-
 	// Prepend executable file name to image files
-	WCHAR file_prefix[MAX_PATH] = L"";
+	wchar_t file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
-	std::filesystem::path game_file_path = file_prefix;
-	std::filesystem::path dump_path = game_file_path.parent_path();
+	std::filesystem::path dump_path = file_prefix;
+	dump_path  = dump_path.parent_path();
 	dump_path /= DUMP_DIR;
 
-	if (std::error_code ec; !std::filesystem::exists(dump_path, ec))
-		std::filesystem::create_directory(dump_path, ec);
+	if (std::filesystem::exists(dump_path) == false)
+		std::filesystem::create_directory(dump_path);
+
+	wchar_t hash_string[11];
+	swprintf_s(hash_string, L"0x%08X", hash);
 
 	dump_path /= hash_string;
 
-#if DUMP_FMT == DUMP_FMT_BMP
+#if DUMP_FORMAT == DUMP_FORMAT_BMP
 	dump_path += L".bmp";
 	return stbi_write_bmp(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;
-#elif DUMP_FMT == DUMP_FMT_PNG
+#elif DUMP_FORMAT == DUMP_FORMAT_PNG
 	dump_path += L".png";
 	return stbi_write_png(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data(), desc.texture.width * 4) != 0;
 #else

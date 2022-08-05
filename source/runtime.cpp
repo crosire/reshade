@@ -389,25 +389,11 @@ bool reshade::runtime::on_init(input::window_handle window)
 	}
 
 #if RESHADE_GUI
-	if (window != nullptr)
-	{
-		RECT window_rect = {};
-		GetClientRect(static_cast<HWND>(window), &window_rect);
-
-		_window_width = window_rect.right;
-		_window_height = window_rect.bottom;
-	}
-	if (window == nullptr || _window_width == 0 || _window_height == 0)
-	{
-		_window_width = _width;
-		_window_height = _height;
-	}
-
 	if (!init_imgui_resources())
 		goto exit_failure;
 
-	if (_is_vr)
-		init_gui_vr();
+	if (_is_vr && !init_gui_vr())
+		goto exit_failure;
 #endif
 
 	if (window != nullptr && !_is_vr)
@@ -1203,7 +1189,7 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 
 	if (current_preset_index == std::numeric_limits<size_t>::max())
 	{
-		// Current preset was not in the container path, so just use the first or last file
+		// Current preset was not in the filter path, so just use the first or last file
 		if (reversed)
 			_current_preset_path = preset_paths.back();
 		else
@@ -1211,7 +1197,7 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	}
 	else
 	{
-		// Current preset was found in the container path, so use the file before or after it
+		// Current preset was found in the filter path, so use the file before or after it
 		if (auto it = std::next(preset_paths.begin(), current_preset_index); reversed)
 			_current_preset_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
 		else
@@ -1238,6 +1224,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
 	attributes += "device=" + std::to_string(_device_id) + ';';
 
+	std::error_code ec;
 	std::set<std::filesystem::path> include_paths;
 	if (source_file.is_absolute())
 		include_paths.emplace(source_file.parent_path());
@@ -1253,7 +1240,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			if (recursive_search)
 			{
-				std::error_code ec;
 				for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
 					if (entry.is_directory(ec))
 						include_paths.emplace(entry);
@@ -1263,8 +1249,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 	for (const std::filesystem::path &include_path : include_paths)
 	{
-		std::error_code ec;
-
 		attributes += include_path.u8string();
 		for (const auto &entry : std::filesystem::directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
 		{
@@ -1767,7 +1751,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
 
 				// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
-				// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
+				// On AMD for instance creating a graphics pipeline just fails with a generic 'VK_ERROR_OUT_OF_HOST_MEMORY'. On NVIDIA artifacts occur on some driver versions.
 				// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to remove all but a single entry point (and associated functions/variables).
 				uint32_t current_function = 0, current_function_offset = 0;
 				std::vector<uint32_t> spirv = effect.module.spirv; // Copy SPIR-V, so that all but the current entry point are only removed from that copy
@@ -1983,6 +1967,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 }
 bool reshade::runtime::create_effect(size_t effect_index)
 {
+	assert(effect_index < _effects.size());
+
 	effect &effect = _effects[effect_index];
 
 	// Create textures now, since they are referenced when building samplers below
@@ -2126,16 +2112,16 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	}
 
 	// Initialize bindings
-	uint32_t total_pass_count = 0;
+	size_t total_pass_count = 0;
 	for (const reshadefx::technique_info &info : effect.module.techniques)
-		total_pass_count += static_cast<uint32_t>(info.passes.size());
+		total_pass_count += info.passes.size();
 
 	std::vector<api::descriptor_set> texture_sets(total_pass_count);
 	std::vector<api::descriptor_set> storage_sets(total_pass_count);
 
 	if (effect.module.num_sampler_bindings != 0)
 	{
-		if (!_device->allocate_descriptor_sets(sampler_with_resource_view ? total_pass_count : 1, effect.layout, 1, sampler_with_resource_view ? texture_sets.data() : &effect.sampler_set))
+		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(sampler_with_resource_view ? total_pass_count : 1), effect.layout, 1, sampler_with_resource_view ? texture_sets.data() : &effect.sampler_set))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -2153,6 +2139,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				if (0 != (sampler_list & (1 << info.binding)))
 					continue;
 
+				assert(info.binding < 16);
 				sampler_list |= (1 << info.binding); // Maximum sampler slot count is 16, so a 16-bit integer is enough to hold all bindings
 
 				api::sampler_desc desc;
@@ -2194,7 +2181,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		assert(!sampler_with_resource_view);
 
-		if (!_device->allocate_descriptor_sets(total_pass_count, effect.layout, 2, texture_sets.data()))
+		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(total_pass_count), effect.layout, 2, texture_sets.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -2206,7 +2193,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	if (effect.module.num_storage_bindings != 0)
 	{
-		if (!_device->allocate_descriptor_sets(total_pass_count, effect.layout, sampler_with_resource_view ? 2 : 3, storage_sets.data()))
+		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(total_pass_count), effect.layout, sampler_with_resource_view ? 2 : 3, storage_sets.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
@@ -3577,8 +3564,8 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #endif
 
 	// Update shader constants
-	if (void *mapped_uniform_data; effect.cb != 0 &&
-		_device->map_buffer_region(effect.cb, 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_discard, &mapped_uniform_data))
+	if (void *mapped_uniform_data;
+		effect.cb != 0 && _device->map_buffer_region(effect.cb, 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_discard, &mapped_uniform_data))
 	{
 		std::memcpy(mapped_uniform_data, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
 		_device->unmap_buffer_region(effect.cb);
@@ -3769,7 +3756,7 @@ void reshade::runtime::save_texture(const texture &tex)
 
 	_last_screenshot_save_successfull = true;
 
-	if (std::vector<uint8_t> data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height * 4));
+	if (std::vector<uint8_t> data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
 		get_texture_data(tex.resource, api::resource_usage::shader_resource, data.data()))
 	{
 		_worker_threads.emplace_back([this, screenshot_path, data = std::move(data), width = tex.width, height = tex.height]() mutable {
@@ -3818,7 +3805,7 @@ void reshade::runtime::save_texture(const texture &tex)
 }
 void reshade::runtime::update_texture(texture &tex, const uint32_t width, const uint32_t height, const uint8_t *pixels)
 {
-	std::vector<uint8_t> resized(tex.width * tex.height * 4);
+	std::vector<uint8_t> resized(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
 	// Need to potentially resize image data to the texture dimensions
 	if (tex.width != width || tex.height != height)
 	{

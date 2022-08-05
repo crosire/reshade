@@ -463,7 +463,7 @@ namespace reshade
 
 #if RESHADE_GUI
 		void init_gui();
-		void init_gui_vr();
+		bool init_gui_vr();
 		void deinit_gui();
 		void deinit_gui_vr();
 		void build_font_atlas();
@@ -509,8 +509,6 @@ namespace reshade
 #if RESHADE_FX
 		unsigned int _reload_count = 0;
 #endif
-		unsigned int _window_width = 0;
-		unsigned int _window_height = 0;
 
 		bool _no_font_scaling = false;
 		bool _save_imgui_window_state = false;

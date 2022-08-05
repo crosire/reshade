@@ -39,7 +39,7 @@ bool is_uwp_app()
 }
 
 /// <summary>
-/// Checks whether the current operation system is Windows 7 or earlier.
+/// Checks whether the current operating system is Windows 7 or earlier.
 /// </summary>
 bool is_windows7()
 {

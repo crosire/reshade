@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#define ImTextureID unsigned long long
-
 #include <imgui.h>
 #include <reshade.hpp>
 #include "descriptor_set_tracking.hpp"

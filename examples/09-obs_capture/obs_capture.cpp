@@ -25,7 +25,7 @@ struct capture_data
 			struct shtex_data *shtex_info;
 			reshade::api::resource texture;
 			HANDLE handle;
-		};
+		} shtex;
 		/* shared memory */
 		struct
 		{
@@ -36,7 +36,7 @@ struct capture_data
 			struct shmem_data *shmem_info;
 			int cur_tex;
 			int copy_wait;
-		};
+		} shmem;
 	};
 } data;
 
@@ -58,11 +58,11 @@ static bool capture_impl_init(reshade::api::swapchain *swapchain)
 				reshade::api::resource_desc(data.cx, data.cy, 1, 1, data.format, 1, reshade::api::memory_heap::gpu_only, reshade::api::resource_usage::shader_resource | reshade::api::resource_usage::copy_dest, reshade::api::resource_flags::shared),
 				nullptr,
 				reshade::api::resource_usage::copy_dest,
-				&data.texture,
-				&data.handle))
+				&data.shtex.texture,
+				&data.shtex.handle))
 			return false;
 
-		if (!capture_init_shtex(&data.shtex_info, swapchain->get_hwnd(), data.cx, data.cy, static_cast<uint32_t>(data.format), false, (uintptr_t)data.handle))
+		if (!capture_init_shtex(&data.shtex.shtex_info, swapchain->get_hwnd(), data.cx, data.cy, static_cast<uint32_t>(data.format), false, (uintptr_t)data.shtex.handle))
 			return false;
 	}
 	else
@@ -75,18 +75,18 @@ static bool capture_impl_init(reshade::api::swapchain *swapchain)
 					reshade::api::resource_desc(data.cx, data.cy, 1, 1, data.format, 1, reshade::api::memory_heap::gpu_to_cpu, reshade::api::resource_usage::copy_dest),
 					nullptr,
 					reshade::api::resource_usage::cpu_access,
-					&data.copy_surfaces[i]))
+					&data.shmem.copy_surfaces[i]))
 				return false;
 		}
 
 		reshade::api::subresource_data mapped;
-		if (device->map_texture_region(data.copy_surfaces[0], 0, nullptr, reshade::api::map_access::read_only, &mapped))
+		if (device->map_texture_region(data.shmem.copy_surfaces[0], 0, nullptr, reshade::api::map_access::read_only, &mapped))
 		{
-			data.pitch = mapped.row_pitch;
-			device->unmap_texture_region(data.copy_surfaces[0], 0);
+			data.shmem.pitch = mapped.row_pitch;
+			device->unmap_texture_region(data.shmem.copy_surfaces[0], 0);
 		}
 
-		if (!capture_init_shmem(&data.shmem_info, swapchain->get_hwnd(), data.cx, data.cy, data.pitch, static_cast<uint32_t>(data.format), false))
+		if (!capture_init_shmem(&data.shmem.shmem_info, swapchain->get_hwnd(), data.cx, data.cy, data.shmem.pitch, static_cast<uint32_t>(data.format), false))
 			return false;
 	}
 
@@ -100,19 +100,19 @@ static void capture_impl_free(reshade::api::swapchain *swapchain)
 
 	if (data.using_shtex)
 	{
-		device->destroy_resource(data.texture);
+		device->destroy_resource(data.shtex.texture);
 	}
 	else
 	{
 		for (size_t i = 0; i < NUM_BUFFERS; i++)
 		{
-			if (data.copy_surfaces[i] == 0)
+			if (data.shmem.copy_surfaces[i] == 0)
 				continue;
 
-			if (data.texture_mapped[i])
-				device->unmap_texture_region(data.copy_surfaces[i], 0);
+			if (data.shmem.texture_mapped[i])
+				device->unmap_texture_region(data.shmem.copy_surfaces[i], 0);
 
-			device->destroy_resource(data.copy_surfaces[i]);
+			device->destroy_resource(data.shmem.copy_surfaces[i]);
 		}
 	}
 
@@ -127,7 +127,7 @@ static void capture_impl_shtex(reshade::api::command_queue *queue, reshade::api:
 	{
 		cmd_list->barrier(back_buffer, reshade::api::resource_usage::present, reshade::api::resource_usage::resolve_source);
 
-		cmd_list->resolve_texture_region(back_buffer, 0, nullptr, data.texture, 0, 0, 0, 0, data.format);
+		cmd_list->resolve_texture_region(back_buffer, 0, nullptr, data.shtex.texture, 0, 0, 0, 0, data.format);
 
 		cmd_list->barrier(back_buffer, reshade::api::resource_usage::resolve_source, reshade::api::resource_usage::present);
 	}
@@ -135,7 +135,7 @@ static void capture_impl_shtex(reshade::api::command_queue *queue, reshade::api:
 	{
 		cmd_list->barrier(back_buffer, reshade::api::resource_usage::present, reshade::api::resource_usage::copy_source);
 
-		cmd_list->copy_resource(back_buffer, data.texture);
+		cmd_list->copy_resource(back_buffer, data.shtex.texture);
 
 		cmd_list->barrier(back_buffer, reshade::api::resource_usage::copy_source, reshade::api::resource_usage::present);
 	}
@@ -145,58 +145,58 @@ static void capture_impl_shmem(reshade::api::command_queue *queue, reshade::api:
 	reshade::api::device *device = queue->get_device();
 	reshade::api::command_list *cmd_list = queue->get_immediate_command_list();
 
-	int next_tex = (data.cur_tex + 1) % NUM_BUFFERS;
+	int next_tex = (data.shmem.cur_tex + 1) % NUM_BUFFERS;
 
-	if (data.texture_ready[next_tex])
+	if (data.shmem.texture_ready[next_tex])
 	{
-		data.texture_ready[next_tex] = false;
+		data.shmem.texture_ready[next_tex] = false;
 
 		reshade::api::subresource_data mapped;
-		if (device->map_texture_region(data.copy_surfaces[next_tex], 0, nullptr, reshade::api::map_access::read_only, &mapped))
+		if (device->map_texture_region(data.shmem.copy_surfaces[next_tex], 0, nullptr, reshade::api::map_access::read_only, &mapped))
 		{
-			data.texture_mapped[next_tex] = true;
+			data.shmem.texture_mapped[next_tex] = true;
 			shmem_copy_data(next_tex, mapped.data);
 		}
 	}
 
-	if (data.copy_wait < NUM_BUFFERS - 1)
+	if (data.shmem.copy_wait < NUM_BUFFERS - 1)
 	{
-		data.copy_wait++;
+		data.shmem.copy_wait++;
 	}
 	else
 	{
-		if (shmem_texture_data_lock(data.cur_tex))
+		if (shmem_texture_data_lock(data.shmem.cur_tex))
 		{
-			device->unmap_texture_region(data.copy_surfaces[data.cur_tex], 0);
-			data.texture_mapped[data.cur_tex] = false;
-			shmem_texture_data_unlock(data.cur_tex);
+			device->unmap_texture_region(data.shmem.copy_surfaces[data.shmem.cur_tex], 0);
+			data.shmem.texture_mapped[data.shmem.cur_tex] = false;
+			shmem_texture_data_unlock(data.shmem.cur_tex);
 		}
 
 		if (data.multisampled)
 		{
 			cmd_list->barrier(back_buffer, reshade::api::resource_usage::present, reshade::api::resource_usage::resolve_source);
-			cmd_list->barrier(data.copy_surfaces[data.cur_tex], reshade::api::resource_usage::cpu_access, reshade::api::resource_usage::resolve_dest);
+			cmd_list->barrier(data.shmem.copy_surfaces[data.shmem.cur_tex], reshade::api::resource_usage::cpu_access, reshade::api::resource_usage::resolve_dest);
 
-			cmd_list->resolve_texture_region(back_buffer, 0, nullptr, data.copy_surfaces[data.cur_tex], 0, 0, 0, 0, static_cast<reshade::api::format>(data.format));
+			cmd_list->resolve_texture_region(back_buffer, 0, nullptr, data.shmem.copy_surfaces[data.shmem.cur_tex], 0, 0, 0, 0, static_cast<reshade::api::format>(data.format));
 
-			cmd_list->barrier(data.copy_surfaces[data.cur_tex], reshade::api::resource_usage::resolve_dest, reshade::api::resource_usage::cpu_access);
+			cmd_list->barrier(data.shmem.copy_surfaces[data.shmem.cur_tex], reshade::api::resource_usage::resolve_dest, reshade::api::resource_usage::cpu_access);
 			cmd_list->barrier(back_buffer, reshade::api::resource_usage::resolve_source, reshade::api::resource_usage::present);
 		}
 		else
 		{
 			cmd_list->barrier(back_buffer, reshade::api::resource_usage::present, reshade::api::resource_usage::copy_source);
-			cmd_list->barrier(data.copy_surfaces[data.cur_tex], reshade::api::resource_usage::cpu_access, reshade::api::resource_usage::copy_dest);
+			cmd_list->barrier(data.shmem.copy_surfaces[data.shmem.cur_tex], reshade::api::resource_usage::cpu_access, reshade::api::resource_usage::copy_dest);
 
-			cmd_list->copy_resource(back_buffer, data.copy_surfaces[data.cur_tex]);
+			cmd_list->copy_resource(back_buffer, data.shmem.copy_surfaces[data.shmem.cur_tex]);
 
-			cmd_list->barrier(data.copy_surfaces[data.cur_tex], reshade::api::resource_usage::copy_dest, reshade::api::resource_usage::cpu_access);
+			cmd_list->barrier(data.shmem.copy_surfaces[data.shmem.cur_tex], reshade::api::resource_usage::copy_dest, reshade::api::resource_usage::cpu_access);
 			cmd_list->barrier(back_buffer, reshade::api::resource_usage::copy_source, reshade::api::resource_usage::present);
 		}
 
-		data.texture_ready[data.cur_tex] = true;
+		data.shmem.texture_ready[data.shmem.cur_tex] = true;
 	}
 
-	data.cur_tex = next_tex;
+	data.shmem.cur_tex = next_tex;
 }
 
 static void on_present(reshade::api::effect_runtime *swapchain)

@@ -7,8 +7,6 @@
 #include "effect_codegen.hpp"
 #include "effect_preprocessor.hpp"
 #include "version.h"
-#include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <iostream>
 

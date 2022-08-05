@@ -10,9 +10,9 @@
 
 using namespace reshade::api;
 
-static thread_local std::vector<std::vector<uint8_t>> data_to_delete;
+static thread_local std::vector<std::vector<uint8_t>> s_data_to_delete;
 
-static bool replace_shader_code(device_api device_type, shader_desc &desc)
+static bool replace_shader_code(device_api device_type, shader_desc &desc, std::vector<std::vector<uint8_t>> &data_to_delete)
 {
 	if (desc.code_size == 0)
 		return false;
@@ -27,11 +27,11 @@ static bool replace_shader_code(device_api device_type, shader_desc &desc)
 		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
 
 	// Prepend executable file name to image files
-	WCHAR file_prefix[MAX_PATH] = L"";
+	wchar_t file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
-	char hash_string[11];
-	sprintf_s(hash_string, "0x%08X", shader_hash);
+	wchar_t hash_string[11];
+	swprintf_s(hash_string, L"0x%08X", shader_hash);
 
 	std::filesystem::path replace_path = file_prefix;
 	replace_path += L'_';
@@ -47,6 +47,8 @@ static bool replace_shader_code(device_api device_type, shader_desc &desc)
 		std::vector<uint8_t> shader_code(static_cast<size_t>(file.tellg()));
 		file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(shader_code.data()), shader_code.size());
 
+		// Keep the shader code memory alive after returning from this 'create_pipeline' event callback
+		// It may only be freed after the 'init_pipeline' event was called for this pipeline
 		data_to_delete.push_back(std::move(shader_code));
 
 		desc.code = data_to_delete.back().data();
@@ -73,7 +75,7 @@ static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobje
 		case pipeline_subobject_type::geometry_shader:
 		case pipeline_subobject_type::pixel_shader:
 		case pipeline_subobject_type::compute_shader:
-			replaced_stages |= replace_shader_code(device_type, *static_cast<shader_desc *>(subobjects[i].data));
+			replaced_stages |= replace_shader_code(device_type, *static_cast<shader_desc *>(subobjects[i].data), s_data_to_delete);
 			break;
 		}
 	}
@@ -84,7 +86,7 @@ static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobje
 static void on_after_create_pipeline(device *, pipeline_layout, uint32_t, const pipeline_subobject *, pipeline)
 {
 	// Free the memory allocated in 'replace_shader_code' above
-	data_to_delete.clear();
+	s_data_to_delete.clear();
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "Shader Replace";

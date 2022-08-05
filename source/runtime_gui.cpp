@@ -618,8 +618,10 @@ void reshade::runtime::draw_gui()
 		imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_gui);
 
 		// Scale mouse position in case render resolution does not match the window size
-		imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / _input->mouse_position_max_x());
-		imgui_io.MousePos.y = _input->mouse_position_y() * (imgui_io.DisplaySize.y / _input->mouse_position_max_y());
+		unsigned int max_position[2];
+		_input->max_mouse_position(max_position);
+		imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]);
+		imgui_io.MousePos.y = _input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]);
 
 		// Add wheel delta to the current absolute mouse wheel position
 		imgui_io.MouseWheel += _input->mouse_wheel_delta();
@@ -2498,7 +2500,7 @@ void reshade::runtime::draw_variable_editor()
 
 		bool modified = false;
 		float popup_height = (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions.size()) + 2) * ImGui::GetFrameHeightWithSpacing();
-		popup_height = std::min(popup_height, _window_height - popup_pos.y - 20.0f);
+		popup_height = std::min(popup_height, ImGui::GetWindowViewport()->Size.y - popup_pos.y - 20.0f);
 		popup_height = std::max(popup_height, 42.0f); // Ensure window always has a minimum height
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;

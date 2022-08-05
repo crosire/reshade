@@ -123,11 +123,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="replace_texture.cpp" />
     <ClCompile Include="texturemod_replace.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crc32_hash.hpp" />
-    <ClInclude Include="replace_options.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

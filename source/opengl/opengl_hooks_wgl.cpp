@@ -51,7 +51,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 	// Note: Windows calls into 'wglDescribePixelFormat' repeatedly from this, so make sure it reports correct results
 	const int format = reshade::hooks::call(wglChoosePixelFormat)(hdc, ppfd);
 	if (format != 0)
-		LOG(INFO) << "> Returning pixel format: " << format;
+		LOG(INFO) << "Returning pixel format: " << format;
 	else
 		LOG(WARN) << "wglChoosePixelFormat" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 
@@ -242,7 +242,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 		formats += " " + std::to_string(piFormats[i]);
 	}
 
-	LOG(INFO) << "> Returning pixel format(s):" << formats;
+	LOG(INFO) << "Returning pixel format(s):" << formats;
 
 	return TRUE;
 }
