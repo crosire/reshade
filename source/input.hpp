@@ -79,10 +79,10 @@ namespace reshade
 		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 
 		/// <summary>
-		/// Locks access to the input data to the current thread.
+		/// Locks access to the input data so it cannot be modified in another thread.
 		/// </summary>
 		/// <returns>RAII object holding the lock, which releases it after going out of scope.</returns>
-		auto lock() { return std::unique_lock<std::shared_mutex>(_mutex); }
+		auto lock() { return std::shared_lock<std::shared_mutex>(_mutex); }
 
 		/// <summary>
 		/// Notifies the input manager to advance a frame.

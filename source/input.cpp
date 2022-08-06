@@ -126,7 +126,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-	const std::unique_lock<std::shared_mutex> input_lock = input->lock();
+	const std::unique_lock<std::shared_mutex> input_lock(input->_mutex);
 
 	input->_mouse_position[0] = details.pt.x;
 	input->_mouse_position[1] = details.pt.y;

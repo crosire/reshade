@@ -593,8 +593,8 @@ void reshade::runtime::on_present()
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
-	const std::unique_lock<std::shared_mutex> input_lock = (_input != nullptr) ?
-		_input->lock() : std::unique_lock<std::shared_mutex>();
+	const std::shared_lock<std::shared_mutex> input_lock = (_input != nullptr) ?
+		_input->lock() : std::shared_lock<std::shared_mutex>();
 #endif
 
 #if RESHADE_GUI
@@ -3281,8 +3281,8 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	// TODO: This does not catch input happening between now and 'on_present'
-	const std::unique_lock<std::shared_mutex> input_lock = (_input != nullptr) ?
-		_input->lock() : std::unique_lock<std::shared_mutex>();
+	const std::shared_lock<std::shared_mutex> input_lock = (_input != nullptr) ?
+		_input->lock() : std::shared_lock<std::shared_mutex>();
 #endif
 
 	// Update special uniform variables
