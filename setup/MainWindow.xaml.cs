@@ -1027,10 +1027,13 @@ In that event here are some steps you can try to resolve this:
 					"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=" + depthLogarithmic);
 
 				if (compatibilityIni.HasValue(targetName, "DepthCopyBeforeClears") ||
+					compatibilityIni.HasValue(targetName, "DepthCopyAtClearIndex") ||
 					compatibilityIni.HasValue(targetName, "UseAspectRatioHeuristics"))
 				{
 					config.SetValue("DEPTH", "DepthCopyBeforeClears",
 						compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
+					config.SetValue("DEPTH", "DepthCopyAtClearIndex",
+						compatibilityIni.GetString(targetName, "DepthCopyAtClearIndex", "0"));
 					config.SetValue("DEPTH", "UseAspectRatioHeuristics",
 						compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
 				}
