@@ -985,3 +985,47 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 	render_technique(*tech, cmd_list, back_buffer_resource, rtv, rtv_srgb);
 }
 #endif
+
+bool reshade::runtime::get_effects_state() const
+{
+#if RESHADE_FX
+	return _effects_enabled;
+#else
+	return false;
+#endif
+}
+void reshade::runtime::set_effects_state([[maybe_unused]] bool enabled)
+{
+#if RESHADE_FX
+	_effects_enabled = enabled;
+#endif
+}
+
+void reshade::runtime::get_current_preset_path([[maybe_unused]] char *path, size_t *length) const
+{
+	if (length == nullptr)
+		return;
+
+#if RESHADE_FX
+	const std::string path_string = _current_preset_path.u8string();
+
+	if (path != nullptr && *length != 0)
+		path[path_string.copy(path, *length - 1)] = '\0';
+
+	*length = path_string.size();
+#else
+	*length = 0;
+#endif
+}
+void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path)
+{
+#if RESHADE_FX
+	// First save current preset, before switching to a new one
+	save_current_preset();
+
+	_current_preset_path = std::filesystem::u8path(path);
+
+	save_config();
+	load_current_preset();
+#endif
+}

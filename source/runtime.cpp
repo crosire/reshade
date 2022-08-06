@@ -614,8 +614,10 @@ void reshade::runtime::on_present()
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts && _input != nullptr)
 	{
+#if RESHADE_FX
 		if (_input->is_key_pressed(_effects_key_data, _force_shortcut_modifiers))
 			_effects_enabled = !_effects_enabled;
+#endif
 
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
 			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
