@@ -13,6 +13,9 @@
 
 using reshade::d3d9::to_handle;
 
+extern thread_local bool g_in_d3d9_runtime;
+extern thread_local bool g_in_dxgi_runtime;
+
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window);
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window);
 
@@ -343,7 +346,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 #endif
 	device_impl::on_reset();
 
+	assert(!g_in_dxgi_runtime);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Reset(&pp);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-reset)
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
@@ -2337,7 +2343,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 #endif
 	device_impl::on_reset();
 
+	assert(!g_in_dxgi_runtime);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pp.Windowed ? nullptr : &fullscreen_mode);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9ex-resetex)
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;

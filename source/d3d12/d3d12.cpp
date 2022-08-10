@@ -14,6 +14,10 @@ extern thread_local bool g_in_dxgi_runtime;
 
 HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid, void **ppDevice)
 {
+	// Pass on unmodified in case this called from within 'Direct3DCreate9', which indicates that the D3D9 runtime is trying to create an internal device for D3D9on12, which should not be hooked
+	if (g_in_dxgi_runtime)
+		return reshade::hooks::call(D3D12CreateDevice)(pAdapter, MinimumFeatureLevel, riid, ppDevice);
+
 	// Need to lock during device creation to ensure an existing device proxy cannot be destroyed in while it is queried below
 	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
 

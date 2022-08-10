@@ -378,9 +378,10 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 	LOG(INFO) << "Redirecting " << "Direct3DCreate9" << '(' << "SDKVersion = " << SDKVersion << ')' << " ...";
 
-	g_in_d3d9_runtime = true;
+	assert(!g_in_dxgi_runtime);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	IDirect3D9 *const res = reshade::hooks::call(Direct3DCreate9)(SDKVersion);
-	g_in_d3d9_runtime = false;
+	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 	if (res == nullptr)
 	{
 		LOG(WARN) << "Direct3DCreate9" << " failed.";
@@ -402,9 +403,10 @@ HOOK_EXPORT     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex *
 
 	LOG(INFO) << "Redirecting " << "Direct3DCreate9Ex" << '(' << "SDKVersion = " << SDKVersion << ", ppD3D = " << ppD3D << ')' << " ...";
 
-	g_in_d3d9_runtime = true;
+	assert(!g_in_dxgi_runtime);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);
-	g_in_d3d9_runtime = false;
+	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "Direct3DCreate9Ex" << " failed with error code " << hr << '.';
