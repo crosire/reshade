@@ -8,6 +8,7 @@
 #include "d3d9_impl_device.hpp"
 
 struct Direct3DSwapChain9;
+struct Direct3DDevice9On12;
 struct Direct3DDepthStencilSurface9;
 
 struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 final : IDirect3DDevice9Ex, public reshade::d3d9::device_impl
@@ -169,6 +170,7 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	const bool _use_software_rendering;
 	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
+	Direct3DDevice9On12 *_d3d9on12_device = nullptr;
 #if RESHADE_ADDON
 	Direct3DDepthStencilSurface9 *_auto_depth_stencil = nullptr;
 	com_ptr<Direct3DDepthStencilSurface9> _current_depth_stencil;

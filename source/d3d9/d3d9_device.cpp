@@ -6,6 +6,7 @@
 #include "d3d9_device.hpp"
 #include "d3d9_resource.hpp"
 #include "d3d9_swapchain.hpp"
+#include "d3d9on12_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
@@ -176,6 +177,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 		return S_OK;
 	}
 
+	if (riid == __uuidof(IDirect3DDevice9On12))
+	{
+		if (_d3d9on12_device != nullptr)
+			return _d3d9on12_device->QueryInterface(riid, ppvObj);
+	}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE Direct3DDevice9::AddRef()
@@ -200,6 +207,13 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	{
 		LOG(WARN) << "Reference count for " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent! Leaking resources ...";
 		return _ref = 1;
+	}
+
+	if (_d3d9on12_device != nullptr)
+	{
+		// Release the reference that was added when the D3D9on12 device was first queried in 'init_device_proxy' (see d3d9.cpp)
+		_d3d9on12_device->_orig->Release();
+		delete _d3d9on12_device;
 	}
 
 	// Release remaining references to this device
@@ -346,7 +360,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 #endif
 	device_impl::on_reset();
 
-	assert(!g_in_dxgi_runtime);
+	assert(!g_in_d3d9_runtime && !g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Reset(&pp);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
@@ -2343,7 +2357,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 #endif
 	device_impl::on_reset();
 
-	assert(!g_in_dxgi_runtime);
+	assert(!g_in_d3d9_runtime && !g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pp.Windowed ? nullptr : &fullscreen_mode);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;

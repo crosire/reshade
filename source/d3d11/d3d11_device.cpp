@@ -97,11 +97,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 	}
 
 	if (riid == __uuidof(ID3D11On12Device) ||
-		riid == __uuidof(ID3D11On12Device1)
-#ifdef __ID3D11On12Device2_INTERFACE_DEFINED__
-		|| riid == __uuidof(ID3D11On12Device2)
-#endif
-		)
+		riid == __uuidof(ID3D11On12Device1) ||
+		riid == __uuidof(ID3D11On12Device2))
 	{
 		if (_d3d11on12_device != nullptr)
 			return _d3d11on12_device->QueryInterface(riid, ppvObj);
