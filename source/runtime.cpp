@@ -3747,6 +3747,15 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 	tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 #endif
+
+#if RESHADE_ADDON
+	if (!_is_in_api_call)
+	{
+		_is_in_api_call = true;
+		invoke_addon_event<addon_event::reshade_render_technique>(const_cast<runtime *>(this), api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, cmd_list, back_buffer_rtv, back_buffer_rtv_srgb);
+		_is_in_api_call = false;
+	}
+#endif
 }
 
 void reshade::runtime::save_texture(const texture &tex)

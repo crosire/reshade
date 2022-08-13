@@ -982,7 +982,16 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 	if (!update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
 		return;
 
+#if RESHADE_ADDON
+	const bool was_is_in_api_call = _is_in_api_call;
+	_is_in_api_call = true;
+#endif
+
 	render_technique(*tech, cmd_list, back_buffer_resource, rtv, rtv_srgb);
+
+#if RESHADE_ADDON
+	_is_in_api_call = was_is_in_api_call;
+#endif
 }
 #endif
 
