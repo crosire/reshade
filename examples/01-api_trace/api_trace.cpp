@@ -894,6 +894,7 @@ static void on_present(command_queue *, swapchain *, const rect *, const rect *,
 	}
 	else
 	{
+		// The keyboard shortcut to trigger logging
 		if (GetAsyncKeyState(VK_F10) & 0x80000000)
 		{
 			s_do_capture = true;
@@ -903,7 +904,7 @@ static void on_present(command_queue *, swapchain *, const rect *, const rect *,
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "API Trace";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that logs graphics API calls done by the application to an overlay.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that logs the graphics API calls done by the application of the next frame after pressing a keyboard shortcut.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

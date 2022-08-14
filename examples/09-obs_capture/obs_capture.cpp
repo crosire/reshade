@@ -22,7 +22,7 @@ struct capture_data
 		/* shared texture */
 		struct
 		{
-			struct shtex_data *shtex_info;
+			shtex_data *shtex_info;
 			reshade::api::resource texture;
 			HANDLE handle;
 		} shtex;
@@ -33,7 +33,7 @@ struct capture_data
 			bool texture_ready[NUM_BUFFERS];
 			bool texture_mapped[NUM_BUFFERS];
 			uint32_t pitch;
-			struct shmem_data *shmem_info;
+			shmem_data *shmem_info;
 			int cur_tex;
 			int copy_wait;
 		} shmem;
@@ -62,14 +62,14 @@ static bool capture_impl_init(reshade::api::swapchain *swapchain)
 				&data.shtex.handle))
 			return false;
 
-		if (!capture_init_shtex(&data.shtex.shtex_info, swapchain->get_hwnd(), data.cx, data.cy, static_cast<uint32_t>(data.format), false, (uintptr_t)data.shtex.handle))
+		if (!capture_init_shtex(data.shtex.shtex_info, swapchain->get_hwnd(), data.cx, data.cy, static_cast<uint32_t>(data.format), false, (uintptr_t)data.shtex.handle))
 			return false;
 	}
 	else
 	{
 		data.using_shtex = false;
 
-		for (size_t i = 0; i < NUM_BUFFERS; i++)
+		for (int i = 0; i < NUM_BUFFERS; i++)
 		{
 			if (!device->create_resource(
 					reshade::api::resource_desc(data.cx, data.cy, 1, 1, data.format, 1, reshade::api::memory_heap::gpu_to_cpu, reshade::api::resource_usage::copy_dest),
@@ -86,7 +86,7 @@ static bool capture_impl_init(reshade::api::swapchain *swapchain)
 			device->unmap_texture_region(data.shmem.copy_surfaces[0], 0);
 		}
 
-		if (!capture_init_shmem(&data.shmem.shmem_info, swapchain->get_hwnd(), data.cx, data.cy, data.shmem.pitch, static_cast<uint32_t>(data.format), false))
+		if (!capture_init_shmem(data.shmem.shmem_info, swapchain->get_hwnd(), data.cx, data.cy, data.shmem.pitch, static_cast<uint32_t>(data.format), false))
 			return false;
 	}
 
@@ -104,7 +104,7 @@ static void capture_impl_free(reshade::api::swapchain *swapchain)
 	}
 	else
 	{
-		for (size_t i = 0; i < NUM_BUFFERS; i++)
+		for (int i = 0; i < NUM_BUFFERS; i++)
 		{
 			if (data.shmem.copy_surfaces[i] == 0)
 				continue;
@@ -230,7 +230,7 @@ static void on_destroy_swapchain(reshade::api::swapchain *swapchain)
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "OBS Capture";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Simple OBS capture driver which replaces the one OBS ships with to give more control over where in the frame to send images to OBS.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "An OBS capture driver which overrides the one OBS ships with to be able to give more control over where in the frame to send images to OBS.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
@@ -241,6 +241,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			return FALSE;
 		if (!reshade::register_addon(hModule))
 			return FALSE;
+		// Change this event to e.g. 'reshade_begin_effects' to send images to OBS before ReShade effects are applied, or 'reshade_render_technique' to send after a specific technique.
 		reshade::register_event<reshade::addon_event::reshade_present>(on_present);
 		reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy_swapchain);
 		break;

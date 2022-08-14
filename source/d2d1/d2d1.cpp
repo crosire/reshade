@@ -17,9 +17,11 @@
 			<< ", dxgiDevice = " << dxgiDevice \
 			<< ", d2dDevice = " << d2dDevice \
 			<< ')' << " ..."; \
+		\
 		if (com_ptr<DXGIDevice> device_proxy; \
 			SUCCEEDED(dxgiDevice->QueryInterface(&device_proxy))) \
 			dxgiDevice = device_proxy->_orig; \
+		\
 		const HRESULT hr = reshade::hooks::call(ID2D1Factory##factory_interface_version##_CreateDevice, vtable_from_instance(factory) + vtable_offset)(factory, dxgiDevice, d2dDevice); \
 		if (FAILED(hr)) \
 			LOG(WARN) << "ID2D1Factory" #factory_interface_version "::CreateDevice" << " failed with error code " << hr << '.'; \
@@ -52,10 +54,7 @@ HOOK_EXPORT HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_
 
 	const HRESULT hr = reshade::hooks::call<D2D1CreateDevice_t>(D2D1CreateDevice)(dxgiDevice, creationProperties, d2dDevice);
 	if (FAILED(hr))
-	{
 		LOG(WARN) << "D2D1CreateDevice" << " failed with error code " << hr << '.';
-	}
-
 	return hr;
 }
 

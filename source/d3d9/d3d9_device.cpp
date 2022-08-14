@@ -211,7 +211,7 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 
 	if (_d3d9on12_device != nullptr)
 	{
-		// Release the reference that was added when the D3D9on12 device was first queried in 'init_device_proxy' (see d3d9.cpp)
+		// Release the reference that was added when the D3D9on12 device was first queried in 'init_device_proxy_for_d3d9on12' (see d3d9on12.cpp)
 		_d3d9on12_device->_orig->Release();
 		delete _d3d9on12_device;
 	}

@@ -5,7 +5,7 @@ Detailed API documentation can be found at https://crosire.github.io/reshade-doc
 
 ## [01-api_trace](/examples/01-api_trace)
 
-Logs the graphics API calls done by the application of the next frame after pressing F10. This can be a useful to help understanding what an application is doing during a frame.
+Logs the graphics API calls done by the application of the next frame after pressing a keyboard shortcut. This can be a useful to help understanding what an application is doing during a frame.
 
 ## [02-shader_dump](/examples/02-shader_dump)
 
