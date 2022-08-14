@@ -36,6 +36,7 @@ bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12GraphicsCommandList5),
 		__uuidof(ID3D12GraphicsCommandList6),
 		__uuidof(ID3D12GraphicsCommandList7),
+		__uuidof(ID3D12GraphicsCommandList8),
 	};
 
 	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -986,4 +987,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::Barrier(UINT32 NumBarrierGroups
 		reshade::invoke_addon_event<reshade::addon_event::barrier>(this, group.NumBarriers, resources.p, old_state.p, new_state.p);
 	}
 #endif
+}
+
+void   STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetFrontAndBackStencilRef(UINT FrontStencilRef, UINT BackStencilRef)
+{
+	assert(_interface_version >= 8);
+	static_cast<ID3D12GraphicsCommandList8 *>(_orig)->OMSetFrontAndBackStencilRef(FrontStencilRef, BackStencilRef);
 }

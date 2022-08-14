@@ -48,6 +48,7 @@ bool D3D12Device::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12Device8),
 		__uuidof(ID3D12Device9),
 		__uuidof(ID3D12Device10),
+		__uuidof(ID3D12Device11),
 	};
 
 	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -2168,4 +2169,50 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource2(const D3D12_RESOU
 	}
 
 	return hr;
+}
+
+void    STDMETHODCALLTYPE D3D12Device::CreateSampler2(const D3D12_SAMPLER_DESC2 *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
+{
+	assert(_interface_version >= 11);
+
+#if RESHADE_ADDON
+	if (pDesc == nullptr) // Not allowed in D3D12
+		return;
+
+	D3D12_SAMPLER_DESC2 internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_sampler_desc(internal_desc);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_sampler>(this, desc))
+	{
+		reshade::d3d12::convert_sampler_desc(desc, internal_desc);
+		pDesc = &internal_desc;
+	}
+#endif
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	const auto set = DestDescriptor;
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
+#endif
+	static_cast<ID3D12Device11 *>(_orig)->CreateSampler2(pDesc, DestDescriptor);
+
+#if RESHADE_ADDON
+	const reshade::api::sampler descriptor_value = { DestDescriptor.ptr };
+
+	reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, descriptor_value);
+#endif
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+		return;
+
+	reshade::api::descriptor_set_update update;
+	update.set = convert_to_descriptor_set(set);
+	update.binding = 0;
+	update.array_offset = 0;
+	update.type = reshade::api::descriptor_type::sampler;
+	update.count = 1;
+	update.descriptors = &descriptor_value;
+
+	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
+#endif
 }

@@ -128,6 +128,14 @@ void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_S
 	internal_desc.MinLOD = desc.min_lod;
 	internal_desc.MaxLOD = desc.max_lod;
 }
+void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_SAMPLER_DESC2 &internal_desc)
+{
+	convert_sampler_desc(desc, reinterpret_cast<D3D12_SAMPLER_DESC &>(internal_desc));
+
+	if ((internal_desc.Flags & D3D12_SAMPLER_FLAG_UINT_BORDER_COLOR) != 0)
+		for (int i = 0; i < 4; ++i)
+			internal_desc.UintBorderColor[i] = static_cast<UINT>(desc.border_color[i]);
+}
 reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc)
 {
 	api::sampler_desc desc = {};
@@ -141,6 +149,18 @@ reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMP
 	std::copy_n(internal_desc.BorderColor, 4, desc.border_color);
 	desc.min_lod = internal_desc.MinLOD;
 	desc.max_lod = internal_desc.MaxLOD;
+	return desc;
+}
+reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMPLER_DESC2 &internal_desc)
+{
+	// D3D12_SAMPLER_DESC2 is a superset of D3D12_SAMPLER_DESC
+	api::sampler_desc desc = convert_sampler_desc(reinterpret_cast<const D3D12_SAMPLER_DESC &>(internal_desc));
+
+	static_assert(offsetof(D3D12_SAMPLER_DESC, BorderColor) == offsetof(D3D12_SAMPLER_DESC2, FloatBorderColor));
+	if ((internal_desc.Flags & D3D12_SAMPLER_FLAG_UINT_BORDER_COLOR) != 0)
+		for (int i = 0; i < 4; ++i)
+			desc.border_color[i] = static_cast<float>(internal_desc.UintBorderColor[i]);
+
 	return desc;
 }
 
