@@ -68,9 +68,6 @@ namespace reshade
 		bool is_initialized() const { return _is_initialized; }
 
 #if RESHADE_FX
-		/// <summary>
-		/// Applies post-processing effects to the specified render targets.
-		/// </summary>
 		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
 		virtual void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
 #else
@@ -82,171 +79,84 @@ namespace reshade
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::string &postfix = std::string());
-		/// <summary>
-		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
-		/// </summary>
 		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels); }
 
-		/// <summary>
-		/// Gets the current buffer dimensions of the swap chain as used with effect rendering.
-		/// </summary>
 		void get_screenshot_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
 
-		/// <summary>
-		/// Gets the current status of the specified key.
-		/// </summary>
 		bool is_key_down(uint32_t keycode) const final;
-		/// <summary>
-		/// Gets whether the specified key was pressed this frame.
-		/// </summary>
 		bool is_key_pressed(uint32_t keycode) const final;
-		/// <summary>
-		/// Gets whether the specified key was released this frame.
-		/// </summary>
 		bool is_key_released(uint32_t keycode) const final;
-		/// <summary>
-		/// Gets the current status of the specified mouse button.
-		/// </summary>
 		bool is_mouse_button_down(uint32_t button) const final;
-		/// <summary>
-		/// Gets whether the specified mouse button was pressed this frame.
-		/// </summary>
 		bool is_mouse_button_pressed(uint32_t button) const final;
-		/// <summary>
-		/// Gets whether the specified mouse button was released this frame.
-		/// </summary>
 		bool is_mouse_button_released(uint32_t button) const final;
 
-		/// <summary>
-		/// Gets the current absolute position of the mouse cursor in screen coordinates.
-		/// </summary>
 		void get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const final;
 
-		/// <summary>
-		/// Enumerates all uniform variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
-		/// </summary>
 		void enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data) final;
 
-		/// <summary>
-		/// Finds a specific uniform variable in the loaded effects and returns a handle to it.
-		/// </summary>
 		api::effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const final;
 
-		/// <summary>
-		/// Gets information about the data type of a uniform <paramref name="variable"/>.
-		/// </summary>
 		void get_uniform_variable_type(api::effect_uniform_variable variable, api::format *out_base_type, uint32_t *out_rows, uint32_t *out_columns, uint32_t *out_array_length) const final;
 
-		/// <summary>
-		/// Gets the name of a uniform <paramref name="variable"/>.
-		/// </summary>
 		void get_uniform_variable_name(api::effect_uniform_variable variable, char *name, size_t *length) const final;
 
-		/// <summary>
-		/// Gets the value from a named annotation attached to the specified uniform <paramref name="variable"/>.
-		/// </summary>
 		bool get_annotation_bool_from_uniform_variable(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_uniform_variable(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_int_from_uniform_variable(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_uint_from_uniform_variable(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_string_from_uniform_variable(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const final;
 
-		/// <summary>
-		/// Gets the value of the specified uniform <paramref name="variable"/>.
-		/// </summary>
 		void get_uniform_value_bool(api::effect_uniform_variable variable, bool *values, size_t count, size_t array_index) const final;
 		void get_uniform_value_float(api::effect_uniform_variable variable, float *values, size_t count, size_t array_index) const final;
 		void get_uniform_value_int(api::effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index) const final;
 		void get_uniform_value_uint(api::effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index) const final;
 
-		/// <summary>
-		/// Sets the value of the specified uniform <paramref name="variable"/>.
-		/// </summary>
 		void set_uniform_value_bool(api::effect_uniform_variable variable, const bool *values, size_t count, size_t array_index) final;
 		void set_uniform_value_float(api::effect_uniform_variable variable, const float *values, size_t count, size_t array_index) final;
 		void set_uniform_value_int(api::effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index) final;
 		void set_uniform_value_uint(api::effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index) final;
 
-		/// <summary>
-		/// Enumerates all texture variables of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
-		/// </summary>
 		void enumerate_texture_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), void *user_data) final;
 
-		/// <summary>
-		/// Finds a specific texture variable in the loaded effects and returns a handle to it.
-		/// </summary>
 		api::effect_texture_variable find_texture_variable(const char *effect_name, const char *variable_name) const final;
 
-		/// <summary>
-		/// Gets the name of a texture <paramref name="variable"/>.
-		/// </summary>
 		void get_texture_variable_name(api::effect_texture_variable variable, char *name, size_t *length) const final;
 
-		/// <summary>
-		/// Gets the value from a named annotation attached to the specified texture <paramref name="variable"/>.
-		/// </summary>
 		bool get_annotation_bool_from_texture_variable(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_texture_variable(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_int_from_texture_variable(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_uint_from_texture_variable(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_string_from_texture_variable(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const final;
 
-		/// <summary>
-		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
-		/// </summary>
 		void update_texture(api::effect_texture_variable variable, const uint32_t width, const uint32_t height, const uint8_t *pixels) final;
 
-		/// <summary>
-		/// Gets the shader resource views that are bound to the specified texture <paramref name="variable"/>.
-		/// </summary>
 		void get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const final;
 
-		/// <summary>
-		/// Binds a new shader resource view to all texture variables that use the specified <paramref name="semantic"/>.
-		/// </summary>
 		void update_texture_bindings(const char *semantic, api::resource_view srv, api::resource_view srv_srgb) final;
 
-		/// <summary>
-		/// Enumerates all techniques of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
-		/// </summary>
 		void enumerate_techniques(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_technique technique, void *user_data), void *user_data) final;
 
-		/// <summary>
-		/// Finds a specific technique in the loaded effects and returns a handle to it.
-		/// </summary>
 		api::effect_technique find_technique(const char *effect_name, const char *technique_name) final;
 
-		/// <summary>
-		/// Gets the name of a <paramref name="technique"/>.
-		/// </summary>
 		void get_technique_name(api::effect_technique technique, char *name, size_t *length) const final;
 
-		/// <summary>
-		/// Gets the value from an annotation attached to the specified <paramref name="technique"/>.
-		/// </summary>
 		bool get_annotation_bool_from_technique(api::effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_technique(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_int_from_technique(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_uint_from_technique(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_string_from_technique(api::effect_technique technique, const char *name, char *value, size_t *length) const final;
 
-		/// <summary>
-		/// Gets the state of a <paramref name="technique"/>.
-		/// </summary>
 		bool get_technique_state(api::effect_technique technique) const final;
-		/// <summary>
-		/// Enables or disable the specified <paramref name="technique"/>.
-		/// </summary>
 		void set_technique_state(api::effect_technique technique, bool enabled) final;
 
-		/// <summary>
-		/// Gets the value of global preprocessor definition.
-		/// </summary>
 		bool get_preprocessor_definition(const char *name, char *value, size_t *length) const final;
-		/// <summary>
-		/// Defines a global preprocessor definition to the specified <paramref name="value"/>.
-		/// </summary>
 		void set_preprocessor_definition(const char *name, const char *value) final;
+
+		bool get_effects_state() const final;
+		void set_effects_state(bool enabled) final;
+
+		void get_current_preset_path(char *path, size_t *length) const final;
+		void set_current_preset_path(const char *path) final;
 
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
@@ -263,6 +173,7 @@ namespace reshade
 		unsigned int _vendor_id = 0;
 		unsigned int _device_id = 0;
 		unsigned int _renderer_id = 0;
+		uint16_t _back_buffer_samples = 1;
 		api::format  _back_buffer_format = api::format::unknown;
 		api::color_space _back_buffer_color_space = api::color_space::srgb_nonlinear;
 		bool _is_vr = false;
@@ -345,14 +256,16 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _preset_save_successfull = true;
-		bool _effects_enabled = true;
-		bool _effects_rendered_this_frame = false;
-		uint16_t _back_buffer_samples = 1;
 
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;
-		unsigned int _effects_key_data[4] = {};
 		std::shared_ptr<class input> _input;
+
+#if RESHADE_FX
+		bool _effects_enabled = true;
+		bool _effects_rendered_this_frame = false;
+		unsigned int _effects_key_data[4] = {};
+#endif
 
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::chrono::high_resolution_clock::time_point _start_time;
@@ -451,12 +364,19 @@ namespace reshade
 
 		bool _is_in_between_presets_transition = false;
 		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
+
+		struct preset_shortcut
+		{
+			std::filesystem::path preset_path;
+			unsigned int key_data[4] = {};
+		};
+		std::vector<preset_shortcut> _preset_shortcuts;
 #endif
 		#pragma endregion
 
 #if RESHADE_GUI
 		void init_gui();
-		void init_gui_vr();
+		bool init_gui_vr();
 		void deinit_gui();
 		void deinit_gui_vr();
 		void build_font_atlas();
@@ -502,8 +422,6 @@ namespace reshade
 #if RESHADE_FX
 		unsigned int _reload_count = 0;
 #endif
-		unsigned int _window_width = 0;
-		unsigned int _window_height = 0;
 
 		bool _no_font_scaling = false;
 		bool _save_imgui_window_state = false;

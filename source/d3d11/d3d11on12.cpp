@@ -60,7 +60,9 @@ HOOK_EXPORT HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, 
 	// Use local feature level variable in case the application did not pass one in
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
+	g_in_dxgi_runtime = true;
 	HRESULT hr = reshade::hooks::call(D3D11On12CreateDevice)(pDevice, Flags, pFeatureLevels, FeatureLevels, command_queues.p, NumQueues, NodeMask, ppDevice, nullptr, &FeatureLevel);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "D3D11On12CreateDevice" << " failed with error code " << hr << '.';

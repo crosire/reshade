@@ -22,13 +22,21 @@ extern bool is_blocking_keyboard_input();
 			<< ", hwnd = " << hwnd \
 			<< ", dwFlags = " << std::hex << dwFlags << std::dec \
 			<< ')' << " ..."; \
+		\
 		if (dwFlags & DISCL_EXCLUSIVE) \
 		{ \
-			/* Need to remove exclusive flag, otherwise DirectInput will block input window messages and input.cpp will not receive input anymore */ \
-			dwFlags = (dwFlags & ~DISCL_EXCLUSIVE) | DISCL_NONEXCLUSIVE; \
-			\
-			LOG(INFO) << "> Replacing flags with " << std::hex << dwFlags << std::dec << '.'; \
+			DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
+			pDevice->GetDeviceInfo(&info); \
+			if (LOBYTE(info.dwDevType) == DIDEVTYPE_MOUSE || \
+				LOBYTE(info.dwDevType) == DIDEVTYPE_KEYBOARD) \
+			{ \
+				/* Need to remove exclusive flag, otherwise DirectInput will block input window messages and input.cpp will not receive input anymore */ \
+				dwFlags = (dwFlags & ~DISCL_EXCLUSIVE) | DISCL_NONEXCLUSIVE; \
+				\
+				LOG(INFO) << "> Replacing flags with " << std::hex << dwFlags << std::dec << '.'; \
+			} \
 		} \
+		\
 		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel, vtable_from_instance(pDevice) + vtable_offset)(pDevice, hwnd, dwFlags); \
 	}
 
@@ -61,6 +69,7 @@ IDirectInputDevice_SetCooperativeLevel_Impl(13, 7, W)
 			} \
 			break; \
 		} \
+		\
 		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceState, vtable_from_instance(pDevice) + vtable_offset)(pDevice, cbData, lpvData); \
 	}
 
@@ -96,6 +105,7 @@ IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
 				break; \
 			} \
 		} \
+		\
 		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceData, vtable_from_instance(pDevice) + vtable_offset)(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
 	}
 

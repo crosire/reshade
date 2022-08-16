@@ -55,11 +55,12 @@ namespace reshade
 		bool is_any_mouse_button_down() const;
 		bool is_any_mouse_button_pressed() const;
 		bool is_any_mouse_button_released() const;
-		short mouse_wheel_delta() const { return _mouse_wheel_delta; }
-		int mouse_movement_delta_x() const { return _mouse_position[0] - _last_mouse_position[0]; }
-		int mouse_movement_delta_y() const { return _mouse_position[1] - _last_mouse_position[1]; }
+		auto mouse_wheel_delta() const { return _mouse_wheel_delta; }
+		auto mouse_movement_delta_x() const { return static_cast<int>(_mouse_position[0] - _last_mouse_position[0]); }
+		auto mouse_movement_delta_y() const { return static_cast<int>(_mouse_position[1] - _last_mouse_position[1]); }
 		unsigned int mouse_position_x() const { return _mouse_position[0]; }
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
+		void max_mouse_position(unsigned int position[2]) const;
 
 		/// <summary>
 		/// Returns the character input as captured by 'WM_CHAR' for the current frame.
@@ -78,10 +79,10 @@ namespace reshade
 		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 
 		/// <summary>
-		/// Locks access to the input data to the current thread.
+		/// Locks access to the input data so it cannot be modified in another thread.
 		/// </summary>
 		/// <returns>RAII object holding the lock, which releases it after going out of scope.</returns>
-		auto lock() { return std::unique_lock<std::shared_mutex>(_mutex); }
+		auto lock() { return std::shared_lock<std::shared_mutex>(_mutex); }
 
 		/// <summary>
 		/// Notifies the input manager to advance a frame.

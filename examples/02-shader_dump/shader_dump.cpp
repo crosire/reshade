@@ -19,17 +19,17 @@ static void dump_shader_code(device_api device_type, const shader_desc &desc)
 
 	const wchar_t *extension = L".cso";
 	if (device_type == device_api::vulkan || (
-		device_type == device_api::opengl && desc.code_size > sizeof(uint32_t) && *static_cast<const uint32_t *>(desc.code) == 0x07230203 /* SPIR-V magic */))
+		device_type == device_api::opengl && desc.code_size > sizeof(uint32_t) && *static_cast<const uint32_t *>(desc.code) == 0x07230203 /* SPIR-V magic value */))
 		extension = L".spv"; // Vulkan uses SPIR-V (and sometimes OpenGL does too)
 	else if (device_type == device_api::opengl)
 		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
 
 	// Prepend executable file name to image files
-	WCHAR file_prefix[MAX_PATH] = L"";
+	wchar_t file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
-	char hash_string[11];
-	sprintf_s(hash_string, "0x%08X", shader_hash);
+	wchar_t hash_string[11];
+	swprintf_s(hash_string, L"0x%08X", shader_hash);
 
 	std::filesystem::path dump_path = file_prefix;
 	dump_path += L'_';

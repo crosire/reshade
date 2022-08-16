@@ -549,6 +549,8 @@
     <ClCompile Include="source\d3d12\d3d12_pix.cpp" />
     <ClCompile Include="source\d3d12\d3d12_resource.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
+    <ClCompile Include="source\d3d9\d3d9on12.cpp" />
+    <ClCompile Include="source\d3d9\d3d9on12_device.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp">
       <DisableSpecificWarnings Condition="'$(Configuration)'=='Debug App'">4458;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
@@ -667,6 +669,7 @@
     <ClInclude Include="source\d3d12\d3d12_resource.hpp" />
     <ClInclude Include="source\d3d12\d3d12_resource_call_vtable.inl" />
     <ClInclude Include="source\d3d12\descriptor_heap.hpp" />
+    <ClInclude Include="source\d3d9\d3d9on12_device.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
     <ClInclude Include="source\d3d9\d3d9_impl_device.hpp" />
     <ClInclude Include="source\d3d9\d3d9_impl_state_block.hpp" />

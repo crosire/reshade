@@ -358,7 +358,7 @@ namespace reshade::api
 		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
 		virtual void get_texture_variable_name(effect_texture_variable variable, char *name, size_t *length) const = 0;
 		template <size_t SIZE>
-		inline  void get_texture_variable_name(effect_texture_variable variable,char(&name)[SIZE]) const {
+		inline  void get_texture_variable_name(effect_texture_variable variable, char(&name)[SIZE]) const {
 			size_t length = SIZE;
 			get_texture_variable_name(variable, name, &length);
 		}
@@ -535,7 +535,7 @@ namespace reshade::api
 		/// <param name="technique">Opaque handle to the technique.</param>
 		virtual bool get_technique_state(effect_technique technique) const = 0;
 		/// <summary>
-		/// Enables or disable the specified <paramref name="technique"/>.
+		/// Enables or disables the specified <paramref name="technique"/>.
 		/// </summary>
 		/// <param name="technique">Opaque handle to the technique.</param>
 		/// <param name="enabled">Set to <see langword="true"/> to enable the technique, or <see langword="false"/> to disable it.</param>
@@ -572,5 +572,32 @@ namespace reshade::api
 		/// <param name="rtv">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <see langword="false"/>.</param>
 		/// <param name="rtv_srgb">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <see langword="true"/>, or zero in which case the view from <paramref name="rtv"/> is used.</param>
 		virtual void render_technique(effect_technique technique, command_list *cmd_list, resource_view rtv, resource_view rtv_srgb = { 0 }) = 0;
+
+		/// <summary>
+		/// Gets whether effects are enabled or disabled.
+		/// </summary>
+		virtual bool get_effects_state() const = 0;
+		/// <summary>
+		/// Enables or disables all effects.
+		/// </summary>
+		/// <param name="enabled">Set to <see langword="true"/> to enable effects, or <see langword="false"/> to disable them.</param>
+		virtual void set_effects_state(bool enabled) = 0;
+
+		/// <summary>
+		/// Gets the file path to the currently active preset.
+		/// </summary>
+		/// <param name="name">Pointer to a string buffer that is filled with the file path to the preset.</param>
+		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+		virtual void get_current_preset_path(char *path, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  void get_current_preset_path(char(&path)[SIZE]) const {
+			size_t length = SIZE;
+			get_current_preset_path(variable, path, &length);
+		}
+		/// <summary>
+		/// Saves the currently active preset and then switches to the specified new preset.
+		/// </summary>
+		/// <param name="path">File path to the preset to switch to.</param>
+		virtual void set_current_preset_path(const char *path) = 0;
 	};
 }

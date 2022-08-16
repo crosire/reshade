@@ -126,7 +126,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-	const std::unique_lock<std::shared_mutex> input_lock = input->lock();
+	const std::unique_lock<std::shared_mutex> input_lock(input->_mutex);
 
 	input->_mouse_position[0] = details.pt.x;
 	input->_mouse_position[1] = details.pt.y;
@@ -350,6 +350,14 @@ bool reshade::input::is_any_mouse_button_released() const
 		if (is_mouse_button_released(i))
 			return true;
 	return false;
+}
+
+void reshade::input::max_mouse_position(unsigned int position[2]) const
+{
+	RECT rect = {};
+	GetClientRect(static_cast<HWND>(_window), &rect);
+	position[0] = rect.right;
+	position[1] = rect.bottom;
 }
 
 void reshade::input::next_frame()

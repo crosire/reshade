@@ -24,7 +24,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, RE
 	{
 		const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
 
-		if (const auto device_proxy = get_private_pointer<D3D12Device>(static_cast<ID3D12Object *>(*ppvDevice)))
+		if (const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(static_cast<ID3D12Object *>(*ppvDevice)))
 		{
 			*ppvDevice = device_proxy;
 			device_proxy->_ref++;
@@ -43,7 +43,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Sub
 	com_ptr<ID3D12Device> device;
 	pResource->GetDevice(IID_PPV_ARGS(&device));
 
-	const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
+	const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(device.get());
 	if (device_proxy != nullptr)
 	{
 		const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
@@ -100,7 +100,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT S
 	com_ptr<ID3D12Device> device;
 	pResource->GetDevice(IID_PPV_ARGS(&device));
 
-	const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
+	const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(device.get());
 	if (device_proxy != nullptr)
 	{
 		const D3D12_RESOURCE_DESC desc = pResource->GetDesc();

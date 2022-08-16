@@ -276,22 +276,23 @@ void shmem_texture_data_unlock(int idx)
 	LeaveCriticalSection(&thread_data.mutexes[idx]);
 }
 
-bool capture_init_shtex(shtex_data **data, void *window, uint32_t cx, uint32_t cy, uint32_t format, bool flip, uintptr_t handle)
+bool capture_init_shtex(shtex_data *&data, void *window, uint32_t cx, uint32_t cy, uint32_t format, bool flip, uintptr_t handle)
 {
-	if (!create_file_mapping(shmem_file_handle, shmem_info, sizeof(shtex_data), SHMEM_TEXTURE "_%llu_%u", (uint64_t)(uintptr_t)GetAncestor((HWND)window, GA_ROOT), ++shmem_id_counter))
+	const HWND root_window = GetAncestor(static_cast<HWND>(window), GA_ROOT);
+	if (!create_file_mapping(shmem_file_handle, shmem_info, sizeof(shtex_data), SHMEM_TEXTURE "_%llu_%u", static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(root_window)), ++shmem_id_counter))
 		return false;
 
-	*data = static_cast<shtex_data *>(shmem_info);
-	(*data)->tex_handle = (uint32_t)handle;
+	data = static_cast<shtex_data *>(shmem_info);
+	data->tex_handle = static_cast<uint32_t>(handle);
 
 	global_hook_info->hook_ver_major = HOOK_VER_MAJOR;
 	global_hook_info->hook_ver_minor = HOOK_VER_MINOR;
-	global_hook_info->window = (uint32_t)(uintptr_t)window;
+	global_hook_info->window = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(window));
 	global_hook_info->type = CAPTURE_TYPE_TEXTURE;
 	global_hook_info->format = format;
 	global_hook_info->flip = flip;
 	global_hook_info->map_id = shmem_id_counter;
-	global_hook_info->map_size = sizeof(struct shtex_data);
+	global_hook_info->map_size = sizeof(shtex_data);
 	global_hook_info->cx = cx;
 	global_hook_info->cy = cy;
 	global_hook_info->UNUSED_base_cx = cx;
@@ -302,34 +303,35 @@ bool capture_init_shtex(shtex_data **data, void *window, uint32_t cx, uint32_t c
 	return active = true;
 }
 
-bool capture_init_shmem(shmem_data **data, void *window, uint32_t cx, uint32_t cy, uint32_t pitch, uint32_t format, bool flip)
+bool capture_init_shmem(shmem_data *&data, void *window, uint32_t cx, uint32_t cy, uint32_t pitch, uint32_t format, bool flip)
 {
 	uint32_t tex_size = cy * pitch;
 	uint32_t aligned_header = (sizeof(shmem_data) + (32 - 1)) & ~(32 - 1);
 	uint32_t aligned_tex = (tex_size + (32 - 1)) & ~(32 - 1);
 	uint32_t total_size = aligned_header + aligned_tex * 2 + 32;
 
-	if (!create_file_mapping(shmem_file_handle, shmem_info, total_size, SHMEM_TEXTURE "_%llu_%u", (uint64_t)(uintptr_t)GetAncestor((HWND)window, GA_ROOT), ++shmem_id_counter))
+	const HWND root_window = GetAncestor(static_cast<HWND>(window), GA_ROOT);
+	if (!create_file_mapping(shmem_file_handle, shmem_info, total_size, SHMEM_TEXTURE "_%llu_%u", static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(root_window)), ++shmem_id_counter))
 		return false;
 
-	*data = static_cast<shmem_data *>(shmem_info);
+	data = static_cast<shmem_data *>(shmem_info);
 
 	// To ensure fast copy rate, align texture data to 256 bit addresses
-	uintptr_t align_pos = (uintptr_t)shmem_info;
+	uintptr_t align_pos = reinterpret_cast<uintptr_t>(shmem_info);
 	align_pos += aligned_header;
 	align_pos &= ~(32 - 1);
-	align_pos -= (uintptr_t)shmem_info;
+	align_pos -= reinterpret_cast<uintptr_t>(shmem_info);
 
 	if (align_pos < sizeof(shmem_data))
 		align_pos += 32;
 
-	(*data)->last_tex = -1;
-	(*data)->tex1_offset = (uint32_t)align_pos;
-	(*data)->tex2_offset = (*data)->tex1_offset + aligned_tex;
+	data->last_tex = -1;
+	data->tex1_offset = static_cast<uint32_t>(align_pos);
+	data->tex2_offset = data->tex1_offset + aligned_tex;
 
 	global_hook_info->hook_ver_major = HOOK_VER_MAJOR;
 	global_hook_info->hook_ver_minor = HOOK_VER_MINOR;
-	global_hook_info->window = (uint32_t)(uintptr_t)window;
+	global_hook_info->window = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(window));
 	global_hook_info->type = CAPTURE_TYPE_MEMORY;
 	global_hook_info->format = format;
 	global_hook_info->flip = flip;
@@ -343,8 +345,8 @@ bool capture_init_shmem(shmem_data **data, void *window, uint32_t cx, uint32_t c
 
 	thread_data.pitch = pitch;
 	thread_data.cy = cy;
-	thread_data.shmem_textures[0] = (uint8_t *)(*data) + (*data)->tex1_offset;
-	thread_data.shmem_textures[1] = (uint8_t *)(*data) + (*data)->tex2_offset;
+	thread_data.shmem_textures[0] = reinterpret_cast<uint8_t *>(data) + data->tex1_offset;
+	thread_data.shmem_textures[1] = reinterpret_cast<uint8_t *>(data) + data->tex2_offset;
 
 	thread_data.copy_event = CreateEvent(nullptr, false, false, nullptr);
 	if (!thread_data.copy_event)
@@ -354,7 +356,7 @@ bool capture_init_shmem(shmem_data **data, void *window, uint32_t cx, uint32_t c
 	if (!thread_data.stop_event)
 		return false;
 
-	for (size_t i = 0; i < NUM_BUFFERS; i++)
+	for (int i = 0; i < NUM_BUFFERS; i++)
 		InitializeCriticalSection(&thread_data.mutexes[i]);
 	InitializeCriticalSection(&thread_data.data_mutex);
 
@@ -373,14 +375,14 @@ void capture_free()
 	{
 		SetEvent(thread_data.stop_event);
 		if (WaitForSingleObject(thread_data.copy_thread, 500) != WAIT_OBJECT_0)
-			TerminateThread(thread_data.copy_thread, (DWORD)-1);
+			TerminateThread(thread_data.copy_thread, static_cast<DWORD>(-1));
 		CloseHandle(thread_data.copy_thread);
 	}
 
 	destroy_event(thread_data.stop_event);
 	destroy_event(thread_data.copy_event);
 
-	for (size_t i = 0; i < NUM_BUFFERS; i++)
+	for (int i = 0; i < NUM_BUFFERS; i++)
 		DeleteCriticalSection(&thread_data.mutexes[i]);
 	DeleteCriticalSection(&thread_data.data_mutex);
 

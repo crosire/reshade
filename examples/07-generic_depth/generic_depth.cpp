@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#define ImTextureID unsigned long long
-
 #include <imgui.h>
 #include <reshade.hpp>
 #include <cmath>
@@ -14,6 +12,8 @@
 #include <shared_mutex>
 #include <unordered_map>
 
+using namespace reshade::api;
+
 static std::shared_mutex s_mutex;
 
 static bool s_disable_intz = false;
@@ -21,8 +21,6 @@ static bool s_disable_intz = false;
 static unsigned int s_preserve_depth_buffers = 0;
 // Enable or disable the aspect ratio check from 'check_aspect_ratio' in the detection heuristic
 static unsigned int s_use_aspect_ratio_heuristics = 1;
-
-using namespace reshade::api;
 
 enum class clear_op
 {
@@ -91,7 +89,7 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 		// Executing a command list in a different command list inherits state
 		current_depth_stencil = source.current_depth_stencil;
 
-		if (source.best_copy_stats.vertices > best_copy_stats.vertices)
+		if (source.best_copy_stats.vertices >= best_copy_stats.vertices)
 			best_copy_stats = source.best_copy_stats;
 
 		if (source.counters_per_used_depth_stencil.empty())
@@ -135,6 +133,7 @@ struct __declspec(uuid("7c6363c7-f94e-437a-9160-141782c44a98")) generic_depth_da
 
 struct depth_stencil_backup
 {
+	// The number of effect runtimes referencing this backup
 	size_t references = 1;
 
 	// A resource used as target for a backup copy of this depth-stencil
@@ -143,10 +142,12 @@ struct depth_stencil_backup
 	// The depth-stencil that should be copied from
 	resource depth_stencil_resource = { 0 };
 
+	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
+	size_t force_clear_index = 0;
+
+	// Frame dimensions of the last effect runtime this backup was used with
 	uint32_t frame_width = 0;
 	uint32_t frame_height = 0;
-	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
-	size_t   force_clear_index = 0;
 };
 
 struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_device_data
@@ -295,6 +296,11 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 				// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge main menu)
 				do_copy = counters.current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && counters.current_stats.drawcalls >= state.best_copy_stats.drawcalls);
 			}
+			else if (std::numeric_limits<size_t>::max() == depth_stencil_backup->force_clear_index)
+			{
+				// Special case for Garry's Mod which chooses the last clear operation that has a high workload
+				do_copy = counters.current_stats.vertices >= 5000;
+			}
 			else
 			{
 				// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
@@ -400,7 +406,7 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 		if (desc.type == resource_type::texture_2d && (desc.texture.format == format::d16_unorm || desc.texture.format == format::d24_unorm_x8_uint || desc.texture.format == format::d24_unorm_s8_uint))
 			return false;
 		// Skip small textures that are likely just shadow maps too (fixes a hang in Dragon's Dogma: Dark Arisen when changing areas)
-		if (desc.texture.width <= 512 || desc.texture.height <= 512)
+		if (desc.texture.width <= 512)
 			return false;
 		// Replace texture format with special format that supports normal sampling (see https://aras-p.info/texts/D3D9GPUHacks.html#depth)
 		desc.texture.format = format::intz;
@@ -1037,6 +1043,16 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					clear_stats.drawcalls_indirect,
 					clear_stats.vertices,
 					clear_stats.clear_op == clear_op::fullscreen_draw ? " Fullscreen draw call" : "");
+			}
+
+			if (sorted_item_list.size() == 1 && !is_d3d12_or_vulkan)
+			{
+				if (bool value = (depth_stencil_backup->force_clear_index == std::numeric_limits<size_t>::max());
+					ImGui::Checkbox("    Choose last clear operation with high number of draw calls", &value))
+				{
+					depth_stencil_backup->force_clear_index = value ? std::numeric_limits<size_t>::max() : 0;
+					reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+				}
 			}
 		}
 	}

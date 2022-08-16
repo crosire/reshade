@@ -58,7 +58,7 @@ static void update_acl_for_uwp(LPWSTR path)
 		return;
 	LocalFree(sd);
 
-	// Get the SID for ALL_APPLICATION_PACKAGES
+	// Get the SID for 'ALL_APPLICATION_PACKAGES'
 	PSID sid = nullptr;
 	if (!ConvertStringSidToSid(TEXT("S-1-15-2-1"), &sid))
 		return;
@@ -121,7 +121,7 @@ int wmain(int argc, wchar_t *argv[])
 		Sleep(1); // Sleep a bit to not overburden the CPU
 	}
 
-	printf("Found a matching process with PID %lu! Injecting ReShade ... ", pid);
+	wprintf(L"Found a matching process with PID %lu! Injecting ReShade ... ", pid);
 
 	// Wait just a little bit for the application to initialize
 	Sleep(50);
@@ -130,7 +130,7 @@ int wmain(int argc, wchar_t *argv[])
 	const scoped_handle remote_process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pid);
 	if (remote_process == nullptr)
 	{
-		printf("\nFailed to open target application process!\n");
+		wprintf(L"\nFailed to open target application process!\n");
 		return GetLastError();
 	}
 
@@ -143,7 +143,7 @@ int wmain(int argc, wchar_t *argv[])
 	if (remote_is_wow64 != FALSE)
 #endif
 	{
-		printf("\nProcess architecture does not match injection tool! Cannot continue.\n");
+		wprintf(L"\nProcess architecture does not match injection tool! Cannot continue.\n");
 		return ERROR_IMAGE_MACHINE_TYPE_MISMATCH;
 	}
 
@@ -158,7 +158,7 @@ int wmain(int argc, wchar_t *argv[])
 		return ERROR_FILE_NOT_FOUND;
 	}
 
-	// Make sure the DLL has permissions set up for "ALL_APPLICATION_PACKAGES"
+	// Make sure the DLL has permissions set up for 'ALL_APPLICATION_PACKAGES'
 	update_acl_for_uwp(arg.load_path);
 
 	// This happens to work because kernel32.dll is always loaded to the same base address, so the address of 'LoadLibrary' is the same in the target application and the current one
@@ -186,7 +186,7 @@ int wmain(int argc, wchar_t *argv[])
 #endif
 		)
 	{
-		printf("\nFailed to allocate and write 'LoadLibrary' argument in target application!\n");
+		wprintf(L"\nFailed to allocate and write 'LoadLibrary' argument in target application!\n");
 		return GetLastError();
 	}
 
@@ -194,7 +194,7 @@ int wmain(int argc, wchar_t *argv[])
 	const scoped_handle load_thread = CreateRemoteThread(remote_process, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(loading_thread_func_address), load_param, 0, nullptr);
 	if (load_thread == nullptr)
 	{
-		printf("\nFailed to execute 'LoadLibrary' in target application!\n");
+		wprintf(L"\nFailed to execute 'LoadLibrary' in target application!\n");
 		return GetLastError();
 	}
 
@@ -210,15 +210,15 @@ int wmain(int argc, wchar_t *argv[])
 		exit_code != NULL)
 #endif
 	{
-		printf("Succeeded!\n");
+		wprintf(L"Succeeded!\n");
 	}
 	else
 	{
 #if RESHADE_LOADING_THREAD_FUNC
-		printf("\nFailed to load ReShade in target application! Error code is 0x%x.\n", exit_code);
+		wprintf(L"\nFailed to load ReShade in target application! Error code is 0x%x.\n", exit_code);
 		return exit_code;
 #else
-		printf("\nFailed to load ReShade in target application!\n");
+		wprintf(L"\nFailed to load ReShade in target application!\n");
 		return ERROR_MOD_NOT_FOUND;
 #endif
 	}

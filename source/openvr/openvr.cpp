@@ -43,7 +43,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 	com_ptr<ID3D10Device> device;
 	texture->GetDevice(&device);
 
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	const auto device_proxy = get_private_pointer_d3dx<D3D10Device>(device.get());
 	if (device_proxy == nullptr)
 		goto normal_submit; // No proxy device found, so just submit normally
 	else if (s_vr_swapchain == nullptr)
@@ -99,7 +99,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 		return on_vr_submit_d3d10(compositor, eye, reinterpret_cast<ID3D10Texture2D *>(texture), bounds, flags, submit);
 	}
 
-	const auto device_proxy = get_private_pointer<D3D11Device>(device.get());
+	const auto device_proxy = get_private_pointer_d3dx<D3D11Device>(device.get());
 	if (device_proxy == nullptr)
 		goto normal_submit; // No proxy device found, so just submit normally
 	else if (s_vr_swapchain == nullptr)

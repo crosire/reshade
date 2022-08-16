@@ -6,12 +6,16 @@
 #include "d3d9_device.hpp"
 #include "d3d9_resource.hpp"
 #include "d3d9_swapchain.hpp"
+#include "d3d9on12_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
 
 using reshade::d3d9::to_handle;
+
+extern thread_local bool g_in_d3d9_runtime;
+extern thread_local bool g_in_dxgi_runtime;
 
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window);
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window);
@@ -122,6 +126,8 @@ void Direct3DDevice9::init_auto_depth_stencil()
 }
 void Direct3DDevice9::reset_auto_depth_stencil()
 {
+	_current_depth_stencil.reset();
+
 	if (_auto_depth_stencil == nullptr)
 		return;
 
@@ -171,6 +177,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 		return S_OK;
 	}
 
+	if (riid == __uuidof(IDirect3DDevice9On12))
+	{
+		if (_d3d9on12_device != nullptr)
+			return _d3d9on12_device->QueryInterface(riid, ppvObj);
+	}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE Direct3DDevice9::AddRef()
@@ -195,6 +207,13 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	{
 		LOG(WARN) << "Reference count for " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent! Leaking resources ...";
 		return _ref = 1;
+	}
+
+	if (_d3d9on12_device != nullptr)
+	{
+		// Release the reference that was added when the D3D9on12 device was first queried in 'init_device_proxy_for_d3d9on12' (see d3d9on12.cpp)
+		_d3d9on12_device->_orig->Release();
+		delete _d3d9on12_device;
 	}
 
 	// Release remaining references to this device
@@ -341,7 +360,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 #endif
 	device_impl::on_reset();
 
+	assert(!g_in_d3d9_runtime && !g_in_dxgi_runtime);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Reset(&pp);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-reset)
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
@@ -1190,30 +1212,34 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
 #if RESHADE_ADDON
-	if (com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
-		pNewZStencil != nullptr &&
+	com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
+	if (pNewZStencil != nullptr &&
 		SUCCEEDED(pNewZStencil->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
 		pNewZStencil = surface_proxy->_orig;
 #endif
 
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) &&
-		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
+	if (SUCCEEDED(hr))
 	{
-		DWORD count = 0;
-		com_ptr<IDirect3DSurface9> surface;
-		reshade::api::resource_view rtvs[8] = {};
-		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
+		_current_depth_stencil = std::move(surface_proxy);
+
+		if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 		{
-			if (FAILED(_orig->GetRenderTarget(i, &surface)))
-				continue;
+			DWORD count = 0;
+			com_ptr<IDirect3DSurface9> surface;
+			reshade::api::resource_view rtvs[8] = {};
+			for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
+			{
+				if (FAILED(_orig->GetRenderTarget(i, &surface)))
+					continue;
 
-			rtvs[i] = to_handle(surface.get());
-			count = i + 1;
+				rtvs[i] = to_handle(surface.get());
+				count = i + 1;
+			}
+
+			reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, count, rtvs, to_handle(pNewZStencil));
 		}
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, count, rtvs, to_handle(pNewZStencil));
 	}
 #endif
 
@@ -1227,10 +1253,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 	{
 		assert(ppZStencilSurface != nullptr);
 
-		const auto surface = *ppZStencilSurface;
-		const auto surface_proxy = get_private_pointer_d3d9<Direct3DDepthStencilSurface9>(surface);
-		if (surface_proxy != nullptr)
+		if (_current_depth_stencil != nullptr)
 		{
+			const auto surface = *ppZStencilSurface;
+			const auto surface_proxy = _current_depth_stencil.get();
+
 			surface_proxy->AddRef();
 			surface->Release();
 			*ppZStencilSurface = surface_proxy;
@@ -2330,7 +2357,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 #endif
 	device_impl::on_reset();
 
+	assert(!g_in_d3d9_runtime && !g_in_dxgi_runtime);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pp.Windowed ? nullptr : &fullscreen_mode);
+	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9ex-resetex)
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;

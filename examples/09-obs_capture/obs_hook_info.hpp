@@ -32,13 +32,13 @@
 #define SHMEM_HOOK_INFO L"CaptureHook_HookInfo"
 #define SHMEM_TEXTURE L"CaptureHook_Texture"
 
-#pragma pack(push, 8)
-
 enum capture_type
 {
 	CAPTURE_TYPE_MEMORY,
 	CAPTURE_TYPE_TEXTURE,
 };
+
+#pragma pack(push, 8)
 
 struct hook_info
 {
@@ -93,8 +93,8 @@ extern void shmem_texture_data_unlock(int idx);
 bool hook_init();
 void hook_free();
 
-bool capture_init_shtex(shtex_data **data, void *window, uint32_t cx, uint32_t cy, uint32_t format, bool flip, uintptr_t handle);
-bool capture_init_shmem(shmem_data **data, void *window, uint32_t cx, uint32_t cy, uint32_t pitch, uint32_t format, bool flip);
+bool capture_init_shtex(shtex_data *&data, void *window, uint32_t cx, uint32_t cy, uint32_t format, bool flip, uintptr_t handle);
+bool capture_init_shmem(shmem_data *&data, void *window, uint32_t cx, uint32_t cy, uint32_t pitch, uint32_t format, bool flip);
 void capture_free();
 
 bool capture_ready();

@@ -181,7 +181,7 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadGraphicsPipeline(LPCWSTR pNa
 
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(_device, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
-			register_destruction_callback(pipeline, [device = _device, pipeline]() {
+			register_destruction_callback_d3dx(pipeline, [device = _device, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device, to_handle(pipeline));
 			});
 		}
@@ -216,7 +216,7 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadComputePipeline(LPCWSTR pNam
 
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(_device, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
-			register_destruction_callback(pipeline, [device = _device, pipeline]() {
+			register_destruction_callback_d3dx(pipeline, [device = _device, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device, to_handle(pipeline));
 			});
 		}
@@ -397,7 +397,7 @@ HRESULT STDMETHODCALLTYPE D3D12PipelineLibrary::LoadPipeline(LPCWSTR pName, cons
 
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(_device, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), to_handle(pipeline));
 
-			register_destruction_callback(pipeline, [device = _device, pipeline]() {
+			register_destruction_callback_d3dx(pipeline, [device = _device, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device, to_handle(pipeline));
 			});
 		}

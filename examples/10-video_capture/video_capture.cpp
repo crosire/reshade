@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include <chrono>
 #include <reshade.hpp>
+#include <chrono>
 
 extern "C" {
 #include <libavutil/hwcontext.h>

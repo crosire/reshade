@@ -123,7 +123,7 @@ void reshade::d3d9::device_impl::on_init()
 		_orig->SetClipPlane(0, zero_clip_plane);
 
 		// Drawing the texture fails sometimes in Star Wars: Republic Commando if the unused stages are not unset
-		for (UINT i = 1; i < _caps.MaxSimultaneousTextures; ++i)
+		for (DWORD i = 1; i < _caps.MaxSimultaneousTextures; ++i)
 			_orig->SetTexture(i, nullptr);
 
 		hr = _orig->EndStateBlock(&_copy_state);

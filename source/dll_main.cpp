@@ -25,7 +25,7 @@ std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
 
 /// <summary>
-/// Checks whether the current application is running on UWP.
+/// Checks whether the current application is an UWP app.
 /// </summary>
 bool is_uwp_app()
 {
@@ -39,7 +39,7 @@ bool is_uwp_app()
 }
 
 /// <summary>
-/// Checks whether the current operation system is Windows 7 or earlier.
+/// Checks whether the current operating system is Windows 7 or earlier.
 /// </summary>
 bool is_windows7()
 {

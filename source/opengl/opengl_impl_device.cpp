@@ -1760,6 +1760,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 			LOG(ERROR) << "Failed to compile GLSL shader:\n" << log.data();
 		}
+
 		return false;
 	}
 

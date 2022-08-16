@@ -18,7 +18,7 @@ static void invoke_map_buffer_region_event(ID3D10Buffer *resource, D3D10_MAP map
 	com_ptr<ID3D10Device> device;
 	resource->GetDevice(&device);
 
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	const auto device_proxy = get_private_pointer_d3dx<D3D10Device>(device.get());
 	if (device_proxy == nullptr)
 		return;
 
@@ -35,7 +35,7 @@ static void invoke_unmap_buffer_region_event(ID3D10Buffer *resource)
 	com_ptr<ID3D10Device> device;
 	resource->GetDevice(&device);
 
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	const auto device_proxy = get_private_pointer_d3dx<D3D10Device>(device.get());
 	if (device_proxy == nullptr)
 		return;
 
@@ -46,7 +46,7 @@ static void invoke_map_texture_region_event(ID3D10Resource *resource, UINT subre
 	com_ptr<ID3D10Device> device;
 	resource->GetDevice(&device);
 
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	const auto device_proxy = get_private_pointer_d3dx<D3D10Device>(device.get());
 	if (device_proxy == nullptr)
 		return;
 
@@ -63,7 +63,7 @@ static void invoke_unmap_texture_region_event(ID3D10Resource *resource, UINT sub
 	com_ptr<ID3D10Device> device;
 	resource->GetDevice(&device);
 
-	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	const auto device_proxy = get_private_pointer_d3dx<D3D10Device>(device.get());
 	if (device_proxy == nullptr)
 		return;
 

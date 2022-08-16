@@ -322,7 +322,7 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 	if (com_ptr<ID3D10Device> device_d3d10_orig;
 		SUCCEEDED(device->QueryInterface(&device_d3d10_orig)))
 	{
-		if (com_ptr<D3D10Device> device_d3d10 = get_private_pointer<D3D10Device>(device_d3d10_orig.get());
+		if (com_ptr<D3D10Device> device_d3d10 = get_private_pointer_d3dx<D3D10Device>(device_d3d10_orig.get());
 			device_d3d10 != nullptr)
 		{
 			device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d10));
@@ -332,7 +332,7 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 	if (com_ptr<ID3D11Device> device_d3d11_orig;
 		SUCCEEDED(device->QueryInterface(&device_d3d11_orig)))
 	{
-		if (com_ptr<D3D11Device> device_d3d11 = get_private_pointer<D3D11Device>(device_d3d11_orig.get());
+		if (com_ptr<D3D11Device> device_d3d11 = get_private_pointer_d3dx<D3D11Device>(device_d3d11_orig.get());
 			device_d3d11 != nullptr)
 		{
 			device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d11));

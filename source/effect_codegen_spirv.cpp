@@ -1410,6 +1410,18 @@ private:
 			switch (op.op)
 			{
 			case expression::operation::op_cast:
+				if (op.from.is_scalar() && !op.to.is_scalar())
+				{
+					type cast_type = op.to;
+					cast_type.base = op.from.base;
+
+					std::vector<expression> args;
+					for (unsigned int c = 0; c < op.to.components(); ++c)
+						args.emplace_back().reset_to_rvalue(exp.location, result, op.from);
+
+					result = emit_construct(exp.location, cast_type, args);
+				}
+
 				if (op.from.is_boolean())
 				{
 					const spv::Id true_constant = emit_constant(op.to, 1);
