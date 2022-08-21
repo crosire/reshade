@@ -118,6 +118,10 @@ static void on_present(effect_runtime *runtime)
 	if (runtime != dev_data.main_runtime)
 		return;
 
+	// The 'reset_command_list' event is not called for immediate command lists, so call it manually here in D3D9/10/11/OpenGL to reset the current render pass index every frame
+	if (device->get_api() != device_api::d3d12 && device->get_api() != device_api::vulkan)
+		on_reset_command_list(runtime->get_command_queue()->get_immediate_command_list());
+
 	// Keep track of the total render pass count of this frame
 	dev_data.last_render_pass_count = dev_data.current_render_pass_count > 0 ? dev_data.current_render_pass_count : 1;
 	dev_data.current_render_pass_count = 0;
