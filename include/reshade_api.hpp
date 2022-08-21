@@ -592,7 +592,7 @@ namespace reshade::api
 		template <size_t SIZE>
 		inline  void get_current_preset_path(char(&path)[SIZE]) const {
 			size_t length = SIZE;
-			get_current_preset_path(variable, path, &length);
+			get_current_preset_path(path, &length);
 		}
 		/// <summary>
 		/// Saves the currently active preset and then switches to the specified new preset.
