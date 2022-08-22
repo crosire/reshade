@@ -275,7 +275,7 @@ namespace reshade
 
 		#pragma region Effect Loading
 #if RESHADE_FX
-		bool _no_debug_info = 0;
+		bool _no_debug_info = true;
 		bool _no_effect_cache = false;
 		bool _no_reload_on_init = false;
 		bool _no_reload_for_non_vr = false;

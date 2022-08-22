@@ -88,7 +88,6 @@ namespace reshadefx
 		/// <summary>
 		/// Gets a list of all defines that were used in #ifdef and #ifndef lines.
 		/// </summary>
-		/// <returns></returns>
 		std::vector<std::pair<std::string, std::string>> used_macro_definitions() const;
 
 		/// <summary>
