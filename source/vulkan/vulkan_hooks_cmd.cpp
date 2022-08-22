@@ -23,13 +23,27 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 #if RESHADE_ADDON
 static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info)
 {
-	if (!reshade::has_addon_event<reshade::addon_event::begin_render_pass>())
-		return;
-
 	const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(cmd_impl->current_render_pass);
 	const auto framebuffer_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>(cmd_impl->current_framebuffer);
 
 	const VkSubpassDescription &subpass = render_pass_data->subpasses[cmd_impl->current_subpass];
+
+	assert(subpass.colorAttachmentCount <= 8);
+
+	for (uint32_t i = 0; i < subpass.colorAttachmentCount && i < 8; ++i)
+	{
+		const uint32_t a = subpass.pColorAttachments[i].attachment;
+		cmd_impl->current_color_attachments[i] = (a != VK_ATTACHMENT_UNUSED) ? framebuffer_data->attachments[a] : VK_NULL_HANDLE;
+	}
+
+	if (subpass.pDepthStencilAttachment != nullptr)
+	{
+		const uint32_t a = subpass.pDepthStencilAttachment->attachment;
+		cmd_impl->current_depth_stencil_attachment = (a != VK_ATTACHMENT_UNUSED) ? framebuffer_data->attachments[a] : VK_NULL_HANDLE;
+	}
+
+	if (!reshade::has_addon_event<reshade::addon_event::begin_render_pass>())
+		return;
 
 	uint32_t num_transitions = 0;
 	temp_mem<VkImageMemoryBarrier, 9> transitions(subpass.colorAttachmentCount + 1);
@@ -141,6 +155,15 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 static void invoke_begin_render_pass_event(reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderingInfo *rendering_info)
 {
 	assert(rendering_info != nullptr);
+	assert(rendering_info->colorAttachmentCount <= 8);
+
+	for (uint32_t i = 0; i < rendering_info->colorAttachmentCount && i < 8; ++i)
+		cmd_impl->current_color_attachments[i] = rendering_info->pColorAttachments[i].imageView;
+
+	if (rendering_info->pDepthAttachment != nullptr)
+		cmd_impl->current_depth_stencil_attachment = rendering_info->pDepthAttachment->imageView;
+	else if (rendering_info->pStencilAttachment != nullptr)
+		cmd_impl->current_depth_stencil_attachment = rendering_info->pStencilAttachment->imageView;
 
 	if (!reshade::has_addon_event<reshade::addon_event::begin_render_pass>())
 		return;
@@ -866,11 +889,6 @@ void VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t at
 	{
 		const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-		const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(cmd_impl->current_render_pass);
-		const auto framebuffer_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>(cmd_impl->current_framebuffer);
-
-		const VkSubpassDescription &subpass = render_pass_data->subpasses[cmd_impl->current_subpass];
-
 		temp_mem<reshade::api::rect> rect_data(rectCount);
 		for (uint32_t i = 0; i < rectCount; ++i)
 		{
@@ -887,25 +905,23 @@ void VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t at
 
 			if (clear_attachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
 			{
-				const uint32_t a = subpass.pColorAttachments[clear_attachment.colorAttachment].attachment;
-				assert(a != VK_ATTACHMENT_UNUSED);
+				assert(clear_attachment.colorAttachment < 8);
+				assert(cmd_impl->current_color_attachments[clear_attachment.colorAttachment] != VK_NULL_HANDLE);
 
 				if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
 						cmd_impl,
-						reshade::api::resource_view { (uint64_t)framebuffer_data->attachments[a] },
+						reshade::api::resource_view { (uint64_t)cmd_impl->current_color_attachments[clear_attachment.colorAttachment] },
 						clear_attachment.clearValue.color.float32,
 						rectCount, rect_data.p))
 					continue;
 			}
 			else if (clear_attachment.aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
 			{
-				assert(subpass.pDepthStencilAttachment != nullptr);
-				const uint32_t a = subpass.pDepthStencilAttachment->attachment;
-				assert(a != VK_ATTACHMENT_UNUSED);
+				assert(cmd_impl->current_depth_stencil_attachment != VK_NULL_HANDLE);
 
 				if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 						cmd_impl,
-						reshade::api::resource_view { (uint64_t)framebuffer_data->attachments[a] },
+						reshade::api::resource_view { (uint64_t)cmd_impl->current_depth_stencil_attachment },
 						clear_attachment.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ? &clear_attachment.clearValue.depthStencil.depth : nullptr,
 						clear_attachment.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT ? reinterpret_cast<const uint8_t *>(&clear_attachment.clearValue.depthStencil.stencil) : nullptr,
 						rectCount, rect_data.p))
@@ -1161,6 +1177,9 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 	cmd_impl->current_render_pass = VK_NULL_HANDLE;
 	cmd_impl->current_framebuffer = VK_NULL_HANDLE;
+
+	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
+	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdEndRenderPass, device_impl);
@@ -1268,6 +1287,9 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 	cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 	cmd_impl->current_render_pass = VK_NULL_HANDLE;
 	cmd_impl->current_framebuffer = VK_NULL_HANDLE;
+
+	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
+	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdEndRenderPass2, device_impl);
@@ -1576,6 +1598,9 @@ void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
+
+	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
+	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdEndRendering, device_impl);
