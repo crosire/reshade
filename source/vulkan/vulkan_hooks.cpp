@@ -34,9 +34,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 #if RESHADE_ADDON
 	HOOK_PROC(QueueSubmit);
 	HOOK_PROC(BindBufferMemory);
-	HOOK_PROC(BindBufferMemory2);
 	HOOK_PROC(BindImageMemory);
-	HOOK_PROC(BindImageMemory2);
 	HOOK_PROC(CreateQueryPool);
 	HOOK_PROC(DestroyQueryPool);
 	HOOK_PROC(GetQueryPoolResults);
@@ -68,7 +66,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CreateFramebuffer);
 	HOOK_PROC(DestroyFramebuffer);
 	HOOK_PROC(CreateRenderPass);
-	HOOK_PROC(CreateRenderPass2);
 	HOOK_PROC(DestroyRenderPass);
 
 	HOOK_PROC(AllocateCommandBuffers);
@@ -109,8 +106,19 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdCopyQueryPoolResults);
 	HOOK_PROC(CmdPushConstants);
 	HOOK_PROC(CmdBeginRenderPass);
+	HOOK_PROC(CmdNextSubpass);
 	HOOK_PROC(CmdEndRenderPass);
 	HOOK_PROC(CmdExecuteCommands);
+
+	// Core 1_1
+	HOOK_PROC(BindBufferMemory2);
+	HOOK_PROC(BindImageMemory2);
+
+	// Core 1_2
+	HOOK_PROC(CreateRenderPass2);
+	HOOK_PROC(CmdBeginRenderPass2);
+	HOOK_PROC(CmdNextSubpass2);
+	HOOK_PROC(CmdEndRenderPass2);
 
 	// Core 1_3
 	HOOK_PROC_OPTIONAL(CmdPipelineBarrier2);
@@ -124,6 +132,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC_OPTIONAL(CmdResolveImage2);
 	HOOK_PROC_OPTIONAL(CmdBeginRendering);
 	HOOK_PROC_OPTIONAL(CmdEndRendering);
+	HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2);
 
 	// VK_KHR_dynamic_rendering
 	HOOK_PROC_OPTIONAL_EXTENSION(CmdBeginRendering, KHR);
@@ -134,6 +143,9 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 
 	// VK_KHR_create_renderpass2
 	HOOK_PROC_OPTIONAL_EXTENSION(CreateRenderPass2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdBeginRenderPass2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdNextSubpass2, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdEndRenderPass2, KHR);
 
 	// VK_KHR_bind_memory2
 	HOOK_PROC_OPTIONAL_EXTENSION(BindBufferMemory2, KHR);
@@ -154,6 +166,9 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC_OPTIONAL(CmdBindTransformFeedbackBuffersEXT);
 	HOOK_PROC_OPTIONAL(CmdBeginQueryIndexedEXT);
 	HOOK_PROC_OPTIONAL(CmdEndQueryIndexedEXT);
+
+	// VK_EXT_extended_dynamic_state
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdBindVertexBuffers2, EXT);
 #endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)

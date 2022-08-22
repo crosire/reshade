@@ -1582,6 +1582,33 @@ void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
 	trampoline(commandBuffer);
 }
 
+void VKAPI_CALL vkCmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets, const VkDeviceSize *pSizes, const VkDeviceSize *pStrides)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+	GET_DISPATCH_PTR_FROM(CmdBindVertexBuffers2, device_impl);
+	trampoline(commandBuffer, firstBinding, bindingCount, pBuffers, pOffsets, pSizes, pStrides);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (!reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
+		return;
+
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	static_assert(sizeof(*pBuffers) == sizeof(reshade::api::resource));
+
+	temp_mem<uint32_t> strides_32(bindingCount);
+	for (uint32_t i = 0; i < bindingCount; ++i)
+	{
+		assert(pStrides[i] <= std::numeric_limits<uint32_t>::max());
+		strides_32[i] = static_cast<uint32_t>(pStrides[i]);
+	}
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
+		cmd_impl, firstBinding, bindingCount, reinterpret_cast<const reshade::api::resource *>(pBuffers), pOffsets, strides_32.p);
+#endif
+}
+
 void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));

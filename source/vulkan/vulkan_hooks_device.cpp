@@ -459,9 +459,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(QueueSubmit2);
 		INIT_DISPATCH_PTR(CmdCopyBuffer2);
 		INIT_DISPATCH_PTR(CmdCopyImage2);
-		INIT_DISPATCH_PTR(CmdBlitImage2);
 		INIT_DISPATCH_PTR(CmdCopyBufferToImage2);
 		INIT_DISPATCH_PTR(CmdCopyImageToBuffer2);
+		INIT_DISPATCH_PTR(CmdBlitImage2);
 		INIT_DISPATCH_PTR(CmdResolveImage2);
 		INIT_DISPATCH_PTR(CmdBeginRendering);
 		INIT_DISPATCH_PTR(CmdEndRendering);
@@ -503,6 +503,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRenderPass2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdNextSubpass2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdEndRenderPass2, KHR);
+	#pragma endregion
+	#pragma region VK_KHR_bind_memory2
+	INIT_DISPATCH_PTR_EXTENSION(BindBufferMemory2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(BindImageMemory2, KHR);
+	#pragma endregion
+	#pragma region VK_KHR_synchronization2
+	INIT_DISPATCH_PTR_EXTENSION(CmdPipelineBarrier2, KHR);
 	#pragma endregion
 	#pragma region VK_KHR_copy_commands2
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBuffer2, KHR);

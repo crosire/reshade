@@ -788,6 +788,7 @@ namespace reshade
 		/// <item><description>vkCmdBeginRenderPass2</description></item>
 		/// <item><description>vkCmdNextSubpass</description></item>
 		/// <item><description>vkCmdNextSubpass2</description></item>
+		/// <item><description>vkCmdBeginRendering</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)</c></para>
 		/// </summary>
@@ -801,6 +802,7 @@ namespace reshade
 		/// <item><description>vkCmdEndRenderPass2</description></item>
 		/// <item><description>vkCmdNextSubpass</description></item>
 		/// <item><description>vkCmdNextSubpass2</description></item>
+		/// <item><description>vkCmdEndRendering</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
@@ -1015,6 +1017,7 @@ namespace reshade
 		/// <item><description>glBindVertexBuffer</description></item>
 		/// <item><description>glBindVertexBuffers</description></item>
 		/// <item><description>vkCmdBindVertexBuffers</description></item>
+		/// <item><description>vkCmdBindVertexBuffers2</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)</c></para>
 		/// </summary>
