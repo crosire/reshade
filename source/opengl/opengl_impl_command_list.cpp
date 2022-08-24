@@ -588,8 +588,8 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			}
 			else
 			{
-				GLint prev_binding = 0;
-				glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+				GLuint prev_binding = 0;
+				glGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 				glBindTexture(target, object);
 
 				glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
@@ -782,10 +782,10 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 	}
 	else
 	{
-		GLint prev_read_buf = 0;
-		GLint prev_write_buf = 0;
-		glGetIntegerv(GL_COPY_READ_BUFFER, &prev_read_buf);
-		glGetIntegerv(GL_COPY_WRITE_BUFFER, &prev_write_buf);
+		GLuint prev_read_binding = 0;
+		glGetIntegerv(GL_COPY_READ_BUFFER, reinterpret_cast<GLint *>(&prev_read_binding));
+		GLuint prev_write_binding = 0;
+		glGetIntegerv(GL_COPY_WRITE_BUFFER, reinterpret_cast<GLint *>(&prev_write_binding));
 
 		glBindBuffer(GL_COPY_READ_BUFFER, src_object);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, dst_object);
@@ -799,8 +799,8 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 
 		glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 
-		glBindBuffer(GL_COPY_READ_BUFFER, prev_read_buf);
-		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_write_buf);
+		glBindBuffer(GL_COPY_READ_BUFFER, prev_read_binding);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_write_binding);
 	}
 }
 void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
@@ -809,7 +809,6 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
 	// Get current state
-	GLint prev_unpack_binding = 0;
 	GLint prev_unpack_lsb = GL_FALSE;
 	GLint prev_unpack_swap = GL_FALSE;
 	GLint prev_unpack_alignment = 0;
@@ -818,7 +817,6 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	GLint prev_unpack_skip_rows = 0;
 	GLint prev_unpack_skip_pixels = 0;
 	GLint prev_unpack_skip_images = 0;
-	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &prev_unpack_binding);
 	glGetIntegerv(GL_UNPACK_LSB_FIRST, &prev_unpack_lsb);
 	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &prev_unpack_swap);
 	glGetIntegerv(GL_UNPACK_ALIGNMENT, &prev_unpack_alignment);
@@ -827,6 +825,9 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	glGetIntegerv(GL_UNPACK_SKIP_ROWS, &prev_unpack_skip_rows);
 	glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &prev_unpack_skip_pixels);
 	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &prev_unpack_skip_images);
+
+	GLuint prev_unpack_binding = 0;
+	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_unpack_binding));
 
 	// Bind source buffer
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, src.handle & 0xFFFFFFFF);
@@ -868,8 +869,8 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	}
 	else
 	{
-		GLint prev_binding = 0;
-		glGetIntegerv(get_binding_for_target(dst_target), &prev_binding);
+		GLuint prev_binding = 0;
+		glGetIntegerv(get_binding_for_target(dst_target), reinterpret_cast<GLint *>(&prev_binding));
 		glBindTexture(dst_target, dst_object);
 
 		const api::resource_desc desc = get_resource_desc(dst);
@@ -1018,10 +1019,10 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 	}
 	else
 	{
-		GLint prev_read_fbo = 0;
-		GLint prev_draw_fbo = 0;
-		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
-		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
+		GLuint prev_read_binding = 0;
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_read_binding));
+		GLuint prev_draw_binding = 0;
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_draw_binding));
 
 		GLboolean prev_srgb_enable = glIsEnabled(GL_FRAMEBUFFER_SRGB);
 		GLboolean prev_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
@@ -1043,8 +1044,8 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			// Must be nearest filtering for depth or stencil attachments
 			(filter == api::filter_mode::min_mag_mip_linear || filter == api::filter_mode::min_mag_linear_mip_point) && copy_depth == GL_NONE ? GL_LINEAR : GL_NEAREST);
 
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_binding);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 
 		glEnableOrDisable(GL_SCISSOR_TEST, prev_scissor_test);
 		glEnableOrDisable(GL_FRAMEBUFFER_SRGB, prev_srgb_enable);
@@ -1056,7 +1057,6 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
 
 	// Get current state
-	GLint prev_pack_binding = 0;
 	GLint prev_pack_lsb = GL_FALSE;
 	GLint prev_pack_swap = GL_FALSE;
 	GLint prev_pack_alignment = 0;
@@ -1065,7 +1065,6 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	GLint prev_pack_skip_rows = 0;
 	GLint prev_pack_skip_pixels = 0;
 	GLint prev_pack_skip_images = 0;
-	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &prev_pack_binding);
 	glGetIntegerv(GL_PACK_LSB_FIRST, &prev_pack_lsb);
 	glGetIntegerv(GL_PACK_SWAP_BYTES, &prev_pack_swap);
 	glGetIntegerv(GL_PACK_ALIGNMENT, &prev_pack_alignment);
@@ -1074,6 +1073,9 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	glGetIntegerv(GL_PACK_SKIP_ROWS, &prev_pack_skip_rows);
 	glGetIntegerv(GL_PACK_SKIP_PIXELS, &prev_pack_skip_pixels);
 	glGetIntegerv(GL_PACK_SKIP_IMAGES, &prev_pack_skip_images);
+
+	GLuint prev_pack_binding = 0;
+	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_pack_binding));
 
 	// Bind destination buffer
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, dst.handle & 0xFFFFFFFF);
@@ -1110,8 +1112,8 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		assert(src_subresource == 0);
 		assert(zoffset == 0 && depth == 1);
 
-		GLint prev_binding = 0;
-		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_binding);
+		GLuint prev_binding = 0;
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
 		glReadBuffer(src_object);
@@ -1133,10 +1135,10 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	{
 		assert(src_subresource == 0);
 
-		GLint prev_rbo_binding = 0;
-		glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_rbo_binding);
-		GLint prev_fbo_binding = 0;
-		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_fbo_binding);
+		GLuint prev_rbo_binding = 0;
+		glGetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_rbo_binding));
+		GLuint prev_fbo_binding = 0;
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_fbo_binding));
 
 		glBindRenderbuffer(GL_RENDERBUFFER, src_object);
 
@@ -1162,8 +1164,8 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	}
 	else
 	{
-		GLint prev_binding = 0;
-		glGetIntegerv(get_binding_for_target(src_target), &prev_binding);
+		GLuint prev_binding = 0;
+		glGetIntegerv(get_binding_for_target(src_target), reinterpret_cast<GLint *>(&prev_binding));
 		glBindTexture(src_target, src_object);
 
 		const api::resource_desc desc = get_resource_desc(src);
@@ -1260,8 +1262,8 @@ void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view d
 {
 	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
-	GLint prev_draw_fbo = 0;
-	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
+	GLuint prev_draw_binding = 0;
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_draw_binding));
 
 	bind_framebuffer_with_resource_views(GL_DRAW_FRAMEBUFFER, 0, nullptr, dsv);
 
@@ -1280,20 +1282,20 @@ void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view d
 		glClearBufferiv(GL_STENCIL, 0, &clear_value);
 	}
 
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 }
 void reshade::opengl::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {
 	assert(rtv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
-	GLint prev_draw_fbo = 0;
-	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
+	GLuint prev_draw_binding = 0;
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_draw_binding));
 
 	bind_framebuffer_with_resource_views(GL_DRAW_FRAMEBUFFER, 1, &rtv, { 0 });
 
 	glClearBufferfv(GL_COLOR, 0, color);
 
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 }
 void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
 {

@@ -659,14 +659,16 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			}
 			else
 			{
-				GLint prev_binding = 0;
-				glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_binding);
+				GLuint prev_binding = 0;
+				glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 				glBindBuffer(GL_COPY_READ_BUFFER, object);
+
 #ifndef _WIN64
 				glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
 #else
 				glGetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
 #endif
+
 				glBindBuffer(GL_COPY_READ_BUFFER, prev_binding);
 			}
 
@@ -716,8 +718,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			}
 			else
 			{
-				GLint prev_binding = 0;
-				glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+				GLuint prev_binding = 0;
+				glGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 				glBindTexture(target, object);
 
 				GLenum level_target = target;
@@ -745,7 +747,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 					}
 				}
 
-				glGetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+				glGetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
 				glBindTexture(target, prev_binding);
 			}
@@ -770,8 +772,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			}
 			else
 			{
-				GLint prev_binding = 0;
-				glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
+				GLuint prev_binding = 0;
+				glGetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 				glBindRenderbuffer(GL_RENDERBUFFER, object);
 
 				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &width);
@@ -994,8 +996,8 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 		}
 		else
 		{
-			GLint prev_binding = 0;
-			glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+			GLuint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 			glBindTexture(target, object);
 
 			GLenum level_target = target;
@@ -1016,8 +1018,8 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 		}
 		else
 		{
-			GLint prev_binding = 0;
-			glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
+			GLuint prev_binding = 0;
+			glGetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 			glBindRenderbuffer(GL_RENDERBUFFER, object);
 
 			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
@@ -1056,8 +1058,8 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 		}
 		else
 		{
-			GLint prev_binding = 0;
-			glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+			GLuint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 			glBindTexture(target, object);
 
 			glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &binding);
@@ -1094,8 +1096,8 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 		}
 		else
 		{
-			GLint prev_binding = 0;
-			glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+			GLuint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 			glBindTexture(target, object);
 
 			glGetTexParameteriv(target, GL_TEXTURE_VIEW_MIN_LEVEL, &min_level);
@@ -1121,8 +1123,8 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 		}
 		else
 		{
-			GLint prev_binding = 0;
-			glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+			GLuint prev_binding = 0;
+			glGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 			glBindTexture(target, object);
 
 			glGetTexLevelParameteriv(target, 0, GL_TEXTURE_BUFFER_OFFSET, &offset);
@@ -1164,9 +1166,8 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 	}
 	else
 	{
-		GLint prev_object = 0;
-		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_object);
-
+		GLuint prev_binding = 0;
+		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
 
 		if (size == UINT64_MAX)
@@ -1183,7 +1184,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 
 		*out_data = glMapBufferRange(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), convert_access_flags(access));
 
-		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_binding);
 	}
 
 	return *out_data != nullptr;
@@ -1200,12 +1201,13 @@ void reshade::opengl::device_impl::unmap_buffer_region(api::resource resource)
 	}
 	else
 	{
-		GLint prev_object = 0;
-		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_object);
-
+		GLuint prev_binding = 0;
+		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
+
 		glUnmapBuffer(GL_COPY_WRITE_BUFFER);
-		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
+
+		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_binding);
 	}
 }
 bool reshade::opengl::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
@@ -1266,9 +1268,6 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
 	// Get current state
-	GLint prev_binding = 0;
-	glGetIntegerv(get_binding_for_target(target), &prev_binding);
-
 	GLint prev_pack_binding = 0;
 	GLint prev_pack_lsb = GL_FALSE;
 	GLint prev_pack_swap = GL_FALSE;
@@ -1287,6 +1286,9 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	glGetIntegerv(GL_PACK_SKIP_ROWS, &prev_pack_skip_rows);
 	glGetIntegerv(GL_PACK_SKIP_PIXELS, &prev_pack_skip_pixels);
 	glGetIntegerv(GL_PACK_SKIP_IMAGES, &prev_pack_skip_images);
+
+	GLuint prev_binding = 0;
+	glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 
 	// Unset any existing pack buffer so pointer is not interpreted as an offset
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -1394,8 +1396,8 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 	}
 	else
 	{
-		GLint prev_binding = 0;
-		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_binding);
+		GLuint prev_binding = 0;
+		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
 
 		glBufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
@@ -1411,9 +1413,6 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
 	// Get current state
-	GLint prev_binding = 0;
-	glGetIntegerv(get_binding_for_target(target), &prev_binding);
-
 	GLint prev_unpack_binding = 0;
 	GLint prev_unpack_lsb = GL_FALSE;
 	GLint prev_unpack_swap = GL_FALSE;
@@ -1432,6 +1431,9 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	glGetIntegerv(GL_UNPACK_SKIP_ROWS, &prev_unpack_skip_rows);
 	glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &prev_unpack_skip_pixels);
 	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &prev_unpack_skip_images);
+
+	GLuint prev_binding = 0;
+	glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 
 	// Unset any existing unpack buffer so pointer is not interpreted as an offset
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
@@ -1618,27 +1620,31 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		{
 			glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
 
+			// Get actual texture target from the texture object
 			if (target == GL_TEXTURE)
-			{
-				// Get actual texture target from the texture object
 				glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
-			}
 		}
 	}
 	else
 	{
-		GLint prev_object = 0;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_object);
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
+		GLuint prev_binding = 0;
+		glGetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
+		// Must not bind framebuffer again if this was called from 'glBindFramebuffer' hook, or else black screen occurs in Jak Project for some reason
+		if (fbo_object != prev_binding)
+			glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
 
 		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
 
 		if (target != GL_NONE)
 		{
 			glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+
+			if (target == GL_TEXTURE && gl3wProcs.gl.GetTextureParameteriv != nullptr)
+				glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, prev_object);
+		if (fbo_object != prev_binding)
+			glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
 	}
 
 	if (target == GL_NONE)
@@ -1681,8 +1687,8 @@ void reshade::opengl::device_impl::update_current_window_height(GLuint fbo_objec
 			}
 			else
 			{
-				GLint prev_binding = 0;
-				glGetIntegerv(reshade::opengl::get_binding_for_target(default_attachment_target), &prev_binding);
+				GLuint prev_binding = 0;
+				glGetIntegerv(reshade::opengl::get_binding_for_target(default_attachment_target), reinterpret_cast<GLint *>(&prev_binding));
 				glBindTexture(default_attachment_target, default_attachment_object);
 
 				glGetTexLevelParameteriv(default_attachment_target, 0, GL_TEXTURE_HEIGHT, &height);
@@ -1703,8 +1709,8 @@ void reshade::opengl::device_impl::update_current_window_height(GLuint fbo_objec
 			}
 			else
 			{
-				GLint prev_binding = 0;
-				glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
+				GLuint prev_binding = 0;
+				glGetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 				glBindRenderbuffer(GL_RENDERBUFFER, default_attachment_object);
 
 				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
@@ -1718,6 +1724,11 @@ void reshade::opengl::device_impl::update_current_window_height(GLuint fbo_objec
 		case GL_FRAMEBUFFER_DEFAULT:
 		{
 			_current_window_height = _default_fbo_height;
+			break;
+		}
+		default:
+		{
+			assert(false);
 			break;
 		}
 	}

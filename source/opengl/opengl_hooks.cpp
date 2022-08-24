@@ -271,7 +271,7 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 	return result;
 }
 
-static void update_framebuffer_object(GLenum target, GLuint framebuffer)
+static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 {
 	if (!g_current_context || !(target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER))
 		return;
@@ -2002,7 +2002,7 @@ void APIENTRY glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum te
 	trampoline(target, attachment, textarget, texture, level);
 
 #if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
+	update_framebuffer_object(target);
 #endif
 }
 void APIENTRY glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
@@ -2011,7 +2011,7 @@ void APIENTRY glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum te
 	trampoline(target, attachment, textarget, texture, level);
 
 #if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
+	update_framebuffer_object(target);
 #endif
 }
 void APIENTRY glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer)
@@ -2020,7 +2020,7 @@ void APIENTRY glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum te
 	trampoline(target, attachment, textarget, texture, level, layer);
 
 #if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
+	update_framebuffer_object(target);
 #endif
 }
 void APIENTRY glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
@@ -2029,7 +2029,7 @@ void APIENTRY glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint
 	trampoline(target, attachment, texture, level, layer);
 
 #if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
+	update_framebuffer_object(target);
 #endif
 }
 void APIENTRY glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
@@ -2038,7 +2038,7 @@ void APIENTRY glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
 
 #if RESHADE_ADDON
-	update_framebuffer_object(target, 0);
+	update_framebuffer_object(target);
 #endif
 }
 
@@ -2528,7 +2528,7 @@ void APIENTRY glFramebufferTexture(GLenum target, GLenum attachment, GLuint text
 
 #if RESHADE_ADDON
 	// Need to update render target and depth-stencil bindings after the current framebuffer was updated again
-	update_framebuffer_object(target, 0);
+	update_framebuffer_object(target);
 #endif
 }
 
