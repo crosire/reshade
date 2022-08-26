@@ -226,15 +226,29 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 	// Begin does perform an implicit reset if command pool was created with 'VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT'
 	reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(cmd_impl);
 
+	assert(cmd_impl->current_render_pass == VK_NULL_HANDLE);
+
 	if (pBeginInfo->pInheritanceInfo != nullptr && (pBeginInfo->flags & VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT) != 0)
 	{
 		const VkCommandBufferInheritanceInfo &inheritance_info = *pBeginInfo->pInheritanceInfo;
 
-		cmd_impl->current_subpass = inheritance_info.subpass;
-		cmd_impl->current_render_pass = inheritance_info.renderPass;
-		cmd_impl->current_framebuffer = inheritance_info.framebuffer;
+		if (inheritance_info.renderPass != VK_NULL_HANDLE)
+		{
+			cmd_impl->current_subpass = inheritance_info.subpass;
+			cmd_impl->current_render_pass = inheritance_info.renderPass;
 
-		invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr);
+			if (inheritance_info.framebuffer != VK_NULL_HANDLE)
+			{
+				cmd_impl->current_framebuffer = inheritance_info.framebuffer;
+
+				invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr);
+			}
+			else
+			{
+				// Framebuffer is not known and therefore cannot provide any attachment information
+				reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, 0, nullptr, nullptr);
+			}
+		}
 	}
 #endif
 

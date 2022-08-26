@@ -1897,6 +1897,7 @@ auto reshade::vulkan::convert_descriptor_type(VkDescriptorType value) -> api::de
 		return api::descriptor_type::sampler_with_resource_view;
 	case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 	case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+	case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: // This cannot be restored by 'convert_descriptor_type' in the other direction
 		return api::descriptor_type::shader_resource_view;
 	case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 	case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
