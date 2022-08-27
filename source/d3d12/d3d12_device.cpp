@@ -294,6 +294,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreateGraphicsPipelineState" << '.';
+		}
 #endif
 	}
 	else
@@ -349,6 +353,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
+		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreateComputePipelineState" << '.';
 		}
 #endif
 	}
@@ -460,11 +468,16 @@ UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DE
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const void *pBlobWithRootSignature, SIZE_T blobLengthInBytes, REFIID riid, void **ppvRootSignature)
 {
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (ppvRootSignature == nullptr)
+		return _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
+#endif
+
 	const HRESULT hr = _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		if (ppvRootSignature != nullptr && riid == __uuidof(ID3D12RootSignature))
+		if (riid == __uuidof(ID3D12RootSignature))
 		{
 			const auto data = static_cast<const uint32_t *>(pBlobWithRootSignature);
 
@@ -619,6 +632,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
 				});
 			}
+		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreateRootSignature" << '.';
 		}
 #endif
 	}
@@ -985,6 +1002,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 				unregister_resource(resource);
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riidResource << " in " << "ID3D12Device::CreateCommittedResource" << '.';
+		}
 #endif
 	}
 	else
@@ -1051,6 +1072,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 				unregister_resource(resource);
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreatePlacedResource" << '.';
+		}
 #endif
 	}
 	else
@@ -1104,6 +1129,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 				unregister_resource(resource);
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreateReservedResource" << '.';
+		}
 #endif
 	}
 	else
@@ -1121,14 +1150,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pOb
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID riid, void **ppvObj)
 {
+#if RESHADE_ADDON
+	if (ppvObj == nullptr)
+		return _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
+#endif
+
 	const HRESULT hr = _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		if (ppvObj != nullptr && (
-			riid == __uuidof(ID3D12Resource) ||
+		if (riid == __uuidof(ID3D12Resource) ||
 			riid == __uuidof(ID3D12Resource1) ||
-			riid == __uuidof(ID3D12Resource2)))
+			riid == __uuidof(ID3D12Resource2))
 		{
 			const auto resource = static_cast<ID3D12Resource *>(*ppvObj);
 
@@ -1147,6 +1180,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID 
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 				unregister_resource(resource);
 			});
+		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::OpenSharedHandle" << '.';
 		}
 #endif
 	}
@@ -1239,6 +1276,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateQueryHeap(const D3D12_QUERY_HEAP_DE
 				reshade::invoke_addon_event<reshade::addon_event::destroy_query_pool>(this, to_handle(query_heap));
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreateQueryHeap" << '.';
+		}
 #endif
 	}
 	else
@@ -1271,13 +1312,17 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 {
 	assert(_interface_version >= 1);
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (ppPipelineLibrary == nullptr)
+		return static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
+#endif
+
 	const HRESULT hr = static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		if (ppPipelineLibrary != nullptr && (
-			riid == __uuidof(ID3D12PipelineLibrary) ||
-			riid == __uuidof(ID3D12PipelineLibrary1)))
+		if (riid == __uuidof(ID3D12PipelineLibrary) ||
+			riid == __uuidof(ID3D12PipelineLibrary1))
 		{
 			const auto pipeline_library = static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary);
 
@@ -1287,9 +1332,16 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 				reshade::hooks::install("ID3D12PipelineLibrary::LoadGraphicsPipeline", vtable_from_instance(pipeline_library), 9, reinterpret_cast<reshade::hook::address>(&ID3D12PipelineLibrary_LoadGraphicsPipeline));
 				reshade::hooks::install("ID3D12PipelineLibrary::LoadComputePipeline", vtable_from_instance(pipeline_library), 10, reinterpret_cast<reshade::hook::address>(&ID3D12PipelineLibrary_LoadComputePipeline));
 
-				if (riid == __uuidof(ID3D12PipelineLibrary1))
-					reshade::hooks::install("ID3D12PipelineLibrary1::LoadPipeline", vtable_from_instance(pipeline_library), 13, reinterpret_cast<reshade::hook::address>(&ID3D12PipelineLibrary1_LoadPipeline));
+				if (com_ptr<ID3D12PipelineLibrary1> pipeline_library1;
+					SUCCEEDED(pipeline_library->QueryInterface(IID_PPV_ARGS(&pipeline_library1))))
+				{
+					reshade::hooks::install("ID3D12PipelineLibrary1::LoadPipeline", vtable_from_instance(pipeline_library1.get()), 13, reinterpret_cast<reshade::hook::address>(&ID3D12PipelineLibrary1_LoadPipeline));
+				}
 			}
+		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device1::CreatePipelineLibrary" << '.';
 		}
 #endif
 	}
@@ -1507,6 +1559,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device2::CreatePipelineState" << '.';
+		}
 #endif
 	}
 	else
@@ -1554,6 +1610,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(NodeMask, Type, Flags, riid, ppCommandList);
 	if (SUCCEEDED(hr))
 	{
+		assert(ppCommandList != nullptr);
+
 		const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
 
 		// Upgrade to the actual interface version requested here (and only hook graphics command lists)
@@ -1641,6 +1699,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 				unregister_resource(resource);
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riidResource << " in " << "ID3D12Device4::CreateCommittedResource1" << '.';
+		}
 #endif
 	}
 	else
@@ -1700,6 +1762,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 				unregister_resource(resource);
 			});
+		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device4::CreateReservedResource1" << '.';
 		}
 #endif
 	}
@@ -1835,6 +1901,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP
 				unregister_resource(resource);
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riidResource << " in " << "ID3D12Device8::CreateCommittedResource2" << '.';
+		}
 #endif
 	}
 	else
@@ -1898,6 +1968,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource1(ID3D12Heap *pHeap, 
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 				unregister_resource(resource);
 			});
+		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device8::CreatePlacedResource1" << '.';
 		}
 #endif
 	}
@@ -2040,6 +2114,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource3(const D3D12_HEAP
 				unregister_resource(resource);
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riidResource << " in " << "ID3D12Device10::CreateCommittedResource3" << '.';
+		}
 #endif
 	}
 	else
@@ -2104,6 +2182,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource2(ID3D12Heap *pHeap, 
 				unregister_resource(resource);
 			});
 		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device10::CreatePlacedResource2" << '.';
+		}
 #endif
 	}
 	else
@@ -2158,6 +2240,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource2(const D3D12_RESOU
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 				unregister_resource(resource);
 			});
+		}
+		else
+		{
+			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device10::CreateReservedResource2" << '.';
 		}
 #endif
 	}
