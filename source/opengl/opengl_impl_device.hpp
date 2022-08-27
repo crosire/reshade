@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "opengl.hpp"
 #include "addon_manager.hpp"
+#include <GL/gl3w.h>
 #include <unordered_map>
 #include <unordered_set>
 

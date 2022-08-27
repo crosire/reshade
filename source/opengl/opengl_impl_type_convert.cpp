@@ -29,7 +29,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_ONE;
 			return GL_R8;
 		}
-		return GL_LUMINANCE8;
+		return 0x8040 /* GL_LUMINANCE8 */;
 	case api::format::a8_unorm:
 		if (swizzle_mask != nullptr)
 		{
@@ -39,7 +39,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_RED;
 			return GL_R8;
 		}
-		return GL_ALPHA8;
+		return 0x803C /* GL_ALPHA8 */;
 	case api::format::r8_uint:
 		return GL_R8UI;
 	case api::format::r8_sint:
@@ -58,7 +58,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_GREEN;
 			return GL_RG8;
 		}
-		return GL_LUMINANCE8_ALPHA8;
+		return 0x8045 /* GL_LUMINANCE8_ALPHA8 */;
 	case api::format::r8g8_uint:
 		return GL_RG8UI;
 	case api::format::r8g8_sint:
@@ -110,7 +110,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_ONE;
 			return GL_R16;
 		}
-		return GL_LUMINANCE16;
+		return 0x8042 /* GL_LUMINANCE16 */;
 	case api::format::r16_uint:
 		return GL_R16UI;
 	case api::format::r16_sint:
@@ -131,7 +131,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_GREEN;
 			return GL_RG16;
 		}
-		return GL_LUMINANCE16_ALPHA16;
+		return 0x8048 /* GL_LUMINANCE16_ALPHA16 */;
 	case api::format::r16g16_uint:
 		return GL_RG16UI;
 	case api::format::r16g16_sint:
@@ -258,15 +258,20 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 }
 auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle_mask[4]) -> api::format
 {
+	// These should already have been converted by 'convert_sized_internal_format' before
 	assert(
 		internal_format != 1 &&
 		internal_format != 2 &&
 		internal_format != 3 &&
 		internal_format != 4 &&
 		internal_format != GL_RED &&
+		internal_format != 0x1909 /* GL_LUMINANCE */ &&
+		internal_format != 0x8049 /* GL_INTENSITY */ &&
+		internal_format != GL_ALPHA &&
 		internal_format != GL_RG &&
 		internal_format != GL_RGB &&
 		internal_format != GL_RGBA &&
+		internal_format != GL_STENCIL_INDEX &&
 		internal_format != GL_DEPTH_COMPONENT &&
 		internal_format != GL_DEPTH_STENCIL);
 
@@ -274,13 +279,10 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	{
 	default:
 		return api::format::unknown;
-	case GL_LUMINANCE:
-	case GL_LUMINANCE8: // { R, R, R, 1 }
-	case GL_INTENSITY:
-	case GL_INTENSITY8: // { R, R, R, R }
+	case 0x8040 /* GL_LUMINANCE8 */: // { R, R, R, 1 }
+	case 0x804B /* GL_INTENSITY8 */: // { R, R, R, R }
 		return api::format::l8_unorm;
-	case GL_ALPHA:
-	case GL_ALPHA8:
+	case 0x803C /* GL_ALPHA8 */:
 		return api::format::a8_unorm;
 	case GL_R8UI:
 		return api::format::r8_uint;
@@ -298,19 +300,15 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 			swizzle_mask[2] == GL_ZERO &&
 			swizzle_mask[3] == GL_RED)
 			return api::format::a8_unorm;
-		[[fallthrough]];
-	case GL_RED:
 		return api::format::r8_unorm;
 	case GL_R8_SNORM:
 		return api::format::r8_snorm;
-	case GL_LUMINANCE_ALPHA:
-	case GL_LUMINANCE8_ALPHA8: // { R, R, R, G }
+	case 0x8045 /* GL_LUMINANCE8_ALPHA8 */: // { R, R, R, G }
 		return api::format::l8a8_unorm;
 	case GL_RG8UI:
 		return api::format::r8g8_uint;
 	case GL_RG8I:
 		return api::format::r8g8_sint;
-	case GL_RG:
 	case GL_RG8: // { R, G, 0, 1 }
 		if (swizzle_mask != nullptr &&
 			swizzle_mask[0] == GL_RED &&
@@ -325,14 +323,12 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r8g8b8a8_uint;
 	case GL_RGBA8I:
 		return api::format::r8g8b8a8_sint;
-	case GL_RGBA:
 	case GL_RGBA8:
 		return api::format::r8g8b8a8_unorm;
 	case GL_SRGB8_ALPHA8:
 		return api::format::r8g8b8a8_unorm_srgb;
 	case GL_RGBA8_SNORM:
 		return api::format::r8g8b8a8_snorm;
-	case GL_RGB:
 	case GL_RGB8:
 		return api::format::r8g8b8x8_unorm;
 	case GL_SRGB8:
@@ -341,8 +337,8 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r10g10b10a2_uint;
 	case GL_RGB10_A2:
 		return api::format::r10g10b10a2_unorm;
-	case GL_LUMINANCE16: // { R, R, R, 1 }
-	case GL_INTENSITY16: // { R, R, R, R }
+	case 0x8042 /* GL_LUMINANCE16 */: // { R, R, R, 1 }
+	case 0x804D /* GL_INTENSITY16 */: // { R, R, R, R }
 		return api::format::l16_unorm;
 	case GL_R16UI:
 		return api::format::r16_uint;
@@ -359,7 +355,7 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16_unorm;
 	case GL_R16_SNORM:
 		return api::format::r16_snorm;
-	case GL_LUMINANCE16_ALPHA16: // { R, R, R, G }
+	case 0x8048 /* GL_LUMINANCE16_ALPHA16 */: // { R, R, R, G }
 		return api::format::l16a16_unorm;
 	case GL_RG16UI:
 		return api::format::r16g16_uint;
@@ -423,15 +419,12 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::b5g5r5x1_unorm;
 	case GL_RGBA4:
 		return api::format::b4g4r4a4_unorm;
-	case GL_STENCIL_INDEX:
 	case GL_STENCIL_INDEX8:
 		return api::format::s8_uint;
-	case GL_DEPTH_COMPONENT:
 	case GL_DEPTH_COMPONENT16:
 		return api::format::d16_unorm;
 	case GL_DEPTH_COMPONENT24:
 		return api::format::d24_unorm_x8_uint;
-	case GL_DEPTH_STENCIL:
 	case GL_DEPTH24_STENCIL8:
 		return api::format::d24_unorm_s8_uint;
 	case GL_DEPTH_COMPONENT32:
@@ -829,8 +822,8 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	{
 	case GL_R8UI:
 	case GL_R8:
-	case GL_LUMINANCE8:
-	case GL_INTENSITY8:
+	case 0x8040 /* GL_LUMINANCE8 */:
+	case 0x804B /* GL_INTENSITY8 */:
 		type = GL_UNSIGNED_BYTE;
 		return GL_RED;
 	case GL_R8I:
@@ -839,7 +832,7 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 		return GL_RED;
 	case GL_RG8UI:
 	case GL_RG8:
-	case GL_LUMINANCE8_ALPHA8:
+	case 0x8045 /* GL_LUMINANCE8_ALPHA8 */:
 		type = GL_UNSIGNED_BYTE;
 		return GL_RG;
 	case GL_RG8I:
@@ -866,8 +859,8 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	case GL_R16UI:
 	case GL_R16F:
 	case GL_R16:
-	case GL_LUMINANCE16:
-	case GL_INTENSITY16:
+	case 0x8042 /* GL_LUMINANCE16 */:
+	case 0x804D /* GL_INTENSITY16 */:
 		type = GL_UNSIGNED_SHORT;
 		return GL_RED;
 	case GL_R16I:
@@ -877,7 +870,7 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	case GL_RG16UI:
 	case GL_RG16F:
 	case GL_RG16:
-	case GL_LUMINANCE16_ALPHA16:
+	case 0x8048 /* GL_LUMINANCE16_ALPHA16 */:
 		type = GL_UNSIGNED_SHORT;
 		return GL_RG;
 	case GL_RG16I:
@@ -987,6 +980,41 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	}
 
 	return type = GL_NONE;
+}
+auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> GLenum
+{
+	// Convert base internal formats to sized internal formats
+	switch (internal_format)
+	{
+	case 1:
+	case GL_RED:
+		return GL_R8;
+	case 0x1909 /* GL_LUMINANCE */:
+		return 0x8040 /* GL_LUMINANCE8 */;
+	case 0x190A /* GL_LUMINANCE_ALPHA */:
+		return 0x8045 /* GL_LUMINANCE8_ALPHA8 */;
+	case 0x8049 /* GL_INTENSITY */:
+		return 0x804B /* GL_INTENSITY8 */;
+	case GL_ALPHA:
+		return 0x803C /* GL_ALPHA8 */;
+	case 2:
+	case GL_RG:
+		return GL_RG8;
+	case 3:
+	case GL_RGB:
+		return GL_RGB8;
+	case 4:
+	case GL_RGBA:
+		return GL_RGBA8;
+	case GL_STENCIL_INDEX:
+		return GL_STENCIL_INDEX8;
+	case GL_DEPTH_COMPONENT:
+		return GL_DEPTH_COMPONENT16;
+	case GL_DEPTH_STENCIL:
+		return GL_DEPTH24_STENCIL8;
+	default:
+		return internal_format;
+	}
 }
 
 auto reshade::opengl::is_depth_stencil_format(api::format format) -> GLenum
@@ -1791,12 +1819,11 @@ auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primiti
 		return api::primitive_topology::triangle_strip_adj;
 	case GL_QUADS:
 		return api::primitive_topology::quad_list;
-	case GL_QUAD_STRIP:
+	case 0x0008 /* GL_QUAD_STRIP */:
 		return api::primitive_topology::quad_strip;
 	case GL_PATCHES:
-		GLint cps = 1;
-		glGetIntegerv(GL_PATCH_VERTICES, &cps);
-		return static_cast<api::primitive_topology>(static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) + cps - 1);
+		// This needs to be adjusted externally based on 'GL_PATCH_VERTICES'
+		return api::primitive_topology::patch_list_01_cp;
 	}
 }
 GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value)
@@ -1818,7 +1845,7 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 	case api::primitive_topology::quad_list:
 		return GL_QUADS;
 	case api::primitive_topology::quad_strip:
-		return GL_QUAD_STRIP;
+		return 0x0008 /* GL_QUAD_STRIP */;
 	case api::primitive_topology::line_list_adj:
 		return GL_LINES_ADJACENCY;
 	case api::primitive_topology::line_strip_adj:
@@ -1859,6 +1886,7 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 	case api::primitive_topology::patch_list_30_cp:
 	case api::primitive_topology::patch_list_31_cp:
 	case api::primitive_topology::patch_list_32_cp:
+		// Also need to adjust 'GL_PATCH_VERTICES' externally
 		return GL_PATCHES;
 	default:
 		assert(false);

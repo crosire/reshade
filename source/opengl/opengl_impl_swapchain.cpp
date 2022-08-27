@@ -7,16 +7,18 @@
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
 
+#define gl gl3wProcs.gl
+
 reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compatibility_context) :
 	device_impl(hdc, hglrc, compatibility_context), runtime(this, this)
 {
 	GLint major = 0, minor = 0;
-	glGetIntegerv(GL_MAJOR_VERSION, &major);
-	glGetIntegerv(GL_MINOR_VERSION, &minor);
+	gl.GetIntegerv(GL_MAJOR_VERSION, &major);
+	gl.GetIntegerv(GL_MINOR_VERSION, &minor);
 	_renderer_id = 0x10000 | (major << 12) | (minor << 8);
 
-	const GLubyte *const name = glGetString(GL_RENDERER);
-	const GLubyte *const version = glGetString(GL_VERSION);
+	const GLubyte *const name = gl.GetString(GL_RENDERER);
+	const GLubyte *const version = gl.GetString(GL_VERSION);
 	LOG(INFO) << "Running on " << name << " using OpenGL " << version << '.';
 
 	// Query vendor and device ID from Windows assuming we are running on the primary display device
@@ -32,7 +34,7 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compa
 	}
 
 	GLint scissor_box[4] = {};
-	glGetIntegerv(GL_SCISSOR_BOX, scissor_box);
+	gl.GetIntegerv(GL_SCISSOR_BOX, scissor_box);
 	assert(scissor_box[0] == 0 && scissor_box[1] == 0);
 
 	// Wolfenstein: The Old Blood creates a window with a height of zero that is later resized
@@ -111,7 +113,7 @@ void reshade::opengl::swapchain_impl::on_present()
 
 #ifndef NDEBUG
 	GLenum type = GL_NONE; char message[512] = "";
-	while (glGetDebugMessageLog(1, 512, nullptr, &type, nullptr, nullptr, nullptr, message))
+	while (gl.GetDebugMessageLog(1, 512, nullptr, &type, nullptr, nullptr, nullptr, message))
 		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
 			OutputDebugStringA(message), OutputDebugStringA("\n");
 #endif

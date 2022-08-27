@@ -572,9 +572,6 @@
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp">
       <Filter>hooks\dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="source\opengl\opengl.hpp">
-      <Filter>hooks\opengl</Filter>
-    </ClInclude>
     <ClInclude Include="source\opengl\opengl_hooks.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>

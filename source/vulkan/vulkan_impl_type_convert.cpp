@@ -1778,6 +1778,7 @@ auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) 
 	case api::primitive_topology::patch_list_30_cp:
 	case api::primitive_topology::patch_list_31_cp:
 	case api::primitive_topology::patch_list_32_cp:
+		// Also need to adjust 'patchControlPoints' externally
 		return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
 	default:
 	case api::primitive_topology::undefined:
@@ -1810,6 +1811,7 @@ auto reshade::vulkan::convert_primitive_topology(VkPrimitiveTopology value) -> a
 	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY:
 		return api::primitive_topology::triangle_strip_adj;
 	case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
+		// This needs to be adjusted externally based on 'patchControlPoints'
 		return api::primitive_topology::patch_list_01_cp;
 	default:
 	case VK_PRIMITIVE_TOPOLOGY_MAX_ENUM:
