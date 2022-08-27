@@ -423,12 +423,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 
 #endif
 
-static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLuint
-{
-	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
-}
-
-static __forceinline void update_current_primitive_topology(GLenum mode, GLenum type)
+static void update_current_primitive_topology(GLenum mode, GLenum type)
 {
 	assert(g_current_context != nullptr);
 	g_current_context->_current_index_type = type;
@@ -453,6 +448,11 @@ static __forceinline void update_current_primitive_topology(GLenum mode, GLenum 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 #endif
 	}
+}
+
+static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLuint
+{
+	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
 }
 
 #endif
@@ -1517,7 +1517,7 @@ void APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 void APIENTRY glDeleteProgram(GLuint program)
 {
 #if RESHADE_ADDON
-	if (g_current_context)
+	if (g_current_context && program != 0)
 	{
 		GLint status = GL_FALSE;
 		gl.GetProgramiv(program, GL_LINK_STATUS, &status);
@@ -1525,7 +1525,7 @@ void APIENTRY glDeleteProgram(GLuint program)
 		// Only invoke 'destroy_pipeline' event for programs that had a corresponding 'init_pipeline' event invoked in 'glLinkProgram'
 		if (GL_FALSE != status)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { program });
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
 		}
 	}
 #endif
@@ -1540,7 +1540,7 @@ void APIENTRY glLinkProgram(GLuint program)
 	trampoline(program);
 
 #if RESHADE_ADDON
-	if (g_current_context)
+	if (g_current_context && program != 0)
 	{
 		// Only invoke 'init_pipeline' event for programs that were successfully compiled and linked
 		GLint status = GL_FALSE;
@@ -1606,7 +1606,7 @@ void APIENTRY glLinkProgram(GLuint program)
 				subobjects.push_back({ subobject_type, 1, &desc });
 			}
 
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline { program });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
 		}
 	}
 #endif
@@ -1695,7 +1695,7 @@ void APIENTRY glUseProgram(GLuint program)
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::all_shader_stages, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::all_shader_stages, program != 0 ? reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program } : reshade::api::pipeline {});
 	}
 #endif
 }
@@ -4155,7 +4155,8 @@ void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, c
 		assert(glGetProgramivARB != nullptr);
 		glGetProgramivARB(target, 0x8677 /* GL_PROGRAM_BINDING_ARB */, reinterpret_cast<GLint *>(&program));
 
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject, reshade::api::pipeline { program });
+		if (program != 0)
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
 	}
 	else
 #endif
@@ -4167,7 +4168,8 @@ void APIENTRY glDeleteProgramsARB(GLsizei n, const GLuint *programs)
 	if (g_current_context)
 	{
 		for (GLsizei i = 0; i < n; ++i)
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { programs[i] });
+			if (programs[i] != 0)
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | programs[i] });
 	}
 #endif
 
