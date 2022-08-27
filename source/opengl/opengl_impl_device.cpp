@@ -998,6 +998,7 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 		if (_supports_dsa)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+			gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 		}
 		else
 		{
@@ -1010,8 +1011,7 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
 
 			gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-
-			gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+			gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
 			gl.BindTexture(target, prev_binding);
 		}
@@ -1034,6 +1034,9 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 		break;
 	case GL_FRAMEBUFFER_DEFAULT:
 		internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
+		break;
+	default:
+		assert(false);
 		break;
 	}
 
