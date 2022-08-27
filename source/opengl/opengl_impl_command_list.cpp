@@ -558,8 +558,17 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[i];
 			if (descriptor.view.handle == 0)
 				continue;
-			gl.ActiveTexture(GL_TEXTURE0 + first + i);
-			gl.BindTexture(descriptor.view.handle >> 40, descriptor.view.handle & 0xFFFFFFFF);
+
+			if (_supports_dsa)
+			{
+				gl.BindTextureUnit(first + i, descriptor.view.handle & 0xFFFFFFFF);
+			}
+			else
+			{
+				gl.ActiveTexture(GL_TEXTURE0 + first + i);
+				gl.BindTexture(descriptor.view.handle >> 40, descriptor.view.handle & 0xFFFFFFFF);
+			}
+
 			gl.BindSampler(first + i, descriptor.sampler.handle & 0xFFFFFFFF);
 		}
 		break;
@@ -569,8 +578,16 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[i];
 			if (descriptor.handle == 0)
 				continue;
-			gl.ActiveTexture(GL_TEXTURE0 + first + i);
-			gl.BindTexture(descriptor.handle >> 40, descriptor.handle & 0xFFFFFFFF);
+
+			if (_supports_dsa)
+			{
+				gl.BindTextureUnit(first + i, descriptor.handle & 0xFFFFFFFF);
+			}
+			else
+			{
+				gl.ActiveTexture(GL_TEXTURE0 + first + i);
+				gl.BindTexture(descriptor.handle >> 40, descriptor.handle & 0xFFFFFFFF);
+			}
 		}
 		break;
 	case api::descriptor_type::unordered_access_view:
