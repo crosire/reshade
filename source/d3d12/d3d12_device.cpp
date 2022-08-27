@@ -1275,20 +1275,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		if (ppPipelineLibrary != nullptr)
+		if (ppPipelineLibrary != nullptr && (
+			riid == __uuidof(ID3D12PipelineLibrary) ||
+			riid == __uuidof(ID3D12PipelineLibrary1)))
 		{
-			const auto pipeline_library_proxy = new D3D12PipelineLibrary(this, static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary));
+			const auto pipeline_library = static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary);
 
-			// Upgrade to the actual interface version requested here
-			if (pipeline_library_proxy->check_and_upgrade_interface(riid))
+			if (reshade::has_addon_event<reshade::addon_event::init_pipeline>() ||
+				reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 			{
-				*ppPipelineLibrary = pipeline_library_proxy;
-			}
-			else // Do not hook object if we do not support the requested interface
-			{
-				LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device1::CreatePipelineLibrary" << '.';
+				reshade::hooks::install("ID3D12PipelineLibrary::LoadGraphicsPipeline", vtable_from_instance(pipeline_library), 9, reinterpret_cast<reshade::hook::address>(&ID3D12PipelineLibrary_LoadGraphicsPipeline));
+				reshade::hooks::install("ID3D12PipelineLibrary::LoadComputePipeline", vtable_from_instance(pipeline_library), 10, reinterpret_cast<reshade::hook::address>(&ID3D12PipelineLibrary_LoadComputePipeline));
 
-				delete pipeline_library_proxy; // Delete instead of release to keep reference count untouched
+				if (riid == __uuidof(ID3D12PipelineLibrary1))
+					reshade::hooks::install("ID3D12PipelineLibrary1::LoadPipeline", vtable_from_instance(pipeline_library), 13, reinterpret_cast<reshade::hook::address>(&ID3D12PipelineLibrary1_LoadPipeline));
 			}
 		}
 #endif
