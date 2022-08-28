@@ -1221,7 +1221,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::BeginPopup("##preseterror"))
 		{
-			ImGui::TextColored(COLOR_RED, "The selected file is not a valid preset, so it was reverted back to the previous one.");
+			ImGui::TextColored(COLOR_RED, "The selected file is not a valid preset, so reverted back to the previous preset.");
 			ImGui::EndPopup();
 		}
 
@@ -3062,7 +3062,7 @@ void reshade::runtime::draw_variable_editor()
 
 	if (ImGui::BeginPopup("##pperror"))
 	{
-		ImGui::TextColored(COLOR_RED, "The effect failed to compile after this change, so it was reverted back to the default.");
+		ImGui::TextColored(COLOR_RED, "The effect failed to compile after this change, so reverted back to the default value.");
 		ImGui::EndPopup();
 	}
 

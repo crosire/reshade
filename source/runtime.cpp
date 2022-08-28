@@ -710,7 +710,9 @@ void reshade::runtime::on_present()
 
 	_is_in_present_call = false;
 #endif
+#if RESHADE_FX
 	_effects_rendered_this_frame = false;
+#endif
 
 	// Reset input status
 	if (_input != nullptr)

@@ -56,7 +56,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, texture, bounds, flags);
@@ -112,7 +112,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, texture, bounds, flags);
@@ -155,7 +155,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, (void *)texture, bounds, flags);
@@ -208,7 +208,7 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);
@@ -266,7 +266,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, (void *)texture, bounds, flags);
