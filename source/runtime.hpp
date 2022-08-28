@@ -424,7 +424,6 @@ namespace reshade
 #endif
 
 		bool _no_font_scaling = false;
-		bool _save_imgui_window_state = false;
 		unsigned int _overlay_key_data[4];
 		unsigned int _fps_pos = 1;
 		unsigned int _clock_format = 0;

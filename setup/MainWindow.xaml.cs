@@ -1053,7 +1053,6 @@ In that event here are some steps you can try to resolve this:
 				config.RenameValue("GENERAL", "FPSPosition", "OVERLAY", "FPSPosition");
 				config.RenameValue("GENERAL", "ClockFormat", "OVERLAY", "ClockFormat");
 				config.RenameValue("GENERAL", "NoFontScaling", "OVERLAY", "NoFontScaling");
-				config.RenameValue("GENERAL", "SaveWindowState", "OVERLAY", "SaveWindowState");
 				config.RenameValue("GENERAL", "TutorialProgress", "OVERLAY", "TutorialProgress");
 				config.RenameValue("GENERAL", "VariableUIHeight", "OVERLAY", "VariableListHeight");
 				config.RenameValue("GENERAL", "NewVariableUI", "OVERLAY", "VariableListUseTabs");

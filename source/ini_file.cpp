@@ -77,7 +77,7 @@ void ini_file::load()
 			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
 			{
 				// Treat ",," as an escaped comma and only split on single ","
-				const size_t found = std::min(value.find_first_of(',', offset), len);
+				const size_t found = std::min(value.find(',', offset), len);
 				if (found + 1 < len && value[found + 1] == ',')
 				{
 					offset = found + 2;
@@ -163,6 +163,10 @@ bool ini_file::save()
 				std::string value;
 				for (const std::string &element : elements)
 				{
+					// Empty elements mess with escaped commas, so simply skip them
+					if (element.empty())
+						continue;
+
 					value.reserve(value.size() + element.size() + 1);
 					for (const char c : element)
 						value.append(c == ',' ? 2 : 1, c);
@@ -170,7 +174,11 @@ bool ini_file::save()
 				}
 
 				// Remove the last comma
-				value.pop_back();
+				if (!value.empty())
+				{
+					assert(value.back() == ',');
+					value.pop_back();
+				}
 
 				data << value;
 			}

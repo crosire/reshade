@@ -168,7 +168,6 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "ClockFormat", _clock_format);
 	config.get("OVERLAY", "FPSPosition", _fps_pos);
 	config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
-	config.get("OVERLAY", "SaveWindowState", _save_imgui_window_state);
 	config.get("OVERLAY", "ShowClock", _show_clock);
 #if RESHADE_FX
 	config.get("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
@@ -207,13 +206,49 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 
 	load_custom_style();
 
-	if (_save_imgui_window_state && !_imgui_context->SettingsLoaded)
+	if (_imgui_context->SettingsLoaded)
+		return;
+
+	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
+	ImGui::SetCurrentContext(_imgui_context);
+
+	for (auto &handler : _imgui_context->SettingsHandlers)
 	{
-		ImGuiContext *const backup_context = ImGui::GetCurrentContext();
-		ImGui::SetCurrentContext(_imgui_context);
-		ImGui::LoadIniSettingsFromDisk((_config_path.parent_path() / L"ReShadeGUI.ini").u8string().c_str());
-		ImGui::SetCurrentContext(backup_context);
+		std::vector<std::string> lines;
+		if (config.get("OVERLAY", handler.TypeName, lines))
+		{
+			if (handler.ReadInitFn)
+				handler.ReadInitFn(_imgui_context, &handler);
+
+			void *entry_data = nullptr;
+
+			for (const std::string &line : lines)
+			{
+				if (line.empty())
+					continue;
+
+				if (line[0] == '[')
+				{
+					const size_t name_beg = line.find('[', 1) + 1;
+					const size_t name_end = line.rfind(']');
+
+					entry_data = handler.ReadOpenFn(_imgui_context, &handler, line.substr(name_beg, name_end - name_beg).c_str());
+				}
+				else
+				{
+					assert(entry_data != nullptr);
+					handler.ReadLineFn(_imgui_context, &handler, entry_data, line.c_str());
+				}
+			}
+
+			if (handler.ApplyAllFn)
+				handler.ApplyAllFn(_imgui_context, &handler);
+		}
 	}
+
+	_imgui_context->SettingsLoaded = true;
+
+	ImGui::SetCurrentContext(backup_context);
 }
 void reshade::runtime::save_config_gui(ini_file &config) const
 {
@@ -223,7 +258,6 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("OVERLAY", "ClockFormat", _clock_format);
 	config.set("OVERLAY", "FPSPosition", _fps_pos);
 	config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
-	config.set("OVERLAY", "SaveWindowState", _save_imgui_window_state);
 	config.set("OVERLAY", "ShowClock", _show_clock);
 #if RESHADE_FX
 	config.set("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
@@ -258,13 +292,29 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 
 	// Do not save custom style colors by default, only when actually used and edited
 
-	if (_save_imgui_window_state)
+	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
+	ImGui::SetCurrentContext(_imgui_context);
+
+	for (auto &handler : _imgui_context->SettingsHandlers)
 	{
-		ImGuiContext *const backup_context = ImGui::GetCurrentContext();
-		ImGui::SetCurrentContext(_imgui_context);
-		ImGui::SaveIniSettingsToDisk((_config_path.parent_path() / L"ReShadeGUI.ini").u8string().c_str());
-		ImGui::SetCurrentContext(backup_context);
+		ImGuiTextBuffer buffer;
+		handler.WriteAllFn(_imgui_context, &handler, &buffer);
+
+		std::vector<std::string> lines;
+		for (int i = 0, offset = 0; i < buffer.size(); ++i)
+		{
+			if (buffer[i] == '\n')
+			{
+				lines.emplace_back(buffer.c_str() + offset, i - offset);
+				offset = i + 1;
+			}
+		}
+
+		if (!lines.empty())
+			config.set("OVERLAY", handler.TypeName, lines);
 	}
+
+	ImGui::SetCurrentContext(backup_context);
 }
 
 void reshade::runtime::load_custom_style()
@@ -1646,7 +1696,6 @@ void reshade::runtime::draw_gui_settings()
 			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_show_force_load_effects_button);
 #endif
 
-		modified |= ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &_save_imgui_window_state);
 #if RESHADE_FX
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
 		modified |= ImGui::Checkbox("Save current preset automatically on every modification", &_save_present_on_modification);
