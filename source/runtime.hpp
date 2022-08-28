@@ -457,7 +457,7 @@ namespace reshade
 		size_t _selected_technique = std::numeric_limits<size_t>::max();
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
-		float _variable_editor_height = 300.0f;
+		float _variable_editor_height = 200.0f;
 #endif
 		#pragma endregion
 
