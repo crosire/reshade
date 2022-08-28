@@ -166,6 +166,8 @@ static inline int format_color_bit_depth(reshade::api::format value)
 }
 #endif
 
+static std::atomic<unsigned int> s_runtime_index = 0;
+
 reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queue) :
 	_device(device),
 	_graphics_queue(graphics_queue),
@@ -189,11 +191,22 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
+	// Increase global runtime index
+	const unsigned int runtime_index = s_runtime_index++;
+
 	// Fall back to alternative configuration file name if it exists
 	std::error_code ec;
 	if (std::filesystem::path config_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
 		std::filesystem::exists(config_path_alt, ec) && !std::filesystem::exists(_config_path, ec))
 		_config_path = std::move(config_path_alt);
+	// Add an index to the config file name in case there are multiple runtimes
+	else if (runtime_index != 0)
+	{
+		const std::filesystem::path config_path_default = _config_path;
+		_config_path.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
+		if (std::filesystem::exists(config_path_default, ec) && !std::filesystem::exists(_config_path, ec))
+			std::filesystem::copy_file(config_path_default, _config_path, ec);
+	}
 
 #if RESHADE_GUI
 	init_gui();
@@ -217,6 +230,9 @@ reshade::runtime::~runtime()
 #if RESHADE_GUI
 	 deinit_gui();
 #endif
+
+	// Decrease global runtime index
+	--s_runtime_index;
 }
 
 bool reshade::runtime::on_init(input::window_handle window)
@@ -415,7 +431,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 #endif
 
 #if RESHADE_FX && RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
+	LOG(INFO) << "Recreated runtime environment on runtime " << this << " (" << _config_path << ").";
 #endif
 
 	return true;
@@ -530,7 +546,7 @@ void reshade::runtime::on_reset()
 #endif
 
 #if RESHADE_FX && RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
+	LOG(INFO) << "Destroyed runtime environment on runtime " << this << " (" << _config_path << ").";
 #endif
 }
 void reshade::runtime::on_present()
