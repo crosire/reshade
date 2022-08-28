@@ -325,7 +325,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	VkLayerDispatchTable dispatch_table = {};
 	dispatch_table.GetDeviceProcAddr = get_device_proc;
 
-	#pragma region Core 1_0
 	INIT_DISPATCH_PTR(DestroyDevice);
 	INIT_DISPATCH_PTR(GetDeviceQueue);
 	INIT_DISPATCH_PTR(QueueSubmit);
@@ -427,8 +426,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdNextSubpass);
 	INIT_DISPATCH_PTR(CmdEndRenderPass);
 	INIT_DISPATCH_PTR(CmdExecuteCommands);
-	#pragma endregion
-	#pragma region Core 1_1
+
+	// Core 1_1
 	if (instance_dispatch.api_version >= VK_API_VERSION_1_1)
 	{
 		INIT_DISPATCH_PTR(BindBufferMemory2);
@@ -437,17 +436,19 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(GetImageMemoryRequirements2);
 		INIT_DISPATCH_PTR(GetDeviceQueue2);
 	}
-	#pragma endregion
-	#pragma region Core 1_2
+
+	// Core 1_2
 	if (instance_dispatch.api_version >= VK_API_VERSION_1_2)
 	{
+		INIT_DISPATCH_PTR(CmdDrawIndirectCount);
+		INIT_DISPATCH_PTR(CmdDrawIndexedIndirectCount);
 		INIT_DISPATCH_PTR(CreateRenderPass2);
 		INIT_DISPATCH_PTR(CmdBeginRenderPass2);
 		INIT_DISPATCH_PTR(CmdNextSubpass2);
 		INIT_DISPATCH_PTR(CmdEndRenderPass2);
 	}
-	#pragma endregion
-	#pragma region Core 1_3
+
+	// Core 1_3
 	if (instance_dispatch.api_version >= VK_API_VERSION_1_3)
 	{
 		INIT_DISPATCH_PTR(CreatePrivateDataSlot);
@@ -483,48 +484,51 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(GetDeviceBufferMemoryRequirements);
 		INIT_DISPATCH_PTR(GetDeviceImageMemoryRequirements);
 	}
-	#pragma endregion
-	#pragma region VK_KHR_swapchain
+
+	// VK_KHR_swapchain
 	INIT_DISPATCH_PTR(CreateSwapchainKHR);
 	INIT_DISPATCH_PTR(DestroySwapchainKHR);
 	INIT_DISPATCH_PTR(GetSwapchainImagesKHR);
 	INIT_DISPATCH_PTR(QueuePresentKHR);
-	#pragma endregion
-	#pragma region VK_KHR_dynamic_rendering
+
+	// VK_KHR_dynamic_rendering
 	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRendering, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdEndRendering, KHR);
-	#pragma endregion
-	#pragma region VK_KHR_push_descriptor
+
+	// VK_KHR_push_descriptor
 	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
-	#pragma endregion
-	#pragma region VK_KHR_create_renderpass2
-	// Try the KHR version if the core version does not exist
+
+	// VK_KHR_create_renderpass2 (try the KHR version if the core version does not exist)
 	INIT_DISPATCH_PTR_EXTENSION(CreateRenderPass2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRenderPass2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdNextSubpass2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdEndRenderPass2, KHR);
-	#pragma endregion
-	#pragma region VK_KHR_bind_memory2
+
+	// VK_KHR_bind_memory2
 	INIT_DISPATCH_PTR_EXTENSION(BindBufferMemory2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(BindImageMemory2, KHR);
-	#pragma endregion
-	#pragma region VK_KHR_synchronization2
+
+	// VK_KHR_draw_indirect_count
+	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndirectCount, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndexedIndirectCount, KHR);
+
+	// VK_KHR_synchronization2
 	INIT_DISPATCH_PTR_EXTENSION(CmdPipelineBarrier2, KHR);
-	#pragma endregion
-	#pragma region VK_KHR_copy_commands2
+
+	// VK_KHR_copy_commands2
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBuffer2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdBlitImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBufferToImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImageToBuffer2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdResolveImage2, KHR);
-	#pragma endregion
-	#pragma region VK_EXT_transform_feedback
+
+	// VK_EXT_transform_feedback
 	INIT_DISPATCH_PTR(CmdBindTransformFeedbackBuffersEXT);
 	INIT_DISPATCH_PTR(CmdBeginQueryIndexedEXT);
 	INIT_DISPATCH_PTR(CmdEndQueryIndexedEXT);
-	#pragma endregion
-	#pragma region VK_EXT_debug_utils
+
+	// VK_EXT_debug_utils
 	INIT_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
 	INIT_DISPATCH_PTR(QueueBeginDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(QueueEndDebugUtilsLabelEXT);
@@ -532,8 +536,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdBeginDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdEndDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
-	#pragma endregion
-	#pragma region VK_EXT_extended_dynamic_state
+
+	// VK_EXT_extended_dynamic_state
 #ifdef VK_EXT_extended_dynamic_state
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetCullMode, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetFrontFace, EXT);
@@ -548,18 +552,16 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilTestEnable, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilOp, EXT);
 #endif
-	#pragma endregion
-	#pragma region VK_EXT_private_data
-	// Try the EXT version if the core version does not exist
+
+	// VK_EXT_private_data (try the EXT version if the core version does not exist)
 	INIT_DISPATCH_PTR_EXTENSION(CreatePrivateDataSlot, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(DestroyPrivateDataSlot, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(GetPrivateData, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(SetPrivateData, EXT);
-	#pragma endregion
-	#pragma region VK_KHR_external_memory_win32
+
+	// VK_KHR_external_memory_win32
 	INIT_DISPATCH_PTR(GetMemoryWin32HandleKHR);
 	INIT_DISPATCH_PTR(GetMemoryWin32HandlePropertiesKHR);
-	#pragma endregion
 
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(

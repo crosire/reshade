@@ -115,6 +115,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(BindImageMemory2);
 
 	// Core 1_2
+	HOOK_PROC(CmdDrawIndirectCount);
+	HOOK_PROC(CmdDrawIndexedIndirectCount);
 	HOOK_PROC(CreateRenderPass2);
 	HOOK_PROC(CmdBeginRenderPass2);
 	HOOK_PROC(CmdNextSubpass2);
@@ -150,6 +152,10 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	// VK_KHR_bind_memory2
 	HOOK_PROC_OPTIONAL_EXTENSION(BindBufferMemory2, KHR);
 	HOOK_PROC_OPTIONAL_EXTENSION(BindImageMemory2, KHR);
+
+	// VK_KHR_draw_indirect_count
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdDrawIndirectCount, KHR);
+	HOOK_PROC_OPTIONAL_EXTENSION(CmdDrawIndexedIndirectCount, KHR);
 
 	// VK_KHR_synchronization2
 	HOOK_PROC_OPTIONAL_EXTENSION(CmdPipelineBarrier2, KHR);
