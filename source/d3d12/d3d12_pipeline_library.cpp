@@ -79,9 +79,12 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadGraphicsPipeline(ID3D12Pipel
 
 				reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_proxy, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
-				register_destruction_callback_d3dx(pipeline, [device_proxy, pipeline]() {
-					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_proxy, to_handle(pipeline));
-				});
+				if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+				{
+					register_destruction_callback_d3dx(pipeline, [device_proxy, pipeline]() {
+						reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_proxy, to_handle(pipeline));
+					});
+				}
 			}
 			else
 			{
@@ -128,9 +131,12 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadComputePipeline(ID3D12Pipeli
 
 				reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_proxy, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
-				register_destruction_callback_d3dx(pipeline, [device_proxy, pipeline]() {
-					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_proxy, to_handle(pipeline));
-				});
+				if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+				{
+					register_destruction_callback_d3dx(pipeline, [device_proxy, pipeline]() {
+						reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_proxy, to_handle(pipeline));
+					});
+				}
 			}
 			else
 			{
@@ -311,9 +317,12 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary1_LoadPipeline(ID3D12PipelineLibr
 
 				reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_proxy, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), to_handle(pipeline));
 
-				register_destruction_callback_d3dx(pipeline, [device_proxy, pipeline]() {
-					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_proxy, to_handle(pipeline));
-				});
+				if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+				{
+					register_destruction_callback_d3dx(pipeline, [device_proxy, pipeline]() {
+						reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_proxy, to_handle(pipeline));
+					});
+				}
 			}
 			else
 			{

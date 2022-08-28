@@ -114,12 +114,18 @@ void Direct3DDevice9::init_auto_depth_stencil()
 		reshade::api::resource_view_desc(desc.texture.format),
 		to_handle(surface));
 
-	register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-		reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
-	});
-	register_destruction_callback_d3d9(surface, [this, surface]() {
-		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-	}, to_handle(surface).handle == resource.handle ? 1 : 0);
+	if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+	{
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		});
+	}
+	if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+	{
+		register_destruction_callback_d3d9(surface, [this, surface]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+		}, to_handle(surface).handle == resource.handle ? 1 : 0);
+	}
 
 	// Communicate default state to add-ons
 	SetDepthStencilSurface(_auto_depth_stencil);
@@ -519,9 +525,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 						reshade::api::resource_view_desc(desc.texture.format, level, 1, 0, 1),
 						to_handle(surface.get()));
 
-					register_destruction_callback_d3d9(surface.get(), [this, resource_view = surface.get()]() {
-						reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
-					});
+					if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+					{
+						register_destruction_callback_d3d9(surface.get(), [this, resource_view = surface.get()]() {
+							reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
+						});
+					}
 				}
 			}
 		}
@@ -534,9 +543,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
 
-			register_destruction_callback_d3d9(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
-			}, 1);
+			if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+			{
+				register_destruction_callback_d3d9(resource, [this, resource]() {
+					reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
+				}, 1);
+			}
 		}
 #endif
 	}
@@ -610,9 +622,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
 
-			register_destruction_callback_d3d9(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
-			}, 1);
+			if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+			{
+				register_destruction_callback_d3d9(resource, [this, resource]() {
+					reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
+				}, 1);
+			}
 		}
 #endif
 	}
@@ -698,9 +713,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 							reshade::api::resource_view_desc(desc.texture.format, level, 1, face, 1),
 							to_handle(surface.get()));
 
-						register_destruction_callback_d3d9(surface.get(), [this, resource_view = surface.get()]() {
-							reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
-						});
+						if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+						{
+							register_destruction_callback_d3d9(surface.get(), [this, resource_view = surface.get()]() {
+								reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
+							});
+						}
 					}
 				}
 			}
@@ -714,9 +732,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
 
-			register_destruction_callback_d3d9(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
-			}, 1);
+			if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+			{
+				register_destruction_callback_d3d9(resource, [this, resource]() {
+					reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
+				}, 1);
+			}
 		}
 #endif
 	}
@@ -885,12 +906,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
-		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
-		});
-		register_destruction_callback_d3d9(surface, [this, surface]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-		}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			});
+		}
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3d9(surface, [this, surface]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		}
 #endif
 	}
 	else
@@ -944,12 +971,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
-		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
-		});
-		register_destruction_callback_d3d9(surface, [this, surface]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-		}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			});
+		}
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3d9(surface, [this, surface]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		}
 #endif
 	}
 	else
@@ -1139,10 +1172,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
-		register_destruction_callback_d3d9(surface, [this, surface]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(surface) });
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3d9(surface, [this, surface]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(surface) });
+			});
+		}
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3d9(surface, [this, surface]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			}, 1);
+		}
 #endif
 	}
 	else
@@ -2197,12 +2238,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
-		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
-		});
-		register_destruction_callback_d3d9(surface, [this, surface]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-		}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			});
+		}
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3d9(surface, [this, surface]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		}
 #endif
 	}
 	else
@@ -2259,10 +2306,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
-		register_destruction_callback_d3d9(surface, [this, surface]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(surface) });
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3d9(surface, [this, surface]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(surface) });
+			});
+		}
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3d9(surface, [this, surface]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			}, 1);
+		}
 #endif
 	}
 	else
@@ -2318,12 +2373,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
-		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
-		});
-		register_destruction_callback_d3d9(surface, [this, surface]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-		}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			});
+		}
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3d9(surface, [this, surface]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+			}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		}
 #endif
 	}
 	else
