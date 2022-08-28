@@ -152,6 +152,9 @@ struct depth_stencil_backup
 
 struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_device_data
 {
+	// List of queues created for this device
+	std::vector<command_queue *> queues;
+
 	// List of resources that were deleted this frame
 	std::vector<resource> destroyed_resources;
 
@@ -282,7 +285,6 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 		do_copy = check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, depth_stencil_backup->frame_width, depth_stencil_backup->frame_height);
 		break;
 	case clear_op::unbind_depth_stencil_view:
-		// DOOM Eternal only shows a single draw call in the current stats here, Cyberpunk 2077 on the other hand has multiple occurences with many draw calls, ... so avoid trying heuristics here
 		break;
 	}
 
@@ -349,9 +351,19 @@ static void on_init_device(device *device)
 	reshade::config_get_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 	reshade::config_get_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
 }
-static void on_init_queue_or_command_list(api_object *queue_or_cmd_list)
+static void on_init_command_list(command_list *cmd_list)
 {
-	queue_or_cmd_list->create_private_data<state_tracking>();
+	cmd_list->create_private_data<state_tracking>();
+}
+static void on_init_command_queue(command_queue *cmd_queue)
+{
+	cmd_queue->create_private_data<state_tracking>();
+
+	if ((cmd_queue->get_type() & command_queue_type::graphics) == 0)
+		return;
+
+	auto &device_data = cmd_queue->get_device()->get_private_data<generic_depth_device_data>();
+	device_data.queues.push_back(cmd_queue);
 }
 static void on_init_effect_runtime(effect_runtime *runtime)
 {
@@ -375,9 +387,16 @@ static void on_destroy_device(device *device)
 
 	device->destroy_private_data<generic_depth_device_data>();
 }
-static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
+static void on_destroy_command_list(command_list *cmd_list)
 {
-	queue_or_cmd_list->destroy_private_data<state_tracking>();
+	cmd_list->destroy_private_data<state_tracking>();
+}
+static void on_destroy_command_queue(command_queue *cmd_queue)
+{
+	cmd_queue->destroy_private_data<state_tracking>();
+
+	auto &device_data = cmd_queue->get_device()->get_private_data<generic_depth_device_data>();
+	device_data.queues.erase(std::remove(device_data.queues.begin(), device_data.queues.end(), cmd_queue), device_data.queues.end());
 }
 static void on_destroy_effect_runtime(effect_runtime *runtime)
 {
@@ -607,9 +626,17 @@ static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 	target_state.merge(source_state);
 }
 
-static void on_present(command_queue *queue, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
+static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
 {
-	state_tracking &queue_state = queue->get_private_data<state_tracking>();
+	device *const device = swapchain->get_device();
+	generic_depth_device_data &device_data = device->get_private_data<generic_depth_device_data>();
+
+	const std::unique_lock<std::shared_mutex> lock(s_mutex);
+
+	// Merge state from all graphics queues
+	state_tracking queue_state;
+	for (command_queue *const queue : device_data.queues)
+		queue_state.merge(queue->get_private_data<state_tracking>());
 
 	// Only update device list if there are any depth-stencils, otherwise this may be a second present call (at which point 'reset_on_present' already cleared out the queue list in the first present call)
 	if (queue_state.counters_per_used_depth_stencil.empty())
@@ -618,11 +645,6 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 	// Also skip update when there has been very little activity (special case for emulators like PCSX2 which may present more often than they render a frame)
 	if (queue_state.counters_per_used_depth_stencil.size() == 1 && queue_state.counters_per_used_depth_stencil.begin()->second.total_stats.drawcalls <= 8)
 		return;
-
-	device *const device = swapchain->get_device();
-	generic_depth_device_data &device_data = device->get_private_data<generic_depth_device_data>();
-
-	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
 	device_data.current_depth_stencil_list.clear();
 	device_data.current_depth_stencil_list.reserve(queue_state.counters_per_used_depth_stencil.size());
@@ -639,7 +661,8 @@ static void on_present(command_queue *queue, swapchain *swapchain, const rect *,
 		device_data.current_depth_stencil_list.emplace_back(resource, snapshot);
 	}
 
-	queue_state.reset_on_present();
+	for (command_queue *const queue : device_data.queues)
+		queue->get_private_data<state_tracking>().reset_on_present();
 
 	device_data.destroyed_resources.clear();
 
@@ -1098,12 +1121,12 @@ void register_addon_depth()
 	reshade::register_overlay(nullptr, draw_settings_overlay);
 
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
-	reshade::register_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
-	reshade::register_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));
+	reshade::register_event<reshade::addon_event::init_command_list>(on_init_command_list);
+	reshade::register_event<reshade::addon_event::init_command_queue>(on_init_command_queue);
 	reshade::register_event<reshade::addon_event::init_effect_runtime>(on_init_effect_runtime);
 	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
-	reshade::register_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
-	reshade::register_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
+	reshade::register_event<reshade::addon_event::destroy_command_list>(on_destroy_command_list);
+	reshade::register_event<reshade::addon_event::destroy_command_queue>(on_destroy_command_queue);
 	reshade::register_event<reshade::addon_event::destroy_effect_runtime>(on_destroy_effect_runtime);
 
 	reshade::register_event<reshade::addon_event::create_resource>(on_create_resource);
@@ -1132,12 +1155,12 @@ void register_addon_depth()
 void unregister_addon_depth()
 {
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
-	reshade::unregister_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
-	reshade::unregister_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));
+	reshade::unregister_event<reshade::addon_event::init_command_list>(on_init_command_list);
+	reshade::unregister_event<reshade::addon_event::init_command_queue>(on_init_command_queue);
 	reshade::unregister_event<reshade::addon_event::init_effect_runtime>(on_init_effect_runtime);
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
-	reshade::unregister_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
-	reshade::unregister_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
+	reshade::unregister_event<reshade::addon_event::destroy_command_list>(on_destroy_command_list);
+	reshade::unregister_event<reshade::addon_event::destroy_command_queue>(on_destroy_command_queue);
 	reshade::unregister_event<reshade::addon_event::destroy_effect_runtime>(on_destroy_effect_runtime);
 
 	reshade::unregister_event<reshade::addon_event::create_resource>(on_create_resource);
