@@ -6,6 +6,7 @@
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_list.hpp"
 #include "vulkan_impl_type_convert.hpp"
+#include "dll_log.hpp"
 #include <algorithm>
 
 #define vk _device_impl->_dispatch_table
@@ -552,7 +553,10 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	// Access to descriptor pools must be externally synchronized, so lock for the duration of allocation from the transient descriptor pool
 	if (const std::unique_lock<std::shared_mutex> lock(_device_impl->_mutex);
 		vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
+	{
+		LOG(ERROR) << "Failed to allocate " << update.count << " transient descriptor handle(s) of type " << static_cast<uint32_t>(update.type) << '!';
 		return;
+	}
 
 	vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
 

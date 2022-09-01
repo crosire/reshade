@@ -6,6 +6,7 @@
 #include "d3d12_impl_device.hpp"
 #include "d3d12_impl_command_list.hpp"
 #include "d3d12_impl_type_convert.hpp"
+#include "dll_log.hpp"
 #include <algorithm>
 
 void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4])
@@ -274,7 +275,10 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	if (update.type != api::descriptor_type::sampler ?
 		!_device_impl->_gpu_view_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu) :
 		!_device_impl->_gpu_sampler_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu))
+	{
+		LOG(ERROR) << "Failed to allocate " << update.count << " transient descriptor handle(s) of type " << static_cast<uint32_t>(update.type) << '!';
 		return;
+	}
 
 	const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(update.type);
 
@@ -677,7 +681,10 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
 	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
 	if (!_device_impl->_gpu_view_heap.allocate_transient(1, table_base, table_base_gpu))
+	{
+		LOG(ERROR) << "Failed to allocate " << 1 << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
 		return;
+	}
 
 	const auto view_heap = _device_impl->_gpu_view_heap.get();
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
@@ -701,7 +708,10 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
 	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
 	if (!_device_impl->_gpu_view_heap.allocate_transient(1, table_base, table_base_gpu))
+	{
+		LOG(ERROR) << "Failed to allocate " << 1 << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
 		return;
+	}
 
 	const auto view_heap = _device_impl->_gpu_view_heap.get();
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
@@ -731,11 +741,17 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 	if (!_device_impl->_gpu_view_heap.allocate_transient(desc.MipLevels * 2, base_handle, base_handle_gpu))
+	{
+		LOG(ERROR) << "Failed to allocate " << (desc.MipLevels * 2) << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::shader_resource_view) << " and " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
 		return;
+	}
 	D3D12_CPU_DESCRIPTOR_HANDLE sampler_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE sampler_handle_gpu;
 	if (!_device_impl->_gpu_sampler_heap.allocate_transient(1, sampler_handle, sampler_handle_gpu))
+	{
+		LOG(ERROR) << "Failed to allocate " << 1 << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::sampler) << '!';
 		return;
+	}
 
 	D3D12_SAMPLER_DESC sampler_desc = {};
 	sampler_desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;

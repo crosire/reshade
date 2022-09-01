@@ -922,10 +922,10 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	internal_desc.NumParameters = param_count;
 	internal_desc.pParameters = internal_params.data();
 
-	com_ptr<ID3DBlob> blob;
+	com_ptr<ID3DBlob> signature_blob, error_blob;
 	com_ptr<ID3D12RootSignature> signature;
-	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)) &&
-		SUCCEEDED(_orig->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
+	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob)) &&
+		SUCCEEDED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
 	{
 		pipeline_layout_extra_data extra_data;
 		extra_data.ranges = set_ranges;
@@ -951,6 +951,9 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	}
 	else
 	{
+		if (error_blob != nullptr)
+			LOG(ERROR) << "Failed to create root signature: " << static_cast<const char *>(error_blob->GetBufferPointer());
+
 		delete[] set_ranges;
 
 		*out_handle = { 0 };
