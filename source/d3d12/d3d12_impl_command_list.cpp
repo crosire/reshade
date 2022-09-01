@@ -732,6 +732,18 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 	if (!_device_impl->_gpu_view_heap.allocate_transient(desc.MipLevels * 2, base_handle, base_handle_gpu))
 		return;
+	D3D12_CPU_DESCRIPTOR_HANDLE sampler_handle;
+	D3D12_GPU_DESCRIPTOR_HANDLE sampler_handle_gpu;
+	if (!_device_impl->_gpu_sampler_heap.allocate_transient(1, sampler_handle, sampler_handle_gpu))
+		return;
+
+	D3D12_SAMPLER_DESC sampler_desc = {};
+	sampler_desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+	sampler_desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler_desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler_desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+
+	_device_impl->_orig->CreateSampler(&sampler_desc, sampler_handle);
 
 	for (uint32_t level = 0; level < desc.MipLevels; ++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 	{
@@ -757,12 +769,17 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, &uav_desc, base_handle);
 	}
 
-	const auto view_heap = _device_impl->_gpu_view_heap.get();
-	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
-		_orig->SetDescriptorHeaps(1, &view_heap);
+	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
+		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
+	{
+		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
+		_orig->SetDescriptorHeaps(2, heaps);
+	}
 
 	_orig->SetComputeRootSignature(_device_impl->_mipmap_signature.get());
 	_orig->SetPipelineState(_device_impl->_mipmap_pipeline.get());
+
+	_orig->SetComputeRootDescriptorTable(3, sampler_handle_gpu);
 
 	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
 	transition.Transition.pResource = resource;
@@ -796,8 +813,11 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	_orig->ResourceBarrier(1, &transition);
 
 	// Reset descriptor heaps
-	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
+	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
+		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
+	{
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
+	}
 }
 
 void reshade::d3d12::command_list_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)

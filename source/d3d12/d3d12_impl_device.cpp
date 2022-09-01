@@ -56,8 +56,12 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 		uav_range.NumDescriptors = 1;
 		uav_range.BaseShaderRegister = 0; // u0
+		D3D12_DESCRIPTOR_RANGE sampler_range = {};
+		sampler_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+		sampler_range.NumDescriptors = 1;
+		sampler_range.BaseShaderRegister = 0; // s0
 
-		D3D12_ROOT_PARAMETER params[3] = {};
+		D3D12_ROOT_PARAMETER params[4] = {};
 		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 		params[0].Constants.ShaderRegister = 0; // b0
 		params[0].Constants.Num32BitValues = 2;
@@ -70,21 +74,15 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		params[2].DescriptorTable.NumDescriptorRanges = 1;
 		params[2].DescriptorTable.pDescriptorRanges = &uav_range;
 		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[3].DescriptorTable.NumDescriptorRanges = 1;
+		params[3].DescriptorTable.pDescriptorRanges = &sampler_range;
+		params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		D3D12_STATIC_SAMPLER_DESC samplers[1] = {};
-		samplers[0].Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-		samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-		samplers[0].ShaderRegister = 0; // s0
-		samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
+		// Creating a root signature with static samplers here cause banding artifacts in Call of Duty: Modern Warfare for some strange reason, so need to use sampler in descriptor table instead
 		D3D12_ROOT_SIGNATURE_DESC desc = {};
 		desc.NumParameters = ARRAYSIZE(params);
 		desc.pParameters = params;
-		desc.NumStaticSamplers = ARRAYSIZE(samplers);
-		desc.pStaticSamplers = samplers;
 
 		if (com_ptr<ID3DBlob> signature_blob;
 			FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)) ||
