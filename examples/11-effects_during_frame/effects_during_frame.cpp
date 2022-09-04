@@ -53,7 +53,7 @@ static void on_destroy_effect_runtime(effect_runtime *runtime)
 		dev_data.main_runtime = nullptr;
 }
 
-// Called after game has rendered a render pass, so check if it makes to render effects then (e.g. after main scene rendering, before UI rendering)
+// Called after game has rendered a render pass, so check if it makes sense to render effects then (e.g. after main scene rendering, before UI rendering)
 static void on_end_render_pass(command_list *cmd_list)
 {
 	auto &data = cmd_list->get_private_data<command_list_data>();

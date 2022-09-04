@@ -276,8 +276,8 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 	data.last_time = time;
 
 	// TODO: This is slow/incorrect, because blocking for the frame and copy to finish.
-	// Instead multiple resources should be created and copied into in a round-robin fashion, only the oldest of which is mapped below and copies into the video frame.
-	// See also the OBS capture add-on example which does this.
+	// Instead multiple resources should be created and copied into in a round-robin fashion, only the oldest of which is mapped below and copied into the video frame.
+	// See the OBS capture add-on example which does this.
 	reshade::api::command_list *const cmd_list = runtime->get_command_queue()->get_immediate_command_list();
 	cmd_list->barrier(data.host_resource, reshade::api::resource_usage::cpu_access, reshade::api::resource_usage::copy_dest);
 	cmd_list->barrier(rtv_resource, reshade::api::resource_usage::render_target, reshade::api::resource_usage::copy_source);
@@ -286,6 +286,9 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 	cmd_list->barrier(rtv_resource, reshade::api::resource_usage::copy_source, reshade::api::resource_usage::render_target);
 
 	runtime->get_command_queue()->flush_immediate_command_list();
+
+	// Wait for the above copy command to finish executing on the GPU
+	runtime->get_command_queue()->wait_idle();
 
 	if (av_frame_make_writable(data.frame) < 0)
 		return;
