@@ -84,6 +84,9 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 	_orig->ResourceBarrier(count, barriers.p);
 }
 
+// IID_ID3D12GraphicsCommandListExt
+static constexpr GUID s_command_list_ex_guid = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };
+
 void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
 	_has_commands = true;
@@ -91,7 +94,11 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 	assert(count <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
 	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
-	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	com_ptr<IUnknown> cmd_list_ex;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)) &&
+		// VKD3D does not implement 'ID3D12GraphicsCommandList4::BeginRenderPass' despite anouncing support for the 'ID3D12GraphicsCommandList4' interface as of VKD3D v2.6
+		// This means we cannot use the 'BeginRenderPass' code path if we are running VKD3D, which next line tries to detect by querying for 'IID_ID3D12GraphicsCommandListExt' support
+		_orig->QueryInterface(s_command_list_ex_guid, reinterpret_cast<void **>(&cmd_list_ex)) != S_OK)
 	{
 		temp_mem<D3D12_RENDER_PASS_RENDER_TARGET_DESC, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rt_desc(count);
 		for (uint32_t i = 0; i < count; ++i)
@@ -158,7 +165,9 @@ void reshade::d3d12::command_list_impl::end_render_pass()
 	assert(_has_commands);
 
 	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
-	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	com_ptr<IUnknown> cmd_list_ex;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)) &&
+		_orig->QueryInterface(s_command_list_ex_guid, reinterpret_cast<void **>(&cmd_list_ex)) != S_OK)
 	{
 		cmd_list4->EndRenderPass();
 	}
