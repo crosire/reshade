@@ -11,7 +11,8 @@ The ReShade FX shader compiler contained in this repository is standalone, so ca
 
 You'll need Visual Studio 2017 or higher to build ReShade and Python for the `gl3w` dependency.
 
-1. Clone this repository including all Git submodules
+1. Clone this repository including all Git submodules\
+```git clone --recurse-submodules https://github.com/crosire/reshade```
 2. Open the Visual Studio solution
 3. Select either the `32-bit` or `64-bit` target platform and build the solution.\
    This will build ReShade and all dependencies. To build the setup tool, first build the `Release` configuration for both `32-bit` and `64-bit` targets and only afterwards build the `Release Setup` configuration (does not matter which target is selected then).
