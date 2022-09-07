@@ -1113,7 +1113,9 @@ void reshade::runtime::draw_gui_home()
 
 		bool reload_preset = false;
 
-		if (is_loading())
+		// Loading state may change below, so keep track of current state so that 'ImGui::Push/Pop*' is executed the correct amount of times
+		const bool was_loading = is_loading();
+		if (was_loading)
 		{
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
@@ -1203,7 +1205,7 @@ void reshade::runtime::draw_gui_home()
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Add a new preset");
 
-		if (is_loading())
+		if (was_loading)
 		{
 			ImGui::PopStyleColor();
 			ImGui::PopItemFlag();
