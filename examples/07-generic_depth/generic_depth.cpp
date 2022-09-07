@@ -491,9 +491,25 @@ static void on_destroy_resource(device *device, resource resource)
 	if ((&device_data) == nullptr)
 		return;
 
-	const std::unique_lock<std::shared_mutex> lock(s_mutex);
+	std::unique_lock<std::shared_mutex> lock(s_mutex);
 
 	device_data.destroyed_resources.push_back(resource);
+
+	// Remove this destroyed resource from the list of tracked depth-stencil resources
+	const auto it = std::find_if(device_data.current_depth_stencil_list.begin(), device_data.current_depth_stencil_list.end(),
+		[resource](const auto &current) { return current.first == resource; });
+	if (it != device_data.current_depth_stencil_list.end())
+	{
+		device_data.current_depth_stencil_list.erase(it);
+
+		lock.unlock();
+
+		reshade::log_message(2, "A depth-stencil resource was destroyed while still being tracked.");
+
+		// This is bad ... the resource may still be in use by an effect on the GPU and destroying it would crash it
+		// Try to mitigate that somehow by delaying this thread a little to hopefully give the GPU enough time to catch up before the resource memory is deallocated
+		Sleep(500);
+	}
 }
 
 static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
@@ -697,19 +713,11 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	std::shared_lock<std::shared_mutex> lock(s_mutex);
 	const auto current_depth_stencil_list = device_data.current_depth_stencil_list;
+	// Unlock while calling into device below, since device may hold a lock itself and that then can deadlock another thread that calls into 'on_destroy_resource' from the device holding that lock
 	lock.unlock();
 
 	for (auto &[resource, snapshot] : current_depth_stencil_list)
 	{
-		lock.lock();
-		const bool destroyed = std::find(device_data.destroyed_resources.begin(), device_data.destroyed_resources.end(), resource) != device_data.destroyed_resources.end();
-		// Unlock while calling into device below, since device may hold a lock itself and that then can deadlock another thread that calls into 'on_destroy_resource' from the device holds that lock
-		lock.unlock();
-
-		// Skip resources that were destroyed by the application (check here again in case effects are rendered during the frame)
-		if (destroyed)
-			continue;
-
 		const resource_desc desc = device->get_resource_desc(resource);
 		if (desc.texture.samples > 1)
 			continue; // Ignore MSAA textures, since they would need to be resolved first
@@ -732,7 +740,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	if (data.override_depth_stencil != 0)
 	{
 		const auto it = std::find_if(current_depth_stencil_list.begin(), current_depth_stencil_list.end(),
-			[&data](const auto &current) { return current.first == data.override_depth_stencil; });
+			[resource = data.override_depth_stencil](const auto &current) { return current.first == resource; });
 		if (it != current_depth_stencil_list.end())
 		{
 			best_match = it->first;
@@ -811,17 +819,20 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				// Ensure barriers are not created with 'D3D12_RESOURCE_STATE_[...]_SHADER_RESOURCE' when resource has 'D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE' flag set
 				const resource_usage old_state = best_match_desc.usage & (resource_usage::depth_stencil | resource_usage::shader_resource);
 
+				lock.lock();
+				const auto it = std::find_if(device_data.current_depth_stencil_list.begin(), device_data.current_depth_stencil_list.end(),
+					[best_match](const auto &current) { return current.first == best_match; });
+				// Indicate that the copy is now being done, so it is not repeated in case effects are rendered by another runtime (e.g. when there are multiple present calls in a frame)
+				if (it != device_data.current_depth_stencil_list.end())
+					it->second.copied_during_frame = true;
+				else
+					// Resource disappeared from the current depth-stencil list between earlier in this function and now, which indicates that it was destroyed in the meantime
+					return;
+				lock.unlock();
+
 				cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
 				cmd_list->copy_resource(best_match, backup_texture);
 				cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
-
-				// Indicate that the copy was now done, so it is not repeated in case effects are rendered by another runtime (e.g. when there are multiple present calls in a frame)
-				lock.lock();
-				const auto it = std::find_if(device_data.current_depth_stencil_list.begin(), device_data.current_depth_stencil_list.end(),
-					[&best_match](const auto &current) { return current.first == best_match; });
-				if (it != device_data.current_depth_stencil_list.end())
-					it->second.copied_during_frame = true;
-				lock.unlock();
 			}
 
 			cmd_list->barrier(backup_texture, resource_usage::copy_dest, resource_usage::shader_resource);
