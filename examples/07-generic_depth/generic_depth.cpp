@@ -500,15 +500,21 @@ static void on_destroy_resource(device *device, resource resource)
 		[resource](const auto &current) { return current.first == resource; });
 	if (it != device_data.current_depth_stencil_list.end())
 	{
+		const bool copied_during_frame = it->second.copied_during_frame;
+
 		device_data.current_depth_stencil_list.erase(it);
 
 		lock.unlock();
 
-		reshade::log_message(2, "A depth-stencil resource was destroyed while still being tracked.");
-
 		// This is bad ... the resource may still be in use by an effect on the GPU and destroying it would crash it
 		// Try to mitigate that somehow by delaying this thread a little to hopefully give the GPU enough time to catch up before the resource memory is deallocated
-		Sleep(500);
+		if (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan)
+		{
+			reshade::log_message(2, "A depth-stencil resource was destroyed while still being tracked.");
+
+			if (!copied_during_frame)
+				Sleep(250);
+		}
 	}
 }
 
