@@ -136,7 +136,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 {
 	assert(source != nullptr);
 
-	_swap_index = (_swap_index + 1) % 3;
+	_swap_index = (_swap_index + 1) % static_cast<UINT>(_backbuffers.size());
 
 	// Update source texture render target view
 	if (_backbuffers[_swap_index] != source)
@@ -150,7 +150,11 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 		}
 #endif
 
-		_backbuffers[_swap_index]  = source;
+		// Reduce number of back buffers if less are used than predicted
+		if (const auto it = std::find(_backbuffers.begin(), _backbuffers.end(), source); it != _backbuffers.end())
+			_backbuffers.erase(it);
+		else
+			_backbuffers[_swap_index] = source;
 
 		// Do not initialize before all back buffers have been set
 		// The first to be set is at index 1 due to the addition above, so it is sufficient to check the last to be set, which will be at index 0
@@ -165,7 +169,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 		}
 	}
 
-	// Is not initialized the first 3 frames, but that is fine, since 'on_present' does a 'is_initialized' check
+	// Is not initialized the first few frames, but that is fine, since 'on_present' does an 'is_initialized' check
 	on_present();
 	return true;
 }
