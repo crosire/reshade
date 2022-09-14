@@ -1573,7 +1573,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			if (entry_point.type == reshadefx::shader_type::cs && !_device->check_capability(api::device_caps::compute_shader))
 			{
-				effect.errors += "Compute shaders are not supported in D3D9/D3D10.";
+				effect.errors += "error: " + entry_point.name + ": compute shaders are not supported in D3D9/D3D10\n";
 				effect.compiled = false;
 				break;
 			}
@@ -1702,15 +1702,23 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						}
 					}
 
-					effect.errors += d3d_errors_string;
-
 					if (FAILED(hr))
 					{
+						// Add a prefix with the offending entry point name for generic error messages like an out of memory notification
+						if (d3d_errors_string.find("error") == std::string::npos)
+							effect.errors += "error: " + entry_point.name + ": ";
+
+						effect.errors += d3d_errors_string;
 						effect.compiled = false;
 
 						d3d_errors.reset();
 						d3d_compiled.reset();
 						break;
+					}
+					else
+					{
+						// Append warnings
+						effect.errors += d3d_errors_string;
 					}
 
 					cso.resize(d3d_compiled->GetBufferSize());
@@ -1886,7 +1894,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					{
 						if (sampler_info.srgb && sampler_info.texture_name == new_texture.unique_name)
 						{
-							effect.errors += "warning: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
+							effect.errors += "warning: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)\n";
 						}
 					}
 				}
