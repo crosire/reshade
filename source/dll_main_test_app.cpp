@@ -397,7 +397,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
 		pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
 		pfd.iPixelType = PFD_TYPE_RGBA;
-		pfd.cColorBits = 32;
+		pfd.cColorBits = 24;
+		pfd.cAlphaBits = 8;
 
 		SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
 

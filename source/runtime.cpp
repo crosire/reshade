@@ -27,6 +27,7 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 #include <malloc.h>
+#include <dwmapi.h>
 #include <d3dcompiler.h>
 
 #if RESHADE_FX
@@ -416,6 +417,15 @@ bool reshade::runtime::on_init(input::window_handle window)
 		_input = input::register_window(window);
 	else
 		_input.reset();
+
+	// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
+	if (window != nullptr)
+	{
+		DWM_BLURBEHIND blur_behind = {};
+		blur_behind.dwFlags = DWM_BB_ENABLE;
+		blur_behind.fEnable = global_config().get("APP", "EnableTransparency");
+		DwmEnableBlurBehindWindow(GetAncestor(static_cast<HWND>(window), GA_ROOT), &blur_behind);
+	}
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_framecount = 0;
