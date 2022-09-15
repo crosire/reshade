@@ -453,7 +453,9 @@ namespace ReShade.Setup
 		void DownloadPackagesAndCompatibilityIni()
 		{
 			if (packagesIni != null || compatibilityIni != null)
+			{
 				return;
+			}
 
 			// Attempt to download effect package and compatibility list
 			using (var client = new WebClient())
@@ -464,9 +466,14 @@ namespace ReShade.Setup
 				try
 				{
 					using (var packagesStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini"))
+					{
 						packagesIni = new IniFile(packagesStream);
+					}
+
 					using (var compatibilityStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Compatibility.ini"))
+					{
 						compatibilityIni = new IniFile(compatibilityStream);
+					}
 				}
 				catch
 				{
@@ -1158,9 +1165,13 @@ In that event here are some steps you can try to resolve this:
 				if (int.TryParse(config.GetString("SCREENSHOT", "FileNamingFormat", "0"), out int formatIndex))
 				{
 					if (formatIndex == 0)
+					{
 						config.SetValue("SCREENSHOT", "FileNaming", "%AppName% %Date% %Time%");
+					}
 					else if (formatIndex == 1)
+					{
 						config.SetValue("SCREENSHOT", "FileNaming", "%AppName% %Date% %Time% %PresetName%");
+					}
 				}
 			}
 
@@ -1679,7 +1690,7 @@ In that event here are some steps you can try to resolve this:
 		void OnCurrentPageNavigated(object sender, NavigationEventArgs e)
 		{
 			NextButton.Content = isFinished ? "_Finish" : "_Next";
-			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPresetPage || e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : "_Cancel";
+			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPresetPage || e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : (e.Content is SelectAppPage) ? "_Close" : "_Cancel";
 
 			CancelButton.IsEnabled = !(e.Content is StatusPage) || isFinished;
 
