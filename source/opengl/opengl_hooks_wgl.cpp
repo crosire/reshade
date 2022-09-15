@@ -455,9 +455,6 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		}
 	}
 
-#if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
-#endif
 	return hglrc;
 }
 HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
