@@ -219,7 +219,8 @@ void reshade::unload_addons()
 
 		LOG(INFO) << "Unloading add-on \"" << info.name << "\" ...";
 
-		FreeLibrary(static_cast<HMODULE>(info.handle));
+		if (!FreeLibrary(static_cast<HMODULE>(info.handle)))
+			LOG(WARN) << "Failed to unload " << std::filesystem::u8path(info.file) << " with error code " << GetLastError() << '!';
 	}
 #endif
 

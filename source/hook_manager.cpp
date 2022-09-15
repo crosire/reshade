@@ -463,7 +463,7 @@ void reshade::hooks::uninstall()
 	// Unfortunately this is not technically safe to call from 'DllMain' ...
 	if (g_export_module_handle)
 		if (!FreeLibrary(g_export_module_handle))
-			LOG(WARN) << "Failed to unload " << s_export_hook_path << '!';
+			LOG(WARN) << "Failed to unload " << s_export_hook_path << " with error code " << GetLastError() << '!';
 	g_export_module_handle = nullptr;
 }
 
