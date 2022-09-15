@@ -611,6 +611,8 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 		return CreateDXGIFactory1(riid, ppFactory);
 	}
 
+	// It is crutial that ReShade hooks this after the Steam overlay already hooked it, so that ReShade is called first and the Steam overlay is called through the trampoline below
+	// This is because the Steam overlay only hooks the swap chain creation functions when the vtable entries for them still point to the original functions, it will no longer do so once ReShade replaced them ("... points to another module, skipping hooks" in GameOverlayRenderer.log)
 	const HRESULT hr = trampoline(Flags, riid, ppFactory);
 	if (FAILED(hr))
 	{
