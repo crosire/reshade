@@ -170,7 +170,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 					log_path.replace_filename(log_filename);
 
-					reshade::log::open_log_file(log_path);
+					if (!reshade::log::open_log_file(log_path))
+					{
+#ifndef NDEBUG
+						LOG(ERROR) << "Opening the ReShade log file" << " failed with error code " << GetLastError() << '.';
+#endif
+					}
 				}
 			}
 
