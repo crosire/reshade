@@ -497,8 +497,9 @@ namespace ReShade.Setup
 		{
 			UpdateStatus("Analyzing executable ...");
 
-			string targetPathUnrealEngine = Path.Combine(Path.GetDirectoryName(targetPath), Path.GetFileNameWithoutExtension(targetPath), "Binaries", "Win64", Path.GetFileNameWithoutExtension(targetPath) + "-Win64-Shipping" + Path.GetExtension(targetPath));
-			if (File.Exists(targetPathUnrealEngine))
+			// In case this is the bootstrap executable of an Unreal Engine game, try and find the actual game executable for it
+			string targetPathUnrealEngine = PEInfo.ReadResourceString(targetPath, 201); // IDI_EXEC_FILE (see BootstrapPackagedGame.cpp in Unreal Engine source code)
+			if (!string.IsNullOrEmpty(targetPathUnrealEngine) && File.Exists(targetPathUnrealEngine = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(targetPath), targetPathUnrealEngine))))
 			{
 				targetPath = targetPathUnrealEngine;
 			}
