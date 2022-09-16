@@ -212,14 +212,16 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	ImGui::SetCurrentContext(_imgui_context);
 
+	// Call all pre-read handlers, before reading config data (since they affect state that is then updated in the read handlers below)
+	for (auto &handler : _imgui_context->SettingsHandlers)
+		if (handler.ReadInitFn)
+			handler.ReadInitFn(_imgui_context, &handler);
+
 	for (auto &handler : _imgui_context->SettingsHandlers)
 	{
 		std::vector<std::string> lines;
 		if (config.get("OVERLAY", handler.TypeName, lines))
 		{
-			if (handler.ReadInitFn)
-				handler.ReadInitFn(_imgui_context, &handler);
-
 			void *entry_data = nullptr;
 
 			for (const std::string &line : lines)
@@ -240,13 +242,14 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 					handler.ReadLineFn(_imgui_context, &handler, entry_data, line.c_str());
 				}
 			}
-
-			if (handler.ApplyAllFn)
-				handler.ApplyAllFn(_imgui_context, &handler);
 		}
 	}
 
 	_imgui_context->SettingsLoaded = true;
+
+	for (auto &handler : _imgui_context->SettingsHandlers)
+		if (handler.ApplyAllFn)
+			handler.ApplyAllFn(_imgui_context, &handler);
 
 	ImGui::SetCurrentContext(backup_context);
 }
