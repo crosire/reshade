@@ -25,6 +25,7 @@ namespace reshade::d3d12
 		uint32_t get_current_back_buffer_index() const final;
 
 		void set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type);
+		void set_current_back_buffer_index(uint32_t index);
 
 		bool on_init();
 		void on_reset();

@@ -63,6 +63,10 @@ void reshade::d3d12::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPAC
 {
 	_back_buffer_color_space = convert_color_space(type);
 }
+void reshade::d3d12::swapchain_impl::set_current_back_buffer_index(uint32_t index)
+{
+	_swap_index = index;
+}
 
 bool reshade::d3d12::swapchain_impl::on_init()
 {
@@ -97,6 +101,9 @@ bool reshade::d3d12::swapchain_impl::on_init()
 
 	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
 
+	// Initialize with the first back buffer index
+	_swap_index = _orig->GetCurrentBackBufferIndex();
+
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
@@ -122,10 +129,6 @@ void reshade::d3d12::swapchain_impl::on_reset()
 
 void reshade::d3d12::swapchain_impl::on_present()
 {
-	// There is no swap chain in d3d12on7
-	if (_orig != nullptr)
-		_swap_index = _orig->GetCurrentBackBufferIndex();
-
 	if (!is_initialized())
 		return;
 

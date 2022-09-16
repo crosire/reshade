@@ -289,6 +289,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			if (!is_d3d12on7)
 			{
 				HR_CHECK(swapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffers[i])));
+
+				const std::wstring debug_name = L"Back buffer " + std::to_wstring(i);
+				backbuffers[i]->SetName(debug_name.c_str());
 			}
 			else
 			{

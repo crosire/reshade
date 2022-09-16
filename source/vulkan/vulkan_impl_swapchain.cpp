@@ -48,6 +48,11 @@ uint32_t reshade::vulkan::swapchain_impl::get_current_back_buffer_index() const
 	return _swap_index;
 }
 
+void reshade::vulkan::swapchain_impl::set_current_back_buffer_index(uint32_t index)
+{
+	_swap_index = index;
+}
+
 bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
 	_orig = swapchain;
@@ -123,10 +128,8 @@ void reshade::vulkan::swapchain_impl::on_reset()
 		semaphore = VK_NULL_HANDLE;
 }
 
-void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores)
+void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores)
 {
-	_swap_index = swapchain_image_index;
-
 	if (!is_initialized())
 		return;
 

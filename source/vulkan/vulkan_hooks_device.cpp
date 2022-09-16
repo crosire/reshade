@@ -990,6 +990,9 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 					};
 				}
 
+				// TODO: Ideally this should already be set in 'vkAcquireNextImageKHR'
+				swapchain_impl->set_current_back_buffer_index(pPresentInfo->pImageIndices[i]);
+
 				reshade::invoke_addon_event<reshade::addon_event::present>(
 					queue_impl,
 					swapchain_impl,
@@ -998,7 +1001,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 					dirty_rect_count,
 					dirty_rect_count != 0 ? dirty_rects.p : nullptr);
 #endif
-				swapchain_impl->on_present(queue, pPresentInfo->pImageIndices[i], const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
+				swapchain_impl->on_present(queue, const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
 			}
 		}
 

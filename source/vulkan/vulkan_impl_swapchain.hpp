@@ -25,10 +25,12 @@ namespace reshade::vulkan
 		uint32_t get_back_buffer_count() const final;
 		uint32_t get_current_back_buffer_index() const final;
 
+		void set_current_back_buffer_index(uint32_t index);
+
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
 
-		void on_present(VkQueue queue, const uint32_t swapchain_image_index, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores);
+		void on_present(VkQueue queue, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores);
 
 	private:
 		uint32_t _swap_index = 0;
