@@ -488,7 +488,7 @@ static void on_destroy_resource(device *device, resource resource)
 
 	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
 	// The state tracking context would have been destroyed already in that case, so return early if it does not exist
-	if ((&device_data) == nullptr)
+	if (std::addressof(device_data) == nullptr)
 		return;
 
 	std::unique_lock<std::shared_mutex> lock(s_mutex);
@@ -636,16 +636,33 @@ static void on_reset(command_list *cmd_list)
 	auto &target_state = cmd_list->get_private_data<state_tracking>();
 	target_state.reset();
 }
-static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
+static void on_execute_primary(command_queue *queue, command_list *cmd_list)
 {
-	auto &target_state = queue_or_cmd_list->get_private_data<state_tracking>();
+	auto &target_state = queue->get_private_data<state_tracking>();
 	const auto &source_state = cmd_list->get_private_data<state_tracking>();
 
 	// Skip merging state when this execution event is just the immediate command list getting flushed
-	if ((&target_state) == (&source_state))
-		return;
+	if (std::addressof(target_state) != std::addressof(source_state))
+	{
+		target_state.merge(source_state);
+	}
+}
+static void on_execute_secondary(command_list *cmd_list, command_list *secondary_cmd_list)
+{
+	auto &target_state = cmd_list->get_private_data<state_tracking>();
+	const auto &source_state = secondary_cmd_list->get_private_data<state_tracking>();
 
-	target_state.merge(source_state);
+	// If this is a secondary command list that was recorded without a depth-stencil binding, but is now executed using a depth-stencil binding, handle it as if an indirect draw call was performed to ensure the depth-stencil is tracked
+	if (target_state.current_depth_stencil != 0 && source_state.current_depth_stencil == 0 && source_state.counters_per_used_depth_stencil.empty())
+	{
+		target_state.current_viewport = source_state.current_viewport;
+
+		on_draw_indirect(cmd_list, indirect_command::draw, { 0 }, 0, 1, 0);
+	}
+	else
+	{
+		target_state.merge(source_state);
+	}
 }
 
 static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
@@ -1159,8 +1176,8 @@ void register_addon_depth()
 	reshade::register_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset);
-	reshade::register_event<reshade::addon_event::execute_command_list>(reinterpret_cast<void(*)(command_queue *, command_list *)>(on_execute));
-	reshade::register_event<reshade::addon_event::execute_secondary_command_list>(reinterpret_cast<void(*)(command_list *, command_list *)>(on_execute));
+	reshade::register_event<reshade::addon_event::execute_command_list>(on_execute_primary);
+	reshade::register_event<reshade::addon_event::execute_secondary_command_list>(on_execute_secondary);
 
 	reshade::register_event<reshade::addon_event::present>(on_present);
 
@@ -1193,8 +1210,8 @@ void unregister_addon_depth()
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset);
-	reshade::unregister_event<reshade::addon_event::execute_command_list>(reinterpret_cast<void(*)(command_queue *, command_list *)>(on_execute));
-	reshade::unregister_event<reshade::addon_event::execute_secondary_command_list>(reinterpret_cast<void(*)(command_list *, command_list *)>(on_execute));
+	reshade::unregister_event<reshade::addon_event::execute_command_list>(on_execute_primary);
+	reshade::unregister_event<reshade::addon_event::execute_secondary_command_list>(on_execute_secondary);
 
 	reshade::unregister_event<reshade::addon_event::present>(on_present);
 
