@@ -173,3 +173,90 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 	on_present();
 	return true;
 }
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE && RESHADE_FX
+void reshade::d3d12::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	const auto cmd_list_impl = static_cast<command_list_impl *>(cmd_list);
+
+	ID3D12RootSignature *prev_root_signature[2];
+	std::copy_n(cmd_list_impl->_current_root_signature, 2, prev_root_signature);
+	ID3D12DescriptorHeap *prev_heaps[2];
+	std::copy_n(cmd_list_impl->_current_descriptor_heaps, 2, prev_heaps);
+	IUnknown *const prev_pipeline_state = cmd_list_impl->_current_pipeline_state;
+
+	runtime::render_effects(cmd_list, rtv, rtv_srgb);
+
+	if (!_is_in_present_call)
+	{
+		com_ptr<ID3D12PipelineState> pipeline_state;
+		if (prev_pipeline_state != nullptr &&
+			prev_pipeline_state != cmd_list_impl->_current_pipeline_state &&
+			SUCCEEDED(prev_pipeline_state->QueryInterface(&pipeline_state)))
+		{
+			cmd_list_impl->_current_pipeline_state = prev_pipeline_state;
+			cmd_list_impl->_orig->SetPipelineState(pipeline_state.get());
+		}
+
+		if (prev_heaps[0] != cmd_list_impl->_current_descriptor_heaps[0] ||
+			prev_heaps[1] != cmd_list_impl->_current_descriptor_heaps[1])
+		{
+			std::copy_n(prev_heaps, 2, cmd_list_impl->_current_descriptor_heaps);
+			cmd_list_impl->_orig->SetDescriptorHeaps(prev_heaps[1] != nullptr ? 2 : 1, prev_heaps);
+		}
+
+		if (prev_root_signature[1] != cmd_list_impl->_current_root_signature[1])
+		{
+			cmd_list_impl->_current_root_signature[1] = prev_root_signature[1];
+			cmd_list_impl->_orig->SetComputeRootSignature(prev_root_signature[1]);
+		}
+		if (prev_root_signature[0] != cmd_list_impl->_current_root_signature[0])
+		{
+			cmd_list_impl->_current_root_signature[0] = prev_root_signature[0];
+			cmd_list_impl->_orig->SetGraphicsRootSignature(prev_root_signature[0]);
+		}
+	}
+}
+void reshade::d3d12::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	const auto cmd_list_impl = static_cast<command_list_impl *>(cmd_list);
+
+	ID3D12RootSignature *prev_root_signature[2];
+	std::copy_n(cmd_list_impl->_current_root_signature, 2, prev_root_signature);
+	ID3D12DescriptorHeap *prev_heaps[2];
+	std::copy_n(cmd_list_impl->_current_descriptor_heaps, 2, prev_heaps);
+	IUnknown *const prev_pipeline_state = cmd_list_impl->_current_pipeline_state;
+
+	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
+
+	if (!_is_in_present_call)
+	{
+		com_ptr<ID3D12PipelineState> pipeline_state;
+		if (prev_pipeline_state != nullptr &&
+			prev_pipeline_state != cmd_list_impl->_current_pipeline_state &&
+			SUCCEEDED(prev_pipeline_state->QueryInterface(&pipeline_state)))
+		{
+			cmd_list_impl->_current_pipeline_state = prev_pipeline_state;
+			cmd_list_impl->_orig->SetPipelineState(pipeline_state.get());
+		}
+
+		if (prev_heaps[0] != cmd_list_impl->_current_descriptor_heaps[0] ||
+			prev_heaps[1] != cmd_list_impl->_current_descriptor_heaps[1])
+		{
+			std::copy_n(prev_heaps, 2, cmd_list_impl->_current_descriptor_heaps);
+			cmd_list_impl->_orig->SetDescriptorHeaps(prev_heaps[1] != nullptr ? 2 : 1, prev_heaps);
+		}
+
+		if (prev_root_signature[1] != cmd_list_impl->_current_root_signature[1])
+		{
+			cmd_list_impl->_current_root_signature[1] = prev_root_signature[1];
+			cmd_list_impl->_orig->SetComputeRootSignature(prev_root_signature[1]);
+		}
+		if (prev_root_signature[0] != cmd_list_impl->_current_root_signature[0])
+		{
+			cmd_list_impl->_current_root_signature[0] = prev_root_signature[0];
+			cmd_list_impl->_orig->SetGraphicsRootSignature(prev_root_signature[0]);
+		}
+	}
+}
+#endif

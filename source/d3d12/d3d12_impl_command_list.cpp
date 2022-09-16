@@ -198,6 +198,10 @@ void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages
 	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
 	_orig->SetPipelineState(pipeline_object);
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	_current_pipeline_state = pipeline_object;
+#endif
+
 	pipeline_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
 	if (stages == api::pipeline_stage::all_graphics &&
@@ -256,9 +260,9 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
 	{
-		if (_current_root_signature[1] != root_signature)
+		if (root_signature != _current_root_signature[1])
 		{
-			_current_root_signature[1]  = root_signature;
+			_current_root_signature[1] = root_signature;
 			_orig->SetComputeRootSignature(root_signature);
 		}
 
@@ -266,9 +270,9 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 	}
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
 	{
-		if (_current_root_signature[0] != root_signature)
+		if (root_signature != _current_root_signature[0])
 		{
-			_current_root_signature[0]  = root_signature;
+			_current_root_signature[0] = root_signature;
 			_orig->SetGraphicsRootSignature(root_signature);
 		}
 
@@ -333,10 +337,8 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
 	{
 		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
+		std::copy_n(heaps, 2, _current_descriptor_heaps);
 		_orig->SetDescriptorHeaps(2, heaps);
-
-		_current_descriptor_heaps[0] = heaps[0];
-		_current_descriptor_heaps[1] = heaps[1];
 	}
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
@@ -354,9 +356,9 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
 	{
-		if (_current_root_signature[1] != root_signature)
+		if (root_signature != _current_root_signature[1])
 		{
-			_current_root_signature[1]  = root_signature;
+			_current_root_signature[1] = root_signature;
 			_orig->SetComputeRootSignature(root_signature);
 		}
 
@@ -364,9 +366,9 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	}
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
 	{
-		if (_current_root_signature[0] != root_signature)
+		if (root_signature != _current_root_signature[0])
 		{
-			_current_root_signature[0]  = root_signature;
+			_current_root_signature[0] = root_signature;
 			_orig->SetGraphicsRootSignature(root_signature);
 		}
 
@@ -408,17 +410,17 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 
 	if (_current_descriptor_heaps[0] != heaps[0] || _current_descriptor_heaps[1] != heaps[1])
 	{
-		_orig->SetDescriptorHeaps(heaps[1] != nullptr ? 2 : 1, heaps);
 		std::copy_n(heaps, 2, _current_descriptor_heaps);
+		_orig->SetDescriptorHeaps(heaps[1] != nullptr ? 2 : 1, heaps);
 	}
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
 	{
-		if (_current_root_signature[1] != root_signature)
+		if (root_signature != _current_root_signature[1])
 		{
-			_current_root_signature[1]  = root_signature;
+			_current_root_signature[1] = root_signature;
 			_orig->SetComputeRootSignature(root_signature);
 		}
 
@@ -427,9 +429,9 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 	}
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
 	{
-		if (_current_root_signature[0] != root_signature)
+		if (root_signature != _current_root_signature[0])
 		{
-			_current_root_signature[0]  = root_signature;
+			_current_root_signature[0] = root_signature;
 			_orig->SetGraphicsRootSignature(root_signature);
 		}
 
@@ -837,12 +839,20 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
 	_orig->ResourceBarrier(1, &transition);
 
-	// Reset descriptor heaps
+	// Reset descriptor heaps and root signature
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
 	{
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
 	}
+
+	_orig->SetComputeRootSignature(_current_root_signature[1]);
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	com_ptr<ID3D12PipelineState> pipeline_state;
+	if (_current_pipeline_state != nullptr &&
+		SUCCEEDED(_current_pipeline_state->QueryInterface(&pipeline_state)))
+		_orig->SetPipelineState(pipeline_state.get());
+#endif
 }
 
 void reshade::d3d12::command_list_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)
