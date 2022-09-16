@@ -17,6 +17,8 @@
 		gl.Disable(cap); \
 	}
 
+extern "C" void APIENTRY glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+
 void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 {
 	if ((stages & api::pipeline_stage::all_shader_stages) != 0)
@@ -890,11 +892,63 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 
 	if (dst_target == GL_FRAMEBUFFER_DEFAULT)
 	{
-		assert(false);
+		assert(dst_subresource == 0);
+		assert(xoffset == 0 && yoffset == 0 && zoffset == 0 && depth == 1);
+
+		GLuint prev_binding = 0;
+		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
+		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+		gl.DrawBuffer(dst_object);
+
+		if (dst_box == nullptr)
+		{
+			width = _default_fbo_width;
+			height = _default_fbo_height;
+		}
+
+		GLenum format = (dst_object == GL_BACK || dst_object == GL_BACK_LEFT || dst_object == GL_BACK_RIGHT) ? _default_color_format : _default_depth_format, type;
+		format = convert_upload_format(format, type);
+
+		// This is deprecated and not available in core contexts!
+		assert(_compatibility_context);
+		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+
+		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_binding);
 	}
 	else if (dst_target == GL_RENDERBUFFER)
 	{
-		assert(false);
+		assert(dst_subresource == 0);
+		assert(xoffset == 0 && yoffset == 0 && zoffset == 0 && depth == 1);
+
+		GLuint prev_rbo_binding = 0;
+		gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_rbo_binding));
+		GLuint prev_fbo_binding = 0;
+		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_fbo_binding));
+
+		gl.BindRenderbuffer(GL_RENDERBUFFER, dst_object);
+
+		bind_framebuffer_with_resource(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dst, dst_subresource, {});
+
+		gl.DrawBuffer(GL_COLOR_ATTACHMENT0);
+
+		GLenum format = GL_NONE, type;
+		gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+
+		if (dst_box == nullptr)
+		{
+			gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&width));
+			gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&height));
+		}
+
+		format = convert_upload_format(format, type);
+
+		// This is deprecated and not available in core contexts!
+		assert(_compatibility_context);
+		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+
+		gl.BindRenderbuffer(GL_RENDERBUFFER, prev_rbo_binding);
+		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_fbo_binding);
 	}
 	else
 	{
@@ -1164,6 +1218,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	else if (src_target == GL_RENDERBUFFER)
 	{
 		assert(src_subresource == 0);
+		assert(zoffset == 0 && depth == 1);
 
 		GLuint prev_rbo_binding = 0;
 		gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_rbo_binding));
