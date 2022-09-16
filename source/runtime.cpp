@@ -2794,7 +2794,7 @@ bool reshade::runtime::create_texture(texture &tex)
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
 			return false;
 		}
-		if (view_format_srgb == view_format)
+		if (view_format_srgb == view_format || tex.storage_access) // sRGB formats do not support storage usage
 		{
 			tex.rtv[1] = tex.rtv[0];
 		}

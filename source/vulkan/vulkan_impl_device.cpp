@@ -1139,16 +1139,16 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		depth_stencil_state_info.minDepthBounds = 0.0f;
 		depth_stencil_state_info.maxDepthBounds = 1.0f;
 
-		VkPipelineColorBlendAttachmentState attachment_info[8];
 		VkPipelineColorBlendStateCreateInfo color_blend_state_info { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
 		create_info.pColorBlendState = &color_blend_state_info;
 		color_blend_state_info.attachmentCount = 8;
-		color_blend_state_info.pAttachments = attachment_info;
+		temp_mem<VkPipelineColorBlendAttachmentState, 8> attachment_info(color_blend_state_info.attachmentCount);
+		color_blend_state_info.pAttachments = attachment_info.p;
 		convert_blend_desc(blend_desc, color_blend_state_info, multisample_state_info);
 
-		VkFormat attachment_formats[8];
+		temp_mem<VkFormat, 8> attachment_formats(render_target_formats.count);
 		color_blend_state_info.attachmentCount = 0;
-		for (uint32_t i = 0; i < render_target_formats.count && i < 8; ++i, ++color_blend_state_info.attachmentCount)
+		for (uint32_t i = 0; i < render_target_formats.count; ++i, ++color_blend_state_info.attachmentCount)
 		{
 			attachment_formats[i] = convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
 			assert(attachment_formats[i] != VK_FORMAT_UNDEFINED);
@@ -1158,7 +1158,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		if (_dynamic_rendering_ext)
 		{
 			dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
-			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats;
+			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats.p;
 			dynamic_rendering_info.depthAttachmentFormat = convert_format(depth_stencil_format);
 			dynamic_rendering_info.stencilAttachmentFormat = convert_format(depth_stencil_format);
 
@@ -1166,20 +1166,32 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		}
 		else
 		{
-			VkAttachmentReference attach_refs[9];
-			VkAttachmentDescription attach_descs[9];
+			const uint32_t max_attachments = color_blend_state_info.attachmentCount + 1;
+
+			temp_mem<VkAttachmentReference, 9> attach_refs(max_attachments);
+			temp_mem<VkAttachmentDescription, 9> attach_descs(max_attachments);
+
+			VkSubpassDependency subdep = {};
+			subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
+			subdep.dstSubpass = 0;
+			subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subdep.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+			subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
 			VkSubpassDescription subpass = {};
 			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 			subpass.colorAttachmentCount = color_blend_state_info.attachmentCount;
-			subpass.pColorAttachments = attach_refs;
+			subpass.pColorAttachments = attach_refs.p;
 			subpass.pDepthStencilAttachment = (depth_stencil_format != api::format::unknown) ? &attach_refs[color_blend_state_info.attachmentCount] : nullptr;
 
 			VkRenderPassCreateInfo render_pass_create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 			render_pass_create_info.attachmentCount = subpass.colorAttachmentCount + (subpass.pDepthStencilAttachment != nullptr ? 1 : 0);
-			render_pass_create_info.pAttachments = attach_descs;
+			render_pass_create_info.pAttachments = attach_descs.p;
 			render_pass_create_info.subpassCount = 1;
 			render_pass_create_info.pSubpasses = &subpass;
+			render_pass_create_info.dependencyCount = 1;
+			render_pass_create_info.pDependencies = &subdep;
 
 			for (uint32_t i = 0; i < subpass.colorAttachmentCount; ++i)
 			{
@@ -1198,6 +1210,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 				attach_desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 				attach_desc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			}
+
 			if (subpass.pDepthStencilAttachment != nullptr)
 			{
 				VkAttachmentReference &attach_ref = attach_refs[subpass.colorAttachmentCount];
