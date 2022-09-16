@@ -1159,8 +1159,12 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		{
 			dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
 			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats.p;
-			dynamic_rendering_info.depthAttachmentFormat = convert_format(depth_stencil_format);
-			dynamic_rendering_info.stencilAttachmentFormat = convert_format(depth_stencil_format);
+
+			const VkFormat depth_stencil_format_vk = convert_format(depth_stencil_format);
+			if (aspect_flags_from_format(depth_stencil_format_vk) & VK_IMAGE_ASPECT_DEPTH_BIT)
+				dynamic_rendering_info.depthAttachmentFormat = depth_stencil_format_vk;
+			if (aspect_flags_from_format(depth_stencil_format_vk) & VK_IMAGE_ASPECT_STENCIL_BIT)
+				dynamic_rendering_info.stencilAttachmentFormat = depth_stencil_format_vk;
 
 			create_info.pNext = &dynamic_rendering_info;
 		}

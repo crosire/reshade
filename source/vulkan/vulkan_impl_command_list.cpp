@@ -140,26 +140,32 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		VkRenderingAttachmentInfo depth_attachment, stencil_attachment;
 		if (ds != nullptr && ds->view.handle != 0)
 		{
-			depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-			depth_attachment.imageView = (VkImageView)ds->view.handle;
-			depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			depth_attachment.loadOp = convert_render_pass_load_op(ds->depth_load_op);
-			depth_attachment.storeOp = convert_render_pass_store_op(ds->depth_store_op);
-			depth_attachment.clearValue.depthStencil.depth = ds->clear_depth;
-
-			rendering_info.pDepthAttachment = &depth_attachment;
-
-			stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-			stencil_attachment.imageView = (VkImageView)ds->view.handle;
-			stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			stencil_attachment.loadOp = convert_render_pass_load_op(ds->stencil_load_op);
-			stencil_attachment.storeOp = convert_render_pass_store_op(ds->stencil_store_op);
-			stencil_attachment.clearValue.depthStencil.stencil = ds->clear_stencil;
-
-			rendering_info.pStencilAttachment = &stencil_attachment;
-
-			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(depth_attachment.imageView);
+			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)ds->view.handle);
 			const auto image_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(view_data->create_info.image);
+
+			if (aspect_flags_from_format(image_data->create_info.format) & VK_IMAGE_ASPECT_DEPTH_BIT)
+			{
+				depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+				depth_attachment.imageView = (VkImageView)ds->view.handle;
+				depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				depth_attachment.loadOp = convert_render_pass_load_op(ds->depth_load_op);
+				depth_attachment.storeOp = convert_render_pass_store_op(ds->depth_store_op);
+				depth_attachment.clearValue.depthStencil.depth = ds->clear_depth;
+
+				rendering_info.pDepthAttachment = &depth_attachment;
+			}
+
+			if (aspect_flags_from_format(image_data->create_info.format) & VK_IMAGE_ASPECT_STENCIL_BIT)
+			{
+				stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+				stencil_attachment.imageView = (VkImageView)ds->view.handle;
+				stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				stencil_attachment.loadOp = convert_render_pass_load_op(ds->stencil_load_op);
+				stencil_attachment.storeOp = convert_render_pass_store_op(ds->stencil_store_op);
+				stencil_attachment.clearValue.depthStencil.stencil = ds->clear_stencil;
+
+				rendering_info.pStencilAttachment = &stencil_attachment;
+			}
 
 			rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, image_data->create_info.extent.width);
 			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, image_data->create_info.extent.height);

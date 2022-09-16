@@ -225,6 +225,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 #endif
 		dynamic_rendering_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
+		// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
+		if (dynamic_rendering_ext && instance_dispatch.api_version < VK_API_VERSION_1_3)
+		{
+			add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
+			add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
+		}
 #ifdef VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 #endif
