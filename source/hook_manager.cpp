@@ -476,6 +476,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 			GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrRegisterDllNotification"));
 		if (LdrRegisterDllNotification == nullptr ||
 			// The Steam overlay is using 'LoadLibrary' hooks, so always use them too if it used to ensure that ReShade installs hooks after the Steam overlay already did so
+			// Detect whether the Steam overlay is used by checking for a 'SteamOverlayGameId' environment variable that Steam sets, instead of looking for 'GameOverlayRenderer[64].dll', since ReShade may be injected before the Steam overlay DLL
 			GetEnvironmentVariableW(L"SteamOverlayGameId", nullptr, 0) ||
 			LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &s_dll_notification_cookie) != 0 /* STATUS_SUCCESS */)
 		{

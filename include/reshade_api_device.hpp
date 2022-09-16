@@ -298,6 +298,9 @@ namespace reshade::api
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
+		/// <remarks>
+		/// Resource views may be created without a resource in D3D12, which is used to initialize a null descriptor (reading zeroes, writes are discarded). This may therefore return zero for such views.
+		/// </remarks>
 		virtual resource get_resource_from_view(resource_view view) const = 0;
 		/// <summary>
 		/// Gets the description of the specified resource view.

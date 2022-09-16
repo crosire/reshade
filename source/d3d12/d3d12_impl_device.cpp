@@ -1275,7 +1275,7 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 #endif
 
 #if 0
-	const std::unique_lock<std::shared_mutex> lock(_mutex);
+	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 	// Remove all views that referenced this resource
 	for (auto it = _views.begin(); it != _views.end();)
