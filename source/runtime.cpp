@@ -3628,7 +3628,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 			const api::resource_usage state_new[2] = { api::resource_usage::copy_source, api::resource_usage::copy_dest };
 
 			cmd_list->barrier(2, resources, state_old, state_new);
-			cmd_list->copy_resource(back_buffer_resource, _effect_color_tex);
+			cmd_list->copy_texture_region(back_buffer_resource, 0, nullptr, _effect_color_tex, 0, nullptr);
 			cmd_list->barrier(2, resources, state_new, state_old);
 		}
 
