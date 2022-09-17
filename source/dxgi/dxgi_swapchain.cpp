@@ -180,10 +180,6 @@ void DXGISwapChain::runtime_present(UINT flags, [[maybe_unused]] const DXGI_PRES
 
 void DXGISwapChain::handle_device_loss(HRESULT hr)
 {
-	// Update current back buffer index after presentation
-	if (_direct3d_version == 12)
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_current_back_buffer_index(static_cast<IDXGISwapChain3 *>(_orig)->GetCurrentBackBufferIndex());
-
 	if (!_impl->is_initialized())
 		return;
 
