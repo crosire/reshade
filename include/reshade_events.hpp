@@ -965,6 +965,10 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::CSSetConstantBuffers</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootConstantBufferView</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootConstantBufferView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootShaderResourceView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootShaderResourceView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootUnorderedAccessView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootUnorderedAccessView</description></item>
 		/// <item><description>glBindBufferBase</description></item>
 		/// <item><description>glBindBufferRange</description></item>
 		/// <item><description>glBindBuffersBase</description></item>
