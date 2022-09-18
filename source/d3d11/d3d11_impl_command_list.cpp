@@ -315,9 +315,16 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 		}
 		else
 		{
-			D3D11_BUFFER_DESC desc;
-			buffer_ptrs[i]->GetDesc(&desc);
-			constant_count[i] = desc.ByteWidth / 16;
+			if (buffer_ptrs[i] != nullptr)
+			{
+				D3D11_BUFFER_DESC desc;
+				buffer_ptrs[i]->GetDesc(&desc);
+				constant_count[i] = desc.ByteWidth / 16;
+			}
+			else
+			{
+				constant_count[i] = 0;
+			}
 		}
 	}
 
