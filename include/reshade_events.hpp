@@ -988,6 +988,8 @@ namespace reshade
 		/// <summary>
 		/// Called after:
 		/// <list type="bullet">
+		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootSignature</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootSignature</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootDescriptorTable</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootDescriptorTable</description></item>
 		/// <item><description>vkCmdBindDescriptorSets</description></item>

@@ -377,10 +377,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 }
 void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
-	if (count == 0)
-		return;
-
-	assert(sets != nullptr);
+	assert(sets != nullptr || count == 0);
 
 	// Change descriptor heaps to internal ones if descriptor sets were allocated from them
 	ID3D12DescriptorHeap *heaps[2];
