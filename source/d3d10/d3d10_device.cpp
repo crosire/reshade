@@ -771,7 +771,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general))
 	{
-		reshade::d3d10::convert_resource_desc(internal_desc);
+		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(&initial_data);
 	}
@@ -829,7 +829,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general))
 	{
-		reshade::d3d10::convert_resource_desc(internal_desc);
+		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
@@ -886,7 +886,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general))
 	{
-		reshade::d3d10::convert_resource_desc(internal_desc);
+		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
@@ -943,7 +943,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general))
 	{
-		reshade::d3d10::convert_resource_desc(internal_desc);
+		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
