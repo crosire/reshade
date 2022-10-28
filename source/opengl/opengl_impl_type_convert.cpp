@@ -683,6 +683,8 @@ auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
 		{
 		case GL_UNSIGNED_SHORT:
 			return api::format::d16_unorm;
+		case GL_UNSIGNED_INT:
+			return api::format::d24_unorm_x8_uint;
 		case GL_FLOAT:
 			return api::format::d32_float;
 		default:
@@ -944,10 +946,10 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	case GL_STENCIL_INDEX8:
 		type = GL_UNSIGNED_BYTE;
 		return GL_STENCIL_INDEX;
-	case GL_DEPTH_COMPONENT:
 	case GL_DEPTH_COMPONENT16:
 		type = GL_UNSIGNED_SHORT;
 		return GL_DEPTH_COMPONENT;
+	case GL_DEPTH_COMPONENT:
 	case GL_DEPTH_COMPONENT24:
 	case GL_DEPTH_STENCIL:
 	case GL_DEPTH24_STENCIL8:
@@ -1009,7 +1011,7 @@ auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> G
 	case GL_STENCIL_INDEX:
 		return GL_STENCIL_INDEX8;
 	case GL_DEPTH_COMPONENT:
-		return GL_DEPTH_COMPONENT16;
+		return GL_DEPTH_COMPONENT24;
 	case GL_DEPTH_STENCIL:
 		return GL_DEPTH24_STENCIL8;
 	default:
