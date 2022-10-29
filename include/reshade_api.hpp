@@ -50,6 +50,7 @@ namespace reshade::api
 		/// <remarks>
 		/// The width and height of the specified render target have to match those reported by <see cref="effect_runtime::get_screenshot_width_and_height"/>!
 		/// The resource the render target views point to has to be in the <see cref="resource_usage::render_target"/> state.
+		/// This call may modify current state on the command list (render targets, descriptor sets, ...), so it may be necessary for an add-on to backup and restore state around it if the application does not bind all state again afterwards already.
 		/// </remarks>
 		/// <param name="cmd_list">Command list to add effect rendering commands to.</param>
 		/// <param name="rtv">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <see langword="false"/>.</param>
@@ -566,6 +567,7 @@ namespace reshade::api
 		/// <remarks>
 		/// The width and height of the specified render target have to match those reported by <see cref="effect_runtime::get_screenshot_width_and_height"/>!
 		/// The resource the render target views point to has to be in the <see cref="resource_usage::render_target"/> state.
+		/// This call may modify current state on the command list (render targets, descriptor sets, ...), so it may be necessary for an add-on to backup and restore state around it if the application does not bind all state again afterwards already.
 		/// </remarks>
 		/// <param name="technique">Opaque handle to the technique.</param>
 		/// <param name="cmd_list">Command list to add effect rendering commands to.</param>
