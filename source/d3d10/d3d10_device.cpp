@@ -767,8 +767,8 @@ void    STDMETHODCALLTYPE D3D10Device::ClearState()
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<const reshade::api::resource_view *>(null_objects), reshade::api::resource_view {});
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(this, 0, D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE, nullptr);
-	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(this, 0, 0, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, 0, nullptr);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::Flush()

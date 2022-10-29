@@ -523,7 +523,7 @@ HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint interna
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1, swizzle_mask);
 		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, desc.texture.format, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data && target != GL_TEXTURE_CUBE_MAP_POSITIVE_X ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data && !cube_map_face ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 			width = desc.texture.width;
@@ -537,7 +537,7 @@ HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint interna
 
 		trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 
-		init_resource(target, 0, desc, initial_data.data && target != GL_TEXTURE_CUBE_MAP_POSITIVE_X ? &initial_data : nullptr, pixels == nullptr && initial_data.data != nullptr);
+		init_resource(target, 0, desc, initial_data.data && !cube_map_face ? &initial_data : nullptr, pixels == nullptr && initial_data.data != nullptr);
 	}
 	else
 #endif
