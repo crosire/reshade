@@ -55,7 +55,12 @@ private:
 			module.hlsl += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
 
 			if (!_cbuffer_block.empty())
+			{
+				if (_shader_model >= 60)
+					module.hlsl += "[[vk::binding(0, 0)]] "; // Descriptor set 0
+
 				module.hlsl += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
+			}
 		}
 		else
 		{
@@ -416,7 +421,14 @@ private:
 
 			write_location(code, loc);
 
+			if (_shader_model >= 60)
+				code += "[[vk::binding(" + std::to_string(info.binding + 0) + ", 2)]] "; // Descriptor set 2
+
 			code += "Texture2D __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
+
+			if (_shader_model >= 60)
+				code += "[[vk::binding(" + std::to_string(info.binding + 1) + ", 2)]] "; // Descriptor set 2
+
 			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
 		}
 
@@ -453,6 +465,9 @@ private:
 			else
 			{
 				info.binding = _module.num_sampler_bindings++;
+
+				if (_shader_model >= 60)
+					code += "[[vk::binding(" + std::to_string(info.binding) + ", 1)]] "; // Descriptor set 1
 
 				code += "SamplerState __s" + std::to_string(info.binding) + " : register(s" + std::to_string(info.binding) + ");\n";
 			}
@@ -501,6 +516,9 @@ private:
 			std::string &code = _blocks.at(_current_block);
 
 			write_location(code, loc);
+
+			if (_shader_model >= 60)
+				code += "[[vk::binding(" + std::to_string(info.binding) + ", 3)]] "; // Descriptor set 3
 
 			code += "RWTexture2D<";
 
