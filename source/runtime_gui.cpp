@@ -3829,8 +3829,13 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 
 		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
 		{
+			if (cmd.UserCallback != nullptr)
+			{
+				cmd.UserCallback(draw_list, &cmd);
+				continue;
+			}
+
 			assert(cmd.TextureId != 0);
-			assert(cmd.UserCallback == nullptr);
 
 			const api::rect scissor_rect = {
 				static_cast<int32_t>(cmd.ClipRect.x - draw_data->DisplayPos.x),
