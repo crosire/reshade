@@ -39,9 +39,9 @@ private:
 	std::string _current_location;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
+	unsigned int _shader_model = 0;
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
-	unsigned int _shader_model = 0;
 
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_bitwise_cast = false;
