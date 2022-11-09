@@ -2128,11 +2128,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	assert(_extended_interface);
 
 	// Skip when no presentation is requested
-	if ((!(dwFlags & D3DPRESENT_DONOTFLIP)) &&
+	if (((dwFlags & D3DPRESENT_DONOTFLIP) == 0) &&
 		// Also skip when the same frame is presented multiple times
-		(!(dwFlags & D3DPRESENT_DONOTWAIT) || !_was_still_drawing_last_frame))
+		((dwFlags & D3DPRESENT_DONOTWAIT) == 0 || !_implicit_swapchain->_was_still_drawing_last_frame))
 	{
-		assert(!_was_still_drawing_last_frame);
+		assert(!_implicit_swapchain->_was_still_drawing_last_frame);
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(
@@ -2149,7 +2149,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	}
 
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
-	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
+	_implicit_swapchain->_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetGPUThreadPriority(INT *pPriority)

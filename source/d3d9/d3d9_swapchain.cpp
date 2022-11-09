@@ -109,21 +109,31 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
+	// Skip when no presentation is requested
+	if (((dwFlags & D3DPRESENT_DONOTFLIP) == 0) &&
+		// Also skip when the same frame is presented multiple times
+		((dwFlags & D3DPRESENT_DONOTWAIT) == 0 || !_was_still_drawing_last_frame))
+	{
+		assert(!_was_still_drawing_last_frame);
+
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(
-		_device,
-		this,
-		reinterpret_cast<const reshade::api::rect *>(pSourceRect),
-		reinterpret_cast<const reshade::api::rect *>(pDestRect),
-		pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
-		pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			_device,
+			this,
+			reinterpret_cast<const reshade::api::rect *>(pSourceRect),
+			reinterpret_cast<const reshade::api::rect *>(pDestRect),
+			pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
+			pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
 #endif
 
-	// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
-	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
-		swapchain_impl::on_present();
+		// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
+		if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
+			swapchain_impl::on_present();
+	}
 
-	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetFrontBufferData(IDirect3DSurface9 *pDestSurface)
 {
