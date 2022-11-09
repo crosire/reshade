@@ -2127,20 +2127,30 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 {
 	assert(_extended_interface);
 
+	// Skip when no presentation is requested
+	if ((!(dwFlags & D3DPRESENT_DONOTFLIP)) &&
+		// Also skip when the same frame is presented multiple times
+		(!(dwFlags & D3DPRESENT_DONOTWAIT) || !_was_still_drawing_last_frame))
+	{
+		assert(!_was_still_drawing_last_frame);
+
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(
-		this,
-		_implicit_swapchain,
-		reinterpret_cast<const reshade::api::rect *>(pSourceRect),
-		reinterpret_cast<const reshade::api::rect *>(pDestRect),
-		pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
-		pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			this,
+			_implicit_swapchain,
+			reinterpret_cast<const reshade::api::rect *>(pSourceRect),
+			reinterpret_cast<const reshade::api::rect *>(pDestRect),
+			pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
+			pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
 #endif
 
-	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
-		_implicit_swapchain->on_present();
+		if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
+			_implicit_swapchain->on_present();
+	}
 
-	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetGPUThreadPriority(INT *pPriority)
 {

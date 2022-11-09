@@ -119,8 +119,13 @@ void DXGISwapChain::runtime_present(UINT flags, [[maybe_unused]] const DXGI_PRES
 {
 	// Some D3D11 games test presentation for timing and composition purposes
 	// These calls are not rendering related, but rather a status request for the D3D runtime and as such should be ignored
-	if (flags & DXGI_PRESENT_TEST)
+	if ((flags & DXGI_PRESENT_TEST) != 0)
 		return;
+
+	// Also skip when the same frame is presented multiple times
+	if ((flags & DXGI_PRESENT_DO_NOT_WAIT) != 0 && _was_still_drawing_last_frame)
+		return;
+	assert(!_was_still_drawing_last_frame);
 
 	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'destroy_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
@@ -180,6 +185,8 @@ void DXGISwapChain::runtime_present(UINT flags, [[maybe_unused]] const DXGI_PRES
 
 void DXGISwapChain::handle_device_loss(HRESULT hr)
 {
+	_was_still_drawing_last_frame = (hr == DXGI_ERROR_WAS_STILL_DRAWING);
+
 	if (!_impl->is_initialized())
 		return;
 

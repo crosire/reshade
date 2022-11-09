@@ -175,4 +175,5 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	Direct3DDepthStencilSurface9 *_auto_depth_stencil = nullptr;
 	com_ptr<Direct3DDepthStencilSurface9> _current_depth_stencil;
 #endif
+	bool _was_still_drawing_last_frame = false;
 };
