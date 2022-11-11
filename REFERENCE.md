@@ -51,7 +51,7 @@ Overlays are created with the use of [Dear ImGui version 1.86](https://github.co
 
 ```cpp
 #define IMGUI_DISABLE_INCLUDE_IMCONFIG_H
-#define ImTextureID unsigned long long // Change ImGui texture ID type to that of a 'reshade::api::resource_view' handle
+#define ImTextureID ImU64 // Change ImGui texture ID type to that of a 'reshade::api::resource_view' handle
 
 #include <imgui.h>
 #include <reshade.hpp>

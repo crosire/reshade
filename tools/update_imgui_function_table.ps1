@@ -244,7 +244,7 @@ $function_definitions = @"
 #if defined(IMGUI_VERSION_NUM)
 
 // Check that the 'ImTextureID' type has the same size as 'reshade::api::resource_view'
-static_assert(sizeof(ImTextureID) == 8, "Missing \"#define ImTextureID uint64_t\" before \"#include <imgui.h>\"");
+static_assert(sizeof(ImTextureID) == 8, "missing \"#define ImTextureID ImU64\" before \"#include <imgui.h>\"");
 
 $function_table
 
