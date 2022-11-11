@@ -56,7 +56,9 @@ uint32_t reshade::d3d12::swapchain_impl::get_back_buffer_count() const
 }
 uint32_t reshade::d3d12::swapchain_impl::get_current_back_buffer_index() const
 {
-	return _orig != nullptr ? _orig->GetCurrentBackBufferIndex() : _swap_index;
+	assert(_orig != nullptr);
+
+	return _orig->GetCurrentBackBufferIndex();
 }
 
 void reshade::d3d12::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type)
@@ -128,48 +130,6 @@ void reshade::d3d12::swapchain_impl::on_present()
 	runtime::on_present();
 }
 
-bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwnd)
-{
-	assert(source != nullptr);
-
-	_swap_index = (_swap_index + 1) % static_cast<UINT>(_backbuffers.size());
-
-	// Update source texture render target view
-	if (_backbuffers[_swap_index] != source)
-	{
-		runtime::on_reset();
-
-#if RESHADE_ADDON
-		if (_backbuffers[0] != nullptr)
-		{
-			invoke_addon_event<addon_event::destroy_swapchain>(this);
-		}
-#endif
-
-		// Reduce number of back buffers if less are used than predicted
-		if (const auto it = std::find(_backbuffers.begin(), _backbuffers.end(), source); it != _backbuffers.end())
-			_backbuffers.erase(it);
-		else
-			_backbuffers[_swap_index] = source;
-
-		// Do not initialize before all back buffers have been set
-		// The first to be set is at index 1 due to the addition above, so it is sufficient to check the last to be set, which will be at index 0
-		if (_backbuffers[0] != nullptr)
-		{
-#if RESHADE_ADDON
-			invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
-
-			if (!runtime::on_init(hwnd))
-				return false;
-		}
-	}
-
-	// Is not initialized the first few frames, but that is fine, since 'on_present' does an 'is_initialized' check
-	on_present();
-	return true;
-}
-
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE && RESHADE_FX
 void reshade::d3d12::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
@@ -212,3 +172,54 @@ void reshade::d3d12::swapchain_impl::render_technique(api::effect_technique hand
 	}
 }
 #endif
+
+reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, command_queue_impl *queue) : swapchain_impl(device, queue, nullptr)
+{
+}
+
+uint32_t reshade::d3d12::swapchain_d3d12on7_impl::get_current_back_buffer_index() const
+{
+	return _swap_index;
+}
+
+bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(ID3D12Resource *source, HWND hwnd)
+{
+	assert(source != nullptr);
+
+	_swap_index = (_swap_index + 1) % static_cast<UINT>(_backbuffers.size());
+
+	// Update source texture render target view
+	if (_backbuffers[_swap_index] != source)
+	{
+		runtime::on_reset();
+
+#if RESHADE_ADDON
+		if (_backbuffers[0] != nullptr)
+		{
+			invoke_addon_event<addon_event::destroy_swapchain>(this);
+		}
+#endif
+
+		// Reduce number of back buffers if less are used than predicted
+		if (const auto it = std::find(_backbuffers.begin(), _backbuffers.end(), source); it != _backbuffers.end())
+			_backbuffers.erase(it);
+		else
+			_backbuffers[_swap_index] = source;
+
+		// Do not initialize before all back buffers have been set
+		// The first to be set is at index 1 due to the addition above, so it is sufficient to check the last to be set, which will be at index 0
+		if (_backbuffers[0] != nullptr)
+		{
+#if RESHADE_ADDON
+			invoke_addon_event<addon_event::init_swapchain>(this);
+#endif
+
+			if (!runtime::on_init(hwnd))
+				return false;
+		}
+	}
+
+	// Is not initialized the first few frames, but that is fine, since 'on_present' does an 'is_initialized' check
+	swapchain_impl::on_present();
+	return true;
+}

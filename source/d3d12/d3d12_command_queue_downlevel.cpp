@@ -9,7 +9,7 @@
 #include "d3d12_command_queue_downlevel.hpp"
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
-	swapchain_impl(queue->_device, queue, nullptr),
+	swapchain_d3d12on7_impl(queue->_device, queue),
 	_orig(original),
 	_parent_queue(queue)
 {
@@ -54,7 +54,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 
 	assert(pSourceTex2D != nullptr);
 
-	swapchain_impl::on_present(pSourceTex2D, hWindow);
+	swapchain_d3d12on7_impl::on_present(pSourceTex2D, hWindow);
 
 	_parent_queue->flush_immediate_command_list();
 

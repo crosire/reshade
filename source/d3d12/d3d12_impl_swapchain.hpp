@@ -22,7 +22,7 @@ namespace reshade::d3d12
 		api::resource get_back_buffer(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final;
-		uint32_t get_current_back_buffer_index() const final;
+		uint32_t get_current_back_buffer_index() const;
 
 		void set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type);
 
@@ -30,15 +30,26 @@ namespace reshade::d3d12
 		void on_reset();
 
 		void on_present();
-		bool on_present(ID3D12Resource *source, HWND hwnd);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE && RESHADE_FX
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 		void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 #endif
 
+	protected:
+		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
+	};
+
+	class swapchain_d3d12on7_impl : public swapchain_impl
+	{
+	public:
+		swapchain_d3d12on7_impl(device_impl *device, command_queue_impl *queue);
+
+		uint32_t get_current_back_buffer_index() const final;
+
+		bool on_present(ID3D12Resource *source, HWND hwnd);
+
 	private:
 		UINT _swap_index = 0;
-		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 	};
 }
