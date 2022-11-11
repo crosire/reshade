@@ -633,12 +633,15 @@ void reshade::runtime::draw_gui()
 	}
 
 	_ignore_shortcuts = false;
-	_gather_gpu_statistics = false;
 #if RESHADE_FX
+	_gather_gpu_statistics = false;
 	_effects_expanded_state &= 2;
 #endif
 
-	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture == 0
+	if (!show_splash && !show_stats_window && !_show_overlay
+#if RESHADE_FX
+		&& _preview_texture == 0
+#endif
 #if RESHADE_ADDON
 		&& !has_addon_event<addon_event::reshade_overlay>()
 #endif
@@ -1885,7 +1888,9 @@ void reshade::runtime::draw_gui_statistics()
 
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+#if RESHADE_FX
 		_gather_gpu_statistics = true;
+#endif
 
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::PlotLines("##framerate",

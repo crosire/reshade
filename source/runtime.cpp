@@ -630,7 +630,11 @@ void reshade::runtime::on_present()
 	else
 		draw_gui();
 
-	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != 0 && _effects_enabled)))
+	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay
+#if RESHADE_FX
+		|| (_preview_texture != 0 && _effects_enabled)
+#endif
+		))
 		save_screenshot(" overlay");
 #endif
 

@@ -480,9 +480,11 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Statistics
+#if RESHADE_FX
 		bool _gather_gpu_statistics = false;
 		api::resource_view _preview_texture = { 0 };
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
+#endif
 		#pragma endregion
 
 		#pragma region Overlay Log
