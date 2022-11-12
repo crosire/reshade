@@ -71,8 +71,9 @@ namespace reshade::api
 	enum class pipeline_layout_param_type : uint32_t
 	{
 		push_constants = 1,
+		descriptor_set = 0,
 		push_descriptors = 2,
-		descriptor_set = 0
+		push_descriptors_ranges = 3
 	};
 
 	/// <summary>
@@ -168,7 +169,7 @@ namespace reshade::api
 			descriptor_range push_descriptors;
 
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/> or <see cref="pipeline_layout_param_type::push_descriptors_ranges"/>.
 			/// </summary>
 			struct
 			{

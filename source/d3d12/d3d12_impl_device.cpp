@@ -835,8 +835,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
-			const bool push_descriptors = params[i].type == api::pipeline_layout_param_type::push_descriptors;
-			const uint32_t  range_count = push_descriptors ? 1 : params[i].descriptor_set.count;
+			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
+			const uint32_t range_count = push_descriptors ? 1 : params[i].descriptor_set.count;
 			const api::descriptor_range *const input_ranges = push_descriptors ? &params[i].push_descriptors : params[i].descriptor_set.ranges;
 
 			if (range_count == 0 || input_ranges[0].count == 0)
