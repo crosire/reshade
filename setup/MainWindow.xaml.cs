@@ -1196,8 +1196,6 @@ In that event here are some steps you can try to resolve this:
 				config.SetValue("APP", "ForceVsync", "0");
 				config.SetValue("APP", "ForceWindowed", "0");
 				config.SetValue("APP", "ForceFullscreen", "0");
-				config.SetValue("APP", "ForceResolution", "0,0");
-				config.SetValue("APP", "Force10BitFormat", "0");
 			}
 
 			// Always add input section
