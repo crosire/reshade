@@ -260,6 +260,7 @@ namespace reshade
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;
 		std::shared_ptr<class input> _input;
+		std::shared_ptr<class input_gamepad> _input_gamepad;
 
 #if RESHADE_FX
 		bool _effects_enabled = true;
