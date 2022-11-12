@@ -724,6 +724,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	}
 	#pragma endregion
 
+	reshade::hooks::uninstall();
+
 	return EXIT_FAILURE;
 }
 
