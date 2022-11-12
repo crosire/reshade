@@ -1117,8 +1117,12 @@ void reshade::runtime::save_current_preset() const
 			preset.remove_key({}, "Key" + unique_name);
 	}
 
+	if (std::equal(technique_list.begin(), technique_list.end(), sorted_technique_list.begin()))
+		preset.remove_key({}, "TechniqueSorting");
+	else
+		preset.set({}, "TechniqueSorting", std::move(sorted_technique_list));
+
 	preset.set({}, "Techniques", std::move(technique_list));
-	preset.set({}, "TechniqueSorting", std::move(sorted_technique_list));
 	preset.set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
