@@ -855,8 +855,9 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	_orig->ResourceBarrier(1, &transition);
 
 	// Reset descriptor heaps and root signature
-	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
-		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
+	if (_current_descriptor_heaps[0] != nullptr && (
+		_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
+		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get()))
 	{
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
 	}
