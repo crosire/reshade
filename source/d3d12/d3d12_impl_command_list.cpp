@@ -49,39 +49,57 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 
 	_has_commands = true;
 
+	uint32_t k = 0;
 	temp_mem<D3D12_RESOURCE_BARRIER> barriers(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		if (resources[i].handle == 0)
 		{
-			assert(false); // TODO: Implement with 'ID3D12GraphicsCommandList7::Barrier'
+			D3D12_GLOBAL_BARRIER barrier = {};
+			barrier.SyncBefore = D3D12_BARRIER_SYNC_ALL;
+			barrier.SyncAfter = D3D12_BARRIER_SYNC_ALL;
+			barrier.AccessBefore = reshade::d3d12::convert_usage_to_access(old_states[i]);
+			barrier.AccessAfter = reshade::d3d12::convert_usage_to_access(new_states[i]);
+
+			D3D12_BARRIER_GROUP barrier_group = {};
+			barrier_group.Type = D3D12_BARRIER_TYPE_GLOBAL;
+			barrier_group.NumBarriers = 1;
+			barrier_group.pGlobalBarriers = &barrier;
+
+			com_ptr<ID3D12GraphicsCommandList7> cmd_list7;
+			if (SUCCEEDED(_orig->QueryInterface(&cmd_list7)))
+				cmd_list7->Barrier(1, &barrier_group);
+			else
+				assert(false);
 			continue;
 		}
 
 		if (old_states[i] == api::resource_usage::unordered_access && new_states[i] == api::resource_usage::unordered_access)
 		{
-			barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-			barriers[i].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			barriers[i].UAV.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
+			barriers[k].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+			barriers[k].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barriers[k].UAV.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
 		}
 		else if (old_states[i] == api::resource_usage::undefined && new_states[i] == api::resource_usage::general)
 		{
-			barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
-			barriers[i].Aliasing.pResourceBefore = nullptr;
-			barriers[i].Aliasing.pResourceAfter = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
+			barriers[k].Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+			barriers[k].Aliasing.pResourceBefore = nullptr;
+			barriers[k].Aliasing.pResourceAfter = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
 		}
 		else
 		{
-			barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			barriers[i].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			barriers[i].Transition.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
-			barriers[i].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			barriers[i].Transition.StateBefore = convert_resource_usage_to_states(old_states[i]);
-			barriers[i].Transition.StateAfter = convert_resource_usage_to_states(new_states[i]);
+			barriers[k].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barriers[k].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barriers[k].Transition.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
+			barriers[k].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barriers[k].Transition.StateBefore = convert_usage_to_resource_states(old_states[i]);
+			barriers[k].Transition.StateAfter = convert_usage_to_resource_states(new_states[i]);
 		}
+
+		k++;
 	}
 
-	_orig->ResourceBarrier(count, barriers.p);
+	_orig->ResourceBarrier(k, barriers.p);
 }
 
 // IID_ID3D12GraphicsCommandListExt

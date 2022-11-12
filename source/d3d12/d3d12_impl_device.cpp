@@ -286,8 +286,8 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 	if (com_ptr<ID3D12Resource> object;
 		SUCCEEDED(desc.heap == api::memory_heap::unknown ?
-			_orig->CreateReservedResource(&internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
-			_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
+			_orig->CreateReservedResource(&internal_desc, convert_usage_to_resource_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
+			_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_usage_to_resource_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
 	{
 		if (is_shared && FAILED(_orig->CreateSharedHandle(object.get(), nullptr, GENERIC_ALL, nullptr, shared_handle)))
 			return false;

@@ -479,30 +479,43 @@ auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::c
 auto reshade::vulkan::convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage
 {
 	static_assert(
-		VK_ACCESS_SHADER_READ_BIT == VK_ACCESS_2_SHADER_READ_BIT &&
-		VK_ACCESS_SHADER_WRITE_BIT == VK_ACCESS_2_SHADER_WRITE_BIT &&
-		VK_ACCESS_TRANSFER_WRITE_BIT == VK_ACCESS_2_TRANSFER_WRITE_BIT &&
-		VK_ACCESS_TRANSFER_READ_BIT == VK_ACCESS_2_TRANSFER_READ_BIT &&
+		VK_ACCESS_INDIRECT_COMMAND_READ_BIT == VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT &&
 		VK_ACCESS_INDEX_READ_BIT == VK_ACCESS_2_INDEX_READ_BIT &&
 		VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT == VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT &&
 		VK_ACCESS_UNIFORM_READ_BIT == VK_ACCESS_2_UNIFORM_READ_BIT &&
+		VK_ACCESS_SHADER_READ_BIT == VK_ACCESS_2_SHADER_READ_BIT &&
+		VK_ACCESS_SHADER_WRITE_BIT == VK_ACCESS_2_SHADER_WRITE_BIT &&
+		VK_ACCESS_COLOR_ATTACHMENT_READ_BIT == VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT &&
+		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT == VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT &&
+		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT == VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT &&
+		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT == VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT &&
+		VK_ACCESS_TRANSFER_READ_BIT == VK_ACCESS_2_TRANSFER_READ_BIT &&
+		VK_ACCESS_TRANSFER_WRITE_BIT == VK_ACCESS_2_TRANSFER_WRITE_BIT &&
 		VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT == VK_ACCESS_2_TRANSFORM_FEEDBACK_WRITE_BIT_EXT);
 
 	api::resource_usage result = api::resource_usage::undefined;
-	if ((flags & VK_ACCESS_SHADER_READ_BIT) != 0)
-		result |= api::resource_usage::shader_resource;
-	if ((flags & VK_ACCESS_SHADER_WRITE_BIT) != 0)
-		result |= api::resource_usage::unordered_access;
-	if ((flags & VK_ACCESS_TRANSFER_WRITE_BIT) != 0)
-		result |= api::resource_usage::copy_dest;
-	if ((flags & VK_ACCESS_TRANSFER_READ_BIT) != 0)
-		result |= api::resource_usage::copy_source;
+	if ((flags & VK_ACCESS_INDIRECT_COMMAND_READ_BIT) != 0)
+		result |= api::resource_usage::indirect_argument;
 	if ((flags & VK_ACCESS_INDEX_READ_BIT) != 0)
 		result |= api::resource_usage::index_buffer;
 	if ((flags & VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT) != 0)
 		result |= api::resource_usage::vertex_buffer;
 	if ((flags & VK_ACCESS_UNIFORM_READ_BIT) != 0)
 		result |= api::resource_usage::constant_buffer;
+	if ((flags & VK_ACCESS_SHADER_READ_BIT) != 0)
+		result |= api::resource_usage::shader_resource;
+	if ((flags & VK_ACCESS_SHADER_WRITE_BIT) != 0)
+		result |= api::resource_usage::unordered_access;
+	if ((flags & (VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)) != 0)
+		result |= api::resource_usage::render_target;
+	if ((flags & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT) != 0)
+		result |= api::resource_usage::depth_stencil_read;
+	if ((flags & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT) != 0)
+		result |= api::resource_usage::depth_stencil_write;
+	if ((flags & VK_ACCESS_TRANSFER_READ_BIT) != 0)
+		result |= api::resource_usage::copy_source;
+	if ((flags & VK_ACCESS_TRANSFER_WRITE_BIT) != 0)
+		result |= api::resource_usage::copy_dest;
 #ifdef VK_EXT_transform_feedback
 	if ((flags & VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT) != 0)
 		result |= api::resource_usage::stream_output;
@@ -552,6 +565,18 @@ auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAc
 		return VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT;
 
 	VkAccessFlags result = 0;
+	if ((state & api::resource_usage::index_buffer) != 0)
+		result |= VK_ACCESS_INDEX_READ_BIT;
+	if ((state & api::resource_usage::vertex_buffer) != 0)
+		result |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+	if ((state & api::resource_usage::constant_buffer) != 0)
+		result |= VK_ACCESS_UNIFORM_READ_BIT;
+#ifdef VK_EXT_transform_feedback
+	if ((state & api::resource_usage::stream_output) != 0)
+		result |= VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT;
+#endif
+	if ((state & api::resource_usage::indirect_argument) != 0)
+		result |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 	if ((state & api::resource_usage::depth_stencil_read) != 0)
 		result |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 	if ((state & api::resource_usage::depth_stencil_write) != 0)
@@ -566,16 +591,6 @@ auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAc
 		result |= VK_ACCESS_TRANSFER_WRITE_BIT;
 	if ((state & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != 0)
 		result |= VK_ACCESS_TRANSFER_READ_BIT;
-	if ((state & api::resource_usage::index_buffer) != 0)
-		result |= VK_ACCESS_INDEX_READ_BIT;
-	if ((state & api::resource_usage::vertex_buffer) != 0)
-		result |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-	if ((state & api::resource_usage::constant_buffer) != 0)
-		result |= VK_ACCESS_UNIFORM_READ_BIT;
-#ifdef VK_EXT_transform_feedback
-	if ((state & api::resource_usage::stream_output) != 0)
-		result |= VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT;
-#endif
 	return result;
 }
 auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout
@@ -620,6 +635,14 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 		return VK_PIPELINE_STAGE_HOST_BIT;
 
 	VkPipelineStageFlags result = 0;
+	if ((state & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer)) != 0)
+		result |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+#ifdef VK_EXT_transform_feedback
+	if ((state & api::resource_usage::stream_output) != 0)
+		result |= VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT;
+#endif
+	if ((state & api::resource_usage::indirect_argument) != 0)
+		result |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
 	if ((state & api::resource_usage::depth_stencil_read) != 0)
 		result |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	if ((state & api::resource_usage::depth_stencil_write) != 0)
@@ -634,27 +657,11 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if ((state & (api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != 0)
 		result |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-	if ((state & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer)) != 0)
-		result |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-#ifdef VK_EXT_transform_feedback
-	if ((state & (api::resource_usage::stream_output)) != 0)
-		result |= VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT;
-#endif
 	return result;
 }
 
 void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags)
 {
-	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
-		image_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	else
-		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
-	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != 0)
-		image_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-	else
-		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-
 	if ((usage & api::resource_usage::depth_stencil) != 0)
 		// Add transfer destination usage as well to support clearing via 'vkCmdClearDepthStencilImage'
 		image_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -676,23 +683,33 @@ void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usa
 		image_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_STORAGE_BIT;
+
+	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
+		image_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	else
+		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != 0)
+		image_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	else
+		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 }
 void reshade::vulkan::convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, api::resource_usage &usage)
 {
 	using namespace reshade;
 
-	if ((image_flags & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0)
-		usage |= api::resource_usage::depth_stencil;
-	if ((image_flags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) != 0)
-		usage |= api::resource_usage::render_target;
+	if ((image_flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0)
+		usage |= api::resource_usage::copy_source;
+	if ((image_flags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0)
+		usage |= api::resource_usage::copy_dest;
 	if ((image_flags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0)
 		usage |= api::resource_usage::shader_resource;
 	if ((image_flags & VK_IMAGE_USAGE_STORAGE_BIT) != 0)
 		usage |= api::resource_usage::unordered_access;
-	if ((image_flags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0)
-		usage |= api::resource_usage::copy_dest;
-	if ((image_flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0)
-		usage |= api::resource_usage::copy_source;
+	if ((image_flags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) != 0)
+		usage |= api::resource_usage::render_target;
+	if ((image_flags & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0)
+		usage |= api::resource_usage::depth_stencil;
 }
 void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage usage, VkBufferUsageFlags &buffer_flags)
 {
@@ -710,6 +727,13 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 		buffer_flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+#ifdef VK_EXT_transform_feedback
+	if ((usage & api::resource_usage::stream_output) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
+#endif
 
 	if ((usage & api::resource_usage::indirect_argument) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
@@ -735,36 +759,29 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
-#ifdef VK_EXT_transform_feedback
-	if ((usage & api::resource_usage::stream_output) != 0)
-		buffer_flags |= VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
-	else
-		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
-#endif
 }
 void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, api::resource_usage &usage)
 {
 	using namespace reshade;
 
-	if ((buffer_flags & VK_BUFFER_USAGE_INDEX_BUFFER_BIT) != 0)
-		usage |= api::resource_usage::index_buffer;
-	if ((buffer_flags & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) != 0)
-		usage |= api::resource_usage::vertex_buffer;
-	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0)
-		usage |= api::resource_usage::constant_buffer;
-	if ((buffer_flags & VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) != 0)
-		usage |= api::resource_usage::indirect_argument;
+	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) != 0)
+		usage |= api::resource_usage::copy_source;
+	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0)
+		usage |= api::resource_usage::copy_dest;
 	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::shader_resource;
 	if ((buffer_flags & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::unordered_access;
+	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0)
+		usage |= api::resource_usage::constant_buffer;
 	if ((buffer_flags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::unordered_access;
-	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0)
-		usage |= api::resource_usage::copy_dest;
-	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) != 0)
-		usage |= api::resource_usage::copy_source;
+	if ((buffer_flags & VK_BUFFER_USAGE_INDEX_BUFFER_BIT) != 0)
+		usage |= api::resource_usage::index_buffer;
+	if ((buffer_flags & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) != 0)
+		usage |= api::resource_usage::vertex_buffer;
+	if ((buffer_flags & VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) != 0)
+		usage |= api::resource_usage::indirect_argument;
 #ifdef VK_EXT_transform_feedback
 	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT) != 0)
 		usage |= api::resource_usage::stream_output;
