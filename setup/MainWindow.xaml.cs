@@ -1202,6 +1202,7 @@ In that event here are some steps you can try to resolve this:
 			if (!config.HasValue("INPUT"))
 			{
 				config.SetValue("INPUT", "KeyOverlay", "36,0,0,0");
+				config.SetValue("INPUT", "GamepadNavigation", "1");
 			}
 
 			config.SaveFile();

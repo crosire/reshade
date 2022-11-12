@@ -68,10 +68,6 @@ void reshade::runtime::init_gui()
 	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
 	imgui_io.BackendFlags = ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_RendererHasVtxOffset;
 
-	_input_gamepad = input_gamepad::load();
-	if (_input_gamepad != nullptr)
-		imgui_io.BackendFlags |= ImGuiConfigFlags_NavEnableGamepad;
-
 	// Disable rounding by default
 	imgui_style.GrabRounding = 0.0f;
 	imgui_style.FrameRounding = 0.0f;
@@ -167,6 +163,18 @@ void reshade::runtime::build_font_atlas()
 
 void reshade::runtime::load_config_gui(const ini_file &config)
 {
+	if (config.get("INPUT", "GamepadNavigation"))
+	{
+		_input_gamepad = input_gamepad::load();
+		if (_input_gamepad != nullptr)
+			_imgui_context->IO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	}
+	else
+	{
+		_input_gamepad.reset();
+		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
+	}
+
 	config.get("INPUT", "KeyOverlay", _overlay_key_data);
 	config.get("INPUT", "InputProcessing", _input_processing_mode);
 
@@ -722,7 +730,7 @@ void reshade::runtime::draw_gui()
 		imgui_io.NavInputs[ImGuiNavInput_TweakSlow] = gamepad_state.left_trigger;
 		imgui_io.NavInputs[ImGuiNavInput_TweakFast] = gamepad_state.right_trigger;
 
-		if (ImGui::GetNavInputAmount(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed) && imgui_io.NavInputs[ImGuiNavInput_TweakSlow] && imgui_io.NavInputs[ImGuiNavInput_TweakFast])
+		if (ImGui::GetNavInputAmount(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed) && imgui_io.NavInputs[ImGuiNavInput_FocusPrev] && imgui_io.NavInputs[ImGuiNavInput_FocusNext])
 		{
 			_show_overlay = !_show_overlay;
 			_imgui_context->NavInputSource = ImGuiInputSource_Gamepad;
@@ -807,7 +815,7 @@ void reshade::runtime::draw_gui()
 
 				if (_input == nullptr)
 				{
-					ImGui::TextColored(COLOR_YELLOW, "No keyboard or mouse input available.");
+					ImGui::TextColored(COLOR_YELLOW, "No keyboard or mouse input available.%s", _input_gamepad != nullptr ? " Use gamepad instead: Press 'left + right shoulder + A button' to open the configuration overlay." : "");
 				}
 #if RESHADE_FX
 				else if (_tutorial_index == 0)
