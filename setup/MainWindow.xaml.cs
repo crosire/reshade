@@ -1514,11 +1514,6 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(Path.Combine(basePath, "ReShade.log"));
 				}
 
-				if (File.Exists(Path.Combine(basePath, "ReShadeGUI.ini")))
-				{
-					File.Delete(Path.Combine(basePath, "ReShadeGUI.ini"));
-				}
-
 				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
 				{
 					Directory.Delete(Path.Combine(basePath, "reshade-shaders"), true);
