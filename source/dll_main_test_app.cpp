@@ -67,15 +67,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	RegisterClass(&wc);
 
-	const UINT window_w = 1024;
-	const UINT window_h = 800;
-	const UINT window_x = (GetSystemMetrics(SM_CXSCREEN) - window_w) / 2;
-	const UINT window_y = (GetSystemMetrics(SM_CYSCREEN) - window_h) / 2;
+	LONG window_w = 1024;
+	if (LPSTR width_arg = strstr(lpCmdLine, "-width "))
+		window_w = strtol(width_arg + 7, nullptr, 10);
+	LONG window_h = 800;
+	if (LPSTR height_arg = strstr(lpCmdLine, "-height "))
+		window_h = strtol(height_arg + 8, nullptr, 10);
+
+	const LONG window_x = (GetSystemMetrics(SM_CXSCREEN) - window_w) / 2;
+	const LONG window_y = (GetSystemMetrics(SM_CYSCREEN) - window_h) / 2;
+
+	RECT window_rect = { window_x, window_y, window_x + window_w, window_y + window_h };
+	AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, FALSE);
 
 	// Create and show window instance
 	const HWND window_handle = CreateWindow(
 		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_PRODUCT), WS_OVERLAPPEDWINDOW,
-		window_x, window_y, window_w, window_h, nullptr, nullptr, hInstance, nullptr);
+		window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, nullptr, nullptr, hInstance, nullptr);
 
 	if (window_handle == nullptr)
 		return 0;
@@ -295,7 +303,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 			else
 			{
-				RECT window_rect = {};
 				GetClientRect(window_handle, &window_rect);
 
 				D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
