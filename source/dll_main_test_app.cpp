@@ -96,8 +96,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	MSG msg = {};
 
-	#pragma region D3D9 Implementation
+	reshade::api::device_api api = reshade::api::device_api::d3d11;
 	if (strstr(lpCmdLine, "-d3d9"))
+		api = reshade::api::device_api::d3d9;
+	if (strstr(lpCmdLine, "-d3d11"))
+		api = reshade::api::device_api::d3d11;
+	if (strstr(lpCmdLine, "-d3d12"))
+		api = reshade::api::device_api::d3d12;
+	if (strstr(lpCmdLine, "-opengl"))
+		api = reshade::api::device_api::opengl;
+	if (strstr(lpCmdLine, "-vulkan"))
+		api = reshade::api::device_api::vulkan;
+
+	switch (api)
+	{
+	#pragma region D3D9 Implementation
+	case reshade::api::device_api::d3d9:
 	{
 		const auto d3d9_module = LoadLibraryW(L"d3d9.dll");
 		assert(d3d9_module != nullptr);
@@ -135,16 +149,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HR_CHECK(device->Present(nullptr, nullptr, nullptr, nullptr));
 		}
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(d3d9_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
-
+		break;
 	#pragma region D3D11 Implementation
-	if (strstr(lpCmdLine, "-d3d11"))
+	case reshade::api::device_api::d3d11:
 	{
 		const auto dxgi_module = LoadLibraryW(L"dxgi.dll");
 		const auto d3d11_module = LoadLibraryW(L"d3d11.dll");
@@ -205,17 +215,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HR_CHECK(swapchain->Present(1, 0));
 		}
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(dxgi_module);
 		FreeLibrary(d3d11_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
-
+		break;
 	#pragma region D3D12 Implementation
-	if (strstr(lpCmdLine, "-d3d12"))
+	case reshade::api::device_api::d3d12:
 	{
 		const auto dxgi_module = LoadLibraryW(L"dxgi.dll");
 		const auto d3d12_module = LoadLibraryW(L"d3d12.dll");
@@ -385,17 +391,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 		}
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(dxgi_module);
 		FreeLibrary(d3d12_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
-
+		break;
 	#pragma region OpenGL Implementation
-	if (strstr(lpCmdLine, "-opengl"))
+	case reshade::api::device_api::opengl:
 	{
 		const auto opengl_module = LoadLibraryW(L"opengl32.dll");
 		assert(opengl_module != nullptr);
@@ -460,16 +462,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		wglMakeCurrent(nullptr, nullptr);
 		wglDeleteContext(hglrc2);
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(opengl_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
-
+		break;
 	#pragma region Vulkan Implementation
-	if (strstr(lpCmdLine, "-vulkan"))
+	case reshade::api::device_api::vulkan:
 	{
 		const auto vulkan_module = LoadLibraryW(L"vulkan-1.dll");
 		assert(vulkan_module != nullptr);
@@ -723,17 +721,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		VK_CALL_DEVICE(vkDestroyDevice, device, nullptr);
 		VK_CALL_INSTANCE(vkDestroyInstance, instance, instance, nullptr);
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(vulkan_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
+		break;
+	default:
+		msg.wParam = EXIT_FAILURE;
+		break;
+	}
 
 	reshade::hooks::uninstall();
 
-	return EXIT_FAILURE;
+	return static_cast<int>(msg.wParam);
 }
 
 #endif
