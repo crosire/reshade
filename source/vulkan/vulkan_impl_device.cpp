@@ -554,15 +554,17 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO) // Structure type is at the same offset in both image and buffer object data structures
 	{
 		const VmaAllocation allocation = data->allocation;
+		const VkDeviceMemory memory = data->memory;
 
+		// Warning, the 'data' pointer must not be accessed after this call, since it frees that memory!
 		unregister_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
 
 		if (allocation == VMA_NULL)
 		{
 			vk.DestroyImage(_orig, (VkImage)handle.handle, nullptr);
 
-			if (data->memory != VK_NULL_HANDLE)
-				vk.FreeMemory(_orig, data->memory, nullptr);
+			if (memory != VK_NULL_HANDLE)
+				vk.FreeMemory(_orig, memory, nullptr);
 		}
 		else
 		{
@@ -572,15 +574,17 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	else
 	{
 		const VmaAllocation allocation = data->allocation;
+		const VkDeviceMemory memory = data->memory;
 
+		// Warning, the 'data' pointer must not be accessed after this call, since it frees that memory!
 		unregister_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)handle.handle);
 
 		if (allocation == VMA_NULL)
 		{
 			vk.DestroyBuffer(_orig, (VkBuffer)handle.handle, nullptr);
 
-			if (data->memory != VK_NULL_HANDLE)
-				vk.FreeMemory(_orig, data->memory, nullptr);
+			if (memory != VK_NULL_HANDLE)
+				vk.FreeMemory(_orig, memory, nullptr);
 		}
 		else
 		{
