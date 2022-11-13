@@ -163,17 +163,10 @@ void reshade::runtime::build_font_atlas()
 
 void reshade::runtime::load_config_gui(const ini_file &config)
 {
-	if (config.get("INPUT", "GamepadNavigation"))
-	{
-		_input_gamepad = input_gamepad::load();
-		if (_input_gamepad != nullptr)
-			_imgui_context->IO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-	}
+	if (_input_gamepad != nullptr)
+		_imgui_context->IO.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	else
-	{
-		_input_gamepad.reset();
 		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
-	}
 
 	config.get("INPUT", "KeyOverlay", _overlay_key_data);
 	config.get("INPUT", "InputProcessing", _input_processing_mode);
@@ -645,6 +638,17 @@ void reshade::runtime::draw_gui()
 			_show_overlay = !_show_overlay;
 	}
 
+	if (_input_gamepad != nullptr)
+	{
+		if (_input_gamepad->is_button_down(input_gamepad::button_left_shoulder) &&
+			_input_gamepad->is_button_down(input_gamepad::button_right_shoulder) &&
+			_input_gamepad->is_button_pressed(input_gamepad::button_start))
+		{
+			_show_overlay = !_show_overlay;
+			_imgui_context->NavInputSource = ImGuiInputSource_Gamepad;
+		}
+	}
+
 	_ignore_shortcuts = false;
 #if RESHADE_FX
 	_gather_gpu_statistics = false;
@@ -707,38 +711,33 @@ void reshade::runtime::draw_gui()
 			imgui_io.AddInputCharacter(c);
 	}
 
-	if (input_gamepad::state gamepad_state;
-		_input_gamepad != nullptr &&
-		_input_gamepad->get_state(0, gamepad_state))
+	if (_input_gamepad != nullptr)
 	{
-		imgui_io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
-
-		imgui_io.NavInputs[ImGuiNavInput_Activate] = gamepad_state.a ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_Cancel] = gamepad_state.b ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_Input] = gamepad_state.y != 0 ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_Menu] = gamepad_state.x ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_DpadLeft] = gamepad_state.dpad_left ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_DpadRight] = gamepad_state.dpad_right ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_DpadUp] = gamepad_state.dpad_up ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_DpadDown] = gamepad_state.dpad_down ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_LStickLeft] = std::min(gamepad_state.left_thumb_axis_x, 0.0f);
-		imgui_io.NavInputs[ImGuiNavInput_LStickRight] = std::max(gamepad_state.left_thumb_axis_x, 0.0f);
-		imgui_io.NavInputs[ImGuiNavInput_LStickUp] = std::min(gamepad_state.left_thumb_axis_y, 0.0f);
-		imgui_io.NavInputs[ImGuiNavInput_LStickDown] = std::max(gamepad_state.left_thumb_axis_y, 0.0f);
-		imgui_io.NavInputs[ImGuiNavInput_FocusPrev] = gamepad_state.left_shoulder ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_FocusNext] = gamepad_state.right_shoulder ? 1.0f : 0.0f;
-		imgui_io.NavInputs[ImGuiNavInput_TweakSlow] = gamepad_state.left_trigger;
-		imgui_io.NavInputs[ImGuiNavInput_TweakFast] = gamepad_state.right_trigger;
-
-		if (ImGui::GetNavInputAmount(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed) && imgui_io.NavInputs[ImGuiNavInput_FocusPrev] && imgui_io.NavInputs[ImGuiNavInput_FocusNext])
+		if (_input_gamepad->is_connected())
 		{
-			_show_overlay = !_show_overlay;
-			_imgui_context->NavInputSource = ImGuiInputSource_Gamepad;
+			imgui_io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
+
+			imgui_io.NavInputs[ImGuiNavInput_Activate] = _input_gamepad->is_button_down(input_gamepad::button_a) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_Cancel] = _input_gamepad->is_button_down(input_gamepad::button_b) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_Input] = _input_gamepad->is_button_down(input_gamepad::button_y) != 0 ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_Menu] = _input_gamepad->is_button_down(input_gamepad::button_x) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_DpadLeft] = _input_gamepad->is_button_down(input_gamepad::button_dpad_left) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_DpadRight] = _input_gamepad->is_button_down(input_gamepad::button_dpad_right) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_DpadUp] = _input_gamepad->is_button_down(input_gamepad::button_dpad_up) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_DpadDown] = _input_gamepad->is_button_down(input_gamepad::button_dpad_down) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_LStickLeft] = -std::min(_input_gamepad->left_thumb_axis_x(), 0.0f);
+			imgui_io.NavInputs[ImGuiNavInput_LStickRight] = std::max(_input_gamepad->left_thumb_axis_x(), 0.0f);
+			imgui_io.NavInputs[ImGuiNavInput_LStickUp] = std::max(_input_gamepad->left_thumb_axis_y(), 0.0f);
+			imgui_io.NavInputs[ImGuiNavInput_LStickDown] = -std::min(_input_gamepad->left_thumb_axis_y(), 0.0f);
+			imgui_io.NavInputs[ImGuiNavInput_FocusPrev] = _input_gamepad->is_button_down(input_gamepad::button_left_shoulder) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_FocusNext] = _input_gamepad->is_button_down(input_gamepad::button_right_shoulder) ? 1.0f : 0.0f;
+			imgui_io.NavInputs[ImGuiNavInput_TweakSlow] = _input_gamepad->left_trigger_position();
+			imgui_io.NavInputs[ImGuiNavInput_TweakFast] = _input_gamepad->right_trigger_position();
 		}
-	}
-	else
-	{
-		imgui_io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
+		else
+		{
+			imgui_io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
+		}
 	}
 
 	ImGui::NewFrame();
@@ -815,7 +814,7 @@ void reshade::runtime::draw_gui()
 
 				if (_input == nullptr)
 				{
-					ImGui::TextColored(COLOR_YELLOW, "No keyboard or mouse input available.%s", _input_gamepad != nullptr ? " Use gamepad instead: Press 'left + right shoulder + A button' to open the configuration overlay." : "");
+					ImGui::TextColored(COLOR_YELLOW, "No keyboard or mouse input available.%s", _input_gamepad != nullptr ? " Use gamepad instead: Press 'left + right shoulder + start button' to open the configuration overlay." : "");
 				}
 #if RESHADE_FX
 				else if (_tutorial_index == 0)

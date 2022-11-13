@@ -15,6 +15,7 @@
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
 #include "input_freepie.hpp"
+#include "input_gamepad.hpp"
 #include "com_ptr.hpp"
 #include "process_utils.hpp"
 #include <set>
@@ -744,9 +745,11 @@ void reshade::runtime::on_present()
 	_effects_rendered_this_frame = false;
 #endif
 
-	// Reset input status
+	// Update input status
 	if (_input != nullptr)
 		_input->next_frame();
+	if (_input_gamepad != nullptr)
+		_input_gamepad->next_frame();
 
 	// Save modified INI files
 	if (!ini_file::flush_cache())
@@ -793,6 +796,11 @@ void reshade::runtime::on_present()
 void reshade::runtime::load_config()
 {
 	const ini_file &config = ini_file::load_cache(_config_path);
+
+	if (config.get("INPUT", "GamepadNavigation"))
+		_input_gamepad = input_gamepad::load();
+	else
+		_input_gamepad.reset();
 
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
