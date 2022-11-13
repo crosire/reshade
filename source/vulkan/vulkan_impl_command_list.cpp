@@ -66,6 +66,9 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 			barrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
 			barrier.srcAccessMask = convert_usage_to_access(old_states[i]);
 			barrier.dstAccessMask = convert_usage_to_access(new_states[i]);
+
+			src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+			dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 			continue;
 		}
 
