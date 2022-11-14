@@ -1504,35 +1504,41 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		{
 			const VkPipelineShaderStageCreateInfo &stage = create_info.pStages[k];
 
-			const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(stage.module);
-
+			reshade::api::shader_desc *desc = nullptr;
 			switch (stage.stage)
 			{
 			case VK_SHADER_STAGE_VERTEX_BIT:
-				vs_desc.code = module_data->spirv.data();
-				vs_desc.code_size = module_data->spirv.size();
-				vs_desc.entry_point = stage.pName;
+				desc = &vs_desc;
 				break;
 			case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
-				hs_desc.code = module_data->spirv.data();
-				hs_desc.code_size = module_data->spirv.size();
-				hs_desc.entry_point = stage.pName;
+				desc = &hs_desc;
 				break;
 			case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
-				ds_desc.code = module_data->spirv.data();
-				ds_desc.code_size = module_data->spirv.size();
-				ds_desc.entry_point = stage.pName;
+				desc = &ds_desc;
 				break;
 			case VK_SHADER_STAGE_GEOMETRY_BIT:
-				gs_desc.code = module_data->spirv.data();
-				gs_desc.code_size = module_data->spirv.size();
-				gs_desc.entry_point = stage.pName;
+				desc = &gs_desc;
 				break;
 			case VK_SHADER_STAGE_FRAGMENT_BIT:
-				ps_desc.code = module_data->spirv.data();
-				ps_desc.code_size = module_data->spirv.size();
-				ps_desc.entry_point = stage.pName;
+				desc = &ps_desc;
 				break;
+			default:
+				continue;
+			}
+
+			desc->entry_point = stage.pName;
+
+			if (stage.module != VK_NULL_HANDLE)
+			{
+				const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(stage.module);
+
+				desc->code = module_data->spirv.data();
+				desc->code_size = module_data->spirv.size();
+			}
+			else if (const auto module_info = find_in_structure_chain<VkShaderModuleCreateInfo>(stage.pNext, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO))
+			{
+				desc->code = module_info->pCode;
+				desc->code_size = module_info->codeSize;
 			}
 		}
 
@@ -1736,6 +1742,9 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	for (uint32_t i = 0; i < set_desc_count; ++i)
 	{
+		if (pCreateInfo->pSetLayouts[i] == VK_NULL_HANDLE)
+			continue; // This is optional when the pipeline layout is created with 'VK_PIPELINE_LAYOUT_CREATE_INDEPENDENT_SETS_BIT_EXT' flag
+
 		const auto set_layout_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pCreateInfo->pSetLayouts[i]);
 
 		if (!set_layout_impl->push_descriptors)
