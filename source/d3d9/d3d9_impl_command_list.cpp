@@ -169,8 +169,14 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 }
 void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
-	if (first != 0 || count == 0)
+	if (count == 0)
 		return;
+
+	if (first != 0)
+	{
+		assert(false);
+		return;
+	}
 
 	assert(count == 1 && viewports != nullptr);
 
@@ -186,8 +192,14 @@ void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, 
 }
 void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
-	if (first != 0 || count == 0)
+	if (count == 0)
 		return;
+
+	if (first != 0)
+	{
+		assert(false);
+		return;
+	}
 
 	assert(count == 1 && rects != nullptr);
 

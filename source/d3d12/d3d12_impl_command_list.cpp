@@ -260,14 +260,20 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 void reshade::d3d12::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
 	if (first != 0)
+	{
+		assert(false);
 		return;
+	}
 
 	_orig->RSSetViewports(count, reinterpret_cast<const D3D12_VIEWPORT *>(viewports));
 }
 void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	if (first != 0)
+	{
+		assert(false);
 		return;
+	}
 
 	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D12_RECT *>(rects));
 }

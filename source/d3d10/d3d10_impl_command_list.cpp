@@ -158,7 +158,10 @@ void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api
 void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
 	if (first != 0)
+	{
+		assert(false);
 		return;
+	}
 
 	assert(count <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 
@@ -178,7 +181,10 @@ void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count,
 void reshade::d3d10::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	if (first != 0)
+	{
+		assert(false);
 		return;
+	}
 
 	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D10_RECT *>(rects));
 }
@@ -244,10 +250,14 @@ void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stages
 
 void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
-	assert(first == 0);
-
 	if (count == 0)
 		return;
+
+	if (first != 0)
+	{
+		assert(false);
+		return;
+	}
 
 	if (count > _push_constants_size)
 	{

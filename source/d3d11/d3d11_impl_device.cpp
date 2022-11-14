@@ -554,10 +554,10 @@ bool reshade::d3d11::device_impl::map_buffer_region(api::resource resource, uint
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
-	D3D11_MAPPED_SUBRESOURCE mapped_ptr;
-	if (SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access), 0, &mapped_ptr)))
+	if (D3D11_MAPPED_SUBRESOURCE mapped;
+		SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access), 0, &mapped)))
 	{
-		*out_data = static_cast<uint8_t *>(mapped_ptr.pData) + offset;
+		*out_data = static_cast<uint8_t *>(mapped.pData) + offset;
 		return true;
 	}
 	else
@@ -1153,7 +1153,7 @@ bool reshade::d3d11::device_impl::allocate_descriptor_sets(uint32_t count, api::
 			set_impl->type = layout_impl->ranges[layout_param].type;
 			set_impl->count = layout_impl->ranges[layout_param].count;
 
-			switch(set_impl->type)
+			switch (set_impl->type)
 			{
 			case api::descriptor_type::sampler:
 			case api::descriptor_type::shader_resource_view:

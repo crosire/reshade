@@ -443,16 +443,13 @@ bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uin
 	switch (dimension)
 	{
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		return SUCCEEDED(ID3D10Texture1D_Map(static_cast<ID3D10Texture1D *>(object),
-			subresource, convert_access_flags(access), 0, &out_data->data));
+		return SUCCEEDED(ID3D10Texture1D_Map(static_cast<ID3D10Texture1D *>(object), subresource, convert_access_flags(access), 0, &out_data->data));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 		static_assert(sizeof(api::subresource_data) >= sizeof(D3D10_MAPPED_TEXTURE2D));
-		return SUCCEEDED(ID3D10Texture2D_Map(static_cast<ID3D10Texture2D *>(object),
-			subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data)));
+		return SUCCEEDED(ID3D10Texture2D_Map(static_cast<ID3D10Texture2D *>(object), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data)));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
 		static_assert(sizeof(api::subresource_data) == sizeof(D3D10_MAPPED_TEXTURE3D));
-		return SUCCEEDED(ID3D10Texture3D_Map(static_cast<ID3D10Texture3D *>(object),
-			subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data)));
+		return SUCCEEDED(ID3D10Texture3D_Map(static_cast<ID3D10Texture3D *>(object), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data)));
 	}
 
 	return false;
@@ -524,8 +521,6 @@ bool reshade::d3d10::device_impl::create_pipeline(api::pipeline_layout, uint32_t
 			return false;
 		}
 	}
-
-	*out_handle = { 0 };
 
 	api::shader_desc vertex_shader_desc = {};
 	com_ptr<ID3D10VertexShader> vertex_shader;
