@@ -1575,20 +1575,17 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 					render_target_formats[k] = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
 			}
 		}
-		else
+		else if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO))
 		{
-			if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO))
-			{
-				if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
-					depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->depthAttachmentFormat);
-				else
-					depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->stencilAttachmentFormat);
+			if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
+				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->depthAttachmentFormat);
+			else
+				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->stencilAttachmentFormat);
 
-				render_target_count = std::min(dynamic_rendering_info->colorAttachmentCount, 8u);
+			render_target_count = std::min(dynamic_rendering_info->colorAttachmentCount, 8u);
 
-				for (uint32_t k = 0; k < render_target_count; ++k)
-					render_target_formats[k] = reshade::vulkan::convert_format(dynamic_rendering_info->pColorAttachmentFormats[k]);
-			}
+			for (uint32_t k = 0; k < render_target_count; ++k)
+				render_target_formats[k] = reshade::vulkan::convert_format(dynamic_rendering_info->pColorAttachmentFormats[k]);
 		}
 
 		const reshade::api::pipeline_subobject subobjects[] = {
@@ -1659,12 +1656,22 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		const VkComputePipelineCreateInfo &create_info = pCreateInfos[i];
 
 		assert(create_info.stage.stage == VK_SHADER_STAGE_COMPUTE_BIT);
-		const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(create_info.stage.module);
 
 		reshade::api::shader_desc cs_desc = {};
-		cs_desc.code = module_data->spirv.data();
-		cs_desc.code_size = module_data->spirv.size();
 		cs_desc.entry_point = create_info.stage.pName;
+
+		if (create_info.stage.module != VK_NULL_HANDLE)
+		{
+			const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(create_info.stage.module);
+
+			cs_desc.code = module_data->spirv.data();
+			cs_desc.code_size = module_data->spirv.size();
+		}
+		else if (const auto module_info = find_in_structure_chain<VkShaderModuleCreateInfo>(create_info.stage.pNext, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO))
+		{
+			cs_desc.code = module_info->pCode;
+			cs_desc.code_size = module_info->codeSize;
+		}
 
 		const reshade::api::pipeline_subobject subobjects[] = {
 			{ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc }
