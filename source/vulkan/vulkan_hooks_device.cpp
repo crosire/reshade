@@ -676,7 +676,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			std::sort(format_list.begin(), format_list.end());
 			format_list.erase(std::unique(format_list.begin(), format_list.end()), format_list.end());
 
-			// This is evil, because writing into the application memory, but eh =)
+			// This is evil, because writing into application memory, but eh =)
 			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->viewFormatCount = static_cast<uint32_t>(format_list.size());
 			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->pViewFormats = format_list.data();
 		}
@@ -1209,7 +1209,7 @@ VkResult VKAPI_CALL vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(GetQueryPoolResults, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(stride <= std::numeric_limits<uint32_t>::max());
 
 	if (reshade::invoke_addon_event<reshade::addon_event::get_query_pool_results>(device_impl, reshade::api::query_pool { (uint64_t)queryPool }, firstQuery, queryCount, pData, static_cast<uint32_t>(stride)))
