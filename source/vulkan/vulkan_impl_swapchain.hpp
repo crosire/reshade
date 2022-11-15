@@ -38,4 +38,12 @@ namespace reshade::vulkan
 		uint32_t _queue_sync_index = 0;
 		VkSemaphore _queue_sync_semaphores[NUM_SYNC_SEMAPHORES] = {};
 	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> : public swapchain_impl
+	{
+		using Handle = VkSwapchainKHR;
+
+		object_data(device_impl *device, command_queue_impl *graphics_queue) : swapchain_impl(device, graphics_queue) {}
+	};
 }

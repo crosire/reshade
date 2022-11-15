@@ -19,7 +19,6 @@ lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 static lockfree_linear_map<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
 extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_instance_dispatch;
 extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
-static lockfree_linear_map<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_swapchains;
 
 #define GET_DISPATCH_PTR(name, object) \
 	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
@@ -791,12 +790,11 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 #endif
 
-	// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
-	reshade::vulkan::swapchain_impl *swapchain_impl = s_vulkan_swapchains.erase(create_info.oldSwapchain);
+	// Unregister object from old swap chain so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
+	reshade::vulkan::swapchain_impl *swapchain_impl = (create_info.oldSwapchain != VK_NULL_HANDLE) ?
+		swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(create_info.oldSwapchain) : nullptr;
 	if (swapchain_impl != nullptr)
 	{
-		assert(create_info.oldSwapchain != VK_NULL_HANDLE);
-
 #if RESHADE_ADDON
 		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
 			destroy_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
@@ -804,6 +802,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 		// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
 		swapchain_impl->on_reset();
+
+		device_impl->unregister_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)create_info.oldSwapchain);
 	}
 
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
@@ -830,6 +830,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		if (nullptr == swapchain_impl)
 			swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
 
+		device_impl->register_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)*pSwapchain, swapchain_impl);
+
 		swapchain_impl->on_init(*pSwapchain, create_info, hwnd);
 
 #if RESHADE_ADDON
@@ -837,15 +839,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
 			create_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
 #endif
-
-		if (!s_vulkan_swapchains.emplace(*pSwapchain, swapchain_impl))
-			delete swapchain_impl;
 	}
 	else
 	{
 		delete swapchain_impl;
-
-		s_vulkan_swapchains.emplace(*pSwapchain, nullptr);
 	}
 
 #if RESHADE_VERBOSE_LOG
@@ -861,7 +858,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 
 	// Remove swap chain from global list
-	reshade::vulkan::swapchain_impl *const swapchain_impl = s_vulkan_swapchains.erase(swapchain);
+	reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
 
 #if RESHADE_ADDON
 	if (swapchain_impl != nullptr)
@@ -872,6 +869,8 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 #endif
 
 	delete swapchain_impl;
+
+	device_impl->unregister_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)swapchain);
 
 	trampoline(device, swapchain, pAllocator);
 }
@@ -947,9 +946,11 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue))
 	{
+		const auto device_impl = static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device());
+
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
-			if (reshade::vulkan::swapchain_impl *const swapchain_impl = s_vulkan_swapchains.at(pPresentInfo->pSwapchains[i]))
+			if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pPresentInfo->pSwapchains[i]))
 			{
 #if RESHADE_ADDON
 				uint32_t dirty_rect_count = 0;
@@ -1014,7 +1015,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		// Override wait semaphores based on the last queue submit
 		queue_impl->flush_immediate_command_list(const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
 
-		static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device())->advance_transient_descriptor_pool();
+		device_impl->advance_transient_descriptor_pool();
 	}
 
 	GET_DISPATCH_PTR(QueuePresentKHR, queue);
