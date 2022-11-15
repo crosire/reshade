@@ -494,7 +494,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CreateSwapchainKHR);
 	INIT_DISPATCH_PTR(DestroySwapchainKHR);
 	INIT_DISPATCH_PTR(GetSwapchainImagesKHR);
+	INIT_DISPATCH_PTR(AcquireNextImageKHR);
 	INIT_DISPATCH_PTR(QueuePresentKHR);
+	INIT_DISPATCH_PTR(AcquireNextImage2KHR);
 
 	// VK_KHR_dynamic_rendering
 	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRendering, KHR);
@@ -875,6 +877,51 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	trampoline(device, swapchain, pAllocator);
 }
 
+VkResult VKAPI_CALL vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t *pImageIndex)
+{
+	assert(pImageIndex != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(AcquireNextImageKHR, device_impl);
+
+	const VkResult result = trampoline(device, swapchain, timeout, semaphore, fence, pImageIndex);
+	if (result == VK_SUCCESS)
+	{
+		if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
+			swapchain_impl->set_current_back_buffer_index(*pImageIndex);
+	}
+#if RESHADE_VERBOSE_LOG
+	else if (result < VK_SUCCESS)
+	{
+		LOG(WARN) << "vkAcquireNextImageKHR" << " failed with error code " << result << '.';
+	}
+#endif
+
+	return result;
+}
+VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice device, const VkAcquireNextImageInfoKHR *pAcquireInfo, uint32_t *pImageIndex)
+{
+	assert(pAcquireInfo != nullptr && pImageIndex != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(AcquireNextImage2KHR, device_impl);
+
+	const VkResult result = trampoline(device, pAcquireInfo, pImageIndex);
+	if (result == VK_SUCCESS)
+	{
+		if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pAcquireInfo->swapchain))
+			swapchain_impl->set_current_back_buffer_index(*pImageIndex);
+	}
+#if RESHADE_VERBOSE_LOG
+	else if (result < VK_SUCCESS)
+	{
+		LOG(WARN) << "vkAcquireNextImage2KHR" << " failed with error code " << result << '.';
+	}
+#endif
+
+	return result;
+}
+
 VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
 {
 	assert(pSubmits != nullptr);
@@ -996,9 +1043,6 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 						display_present_info->dstRect.offset.y + static_cast<int32_t>(display_present_info->dstRect.extent.height)
 					};
 				}
-
-				// TODO: Ideally this should already be set in 'vkAcquireNextImageKHR'
-				swapchain_impl->set_current_back_buffer_index(pPresentInfo->pImageIndices[i]);
 
 				reshade::invoke_addon_event<reshade::addon_event::present>(
 					queue_impl,

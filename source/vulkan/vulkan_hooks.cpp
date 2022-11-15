@@ -26,7 +26,9 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	// VK_KHR_swapchain
 	HOOK_PROC(CreateSwapchainKHR);
 	HOOK_PROC(DestroySwapchainKHR);
+	HOOK_PROC(AcquireNextImageKHR);
 	HOOK_PROC(QueuePresentKHR);
+	HOOK_PROC(AcquireNextImage2KHR);
 
 #if RESHADE_ADDON
 	HOOK_PROC(QueueSubmit);
