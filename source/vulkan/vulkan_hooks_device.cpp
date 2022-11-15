@@ -1557,35 +1557,35 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		{
 			const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(create_info.renderPass);
 
-			const auto &subpass = render_pass_data->subpasses[create_info.subpass];
+			const reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS>::subpass &subpass = render_pass_data->subpasses[create_info.subpass];
 
-			if (subpass.pDepthStencilAttachment != nullptr)
-			{
-				const uint32_t a = subpass.pDepthStencilAttachment->attachment;
-				if (a != VK_ATTACHMENT_UNUSED)
-					depth_stencil_format = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
-			}
-
-			render_target_count = std::min(subpass.colorAttachmentCount, 8u);
+			render_target_count = subpass.num_color_attachments;
 
 			for (uint32_t k = 0; k < render_target_count; ++k)
 			{
-				const uint32_t a = subpass.pColorAttachments[k].attachment;
+				const uint32_t a = subpass.color_attachments[k];
 				if (a != VK_ATTACHMENT_UNUSED)
 					render_target_formats[k] = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
+			}
+
+			{
+				const uint32_t a = subpass.depth_stencil_attachment;
+				if (a != VK_ATTACHMENT_UNUSED)
+					depth_stencil_format = reshade::vulkan::convert_format(render_pass_data->attachments[subpass.depth_stencil_attachment].format);
 			}
 		}
 		else if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO))
 		{
-			if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
-				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->depthAttachmentFormat);
-			else
-				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->stencilAttachmentFormat);
-
+			assert(dynamic_rendering_info->colorAttachmentCount <= 8);
 			render_target_count = std::min(dynamic_rendering_info->colorAttachmentCount, 8u);
 
 			for (uint32_t k = 0; k < render_target_count; ++k)
 				render_target_formats[k] = reshade::vulkan::convert_format(dynamic_rendering_info->pColorAttachmentFormats[k]);
+
+			if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
+				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->depthAttachmentFormat);
+			else
+				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->stencilAttachmentFormat);
 		}
 
 		const reshade::api::pipeline_subobject subobjects[] = {
@@ -2192,21 +2192,21 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS> data;
-	data.subpasses.assign(pCreateInfo->pSubpasses, pCreateInfo->pSubpasses + pCreateInfo->subpassCount);
+	data.subpasses.resize(pCreateInfo->subpassCount);
 	data.attachments.assign(pCreateInfo->pAttachments, pCreateInfo->pAttachments + pCreateInfo->attachmentCount);
 
-	for (VkSubpassDescription &subpass : data.subpasses)
+	for (uint32_t i = 0; i < pCreateInfo->subpassCount; ++i)
 	{
-		const auto color_attachments = new VkAttachmentReference[subpass.colorAttachmentCount];
-		std::memcpy(color_attachments, subpass.pColorAttachments, subpass.colorAttachmentCount * sizeof(VkAttachmentReference));
-		subpass.pColorAttachments = color_attachments;
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS>::subpass &dst_subpass = data.subpasses[i];
+		const VkSubpassDescription &src_subpass = pCreateInfo->pSubpasses[i];
 
-		if (subpass.pDepthStencilAttachment != nullptr)
-		{
-			const auto depth_stencil_attachment = new VkAttachmentReference;
-			std::memcpy(depth_stencil_attachment, subpass.pDepthStencilAttachment, sizeof(VkAttachmentReference));
-			subpass.pDepthStencilAttachment = depth_stencil_attachment;
-		}
+		assert(src_subpass.colorAttachmentCount <= 8);
+		dst_subpass.num_color_attachments = std::min(src_subpass.colorAttachmentCount, 8u);
+
+		for (uint32_t a = 0; a < dst_subpass.num_color_attachments; ++a)
+			dst_subpass.color_attachments[a] = src_subpass.pColorAttachments[a].attachment;
+
+		dst_subpass.depth_stencil_attachment = (src_subpass.pDepthStencilAttachment != nullptr) ? src_subpass.pDepthStencilAttachment->attachment : VK_ATTACHMENT_UNUSED;
 	}
 
 	device_impl->register_object<VK_OBJECT_TYPE_RENDER_PASS>(*pRenderPass, std::move(data));
@@ -2237,27 +2237,16 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 
 	for (uint32_t i = 0; i < pCreateInfo->subpassCount; ++i)
 	{
-		VkSubpassDescription &dst_subpass = data.subpasses[i];
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS>::subpass &dst_subpass = data.subpasses[i];
 		const VkSubpassDescription2 &src_subpass = pCreateInfo->pSubpasses[i];
 
-		const auto color_attachments = new VkAttachmentReference[src_subpass.colorAttachmentCount];
-		for (uint32_t a = 0; a < src_subpass.colorAttachmentCount; ++a)
-		{
-			color_attachments[a].attachment = src_subpass.pColorAttachments[a].attachment;
-			color_attachments[a].layout = src_subpass.pColorAttachments[a].layout;
-		}
+		assert(src_subpass.colorAttachmentCount <= 8);
+		dst_subpass.num_color_attachments = std::min(src_subpass.colorAttachmentCount, 8u);
 
-		dst_subpass.colorAttachmentCount = src_subpass.colorAttachmentCount;
-		dst_subpass.pColorAttachments = color_attachments;
+		for (uint32_t a = 0; a < dst_subpass.num_color_attachments; ++a)
+			dst_subpass.color_attachments[a] = src_subpass.pColorAttachments[a].attachment;
 
-		if (src_subpass.pDepthStencilAttachment != nullptr)
-		{
-			const auto depth_stencil_attachment = new VkAttachmentReference;
-			depth_stencil_attachment->attachment = src_subpass.pDepthStencilAttachment->attachment;
-			depth_stencil_attachment->layout = src_subpass.pDepthStencilAttachment->layout;
-
-			dst_subpass.pDepthStencilAttachment = depth_stencil_attachment;
-		}
+		dst_subpass.depth_stencil_attachment = (src_subpass.pDepthStencilAttachment != nullptr) ? src_subpass.pDepthStencilAttachment->attachment : VK_ATTACHMENT_UNUSED;
 	}
 	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
 	{
@@ -2286,14 +2275,6 @@ void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass
 	GET_DISPATCH_PTR_FROM(DestroyRenderPass, device_impl);
 
 #if RESHADE_ADDON
-	const auto data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(renderPass);
-
-	for (VkSubpassDescription &subpass : data->subpasses)
-	{
-		delete subpass.pDepthStencilAttachment;
-		delete[] subpass.pColorAttachments;
-	}
-
 	device_impl->unregister_object<VK_OBJECT_TYPE_RENDER_PASS>(renderPass);
 #endif
 
