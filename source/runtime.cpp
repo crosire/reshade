@@ -830,11 +830,8 @@ void reshade::runtime::load_config()
 	// Fall back to temp directory if cache path does not exist
 	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path))
 	{
-		WCHAR temp_path[MAX_PATH];
-		if (GetTempPathW(ARRAYSIZE(temp_path), temp_path))
-			_intermediate_cache_path = std::filesystem::path(temp_path) / "ReShade";
-
 		std::error_code ec;
+		_intermediate_cache_path = std::filesystem::temp_directory_path(ec) / "ReShade";
 		std::filesystem::create_directory(_intermediate_cache_path, ec);
 	}
 
