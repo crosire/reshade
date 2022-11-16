@@ -216,6 +216,8 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 	if (key[0] || key[1] || key[2] || key[3])
 		buf[input::key_name(key).copy(buf, sizeof(buf) - 1)] = '\0';
 
+	ImGui::BeginDisabled(ImGui::GetCurrentContext()->NavInputSource == ImGuiInputSource_Gamepad);
+
 	ImGui::InputTextWithHint(name, "Click to set keyboard shortcut", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
 
 	if (ImGui::IsItemActive())
@@ -245,6 +247,8 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 	{
 		ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 	}
+
+	ImGui::EndDisabled();
 
 	return false;
 }

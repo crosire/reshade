@@ -1485,7 +1485,10 @@ void reshade::runtime::draw_gui_home()
 			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
 		if (ImGui::IsItemActive())
 		{
-			_variable_editor_height = std::max(_variable_editor_height - _imgui_context->IO.MouseDelta.y, 0.0f);
+			ImVec2 move_delta = _imgui_context->IO.MouseDelta;
+			move_delta += ImGui::GetNavInputAmount2d(ImGuiNavDirSourceFlags_RawKeyboard | ImGuiNavDirSourceFlags_PadLStick, ImGuiInputReadMode_Down) * _imgui_context->IO.DeltaTime * 500.0f;
+
+			_variable_editor_height = std::max(_variable_editor_height - move_delta.y, 0.0f);
 			save_config();
 		}
 
@@ -2760,7 +2763,7 @@ void reshade::runtime::draw_variable_editor()
 		return list.end();
 	};
 
-	ImGui::BeginChild("##variables");
+	ImGui::BeginChild("##variables", ImVec2(0, 0), false, ImGuiWindowFlags_NavFlattened);
 	if (_variable_editor_tabs)
 		ImGui::BeginTabBar("##variables");
 
