@@ -249,11 +249,14 @@ ini_file &ini_file::load_cache(const std::filesystem::path &path)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
-	const auto insert = s_ini_cache.try_emplace(path, std::make_unique<ini_file>(path));
+	const auto insert = s_ini_cache.try_emplace(path);
 	const auto it = insert.first;
 
+	// Only construct when actually adding a new entry to the cache, since the 'ini_file' constructor performs a costly load of the file
+	if (insert.second)
+		it->second = std::make_unique<ini_file>(path);
 	// Don't reload file when it was just loaded or there are still modifications pending
-	if (!insert.second && !it->second->_modified)
+	else if (!it->second->_modified)
 		it->second->load();
 
 	return *it->second;

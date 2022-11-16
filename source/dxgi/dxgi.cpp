@@ -122,13 +122,15 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 	}
 #endif
 
-	if (reshade::global_config().get("APP", "ForceWindowed"))
+	ini_file &config = reshade::global_config();
+
+	if (config.get("APP", "ForceWindowed"))
 	{
 		internal_desc.Windowed = TRUE;
 
 		modified = true;
 	}
-	if (reshade::global_config().get("APP", "ForceFullscreen"))
+	if (config.get("APP", "ForceFullscreen"))
 	{
 		internal_desc.Windowed = FALSE;
 
@@ -136,7 +138,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 	}
 
 	if (unsigned int force_resolution[2] = {};
-		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
+		config.get("APP", "ForceResolution", force_resolution) &&
 		force_resolution[0] != 0 && force_resolution[1] != 0)
 	{
 		internal_desc.BufferDesc.Width = force_resolution[0];
@@ -145,7 +147,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 		modified = true;
 	}
 
-	if (reshade::global_config().get("APP", "Force10BitFormat"))
+	if (config.get("APP", "Force10BitFormat"))
 	{
 		internal_desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
@@ -217,8 +219,10 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]
 	}
 #endif
 
+	ini_file &config = reshade::global_config();
+
 	if (unsigned int force_resolution[2] = {};
-		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
+		config.get("APP", "ForceResolution", force_resolution) &&
 		force_resolution[0] != 0 && force_resolution[1] != 0)
 	{
 		internal_desc.Width = force_resolution[0];
@@ -227,7 +231,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]
 		modified = true;
 	}
 
-	if (reshade::global_config().get("APP", "Force10BitFormat"))
+	if (config.get("APP", "Force10BitFormat"))
 	{
 		internal_desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
@@ -284,11 +288,13 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 
 	modify_swapchain_desc(desc, hwnd);
 
-	if (reshade::global_config().get("APP", "ForceWindowed"))
+	ini_file &config = reshade::global_config();
+
+	if (config.get("APP", "ForceWindowed"))
 	{
 		fullscreen_desc.Windowed = TRUE;
 	}
-	if (reshade::global_config().get("APP", "ForceFullscreen"))
+	if (config.get("APP", "ForceFullscreen"))
 	{
 		fullscreen_desc.Windowed = FALSE;
 	}
@@ -385,9 +391,10 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 
 	if (swapchain_proxy != nullptr)
 	{
-		reshade::global_config().get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
-		reshade::global_config().get("APP", "ForceWindowed", swapchain_proxy->_force_windowed);
-		reshade::global_config().get("APP", "ForceFullscreen", swapchain_proxy->_force_fullscreen);
+		ini_file &config = reshade::global_config();
+		config.get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
+		config.get("APP", "ForceWindowed", swapchain_proxy->_force_windowed);
+		config.get("APP", "ForceFullscreen", swapchain_proxy->_force_fullscreen);
 
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "Returning " << "IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";

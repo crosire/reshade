@@ -126,6 +126,8 @@ void reshade::load_addons()
 	if (InterlockedIncrement(&s_reference_count) != 1)
 		return;
 
+	ini_file &config = global_config();
+
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Loading built-in add-ons ...";
 #endif
@@ -134,7 +136,7 @@ void reshade::load_addons()
 	internal::get_current_module_handle() = g_module_handle;
 
 	std::vector<std::string> disabled_addons;
-	global_config().get("ADDON", "DisabledAddons", disabled_addons);
+	config.get("ADDON", "DisabledAddons", disabled_addons);
 
 #if 1
 	{	addon_info &info = addon_loaded_info.emplace_back();
@@ -155,7 +157,7 @@ void reshade::load_addons()
 #if !RESHADE_ADDON_LITE
 	// Get directory from where to load add-ons from
 	std::filesystem::path addon_search_path = g_reshade_base_path;
-	if (global_config().get("INSTALL", "AddonPath", addon_search_path))
+	if (config.get("INSTALL", "AddonPath", addon_search_path))
 		addon_search_path = g_reshade_base_path / addon_search_path;
 
 	LOG(INFO) << "Searching for add-ons (*.addon) in " << addon_search_path << " ...";

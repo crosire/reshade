@@ -1274,7 +1274,7 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		ImGui::SetNextWindowPos(popup_pos);
-		if (imgui::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }, { _config_path, reshade::global_config().path() }))
+		if (imgui::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }, { _config_path, global_config().path() }))
 		{
 			// Check that this is actually a valid preset file
 			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
@@ -2483,6 +2483,8 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 #if RESHADE_ADDON
 void reshade::runtime::draw_gui_addons()
 {
+	ini_file &config = global_config();
+
 #if RESHADE_ADDON_LITE
 	if (!addon_enabled)
 	{
@@ -2494,9 +2496,9 @@ void reshade::runtime::draw_gui_addons()
 	ImGui::TextUnformatted("This build of ReShade has only limited add-on functionality.");
 #else
 	std::filesystem::path addon_search_path = g_reshade_base_path;
-	global_config().get("INSTALL", "AddonPath", addon_search_path);
+	config.get("INSTALL", "AddonPath", addon_search_path);
 	if (imgui::directory_input_box("Add-on search path", addon_search_path, _file_selection_path))
-		global_config().set("INSTALL", "AddonPath", addon_search_path);
+		config.set("INSTALL", "AddonPath", addon_search_path);
 #endif
 
 	ImGui::Spacing();
@@ -2512,7 +2514,7 @@ void reshade::runtime::draw_gui_addons()
 	ImGui::BeginChild("##addons", ImVec2(0, -bottom_height), false, ImGuiWindowFlags_NavFlattened);
 
 	std::vector<std::string> disabled_addons;
-	global_config().get("ADDON", "DisabledAddons", disabled_addons);
+	config.get("ADDON", "DisabledAddons", disabled_addons);
 
 	const float child_window_width = ImGui::GetContentRegionAvail().x;
 
@@ -2542,7 +2544,7 @@ void reshade::runtime::draw_gui_addons()
 			else
 				disabled_addons.push_back(info.name);
 
-			global_config().set("ADDON", "DisabledAddons", disabled_addons);
+			config.set("ADDON", "DisabledAddons", disabled_addons);
 		}
 
 		ImGui::PopStyleColor();
