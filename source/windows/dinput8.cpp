@@ -10,7 +10,7 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "hook_manager.hpp"
 
-HOOK_EXPORT HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID *ppvOut, LPUNKNOWN pUnkOuter)
+extern "C" HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID *ppvOut, LPUNKNOWN pUnkOuter)
 {
 	LOG(INFO) << "Redirecting " << "DirectInput8Create" << '('
 		<<   "hinst = " << hinst
@@ -23,7 +23,7 @@ HOOK_EXPORT HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, 
 	return reshade::hooks::call(DirectInput8Create)(hinst, dwVersion, riidltf, ppvOut, pUnkOuter);
 }
 
-HOOK_EXPORT LPCDIDATAFORMAT WINAPI GetdfDIJoystick()
+extern "C" LPCDIDATAFORMAT WINAPI GetdfDIJoystick()
 {
 	static const auto trampoline = reshade::hooks::call(GetdfDIJoystick);
 	return trampoline();

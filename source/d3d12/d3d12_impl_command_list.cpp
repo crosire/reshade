@@ -918,7 +918,7 @@ void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, con
 
 #if 0
 	// Metadata is WINPIX_EVENT_ANSI_VERSION
-	_orig->BeginEvent(1, label, static_cast<UINT>(strlen(label)));
+	_orig->BeginEvent(1, label, static_cast<UINT>(std::strlen(label)));
 #else
 	UINT64 pix3blob[64];
 	encode_pix3blob(pix3blob, label, color);
@@ -935,7 +935,7 @@ void reshade::d3d12::command_list_impl::insert_debug_marker(const char *label, c
 	assert(label != nullptr);
 
 #if 0
-	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
+	_orig->SetMarker(1, label, static_cast<UINT>(std::strlen(label)));
 #else
 	UINT64 pix3blob[64];
 	encode_pix3blob(pix3blob, label, color);

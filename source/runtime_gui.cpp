@@ -2385,7 +2385,7 @@ void reshade::runtime::draw_gui_about()
 
 	ImGui::SameLine((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) - 7.3f * _font_size);
 	if (ImGui::SmallButton(" Open website "))
-		execute_command("https://reshade.me");
+		utils::execute_command("https://reshade.me");
 
 	ImGui::Separator();
 
@@ -2600,7 +2600,7 @@ void reshade::runtime::draw_gui_addons()
 	ImGui::Spacing();
 
 	if (ImGui::Button("Open developer documentation", ImVec2(-1, 0)))
-		execute_command("https://reshade.me/docs");
+		utils::execute_command("https://reshade.me/docs");
 }
 #endif
 
@@ -3225,7 +3225,7 @@ void reshade::runtime::draw_technique_editor()
 			if (ImGui::BeginPopup("##context"))
 			{
 				if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
-					open_explorer(effect.source_file);
+					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
 
@@ -3382,7 +3382,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 			if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
-				open_explorer(effect.source_file);
+				utils::open_explorer(effect.source_file);
 
 			ImGui::Separator();
 

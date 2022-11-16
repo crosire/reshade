@@ -1307,11 +1307,11 @@ void reshade::d3d11::device_impl::set_resource_name(api::resource handle, const 
 {
 	assert(handle.handle != 0);
 
-	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
 }
 void reshade::d3d11::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
 {
 	assert(handle.handle != 0);
 
-	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
 }

@@ -9,8 +9,6 @@
 #include <filesystem>
 #include <type_traits>
 
-#define HOOK_EXPORT extern "C"
-
 template <typename T>
 inline reshade::hook::address *vtable_from_instance(T *instance)
 {

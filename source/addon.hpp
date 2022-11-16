@@ -121,9 +121,9 @@ namespace reshade
 		};
 
 		void *handle = nullptr;
-#if !RESHADE_ADDON_LITE
+#  if !RESHADE_ADDON_LITE
 		bool  loaded = false;
-#endif
+#  endif
 		std::string name;
 		std::string description;
 		std::string file;
@@ -131,10 +131,10 @@ namespace reshade
 		std::string version;
 
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
-#if RESHADE_GUI
+#  if RESHADE_GUI
 		void(*settings_overlay_callback)(api::effect_runtime *) = nullptr;
 		std::vector<overlay_callback> overlay_callbacks;
-#endif
+#  endif
 	};
 }
 

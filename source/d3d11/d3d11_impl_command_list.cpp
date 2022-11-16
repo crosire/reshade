@@ -671,7 +671,7 @@ void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, c
 	if (_annotations == nullptr)
 		return;
 
-	const size_t label_len = strlen(label);
+	const size_t label_len = std::strlen(label);
 	std::wstring label_wide;
 	label_wide.reserve(label_len + 1);
 	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
@@ -692,7 +692,7 @@ void reshade::d3d11::device_context_impl::insert_debug_marker(const char *label,
 	if (_annotations == nullptr)
 		return;
 
-	const size_t label_len = strlen(label);
+	const size_t label_len = std::strlen(label);
 	std::wstring label_wide;
 	label_wide.reserve(label_len + 1);
 	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));

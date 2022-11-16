@@ -21,7 +21,7 @@ static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
 static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_contexts;
 extern thread_local reshade::opengl::swapchain_impl *g_current_context;
 
-HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
+extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
 	LOG(INFO) << "Redirecting " << "wglChoosePixelFormat" << '(' << "hdc = " << hdc << ", ppfd = " << ppfd << ')' << " ...";
 
@@ -57,7 +57,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 
 	return format;
 }
-			BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
+		   BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
 	LOG(INFO) << "Redirecting " << "wglChoosePixelFormatARB" << '(' << "hdc = " << hdc << ", piAttribIList = " << piAttribIList << ", pfAttribFList = " << pfAttribFList << ", nMaxFormats = " << nMaxFormats << ", piFormats = " << piFormats << ", nNumFormats = " << nNumFormats << ')' << " ...";
 
@@ -246,12 +246,12 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 
 	return TRUE;
 }
-HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
+extern "C" int   WINAPI wglGetPixelFormat(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglGetPixelFormat);
 	return trampoline(hdc);
 }
-			BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
+		   BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
 	if (iLayerPlane != 0)
 	{
@@ -262,7 +262,7 @@ HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 
 	return reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, nAttributes, piAttributes, piValues);
 }
-			BOOL  WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
+		   BOOL  WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
 {
 	if (iLayerPlane != 0)
 	{
@@ -273,7 +273,7 @@ HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 
 	return reshade::hooks::call(wglGetPixelFormatAttribfvARB)(hdc, iPixelFormat, 0, nAttributes, piAttributes, pfValues);
 }
-HOOK_EXPORT BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXELFORMATDESCRIPTOR *ppfd)
+extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXELFORMATDESCRIPTOR *ppfd)
 {
 	LOG(INFO) << "Redirecting " << "wglSetPixelFormat" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", ppfd = " << ppfd << ')' << " ...";
 
@@ -292,12 +292,12 @@ HOOK_EXPORT BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXE
 
 	return TRUE;
 }
-HOOK_EXPORT int   WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
+extern "C" int   WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
 {
 	return reshade::hooks::call(wglDescribePixelFormat)(hdc, iPixelFormat, nBytes, ppfd);
 }
 
-HOOK_EXPORT BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
+extern "C" BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
 {
 	LOG(INFO) << "Redirecting " << "wglDescribeLayerPlane" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", iLayerPlane = " << iLayerPlane << ", nBytes = " << nBytes << ", plpd = " << plpd << ')' << " ...";
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
@@ -305,7 +305,7 @@ HOOK_EXPORT BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iL
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
-HOOK_EXPORT BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
+extern "C" BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
 {
 	LOG(INFO) << "Redirecting " << "wglRealizeLayerPalette" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", b = " << (b ? "TRUE" : "FALSE") << ')' << " ...";
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
@@ -313,7 +313,7 @@ HOOK_EXPORT BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
-HOOK_EXPORT int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
+extern "C" int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
 {
 	LOG(INFO) << "Redirecting " << "wglGetLayerPaletteEntries" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", iStart = " << iStart << ", cEntries = " << cEntries << ", pcr = " << pcr << ')' << " ...";
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
@@ -321,7 +321,7 @@ HOOK_EXPORT int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return 0;
 }
-HOOK_EXPORT int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, const COLORREF *pcr)
+extern "C" int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, const COLORREF *pcr)
 {
 	LOG(INFO) << "Redirecting " << "wglSetLayerPaletteEntries" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", iStart = " << iStart << ", cEntries = " << cEntries << ", pcr = " << pcr << ')' << " ...";
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
@@ -330,7 +330,7 @@ HOOK_EXPORT int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int
 	return 0;
 }
 
-HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
+extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 {
 	LOG(INFO) << "Redirecting " << "wglCreateContext" << '(' << "hdc = " << hdc << ')' << " ...";
 	LOG(INFO) << "> Passing on to " << "wglCreateLayerContext" << ':';
@@ -348,7 +348,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	return hglrc;
 }
-			HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
+		   HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
 {
 	LOG(INFO) << "Redirecting " << "wglCreateContextAttribsARB" << '(' << "hdc = " << hdc << ", hShareContext = " << hShareContext << ", piAttribList = " << piAttribList << ')' << " ...";
 
@@ -457,7 +457,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	return hglrc;
 }
-HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
+extern "C" HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 {
 	LOG(INFO) << "Redirecting " << "wglCreateLayerContext" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ')' << " ...";
 
@@ -484,11 +484,11 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 #endif
 	return hglrc;
 }
-HOOK_EXPORT BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
+extern "C" BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 {
 	return reshade::hooks::call(wglCopyContext)(hglrcSrc, hglrcDst, mask);
 }
-HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
+extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting " << "wglDeleteContext" << '(' << "hglrc = " << hglrc << ')' << " ...";
 
@@ -574,7 +574,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 	return TRUE;
 }
 
-HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
+extern "C" BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {
 	LOG(INFO) << "Redirecting " << "wglShareLists" << '(' << "hglrc1 = " << hglrc1 << ", hglrc2 = " << hglrc2 << ')' << " ...";
 
@@ -591,7 +591,7 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 	return TRUE;
 }
 
-HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
+extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Redirecting " << "wglMakeCurrent" << '(' << "hdc = " << hdc << ", hglrc = " << hglrc << ')' << " ...";
@@ -708,18 +708,18 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	return TRUE;
 }
 
-HOOK_EXPORT HDC   WINAPI wglGetCurrentDC()
+extern "C" HDC   WINAPI wglGetCurrentDC()
 {
 	static const auto trampoline = reshade::hooks::call(wglGetCurrentDC);
 	return trampoline();
 }
-HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
+extern "C" HGLRC WINAPI wglGetCurrentContext()
 {
 	static const auto trampoline = reshade::hooks::call(wglGetCurrentContext);
 	return trampoline();
 }
 
-	  HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
+	 HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
 {
 	LOG(INFO) << "Redirecting " << "wglCreatePbufferARB" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", iWidth = " << iWidth << ", iHeight = " << iHeight << ", piAttribList = " << piAttribList << ')' << " ...";
 
@@ -776,7 +776,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 #endif
 	return hpbuffer;
 }
-			BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
+		   BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
 {
 	LOG(INFO) << "Redirecting " << "wglDestroyPbufferARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
 
@@ -788,11 +788,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 
 	return TRUE;
 }
-			BOOL  WINAPI wglQueryPbufferARB(HPBUFFERARB hPbuffer, int iAttribute, int *piValue)
-{
-	return reshade::hooks::call(wglQueryPbufferARB)(hPbuffer, iAttribute, piValue);
-}
-			HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
+		   HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 {
 	LOG(INFO) << "Redirecting " << "wglGetPbufferDCARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
 
@@ -812,7 +808,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 #endif
 	return hdc;
 }
-			int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
+		   int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 {
 	LOG(INFO) << "Redirecting " << "wglReleasePbufferDCARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
 
@@ -829,18 +825,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	return TRUE;
 }
 
-			BOOL  WINAPI wglSwapIntervalEXT(int interval)
-{
-	static const auto trampoline = reshade::hooks::call(wglSwapIntervalEXT);
-	return trampoline(interval);
-}
-			int   WINAPI wglGetSwapIntervalEXT()
-{
-	static const auto trampoline = reshade::hooks::call(wglGetSwapIntervalEXT);
-	return trampoline();
-}
-
-HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
+extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
@@ -889,7 +874,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 	return trampoline(hdc);
 }
-HOOK_EXPORT BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
+extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
 	if (i != WGL_SWAP_MAIN_PLANE)
 	{
@@ -906,7 +891,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 
 	return wglSwapBuffers(hdc);
 }
-HOOK_EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP *pBuffers)
+extern "C" DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP *pBuffers)
 {
 	for (UINT i = 0; i < cNumBuffers; ++i)
 	{
@@ -918,28 +903,28 @@ HOOK_EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP 
 	return 0;
 }
 
-HOOK_EXPORT BOOL  WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
+extern "C" BOOL  WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
 {
 	static const auto trampoline = reshade::hooks::call(wglUseFontBitmapsA);
 	return trampoline(hdc, dw1, dw2, dw3);
 }
-HOOK_EXPORT BOOL  WINAPI wglUseFontBitmapsW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
+extern "C" BOOL  WINAPI wglUseFontBitmapsW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
 {
 	static const auto trampoline = reshade::hooks::call(wglUseFontBitmapsW);
 	return trampoline(hdc, dw1, dw2, dw3);
 }
-HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
+extern "C" BOOL  WINAPI wglUseFontOutlinesA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
 {
 	static const auto trampoline = reshade::hooks::call(wglUseFontOutlinesA);
 	return trampoline(hdc, dw1, dw2, dw3, f1, f2, i, pgmf);
 }
-HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
+extern "C" BOOL  WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
 {
 	static const auto trampoline = reshade::hooks::call(wglUseFontOutlinesW);
 	return trampoline(hdc, dw1, dw2, dw3, f1, f2, i, pgmf);
 }
 
-HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
+extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
 	if (lpszProc == nullptr)
 		return nullptr;
@@ -1158,33 +1143,33 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #endif
 
 #if RESHADE_ADDON
-#ifdef GL_VERSION_1_2
+#  ifdef GL_VERSION_1_2
 		HOOK_PROC(glTexImage3D);
 		HOOK_PROC(glTexSubImage3D);
 		HOOK_PROC(glCopyTexSubImage3D);
 		HOOK_PROC(glDrawRangeElements);
-#endif
-#ifdef GL_VERSION_1_3
+#  endif
+#  ifdef GL_VERSION_1_3
 		HOOK_PROC(glCompressedTexImage1D);
 		HOOK_PROC(glCompressedTexImage2D);
 		HOOK_PROC(glCompressedTexImage3D);
 		HOOK_PROC(glCompressedTexSubImage1D);
 		HOOK_PROC(glCompressedTexSubImage2D);
 		HOOK_PROC(glCompressedTexSubImage3D);
-#endif
-#ifdef GL_VERSION_1_4
+#  endif
+#  ifdef GL_VERSION_1_4
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawElements);
-#endif
-#ifdef GL_VERSION_1_5
+#  endif
+#  ifdef GL_VERSION_1_5
 		HOOK_PROC(glDeleteBuffers);
 		HOOK_PROC(glBufferData);
 		HOOK_PROC(glBufferSubData);
 		HOOK_PROC(glMapBuffer);
 		HOOK_PROC(glUnmapBuffer);
 		HOOK_PROC(glBindBuffer);
-#endif
-#ifdef GL_VERSION_2_0
+#  endif
+#  ifdef GL_VERSION_2_0
 		HOOK_PROC(glDeleteProgram);
 		HOOK_PROC(glLinkProgram);
 		HOOK_PROC(glShaderSource);
@@ -1205,8 +1190,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2iv);
 		HOOK_PROC(glUniform3iv);
 		HOOK_PROC(glUniform4iv);
-#endif
-#ifdef GL_VERSION_3_0
+#  endif
+#  ifdef GL_VERSION_3_0
 		HOOK_PROC(glMapBufferRange);
 		HOOK_PROC(glDeleteRenderbuffers);
 		HOOK_PROC(glFramebufferTexture1D);
@@ -1232,14 +1217,14 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2uiv);
 		HOOK_PROC(glUniform3uiv);
 		HOOK_PROC(glUniform4uiv);
-#endif
-#ifdef GL_VERSION_3_1
+#  endif
+#  ifdef GL_VERSION_3_1
 		HOOK_PROC(glTexBuffer);
 		HOOK_PROC(glCopyBufferSubData);
 		HOOK_PROC(glDrawArraysInstanced);
 		HOOK_PROC(glDrawElementsInstanced);
-#endif
-#ifdef GL_VERSION_3_2
+#  endif
+#  ifdef GL_VERSION_3_2
 		HOOK_PROC(glFramebufferTexture);
 		HOOK_PROC(glTexImage2DMultisample);
 		HOOK_PROC(glTexImage3DMultisample);
@@ -1247,20 +1232,20 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawRangeElementsBaseVertex);
 		HOOK_PROC(glDrawElementsInstancedBaseVertex);
 		HOOK_PROC(glMultiDrawElementsBaseVertex);
-#endif
-#ifdef GL_VERSION_4_0
+#  endif
+#  ifdef GL_VERSION_4_0
 		HOOK_PROC(glDrawArraysIndirect);
 		HOOK_PROC(glDrawElementsIndirect);
-#endif
-#ifdef GL_VERSION_4_1
+#  endif
+#  ifdef GL_VERSION_4_1
 		HOOK_PROC(glScissorArrayv);
 		HOOK_PROC(glScissorIndexed);
 		HOOK_PROC(glScissorIndexedv);
 		HOOK_PROC(glViewportArrayv);
 		HOOK_PROC(glViewportIndexedf);
 		HOOK_PROC(glViewportIndexedfv);
-#endif
-#ifdef GL_VERSION_4_2
+#  endif
+#  ifdef GL_VERSION_4_2
 		HOOK_PROC(glTexStorage1D);
 		HOOK_PROC(glTexStorage2D);
 		HOOK_PROC(glTexStorage3D);
@@ -1268,8 +1253,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawArraysInstancedBaseInstance);
 		HOOK_PROC(glDrawElementsInstancedBaseInstance);
 		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
-#endif
-#ifdef GL_VERSION_4_3
+#  endif
+#  ifdef GL_VERSION_4_3
 		HOOK_PROC(glTextureView);
 		HOOK_PROC(glTexBufferRange);
 		HOOK_PROC(glTexStorage2DMultisample);
@@ -1280,16 +1265,16 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDispatchComputeIndirect);
 		HOOK_PROC(glMultiDrawArraysIndirect);
 		HOOK_PROC(glMultiDrawElementsIndirect);
-#endif
-#ifdef GL_VERSION_4_4
+#  endif
+#  ifdef GL_VERSION_4_4
 		HOOK_PROC(glBufferStorage);
 		HOOK_PROC(glBindBuffersBase);
 		HOOK_PROC(glBindBuffersRange);
 		HOOK_PROC(glBindTextures);
 		HOOK_PROC(glBindImageTextures);
 		HOOK_PROC(glBindVertexBuffers);
-#endif
-#ifdef GL_VERSION_4_5
+#  endif
+#  ifdef GL_VERSION_4_5
 		HOOK_PROC(glTextureBuffer);
 		HOOK_PROC(glTextureBufferRange);
 		HOOK_PROC(glNamedBufferData);
@@ -1320,35 +1305,32 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBlitNamedFramebuffer);
 		HOOK_PROC(glGenerateTextureMipmap);
 		HOOK_PROC(glBindTextureUnit);
-#endif
+#  endif
+
 		// GL_ARB_vertex_program / GL_ARB_fragment_program
 		HOOK_PROC(glProgramStringARB);
 		HOOK_PROC(glDeleteProgramsARB);
+
 		// GL_EXT_framebuffer_object
 		HOOK_PROC(glBindFramebufferEXT);
+
 		// GL_EXT_direct_state_access
 		HOOK_PROC(glBindMultiTextureEXT);
 #endif
 
 		// WGL_ARB_create_context
 		HOOK_PROC(wglCreateContextAttribsARB);
+
 		// WGL_ARB_pbuffer
 		HOOK_PROC(wglCreatePbufferARB);
 		HOOK_PROC(wglDestroyPbufferARB);
 		HOOK_PROC(wglGetPbufferDCARB);
 		HOOK_PROC(wglReleasePbufferDCARB);
-#if 0
-		HOOK_PROC(wglQueryPbufferARB);
-#endif
+
 		// WGL_ARB_pixel_format
 		HOOK_PROC(wglChoosePixelFormatARB);
 		HOOK_PROC(wglGetPixelFormatAttribivARB);
 		HOOK_PROC(wglGetPixelFormatAttribfvARB);
-#if 0
-		// WGL_EXT_swap_control
-		HOOK_PROC(wglSwapIntervalEXT);
-		HOOK_PROC(wglGetSwapIntervalEXT);
-#endif
 
 		// Install all OpenGL hooks in a single batch job
 		reshade::hook::apply_queued_actions();

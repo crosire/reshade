@@ -12,12 +12,12 @@
 
 namespace reshade
 {
-#if RESHADE_ADDON_LITE
+#  if RESHADE_ADDON_LITE
 	/// <summary>
 	/// Global switch to enable or disable all loaded add-ons.
 	/// </summary>
 	extern bool addon_enabled;
-#endif
+#  endif
 
 	/// <summary>
 	/// List of add-on event callbacks.
@@ -64,7 +64,7 @@ namespace reshade
 	template <addon_event ev, typename... Args>
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
 	{
-#if RESHADE_ADDON_LITE
+#  if RESHADE_ADDON_LITE
 		// Ensure certain events are not compiled when only lite add-on support is enabled
 		static_assert(
 			ev != addon_event::map_buffer_region &&
@@ -123,7 +123,7 @@ namespace reshade
 			ev != addon_event::destroy_query_pool)
 		if (!addon_enabled)
 			return;
-#endif
+#  endif
 		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
 			reinterpret_cast<typename addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
@@ -134,10 +134,10 @@ namespace reshade
 	template <addon_event ev, typename... Args>
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
-#if RESHADE_ADDON_LITE
+#  if RESHADE_ADDON_LITE
 		if (!addon_enabled)
 			return false;
-#endif
+#  endif
 		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 			if (reinterpret_cast<typename addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))

@@ -547,7 +547,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	return hr;
 }
 
-HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
+extern "C" HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory" << '(' << "riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
@@ -557,7 +557,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 	// DXGI 1.1 should always be available, so to simplify code just call 'CreateDXGIFactory' which is otherwise identical
 	return CreateDXGIFactory1(riid, ppFactory);
 }
-HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
+extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
 	if (g_in_dxgi_runtime)
 		return reshade::hooks::call(CreateDXGIFactory1)(riid, ppFactory);
@@ -588,7 +588,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 #endif
 	return hr;
 }
-HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppFactory)
+extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppFactory)
 {
 	// IDXGIFactory  {7B7166EC-21C7-44AE-B21A-C9AE321AE369}
 	// IDXGIFactory1 {770AAE78-F26F-4DBA-A829-253C83D1B387}
@@ -637,7 +637,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 	return hr;
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void **pDebug)
+extern "C" HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void **pDebug)
 {
 	const auto trampoline = reshade::hooks::call(DXGIGetDebugInterface1);
 
@@ -648,7 +648,7 @@ HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void 
 	return trampoline(Flags, riid, pDebug);
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGIDeclareAdapterRemovalSupport()
+extern "C" HRESULT WINAPI DXGIDeclareAdapterRemovalSupport()
 {
 	const auto trampoline = reshade::hooks::call(DXGIDeclareAdapterRemovalSupport);
 

@@ -1234,7 +1234,7 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 
 void reshade::d3d12::device_impl::set_resource_name(api::resource handle, const char *name)
 {
-	const size_t debug_name_len = strlen(name);
+	const size_t debug_name_len = std::strlen(name);
 	std::wstring debug_name_wide;
 	debug_name_wide.reserve(debug_name_len + 1);
 	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));

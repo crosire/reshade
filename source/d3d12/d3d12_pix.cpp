@@ -11,7 +11,7 @@
 // Therefore can assume that the export module handle points toward the system d3d12.dll
 extern HMODULE g_export_module_handle;
 
-HOOK_EXPORT UINT64 WINAPI D3D12PIXEventsReplaceBlock(UINT64 *pUnknown1, UINT64 Unknown2)
+extern "C" UINT64 WINAPI D3D12PIXEventsReplaceBlock(UINT64 *pUnknown1, UINT64 Unknown2)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -23,7 +23,7 @@ HOOK_EXPORT UINT64 WINAPI D3D12PIXEventsReplaceBlock(UINT64 *pUnknown1, UINT64 U
 		return 0;
 }
 
-HOOK_EXPORT LPVOID WINAPI D3D12PIXGetThreadInfo(UINT64 Unknown1, UINT64 Unknown2)
+extern "C" LPVOID WINAPI D3D12PIXGetThreadInfo(UINT64 Unknown1, UINT64 Unknown2)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -35,7 +35,7 @@ HOOK_EXPORT LPVOID WINAPI D3D12PIXGetThreadInfo(UINT64 Unknown1, UINT64 Unknown2
 		return nullptr;
 }
 
-HOOK_EXPORT void    WINAPI D3D12PIXNotifyWakeFromFenceSignal(UINT64 Unknown1, UINT64 Unknown2)
+extern "C" void    WINAPI D3D12PIXNotifyWakeFromFenceSignal(UINT64 Unknown1, UINT64 Unknown2)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -45,7 +45,7 @@ HOOK_EXPORT void    WINAPI D3D12PIXNotifyWakeFromFenceSignal(UINT64 Unknown1, UI
 		reinterpret_cast<decltype(&D3D12PIXNotifyWakeFromFenceSignal)>(proc)(Unknown1, Unknown2);
 }
 
-HOOK_EXPORT void   WINAPI D3D12PIXReportCounter(UINT64 Unknown1, UINT64 Unknown2, LPCWSTR Unknown3, UINT64 Unknown4, UINT64 Unknown5)
+extern "C" void   WINAPI D3D12PIXReportCounter(UINT64 Unknown1, UINT64 Unknown2, LPCWSTR Unknown3, UINT64 Unknown4, UINT64 Unknown5)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);

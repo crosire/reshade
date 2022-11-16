@@ -33,6 +33,10 @@ namespace reshade
 		explicit input_gamepad(void *xinput_module);
 		~input_gamepad();
 
+		/// <summary>
+		/// Loads XInput and creates or gets the gamepad input manager singleton.
+		/// </summary>
+		/// <returns>Pointer to the input manager.</returns>
 		static std::shared_ptr<input_gamepad> load();
 
 		/// <summary>

@@ -847,7 +847,7 @@ void reshade::d3d9::device_impl::begin_debug_event(const char *label, const floa
 {
 	assert(label != nullptr);
 
-	const size_t label_len = strlen(label);
+	const size_t label_len = std::strlen(label);
 	std::wstring label_wide;
 	label_wide.reserve(label_len + 1);
 	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
@@ -862,7 +862,7 @@ void reshade::d3d9::device_impl::insert_debug_marker(const char *label, const fl
 {
 	assert(label != nullptr);
 
-	const size_t label_len = strlen(label);
+	const size_t label_len = std::strlen(label);
 	std::wstring label_wide;
 	label_wide.reserve(label_len + 1);
 	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));

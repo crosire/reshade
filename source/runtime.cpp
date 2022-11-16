@@ -1824,7 +1824,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							functions_to_remove.push_back(spirv[inst + 2]);
 
 							// Get interface variables
-							for (uint32_t k = inst + 3 + static_cast<uint32_t>((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
+							for (uint32_t k = inst + 3 + static_cast<uint32_t>((std::strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
 								variables_to_remove.push_back(spirv[k]);
 
 							// Remove this entry point from the module
@@ -4398,7 +4398,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		});
 	}
 
-	if (!execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_no_window))
+	if (!utils::execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_no_window))
 	{
 		LOG(ERROR) << "Failed to execute screenshot post-save command!";
 		return false;

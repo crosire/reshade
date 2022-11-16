@@ -7,7 +7,7 @@
 
 #include <filesystem>
 
-namespace reshade
+namespace reshade::utils
 {
 	/// <summary>
 	/// Opens a Windows explorer window with the specified file selected.

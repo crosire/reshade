@@ -38,7 +38,7 @@ void init_device_proxy_for_d3d9on12(Direct3DDevice9 *device_proxy)
 	}
 }
 
-HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9on12(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries) // Export ordinal 20
+extern "C" IDirect3D9 *WINAPI Direct3DCreate9on12(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries) // Export ordinal 20
 {
 	if (g_in_d3d9_runtime)
 		return reshade::hooks::call(Direct3DCreate9on12)(SDKVersion, pOverrideList, NumOverrideEntries);
@@ -86,7 +86,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9on12(UINT SDKVersion, D3D9ON12_ARG
 	return res;
 }
 
-HOOK_EXPORT     HRESULT WINAPI Direct3DCreate9on12Ex(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries, IDirect3D9Ex **ppOutputInterface) // Export ordinal 21
+extern "C"     HRESULT WINAPI Direct3DCreate9on12Ex(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries, IDirect3D9Ex **ppOutputInterface) // Export ordinal 21
 {
 	if (g_in_d3d9_runtime)
 		return reshade::hooks::call(Direct3DCreate9on12Ex)(SDKVersion, pOverrideList, NumOverrideEntries, ppOutputInterface);

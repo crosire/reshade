@@ -458,7 +458,7 @@ static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLui
 #endif
 
 #ifdef GL_VERSION_1_0
-HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
+extern "C" void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = reshade::hooks::call(glTexImage1D);
 
@@ -499,7 +499,7 @@ HOOK_EXPORT void APIENTRY glTexImage1D(GLenum target, GLint level, GLint interna
 #endif
 		trampoline(target, level, internalformat, width, border, format, type, pixels);
 }
-HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
+extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = reshade::hooks::call(glTexImage2D);
 
@@ -544,7 +544,7 @@ HOOK_EXPORT void APIENTRY glTexImage2D(GLenum target, GLint level, GLint interna
 		trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 }
 
-HOOK_EXPORT void APIENTRY glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum type)
+extern "C" void APIENTRY glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum type)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (copy_texture_region(GL_FRAMEBUFFER_DEFAULT, 0, 0, x, y, 0, GL_FRAMEBUFFER_DEFAULT, 0, 0, 0, 0, 0, width, height, 1))
@@ -555,7 +555,7 @@ HOOK_EXPORT void APIENTRY glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei 
 	trampoline(x, y, width, height, type);
 }
 
-HOOK_EXPORT void APIENTRY glClear(GLbitfield mask)
+extern "C" void APIENTRY glClear(GLbitfield mask)
 {
 #if RESHADE_ADDON
 	if (g_current_context && (
@@ -597,7 +597,7 @@ HOOK_EXPORT void APIENTRY glClear(GLbitfield mask)
 	trampoline(mask);
 }
 
-HOOK_EXPORT void APIENTRY glEnable(GLenum cap)
+extern "C" void APIENTRY glEnable(GLenum cap)
 {
 	static const auto trampoline = reshade::hooks::call(glEnable);
 	trampoline(cap);
@@ -654,7 +654,7 @@ HOOK_EXPORT void APIENTRY glEnable(GLenum cap)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glDisable(GLenum cap)
+extern "C" void APIENTRY glDisable(GLenum cap)
 {
 	static const auto trampoline = reshade::hooks::call(glDisable);
 	trampoline(cap);
@@ -712,7 +712,7 @@ HOOK_EXPORT void APIENTRY glDisable(GLenum cap)
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glCullFace(GLenum mode)
+extern "C" void APIENTRY glCullFace(GLenum mode)
 {
 	static const auto trampoline = reshade::hooks::call(glCullFace);
 	trampoline(mode);
@@ -728,7 +728,7 @@ HOOK_EXPORT void APIENTRY glCullFace(GLenum mode)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glFrontFace(GLenum mode)
+extern "C" void APIENTRY glFrontFace(GLenum mode)
 {
 	static const auto trampoline = reshade::hooks::call(glFrontFace);
 	trampoline(mode);
@@ -744,22 +744,22 @@ HOOK_EXPORT void APIENTRY glFrontFace(GLenum mode)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glHint(GLenum target, GLenum mode)
+extern "C" void APIENTRY glHint(GLenum target, GLenum mode)
 {
 	static const auto trampoline = reshade::hooks::call(glHint);
 	trampoline(target, mode);
 }
-HOOK_EXPORT void APIENTRY glLineWidth(GLfloat width)
+extern "C" void APIENTRY glLineWidth(GLfloat width)
 {
 	static const auto trampoline = reshade::hooks::call(glLineWidth);
 	trampoline(width);
 }
-HOOK_EXPORT void APIENTRY glPointSize(GLfloat size)
+extern "C" void APIENTRY glPointSize(GLfloat size)
 {
 	static const auto trampoline = reshade::hooks::call(glPointSize);
 	trampoline(size);
 }
-HOOK_EXPORT void APIENTRY glPolygonMode(GLenum face, GLenum mode)
+extern "C" void APIENTRY glPolygonMode(GLenum face, GLenum mode)
 {
 	static const auto trampoline = reshade::hooks::call(glPolygonMode);
 	trampoline(face, mode);
@@ -776,7 +776,7 @@ HOOK_EXPORT void APIENTRY glPolygonMode(GLenum face, GLenum mode)
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glAlphaFunc(GLenum func, GLclampf ref)
+extern "C" void APIENTRY glAlphaFunc(GLenum func, GLclampf ref)
 {
 	static const auto trampoline = reshade::hooks::call(glAlphaFunc);
 	trampoline(func, ref);
@@ -792,7 +792,7 @@ HOOK_EXPORT void APIENTRY glAlphaFunc(GLenum func, GLclampf ref)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glBlendFunc(GLenum sfactor, GLenum dfactor)
+extern "C" void APIENTRY glBlendFunc(GLenum sfactor, GLenum dfactor)
 {
 	static const auto trampoline = reshade::hooks::call(glBlendFunc);
 	trampoline(sfactor, dfactor);
@@ -808,7 +808,7 @@ HOOK_EXPORT void APIENTRY glBlendFunc(GLenum sfactor, GLenum dfactor)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glLogicOp(GLenum opcode)
+extern "C" void APIENTRY glLogicOp(GLenum opcode)
 {
 	static const auto trampoline = reshade::hooks::call(glLogicOp);
 	trampoline(opcode);
@@ -824,7 +824,7 @@ HOOK_EXPORT void APIENTRY glLogicOp(GLenum opcode)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
+extern "C" void APIENTRY glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
 {
 	static const auto trampoline = reshade::hooks::call(glColorMask);
 	trampoline(red, green, blue, alpha);
@@ -841,7 +841,7 @@ HOOK_EXPORT void APIENTRY glColorMask(GLboolean red, GLboolean green, GLboolean 
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glDepthFunc(GLenum func)
+extern "C" void APIENTRY glDepthFunc(GLenum func)
 {
 	static const auto trampoline = reshade::hooks::call(glDepthFunc);
 	trampoline(func);
@@ -857,7 +857,7 @@ HOOK_EXPORT void APIENTRY glDepthFunc(GLenum func)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glDepthMask(GLboolean flag)
+extern "C" void APIENTRY glDepthMask(GLboolean flag)
 {
 	static const auto trampoline = reshade::hooks::call(glDepthMask);
 	trampoline(flag);
@@ -874,7 +874,7 @@ HOOK_EXPORT void APIENTRY glDepthMask(GLboolean flag)
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask)
+extern "C" void APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask)
 {
 	static const auto trampoline = reshade::hooks::call(glStencilFunc);
 	trampoline(func, ref, mask);
@@ -890,7 +890,7 @@ HOOK_EXPORT void APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glStencilMask(GLuint mask)
+extern "C" void APIENTRY glStencilMask(GLuint mask)
 {
 	static const auto trampoline = reshade::hooks::call(glStencilMask);
 	trampoline(mask);
@@ -906,7 +906,7 @@ HOOK_EXPORT void APIENTRY glStencilMask(GLuint mask)
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
+extern "C" void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 {
 	static const auto trampoline = reshade::hooks::call(glStencilOp);
 	trampoline(fail, zfail, zpass);
@@ -923,7 +923,7 @@ HOOK_EXPORT void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glScissor(GLint left, GLint bottom, GLsizei width, GLsizei height)
+extern "C" void APIENTRY glScissor(GLint left, GLint bottom, GLsizei width, GLsizei height)
 {
 	static const auto trampoline = reshade::hooks::call(glScissor);
 	trampoline(left, bottom, width, height);
@@ -957,7 +957,7 @@ HOOK_EXPORT void APIENTRY glScissor(GLint left, GLint bottom, GLsizei width, GLs
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
+extern "C" void APIENTRY glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
 {
 	static const auto trampoline = reshade::hooks::call(glViewport);
 	trampoline(x, y, width, height);
@@ -977,7 +977,7 @@ HOOK_EXPORT void APIENTRY glViewport(GLint x, GLint y, GLsizei width, GLsizei he
 	}
 #endif
 }
-HOOK_EXPORT void APIENTRY glDepthRange(GLclampd zNear, GLclampd zFar)
+extern "C" void APIENTRY glDepthRange(GLclampd zNear, GLclampd zFar)
 {
 	static const auto trampoline = reshade::hooks::call(glDepthRange);
 	trampoline(zNear, zFar);
@@ -985,7 +985,7 @@ HOOK_EXPORT void APIENTRY glDepthRange(GLclampd zNear, GLclampd zFar)
 #endif
 
 #ifdef GL_VERSION_1_1
-HOOK_EXPORT void APIENTRY glDeleteTextures(GLsizei n, const GLuint *textures)
+extern "C" void APIENTRY glDeleteTextures(GLsizei n, const GLuint *textures)
 {
 #if RESHADE_ADDON
 	for (GLsizei i = 0; i < n; ++i)
@@ -997,7 +997,7 @@ HOOK_EXPORT void APIENTRY glDeleteTextures(GLsizei n, const GLuint *textures)
 	trampoline(n, textures);
 }
 
-HOOK_EXPORT void APIENTRY glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels)
+extern "C" void APIENTRY glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (update_texture_region(target, 0, level, xoffset, 0, 0, width, 1, 1, format, type, pixels))
@@ -1007,7 +1007,7 @@ HOOK_EXPORT void APIENTRY glTexSubImage1D(GLenum target, GLint level, GLint xoff
 	static const auto trampoline = reshade::hooks::call(glTexSubImage1D);
 	trampoline(target, level, xoffset, width, format, type, pixels);
 }
-HOOK_EXPORT void APIENTRY glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
+extern "C" void APIENTRY glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (update_texture_region(target, 0, level, xoffset, yoffset, 0, width, height, 1, format, type, pixels))
@@ -1018,18 +1018,18 @@ HOOK_EXPORT void APIENTRY glTexSubImage2D(GLenum target, GLint level, GLint xoff
 	trampoline(target, level, xoffset, yoffset, width, height, format, type, pixels);
 }
 
-HOOK_EXPORT void APIENTRY glCopyTexImage1D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLint border)
+extern "C" void APIENTRY glCopyTexImage1D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLint border)
 {
 	static const auto trampoline = reshade::hooks::call(glCopyTexImage1D);
 	trampoline(target, level, internalformat, x, y, width, border);
 }
-HOOK_EXPORT void APIENTRY glCopyTexImage2D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border)
+extern "C" void APIENTRY glCopyTexImage2D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border)
 {
 	static const auto trampoline = reshade::hooks::call(glCopyTexImage2D);
 	trampoline(target, level, internalFormat, x, y, width, height, border);
 }
 
-HOOK_EXPORT void APIENTRY glCopyTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width)
+extern "C" void APIENTRY glCopyTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (copy_texture_region(GL_FRAMEBUFFER_DEFAULT, 0, 0, x, y, 0, target, 0, level, xoffset, 0, 0, width, 1, 1))
@@ -1039,7 +1039,7 @@ HOOK_EXPORT void APIENTRY glCopyTexSubImage1D(GLenum target, GLint level, GLint 
 	static const auto trampoline = reshade::hooks::call(glCopyTexSubImage1D);
 	trampoline(target, level, xoffset, x, y, width);
 }
-HOOK_EXPORT void APIENTRY glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height)
+extern "C" void APIENTRY glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (copy_texture_region(GL_FRAMEBUFFER_DEFAULT, 0, 0, x, y, 0, target, 0, level, xoffset, yoffset, 0, width, height, 1))
@@ -1050,7 +1050,7 @@ HOOK_EXPORT void APIENTRY glCopyTexSubImage2D(GLenum target, GLint level, GLint 
 	trampoline(target, level, xoffset, yoffset, x, y, width, height);
 }
 
-HOOK_EXPORT void APIENTRY glBindTexture(GLenum target, GLuint texture)
+extern "C" void APIENTRY glBindTexture(GLenum target, GLuint texture)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// Only interested in existing textures that are were bound to the render pipeline
@@ -1084,7 +1084,7 @@ HOOK_EXPORT void APIENTRY glBindTexture(GLenum target, GLuint texture)
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glPolygonOffset(GLfloat factor, GLfloat units)
+extern "C" void APIENTRY glPolygonOffset(GLfloat factor, GLfloat units)
 {
 	static const auto trampoline = reshade::hooks::call(glPolygonOffset);
 	trampoline(factor, units);
@@ -1101,7 +1101,7 @@ HOOK_EXPORT void APIENTRY glPolygonOffset(GLfloat factor, GLfloat units)
 #endif
 }
 
-HOOK_EXPORT void APIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count)
+extern "C" void APIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 #if RESHADE_ADDON
 	if (g_current_context)
@@ -1114,7 +1114,7 @@ HOOK_EXPORT void APIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	static const auto trampoline = reshade::hooks::call(glDrawArrays);
 	trampoline(mode, first, count);
 }
-HOOK_EXPORT void APIENTRY glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
+extern "C" void APIENTRY glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
 {
 #if RESHADE_ADDON
 	if (g_current_context)

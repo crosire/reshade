@@ -171,7 +171,7 @@ IDirectInput_CreateDevice_Impl(3, 7, 7, W)
 IDirectInput_CreateDeviceEx_Impl(9, 7, 7, A)
 IDirectInput_CreateDeviceEx_Impl(9, 7, 7, W)
 
-HOOK_EXPORT HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA *ppDI, LPUNKNOWN punkOuter)
+extern "C" HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA *ppDI, LPUNKNOWN punkOuter)
 {
 	LOG(INFO) << "Redirecting " << "DirectInputCreateA" << '('
 		<<   "hinst = " << hinst
@@ -193,7 +193,7 @@ HOOK_EXPORT HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, 
 	return hr;
 }
 
-HOOK_EXPORT HRESULT WINAPI DirectInputCreateW(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTW *ppDI, LPUNKNOWN punkOuter)
+extern "C" HRESULT WINAPI DirectInputCreateW(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTW *ppDI, LPUNKNOWN punkOuter)
 {
 	LOG(INFO) << "Redirecting " << "DirectInputCreateW" << '('
 		<<   "hinst = " << hinst
@@ -215,7 +215,7 @@ HOOK_EXPORT HRESULT WINAPI DirectInputCreateW(HINSTANCE hinst, DWORD dwVersion, 
 	return hr;
 }
 
-HOOK_EXPORT HRESULT WINAPI DirectInputCreateEx(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID *ppvOut, LPUNKNOWN punkOuter)
+extern "C" HRESULT WINAPI DirectInputCreateEx(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID *ppvOut, LPUNKNOWN punkOuter)
 {
 	LOG(INFO) << "Redirecting " << "DirectInputCreateEx" << '('
 		<<   "hinst = " << hinst

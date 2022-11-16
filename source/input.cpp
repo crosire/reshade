@@ -484,7 +484,7 @@ bool is_blocking_keyboard_input()
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 }
 
-HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
+extern "C" BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
 #if 1
 	// Implement 'GetMessage' with a timeout (see also DLL_PROCESS_DETACH in dllmain.cpp for more explanation)
@@ -513,7 +513,7 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 
 	return lpMsg->message != WM_QUIT;
 }
-HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
+extern "C" BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
 #if 1
 	while (!PeekMessageW(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE) && g_module_handle != nullptr)
@@ -541,7 +541,7 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 
 	return lpMsg->message != WM_QUIT;
 }
-HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+extern "C" BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
 	static const auto trampoline = reshade::hooks::call(HookPeekMessageA);
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
@@ -560,7 +560,7 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 
 	return TRUE;
 }
-HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+extern "C" BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
 	static const auto trampoline = reshade::hooks::call(HookPeekMessageW);
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
@@ -580,7 +580,7 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 	return TRUE;
 }
 
-HOOK_EXPORT BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+extern "C" BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	// Do not allow mouse movement simulation while we block input
 	if (is_blocking_mouse_input() && Msg == WM_MOUSEMOVE)
@@ -589,7 +589,7 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 	static const auto trampoline = reshade::hooks::call(HookPostMessageA);
 	return trampoline(hWnd, Msg, wParam, lParam);
 }
-HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+extern "C" BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	if (is_blocking_mouse_input() && Msg == WM_MOUSEMOVE)
 		return TRUE;
@@ -598,7 +598,7 @@ HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPA
 	return trampoline(hWnd, Msg, wParam, lParam);
 }
 
-HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
+extern "C" BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
 {
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Redirecting " << "RegisterRawInputDevices" << '(' << "pRawInputDevices = " << pRawInputDevices << ", uiNumDevices = " << uiNumDevices << ", cbSize = " << cbSize << ')' << " ...";
@@ -638,7 +638,7 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 
 static POINT s_last_cursor_position = {};
 
-HOOK_EXPORT BOOL WINAPI HookClipCursor(const RECT *lpRect)
+extern "C" BOOL WINAPI HookClipCursor(const RECT *lpRect)
 {
 	if (is_blocking_mouse_input())
 		// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
@@ -648,7 +648,7 @@ HOOK_EXPORT BOOL WINAPI HookClipCursor(const RECT *lpRect)
 	return trampoline(lpRect);
 }
 
-HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
+extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {
 	s_last_cursor_position.x = X;
 	s_last_cursor_position.y = Y;
@@ -659,7 +659,7 @@ HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 	static const auto trampoline = reshade::hooks::call(HookSetCursorPosition);
 	return trampoline(X, Y);
 }
-HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
+extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 {
 	if (is_blocking_mouse_input())
 	{

@@ -391,20 +391,20 @@ namespace reshade
 		void draw_gui();
 		void draw_gui_vr();
 
-#if RESHADE_FX
+#  if RESHADE_FX
 		void draw_gui_home();
-#endif
+#  endif
 		void draw_gui_settings();
 		void draw_gui_statistics();
 		void draw_gui_log();
 		void draw_gui_about();
-#if RESHADE_ADDON
+#  if RESHADE_ADDON
 		void draw_gui_addons();
-#endif
-#if RESHADE_FX
+#  endif
+#  if RESHADE_FX
 		void draw_variable_editor();
 		void draw_technique_editor();
-#endif
+#  endif
 
 		bool init_imgui_resources();
 		void render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv);
@@ -420,9 +420,9 @@ namespace reshade
 		bool _show_frametime = false;
 		bool _show_screenshot_message = true;
 		bool _rebuild_font_atlas = true;
-#if RESHADE_FX
+#  if RESHADE_FX
 		unsigned int _reload_count = 0;
-#endif
+#  endif
 
 		bool _no_font_scaling = false;
 		unsigned int _overlay_key_data[4];
@@ -447,7 +447,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Home
-#if RESHADE_FX
+#  if RESHADE_FX
 		char _effect_filter[32] = {};
 		bool _variable_editor_tabs = false;
 		bool _save_present_on_modification = true;
@@ -458,7 +458,7 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		float _variable_editor_height = 200.0f;
-#endif
+#  endif
 		#pragma endregion
 
 		#pragma region Overlay Add-ons
@@ -475,17 +475,17 @@ namespace reshade
 		std::filesystem::path _file_selection_path;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
-#if RESHADE_FX
+#  if RESHADE_FX
 		bool  _show_force_load_effects_button = true;
-#endif
+#  endif
 		#pragma endregion
 
 		#pragma region Overlay Statistics
-#if RESHADE_FX
+#  if RESHADE_FX
 		bool _gather_gpu_statistics = false;
 		api::resource_view _preview_texture = { 0 };
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
-#endif
+#  endif
 		#pragma endregion
 
 		#pragma region Overlay Log
@@ -496,7 +496,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Code Editor
-#if RESHADE_FX
+#  if RESHADE_FX
 		struct editor_instance
 		{
 			size_t effect_index;
@@ -512,7 +512,7 @@ namespace reshade
 		void draw_code_editor(editor_instance &instance);
 
 		std::vector<editor_instance> _editors;
-#endif
+#  endif
 		uint32_t _editor_palette[imgui::code_editor::color_palette_max];
 		#pragma endregion
 #endif

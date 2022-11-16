@@ -106,6 +106,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reshade_set_technique_state);
 		CASE(reshade_overlay);
 		CASE(reshade_screenshot);
+		CASE(reshade_render_technique);
 	}
 #undef  CASE
 	return "unknown";
@@ -228,7 +229,9 @@ void reshade::unload_addons()
 	LOG(INFO) << "Unloading built-in add-ons ...";
 #endif
 
+#if 1
 	unregister_addon_depth();
+#endif
 
 #ifndef NDEBUG
 	// All events should have been unregistered at this point
@@ -431,6 +434,7 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 }
 
 #if RESHADE_GUI
+
 void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
 	reshade::addon_info *const info = reshade::find_addon(callback);
@@ -473,6 +477,7 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 	info->overlay_callbacks.erase(std::remove_if(info->overlay_callbacks.begin(), info->overlay_callbacks.end(),
 		[title, callback](const reshade::addon_info::overlay_callback &item) { return item.title == title && item.callback == callback; }), info->overlay_callbacks.end());
 }
+
 #endif
 
 #endif

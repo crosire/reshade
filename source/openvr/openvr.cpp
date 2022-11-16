@@ -467,7 +467,7 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 
 vr::IVRClientCore *g_client_core = nullptr;
 
-HOOK_EXPORT void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
+extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
 {
 	LOG(INFO) << "Redirecting " << "VRClientCoreFactory" << '(' << "pInterfaceName = " << pInterfaceName << ')' << " ...";
 

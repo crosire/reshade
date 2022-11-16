@@ -376,7 +376,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	return hr;
 }
 
-HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
+extern "C" IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
 	if (g_in_d3d9_runtime)
 		return reshade::hooks::call(Direct3DCreate9)(SDKVersion);
@@ -401,7 +401,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 	return res;
 }
 
-HOOK_EXPORT     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
+extern "C"     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
 	if (g_in_d3d9_runtime)
 		return reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);

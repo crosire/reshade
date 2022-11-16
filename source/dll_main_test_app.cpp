@@ -129,11 +129,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		com_ptr<IDirect3DDevice9Ex> device;
 		HR_CHECK(d3d->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, nullptr, &device));
 
-		while (msg.message != WM_QUIT)
+		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
 
 			if (s_resize_w != 0)
 			{
@@ -190,11 +191,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		com_ptr<ID3D11RenderTargetView> target;
 		HR_CHECK(device->CreateRenderTargetView(backbuffer.get(), nullptr, &target));
 
-		while (msg.message != WM_QUIT)
+		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
 
 			if (s_resize_w != 0)
 			{
@@ -345,11 +347,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HR_CHECK(cmd_lists[i]->Close());
 		}
 
-		while (msg.message != WM_QUIT)
+		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
 
 			if (s_resize_w != 0)
 			{
@@ -436,11 +439,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		wglDeleteContext(hglrc1);
 		wglMakeCurrent(hdc, hglrc2);
 
-		while (msg.message != WM_QUIT)
+		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
 
 			if (s_resize_w != 0)
 			{
@@ -664,8 +668,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
 			if (msg.message == WM_QUIT)
 				break;
