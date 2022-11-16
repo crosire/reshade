@@ -22,19 +22,19 @@ ini_file::ini_file(const std::filesystem::path &path) : _path(path)
 	load();
 }
 
-void ini_file::load()
+bool ini_file::load()
 {
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
 	if (!ec && _modified_at >= modified_at)
-		return; // Skip loading if there was no modification to the file since it was last loaded
+		return true; // Skip loading if there was no modification to the file since it was last loaded
 
 	// Clear when file does not exist too
 	_sections.clear();
 
-	std::ifstream file;
-	if (file.open(_path); !file)
-		return;
+	std::ifstream file(_path);
+	if (!file)
+		return false;
 
 	_modified = false;
 	_modified_at = modified_at;
@@ -105,6 +105,8 @@ void ini_file::load()
 			_sections[section].insert({ line, {} });
 		}
 	}
+
+	return true;
 }
 bool ini_file::save()
 {
@@ -193,9 +195,11 @@ bool ini_file::save()
 	if (!file)
 		return false;
 
-	const std::string str = data.str();
 	file.imbue(std::locale("en-us.UTF-8"));
-	file.write(str.data(), str.size());
+
+	const std::string str = data.str();
+	if (!file.write(str.data(), str.size()))
+		return false;
 
 	// Flush stream to disk before updating last write time
 	file.close();

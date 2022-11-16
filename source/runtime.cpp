@@ -21,6 +21,7 @@
 #include <set>
 #include <thread>
 #include <cstring>
+#include <fstream>
 #include <algorithm>
 #include <fpng.h>
 #include <stb_image.h>
@@ -2985,24 +2986,24 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		stbi_uc *filedata = nullptr;
+		stbi_uc *pixels = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE *file = nullptr;
-			_wfopen_s(&file, source_path.c_str(), L"rb") == 0)
+		if (auto file = std::ifstream(source_path, std::ios::binary))
 		{
 			// Read texture data into memory in one go since that is faster than reading chunk by chunk
-			std::vector<uint8_t> mem(static_cast<size_t>(std::filesystem::file_size(source_path)));
-			fread(mem.data(), 1, mem.size(), file);
-			fclose(file);
+			std::error_code ec;
+			std::vector<stbi_uc> file_data(static_cast<size_t>(std::filesystem::file_size(source_path, ec)));
+			file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
+			file.close();
 
-			if (stbi_dds_test_memory(mem.data(), static_cast<int>(mem.size())))
-				filedata = stbi_dds_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
+				pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
+				pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
-		if (filedata == nullptr)
+		if (pixels == nullptr)
 		{
 			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
 				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
@@ -3011,9 +3012,9 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		update_texture(tex, width, height, filedata);
+		update_texture(tex, width, height, pixels);
 
-		stbi_image_free(filedata);
+		stbi_image_free(pixels);
 
 		tex.loaded = true;
 	}
@@ -3084,15 +3085,13 @@ bool reshade::runtime::load_effect_cache(const std::string &id, const std::strin
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
-	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-		if (file == INVALID_HANDLE_VALUE)
-			return false;
-		DWORD size = GetFileSize(file, nullptr);
-		data.resize(size);
-		const BOOL result = ReadFile(file, data.data(), size, &size, nullptr);
-		CloseHandle(file);
-		return result != FALSE;
-	}
+	std::ifstream file(path, std::ios::binary);
+	if (!file)
+		return false;
+	std::error_code ec;
+	data.resize(static_cast<size_t>(std::filesystem::file_size(path, ec)) + 1, '\0');
+	file.read(data.data(), data.size());
+	return !file.fail();
 }
 bool reshade::runtime::save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const
 {
@@ -3102,14 +3101,11 @@ bool reshade::runtime::save_effect_cache(const std::string &id, const std::strin
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
-	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-		if (file == INVALID_HANDLE_VALUE)
-			return false;
-		DWORD size = static_cast<DWORD>(data.size());
-		const BOOL result = WriteFile(file, data.data(), size, &size, nullptr);
-		CloseHandle(file);
-		return result != FALSE;
-	}
+	std::ofstream file(path, std::ios::binary | std::ios::trunc);
+	if (!file)
+		return false;
+	file.write(data.data(), data.size());
+	return !file.fail();
 }
 void reshade::runtime::clear_effect_cache()
 {
@@ -3819,42 +3815,42 @@ void reshade::runtime::save_texture(const texture &tex)
 
 	_last_screenshot_save_successfull = true;
 
-	if (std::vector<uint8_t> data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
-		get_texture_data(tex.resource, api::resource_usage::shader_resource, data.data()))
+	if (std::vector<uint8_t> pixels(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
+		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data()))
 	{
-		_worker_threads.emplace_back([this, screenshot_path, data = std::move(data), width = tex.width, height = tex.height]() mutable {
+		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), width = tex.width, height = tex.height]() mutable {
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (FILE *file = nullptr;
-				_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+			if (auto file = std::ofstream(screenshot_path, std::ios::binary | std::ios::trunc))
 			{
 				const auto write_callback = [](void *context, void *data, int size) {
-					fwrite(data, 1, size, static_cast<FILE *>(context));
+					static_cast<std::ofstream *>(context)->write(static_cast<const char *>(data), size);
 				};
 
 				switch (_screenshot_format)
 				{
 				case 0:
-					save_success = stbi_write_bmp_to_func(write_callback, file, width, height, 4, data.data()) != 0;
+					save_success = stbi_write_bmp_to_func(write_callback, &file, width, height, 4, pixels.data()) != 0;
 					break;
 				case 1:
 				{
 #if 1
 					std::vector<uint8_t> encoded_data;
-					save_success = fpng::fpng_encode_image_to_memory(data.data(), width, height, 4, encoded_data);
-					fwrite(encoded_data.data(), 1, encoded_data.size(), file);
+					save_success = fpng::fpng_encode_image_to_memory(pixels.data(), width, height, 4, encoded_data);
+					write_callback(&file, encoded_data.data(), static_cast<int>(encoded_data.size()));
 #else
-					save_success = stbi_write_png_to_func(write_callback, file, width, height, 4, data.data(), 0) != 0;
+					save_success = stbi_write_png_to_func(write_callback, &file, width, height, 4, pixels.data(), 0) != 0;
 #endif
 					break;
 				}
 				case 2:
-					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, data.data(), _screenshot_jpeg_quality) != 0;
+					save_success = stbi_write_jpg_to_func(write_callback, &file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				}
 
-				fclose(file);
+				if (!file)
+					save_success = false;
 			}
 
 			if (_last_screenshot_save_successfull)
@@ -4278,8 +4274,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 
 	_last_screenshot_save_successfull = true;
 
-	if (std::vector<uint8_t> data(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
-		capture_screenshot(data.data()))
+	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
+		capture_screenshot(pixels.data()))
 	{
 #if RESHADE_FX
 		const bool include_preset = _screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path);
@@ -4287,14 +4283,14 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 		const bool include_preset = false;
 #endif
 
-		_worker_threads.emplace_back([this, screenshot_path, data = std::move(data), include_preset]() mutable {
+		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
 			int comp = 4;
 			if (_screenshot_clear_alpha)
 			{
 				comp = 3;
 				for (size_t i = 0; i < _width * _height; ++i)
-					*reinterpret_cast<uint32_t *>(data.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(data.data() + 4 * i);
+					*reinterpret_cast<uint32_t *>(pixels.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(pixels.data() + 4 * i);
 			}
 
 			// Create screenshot directory if it does not exist
@@ -4306,40 +4302,35 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (FILE *file = nullptr;
-				_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+			if (auto file = std::ofstream(screenshot_path, std::ios::binary | std::ios::trunc))
 			{
-				struct write_context { FILE *file; bool write_success = true; } context = { file };
-
 				const auto write_callback = [](void *context, void *data, int size) {
-					if (fwrite(data, 1, size, static_cast<write_context *>(context)->file) != static_cast<size_t>(size))
-						static_cast<write_context *>(context)->write_success = false;
+					static_cast<std::ofstream *>(context)->write(static_cast<const char *>(data), size);
 				};
 
 				switch (_screenshot_format)
 				{
 				case 0:
-					save_success = stbi_write_bmp_to_func(write_callback, &context, _width, _height, comp, data.data()) != 0;
+					save_success = stbi_write_bmp_to_func(write_callback, &file, _width, _height, comp, pixels.data()) != 0;
 					break;
 				case 1:
 				{
 #if 1
 					std::vector<uint8_t> encoded_data;
-					save_success = fpng::fpng_encode_image_to_memory(data.data(), _width, _height, comp, encoded_data);
-					write_callback(&context, encoded_data.data(), static_cast<int>(encoded_data.size()));
+					save_success = fpng::fpng_encode_image_to_memory(pixels.data(), _width, _height, comp, encoded_data);
+					write_callback(&file, encoded_data.data(), static_cast<int>(encoded_data.size()));
 #else
-					save_success = stbi_write_png_to_func(write_callback, &context, _width, _height, comp, data.data(), 0) != 0;
+					save_success = stbi_write_png_to_func(write_callback, &file, _width, _height, comp, pixels.data(), 0) != 0;
 #endif
 					break;
 				}
 				case 2:
-					save_success = stbi_write_jpg_to_func(write_callback, &context, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
+					save_success = stbi_write_jpg_to_func(write_callback, &file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				}
 
-				save_success &= context.write_success;
-
-				fclose(file);
+				if (!file)
+					save_success = false;
 			}
 
 			if (save_success)

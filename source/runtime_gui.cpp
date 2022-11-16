@@ -3560,14 +3560,9 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 	// Only update text if there is no undo history (in which case it can be assumed that the text is already up-to-date)
 	else if (!instance.editor.is_modified() && !instance.editor.can_undo())
 	{
-		if (FILE *file = nullptr;
-			_wfopen_s(&file, instance.file_path.c_str(), L"rb") == 0)
+		if (auto file = std::ifstream(instance.file_path))
 		{
-			std::string text(static_cast<size_t>(std::filesystem::file_size(instance.file_path)), '\0');
-			fread(text.data(), 1, text.size(), file);
-			fclose(file);
-
-			instance.editor.set_text(text);
+			instance.editor.set_text(std::string(std::istreambuf_iterator<char>(file), {}));
 			instance.editor.set_readonly(false);
 		}
 	}
@@ -3603,12 +3598,10 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 		_input != nullptr && _input->is_key_pressed('S', true, false, false))))
 	{
 		// Write current editor text to file
-		if (FILE *file = nullptr;
-			_wfopen_s(&file, instance.file_path.c_str(), L"wt") == 0)
+		if (auto file = std::ofstream(instance.file_path, std::ios::trunc))
 		{
 			const std::string text = instance.editor.get_text();
-			fwrite(text.data(), 1, text.size(), file);
-			fclose(file);
+			file.write(text.data(), text.size());
 		}
 
 		if (!is_loading() && instance.effect_index < _effects.size())
