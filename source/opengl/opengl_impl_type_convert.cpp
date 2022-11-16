@@ -427,7 +427,6 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::d24_unorm_x8_uint;
 	case GL_DEPTH24_STENCIL8:
 		return api::format::d24_unorm_s8_uint;
-	case GL_DEPTH_COMPONENT32:
 	case GL_DEPTH_COMPONENT32F:
 	case GL_DEPTH_COMPONENT32F_NV:
 		return api::format::d32_float;
@@ -1014,6 +1013,11 @@ auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> G
 		return GL_DEPTH_COMPONENT24;
 	case GL_DEPTH_STENCIL:
 		return GL_DEPTH24_STENCIL8;
+	// Replace formats from 'GL_NV_depth_buffer_float' extension with their core variants
+	case GL_DEPTH_COMPONENT32F_NV:
+		return GL_DEPTH_COMPONENT32F;
+	case GL_DEPTH32F_STENCIL8_NV:
+		return GL_DEPTH32F_STENCIL8;
 	default:
 		return internal_format;
 	}
