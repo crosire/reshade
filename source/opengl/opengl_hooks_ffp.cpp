@@ -7,7 +7,7 @@
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
 
-extern thread_local reshade::opengl::swapchain_impl *g_current_context;
+extern thread_local reshade::opengl::render_context_impl *g_current_context;
 
 // Fixed function pipeline hooks
 

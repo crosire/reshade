@@ -312,6 +312,9 @@
     <ClCompile Include="source\opengl\opengl_impl_device.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClInclude Include="source\opengl\opengl_impl_render_context.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
     <ClCompile Include="source\opengl\opengl_impl_state_block.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>

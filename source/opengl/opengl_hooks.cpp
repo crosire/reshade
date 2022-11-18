@@ -27,7 +27,7 @@ struct DrawElementsIndirectCommand
 };
 
 // Initialize thread local variable in this translation unit, to avoid the compiler generating calls to '__dyn_tls_on_demand_init' on every use in the frequently called functions below
-thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
+thread_local reshade::opengl::render_context_impl *g_current_context = nullptr;
 
 #if RESHADE_ADDON
 
@@ -35,6 +35,8 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 {
 	if (!g_current_context || (!reshade::has_addon_event<reshade::addon_event::init_resource>() && !reshade::has_addon_event<reshade::addon_event::init_resource_view>() && !update_texture))
 		return;
+
+	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
 	// Get actual texture target from the texture object
 	if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
@@ -77,11 +79,11 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 	if (update_texture && initial_data != nullptr)
 	{
 		assert(base_target != GL_BUFFER);
-		g_current_context->update_texture_region(*initial_data, resource, 0, nullptr);
+		device->update_texture_region(*initial_data, resource, 0, nullptr);
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-		g_current_context, desc, initial_data, reshade::api::resource_usage::general, resource);
+		device, desc, initial_data, reshade::api::resource_usage::general, resource);
 
 	if (base_target == GL_BUFFER)
 		return;
@@ -90,7 +92,7 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 
 	// Register all possible views of this texture too
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		g_current_context, resource, usage_type, reshade::api::resource_view_desc(
+		device, resource, usage_type, reshade::api::resource_view_desc(
 			reshade::opengl::convert_resource_view_type(base_target), desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX), reshade::opengl::make_resource_view_handle(base_target, object));
 
 	if (base_target == GL_TEXTURE_CUBE_MAP)
@@ -100,7 +102,7 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 			const GLenum face_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 
 			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-				g_current_context, resource, usage_type, reshade::api::resource_view_desc(
+				device, resource, usage_type, reshade::api::resource_view_desc(
 					reshade::opengl::convert_resource_view_type(face_target), desc.texture.format, 0, UINT32_MAX, face, 1), reshade::opengl::make_resource_view_handle(face_target, object));
 		}
 	}
@@ -109,6 +111,8 @@ static void init_resource_view(GLenum target, GLuint object, const reshade::api:
 {
 	if (!g_current_context || !reshade::has_addon_event<reshade::addon_event::init_resource_view>())
 		return;
+
+	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
 	// Get actual texture target from the texture object
 	if (orig != 0 && orig_target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
@@ -119,12 +123,14 @@ static void init_resource_view(GLenum target, GLuint object, const reshade::api:
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&object));
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		g_current_context, reshade::opengl::make_resource_handle(orig_target, orig), reshade::api::resource_usage::undefined, desc, reshade::opengl::make_resource_view_handle(target, object));
+		device, reshade::opengl::make_resource_handle(orig_target, orig), reshade::api::resource_usage::undefined, desc, reshade::opengl::make_resource_view_handle(target, object));
 }
 static void destroy_resource_or_view(GLenum target, GLuint object)
 {
 	if (!g_current_context || (!reshade::has_addon_event<reshade::addon_event::destroy_resource>() && !reshade::has_addon_event<reshade::addon_event::destroy_resource_view>()))
 		return;
+
+	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
 	if (target != GL_BUFFER)
 	{
@@ -132,7 +138,7 @@ static void destroy_resource_or_view(GLenum target, GLuint object)
 		if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
 			gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 
-		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(g_current_context, reshade::opengl::make_resource_view_handle(target, object));
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, reshade::opengl::make_resource_view_handle(target, object));
 
 		if (target == GL_TEXTURE_CUBE_MAP)
 		{
@@ -140,14 +146,14 @@ static void destroy_resource_or_view(GLenum target, GLuint object)
 			{
 				const GLenum face_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(g_current_context, reshade::opengl::make_resource_view_handle(face_target, object));
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, reshade::opengl::make_resource_view_handle(face_target, object));
 			}
 		}
 	}
 
 	if (target != GL_TEXTURE_BUFFER)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(target, object));
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device, reshade::opengl::make_resource_handle(target, object));
 	}
 }
 
@@ -313,6 +319,8 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 	if (!g_current_context || !reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 		return false;
 
+	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 	if (src_object == 0)
 	{
 		if (src_target == GL_FRAMEBUFFER_DEFAULT)
@@ -347,7 +355,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &src_fbo);
 		assert(src_fbo != 0);
 
-		src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, GL_COLOR, src_object - GL_COLOR_ATTACHMENT0));
+		src = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, GL_COLOR, src_object - GL_COLOR_ATTACHMENT0));
 	}
 
 	reshade::api::resource dst = reshade::opengl::make_resource_handle(dst_target, dst_object);
@@ -357,7 +365,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 		assert(dst_fbo != 0);
 
-		dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, GL_COLOR, dst_object - GL_COLOR_ATTACHMENT0));
+		dst = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, GL_COLOR, dst_object - GL_COLOR_ATTACHMENT0));
 	}
 
 	const reshade::api::subresource_box src_box = { x, y, z, x + width, y + height, z + depth };
@@ -372,18 +380,22 @@ static bool update_buffer_region(GLenum target, GLuint object, GLintptr offset, 
 	if (!g_current_context || !reshade::has_addon_event<reshade::addon_event::update_buffer_region>())
 		return false;
 
+	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 	// Get object from current binding in case it was not specified
 	if (object == 0)
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&object));
 
 	reshade::api::resource dst = reshade::opengl::make_resource_handle(GL_BUFFER, object);
 
-	return reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(g_current_context, data, dst, static_cast<uint64_t>(offset), static_cast<uint64_t>(size));
+	return reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(device, data, dst, static_cast<uint64_t>(offset), static_cast<uint64_t>(size));
 }
 static bool update_texture_region(GLenum target, GLuint object, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels)
 {
 	if (!g_current_context || !reshade::has_addon_event<reshade::addon_event::update_texture_region>())
 		return false;
+
+	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
 	// Get actual texture target from the texture object
 	if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
@@ -407,7 +419,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	}
 
 	reshade::api::resource dst = reshade::opengl::make_resource_handle(base_target, object);
-	const reshade::api::resource_desc dst_desc = g_current_context->get_resource_desc(dst);
+	const reshade::api::resource_desc dst_desc = device->get_resource_desc(dst);
 
 	GLuint subresource = level;
 	if (base_target == GL_TEXTURE_CUBE_MAP)
@@ -418,7 +430,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	const reshade::api::subresource_box dst_box = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
 
 	std::vector<uint8_t> temp_data;
-	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, dst_desc.texture.format, width, height, depth), dst, subresource, &dst_box);
+	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(device, convert_mapped_subresource(format, type, pixels, &temp_data, dst_desc.texture.format, width, height, depth), dst, subresource, &dst_box);
 }
 
 #endif
@@ -472,6 +484,8 @@ extern "C" void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internal
 		// TODO: Add support for other mipmap levels
 		level == 0 && !proxy_object)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 		gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
@@ -480,7 +494,7 @@ extern "C" void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internal
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, 1, 1, swizzle_mask);
 		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, desc.texture.format, width);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 			width = desc.texture.width;
@@ -515,6 +529,8 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 		// TODO: Add support for other mipmap levels
 		level == 0 && !proxy_object && !cube_map_face)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 		gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
@@ -523,7 +539,7 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1, swizzle_mask);
 		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, desc.texture.format, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data && !cube_map_face ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data && !cube_map_face ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 			width = desc.texture.width;
@@ -1146,6 +1162,8 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 		// TODO: Add support for other mipmap levels
 		level == 0 && !proxy_object)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 		gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
@@ -1154,7 +1172,7 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth, swizzle_mask);
 		auto initial_data = convert_mapped_subresource(format, type, pixels, &temp_data, desc.texture.format, width, height, depth);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 			width = desc.texture.width;
@@ -1228,10 +1246,12 @@ void APIENTRY glCompressedTexImage1D(GLenum target, GLint level, GLenum internal
 		// TODO: Add support for other mipmap levels
 		level == 0 && !proxy_object)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width);
 		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, desc.texture.format, width);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
 			width = desc.texture.width;
@@ -1262,10 +1282,12 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 		// TODO: Add support for other mipmap levels
 		level == 0 && !proxy_object && !cube_map_face)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height);
 		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, desc.texture.format, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
 			width = desc.texture.width;
@@ -1295,10 +1317,12 @@ void APIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internal
 		// TODO: Add support for other mipmap levels
 		level == 0 && !proxy_object)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
 		auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, nullptr, desc.texture.format, width, height, depth);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
 			width = desc.texture.width;
@@ -1403,11 +1427,13 @@ void APIENTRY glBufferData(GLenum target, GLsizeiptr size, const void *data, GLe
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, size);
 		reshade::opengl::convert_memory_heap_from_usage(desc, usage);
 		auto initial_data = reshade::api::subresource_data { const_cast<void *>(data) }; // Row and depth pitch are unused for buffer data
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 			size = static_cast<GLsizeiptr>(desc.buffer.size);
@@ -1444,11 +1470,13 @@ auto APIENTRY glMapBuffer(GLenum target, GLenum access) -> void *
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint object = 0;
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			g_current_context,
+			device,
 			reshade::opengl::make_resource_handle(GL_BUFFER, object),
 			0,
 			UINT64_MAX,
@@ -1465,11 +1493,13 @@ void APIENTRY glUnmapBuffer(GLenum target)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint object = 0;
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
 		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(
-			g_current_context,
+			device,
 			reshade::opengl::make_resource_handle(GL_BUFFER, object));
 	}
 #endif
@@ -1519,13 +1549,15 @@ void APIENTRY glDeleteProgram(GLuint program)
 #if RESHADE_ADDON
 	if (g_current_context && program != 0)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint status = GL_FALSE;
 		gl.GetProgramiv(program, GL_LINK_STATUS, &status);
 
 		// Only invoke 'destroy_pipeline' event for programs that had a corresponding 'init_pipeline' event invoked in 'glLinkProgram'
 		if (GL_FALSE != status)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
 		}
 	}
 #endif
@@ -1542,6 +1574,8 @@ void APIENTRY glLinkProgram(GLuint program)
 #if RESHADE_ADDON
 	if (g_current_context && program != 0)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		// Only invoke 'init_pipeline' event for programs that were successfully compiled and linked
 		GLint status = GL_FALSE;
 		gl.GetProgramiv(program, GL_LINK_STATUS, &status);
@@ -1606,7 +1640,7 @@ void APIENTRY glLinkProgram(GLuint program)
 				subobjects.push_back({ subobject_type, 1, &desc });
 			}
 
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device, reshade::opengl::global_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
 		}
 	}
 #endif
@@ -1621,6 +1655,8 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		if (length != nullptr)
 		{
 			combined_source.reserve(length[0]);
@@ -1670,7 +1706,7 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 
 		const reshade::api::pipeline_subobject subobject = { subobject_type, 1, &desc };
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device, reshade::opengl::global_pipeline_layout, 1, &subobject))
 		{
 			assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLint>::max()));
 			combined_source_ptr = static_cast<const GLchar *>(desc.code);
@@ -1930,11 +1966,13 @@ auto APIENTRY glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint object = 0;
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			g_current_context,
+			device,
 			reshade::opengl::make_resource_handle(GL_BUFFER, object),
 			offset,
 			length,
@@ -2011,9 +2049,11 @@ void APIENTRY glRenderbufferStorage(GLenum target, GLenum internalformat, GLsize
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, 1, 1, internalformat, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
 			width = desc.texture.width;
@@ -2035,10 +2075,12 @@ void APIENTRY glRenderbufferStorageMultisample(GLenum target, GLsizei samples, G
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height);
 
 		if (g_current_context &&
-			reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+			reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			samples = desc.texture.samples;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -2122,6 +2164,8 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 		reshade::has_addon_event<reshade::addon_event::copy_texture_region>() ||
 		reshade::has_addon_event<reshade::addon_event::resolve_texture_region>()))
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint src_fbo = 0;
 		gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &src_fbo);
 		GLint dst_fbo = 0;
@@ -2133,10 +2177,10 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 			if ((mask & flag) != flag)
 				continue;
 
-			reshade::api::resource src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, flag, 0));
-			reshade::api::resource dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, flag, 0));
+			reshade::api::resource src = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, flag, 0));
+			reshade::api::resource dst = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, flag, 0));
 
-			if (g_current_context->get_resource_desc(src).texture.samples <= 1)
+			if (device->get_resource_desc(src).texture.samples <= 1)
 			{
 				const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 }, dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
 
@@ -2503,12 +2547,14 @@ void APIENTRY glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum int
 
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 		gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
 		auto desc =	reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, 1, swizzle_mask);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			samples = desc.texture.samples;
 			internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
@@ -2535,12 +2581,14 @@ void APIENTRY glTexImage3DMultisample(GLenum target, GLsizei samples, GLenum int
 
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 		gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
 		auto desc =	reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, depth, swizzle_mask);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			samples = desc.texture.samples;
 			internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
@@ -2848,9 +2896,11 @@ void APIENTRY glTexStorage1D(GLenum target, GLsizei levels, GLenum internalforma
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc =	reshade::opengl::convert_resource_desc(target, levels, 1, internalformat, width);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			levels = desc.texture.levels;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -2872,9 +2922,11 @@ void APIENTRY glTexStorage2D(GLenum target, GLsizei levels, GLenum internalforma
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, levels, 1, internalformat, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			levels = desc.texture.levels;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -2897,9 +2949,11 @@ void APIENTRY glTexStorage3D(GLenum target, GLsizei levels, GLenum internalforma
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, levels, 1, internalformat, width, height, depth);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			levels = desc.texture.levels;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -2995,6 +3049,8 @@ void APIENTRY glTextureView(GLuint texture, GLenum target, GLuint origtexture, G
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLenum orig_target = GL_TEXTURE;
 		// 'glTextureView' is available since OpenGL 4.3, so no guarantee that 'glGetTextureParameteriv' exists, since it was introduced in OpenGL 4.5
 		if (gl.GetTextureParameteriv != nullptr)
@@ -3002,7 +3058,7 @@ void APIENTRY glTextureView(GLuint texture, GLenum target, GLuint origtexture, G
 
 		auto desc = reshade::opengl::convert_resource_view_desc(target, internalformat, minlevel, numlevels, minlayer, numlayers);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(g_current_context, reshade::opengl::make_resource_handle(orig_target, origtexture), reshade::api::resource_usage::undefined, desc))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device, reshade::opengl::make_resource_handle(orig_target, origtexture), reshade::api::resource_usage::undefined, desc))
 		{
 			internalformat = reshade::opengl::convert_format(desc.format);
 			minlevel = desc.texture.first_level;
@@ -3011,9 +3067,9 @@ void APIENTRY glTextureView(GLuint texture, GLenum target, GLuint origtexture, G
 			numlayers = desc.texture.layer_count;
 
 			if (desc.texture.level_count == UINT32_MAX)
-				numlevels = g_current_context->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.levels;
+				numlevels = device->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.levels;
 			if (desc.texture.layer_count == UINT32_MAX)
-				numlayers = g_current_context->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.depth_or_layers;
+				numlayers = device->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.depth_or_layers;
 		}
 
 		trampoline(texture, target, origtexture, internalformat, minlevel, numlevels, minlayer, numlayers);
@@ -3056,9 +3112,11 @@ void APIENTRY glTexBufferRange(GLenum target, GLenum internalformat, GLuint buff
 
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_view_desc(target, internalformat, offset, size);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_usage::undefined, desc))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_usage::undefined, desc))
 		{
 			internalformat = reshade::opengl::convert_format(desc.format);
 			assert(desc.buffer.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
@@ -3083,9 +3141,11 @@ void APIENTRY glTexStorage2DMultisample(GLenum target, GLsizei samples, GLenum i
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			samples = desc.texture.samples;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -3108,9 +3168,11 @@ void APIENTRY glTexStorage3DMultisample(GLenum target, GLsizei samples, GLenum i
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, depth);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			samples = desc.texture.samples;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -3266,11 +3328,13 @@ void APIENTRY glBufferStorage(GLenum target, GLsizeiptr size, const void *data, 
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(target, size);
 		reshade::opengl::convert_memory_heap_from_flags(desc, flags);
 		auto initial_data = reshade::api::subresource_data { const_cast<void *>(data) };
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 			size = static_cast<GLsizeiptr>(desc.buffer.size);
@@ -3547,10 +3611,11 @@ void APIENTRY glTextureBufferRange(GLuint texture, GLenum internalformat, GLuint
 
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc =	reshade::opengl::convert_resource_view_desc(GL_TEXTURE_BUFFER, internalformat, offset, size);
 
-		if (g_current_context &&
-			reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_usage::undefined, desc))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_usage::undefined, desc))
 		{
 			internalformat = reshade::opengl::convert_format(desc.format);
 			assert(desc.buffer.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
@@ -3575,11 +3640,13 @@ void APIENTRY glNamedBufferData(GLuint buffer, GLsizeiptr size, const void *data
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_BUFFER, size);
 		reshade::opengl::convert_memory_heap_from_usage(desc, usage);
 		auto initial_data = reshade::api::subresource_data { const_cast<void *>(data) };
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 			size = static_cast<GLsizeiptr>(desc.buffer.size);
@@ -3603,11 +3670,13 @@ void APIENTRY glNamedBufferStorage(GLuint buffer, GLsizeiptr size, const void *d
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_BUFFER, size);
 		reshade::opengl::convert_memory_heap_from_flags(desc, flags);
 		auto initial_data = reshade::api::subresource_data { const_cast<void *>(data) };
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
 			assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 			size = static_cast<GLsizeiptr>(desc.buffer.size);
@@ -3631,9 +3700,11 @@ void APIENTRY glTextureStorage1D(GLuint texture, GLsizei levels, GLenum internal
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_TEXTURE_1D, levels, 1, internalformat, width);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
 			width = desc.texture.width;
@@ -3654,9 +3725,11 @@ void APIENTRY glTextureStorage2D(GLuint texture, GLsizei levels, GLenum internal
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_TEXTURE_2D, levels, 1, internalformat, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
 			width = desc.texture.width;
@@ -3678,9 +3751,11 @@ void APIENTRY glTextureStorage2DMultisample(GLuint texture, GLsizei samples, GLe
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_TEXTURE_2D, 1, samples, internalformat, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			samples = desc.texture.samples;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -3703,9 +3778,11 @@ void APIENTRY glTextureStorage3D(GLuint texture, GLsizei levels, GLenum internal
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_TEXTURE_3D, levels, 1, internalformat, width, height, depth);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
 			width = desc.texture.width;
@@ -3728,9 +3805,11 @@ void APIENTRY glTextureStorage3DMultisample(GLuint texture, GLsizei samples, GLe
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_TEXTURE_3D, 1, samples, internalformat, width, height, depth);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			samples = desc.texture.samples;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -3860,8 +3939,10 @@ auto APIENTRY glMapNamedBuffer(GLuint buffer, GLenum access) -> void *
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			g_current_context,
+			device,
 			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
 			0,
 			UINT64_MAX,
@@ -3881,8 +3962,10 @@ auto APIENTRY glMapNamedBufferRange(GLuint buffer, GLintptr offset, GLsizeiptr l
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			g_current_context,
+			device,
 			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
 			offset,
 			length,
@@ -3899,8 +3982,10 @@ void APIENTRY glUnmapNamedBuffer(GLuint buffer)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(
-			g_current_context,
+			device,
 			reshade::opengl::make_resource_handle(GL_BUFFER, buffer));
 	}
 #endif
@@ -3927,9 +4012,11 @@ void APIENTRY glNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalfor
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_RENDERBUFFER, 1, 1, internalformat, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
 			width = desc.texture.width;
@@ -3951,9 +4038,11 @@ void APIENTRY glNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		auto desc = reshade::opengl::convert_resource_desc(GL_RENDERBUFFER, 1, samples, internalformat, width, height);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, nullptr, reshade::api::resource_usage::general))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, nullptr, reshade::api::resource_usage::general))
 		{
 			samples = desc.texture.samples;
 			internalformat = reshade::opengl::convert_format(desc.texture.format);
@@ -4031,16 +4120,18 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 		reshade::has_addon_event<reshade::addon_event::copy_texture_region>() ||
 		reshade::has_addon_event<reshade::addon_event::resolve_texture_region>()))
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		constexpr GLbitfield flags[3] = { GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_STENCIL_BUFFER_BIT };
 		for (GLbitfield flag : flags)
 		{
 			if ((mask & flag) != flag)
 				continue;
 
-			reshade::api::resource src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(readFramebuffer, flag, 0));
-			reshade::api::resource dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(drawFramebuffer, flag, 0));
+			reshade::api::resource src = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(readFramebuffer, flag, 0));
+			reshade::api::resource dst = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(drawFramebuffer, flag, 0));
 
-			if (g_current_context->get_resource_desc(src).texture.samples <= 1)
+			if (device->get_resource_desc(src).texture.samples <= 1)
 			{
 				const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 }, dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
 
@@ -4119,6 +4210,8 @@ void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, c
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		reshade::api::pipeline_subobject_type subobject_type;
 		switch (target)
 		{
@@ -4141,7 +4234,7 @@ void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, c
 
 		const reshade::api::pipeline_subobject subobject = { subobject_type, 1, &desc };
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device, reshade::opengl::global_pipeline_layout, 1, &subobject))
 		{
 			assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 			string = desc.code;
@@ -4156,7 +4249,7 @@ void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, c
 		glGetProgramivARB(target, 0x8677 /* GL_PROGRAM_BINDING_ARB */, reinterpret_cast<GLint *>(&program));
 
 		if (program != 0)
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context, reshade::opengl::global_pipeline_layout, 1, &subobject, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device, reshade::opengl::global_pipeline_layout, 1, &subobject, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
 	}
 	else
 #endif
@@ -4167,9 +4260,11 @@ void APIENTRY glDeleteProgramsARB(GLsizei n, const GLuint *programs)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		for (GLsizei i = 0; i < n; ++i)
 			if (programs[i] != 0)
-				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | programs[i] });
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | programs[i] });
 	}
 #endif
 

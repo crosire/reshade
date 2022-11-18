@@ -4,6 +4,7 @@
  */
 
 #include "opengl_impl_device.hpp"
+#include "opengl_impl_render_context.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include <algorithm>
 
@@ -144,7 +145,7 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 	}
 }
 
-void reshade::opengl::device_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
+void reshade::opengl::render_context_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
 	GLbitfield barriers = 0;
 
@@ -183,7 +184,7 @@ void reshade::opengl::device_impl::barrier(uint32_t count, const api::resource *
 	gl.MemoryBarrier(barriers);
 }
 
-void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
+void reshade::opengl::render_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
 	temp_mem<api::resource_view, 8> rtv_handles(count);
 	for (uint32_t i = 0; i < count; ++i)
@@ -217,10 +218,10 @@ void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::
 		}
 	}
 }
-void reshade::opengl::device_impl::end_render_pass()
+void reshade::opengl::render_context_impl::end_render_pass()
 {
 }
-void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+void reshade::opengl::render_context_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
 	bind_framebuffer_with_resource_views(GL_FRAMEBUFFER, count, rtvs, dsv);
 
@@ -241,7 +242,7 @@ void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_
 		{
 			draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
-			const api::format format = get_resource_view_format(rtvs[i]);
+			const api::format format = _device_impl->get_resource_view_format(rtvs[i]);
 			if (format != api::format_to_default_typed(format, 0) &&
 				format == api::format_to_default_typed(format, 1))
 				has_srgb_attachment = true;
@@ -253,7 +254,7 @@ void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_
 	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, has_srgb_attachment);
 }
 
-void reshade::opengl::device_impl::bind_framebuffer_with_resource(GLenum target, GLenum attachment, api::resource dst, uint32_t dst_subresource, const api::resource_desc &dst_desc)
+void reshade::opengl::render_context_impl::bind_framebuffer_with_resource(GLenum target, GLenum attachment, api::resource dst, uint32_t dst_subresource, const api::resource_desc &dst_desc)
 {
 	const GLenum dst_target = dst.handle >> 40;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
@@ -306,7 +307,7 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource(GLenum target,
 
 	assert(gl.CheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE);
 }
-void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
 	if ((count == 0 || ((count == 1) && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT)) && (dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT))
 	{
@@ -359,7 +360,7 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 
 	if (dsv.handle != 0)
 	{
-		const GLenum attachment = is_depth_stencil_format(get_resource_view_format(dsv));
+		const GLenum attachment = is_depth_stencil_format(_device_impl->get_resource_view_format(dsv));
 
 		switch (dsv.handle >> 40)
 		{
@@ -391,7 +392,87 @@ void reshade::opengl::device_impl::bind_framebuffer_with_resource_views(GLenum t
 	update_current_window_height(fbo);
 }
 
-void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
+void reshade::opengl::render_context_impl::update_current_window_height(GLuint fbo_object)
+{
+	const api::resource_view default_attachment = get_framebuffer_attachment(fbo_object, GL_COLOR, 0);
+	if (default_attachment.handle == 0)
+		return;
+
+	const api::resource default_attachment_resource = _device_impl->get_resource_from_view(default_attachment);
+
+	const GLenum default_attachment_target = default_attachment_resource.handle >> 40;
+	const GLuint default_attachment_object = default_attachment_resource.handle & 0xFFFFFFFF;
+
+	switch (default_attachment_target)
+	{
+		case GL_TEXTURE_BUFFER:
+		case GL_TEXTURE_1D:
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		case GL_TEXTURE_3D:
+		case GL_TEXTURE_CUBE_MAP:
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
+		case GL_TEXTURE_RECTANGLE:
+		{
+			GLint height = 0;
+
+			if (_device_impl->_supports_dsa)
+			{
+				gl.GetTextureLevelParameteriv(default_attachment_object, 0, GL_TEXTURE_HEIGHT, &height);
+			}
+			else
+			{
+				GLuint prev_binding = 0;
+				gl.GetIntegerv(get_binding_for_target(default_attachment_target), reinterpret_cast<GLint *>(&prev_binding));
+				gl.BindTexture(default_attachment_target, default_attachment_object);
+
+				gl.GetTexLevelParameteriv(default_attachment_target, 0, GL_TEXTURE_HEIGHT, &height);
+
+				gl.BindTexture(default_attachment_target, prev_binding);
+			}
+
+			_current_window_height = height;
+			break;
+		}
+		case GL_RENDERBUFFER:
+		{
+			GLint height = 0;
+
+			if (_device_impl->_supports_dsa)
+			{
+				gl.GetNamedRenderbufferParameteriv(default_attachment_object, GL_RENDERBUFFER_HEIGHT, &height);
+			}
+			else
+			{
+				GLuint prev_binding = 0;
+				gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
+				gl.BindRenderbuffer(GL_RENDERBUFFER, default_attachment_object);
+
+				gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
+
+				gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
+			}
+
+			_current_window_height = height;
+			break;
+		}
+		case GL_FRAMEBUFFER_DEFAULT:
+		{
+			_current_window_height = _device_impl->_default_fbo_height;
+			break;
+		}
+		default:
+		{
+			assert(false);
+			break;
+		}
+	}
+}
+
+void reshade::opengl::render_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	// Special case for application pipeline handles
 	if ((pipeline.handle >> 40) == GL_PROGRAM)
@@ -408,7 +489,7 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage stages, api
 		gl.ClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
 
 	// Always disable alpha test in case the application set that (fixes broken GUI rendering in Quake)
-	if (_compatibility_context)
+	if (_device_impl->_compatibility_context)
 		gl.Disable(0x0BC0 /* GL_ALPHA_TEST */);
 
 	reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(stages);
@@ -416,7 +497,7 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage stages, api
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
 		_current_prim_mode = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_mode;
 }
-void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
+void reshade::opengl::render_context_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -482,7 +563,7 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 		}
 	}
 }
-void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
+void reshade::opengl::render_context_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -490,7 +571,7 @@ void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count
 		gl.DepthRangeIndexed(first + i, static_cast<GLdouble>(viewports[i].min_depth), static_cast<GLdouble>(viewports[i].max_depth));
 	}
 }
-void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
+void reshade::opengl::render_context_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	GLint clip_origin = GL_LOWER_LEFT;
 	if (gl.ClipControl != nullptr)
@@ -510,7 +591,7 @@ void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t c
 	}
 }
 
-void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
+void reshade::opengl::render_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
 	const GLuint push_constants_binding = (layout.handle != 0 && layout != global_pipeline_layout) ?
 		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
@@ -525,7 +606,7 @@ void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeli
 		if (first != 0)
 			gl.BufferSubData(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), values);
 
-		set_resource_name(make_resource_handle(GL_BUFFER, _push_constants), "Push constants");
+		_device_impl->set_resource_name(make_resource_handle(GL_BUFFER, _push_constants), "Push constants");
 
 		_push_constants_size = count;
 	}
@@ -537,7 +618,7 @@ void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeli
 		gl.UnmapBuffer(GL_UNIFORM_BUFFER);
 	}
 }
-void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
+void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
 	assert(update.set.handle == 0 && update.array_offset == 0);
 
@@ -561,7 +642,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			if (descriptor.view.handle == 0)
 				continue;
 
-			if (_supports_dsa)
+			if (_device_impl->_supports_dsa)
 			{
 				gl.BindTextureUnit(first + i, descriptor.view.handle & 0xFFFFFFFF);
 			}
@@ -581,7 +662,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			if (descriptor.handle == 0)
 				continue;
 
-			if (_supports_dsa)
+			if (_device_impl->_supports_dsa)
 			{
 				gl.BindTextureUnit(first + i, descriptor.handle & 0xFFFFFFFF);
 			}
@@ -603,7 +684,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			const GLuint object = descriptor.handle & 0xFFFFFFFF;
 
 			GLint internal_format = 0;
-			if (_supports_dsa)
+			if (_device_impl->_supports_dsa)
 			{
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 			}
@@ -658,7 +739,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		break;
 	}
 }
-void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::opengl::render_context_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -672,7 +753,7 @@ void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages
 	}
 }
 
-void reshade::opengl::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
+void reshade::opengl::render_context_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
 	assert(offset == 0);
 
@@ -694,7 +775,7 @@ void reshade::opengl::device_impl::bind_index_buffer(api::resource buffer, uint6
 		break;
 	}
 }
-void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
+void reshade::opengl::render_context_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -703,7 +784,7 @@ void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t 
 		gl.BindVertexBuffer(first + i, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
 	}
 }
-void reshade::opengl::device_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+void reshade::opengl::render_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -723,19 +804,19 @@ void reshade::opengl::device_impl::bind_stream_output_buffers(uint32_t first, ui
 	}
 }
 
-void reshade::opengl::device_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
+void reshade::opengl::render_context_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
 	gl.DrawArraysInstancedBaseInstance(_current_prim_mode, first_vertex, vertex_count, instance_count, first_instance);
 }
-void reshade::opengl::device_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+void reshade::opengl::render_context_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	gl.DrawElementsInstancedBaseVertexBaseInstance(_current_prim_mode, index_count, _current_index_type, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index) * get_index_type_size(_current_index_type)), instance_count, vertex_offset, first_instance);
 }
-void reshade::opengl::device_impl::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+void reshade::opengl::render_context_impl::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
 	gl.DispatchCompute(group_count_x, group_count_y, group_count_z);
 }
-void reshade::opengl::device_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+void reshade::opengl::render_context_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	switch (type)
 	{
@@ -759,9 +840,9 @@ void reshade::opengl::device_impl::draw_or_dispatch_indirect(api::indirect_comma
 	}
 }
 
-void reshade::opengl::device_impl::copy_resource(api::resource src, api::resource dst)
+void reshade::opengl::render_context_impl::copy_resource(api::resource src, api::resource dst)
 {
-	const api::resource_desc desc = get_resource_desc(src);
+	const api::resource_desc desc = _device_impl->get_resource_desc(src);
 
 	if (desc.type == api::resource_type::buffer)
 	{
@@ -780,7 +861,7 @@ void reshade::opengl::device_impl::copy_resource(api::resource src, api::resourc
 		}
 	}
 }
-void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
+void reshade::opengl::render_context_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -790,7 +871,7 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 	assert(src_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) &&
 		   dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == UINT64_MAX || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
 
-	if (_supports_dsa)
+	if (_device_impl->_supports_dsa)
 	{
 		if (UINT64_MAX == size)
 		{
@@ -834,7 +915,7 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 		gl.BindBuffer(GL_COPY_WRITE_BUFFER, prev_write_binding);
 	}
 }
-void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
+void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
 	const GLenum dst_target = dst.handle >> 40;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
@@ -903,15 +984,15 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 
 		if (dst_box == nullptr)
 		{
-			width = _default_fbo_width;
-			height = _default_fbo_height;
+			width = _device_impl->_default_fbo_width;
+			height = _device_impl->_default_fbo_height;
 		}
 
-		GLenum format = (dst_object == GL_BACK || dst_object == GL_BACK_LEFT || dst_object == GL_BACK_RIGHT) ? _default_color_format : _default_depth_format, type;
+		GLenum format = (dst_object == GL_BACK || dst_object == GL_BACK_LEFT || dst_object == GL_BACK_RIGHT) ? _device_impl->_default_color_format : _device_impl->_default_depth_format, type;
 		format = convert_upload_format(format, type);
 
 		// This is deprecated and not available in core contexts!
-		assert(_compatibility_context);
+		assert(_device_impl->_compatibility_context);
 		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 
 		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_binding);
@@ -944,7 +1025,7 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 		format = convert_upload_format(format, type);
 
 		// This is deprecated and not available in core contexts!
-		assert(_compatibility_context);
+		assert(_device_impl->_compatibility_context);
 		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 
 		gl.BindRenderbuffer(GL_RENDERBUFFER, prev_rbo_binding);
@@ -956,7 +1037,7 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 		gl.GetIntegerv(get_binding_for_target(dst_target), reinterpret_cast<GLint *>(&prev_binding));
 		gl.BindTexture(dst_target, dst_object);
 
-		const api::resource_desc desc = get_resource_desc(dst);
+		const api::resource_desc desc = _device_impl->get_resource_desc(dst);
 
 		const GLuint level = dst_subresource % desc.texture.levels;
 		      GLuint layer = dst_subresource / desc.texture.levels;
@@ -1045,15 +1126,15 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, prev_unpack_skip_pixels);
 	gl.PixelStorei(GL_UNPACK_SKIP_IMAGES, prev_unpack_skip_images);
 }
-void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode filter)
+void reshade::opengl::render_context_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode filter)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
-	const api::resource_desc src_desc = get_resource_desc(src);
+	const api::resource_desc src_desc = _device_impl->get_resource_desc(src);
 	const GLenum src_target = src.handle >> 40;
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
 
-	const api::resource_desc dst_desc = get_resource_desc(dst);
+	const api::resource_desc dst_desc = _device_impl->get_resource_desc(dst);
 	const GLenum dst_target = dst.handle >> 40;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
@@ -1135,7 +1216,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		glEnableOrDisable(GL_FRAMEBUFFER_SRGB, prev_srgb_enable);
 	}
 }
-void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	const GLenum src_target = src.handle >> 40;
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
@@ -1204,11 +1285,11 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 		if (src_box == nullptr)
 		{
-			width = _default_fbo_width;
-			height = _default_fbo_height;
+			width = _device_impl->_default_fbo_width;
+			height = _device_impl->_default_fbo_height;
 		}
 
-		GLenum format = (src_object == GL_BACK || src_object == GL_BACK_LEFT || src_object == GL_BACK_RIGHT) ? _default_color_format : _default_depth_format, type;
+		GLenum format = (src_object == GL_BACK || src_object == GL_BACK_LEFT || src_object == GL_BACK_RIGHT) ? _device_impl->_default_color_format : _device_impl->_default_depth_format, type;
 		format = convert_upload_format(format, type);
 
 		gl.ReadPixels(xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
@@ -1253,7 +1334,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		gl.GetIntegerv(get_binding_for_target(src_target), reinterpret_cast<GLint *>(&prev_binding));
 		gl.BindTexture(src_target, src_object);
 
-		const api::resource_desc desc = get_resource_desc(src);
+		const api::resource_desc desc = _device_impl->get_resource_desc(src);
 
 		const GLuint level = src_subresource % desc.texture.levels;
 		      GLuint layer = src_subresource / desc.texture.levels;
@@ -1287,7 +1368,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 			gl.GetTexImage(src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY ? level_target : src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
-		else if (_supports_dsa)
+		else if (_device_impl->_supports_dsa)
 		{
 			switch (src_target)
 			{
@@ -1319,7 +1400,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	gl.PixelStorei(GL_PACK_SKIP_PIXELS, prev_pack_skip_pixels);
 	gl.PixelStorei(GL_PACK_SKIP_IMAGES, prev_pack_skip_images);
 }
-void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format)
+void reshade::opengl::render_context_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format)
 {
 	api::subresource_box dst_box;
 	dst_box.left  = dst_x;
@@ -1334,7 +1415,7 @@ void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uin
 	}
 	else
 	{
-		const api::resource_desc desc = get_resource_desc(dst);
+		const api::resource_desc desc = _device_impl->get_resource_desc(dst);
 
 		dst_box.right  = dst_x + std::max(1u, desc.texture.width >> (dst_subresource % desc.texture.levels));
 		dst_box.bottom = dst_y + std::max(1u, desc.texture.height >> (dst_subresource % desc.texture.levels));
@@ -1344,7 +1425,7 @@ void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uin
 	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, &dst_box, api::filter_mode::min_mag_mip_point);
 }
 
-void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)
+void reshade::opengl::render_context_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)
 {
 	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
@@ -1370,7 +1451,7 @@ void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view d
 
 	gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 }
-void reshade::opengl::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
+void reshade::opengl::render_context_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {
 	assert(rtv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
@@ -1383,16 +1464,16 @@ void reshade::opengl::device_impl::clear_render_target_view(api::resource_view r
 
 	gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 }
-void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
+void reshade::opengl::render_context_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }
-void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const api::rect *)
+void reshade::opengl::render_context_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }
 
-void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
+void reshade::opengl::render_context_impl::generate_mipmaps(api::resource_view srv)
 {
 	assert(srv.handle != 0);
 
@@ -1434,7 +1515,7 @@ void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
 #endif
 }
 
-void reshade::opengl::device_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::opengl::render_context_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	assert(pool.handle != 0);
 
@@ -1451,7 +1532,7 @@ void reshade::opengl::device_impl::begin_query(api::query_pool pool, api::query_
 		break;
 	}
 }
-void reshade::opengl::device_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::opengl::render_context_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	assert(pool.handle != 0);
 
@@ -1471,7 +1552,7 @@ void reshade::opengl::device_impl::end_query(api::query_pool pool, api::query_ty
 		break;
 	}
 }
-void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::opengl::render_context_impl::copy_query_pool_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
 	assert(pool.handle != 0);
 
@@ -1483,17 +1564,17 @@ void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool,
 	}
 }
 
-void reshade::opengl::device_impl::begin_debug_event(const char *label, const float[4])
+void reshade::opengl::render_context_impl::begin_debug_event(const char *label, const float[4])
 {
 	assert(label != nullptr);
 
 	gl.PushDebugGroup(GL_DEBUG_SOURCE_THIRD_PARTY, 0, -1, label);
 }
-void reshade::opengl::device_impl::end_debug_event()
+void reshade::opengl::render_context_impl::end_debug_event()
 {
 	gl.PopDebugGroup();
 }
-void reshade::opengl::device_impl::insert_debug_marker(const char *label, const float[4])
+void reshade::opengl::render_context_impl::insert_debug_marker(const char *label, const float[4])
 {
 	assert(label != nullptr);
 

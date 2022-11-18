@@ -9,9 +9,11 @@
 
 #define gl gl3wProcs.gl
 
-reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compatibility_context) :
-	device_impl(hdc, hglrc, compatibility_context), runtime(this, this)
+reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC initial_hglrc, bool compatibility_context) :
+	device_impl(hdc, initial_hglrc, compatibility_context), render_context_impl(this, initial_hglrc), swapchain_base(this, this)
 {
+	_hdcs.insert(hdc);
+
 	GLint major = 0, minor = 0;
 	gl.GetIntegerv(GL_MAJOR_VERSION, &major);
 	gl.GetIntegerv(GL_MINOR_VERSION, &minor);
@@ -141,3 +143,16 @@ void reshade::opengl::swapchain_impl::render_technique(api::effect_technique han
 		_app_state.apply(_compatibility_context);
 }
 #endif
+
+void reshade::opengl::swapchain_impl::destroy_resource_view(api::resource_view handle)
+{
+	device_impl::destroy_resource_view(handle);
+
+	// Destroy all framebuffers, to ensure they are recreated even if a resource view handle is re-used
+	for (const auto &fbo_data : _fbo_lookup)
+	{
+		gl.DeleteFramebuffers(1, &fbo_data.second);
+	}
+
+	_fbo_lookup.clear();
+}

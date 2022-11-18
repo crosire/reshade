@@ -18,8 +18,9 @@ static std::shared_mutex s_global_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_contexts;
-extern thread_local reshade::opengl::swapchain_impl *g_current_context;
+static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_devices;
+static std::unordered_map<HGLRC, reshade::opengl::render_context_impl *> s_opengl_queues;
+extern thread_local reshade::opengl::render_context_impl *g_current_context;
 
 extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -492,61 +493,78 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting " << "wglDeleteContext" << '(' << "hglrc = " << hglrc << ')' << " ...";
 
-	if (const auto it = s_opengl_contexts.find(hglrc);
-		it != s_opengl_contexts.end())
-	{
+	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
+
+		if (const auto it = s_opengl_queues.find(hglrc);
+			it != s_opengl_queues.end())
+		{
+			// Separate command queue objects are only created for shared contexts
+			assert(s_shared_contexts.at(hglrc) != nullptr);
+
+			// Simply assume the render context is still current, since no device context information exists, so could not make it current anyway ...
+			assert(wglGetCurrentContext() == hglrc || wglGetCurrentContext() == s_shared_contexts.at(hglrc));
+			delete it->second;
+
+			if (it->second == g_current_context)
+				g_current_context = nullptr;
+
+			s_opengl_queues.erase(it);
+		}
+
+		if (const auto it = s_opengl_devices.find(hglrc);
+			it != s_opengl_devices.end())
+		{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Cleaning up runtime " << static_cast<reshade::runtime *>(it->second) << " ...";
+			LOG(DEBUG) << "> Cleaning up runtime " << static_cast<reshade::runtime *>(it->second) << " ...";
 #endif
 
-		// Set the render context current so its resources can be cleaned up
-		const HGLRC prev_hglrc = wglGetCurrentContext();
-		if (hglrc == prev_hglrc)
-		{
-			delete it->second;
-		}
-		else
-		{
-			// Choose a device context to make current with
-			HDC hdc = reinterpret_cast<HDC>(it->second->get_native());
-			const HDC prev_hdc = wglGetCurrentDC();
-
-			// In case the original was destroyed already, create a dummy window to get a valid context
-			HWND dummy_window_handle = nullptr;
-			if (!WindowFromDC(hdc))
-			{
-				dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
-				hdc = GetDC(dummy_window_handle);
-				PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
-				pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
-				const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
-				reshade::hooks::call(wglSetPixelFormat)(hdc, pixel_format, &pfd);
-			}
-
-			if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
+			// Set the render context current so its resources can be cleaned up
+			const HGLRC prev_hglrc = wglGetCurrentContext();
+			if (hglrc == prev_hglrc)
 			{
 				delete it->second;
-
-				// Restore previous device and render context
-				reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
 			}
 			else
 			{
-				LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << ")! Leaking resources ...";
+				// Choose a device context to make current with
+				HDC hdc = reinterpret_cast<HDC>(static_cast<reshade::api::swapchain *>(it->second)->get_native());
+				const HDC prev_hdc = wglGetCurrentDC();
+
+				// In case the original was destroyed already, create a dummy window to get a valid context
+				HWND dummy_window_handle = nullptr;
+				if (!WindowFromDC(hdc))
+				{
+					dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
+					hdc = GetDC(dummy_window_handle);
+					PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
+					pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
+					const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
+					reshade::hooks::call(wglSetPixelFormat)(hdc, pixel_format, &pfd);
+				}
+
+				if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
+				{
+					delete it->second;
+
+					// Restore previous device and render context
+					reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
+				}
+				else
+				{
+					LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << ")! Leaking resources ...";
+				}
+
+				if (dummy_window_handle != nullptr)
+					DestroyWindow(dummy_window_handle);
 			}
 
-			if (dummy_window_handle != nullptr)
-				DestroyWindow(dummy_window_handle);
+			// Ensure the effect runtime is not still current after deleting
+			if (it->second == g_current_context)
+				g_current_context = nullptr;
+
+			s_opengl_devices.erase(it);
 		}
 
-		// Ensure the effect runtime is not still current after deleting
-		if (it->second == g_current_context)
-			g_current_context = nullptr;
-
-		s_opengl_contexts.erase(it);
-	}
-
-	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
 		s_legacy_contexts.erase(hglrc);
 
 		for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
@@ -597,6 +615,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	LOG(INFO) << "Redirecting " << "wglMakeCurrent" << '(' << "hdc = " << hdc << ", hglrc = " << hglrc << ')' << " ...";
 #endif
 
+	HGLRC shared_hglrc = hglrc;
 	const HGLRC prev_hglrc = wglGetCurrentContext();
 
 	static const auto trampoline = reshade::hooks::call(wglMakeCurrent);
@@ -625,15 +644,15 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	if (const auto it = s_shared_contexts.find(hglrc);
 		it != s_shared_contexts.end() && it->second != nullptr)
 	{
-		hglrc = it->second;
+		shared_hglrc = it->second;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Using shared OpenGL context " << hglrc << '.';
+		LOG(DEBUG) << "> Using shared OpenGL context " << shared_hglrc << '.';
 #endif
 	}
 
-	if (const auto it = s_opengl_contexts.find(hglrc);
-		it != s_opengl_contexts.end())
+	if (const auto it = s_opengl_devices.find(shared_hglrc);
+		it != s_opengl_devices.end())
 	{
 		if (it->second != g_current_context)
 		{
@@ -656,7 +675,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			g_current_context = nullptr;
 
-			LOG(DEBUG) << "Skipping render context " << hglrc << " because there is no window associated with its device context " << hdc << '.';
+			LOG(DEBUG) << "Skipping render context " << hglrc << " because there is no window associated with device context " << hdc << '.';
 			return TRUE;
 		}
 		else if ((GetClassLongPtr(hwnd, GCL_STYLE) & CS_OWNDC) == 0)
@@ -685,16 +704,16 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			assert(s_hooks_installed);
 
-			const auto runtime = new reshade::opengl::swapchain_impl(
-				hdc, hglrc,
+			const auto device = new reshade::opengl::swapchain_impl(
+				hdc, shared_hglrc,
 				// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
 				// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
-				s_legacy_contexts.find(hglrc) != s_legacy_contexts.end());
+				s_legacy_contexts.find(shared_hglrc) != s_legacy_contexts.end());
 
-			g_current_context = s_opengl_contexts[hglrc] = runtime;
+			g_current_context = s_opengl_devices[shared_hglrc] = device;
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Switched to new runtime " << static_cast<reshade::runtime *>(runtime) << '.';
+			LOG(DEBUG) << "Switched to new runtime " << static_cast<reshade::runtime *>(device) << '.';
 #endif
 		}
 		else
@@ -702,6 +721,21 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
 
 			g_current_context = nullptr;
+		}
+	}
+
+	if (hglrc != shared_hglrc && g_current_context != nullptr)
+	{
+		if (const auto it = s_opengl_queues.find(hglrc);
+			it != s_opengl_queues.end())
+		{
+			g_current_context = it->second;
+		}
+		else
+		{
+			const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+			g_current_context = s_opengl_queues[hglrc] = new reshade::opengl::render_context_impl(device, hglrc);
 		}
 	}
 
@@ -829,13 +863,15 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
-	reshade::opengl::swapchain_impl *runtime = g_current_context;
+	reshade::opengl::swapchain_impl *runtime = reshade::opengl::swapchain_impl::from_context(g_current_context);
 	if (runtime == nullptr || runtime->_hdcs.find(hdc) == runtime->_hdcs.end())
 	{
+		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
+
 		// Find the runtime that is associated with this device context
-		const auto it = std::find_if(s_opengl_contexts.begin(), s_opengl_contexts.end(),
+		const auto it = std::find_if(s_opengl_devices.begin(), s_opengl_devices.end(),
 			[hdc](const std::pair<HGLRC, reshade::opengl::swapchain_impl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
-		runtime = (it != s_opengl_contexts.end()) ? it->second : nullptr;
+		runtime = (it != s_opengl_devices.end()) ? it->second : nullptr;
 	}
 
 	// The window handle can be invalid if the window was already destroyed
@@ -862,10 +898,12 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		}
 
 #if RESHADE_ADDON
-		// Behave as if immediate command list is flushed
-		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(runtime, runtime);
+		reshade::opengl::render_context_impl *const queue = (g_current_context != nullptr) ? g_current_context : runtime;
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(runtime, runtime, nullptr, nullptr, 0, nullptr);
+		// Behave as if immediate command list is flushed
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue, queue);
+
+		reshade::invoke_addon_event<reshade::addon_event::present>(queue, runtime, nullptr, nullptr, 0, nullptr);
 #endif
 
 		// Assume that the correct OpenGL context is still current here

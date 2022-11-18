@@ -6,15 +6,14 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 #include "opengl_impl_device.hpp"
+#include "opengl_impl_render_context.hpp"
 #include "opengl_impl_type_convert.hpp"
 
 #define gl gl3wProcs.gl
 
-reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool compatibility_context) :
-	api_object_impl(hglrc), _compatibility_context(compatibility_context)
+reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, bool compatibility_context) :
+	api_object_impl(shared_hglrc), _compatibility_context(compatibility_context)
 {
-	_hdcs.insert(initial_hdc);
-
 	RECT window_rect = {};
 	GetClientRect(WindowFromDC(initial_hdc), &window_rect);
 
@@ -107,40 +106,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 	if (!_reserved_texture_names.empty())
 		gl.GenTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
 
-	// Generate push constants buffer name
-	gl.GenBuffers(1, &_push_constants);
-
-	// Create mipmap generation program used in the 'generate_mipmaps' function
-	{
-		static const char *const mipmap_shader =
-			"#version 430\n"
-			"layout(binding = 0) uniform sampler2D src;\n"
-			"layout(binding = 1) uniform writeonly image2D dest;\n"
-			"layout(location = 0) uniform vec3 texel;\n"
-			"layout(local_size_x = 8, local_size_y = 8) in;\n"
-			"void main()\n"
-			"{\n"
-			"	vec2 uv = texel.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
-			"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(texel.z)));\n"
-			"}\n";
-
-		const GLuint mipmap_cs = gl.CreateShader(GL_COMPUTE_SHADER);
-		gl.ShaderSource(mipmap_cs, 1, &mipmap_shader, 0);
-		gl.CompileShader(mipmap_cs);
-
-		_mipmap_program = gl.CreateProgram();
-		gl.AttachShader(_mipmap_program, mipmap_cs);
-		gl.LinkProgram(_mipmap_program);
-		gl.DeleteShader(mipmap_cs);
-
-		gl.GenSamplers(1, &_mipmap_sampler);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	}
-
 #if RESHADE_ADDON
 	load_addons();
 
@@ -164,17 +129,11 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 		/* Integer uniforms */ api::constant_range { 0, 0, 0, std::numeric_limits<uint32_t>::max(), api::shader_stage::all },
 	};
 	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
-
-	invoke_addon_event<addon_event::init_command_list>(this);
-	invoke_addon_event<addon_event::init_command_queue>(this);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
 {
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_command_list>(this);
-
 	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
 
 	invoke_addon_event<addon_event::destroy_device>(this);
@@ -183,16 +142,6 @@ reshade::opengl::device_impl::~device_impl()
 #endif
 
 	assert(_map_lookup.empty());
-
-	// Destroy framebuffers
-	destroy_resource_view({ 0 });
-
-	// Destroy mipmap generation program
-	gl.DeleteProgram(_mipmap_program);
-	gl.DeleteSamplers(1, &_mipmap_sampler);
-
-	// Destroy push constants buffer
-	gl.DeleteBuffers(1, &_push_constants);
 
 	// Free range of reserved resource names
 	gl.DeleteBuffers(static_cast<GLsizei>(_reserved_buffer_names.size()), _reserved_buffer_names.data());
@@ -979,14 +928,6 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view hand
 	// Check if this is a standalone object (see 'make_resource_view_handle')
 	if (((handle.handle >> 32) & 0x1) != 0)
 		destroy_resource({ handle.handle });
-
-	// Destroy all framebuffers, to ensure they are recreated even if a resource view handle is re-used
-	for (const auto &fbo_data : _fbo_lookup)
-	{
-		gl.DeleteFramebuffers(1, &fbo_data.second);
-	}
-
-	_fbo_lookup.clear();
 }
 
 reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api::resource_view view) const
@@ -1165,6 +1106,94 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 
 		return convert_resource_view_desc(target, internal_format, offset, size);
 	}
+}
+
+reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffer_attachment(GLuint fbo_object, GLenum type, uint32_t index) const
+{
+	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
+	if (!fbo_object)
+	{
+		if (index == 0)
+		{
+			if (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT)
+			{
+				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+			}
+			if (_device_impl->_default_depth_format != GL_NONE)
+			{
+				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+			}
+		}
+
+		return { 0 };
+	}
+
+	GLenum attachment;
+	switch (type)
+	{
+	case GL_COLOR:
+	case GL_COLOR_BUFFER_BIT:
+		attachment = GL_COLOR_ATTACHMENT0 + index;
+		break;
+	case GL_DEPTH:
+	case GL_DEPTH_BUFFER_BIT:
+		attachment = GL_DEPTH_ATTACHMENT;
+		break;
+	case GL_STENCIL:
+	case GL_STENCIL_BUFFER_BIT:
+		attachment = GL_STENCIL_ATTACHMENT;
+		break;
+	case GL_DEPTH_STENCIL:
+	case GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT:
+		// Only return the depth attachment in case there are different depth and stencil attachments, since calling 'glGetNamedFramebufferAttachmentParameteriv' with 'GL_DEPTH_STENCIL_ATTACHMENT' would fail in that case
+		attachment = GL_DEPTH_ATTACHMENT;
+		break;
+	default:
+		return { 0 };
+	}
+
+	GLenum target = GL_NONE, object = 0;
+	if (_device_impl->_supports_dsa)
+	{
+		gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
+
+		// Check if FBO does have this attachment
+		if (target != GL_NONE)
+		{
+			gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+
+			// Get actual texture target from the texture object
+			if (target == GL_TEXTURE)
+				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+		}
+	}
+	else
+	{
+		GLuint prev_binding = 0;
+		gl.GetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
+		// Must not bind framebuffer again if this was called from 'glBindFramebuffer' hook, or else black screen occurs in Jak Project for some reason
+		if (fbo_object != prev_binding)
+			gl.BindFramebuffer(GL_FRAMEBUFFER, fbo_object);
+
+		gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
+
+		if (target != GL_NONE)
+		{
+			gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+
+			if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
+				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+		}
+
+		if (fbo_object != prev_binding)
+			gl.BindFramebuffer(GL_FRAMEBUFFER, prev_binding);
+	}
+
+	if (target == GL_NONE)
+		return { 0 };
+
+	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
+	return make_resource_view_handle(target, object);
 }
 
 bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data)
@@ -1597,174 +1626,6 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	gl.PixelStorei(GL_UNPACK_SKIP_ROWS, prev_unpack_skip_rows);
 	gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, prev_unpack_skip_pixels);
 	gl.PixelStorei(GL_UNPACK_SKIP_IMAGES, prev_unpack_skip_images);
-}
-
-reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attachment(GLuint fbo_object, GLenum type, uint32_t index) const
-{
-	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
-	if (!fbo_object)
-	{
-		if (index == 0)
-		{
-			if (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT)
-			{
-				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-			}
-			if (_default_depth_format != GL_NONE)
-			{
-				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-			}
-		}
-
-		return { 0 };
-	}
-
-	GLenum attachment;
-	switch (type)
-	{
-	case GL_COLOR:
-	case GL_COLOR_BUFFER_BIT:
-		attachment = GL_COLOR_ATTACHMENT0 + index;
-		break;
-	case GL_DEPTH:
-	case GL_DEPTH_BUFFER_BIT:
-		attachment = GL_DEPTH_ATTACHMENT;
-		break;
-	case GL_STENCIL:
-	case GL_STENCIL_BUFFER_BIT:
-		attachment = GL_STENCIL_ATTACHMENT;
-		break;
-	case GL_DEPTH_STENCIL:
-	case GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT:
-		// Only return the depth attachment in case there are different depth and stencil attachments, since calling 'glGetNamedFramebufferAttachmentParameteriv' with 'GL_DEPTH_STENCIL_ATTACHMENT' would fail in that case
-		attachment = GL_DEPTH_ATTACHMENT;
-		break;
-	default:
-		return { 0 };
-	}
-
-	GLenum target = GL_NONE, object = 0;
-	if (_supports_dsa)
-	{
-		gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
-
-		// Check if FBO does have this attachment
-		if (target != GL_NONE)
-		{
-			gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
-
-			// Get actual texture target from the texture object
-			if (target == GL_TEXTURE)
-				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
-		}
-	}
-	else
-	{
-		GLuint prev_binding = 0;
-		gl.GetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-		// Must not bind framebuffer again if this was called from 'glBindFramebuffer' hook, or else black screen occurs in Jak Project for some reason
-		if (fbo_object != prev_binding)
-			gl.BindFramebuffer(GL_FRAMEBUFFER, fbo_object);
-
-		gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
-
-		if (target != GL_NONE)
-		{
-			gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
-
-			if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
-				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
-		}
-
-		if (fbo_object != prev_binding)
-			gl.BindFramebuffer(GL_FRAMEBUFFER, prev_binding);
-	}
-
-	if (target == GL_NONE)
-		return { 0 };
-
-	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
-	return make_resource_view_handle(target, object);
-}
-
-void reshade::opengl::device_impl::update_current_window_height(GLuint fbo_object)
-{
-	const api::resource_view default_attachment = get_framebuffer_attachment(fbo_object, GL_COLOR, 0);
-	if (default_attachment.handle == 0)
-		return;
-
-	const api::resource default_attachment_resource = get_resource_from_view(default_attachment);
-
-	const GLenum default_attachment_target = default_attachment_resource.handle >> 40;
-	const GLuint default_attachment_object = default_attachment_resource.handle & 0xFFFFFFFF;
-
-	switch (default_attachment_target)
-	{
-		case GL_TEXTURE_BUFFER:
-		case GL_TEXTURE_1D:
-		case GL_TEXTURE_1D_ARRAY:
-		case GL_TEXTURE_2D:
-		case GL_TEXTURE_2D_ARRAY:
-		case GL_TEXTURE_2D_MULTISAMPLE:
-		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		case GL_TEXTURE_3D:
-		case GL_TEXTURE_CUBE_MAP:
-		case GL_TEXTURE_CUBE_MAP_ARRAY:
-		case GL_TEXTURE_RECTANGLE:
-		{
-			GLint height = 0;
-
-			if (_supports_dsa)
-			{
-				gl.GetTextureLevelParameteriv(default_attachment_object, 0, GL_TEXTURE_HEIGHT, &height);
-			}
-			else
-			{
-				GLuint prev_binding = 0;
-				gl.GetIntegerv(get_binding_for_target(default_attachment_target), reinterpret_cast<GLint *>(&prev_binding));
-				gl.BindTexture(default_attachment_target, default_attachment_object);
-
-				gl.GetTexLevelParameteriv(default_attachment_target, 0, GL_TEXTURE_HEIGHT, &height);
-
-				gl.BindTexture(default_attachment_target, prev_binding);
-			}
-
-			_current_window_height = height;
-			break;
-		}
-		case GL_RENDERBUFFER:
-		{
-			GLint height = 0;
-
-			if (_supports_dsa)
-			{
-				gl.GetNamedRenderbufferParameteriv(default_attachment_object, GL_RENDERBUFFER_HEIGHT, &height);
-			}
-			else
-			{
-				GLuint prev_binding = 0;
-				gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-				gl.BindRenderbuffer(GL_RENDERBUFFER, default_attachment_object);
-
-				gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
-
-				gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
-			}
-
-			_current_window_height = height;
-			break;
-		}
-		case GL_FRAMEBUFFER_DEFAULT:
-		{
-			_current_window_height = _default_fbo_height;
-			break;
-		}
-		default:
-		{
-			assert(false);
-			break;
-		}
-	}
 }
 
 static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
