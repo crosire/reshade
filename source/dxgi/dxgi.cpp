@@ -566,8 +566,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 }
 extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
-	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(CreateDXGIFactory1)(riid, ppFactory);
+	// Do NOT skip in case this is called internally for D3D10/D3D11 (otherwise the 'IDXGIFactory::CreateSwapChain' call in 'D3D10/11CreateDeviceAndSwapChain' will not be redirected)
 
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory1" << '(' << "riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 
