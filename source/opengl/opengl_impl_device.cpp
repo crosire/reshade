@@ -22,10 +22,10 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 
 	// The pixel format has to be the same for all device contexts used with this rendering context, so can cache information about it here
 	// See https://docs.microsoft.com/windows/win32/api/wingdi/nf-wingdi-wglmakecurrent
-	const int pixel_format = GetPixelFormat(initial_hdc);
+	_pixel_format = GetPixelFormat(initial_hdc);
 
 	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
-	DescribePixelFormat(initial_hdc, pixel_format, sizeof(pfd), &pfd);
+	DescribePixelFormat(initial_hdc, _pixel_format, sizeof(pfd), &pfd);
 
 	switch (pfd.cRedBits)
 	{
@@ -60,7 +60,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	if (wglGetPixelFormatAttribivARB != nullptr)
 	{
 		int attribs[2] = { 0x2042 /* WGL_SAMPLES_ARB */, 1 };
-		if (wglGetPixelFormatAttribivARB(initial_hdc, pixel_format, 0, 1, &attribs[0], &attribs[1]) && attribs[1] != 0)
+		if (wglGetPixelFormatAttribivARB(initial_hdc, _pixel_format, 0, 1, &attribs[0], &attribs[1]) && attribs[1] != 0)
 			_default_fbo_samples = attribs[1];
 	}
 

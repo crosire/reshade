@@ -72,6 +72,7 @@ namespace reshade::opengl
 
 	protected:
 		// Cached context information for quick access
+		int    _pixel_format = 0;
 		GLuint _default_fbo_width = 0;
 		GLuint _default_fbo_height = 0;
 		bool   _default_fbo_stereo = false;

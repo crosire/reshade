@@ -33,6 +33,8 @@ namespace reshade::opengl
 		swapchain_impl(HDC hdc, HGLRC initial_hglrc, bool compatibility_context = false);
 		~swapchain_impl();
 
+		int get_pixel_format() const { return _pixel_format; }
+
 		api::resource get_back_buffer(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final { return 1; }

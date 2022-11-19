@@ -350,6 +350,9 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 		s_legacy_contexts.emplace(hglrc);
 	}
 
+#if RESHADE_VERBOSE_LOG
+	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
+#endif
 	return hglrc;
 }
 		   HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
@@ -459,6 +462,9 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 		}
 	}
 
+#if RESHADE_VERBOSE_LOG
+	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
+#endif
 	return hglrc;
 }
 extern "C" HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
@@ -483,9 +489,6 @@ extern "C" HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 		s_shared_contexts.emplace(hglrc, nullptr);
 	}
 
-#if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
-#endif
 	return hglrc;
 }
 extern "C" BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
@@ -502,11 +505,16 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			it != s_opengl_queues.end())
 		{
 			// Separate command queue objects are only created for shared contexts
-			assert(s_shared_contexts.at(hglrc) != nullptr);
-
-			// Simply assume the render context is still current, since no device context information exists, so could not make it current anyway ...
-			assert(wglGetCurrentContext() == hglrc || wglGetCurrentContext() == s_shared_contexts.at(hglrc));
-			delete it->second;
+			// It is important that the context that is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
+			const HGLRC prev_hglrc = wglGetCurrentContext();
+			if (prev_hglrc == hglrc || (prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
+			{
+				delete it->second;
+			}
+			else
+			{
+				LOG(WARN) << "Unable to make context current! Leaking resources ...";
+			}
 
 			if (it->second == g_current_context)
 				g_current_context = nullptr;
@@ -523,7 +531,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 
 			// Set the render context current so its resources can be cleaned up
 			const HGLRC prev_hglrc = wglGetCurrentContext();
-			if (hglrc == prev_hglrc)
+			if (prev_hglrc == hglrc)
 			{
 				delete it->second;
 			}
@@ -539,10 +547,8 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 				{
 					dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
 					hdc = GetDC(dummy_window_handle);
-					PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
-					pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
-					const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
-					reshade::hooks::call(wglSetPixelFormat)(hdc, pixel_format, &pfd);
+					const PIXELFORMATDESCRIPTOR dummy_pfd = { sizeof(dummy_pfd), 1, PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL };
+					reshade::hooks::call(wglSetPixelFormat)(hdc, it->second->get_pixel_format(), &dummy_pfd);
 				}
 
 				if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
