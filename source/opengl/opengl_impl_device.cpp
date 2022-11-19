@@ -1285,9 +1285,12 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 
 	if (const auto it = _map_lookup.find(hash);
 		it != _map_lookup.end())
-		return false;
+		return false; // Cannot map a subresource that is already mapped
 
 	const api::resource_desc desc = get_resource_desc(resource);
+
+	const GLuint level = subresource % desc.texture.levels;
+	      GLuint layer = subresource / desc.texture.levels;
 
 	GLuint xoffset, yoffset, zoffset, width, height, depth;
 	if (box != nullptr)
@@ -1302,9 +1305,9 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	else
 	{
 		xoffset = yoffset = zoffset = 0;
-		width   = std::max(1u, desc.texture.width >> (subresource % desc.texture.levels));
-		height  = std::max(1u, desc.texture.height >> (subresource % desc.texture.levels));
-		depth   = (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (subresource % desc.texture.levels)) : 1u);
+		width   = std::max(1u, desc.texture.width >> level);
+		height  = std::max(1u, desc.texture.height >> level);
+		depth   = (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> level) : 1u);
 	}
 
 	const auto row_pitch = api::format_row_pitch(desc.texture.format, width);
@@ -1317,7 +1320,15 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	out_data->row_pitch = row_pitch;
 	out_data->slice_pitch = slice_pitch;
 
-	_map_lookup.emplace(hash, map_info { *out_data, { static_cast<int32_t>(xoffset), static_cast<int32_t>(yoffset), static_cast<int32_t>(zoffset), static_cast<int32_t>(xoffset + width), static_cast<int32_t>(yoffset + height), static_cast<int32_t>(zoffset + depth) }, access });
+	_map_lookup.emplace(hash, map_info {
+		*out_data, {
+			static_cast<int32_t>(xoffset),
+			static_cast<int32_t>(yoffset),
+			static_cast<int32_t>(zoffset),
+			static_cast<int32_t>(xoffset + width),
+			static_cast<int32_t>(yoffset + height),
+			static_cast<int32_t>(zoffset + depth)
+		}, access });
 
 	if (access == api::map_access::write_only || access == api::map_access::write_discard)
 		return true;
@@ -1365,9 +1376,6 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	// Bind and download texture data
 	gl.BindTexture(target, object);
 
-	const GLuint level = subresource % desc.texture.levels;
-		  GLuint layer = subresource / desc.texture.levels;
-
 	GLenum level_target = target;
 	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
 	{
@@ -1376,9 +1384,9 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 	}
 
-	assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
+	GLenum type, format = convert_upload_format(desc.texture.format, type);
 
-	GLenum type, format = convert_upload_format(convert_format(desc.texture.format), type);
+	assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 
 	if (box == nullptr)
 	{
@@ -1543,13 +1551,13 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		depth   = (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> level) : 1u);
 	}
 
+	GLenum type, format = convert_upload_format(desc.texture.format, type);
+
 	const auto row_pitch = api::format_row_pitch(desc.texture.format, width);
 	const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, height);
 	const auto total_image_size = depth * static_cast<size_t>(slice_pitch);
 
 	assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
-
-	GLenum type, format = convert_upload_format(convert_format(desc.texture.format), type);
 
 	std::vector<uint8_t> temp_pixels;
 	const uint8_t *pixels = static_cast<const uint8_t *>(data.data);
@@ -1571,13 +1579,9 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	{
 	case GL_TEXTURE_1D:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
-		{
 			gl.TexSubImage1D(level_target, level, xoffset, width, format, type, pixels);
-		}
 		else
-		{
 			gl.CompressedTexSubImage1D(level_target, level, xoffset, width, format, static_cast<GLsizei>(total_image_size), pixels);
-		}
 		break;
 	case GL_TEXTURE_1D_ARRAY:
 		yoffset += layer;
@@ -1590,26 +1594,18 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
-		{
 			gl.TexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, type, pixels);
-		}
 		else
-		{
 			gl.CompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), pixels);
-		}
 		break;
 	case GL_TEXTURE_2D_ARRAY:
 		zoffset += layer;
 		[[fallthrough]];
 	case GL_TEXTURE_3D:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
-		{
 			gl.TexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
-		}
 		else
-		{
 			gl.CompressedTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, static_cast<GLsizei>(total_image_size), pixels);
-		}
 		break;
 	}
 

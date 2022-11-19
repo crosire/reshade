@@ -97,9 +97,9 @@ namespace reshade::opengl
 
 	auto convert_format(api::format format, GLint swizzle_mask[4] = nullptr) -> GLenum;
 	auto convert_format(GLenum internal_format, const GLint swizzle_mask[4] = nullptr) -> api::format;
-	auto convert_format(GLenum format, GLenum type) -> api::format;
+	auto convert_upload_format(api::format format, GLenum &type) -> GLenum;
+	auto convert_upload_format(GLenum format, GLenum type) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;
-	auto convert_upload_format(GLenum internal_format, GLenum &type) -> GLenum;
 	auto convert_sized_internal_format(GLenum internal_format) -> GLenum;
 
 	auto is_depth_stencil_format(api::format format) -> GLenum;

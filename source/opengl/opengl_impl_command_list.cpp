@@ -954,7 +954,9 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 	gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
 	gl.PixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
 
-	GLuint xoffset, yoffset, zoffset, width, height, depth = 1;
+	const api::resource_desc dst_desc = _device_impl->get_resource_desc(dst);
+
+	GLuint xoffset, yoffset, zoffset, width, height, depth;
 	if (dst_box != nullptr)
 	{
 		xoffset = dst_box->left;
@@ -967,9 +969,12 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 	else
 	{
 		xoffset = yoffset = zoffset = 0;
-		width   = 0;
-		height  = 0;
+		width   = dst_desc.texture.width;
+		height  = dst_desc.texture.height;
+		depth   = dst_desc.texture.depth_or_layers;
 	}
+
+	GLenum type, format = convert_upload_format(dst_desc.texture.format, type);
 
 	if (dst_target == GL_FRAMEBUFFER_DEFAULT)
 	{
@@ -981,15 +986,6 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
 		gl.DrawBuffer(dst_object);
-
-		if (dst_box == nullptr)
-		{
-			width = _device_impl->_default_fbo_width;
-			height = _device_impl->_default_fbo_height;
-		}
-
-		GLenum format = (dst_object == GL_BACK || dst_object == GL_BACK_LEFT || dst_object == GL_BACK_RIGHT) ? _device_impl->_default_color_format : _device_impl->_default_depth_format, type;
-		format = convert_upload_format(format, type);
 
 		// This is deprecated and not available in core contexts!
 		assert(_device_impl->_compatibility_context);
@@ -1013,17 +1009,6 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 
 		gl.DrawBuffer(GL_COLOR_ATTACHMENT0);
 
-		GLenum format = GL_NONE, type;
-		gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
-
-		if (dst_box == nullptr)
-		{
-			gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&width));
-			gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&height));
-		}
-
-		format = convert_upload_format(format, type);
-
 		// This is deprecated and not available in core contexts!
 		assert(_device_impl->_compatibility_context);
 		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
@@ -1037,10 +1022,8 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 		gl.GetIntegerv(get_binding_for_target(dst_target), reinterpret_cast<GLint *>(&prev_binding));
 		gl.BindTexture(dst_target, dst_object);
 
-		const api::resource_desc desc = _device_impl->get_resource_desc(dst);
-
-		const GLuint level = dst_subresource % desc.texture.levels;
-		      GLuint layer = dst_subresource / desc.texture.levels;
+		const GLuint level = dst_subresource % dst_desc.texture.levels;
+		      GLuint layer = dst_subresource / dst_desc.texture.levels;
 
 		GLenum level_target = dst_target;
 		if (dst_target == GL_TEXTURE_CUBE_MAP || dst_target == GL_TEXTURE_CUBE_MAP_ARRAY)
@@ -1052,30 +1035,24 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 
 		if (dst_box == nullptr)
 		{
-			width  = desc.texture.width;
-			height = desc.texture.height;
-			depth  = desc.texture.depth_or_layers;
+			width  = std::max(1u, width >> level);
+			height = std::max(1u, height >> level);
+			depth  = (dst_desc.type == api::resource_type::texture_3d ? std::max(1u, depth >> level) : 1u);
 		}
 
-		const auto row_pitch = api::format_row_pitch(desc.texture.format, row_length != 0 ? row_length : width);
-		const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, slice_height != 0 ? slice_height : height);
+		const auto row_pitch = api::format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : width);
+		const auto slice_pitch = api::format_slice_pitch(dst_desc.texture.format, row_pitch, slice_height != 0 ? slice_height : height);
 		const auto total_image_size = depth * static_cast<size_t>(slice_pitch);
 
 		assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
-
-		GLenum type, format = convert_upload_format(convert_format(desc.texture.format), type);
 
 		switch (level_target)
 		{
 		case GL_TEXTURE_1D:
 			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
-			{
 				gl.TexSubImage1D(level_target, level, xoffset, width, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			}
 			else
-			{
 				gl.CompressedTexSubImage1D(level_target, level, xoffset, width, format, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			}
 			break;
 		case GL_TEXTURE_1D_ARRAY:
 			yoffset += layer;
@@ -1088,26 +1065,18 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 		case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
 			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
-			{
 				gl.TexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			}
 			else
-			{
 				gl.CompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			}
 			break;
 		case GL_TEXTURE_2D_ARRAY:
 			zoffset += layer;
 			[[fallthrough]];
 		case GL_TEXTURE_3D:
 			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
-			{
 				gl.TexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			}
 			else
-			{
 				gl.CompressedTexSubImage3D(level_target, level, xoffset, yoffset, zoffset, width, height, depth, format, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			}
 			break;
 		}
 
@@ -1255,7 +1224,9 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 	gl.PixelStorei(GL_PACK_SKIP_IMAGES, 0);
 	gl.PixelStorei(GL_PACK_IMAGE_HEIGHT, slice_height);
 
-	GLuint xoffset, yoffset, zoffset, width, height, depth = 1;
+	const api::resource_desc src_desc = _device_impl->get_resource_desc(src);
+
+	GLuint xoffset, yoffset, zoffset, width, height, depth;
 	if (src_box != nullptr)
 	{
 		xoffset = src_box->left;
@@ -1268,9 +1239,12 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 	else
 	{
 		xoffset = yoffset = zoffset = 0;
-		width   = 0;
-		height  = 0;
+		width   = src_desc.texture.width;
+		height  = src_desc.texture.height;
+		depth   = src_desc.texture.depth_or_layers;
 	}
+
+	GLenum type, format = convert_upload_format(src_desc.texture.format, type);
 
 	if (src_target == GL_FRAMEBUFFER_DEFAULT)
 	{
@@ -1282,15 +1256,6 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 		gl.BindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
 		gl.ReadBuffer(src_object);
-
-		if (src_box == nullptr)
-		{
-			width = _device_impl->_default_fbo_width;
-			height = _device_impl->_default_fbo_height;
-		}
-
-		GLenum format = (src_object == GL_BACK || src_object == GL_BACK_LEFT || src_object == GL_BACK_RIGHT) ? _device_impl->_default_color_format : _device_impl->_default_depth_format, type;
-		format = convert_upload_format(format, type);
 
 		gl.ReadPixels(xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 
@@ -1312,17 +1277,6 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 
 		gl.ReadBuffer(GL_COLOR_ATTACHMENT0);
 
-		GLenum format = GL_NONE, type;
-		gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
-
-		if (src_box == nullptr)
-		{
-			gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&width));
-			gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&height));
-		}
-
-		format = convert_upload_format(format, type);
-
 		gl.ReadPixels(xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 
 		gl.BindRenderbuffer(GL_RENDERBUFFER, prev_rbo_binding);
@@ -1334,10 +1288,8 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 		gl.GetIntegerv(get_binding_for_target(src_target), reinterpret_cast<GLint *>(&prev_binding));
 		gl.BindTexture(src_target, src_object);
 
-		const api::resource_desc desc = _device_impl->get_resource_desc(src);
-
-		const GLuint level = src_subresource % desc.texture.levels;
-		      GLuint layer = src_subresource / desc.texture.levels;
+		const GLuint level = src_subresource % src_desc.texture.levels;
+		      GLuint layer = src_subresource / src_desc.texture.levels;
 
 		GLenum level_target = src_target;
 		if (src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY)
@@ -1349,18 +1301,16 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 
 		if (src_box == nullptr)
 		{
-			width  = desc.texture.width;
-			height = desc.texture.height;
-			depth  = desc.texture.depth_or_layers;
+			width  = std::max(1u, width >> level);
+			height = std::max(1u, height >> level);
+			depth  = (src_desc.type == api::resource_type::texture_3d ? std::max(1u, depth >> level) : 1u);
 		}
 
-		const auto row_pitch = api::format_row_pitch(desc.texture.format, row_length != 0 ? row_length : width);
-		const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, slice_height != 0 ? slice_height : height);
+		const auto row_pitch = api::format_row_pitch(src_desc.texture.format, row_length != 0 ? row_length : width);
+		const auto slice_pitch = api::format_slice_pitch(src_desc.texture.format, row_pitch, slice_height != 0 ? slice_height : height);
 		const auto total_image_size = depth * static_cast<size_t>(slice_pitch);
 
 		assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
-
-		GLenum type, format = convert_upload_format(convert_format(desc.texture.format), type);
 
 		if (src_box == nullptr)
 		{

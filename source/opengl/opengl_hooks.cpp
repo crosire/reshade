@@ -241,9 +241,9 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 		result.data = temp_data->data();
 	}
 
-	const auto pixels_format = reshade::opengl::convert_format(format, type);
+	const auto pixels_format = reshade::opengl::convert_upload_format(format, type);
 
-	if (pixels_format != texture_format && !convert_rgb_to_rgba)
+	if (reshade::api::format_to_typeless(pixels_format) != reshade::api::format_to_typeless(texture_format) && !convert_rgb_to_rgba)
 		return {};
 
 	result.row_pitch = reshade::api::format_row_pitch(pixels_format, width);
