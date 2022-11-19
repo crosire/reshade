@@ -195,7 +195,7 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 					const size_t out_index = (z * width * height + y * width + x) * 4;
 
 					for (size_t c = 0; c < 3; ++c)
-						(*temp_data)[out_index + c] = static_cast<const uint8_t *>(pixels)[in_index + c];
+						(*temp_data)[out_index + c] = static_cast<const uint8_t *>(result.data)[in_index + c];
 					(*temp_data)[out_index + 3] = 0xFF;
 				}
 			}
@@ -228,12 +228,12 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 					const size_t in_index = (z * width * height + y * width + x) * 4;
 					const size_t out_index = (z * width * height + y * width + x) * 4;
 
-					uint8_t b = static_cast<const uint8_t *>(pixels)[in_index + 0];
-					uint8_t r = static_cast<const uint8_t *>(pixels)[in_index + 2];
+					uint8_t b = static_cast<const uint8_t *>(result.data)[in_index + 0];
+					uint8_t r = static_cast<const uint8_t *>(result.data)[in_index + 2];
 					(*temp_data)[out_index + 0] = r;
-					(*temp_data)[out_index + 1] = static_cast<const uint8_t *>(pixels)[in_index + 1];
+					(*temp_data)[out_index + 1] = static_cast<const uint8_t *>(result.data)[in_index + 1];
 					(*temp_data)[out_index + 2] = b;
-					(*temp_data)[out_index + 3] = static_cast<const uint8_t *>(pixels)[in_index + 3];;
+					(*temp_data)[out_index + 3] = static_cast<const uint8_t *>(result.data)[in_index + 3];;
 				}
 			}
 		}
@@ -243,7 +243,7 @@ static reshade::api::subresource_data convert_mapped_subresource(GLenum format, 
 
 	const auto pixels_format = reshade::opengl::convert_format(format, type);
 
-	if (pixels_format != texture_format)
+	if (pixels_format != texture_format && !convert_rgb_to_rgba)
 		return {};
 
 	result.row_pitch = reshade::api::format_row_pitch(pixels_format, width);
