@@ -3086,7 +3086,7 @@ bool reshade::runtime::load_effect_cache(const std::string &id, const std::strin
 	if (!file)
 		return false;
 	std::error_code ec;
-	data.resize(static_cast<size_t>(std::filesystem::file_size(path, ec)) + 1, '\0');
+	data.resize(static_cast<size_t>(std::filesystem::file_size(path, ec)), '\0');
 	file.read(data.data(), data.size());
 	return !file.fail();
 }
