@@ -212,6 +212,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const reshade::input &input)
 {
+	bool res = false;
 	char buf[48]; buf[0] = '\0';
 	if (key[0] || key[1] || key[2] || key[3])
 		buf[input::key_name(key).copy(buf, sizeof(buf) - 1)] = '\0';
@@ -240,7 +241,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 				key[3] = input.is_key_down(0x12); // Alt
 			}
 
-			return true;
+			res = true;
 		}
 	}
 	else if (ImGui::IsItemHovered())
@@ -250,7 +251,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 
 	ImGui::EndDisabled();
 
-	return false;
+	return res;
 }
 
 bool reshade::imgui::font_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
