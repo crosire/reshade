@@ -107,9 +107,9 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 			WGL_DEPTH_BITS_ARB = 0x2022,
 			WGL_STENCIL_BITS_ARB = 0x2023,
 			WGL_AUX_BUFFERS_ARB = 0x2024,
+			WGL_DRAW_TO_PBUFFER_ARB = 0x202D,
 			WGL_SAMPLE_BUFFERS_ARB = 0x2041,
 			WGL_SAMPLES_ARB = 0x2042,
-			WGL_DRAW_TO_PBUFFER_ARB = 0x202D,
 			WGL_BIND_TO_TEXTURE_RGB_ARB = 0x2070,
 			WGL_BIND_TO_TEXTURE_RGBA_ARB = 0x2071,
 
@@ -172,6 +172,12 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 		case attribute::WGL_STEREO_ARB:
 			LOG(INFO) << "  | WGL_STEREO_ARB                          | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
+		case attribute::WGL_PIXEL_TYPE_ARB:
+			LOG(INFO) << "  | WGL_PIXEL_TYPE_ARB                      | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+			break;
+		case attribute::WGL_COLOR_BITS_ARB:
+			LOG(INFO) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+			break;
 		case attribute::WGL_RED_BITS_ARB:
 			LOG(INFO) << "  | WGL_RED_BITS_ARB                        | " << std::setw(39) << attrib[1] << " |";
 			break;
@@ -184,23 +190,20 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 		case attribute::WGL_ALPHA_BITS_ARB:
 			LOG(INFO) << "  | WGL_ALPHA_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_COLOR_BITS_ARB:
-			LOG(INFO) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
-			break;
 		case attribute::WGL_DEPTH_BITS_ARB:
 			LOG(INFO) << "  | WGL_DEPTH_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 			break;
 		case attribute::WGL_STENCIL_BITS_ARB:
 			LOG(INFO) << "  | WGL_STENCIL_BITS_ARB                    | " << std::setw(39) << attrib[1] << " |";
 			break;
+		case attribute::WGL_DRAW_TO_PBUFFER_ARB:
+			LOG(INFO) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			break;
 		case attribute::WGL_SAMPLE_BUFFERS_ARB:
 			LOG(INFO) << "  | WGL_SAMPLE_BUFFERS_ARB                  | " << std::setw(39) << attrib[1] << " |";
 			break;
 		case attribute::WGL_SAMPLES_ARB:
 			LOG(INFO) << "  | WGL_SAMPLES_ARB                         | " << std::setw(39) << attrib[1] << " |";
-			break;
-		case attribute::WGL_DRAW_TO_PBUFFER_ARB:
-			LOG(INFO) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
 		default:
 			LOG(INFO) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";

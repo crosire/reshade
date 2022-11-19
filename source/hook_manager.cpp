@@ -484,7 +484,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 			LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &s_dll_notification_cookie) != 0 /* STATUS_SUCCESS */)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Using 'LoadLibrary' hooks.";
+			LOG(DEBUG) << "Using LoadLibrary hooks.";
 #endif
 
 			// Fall back 'LoadLibrary' hooks if DLL notification registration failed or the Steam overlay is used
@@ -498,7 +498,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 			if (hook::apply_queued_actions())
 				s_dll_notification_cookie = reinterpret_cast<PVOID>(-1); // Set cookie to something so that these hooks are only installed once
 			else
-				LOG(ERROR) << "Failed to install 'LoadLibrary' hooks!";
+				LOG(ERROR) << "Failed to install LoadLibrary hooks!";
 		}
 	}
 #endif
