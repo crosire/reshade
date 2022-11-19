@@ -265,10 +265,11 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		internal_format != 3 &&
 		internal_format != 4 &&
 		internal_format != GL_RED &&
+		internal_format != GL_ALPHA &&
 		internal_format != 0x1909 /* GL_LUMINANCE */ &&
 		internal_format != 0x8049 /* GL_INTENSITY */ &&
-		internal_format != GL_ALPHA &&
 		internal_format != GL_RG &&
+		internal_format != 0x190A /* GL_LUMINANCE_ALPHA */ &&
 		internal_format != GL_RGB &&
 		internal_format != GL_RGBA &&
 		internal_format != GL_STENCIL_INDEX &&
@@ -511,6 +512,25 @@ auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
 			assert(false);
 			return api::format::unknown;
 		}
+	case GL_ALPHA:
+		switch (type)
+		{
+		case GL_UNSIGNED_BYTE:
+			return api::format::a8_unorm;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case 0x1909 /* GL_LUMINANCE */:
+	case 0x8049 /* GL_INTENSITY */:
+		switch (type)
+		{
+		case GL_UNSIGNED_BYTE:
+			return api::format::l8_unorm;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
 	case GL_RG:
 		switch (type)
 		{
@@ -549,6 +569,15 @@ auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
 			return api::format::r32g32_sint;
 		case GL_UNSIGNED_INT:
 			return api::format::r32g32_uint;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case 0x190A /* GL_LUMINANCE_ALPHA */:
+		switch (type)
+		{
+		case GL_UNSIGNED_BYTE:
+			return api::format::l8a8_unorm;
 		default:
 			assert(false);
 			return api::format::unknown;
@@ -990,17 +1019,17 @@ auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> G
 	case 1:
 	case GL_RED:
 		return GL_R8;
-	case 0x1909 /* GL_LUMINANCE */:
-		return 0x8040 /* GL_LUMINANCE8 */;
-	case 0x190A /* GL_LUMINANCE_ALPHA */:
-		return 0x8045 /* GL_LUMINANCE8_ALPHA8 */;
-	case 0x8049 /* GL_INTENSITY */:
-		return 0x804B /* GL_INTENSITY8 */;
 	case GL_ALPHA:
 		return 0x803C /* GL_ALPHA8 */;
+	case 0x1909 /* GL_LUMINANCE */:
+		return 0x8040 /* GL_LUMINANCE8 */;
+	case 0x8049 /* GL_INTENSITY */:
+		return 0x804B /* GL_INTENSITY8 */;
 	case 2:
 	case GL_RG:
 		return GL_RG8;
+	case 0x190A /* GL_LUMINANCE_ALPHA */:
+		return 0x8045 /* GL_LUMINANCE8_ALPHA8 */;
 	case 3:
 	case GL_RGB:
 		return GL_RGB8;
