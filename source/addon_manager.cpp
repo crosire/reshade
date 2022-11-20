@@ -106,6 +106,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reshade_set_technique_state);
 		CASE(reshade_overlay);
 		CASE(reshade_screenshot);
+		CASE(reshade_render_technique);
 	}
 #undef  CASE
 	return "unknown";
@@ -125,6 +126,8 @@ void reshade::load_addons()
 	if (InterlockedIncrement(&s_reference_count) != 1)
 		return;
 
+	ini_file &config = global_config();
+
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Loading built-in add-ons ...";
 #endif
@@ -133,7 +136,7 @@ void reshade::load_addons()
 	internal::get_current_module_handle() = g_module_handle;
 
 	std::vector<std::string> disabled_addons;
-	global_config().get("ADDON", "DisabledAddons", disabled_addons);
+	config.get("ADDON", "DisabledAddons", disabled_addons);
 
 #if 1
 	{	addon_info &info = addon_loaded_info.emplace_back();
@@ -154,7 +157,7 @@ void reshade::load_addons()
 #if !RESHADE_ADDON_LITE
 	// Get directory from where to load add-ons from
 	std::filesystem::path addon_search_path = g_reshade_base_path;
-	if (global_config().get("INSTALL", "AddonPath", addon_search_path))
+	if (config.get("INSTALL", "AddonPath", addon_search_path))
 		addon_search_path = g_reshade_base_path / addon_search_path;
 
 	LOG(INFO) << "Searching for add-ons (*.addon) in " << addon_search_path << " ...";
@@ -219,7 +222,8 @@ void reshade::unload_addons()
 
 		LOG(INFO) << "Unloading add-on \"" << info.name << "\" ...";
 
-		FreeLibrary(static_cast<HMODULE>(info.handle));
+		if (!FreeLibrary(static_cast<HMODULE>(info.handle)))
+			LOG(WARN) << "Failed to unload " << std::filesystem::u8path(info.file) << " with error code " << GetLastError() << '!';
 	}
 #endif
 
@@ -227,7 +231,9 @@ void reshade::unload_addons()
 	LOG(INFO) << "Unloading built-in add-ons ...";
 #endif
 
+#if 1
 	unregister_addon_depth();
+#endif
 
 #ifndef NDEBUG
 	// All events should have been unregistered at this point
@@ -430,6 +436,7 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 }
 
 #if RESHADE_GUI
+
 void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
 	reshade::addon_info *const info = reshade::find_addon(callback);
@@ -472,6 +479,7 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 	info->overlay_callbacks.erase(std::remove_if(info->overlay_callbacks.begin(), info->overlay_callbacks.end(),
 		[title, callback](const reshade::addon_info::overlay_callback &item) { return item.title == title && item.callback == callback; }), info->overlay_callbacks.end());
 }
+
 #endif
 
 #endif

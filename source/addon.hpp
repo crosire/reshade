@@ -46,8 +46,10 @@ namespace reshade::api
 		api_object_impl(const api_object_impl &) = delete;
 		api_object_impl &operator=(const api_object_impl &) = delete;
 
-		void get_private_data(const uint8_t guid[16], uint64_t *data) const override
+		void get_private_data(const uint8_t guid[16], uint64_t *data) const final
 		{
+			assert(data != nullptr);
+
 			for (auto it = _private_data.begin(); it != _private_data.end(); ++it)
 			{
 				if (std::memcmp(it->guid, guid, 16) == 0)
@@ -59,7 +61,7 @@ namespace reshade::api
 
 			*data = 0;
 		}
-		void set_private_data(const uint8_t guid[16], const uint64_t data)  override
+		void set_private_data(const uint8_t guid[16], const uint64_t data)  final
 		{
 			for (auto it = _private_data.begin(); it != _private_data.end(); ++it)
 			{
@@ -81,7 +83,7 @@ namespace reshade::api
 			}
 		}
 
-		uint64_t get_native() const override { return (uint64_t)_orig; }
+		uint64_t get_native() const final { return (uint64_t)_orig; }
 
 		T _orig;
 
@@ -121,9 +123,9 @@ namespace reshade
 		};
 
 		void *handle = nullptr;
-#if !RESHADE_ADDON_LITE
+#  if !RESHADE_ADDON_LITE
 		bool  loaded = false;
-#endif
+#  endif
 		std::string name;
 		std::string description;
 		std::string file;
@@ -131,10 +133,10 @@ namespace reshade
 		std::string version;
 
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
-#if RESHADE_GUI
+#  if RESHADE_GUI
 		void(*settings_overlay_callback)(api::effect_runtime *) = nullptr;
 		std::vector<overlay_callback> overlay_callbacks;
-#endif
+#  endif
 	};
 }
 

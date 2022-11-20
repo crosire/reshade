@@ -119,8 +119,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 	if (parent_path.has_parent_path())
 	{
-		if (ImGui::Selectable(ICON_FK_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) &&
-			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+		if (ImGui::Selectable(ICON_FK_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) && (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsNavInputTest(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed)))
 		{
 			path = parent_path.parent_path();
 			if (path.has_stem())
@@ -140,7 +139,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 				path = entry;
 
 				// Navigate into directory when double clicking one
-				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsNavInputTest(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed))
 					path += std::filesystem::path::preferred_separator;
 			}
 
@@ -172,7 +171,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			path = std::move(file_path);
 
 			// Double clicking a file on the other hand acts as if pressing the ok button
-			if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+			if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsNavInputTest(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed))
 				has_double_clicked_file = true;
 		}
 
@@ -213,9 +212,12 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const reshade::input &input)
 {
+	bool res = false;
 	char buf[48]; buf[0] = '\0';
 	if (key[0] || key[1] || key[2] || key[3])
 		buf[input::key_name(key).copy(buf, sizeof(buf) - 1)] = '\0';
+
+	ImGui::BeginDisabled(ImGui::GetCurrentContext()->NavInputSource == ImGuiInputSource_Gamepad);
 
 	ImGui::InputTextWithHint(name, "Click to set keyboard shortcut", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
 
@@ -239,7 +241,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 				key[3] = input.is_key_down(0x12); // Alt
 			}
 
-			return true;
+			res = true;
 		}
 	}
 	else if (ImGui::IsItemHovered())
@@ -247,7 +249,9 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 		ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 	}
 
-	return false;
+	ImGui::EndDisabled();
+
+	return res;
 }
 
 bool reshade::imgui::font_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)

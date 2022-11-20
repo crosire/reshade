@@ -6,6 +6,7 @@
 #include "effect_lexer.hpp"
 #include "effect_preprocessor.hpp"
 #include <cassert>
+#include <fstream>
 #include <algorithm> // std::find_if
 
 #ifndef _WIN32
@@ -65,25 +66,21 @@ static const int precedence_lookup[] = {
 
 static bool read_file(const std::filesystem::path &path, std::string &data)
 {
-#ifdef _WIN32
-	FILE *file = nullptr;
-	if (_wfopen_s(&file, path.c_str(), L"rb") != 0)
+	std::ifstream file(path, std::ios::binary);
+	if (!file)
 		return false;
-#else
-	FILE *const file = fopen(path.c_str(), "rb");
-	if (file == nullptr)
-		return false;
-#endif
 
 	// Read file contents into memory
-	std::string file_data(static_cast<size_t>(std::filesystem::file_size(path)) + 1, '\0');
-	const size_t eof = fread((char *)file_data.data(), 1, file_data.size() - 1, file);
+	std::error_code ec;
+	std::string file_data(static_cast<size_t>(std::filesystem::file_size(path, ec)) + 1, '\0');
+	if (!file.read(file_data.data(), file_data.size() - 1))
+		return false;
 
 	// No longer need to have a handle open to the file, since all data was read, so can safely close it
-	fclose(file);
+	file.close();
 
 	// Append a new line feed to the end of the input string to avoid issues with parsing
-	file_data[eof] = '\n';
+	file_data.back() = '\n';
 
 	// Remove BOM (0xefbbbf means 0xfeff)
 	if (file_data.size() >= 3 &&

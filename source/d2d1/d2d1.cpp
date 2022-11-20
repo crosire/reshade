@@ -36,7 +36,7 @@ ID2D1Factory_CreateDevice_Impl(30, 5, 4)
 ID2D1Factory_CreateDevice_Impl(31, 6, 5)
 ID2D1Factory_CreateDevice_Impl(32, 7, 6)
 
-HOOK_EXPORT HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_CREATION_PROPERTIES *creationProperties, ID2D1Device **d2dDevice)
+extern "C" HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_CREATION_PROPERTIES *creationProperties, ID2D1Device **d2dDevice)
 {
 	LOG(INFO) << "Redirecting " << "D2D1CreateDevice" << '('
 		<<   "dxgiDevice = " << dxgiDevice
@@ -58,7 +58,7 @@ HOOK_EXPORT HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_
 	return hr;
 }
 
-HOOK_EXPORT HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, CONST D2D1_FACTORY_OPTIONS *pFactoryOptions, void **ppIFactory)
+extern "C" HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, CONST D2D1_FACTORY_OPTIONS *pFactoryOptions, void **ppIFactory)
 {
 	LOG(INFO) << "Redirecting " << "D2D1CreateFactory" << '('
 		<<   "factoryType = " << factoryType

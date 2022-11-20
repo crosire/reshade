@@ -34,7 +34,9 @@ namespace reshade::d3d12
 	auto convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api::resource_usage;
 	auto convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage;
 	auto convert_resource_states_to_usage(D3D12_RESOURCE_STATES states) -> api::resource_usage;
-	D3D12_RESOURCE_STATES convert_resource_usage_to_states(api::resource_usage usage);
+
+	auto convert_usage_to_access(api::resource_usage usage) -> D3D12_BARRIER_ACCESS;
+	auto convert_usage_to_resource_states(api::resource_usage usage) -> D3D12_RESOURCE_STATES;
 
 	void convert_sampler_desc(const api::sampler_desc &desc, D3D12_SAMPLER_DESC &internal_desc);
 	void convert_sampler_desc(const api::sampler_desc &desc, D3D12_SAMPLER_DESC2 &internal_desc);

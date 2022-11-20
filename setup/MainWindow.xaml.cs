@@ -31,7 +31,6 @@ namespace ReShade.Setup
 		bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
 		bool isFinished = false;
 
-		ZipArchive zip;
 		IniFile packagesIni;
 		IniFile compatibilityIni;
 
@@ -66,43 +65,6 @@ namespace ReShade.Setup
 			var productVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
 			Title = "ReShade Setup v" + productVersion;
 
-			try
-			{
-				// Extract archive attached to this executable
-				var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
-
-				using (var input = File.OpenRead(assembly.Location))
-				{
-					byte[] block = new byte[512];
-					byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
-
-					// Look for archive at the end of this executable and copy it to a file
-					while (input.Read(block, 0, block.Length) >= signature.Length)
-					{
-						if (block.Take(signature.Length).SequenceEqual(signature) && block.Skip(signature.Length).Take(26).Max() != 0)
-						{
-							output.Write(block, 0, block.Length);
-							input.CopyTo(output);
-							break;
-						}
-					}
-				}
-
-				zip = new ZipArchive(output, ZipArchiveMode.Read, false);
-
-				// Validate archive contains the ReShade DLLs
-				if (zip.GetEntry("ReShade32.dll") == null || zip.GetEntry("ReShade64.dll") == null)
-				{
-					throw new InvalidDataException();
-				}
-			}
-			catch (Exception)
-			{
-				MessageBox.Show("This setup archive is corrupted! Please download from https://reshade.me again.");
-				Environment.Exit(1);
-				return;
-			}
-
 			var signed = false;
 			if (productVersion.Contains(" "))
 			{
@@ -120,25 +82,6 @@ namespace ReShade.Setup
 
 			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
-
-			// Attempt to download effect package and compatibility list
-			using (var client = new WebClient())
-			{
-				// Ensure files are downloaded again if they changed
-				client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
-
-				try
-				{
-					using (var packagesStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini"))
-						packagesIni = new IniFile(packagesStream);
-					using (var compatibilityStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Compatibility.ini"))
-						compatibilityIni = new IniFile(compatibilityStream);
-				}
-				catch
-				{
-					// Ignore if these lists fail to download, since setup can still proceed without them
-				}
-			}
 
 			var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -507,6 +450,38 @@ namespace ReShade.Setup
 			}
 		}
 
+		void DownloadPackagesAndCompatibilityIni()
+		{
+			if (packagesIni != null || compatibilityIni != null)
+			{
+				return;
+			}
+
+			// Attempt to download effect package and compatibility list
+			using (var client = new WebClient())
+			{
+				// Ensure files are downloaded again if they changed
+				client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
+
+				try
+				{
+					using (var packagesStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini"))
+					{
+						packagesIni = new IniFile(packagesStream);
+					}
+
+					using (var compatibilityStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Compatibility.ini"))
+					{
+						compatibilityIni = new IniFile(compatibilityStream);
+					}
+				}
+				catch
+				{
+					// Ignore if these lists fail to download, since setup can still proceed without them
+				}
+			}
+		}
+
 		void InstallStep0()
 		{
 			if (!isElevated && !IsWritable(Path.GetDirectoryName(targetPath)))
@@ -522,8 +497,9 @@ namespace ReShade.Setup
 		{
 			UpdateStatus("Analyzing executable ...");
 
-			string targetPathUnrealEngine = Path.Combine(Path.GetDirectoryName(targetPath), Path.GetFileNameWithoutExtension(targetPath), "Binaries", "Win64", Path.GetFileNameWithoutExtension(targetPath) + "-Win64-Shipping" + Path.GetExtension(targetPath));
-			if (File.Exists(targetPathUnrealEngine))
+			// In case this is the bootstrap executable of an Unreal Engine game, try and find the actual game executable for it
+			string targetPathUnrealEngine = PEInfo.ReadResourceString(targetPath, 201); // IDI_EXEC_FILE (see BootstrapPackagedGame.cpp in Unreal Engine source code)
+			if (!string.IsNullOrEmpty(targetPathUnrealEngine) && File.Exists(targetPathUnrealEngine = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(targetPath), targetPathUnrealEngine))))
 			{
 				targetPath = targetPathUnrealEngine;
 			}
@@ -638,6 +614,8 @@ namespace ReShade.Setup
 		void InstallStep2()
 		{
 			UpdateStatus("Checking installation status ...");
+
+			DownloadPackagesAndCompatibilityIni();
 
 			var basePath = Path.GetDirectoryName(targetPath);
 			var executableName = Path.GetFileName(targetPath);
@@ -802,6 +780,46 @@ namespace ReShade.Setup
 		{
 			UpdateStatus("Installing ReShade ...");
 
+			DownloadPackagesAndCompatibilityIni();
+
+			ZipArchive zip;
+
+			try
+			{
+				// Extract archive attached to this executable
+				var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
+
+				using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
+				{
+					byte[] block = new byte[512];
+					byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
+
+					// Look for archive at the end of this executable and copy it to a file
+					while (input.Read(block, 0, block.Length) >= signature.Length)
+					{
+						if (block.Take(signature.Length).SequenceEqual(signature) && block.Skip(signature.Length).Take(26).Max() != 0)
+						{
+							output.Write(block, 0, block.Length);
+							input.CopyTo(output);
+							break;
+						}
+					}
+				}
+
+				zip = new ZipArchive(output, ZipArchiveMode.Read, false);
+
+				// Validate archive contains the ReShade DLLs
+				if (zip.GetEntry("ReShade32.dll") == null || zip.GetEntry("ReShade64.dll") == null)
+				{
+					throw new InvalidDataException();
+				}
+			}
+			catch (Exception)
+			{
+				UpdateStatusAndFinish(false, "This setup archive is corrupted! Please download from https://reshade.me again.");
+				return;
+			}
+
 			string basePath = Path.GetDirectoryName(configPath);
 
 			// Delete any existing and conflicting ReShade installations first
@@ -843,7 +861,6 @@ namespace ReShade.Setup
 					{
 						Directory.CreateDirectory(commonPath);
 					}
-
 				}
 				catch (Exception ex)
 				{
@@ -1053,7 +1070,6 @@ In that event here are some steps you can try to resolve this:
 				config.RenameValue("GENERAL", "FPSPosition", "OVERLAY", "FPSPosition");
 				config.RenameValue("GENERAL", "ClockFormat", "OVERLAY", "ClockFormat");
 				config.RenameValue("GENERAL", "NoFontScaling", "OVERLAY", "NoFontScaling");
-				config.RenameValue("GENERAL", "SaveWindowState", "OVERLAY", "SaveWindowState");
 				config.RenameValue("GENERAL", "TutorialProgress", "OVERLAY", "TutorialProgress");
 				config.RenameValue("GENERAL", "VariableUIHeight", "OVERLAY", "VariableListHeight");
 				config.RenameValue("GENERAL", "NewVariableUI", "OVERLAY", "VariableListUseTabs");
@@ -1150,9 +1166,13 @@ In that event here are some steps you can try to resolve this:
 				if (int.TryParse(config.GetString("SCREENSHOT", "FileNamingFormat", "0"), out int formatIndex))
 				{
 					if (formatIndex == 0)
+					{
 						config.SetValue("SCREENSHOT", "FileNaming", "%AppName% %Date% %Time%");
+					}
 					else if (formatIndex == 1)
+					{
 						config.SetValue("SCREENSHOT", "FileNaming", "%AppName% %Date% %Time% %PresetName%");
+					}
 				}
 			}
 
@@ -1176,14 +1196,13 @@ In that event here are some steps you can try to resolve this:
 				config.SetValue("APP", "ForceVsync", "0");
 				config.SetValue("APP", "ForceWindowed", "0");
 				config.SetValue("APP", "ForceFullscreen", "0");
-				config.SetValue("APP", "ForceResolution", "0,0");
-				config.SetValue("APP", "Force10BitFormat", "0");
 			}
 
 			// Always add input section
 			if (!config.HasValue("INPUT"))
 			{
 				config.SetValue("INPUT", "KeyOverlay", "36,0,0,0");
+				config.SetValue("INPUT", "GamepadNavigation", "1");
 			}
 
 			config.SaveFile();
@@ -1253,6 +1272,8 @@ In that event here are some steps you can try to resolve this:
 					MakeWritable(presetPath);
 				}
 			}
+
+			DownloadPackagesAndCompatibilityIni();
 
 			Dispatcher.Invoke(() =>
 			{
@@ -1493,11 +1514,6 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(Path.Combine(basePath, "ReShade.log"));
 				}
 
-				if (File.Exists(Path.Combine(basePath, "ReShadeGUI.ini")))
-				{
-					File.Delete(Path.Combine(basePath, "ReShadeGUI.ini"));
-				}
-
 				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
 				{
 					Directory.Delete(Path.Combine(basePath, "reshade-shaders"), true);
@@ -1669,7 +1685,7 @@ In that event here are some steps you can try to resolve this:
 		void OnCurrentPageNavigated(object sender, NavigationEventArgs e)
 		{
 			NextButton.Content = isFinished ? "_Finish" : "_Next";
-			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPresetPage || e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : "_Cancel";
+			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPresetPage || e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : (e.Content is SelectAppPage) ? "_Close" : "_Cancel";
 
 			CancelButton.IsEnabled = !(e.Content is StatusPage) || isFinished;
 

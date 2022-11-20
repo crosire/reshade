@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "opengl.hpp"
+#include <GL/glcorearb.h>
 
 namespace reshade::opengl
 {
@@ -84,11 +84,23 @@ namespace reshade::opengl
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
+	inline auto make_resource_handle(GLenum target, GLuint object) -> api::resource
+	{
+		if (!object)
+			return { 0 };
+		return { (static_cast<uint64_t>(target) << 40) | object };
+	}
+	inline auto make_resource_view_handle(GLenum target, GLuint object, bool standalone_object = false) -> api::resource_view
+	{
+		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(standalone_object ? 0x1 : 0) << 32) | object };
+	}
+
 	auto convert_format(api::format format, GLint swizzle_mask[4] = nullptr) -> GLenum;
 	auto convert_format(GLenum internal_format, const GLint swizzle_mask[4] = nullptr) -> api::format;
-	auto convert_format(GLenum format, GLenum type) -> api::format;
+	auto convert_upload_format(api::format format, GLenum &type) -> GLenum;
+	auto convert_upload_format(GLenum format, GLenum type) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;
-	auto convert_upload_format(GLenum internal_format, GLenum &type) -> GLenum;
+	auto convert_sized_internal_format(GLenum internal_format) -> GLenum;
 
 	auto is_depth_stencil_format(api::format format) -> GLenum;
 

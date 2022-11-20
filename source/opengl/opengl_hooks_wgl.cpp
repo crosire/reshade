@@ -18,10 +18,11 @@ static std::shared_mutex s_global_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_contexts;
-extern thread_local reshade::opengl::swapchain_impl *g_current_context;
+static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_devices;
+static std::unordered_map<HGLRC, reshade::opengl::render_context_impl *> s_opengl_queues;
+extern thread_local reshade::opengl::render_context_impl *g_current_context;
 
-HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
+extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
 	LOG(INFO) << "Redirecting " << "wglChoosePixelFormat" << '(' << "hdc = " << hdc << ", ppfd = " << ppfd << ')' << " ...";
 
@@ -57,7 +58,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 
 	return format;
 }
-			BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
+		   BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
 	LOG(INFO) << "Redirecting " << "wglChoosePixelFormatARB" << '(' << "hdc = " << hdc << ", piAttribIList = " << piAttribIList << ", pfAttribFList = " << pfAttribFList << ", nMaxFormats = " << nMaxFormats << ", piFormats = " << piFormats << ", nNumFormats = " << nNumFormats << ')' << " ...";
 
@@ -106,9 +107,9 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 			WGL_DEPTH_BITS_ARB = 0x2022,
 			WGL_STENCIL_BITS_ARB = 0x2023,
 			WGL_AUX_BUFFERS_ARB = 0x2024,
+			WGL_DRAW_TO_PBUFFER_ARB = 0x202D,
 			WGL_SAMPLE_BUFFERS_ARB = 0x2041,
 			WGL_SAMPLES_ARB = 0x2042,
-			WGL_DRAW_TO_PBUFFER_ARB = 0x202D,
 			WGL_BIND_TO_TEXTURE_RGB_ARB = 0x2070,
 			WGL_BIND_TO_TEXTURE_RGBA_ARB = 0x2071,
 
@@ -171,6 +172,12 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 		case attribute::WGL_STEREO_ARB:
 			LOG(INFO) << "  | WGL_STEREO_ARB                          | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
+		case attribute::WGL_PIXEL_TYPE_ARB:
+			LOG(INFO) << "  | WGL_PIXEL_TYPE_ARB                      | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+			break;
+		case attribute::WGL_COLOR_BITS_ARB:
+			LOG(INFO) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+			break;
 		case attribute::WGL_RED_BITS_ARB:
 			LOG(INFO) << "  | WGL_RED_BITS_ARB                        | " << std::setw(39) << attrib[1] << " |";
 			break;
@@ -183,23 +190,20 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 		case attribute::WGL_ALPHA_BITS_ARB:
 			LOG(INFO) << "  | WGL_ALPHA_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_COLOR_BITS_ARB:
-			LOG(INFO) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
-			break;
 		case attribute::WGL_DEPTH_BITS_ARB:
 			LOG(INFO) << "  | WGL_DEPTH_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 			break;
 		case attribute::WGL_STENCIL_BITS_ARB:
 			LOG(INFO) << "  | WGL_STENCIL_BITS_ARB                    | " << std::setw(39) << attrib[1] << " |";
 			break;
+		case attribute::WGL_DRAW_TO_PBUFFER_ARB:
+			LOG(INFO) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			break;
 		case attribute::WGL_SAMPLE_BUFFERS_ARB:
 			LOG(INFO) << "  | WGL_SAMPLE_BUFFERS_ARB                  | " << std::setw(39) << attrib[1] << " |";
 			break;
 		case attribute::WGL_SAMPLES_ARB:
 			LOG(INFO) << "  | WGL_SAMPLES_ARB                         | " << std::setw(39) << attrib[1] << " |";
-			break;
-		case attribute::WGL_DRAW_TO_PBUFFER_ARB:
-			LOG(INFO) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
 		default:
 			LOG(INFO) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
@@ -246,12 +250,12 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 
 	return TRUE;
 }
-HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
+extern "C" int   WINAPI wglGetPixelFormat(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglGetPixelFormat);
 	return trampoline(hdc);
 }
-			BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
+		   BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
 	if (iLayerPlane != 0)
 	{
@@ -262,7 +266,7 @@ HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 
 	return reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, nAttributes, piAttributes, piValues);
 }
-			BOOL  WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
+		   BOOL  WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
 {
 	if (iLayerPlane != 0)
 	{
@@ -273,7 +277,7 @@ HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 
 	return reshade::hooks::call(wglGetPixelFormatAttribfvARB)(hdc, iPixelFormat, 0, nAttributes, piAttributes, pfValues);
 }
-HOOK_EXPORT BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXELFORMATDESCRIPTOR *ppfd)
+extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXELFORMATDESCRIPTOR *ppfd)
 {
 	LOG(INFO) << "Redirecting " << "wglSetPixelFormat" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", ppfd = " << ppfd << ')' << " ...";
 
@@ -292,12 +296,12 @@ HOOK_EXPORT BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXE
 
 	return TRUE;
 }
-HOOK_EXPORT int   WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
+extern "C" int   WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
 {
 	return reshade::hooks::call(wglDescribePixelFormat)(hdc, iPixelFormat, nBytes, ppfd);
 }
 
-HOOK_EXPORT BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
+extern "C" BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
 {
 	LOG(INFO) << "Redirecting " << "wglDescribeLayerPlane" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", iLayerPlane = " << iLayerPlane << ", nBytes = " << nBytes << ", plpd = " << plpd << ')' << " ...";
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
@@ -305,7 +309,7 @@ HOOK_EXPORT BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iL
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
-HOOK_EXPORT BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
+extern "C" BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
 {
 	LOG(INFO) << "Redirecting " << "wglRealizeLayerPalette" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", b = " << (b ? "TRUE" : "FALSE") << ')' << " ...";
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
@@ -313,7 +317,7 @@ HOOK_EXPORT BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
-HOOK_EXPORT int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
+extern "C" int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
 {
 	LOG(INFO) << "Redirecting " << "wglGetLayerPaletteEntries" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", iStart = " << iStart << ", cEntries = " << cEntries << ", pcr = " << pcr << ')' << " ...";
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
@@ -321,7 +325,7 @@ HOOK_EXPORT int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return 0;
 }
-HOOK_EXPORT int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, const COLORREF *pcr)
+extern "C" int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, const COLORREF *pcr)
 {
 	LOG(INFO) << "Redirecting " << "wglSetLayerPaletteEntries" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", iStart = " << iStart << ", cEntries = " << cEntries << ", pcr = " << pcr << ')' << " ...";
 	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
@@ -330,7 +334,7 @@ HOOK_EXPORT int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int
 	return 0;
 }
 
-HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
+extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 {
 	LOG(INFO) << "Redirecting " << "wglCreateContext" << '(' << "hdc = " << hdc << ')' << " ...";
 	LOG(INFO) << "> Passing on to " << "wglCreateLayerContext" << ':';
@@ -346,9 +350,12 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		s_legacy_contexts.emplace(hglrc);
 	}
 
+#if RESHADE_VERBOSE_LOG
+	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
+#endif
 	return hglrc;
 }
-			HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
+		   HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
 {
 	LOG(INFO) << "Redirecting " << "wglCreateContextAttribsARB" << '(' << "hdc = " << hdc << ", hShareContext = " << hShareContext << ", piAttribList = " << piAttribList << ')' << " ...";
 
@@ -460,7 +467,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 #endif
 	return hglrc;
 }
-HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
+extern "C" HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 {
 	LOG(INFO) << "Redirecting " << "wglCreateLayerContext" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ')' << " ...";
 
@@ -482,74 +489,91 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 		s_shared_contexts.emplace(hglrc, nullptr);
 	}
 
-#if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
-#endif
 	return hglrc;
 }
-HOOK_EXPORT BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
+extern "C" BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 {
 	return reshade::hooks::call(wglCopyContext)(hglrcSrc, hglrcDst, mask);
 }
-HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
+extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting " << "wglDeleteContext" << '(' << "hglrc = " << hglrc << ')' << " ...";
 
-	if (const auto it = s_opengl_contexts.find(hglrc);
-		it != s_opengl_contexts.end())
-	{
-#if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Cleaning up runtime " << static_cast<reshade::runtime *>(it->second) << " ...";
-#endif
+	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
 
-		// Set the render context current so its resources can be cleaned up
-		const HGLRC prev_hglrc = wglGetCurrentContext();
-		if (hglrc == prev_hglrc)
+		if (const auto it = s_opengl_queues.find(hglrc);
+			it != s_opengl_queues.end())
 		{
-			delete it->second;
-		}
-		else
-		{
-			// Choose a device context to make current with
-			HDC hdc = reinterpret_cast<HDC>(it->second->get_native());
-			const HDC prev_hdc = wglGetCurrentDC();
-
-			// In case the original was destroyed already, create a dummy window to get a valid context
-			HWND dummy_window_handle = nullptr;
-			if (!WindowFromDC(hdc))
-			{
-				dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
-				hdc = GetDC(dummy_window_handle);
-				PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
-				pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
-				const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
-				reshade::hooks::call(wglSetPixelFormat)(hdc, pixel_format, &pfd);
-			}
-
-			if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
+			// Separate command queue objects are only created for shared contexts
+			// It is important that the context that is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
+			const HGLRC prev_hglrc = wglGetCurrentContext();
+			if (prev_hglrc == hglrc || (prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
 			{
 				delete it->second;
-
-				// Restore previous device and render context
-				reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
 			}
 			else
 			{
-				LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << ")! Leaking resources ...";
+				LOG(WARN) << "Unable to make context current! Leaking resources ...";
 			}
 
-			if (dummy_window_handle != nullptr)
-				DestroyWindow(dummy_window_handle);
+			if (it->second == g_current_context)
+				g_current_context = nullptr;
+
+			s_opengl_queues.erase(it);
 		}
 
-		// Ensure the effect runtime is not still current after deleting
-		if (it->second == g_current_context)
-			g_current_context = nullptr;
+		if (const auto it = s_opengl_devices.find(hglrc);
+			it != s_opengl_devices.end())
+		{
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "> Cleaning up runtime " << static_cast<reshade::runtime *>(it->second) << " ...";
+#endif
 
-		s_opengl_contexts.erase(it);
-	}
+			// Set the render context current so its resources can be cleaned up
+			const HGLRC prev_hglrc = wglGetCurrentContext();
+			if (prev_hglrc == hglrc)
+			{
+				delete it->second;
+			}
+			else
+			{
+				// Choose a device context to make current with
+				HDC hdc = reinterpret_cast<HDC>(static_cast<reshade::api::swapchain *>(it->second)->get_native());
+				const HDC prev_hdc = wglGetCurrentDC();
 
-	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
+				// In case the original was destroyed already, create a dummy window to get a valid context
+				HWND dummy_window_handle = nullptr;
+				if (!WindowFromDC(hdc))
+				{
+					dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
+					hdc = GetDC(dummy_window_handle);
+					const PIXELFORMATDESCRIPTOR dummy_pfd = { sizeof(dummy_pfd), 1, PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL };
+					reshade::hooks::call(wglSetPixelFormat)(hdc, it->second->get_pixel_format(), &dummy_pfd);
+				}
+
+				if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
+				{
+					delete it->second;
+
+					// Restore previous device and render context
+					reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
+				}
+				else
+				{
+					LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << ")! Leaking resources ...";
+				}
+
+				if (dummy_window_handle != nullptr)
+					DestroyWindow(dummy_window_handle);
+			}
+
+			// Ensure the effect runtime is not still current after deleting
+			if (it->second == g_current_context)
+				g_current_context = nullptr;
+
+			s_opengl_devices.erase(it);
+		}
+
 		s_legacy_contexts.erase(hglrc);
 
 		for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
@@ -577,7 +601,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 	return TRUE;
 }
 
-HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
+extern "C" BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {
 	LOG(INFO) << "Redirecting " << "wglShareLists" << '(' << "hglrc1 = " << hglrc1 << ", hglrc2 = " << hglrc2 << ')' << " ...";
 
@@ -594,12 +618,13 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 	return TRUE;
 }
 
-HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
+extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Redirecting " << "wglMakeCurrent" << '(' << "hdc = " << hdc << ", hglrc = " << hglrc << ')' << " ...";
 #endif
 
+	HGLRC shared_hglrc = hglrc;
 	const HGLRC prev_hglrc = wglGetCurrentContext();
 
 	static const auto trampoline = reshade::hooks::call(wglMakeCurrent);
@@ -628,15 +653,15 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	if (const auto it = s_shared_contexts.find(hglrc);
 		it != s_shared_contexts.end() && it->second != nullptr)
 	{
-		hglrc = it->second;
+		shared_hglrc = it->second;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Using shared OpenGL context " << hglrc << '.';
+		LOG(DEBUG) << "> Using shared OpenGL context " << shared_hglrc << '.';
 #endif
 	}
 
-	if (const auto it = s_opengl_contexts.find(hglrc);
-		it != s_opengl_contexts.end())
+	if (const auto it = s_opengl_devices.find(shared_hglrc);
+		it != s_opengl_devices.end())
 	{
 		if (it->second != g_current_context)
 		{
@@ -659,7 +684,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			g_current_context = nullptr;
 
-			LOG(DEBUG) << "Skipping render context " << hglrc << " because there is no window associated with its device context " << hdc << '.';
+			LOG(DEBUG) << "Skipping render context " << hglrc << " because there is no window associated with device context " << hdc << '.';
 			return TRUE;
 		}
 		else if ((GetClassLongPtr(hwnd, GCL_STYLE) & CS_OWNDC) == 0)
@@ -688,16 +713,16 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			assert(s_hooks_installed);
 
-			const auto runtime = new reshade::opengl::swapchain_impl(
-				hdc, hglrc,
+			const auto device = new reshade::opengl::swapchain_impl(
+				hdc, shared_hglrc,
 				// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
 				// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
-				s_legacy_contexts.find(hglrc) != s_legacy_contexts.end());
+				s_legacy_contexts.find(shared_hglrc) != s_legacy_contexts.end());
 
-			g_current_context = s_opengl_contexts[hglrc] = runtime;
+			g_current_context = s_opengl_devices[shared_hglrc] = device;
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Switched to new runtime " << static_cast<reshade::runtime *>(runtime) << '.';
+			LOG(DEBUG) << "Switched to new runtime " << static_cast<reshade::runtime *>(device) << '.';
 #endif
 		}
 		else
@@ -708,21 +733,36 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		}
 	}
 
+	if (hglrc != shared_hglrc && g_current_context != nullptr)
+	{
+		if (const auto it = s_opengl_queues.find(hglrc);
+			it != s_opengl_queues.end())
+		{
+			g_current_context = it->second;
+		}
+		else
+		{
+			const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+			g_current_context = s_opengl_queues[hglrc] = new reshade::opengl::render_context_impl(device, hglrc);
+		}
+	}
+
 	return TRUE;
 }
 
-HOOK_EXPORT HDC   WINAPI wglGetCurrentDC()
+extern "C" HDC   WINAPI wglGetCurrentDC()
 {
 	static const auto trampoline = reshade::hooks::call(wglGetCurrentDC);
 	return trampoline();
 }
-HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
+extern "C" HGLRC WINAPI wglGetCurrentContext()
 {
 	static const auto trampoline = reshade::hooks::call(wglGetCurrentContext);
 	return trampoline();
 }
 
-	  HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
+	 HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
 {
 	LOG(INFO) << "Redirecting " << "wglCreatePbufferARB" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", iWidth = " << iWidth << ", iHeight = " << iHeight << ", piAttribList = " << piAttribList << ')' << " ...";
 
@@ -779,7 +819,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 #endif
 	return hpbuffer;
 }
-			BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
+		   BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
 {
 	LOG(INFO) << "Redirecting " << "wglDestroyPbufferARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
 
@@ -791,11 +831,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 
 	return TRUE;
 }
-			BOOL  WINAPI wglQueryPbufferARB(HPBUFFERARB hPbuffer, int iAttribute, int *piValue)
-{
-	return reshade::hooks::call(wglQueryPbufferARB)(hPbuffer, iAttribute, piValue);
-}
-			HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
+		   HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 {
 	LOG(INFO) << "Redirecting " << "wglGetPbufferDCARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
 
@@ -815,7 +851,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 #endif
 	return hdc;
 }
-			int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
+		   int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 {
 	LOG(INFO) << "Redirecting " << "wglReleasePbufferDCARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
 
@@ -832,28 +868,19 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	return TRUE;
 }
 
-			BOOL  WINAPI wglSwapIntervalEXT(int interval)
-{
-	static const auto trampoline = reshade::hooks::call(wglSwapIntervalEXT);
-	return trampoline(interval);
-}
-			int   WINAPI wglGetSwapIntervalEXT()
-{
-	static const auto trampoline = reshade::hooks::call(wglGetSwapIntervalEXT);
-	return trampoline();
-}
-
-HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
+extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
-	reshade::opengl::swapchain_impl *runtime = g_current_context;
+	reshade::opengl::swapchain_impl *runtime = reshade::opengl::swapchain_impl::from_context(g_current_context);
 	if (runtime == nullptr || runtime->_hdcs.find(hdc) == runtime->_hdcs.end())
 	{
+		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
+
 		// Find the runtime that is associated with this device context
-		const auto it = std::find_if(s_opengl_contexts.begin(), s_opengl_contexts.end(),
+		const auto it = std::find_if(s_opengl_devices.begin(), s_opengl_devices.end(),
 			[hdc](const std::pair<HGLRC, reshade::opengl::swapchain_impl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
-		runtime = (it != s_opengl_contexts.end()) ? it->second : nullptr;
+		runtime = (it != s_opengl_devices.end()) ? it->second : nullptr;
 	}
 
 	// The window handle can be invalid if the window was already destroyed
@@ -880,10 +907,12 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		}
 
 #if RESHADE_ADDON
-		// Behave as if immediate command list is flushed
-		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(runtime, runtime);
+		reshade::opengl::render_context_impl *const queue = (g_current_context != nullptr) ? g_current_context : runtime;
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(runtime, runtime, nullptr, nullptr, 0, nullptr);
+		// Behave as if immediate command list is flushed
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue, queue);
+
+		reshade::invoke_addon_event<reshade::addon_event::present>(queue, runtime, nullptr, nullptr, 0, nullptr);
 #endif
 
 		// Assume that the correct OpenGL context is still current here
@@ -892,7 +921,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 	return trampoline(hdc);
 }
-HOOK_EXPORT BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
+extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
 	if (i != WGL_SWAP_MAIN_PLANE)
 	{
@@ -909,7 +938,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 
 	return wglSwapBuffers(hdc);
 }
-HOOK_EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP *pBuffers)
+extern "C" DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP *pBuffers)
 {
 	for (UINT i = 0; i < cNumBuffers; ++i)
 	{
@@ -921,28 +950,28 @@ HOOK_EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP 
 	return 0;
 }
 
-HOOK_EXPORT BOOL  WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
+extern "C" BOOL  WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
 {
 	static const auto trampoline = reshade::hooks::call(wglUseFontBitmapsA);
 	return trampoline(hdc, dw1, dw2, dw3);
 }
-HOOK_EXPORT BOOL  WINAPI wglUseFontBitmapsW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
+extern "C" BOOL  WINAPI wglUseFontBitmapsW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
 {
 	static const auto trampoline = reshade::hooks::call(wglUseFontBitmapsW);
 	return trampoline(hdc, dw1, dw2, dw3);
 }
-HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
+extern "C" BOOL  WINAPI wglUseFontOutlinesA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
 {
 	static const auto trampoline = reshade::hooks::call(wglUseFontOutlinesA);
 	return trampoline(hdc, dw1, dw2, dw3, f1, f2, i, pgmf);
 }
-HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
+extern "C" BOOL  WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
 {
 	static const auto trampoline = reshade::hooks::call(wglUseFontOutlinesW);
 	return trampoline(hdc, dw1, dw2, dw3, f1, f2, i, pgmf);
 }
 
-HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
+extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
 	if (lpszProc == nullptr)
 		return nullptr;
@@ -1161,33 +1190,33 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #endif
 
 #if RESHADE_ADDON
-#ifdef GL_VERSION_1_2
+#  ifdef GL_VERSION_1_2
 		HOOK_PROC(glTexImage3D);
 		HOOK_PROC(glTexSubImage3D);
 		HOOK_PROC(glCopyTexSubImage3D);
 		HOOK_PROC(glDrawRangeElements);
-#endif
-#ifdef GL_VERSION_1_3
+#  endif
+#  ifdef GL_VERSION_1_3
 		HOOK_PROC(glCompressedTexImage1D);
 		HOOK_PROC(glCompressedTexImage2D);
 		HOOK_PROC(glCompressedTexImage3D);
 		HOOK_PROC(glCompressedTexSubImage1D);
 		HOOK_PROC(glCompressedTexSubImage2D);
 		HOOK_PROC(glCompressedTexSubImage3D);
-#endif
-#ifdef GL_VERSION_1_4
+#  endif
+#  ifdef GL_VERSION_1_4
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawElements);
-#endif
-#ifdef GL_VERSION_1_5
+#  endif
+#  ifdef GL_VERSION_1_5
 		HOOK_PROC(glDeleteBuffers);
 		HOOK_PROC(glBufferData);
 		HOOK_PROC(glBufferSubData);
 		HOOK_PROC(glMapBuffer);
 		HOOK_PROC(glUnmapBuffer);
 		HOOK_PROC(glBindBuffer);
-#endif
-#ifdef GL_VERSION_2_0
+#  endif
+#  ifdef GL_VERSION_2_0
 		HOOK_PROC(glDeleteProgram);
 		HOOK_PROC(glLinkProgram);
 		HOOK_PROC(glShaderSource);
@@ -1208,8 +1237,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2iv);
 		HOOK_PROC(glUniform3iv);
 		HOOK_PROC(glUniform4iv);
-#endif
-#ifdef GL_VERSION_3_0
+#  endif
+#  ifdef GL_VERSION_3_0
 		HOOK_PROC(glMapBufferRange);
 		HOOK_PROC(glDeleteRenderbuffers);
 		HOOK_PROC(glFramebufferTexture1D);
@@ -1235,14 +1264,14 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2uiv);
 		HOOK_PROC(glUniform3uiv);
 		HOOK_PROC(glUniform4uiv);
-#endif
-#ifdef GL_VERSION_3_1
+#  endif
+#  ifdef GL_VERSION_3_1
 		HOOK_PROC(glTexBuffer);
 		HOOK_PROC(glCopyBufferSubData);
 		HOOK_PROC(glDrawArraysInstanced);
 		HOOK_PROC(glDrawElementsInstanced);
-#endif
-#ifdef GL_VERSION_3_2
+#  endif
+#  ifdef GL_VERSION_3_2
 		HOOK_PROC(glFramebufferTexture);
 		HOOK_PROC(glTexImage2DMultisample);
 		HOOK_PROC(glTexImage3DMultisample);
@@ -1250,20 +1279,20 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawRangeElementsBaseVertex);
 		HOOK_PROC(glDrawElementsInstancedBaseVertex);
 		HOOK_PROC(glMultiDrawElementsBaseVertex);
-#endif
-#ifdef GL_VERSION_4_0
+#  endif
+#  ifdef GL_VERSION_4_0
 		HOOK_PROC(glDrawArraysIndirect);
 		HOOK_PROC(glDrawElementsIndirect);
-#endif
-#ifdef GL_VERSION_4_1
+#  endif
+#  ifdef GL_VERSION_4_1
 		HOOK_PROC(glScissorArrayv);
 		HOOK_PROC(glScissorIndexed);
 		HOOK_PROC(glScissorIndexedv);
 		HOOK_PROC(glViewportArrayv);
 		HOOK_PROC(glViewportIndexedf);
 		HOOK_PROC(glViewportIndexedfv);
-#endif
-#ifdef GL_VERSION_4_2
+#  endif
+#  ifdef GL_VERSION_4_2
 		HOOK_PROC(glTexStorage1D);
 		HOOK_PROC(glTexStorage2D);
 		HOOK_PROC(glTexStorage3D);
@@ -1271,8 +1300,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawArraysInstancedBaseInstance);
 		HOOK_PROC(glDrawElementsInstancedBaseInstance);
 		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
-#endif
-#ifdef GL_VERSION_4_3
+#  endif
+#  ifdef GL_VERSION_4_3
 		HOOK_PROC(glTextureView);
 		HOOK_PROC(glTexBufferRange);
 		HOOK_PROC(glTexStorage2DMultisample);
@@ -1283,16 +1312,16 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDispatchComputeIndirect);
 		HOOK_PROC(glMultiDrawArraysIndirect);
 		HOOK_PROC(glMultiDrawElementsIndirect);
-#endif
-#ifdef GL_VERSION_4_4
+#  endif
+#  ifdef GL_VERSION_4_4
 		HOOK_PROC(glBufferStorage);
 		HOOK_PROC(glBindBuffersBase);
 		HOOK_PROC(glBindBuffersRange);
 		HOOK_PROC(glBindTextures);
 		HOOK_PROC(glBindImageTextures);
 		HOOK_PROC(glBindVertexBuffers);
-#endif
-#ifdef GL_VERSION_4_5
+#  endif
+#  ifdef GL_VERSION_4_5
 		HOOK_PROC(glTextureBuffer);
 		HOOK_PROC(glTextureBufferRange);
 		HOOK_PROC(glNamedBufferData);
@@ -1323,35 +1352,32 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBlitNamedFramebuffer);
 		HOOK_PROC(glGenerateTextureMipmap);
 		HOOK_PROC(glBindTextureUnit);
-#endif
+#  endif
+
 		// GL_ARB_vertex_program / GL_ARB_fragment_program
 		HOOK_PROC(glProgramStringARB);
 		HOOK_PROC(glDeleteProgramsARB);
+
 		// GL_EXT_framebuffer_object
 		HOOK_PROC(glBindFramebufferEXT);
+
 		// GL_EXT_direct_state_access
 		HOOK_PROC(glBindMultiTextureEXT);
 #endif
 
 		// WGL_ARB_create_context
 		HOOK_PROC(wglCreateContextAttribsARB);
+
 		// WGL_ARB_pbuffer
 		HOOK_PROC(wglCreatePbufferARB);
 		HOOK_PROC(wglDestroyPbufferARB);
 		HOOK_PROC(wglGetPbufferDCARB);
 		HOOK_PROC(wglReleasePbufferDCARB);
-#if 0
-		HOOK_PROC(wglQueryPbufferARB);
-#endif
+
 		// WGL_ARB_pixel_format
 		HOOK_PROC(wglChoosePixelFormatARB);
 		HOOK_PROC(wglGetPixelFormatAttribivARB);
 		HOOK_PROC(wglGetPixelFormatAttribfvARB);
-#if 0
-		// WGL_EXT_swap_control
-		HOOK_PROC(wglSwapIntervalEXT);
-		HOOK_PROC(wglGetSwapIntervalEXT);
-#endif
 
 		// Install all OpenGL hooks in a single batch job
 		reshade::hook::apply_queued_actions();

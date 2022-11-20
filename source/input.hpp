@@ -14,6 +14,15 @@ namespace reshade
 	class input
 	{
 	public:
+		enum button
+		{
+			button_left,
+			button_right,
+			button_middle,
+			button_xbutton1,
+			button_xbutton2,
+		};
+
 		/// <summary>
 		/// A window handle (HWND).
 		/// </summary>
@@ -63,7 +72,7 @@ namespace reshade
 		void max_mouse_position(unsigned int position[2]) const;
 
 		/// <summary>
-		/// Returns the character input as captured by 'WM_CHAR' for the current frame.
+		/// Gets the character input as captured by 'WM_CHAR' for the current frame.
 		/// </summary>
 		const std::wstring &text_input() const { return _text_input; }
 

@@ -5,28 +5,38 @@
 
 #pragma once
 
-#include <d3d12.h>
-#include "addon_manager.hpp"
-
-namespace reshade::d3d12
+namespace reshade::opengl
 {
 	class device_impl;
 
-	class command_list_impl : public api::api_object_impl<ID3D12GraphicsCommandList *, api::command_list>
+	class render_context_impl : public api::api_object_impl<HGLRC, api::command_queue, api::command_list>
 	{
-		friend class swapchain_impl;
-
 	public:
-		command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list);
-		~command_list_impl();
+		render_context_impl(device_impl *device, HGLRC hglrc);
+		~render_context_impl();
 
 		api::device *get_device() final;
+
+		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::compute | api::command_queue_type::copy; }
+
+		void wait_idle() const final;
+
+		void flush_immediate_command_list() const final;
+
+		api::command_list *get_immediate_command_list() final { return this; }
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
 		void begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds) final;
 		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
+
+		void bind_framebuffer_with_resource(GLenum target, GLenum attachment, api::resource dest, uint32_t dest_subresource, const api::resource_desc &dest_desc);
+		void bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
+
+		api::resource_view get_framebuffer_attachment(GLuint framebuffer, GLenum type, uint32_t index) const;
+
+		void update_current_window_height(GLuint framebuffer);
 
 		void bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
@@ -60,24 +70,31 @@ namespace reshade::d3d12
 
 		void generate_mipmaps(api::resource_view srv) final;
 
-		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
+		void begin_query(api::query_pool heap, api::query_type type, uint32_t index) final;
+		void end_query(api::query_pool heap, api::query_type type, uint32_t index) final;
+		void copy_query_pool_results(api::query_pool heap, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-	protected:
-		device_impl *const _device_impl;
-		bool _has_commands = false;
+		GLuint _current_ibo = 0;
+		GLenum _current_prim_mode = GL_NONE;
+		GLenum _current_index_type = GL_UNSIGNED_INT;
+		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside 'glBegin'/'glEnd' pairs
+		GLuint _current_window_height = 0; // Current height of the window coordinate system
 
-		// Currently bound root signature (graphics at index 0, compute at index 1)
-		ID3D12RootSignature *_current_root_signature[2] = {};
-		// Currently bound descriptor heaps (there can only be one of each shader visible type, so a maximum of two)
-		ID3D12DescriptorHeap *_current_descriptor_heaps[2] = {};
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-		IUnknown *_current_pipeline_state = nullptr;
-#endif
+	private:
+		device_impl *const _device_impl;
+
+		// Programs and framebuffer objects cannot be shared between render contexts, so have to create them for each one
+		GLuint _mipmap_program = 0;
+		GLuint _mipmap_sampler = 0;
+
+		GLuint _push_constants = 0;
+		GLuint _push_constants_size = 0;
+
+	protected:
+		std::unordered_map<size_t, GLuint> _fbo_lookup;
 	};
 }

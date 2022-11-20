@@ -56,8 +56,12 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 		uav_range.NumDescriptors = 1;
 		uav_range.BaseShaderRegister = 0; // u0
+		D3D12_DESCRIPTOR_RANGE sampler_range = {};
+		sampler_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+		sampler_range.NumDescriptors = 1;
+		sampler_range.BaseShaderRegister = 0; // s0
 
-		D3D12_ROOT_PARAMETER params[3] = {};
+		D3D12_ROOT_PARAMETER params[4] = {};
 		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 		params[0].Constants.ShaderRegister = 0; // b0
 		params[0].Constants.Num32BitValues = 2;
@@ -70,21 +74,15 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		params[2].DescriptorTable.NumDescriptorRanges = 1;
 		params[2].DescriptorTable.pDescriptorRanges = &uav_range;
 		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[3].DescriptorTable.NumDescriptorRanges = 1;
+		params[3].DescriptorTable.pDescriptorRanges = &sampler_range;
+		params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		D3D12_STATIC_SAMPLER_DESC samplers[1] = {};
-		samplers[0].Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-		samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-		samplers[0].ShaderRegister = 0; // s0
-		samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
+		// Creating a root signature with static samplers here cause banding artifacts in Call of Duty: Modern Warfare for some strange reason, so need to use sampler in descriptor table instead
 		D3D12_ROOT_SIGNATURE_DESC desc = {};
 		desc.NumParameters = ARRAYSIZE(params);
 		desc.pParameters = params;
-		desc.NumStaticSamplers = ARRAYSIZE(samplers);
-		desc.pStaticSamplers = samplers;
 
 		if (com_ptr<ID3DBlob> signature_blob;
 			FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)) ||
@@ -288,8 +286,8 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 	if (com_ptr<ID3D12Resource> object;
 		SUCCEEDED(desc.heap == api::memory_heap::unknown ?
-			_orig->CreateReservedResource(&internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
-			_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
+			_orig->CreateReservedResource(&internal_desc, convert_usage_to_resource_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
+			_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_usage_to_resource_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
 	{
 		if (is_shared && FAILED(_orig->CreateSharedHandle(object.get(), nullptr, GENERIC_ALL, nullptr, shared_handle)))
 			return false;
@@ -837,8 +835,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
-			const bool push_descriptors = params[i].type == api::pipeline_layout_param_type::push_descriptors;
-			const uint32_t  range_count = push_descriptors ? 1 : params[i].descriptor_set.count;
+			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
+			const uint32_t range_count = push_descriptors ? 1 : params[i].descriptor_set.count;
 			const api::descriptor_range *const input_ranges = push_descriptors ? &params[i].push_descriptors : params[i].descriptor_set.ranges;
 
 			if (range_count == 0 || input_ranges[0].count == 0)
@@ -924,10 +922,10 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	internal_desc.NumParameters = param_count;
 	internal_desc.pParameters = internal_params.data();
 
-	com_ptr<ID3DBlob> blob;
+	com_ptr<ID3DBlob> signature_blob, error_blob;
 	com_ptr<ID3D12RootSignature> signature;
-	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)) &&
-		SUCCEEDED(_orig->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
+	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob)) &&
+		SUCCEEDED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
 	{
 		pipeline_layout_extra_data extra_data;
 		extra_data.ranges = set_ranges;
@@ -953,6 +951,9 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	}
 	else
 	{
+		if (error_blob != nullptr)
+			LOG(ERROR) << "Failed to create root signature: " << static_cast<const char *>(error_blob->GetBufferPointer());
+
 		delete[] set_ranges;
 
 		*out_handle = { 0 };
@@ -1233,7 +1234,7 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 
 void reshade::d3d12::device_impl::set_resource_name(api::resource handle, const char *name)
 {
-	const size_t debug_name_len = strlen(name);
+	const size_t debug_name_len = std::strlen(name);
 	std::wstring debug_name_wide;
 	debug_name_wide.reserve(debug_name_len + 1);
 	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
@@ -1274,7 +1275,7 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 #endif
 
 #if 0
-	const std::unique_lock<std::shared_mutex> lock(_mutex);
+	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 	// Remove all views that referenced this resource
 	for (auto it = _views.begin(); it != _views.end();)

@@ -109,12 +109,12 @@ namespace reshade::api
 		d32_float = 40,
 		d32_float_s8_uint = 20,
 
-		r32_g8_typeless = 19,
-		r32_float_x8_uint = 21,
-		x32_float_g8_uint = 22,
 		r24_g8_typeless = 44,
 		r24_unorm_x8_uint = 46,
 		x24_unorm_g8_uint = 47,
+		r32_g8_typeless = 19,
+		r32_float_x8_uint = 21,
+		x32_float_g8_uint = 22,
 
 		// Compressed data formats
 

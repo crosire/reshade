@@ -9,7 +9,7 @@
 #include "lockfree_linear_map.hpp"
 #include "vulkan_hooks.hpp"
 
-lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispatch;
+lockfree_linear_map<void *, instance_dispatch_table, 16> g_instance_dispatch;
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \

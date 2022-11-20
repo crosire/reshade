@@ -58,8 +58,9 @@ namespace reshade::log
 		message &operator<<(REFIID riid)
 		{
 			OLECHAR riid_string[40];
-			StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
-			return *this << riid_string;
+			if (StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string)))
+				operator<<(riid_string);
+			return *this;
 		}
 #endif
 

@@ -31,7 +31,7 @@ Adds an overlay that keeps track of changes to techniques and uniform variables 
 
 ## [07-generic_depth](/examples/07-generic_depth)
 
-The built-in add-on that attempts to find the depth buffer the application uses for scene rendering and makes it available to ReShade effects.
+Built-in add-on that attempts to find the depth buffer the application uses for scene rendering and makes it available to ReShade effects.
 
 ## [08-texture_overlay](/examples/08-texture_overlay)
 
@@ -49,3 +49,7 @@ To build this example, first place a built version of the FFmpeg SDK into a subd
 ## [11-effects_during_frame](/examples/11-effects_during_frame)
 
 Renders the ReShade post-processing effects at a different point during the frame, e.g. to apply them before the user interface of the game.
+
+## [12-framerate_limit](/examples/12-framerate_limit)
+
+Limits the framerate of an application to a specified FPS value.

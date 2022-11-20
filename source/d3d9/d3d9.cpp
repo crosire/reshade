@@ -137,17 +137,19 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	}
 #endif
 
-	if (reshade::global_config().get("APP", "ForceVSync"))
+	ini_file &config = reshade::global_config();
+
+	if (config.get("APP", "ForceVSync"))
 	{
 		pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 	}
 
-	if (reshade::global_config().get("APP", "ForceWindowed"))
+	if (config.get("APP", "ForceWindowed"))
 	{
 		pp.Windowed = TRUE;
 		pp.FullScreen_RefreshRateInHz = 0;
 	}
-	if (reshade::global_config().get("APP", "ForceFullscreen"))
+	if (config.get("APP", "ForceFullscreen"))
 	{
 		D3DDISPLAYMODE current_mode;
 		if (SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
@@ -161,13 +163,13 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	}
 
 	if (unsigned int force_resolution[2] = {};
-		reshade::global_config().get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
+		config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
 	{
 		pp.BackBufferWidth = force_resolution[0];
 		pp.BackBufferHeight = force_resolution[1];
 	}
 
-	if (reshade::global_config().get("APP", "Force10BitFormat"))
+	if (config.get("APP", "Force10BitFormat"))
 	{
 		pp.BackBufferFormat = D3DFMT_A2R10G10B10;
 	}
@@ -376,7 +378,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	return hr;
 }
 
-HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
+extern "C" IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
 	if (g_in_d3d9_runtime)
 		return reshade::hooks::call(Direct3DCreate9)(SDKVersion);
@@ -401,7 +403,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 	return res;
 }
 
-HOOK_EXPORT     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
+extern "C"     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
 	if (g_in_d3d9_runtime)
 		return reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);

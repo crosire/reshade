@@ -210,14 +210,20 @@ void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, c
 void reshade::d3d11::device_context_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
 	if (first != 0)
+	{
+		assert(false);
 		return;
+	}
 
 	_orig->RSSetViewports(count, reinterpret_cast<const D3D11_VIEWPORT *>(viewports));
 }
 void reshade::d3d11::device_context_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	if (first != 0)
+	{
+		assert(false);
 		return;
+	}
 
 	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D11_RECT *>(rects));
 }
@@ -315,9 +321,16 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 		}
 		else
 		{
-			D3D11_BUFFER_DESC desc;
-			buffer_ptrs[i]->GetDesc(&desc);
-			constant_count[i] = desc.ByteWidth / 16;
+			if (buffer_ptrs[i] != nullptr)
+			{
+				D3D11_BUFFER_DESC desc;
+				buffer_ptrs[i]->GetDesc(&desc);
+				constant_count[i] = desc.ByteWidth / 16;
+			}
+			else
+			{
+				constant_count[i] = 0;
+			}
 		}
 	}
 
@@ -357,10 +370,14 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 
 void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
-	assert(first == 0);
-
 	if (count == 0)
 		return;
+
+	if (first != 0)
+	{
+		assert(false);
+		return;
+	}
 
 	if (count > _push_constants_size)
 	{
@@ -654,7 +671,7 @@ void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, c
 	if (_annotations == nullptr)
 		return;
 
-	const size_t label_len = strlen(label);
+	const size_t label_len = std::strlen(label);
 	std::wstring label_wide;
 	label_wide.reserve(label_len + 1);
 	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
@@ -675,7 +692,7 @@ void reshade::d3d11::device_context_impl::insert_debug_marker(const char *label,
 	if (_annotations == nullptr)
 		return;
 
-	const size_t label_len = strlen(label);
+	const size_t label_len = std::strlen(label);
 	std::wstring label_wide;
 	label_wide.reserve(label_len + 1);
 	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));

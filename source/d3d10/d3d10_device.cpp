@@ -94,6 +94,8 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10SamplerState *const *objects)
 {
+	assert(objects != nullptr || count == 0);
+
 	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
@@ -116,6 +118,8 @@ void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, U
 }
 void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects)
 {
+	assert(objects != nullptr || count == 0);
+
 	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
@@ -138,6 +142,8 @@ void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_s
 }
 void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects)
 {
+	assert(objects != nullptr || count == 0);
+
 	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
@@ -741,7 +747,29 @@ HRESULT STDMETHODCALLTYPE D3D10Device::SetPrivateDataInterface(REFGUID guid, con
 void    STDMETHODCALLTYPE D3D10Device::ClearState()
 {
 	_orig->ClearState();
-	// TODO: Call events with cleared state
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	// Call events with cleared state
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all, reshade::api::pipeline {});
+
+	const reshade::api::dynamic_state states[4] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask, reshade::api::dynamic_state::stencil_reference_value };
+	const uint32_t values[4] = { static_cast<uint32_t>(reshade::api::primitive_topology::undefined), 0xFFFFFFFF, D3D10_DEFAULT_SAMPLE_MASK, D3D10_DEFAULT_STENCIL_REFERENCE };
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 4, states, values);
+
+	constexpr size_t max_null_objects = std::max(D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, std::max(D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, std::max(D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, std::max(D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT))));
+	void *const null_objects[max_null_objects] = {};
+	invoke_bind_samplers_event(reshade::api::shader_stage::all, 0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, reinterpret_cast<ID3D10SamplerState *const *>(null_objects));
+	invoke_bind_shader_resource_views_event(reshade::api::shader_stage::all, 0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<ID3D10ShaderResourceView *const *>(null_objects));
+	invoke_bind_constant_buffers_event(reshade::api::shader_stage::all, 0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, reinterpret_cast<ID3D10Buffer *const *>(null_objects));
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource {}, 0, 0);
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, 0, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<const reshade::api::resource *>(null_objects), reinterpret_cast<const uint64_t *>(null_objects), reinterpret_cast<const uint32_t *>(null_objects));
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<const reshade::api::resource_view *>(null_objects), reshade::api::resource_view {});
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(this, 0, 0, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, 0, nullptr);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::Flush()
 {
@@ -771,7 +799,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general))
 	{
-		reshade::d3d10::convert_resource_desc(internal_desc);
+		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(&initial_data);
 	}
@@ -790,9 +818,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(*ppBuffer));
 
-		register_destruction_callback_d3dx(*ppBuffer, [this, resource = *ppBuffer]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3dx(*ppBuffer, [this, resource = *ppBuffer]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
+			});
+		}
 #endif
 	}
 	else
@@ -826,7 +857,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general))
 	{
-		reshade::d3d10::convert_resource_desc(internal_desc);
+		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
@@ -845,9 +876,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(*ppTexture1D));
 
-		register_destruction_callback_d3dx(*ppTexture1D, [this, resource = *ppTexture1D]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3dx(*ppTexture1D, [this, resource = *ppTexture1D]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
+			});
+		}
 #endif
 	}
 	else
@@ -880,7 +914,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general))
 	{
-		reshade::d3d10::convert_resource_desc(internal_desc);
+		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
@@ -899,9 +933,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(*ppTexture2D));
 
-		register_destruction_callback_d3dx(*ppTexture2D, [this, resource = *ppTexture2D]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3dx(*ppTexture2D, [this, resource = *ppTexture2D]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
+			});
+		}
 #endif
 	}
 	else
@@ -934,7 +971,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general))
 	{
-		reshade::d3d10::convert_resource_desc(internal_desc);
+		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
@@ -953,9 +990,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(*ppTexture3D));
 
-		register_destruction_callback_d3dx(*ppTexture3D, [this, resource = *ppTexture3D]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+		{
+			register_destruction_callback_d3dx(*ppTexture3D, [this, resource = *ppTexture3D]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
+			});
+		}
 #endif
 	}
 	else
@@ -991,9 +1031,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, to_handle(*ppShaderResourceView));
 
-		register_destruction_callback_d3dx(*ppShaderResourceView, [this, resource_view = *ppShaderResourceView]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3dx(*ppShaderResourceView, [this, resource_view = *ppShaderResourceView]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
+			});
+		}
 #endif
 	}
 	else
@@ -1029,9 +1072,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::render_target, desc, to_handle(*ppRenderTargetView));
 
-		register_destruction_callback_d3dx(*ppRenderTargetView, [this, resource_view = *ppRenderTargetView]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3dx(*ppRenderTargetView, [this, resource_view = *ppRenderTargetView]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
+			});
+		}
 #endif
 	}
 	else
@@ -1067,9 +1113,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::depth_stencil, desc, to_handle(*ppDepthStencilView));
 
-		register_destruction_callback_d3dx(*ppDepthStencilView, [this, resource_view = *ppDepthStencilView]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3dx(*ppDepthStencilView, [this, resource_view = *ppDepthStencilView]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
+			});
+		}
 #endif
 	}
 	else
@@ -1108,9 +1157,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppInputLayout));
 
-		register_destruction_callback_d3dx(*ppInputLayout, [this, pipeline = *ppInputLayout]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppInputLayout, [this, pipeline = *ppInputLayout]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else
@@ -1149,9 +1201,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppVertexShader));
 
-		register_destruction_callback_d3dx(*ppVertexShader, [this, pipeline = *ppVertexShader]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppVertexShader, [this, pipeline = *ppVertexShader]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else
@@ -1190,9 +1245,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppGeometryShader));
 
-		register_destruction_callback_d3dx(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else
@@ -1236,9 +1294,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppGeometryShader));
 
-		register_destruction_callback_d3dx(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else
@@ -1277,9 +1338,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppPixelShader));
 
-		register_destruction_callback_d3dx(*ppPixelShader, [this, pipeline = *ppPixelShader]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppPixelShader, [this, pipeline = *ppPixelShader]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else
@@ -1319,9 +1383,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppBlendState));
 
-		register_destruction_callback_d3dx(*ppBlendState, [this, pipeline = *ppBlendState]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppBlendState, [this, pipeline = *ppBlendState]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else
@@ -1361,9 +1428,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilState(const D3D10_DEPTH
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppDepthStencilState));
 
-		register_destruction_callback_d3dx(*ppDepthStencilState, [this, pipeline = *ppDepthStencilState]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppDepthStencilState, [this, pipeline = *ppDepthStencilState]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else
@@ -1401,9 +1471,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERI
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppRasterizerState));
 
-		register_destruction_callback_d3dx(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else
@@ -1439,9 +1512,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateSamplerState(const D3D10_SAMPLER_DE
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, to_handle(*ppSamplerState));
 
-		register_destruction_callback_d3dx(*ppSamplerState, [this, sampler = *ppSamplerState]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(this, to_handle(sampler));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_sampler>())
+		{
+			register_destruction_callback_d3dx(*ppSamplerState, [this, sampler = *ppSamplerState]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(this, to_handle(sampler));
+			});
+		}
 #endif
 	}
 	else
@@ -1539,9 +1615,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 
 			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource.get()));
 
-			register_destruction_callback_d3dx(resource.get(), [this, resource = resource.get()]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-			});
+			if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+			{
+				register_destruction_callback_d3dx(resource.get(), [this, resource = resource.get()]() {
+					reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
+				});
+			}
 		}
 #endif
 	}
@@ -1587,9 +1666,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, to_handle(*ppShaderResourceView));
 
-		register_destruction_callback_d3dx(*ppShaderResourceView, [this, resource_view = *ppShaderResourceView]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+		{
+			register_destruction_callback_d3dx(*ppShaderResourceView, [this, resource_view = *ppShaderResourceView]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
+			});
+		}
 #endif
 	}
 	else
@@ -1629,9 +1711,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppBlendState));
 
-		register_destruction_callback_d3dx(*ppBlendState, [this, pipeline = *ppBlendState]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-		});
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(*ppBlendState, [this, pipeline = *ppBlendState]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
+			});
+		}
 #endif
 	}
 	else

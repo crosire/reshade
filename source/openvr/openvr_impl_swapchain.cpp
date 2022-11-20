@@ -61,7 +61,7 @@ reshade::openvr::swapchain_d3d12_impl::swapchain_d3d12_impl(D3D12CommandQueue *q
 
 reshade::openvr::swapchain_impl::~swapchain_impl()
 {
-	extern thread_local reshade::opengl::swapchain_impl *g_current_context;
+	extern thread_local reshade::opengl::render_context_impl *g_current_context;
 	if (static_cast<api::device_api>(_renderer_id) == api::device_api::opengl && g_current_context == nullptr)
 		return; // Cannot clean up if OpenGL context was already destroyed
 

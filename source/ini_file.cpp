@@ -22,19 +22,19 @@ ini_file::ini_file(const std::filesystem::path &path) : _path(path)
 	load();
 }
 
-void ini_file::load()
+bool ini_file::load()
 {
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
 	if (!ec && _modified_at >= modified_at)
-		return; // Skip loading if there was no modification to the file since it was last loaded
+		return true; // Skip loading if there was no modification to the file since it was last loaded
 
 	// Clear when file does not exist too
 	_sections.clear();
 
-	std::ifstream file;
-	if (file.open(_path); !file)
-		return;
+	std::ifstream file(_path);
+	if (!file)
+		return false;
 
 	_modified = false;
 	_modified_at = modified_at;
@@ -77,7 +77,7 @@ void ini_file::load()
 			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
 			{
 				// Treat ",," as an escaped comma and only split on single ","
-				const size_t found = std::min(value.find_first_of(',', offset), len);
+				const size_t found = std::min(value.find(',', offset), len);
 				if (found + 1 < len && value[found + 1] == ',')
 				{
 					offset = found + 2;
@@ -105,6 +105,8 @@ void ini_file::load()
 			_sections[section].insert({ line, {} });
 		}
 	}
+
+	return true;
 }
 bool ini_file::save()
 {
@@ -163,6 +165,10 @@ bool ini_file::save()
 				std::string value;
 				for (const std::string &element : elements)
 				{
+					// Empty elements mess with escaped commas, so simply skip them
+					if (element.empty())
+						continue;
+
 					value.reserve(value.size() + element.size() + 1);
 					for (const char c : element)
 						value.append(c == ',' ? 2 : 1, c);
@@ -170,7 +176,11 @@ bool ini_file::save()
 				}
 
 				// Remove the last comma
-				value.pop_back();
+				if (!value.empty())
+				{
+					assert(value.back() == ',');
+					value.pop_back();
+				}
 
 				data << value;
 			}
@@ -185,9 +195,11 @@ bool ini_file::save()
 	if (!file)
 		return false;
 
-	const std::string str = data.str();
 	file.imbue(std::locale("en-us.UTF-8"));
-	file.write(str.data(), str.size());
+
+	const std::string str = data.str();
+	if (!file.write(str.data(), str.size()))
+		return false;
 
 	// Flush stream to disk before updating last write time
 	file.close();
@@ -237,11 +249,14 @@ ini_file &ini_file::load_cache(const std::filesystem::path &path)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
-	const auto insert = s_ini_cache.try_emplace(path, std::make_unique<ini_file>(path));
+	const auto insert = s_ini_cache.try_emplace(path);
 	const auto it = insert.first;
 
+	// Only construct when actually adding a new entry to the cache, since the 'ini_file' constructor performs a costly load of the file
+	if (insert.second)
+		it->second = std::make_unique<ini_file>(path);
 	// Don't reload file when it was just loaded or there are still modifications pending
-	if (!insert.second && !it->second->_modified)
+	else if (!it->second->_modified)
 		it->second->load();
 
 	return *it->second;

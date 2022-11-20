@@ -228,7 +228,7 @@ namespace reshade::api
 	/// <summary>
 	/// Describes a resource, such as a buffer or texture.
 	/// </summary>
-	struct resource_desc
+	struct [[nodiscard]] resource_desc
 	{
 		constexpr resource_desc() : texture() {}
 		constexpr resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
@@ -335,7 +335,7 @@ namespace reshade::api
 	/// <summary>
 	/// Describes a resource view, which specifies how to interpret the data of a resource.
 	/// </summary>
-	struct resource_view_desc
+	struct [[nodiscard]] resource_view_desc
 	{
 		constexpr resource_view_desc() : texture() {}
 		constexpr resource_view_desc(format format, uint64_t offset, uint64_t size) :

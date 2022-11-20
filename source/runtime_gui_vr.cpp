@@ -94,7 +94,9 @@ void reshade::runtime::deinit_gui_vr()
 
 void reshade::runtime::draw_gui_vr()
 {
+#if RESHADE_FX
 	_gather_gpu_statistics = false;
+#endif
 
 	if (s_main_handle == vr::k_ulOverlayHandleInvalid || !s_overlay->IsOverlayVisible(s_main_handle))
 		return;
@@ -258,9 +260,9 @@ void reshade::runtime::draw_gui_vr()
 #if RESHADE_ADDON
 	else if (selected_overlay_index < overlay_index)
 	{
-#if RESHADE_ADDON_LITE
+#  if RESHADE_ADDON_LITE
 		assert(addon_enabled);
-#endif
+#  endif
 
 		overlay_index = static_cast<int>(std::size(overlay_callbacks));
 
@@ -327,13 +329,12 @@ void reshade::runtime::draw_gui_vr()
 		texture.eType = vr::TextureType_OpenGL;
 		break;
 	case api::device_api::vulkan:
-		const auto device_impl = static_cast<vulkan::device_impl *>(_device);
 		texture_data.vulkan.m_nImage = _vr_overlay_tex.handle;
 		texture_data.vulkan.m_pDevice = reinterpret_cast<VkDevice_T *>(_device->get_native());
-		texture_data.vulkan.m_pPhysicalDevice = device_impl->_physical_device;
+		texture_data.vulkan.m_pPhysicalDevice = static_cast<vulkan::device_impl *>(_device)->_physical_device;
 		texture_data.vulkan.m_pInstance = VK_NULL_HANDLE;
 		texture_data.vulkan.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native());
-		texture_data.vulkan.m_nQueueFamilyIndex = device_impl->_graphics_queue_family_index;
+		texture_data.vulkan.m_nQueueFamilyIndex = static_cast<vulkan::device_impl *>(_device)->_graphics_queue_family_index;
 		texture_data.vulkan.m_nWidth = OVERLAY_WIDTH;
 		texture_data.vulkan.m_nHeight = OVERLAY_HEIGHT;
 		texture_data.vulkan.m_nFormat = VK_FORMAT_R8G8B8A8_UNORM;

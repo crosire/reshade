@@ -56,7 +56,9 @@ uint32_t reshade::d3d12::swapchain_impl::get_back_buffer_count() const
 }
 uint32_t reshade::d3d12::swapchain_impl::get_current_back_buffer_index() const
 {
-	return _swap_index;
+	assert(_orig != nullptr);
+
+	return _orig->GetCurrentBackBufferIndex();
 }
 
 void reshade::d3d12::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type)
@@ -122,21 +124,69 @@ void reshade::d3d12::swapchain_impl::on_reset()
 
 void reshade::d3d12::swapchain_impl::on_present()
 {
-	// There is no swap chain in d3d12on7
-	if (_orig != nullptr)
-		_swap_index = _orig->GetCurrentBackBufferIndex();
-
 	if (!is_initialized())
 		return;
 
 	runtime::on_present();
 }
 
-bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwnd)
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE && RESHADE_FX
+void reshade::d3d12::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	const auto cmd_list_impl = static_cast<command_list_impl *>(cmd_list);
+
+	IUnknown *const prev_pipeline_state = cmd_list_impl->_current_pipeline_state;
+
+	runtime::render_effects(cmd_list, rtv, rtv_srgb);
+
+	if (!_is_in_present_call)
+	{
+		com_ptr<ID3D12PipelineState> pipeline_state;
+		if (prev_pipeline_state != nullptr &&
+			prev_pipeline_state != cmd_list_impl->_current_pipeline_state &&
+			SUCCEEDED(prev_pipeline_state->QueryInterface(&pipeline_state)))
+		{
+			cmd_list_impl->_current_pipeline_state = prev_pipeline_state;
+			cmd_list_impl->_orig->SetPipelineState(pipeline_state.get());
+		}
+	}
+}
+void reshade::d3d12::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	const auto cmd_list_impl = static_cast<command_list_impl *>(cmd_list);
+
+	IUnknown *const prev_pipeline_state = cmd_list_impl->_current_pipeline_state;
+
+	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
+
+	if (!_is_in_present_call)
+	{
+		com_ptr<ID3D12PipelineState> pipeline_state;
+		if (prev_pipeline_state != nullptr &&
+			prev_pipeline_state != cmd_list_impl->_current_pipeline_state &&
+			SUCCEEDED(prev_pipeline_state->QueryInterface(&pipeline_state)))
+		{
+			cmd_list_impl->_current_pipeline_state = prev_pipeline_state;
+			cmd_list_impl->_orig->SetPipelineState(pipeline_state.get());
+		}
+	}
+}
+#endif
+
+reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, command_queue_impl *queue) : swapchain_impl(device, queue, nullptr)
+{
+}
+
+uint32_t reshade::d3d12::swapchain_d3d12on7_impl::get_current_back_buffer_index() const
+{
+	return _swap_index;
+}
+
+bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(ID3D12Resource *source, HWND hwnd)
 {
 	assert(source != nullptr);
 
-	_swap_index = (_swap_index + 1) % 3;
+	_swap_index = (_swap_index + 1) % static_cast<UINT>(_backbuffers.size());
 
 	// Update source texture render target view
 	if (_backbuffers[_swap_index] != source)
@@ -150,7 +200,11 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 		}
 #endif
 
-		_backbuffers[_swap_index]  = source;
+		// Reduce number of back buffers if less are used than predicted
+		if (const auto it = std::find(_backbuffers.begin(), _backbuffers.end(), source); it != _backbuffers.end())
+			_backbuffers.erase(it);
+		else
+			_backbuffers[_swap_index] = source;
 
 		// Do not initialize before all back buffers have been set
 		// The first to be set is at index 1 due to the addition above, so it is sufficient to check the last to be set, which will be at index 0
@@ -165,7 +219,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 		}
 	}
 
-	// Is not initialized the first 3 frames, but that is fine, since 'on_present' does a 'is_initialized' check
-	on_present();
+	// Is not initialized the first few frames, but that is fine, since 'on_present' does an 'is_initialized' check
+	swapchain_impl::on_present();
 	return true;
 }

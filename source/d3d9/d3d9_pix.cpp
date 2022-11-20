@@ -7,7 +7,7 @@
 #include <Windows.h>
 #include <d3d9types.h>
 
-HOOK_EXPORT int WINAPI D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
+extern "C" int WINAPI D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
 {
 #ifndef NDEBUG
 	static const auto trampoline = reshade::hooks::call(D3DPERF_BeginEvent);
@@ -19,7 +19,7 @@ HOOK_EXPORT int WINAPI D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
 	return 0;
 #endif
 }
-HOOK_EXPORT int WINAPI D3DPERF_EndEvent()
+extern "C" int WINAPI D3DPERF_EndEvent()
 {
 #ifndef NDEBUG
 	static const auto trampoline = reshade::hooks::call(D3DPERF_EndEvent);
@@ -29,7 +29,7 @@ HOOK_EXPORT int WINAPI D3DPERF_EndEvent()
 #endif
 }
 
-HOOK_EXPORT void WINAPI D3DPERF_SetMarker(D3DCOLOR col, LPCWSTR wszName)
+extern "C" void WINAPI D3DPERF_SetMarker(D3DCOLOR col, LPCWSTR wszName)
 {
 #ifndef NDEBUG
 	static const auto trampoline = reshade::hooks::call(D3DPERF_SetMarker);
@@ -39,12 +39,12 @@ HOOK_EXPORT void WINAPI D3DPERF_SetMarker(D3DCOLOR col, LPCWSTR wszName)
 	UNREFERENCED_PARAMETER(wszName);
 #endif
 }
-HOOK_EXPORT void WINAPI D3DPERF_SetRegion(D3DCOLOR col, LPCWSTR wszName)
+extern "C" void WINAPI D3DPERF_SetRegion(D3DCOLOR col, LPCWSTR wszName)
 {
 	UNREFERENCED_PARAMETER(col);
 	UNREFERENCED_PARAMETER(wszName);
 }
-HOOK_EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
+extern "C" void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
 {
 	UNREFERENCED_PARAMETER(dwOptions);
 
@@ -53,12 +53,12 @@ HOOK_EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
 #endif
 }
 
-HOOK_EXPORT BOOL WINAPI D3DPERF_QueryRepeatFrame()
+extern "C" BOOL WINAPI D3DPERF_QueryRepeatFrame()
 {
 	return FALSE;
 }
 
-HOOK_EXPORT DWORD WINAPI D3DPERF_GetStatus()
+extern "C" DWORD WINAPI D3DPERF_GetStatus()
 {
 #ifndef NDEBUG
 	return reshade::hooks::call(D3DPERF_GetStatus)();

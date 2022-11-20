@@ -67,15 +67,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	RegisterClass(&wc);
 
-	const UINT window_w = 1024;
-	const UINT window_h = 800;
-	const UINT window_x = (GetSystemMetrics(SM_CXSCREEN) - window_w) / 2;
-	const UINT window_y = (GetSystemMetrics(SM_CYSCREEN) - window_h) / 2;
+	LONG window_w = 1024;
+	if (LPSTR width_arg = strstr(lpCmdLine, "-width "))
+		window_w = strtol(width_arg + 7, nullptr, 10);
+	LONG window_h = 800;
+	if (LPSTR height_arg = strstr(lpCmdLine, "-height "))
+		window_h = strtol(height_arg + 8, nullptr, 10);
+
+	const LONG window_x = (GetSystemMetrics(SM_CXSCREEN) - window_w) / 2;
+	const LONG window_y = (GetSystemMetrics(SM_CYSCREEN) - window_h) / 2;
+
+	RECT window_rect = { window_x, window_y, window_x + window_w, window_y + window_h };
+	AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, FALSE);
 
 	// Create and show window instance
 	const HWND window_handle = CreateWindow(
 		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_PRODUCT), WS_OVERLAPPEDWINDOW,
-		window_x, window_y, window_w, window_h, nullptr, nullptr, hInstance, nullptr);
+		window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, nullptr, nullptr, hInstance, nullptr);
 
 	if (window_handle == nullptr)
 		return 0;
@@ -88,8 +96,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	MSG msg = {};
 
-	#pragma region D3D9 Implementation
+	reshade::api::device_api api = reshade::api::device_api::d3d11;
 	if (strstr(lpCmdLine, "-d3d9"))
+		api = reshade::api::device_api::d3d9;
+	if (strstr(lpCmdLine, "-d3d11"))
+		api = reshade::api::device_api::d3d11;
+	if (strstr(lpCmdLine, "-d3d12"))
+		api = reshade::api::device_api::d3d12;
+	if (strstr(lpCmdLine, "-opengl"))
+		api = reshade::api::device_api::opengl;
+	if (strstr(lpCmdLine, "-vulkan"))
+		api = reshade::api::device_api::vulkan;
+
+	switch (api)
+	{
+	#pragma region D3D9 Implementation
+	case reshade::api::device_api::d3d9:
 	{
 		const auto d3d9_module = LoadLibraryW(L"d3d9.dll");
 		assert(d3d9_module != nullptr);
@@ -107,11 +129,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		com_ptr<IDirect3DDevice9Ex> device;
 		HR_CHECK(d3d->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, nullptr, &device));
 
-		while (msg.message != WM_QUIT)
+		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
 
 			if (s_resize_w != 0)
 			{
@@ -127,16 +150,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HR_CHECK(device->Present(nullptr, nullptr, nullptr, nullptr));
 		}
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(d3d9_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
-
+		break;
 	#pragma region D3D11 Implementation
-	if (strstr(lpCmdLine, "-d3d11"))
+	case reshade::api::device_api::d3d11:
 	{
 		const auto dxgi_module = LoadLibraryW(L"dxgi.dll");
 		const auto d3d11_module = LoadLibraryW(L"d3d11.dll");
@@ -172,11 +191,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		com_ptr<ID3D11RenderTargetView> target;
 		HR_CHECK(device->CreateRenderTargetView(backbuffer.get(), nullptr, &target));
 
-		while (msg.message != WM_QUIT)
+		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
 
 			if (s_resize_w != 0)
 			{
@@ -197,17 +217,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HR_CHECK(swapchain->Present(1, 0));
 		}
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(dxgi_module);
 		FreeLibrary(d3d11_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
-
+		break;
 	#pragma region D3D12 Implementation
-	if (strstr(lpCmdLine, "-d3d12"))
+	case reshade::api::device_api::d3d12:
 	{
 		const auto dxgi_module = LoadLibraryW(L"dxgi.dll");
 		const auto d3d12_module = LoadLibraryW(L"d3d12.dll");
@@ -289,10 +305,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			if (!is_d3d12on7)
 			{
 				HR_CHECK(swapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffers[i])));
+
+				const std::wstring debug_name = L"Back buffer " + std::to_wstring(i);
+				backbuffers[i]->SetName(debug_name.c_str());
 			}
 			else
 			{
-				RECT window_rect = {};
 				GetClientRect(window_handle, &window_rect);
 
 				D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
@@ -329,11 +347,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HR_CHECK(cmd_lists[i]->Close());
 		}
 
-		while (msg.message != WM_QUIT)
+		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
 
 			if (s_resize_w != 0)
 			{
@@ -375,17 +394,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 		}
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(dxgi_module);
 		FreeLibrary(d3d12_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
-
+		break;
 	#pragma region OpenGL Implementation
-	if (strstr(lpCmdLine, "-opengl"))
+	case reshade::api::device_api::opengl:
 	{
 		const auto opengl_module = LoadLibraryW(L"opengl32.dll");
 		assert(opengl_module != nullptr);
@@ -397,7 +412,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
 		pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
 		pfd.iPixelType = PFD_TYPE_RGBA;
-		pfd.cColorBits = 32;
+		pfd.cColorBits = 24;
+		pfd.cAlphaBits = 8;
 
 		SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
 
@@ -423,11 +439,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		wglDeleteContext(hglrc1);
 		wglMakeCurrent(hdc, hglrc2);
 
-		while (msg.message != WM_QUIT)
+		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
 
 			if (s_resize_w != 0)
 			{
@@ -449,16 +466,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		wglMakeCurrent(nullptr, nullptr);
 		wglDeleteContext(hglrc2);
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(opengl_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
-
+		break;
 	#pragma region Vulkan Implementation
-	if (strstr(lpCmdLine, "-vulkan"))
+	case reshade::api::device_api::vulkan:
 	{
 		const auto vulkan_module = LoadLibraryW(L"vulkan-1.dll");
 		assert(vulkan_module != nullptr);
@@ -655,8 +668,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		while (true)
 		{
-			while (msg.message != WM_QUIT &&
-				PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
 				DispatchMessage(&msg);
 			if (msg.message == WM_QUIT)
 				break;
@@ -712,15 +724,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		VK_CALL_DEVICE(vkDestroyDevice, device, nullptr);
 		VK_CALL_INSTANCE(vkDestroyInstance, instance, instance, nullptr);
 
-		reshade::hooks::uninstall();
-
 		FreeLibrary(vulkan_module);
-
-		return static_cast<int>(msg.wParam);
 	}
 	#pragma endregion
+		break;
+	default:
+		msg.wParam = EXIT_FAILURE;
+		break;
+	}
 
-	return EXIT_FAILURE;
+	reshade::hooks::uninstall();
+
+	return static_cast<int>(msg.wParam);
 }
 
 #endif

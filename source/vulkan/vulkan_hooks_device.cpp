@@ -17,9 +17,8 @@ extern thread_local bool g_in_dxgi_runtime;
 
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 static lockfree_linear_map<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
-extern lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispatch;
+extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_instance_dispatch;
 extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
-static lockfree_linear_map<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_swapchains;
 
 #define GET_DISPATCH_PTR(name, object) \
 	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
@@ -225,6 +224,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 #endif
 		dynamic_rendering_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
+		// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
+		if (dynamic_rendering_ext && instance_dispatch.api_version < VK_API_VERSION_1_3)
+		{
+			add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
+			add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
+		}
 #ifdef VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 #endif
@@ -325,7 +330,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	VkLayerDispatchTable dispatch_table = {};
 	dispatch_table.GetDeviceProcAddr = get_device_proc;
 
-	#pragma region Core 1_0
 	INIT_DISPATCH_PTR(DestroyDevice);
 	INIT_DISPATCH_PTR(GetDeviceQueue);
 	INIT_DISPATCH_PTR(QueueSubmit);
@@ -427,8 +431,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdNextSubpass);
 	INIT_DISPATCH_PTR(CmdEndRenderPass);
 	INIT_DISPATCH_PTR(CmdExecuteCommands);
-	#pragma endregion
-	#pragma region Core 1_1
+
+	// Core 1_1
 	if (instance_dispatch.api_version >= VK_API_VERSION_1_1)
 	{
 		INIT_DISPATCH_PTR(BindBufferMemory2);
@@ -437,17 +441,19 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(GetImageMemoryRequirements2);
 		INIT_DISPATCH_PTR(GetDeviceQueue2);
 	}
-	#pragma endregion
-	#pragma region Core 1_2
+
+	// Core 1_2
 	if (instance_dispatch.api_version >= VK_API_VERSION_1_2)
 	{
+		INIT_DISPATCH_PTR(CmdDrawIndirectCount);
+		INIT_DISPATCH_PTR(CmdDrawIndexedIndirectCount);
 		INIT_DISPATCH_PTR(CreateRenderPass2);
 		INIT_DISPATCH_PTR(CmdBeginRenderPass2);
 		INIT_DISPATCH_PTR(CmdNextSubpass2);
 		INIT_DISPATCH_PTR(CmdEndRenderPass2);
 	}
-	#pragma endregion
-	#pragma region Core 1_3
+
+	// Core 1_3
 	if (instance_dispatch.api_version >= VK_API_VERSION_1_3)
 	{
 		INIT_DISPATCH_PTR(CreatePrivateDataSlot);
@@ -459,9 +465,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(QueueSubmit2);
 		INIT_DISPATCH_PTR(CmdCopyBuffer2);
 		INIT_DISPATCH_PTR(CmdCopyImage2);
-		INIT_DISPATCH_PTR(CmdBlitImage2);
 		INIT_DISPATCH_PTR(CmdCopyBufferToImage2);
 		INIT_DISPATCH_PTR(CmdCopyImageToBuffer2);
+		INIT_DISPATCH_PTR(CmdBlitImage2);
 		INIT_DISPATCH_PTR(CmdResolveImage2);
 		INIT_DISPATCH_PTR(CmdBeginRendering);
 		INIT_DISPATCH_PTR(CmdEndRendering);
@@ -483,41 +489,53 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(GetDeviceBufferMemoryRequirements);
 		INIT_DISPATCH_PTR(GetDeviceImageMemoryRequirements);
 	}
-	#pragma endregion
-	#pragma region VK_KHR_swapchain
+
+	// VK_KHR_swapchain
 	INIT_DISPATCH_PTR(CreateSwapchainKHR);
 	INIT_DISPATCH_PTR(DestroySwapchainKHR);
 	INIT_DISPATCH_PTR(GetSwapchainImagesKHR);
+	INIT_DISPATCH_PTR(AcquireNextImageKHR);
 	INIT_DISPATCH_PTR(QueuePresentKHR);
-	#pragma endregion
-	#pragma region VK_KHR_dynamic_rendering
+	INIT_DISPATCH_PTR(AcquireNextImage2KHR);
+
+	// VK_KHR_dynamic_rendering
 	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRendering, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdEndRendering, KHR);
-	#pragma endregion
-	#pragma region VK_KHR_push_descriptor
+
+	// VK_KHR_push_descriptor
 	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
-	#pragma endregion
-	#pragma region VK_KHR_create_renderpass2
-	// Try the KHR version if the core version does not exist
+
+	// VK_KHR_create_renderpass2 (try the KHR version if the core version does not exist)
 	INIT_DISPATCH_PTR_EXTENSION(CreateRenderPass2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRenderPass2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdNextSubpass2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdEndRenderPass2, KHR);
-	#pragma endregion
-	#pragma region VK_KHR_copy_commands2
+
+	// VK_KHR_bind_memory2
+	INIT_DISPATCH_PTR_EXTENSION(BindBufferMemory2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(BindImageMemory2, KHR);
+
+	// VK_KHR_draw_indirect_count
+	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndirectCount, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndexedIndirectCount, KHR);
+
+	// VK_KHR_synchronization2
+	INIT_DISPATCH_PTR_EXTENSION(CmdPipelineBarrier2, KHR);
+
+	// VK_KHR_copy_commands2
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBuffer2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdBlitImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBufferToImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImageToBuffer2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdResolveImage2, KHR);
-	#pragma endregion
-	#pragma region VK_EXT_transform_feedback
+
+	// VK_EXT_transform_feedback
 	INIT_DISPATCH_PTR(CmdBindTransformFeedbackBuffersEXT);
 	INIT_DISPATCH_PTR(CmdBeginQueryIndexedEXT);
 	INIT_DISPATCH_PTR(CmdEndQueryIndexedEXT);
-	#pragma endregion
-	#pragma region VK_EXT_debug_utils
+
+	// VK_EXT_debug_utils
 	INIT_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
 	INIT_DISPATCH_PTR(QueueBeginDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(QueueEndDebugUtilsLabelEXT);
@@ -525,8 +543,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdBeginDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdEndDebugUtilsLabelEXT);
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
-	#pragma endregion
-	#pragma region VK_EXT_extended_dynamic_state
+
+	// VK_EXT_extended_dynamic_state
 #ifdef VK_EXT_extended_dynamic_state
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetCullMode, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetFrontFace, EXT);
@@ -541,18 +559,16 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilTestEnable, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilOp, EXT);
 #endif
-	#pragma endregion
-	#pragma region VK_EXT_private_data
-	// Try the EXT version if the core version does not exist
+
+	// VK_EXT_private_data (try the EXT version if the core version does not exist)
 	INIT_DISPATCH_PTR_EXTENSION(CreatePrivateDataSlot, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(DestroyPrivateDataSlot, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(GetPrivateData, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(SetPrivateData, EXT);
-	#pragma endregion
-	#pragma region VK_KHR_external_memory_win32
+
+	// VK_KHR_external_memory_win32
 	INIT_DISPATCH_PTR(GetMemoryWin32HandleKHR);
 	INIT_DISPATCH_PTR(GetMemoryWin32HandlePropertiesKHR);
-	#pragma endregion
 
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(
@@ -662,7 +678,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			std::sort(format_list.begin(), format_list.end());
 			format_list.erase(std::unique(format_list.begin(), format_list.end()), format_list.end());
 
-			// This is evil, because writing into the application memory, but eh =)
+			// This is evil, because writing into application memory, but eh =)
 			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->viewFormatCount = static_cast<uint32_t>(format_list.size());
 			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->pViewFormats = format_list.data();
 		}
@@ -776,12 +792,11 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 #endif
 
-	// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
-	reshade::vulkan::swapchain_impl *swapchain_impl = s_vulkan_swapchains.erase(create_info.oldSwapchain);
+	// Unregister object from old swap chain so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
+	reshade::vulkan::swapchain_impl *swapchain_impl = (create_info.oldSwapchain != VK_NULL_HANDLE) ?
+		swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(create_info.oldSwapchain) : nullptr;
 	if (swapchain_impl != nullptr)
 	{
-		assert(create_info.oldSwapchain != VK_NULL_HANDLE);
-
 #if RESHADE_ADDON
 		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
 			destroy_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
@@ -789,6 +804,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 		// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
 		swapchain_impl->on_reset();
+
+		device_impl->unregister_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)create_info.oldSwapchain);
 	}
 
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
@@ -815,6 +832,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		if (nullptr == swapchain_impl)
 			swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
 
+		device_impl->register_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)*pSwapchain, swapchain_impl);
+
 		swapchain_impl->on_init(*pSwapchain, create_info, hwnd);
 
 #if RESHADE_ADDON
@@ -822,15 +841,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
 			create_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
 #endif
-
-		if (!s_vulkan_swapchains.emplace(*pSwapchain, swapchain_impl))
-			delete swapchain_impl;
 	}
 	else
 	{
 		delete swapchain_impl;
-
-		s_vulkan_swapchains.emplace(*pSwapchain, nullptr);
 	}
 
 #if RESHADE_VERBOSE_LOG
@@ -846,7 +860,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 
 	// Remove swap chain from global list
-	reshade::vulkan::swapchain_impl *const swapchain_impl = s_vulkan_swapchains.erase(swapchain);
+	reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
 
 #if RESHADE_ADDON
 	if (swapchain_impl != nullptr)
@@ -858,7 +872,54 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 
 	delete swapchain_impl;
 
+	device_impl->unregister_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)swapchain);
+
 	trampoline(device, swapchain, pAllocator);
+}
+
+VkResult VKAPI_CALL vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t *pImageIndex)
+{
+	assert(pImageIndex != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(AcquireNextImageKHR, device_impl);
+
+	const VkResult result = trampoline(device, swapchain, timeout, semaphore, fence, pImageIndex);
+	if (result == VK_SUCCESS)
+	{
+		if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
+			swapchain_impl->set_current_back_buffer_index(*pImageIndex);
+	}
+#if RESHADE_VERBOSE_LOG
+	else if (result < VK_SUCCESS)
+	{
+		LOG(WARN) << "vkAcquireNextImageKHR" << " failed with error code " << result << '.';
+	}
+#endif
+
+	return result;
+}
+VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice device, const VkAcquireNextImageInfoKHR *pAcquireInfo, uint32_t *pImageIndex)
+{
+	assert(pAcquireInfo != nullptr && pImageIndex != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(AcquireNextImage2KHR, device_impl);
+
+	const VkResult result = trampoline(device, pAcquireInfo, pImageIndex);
+	if (result == VK_SUCCESS)
+	{
+		if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pAcquireInfo->swapchain))
+			swapchain_impl->set_current_back_buffer_index(*pImageIndex);
+	}
+#if RESHADE_VERBOSE_LOG
+	else if (result < VK_SUCCESS)
+	{
+		LOG(WARN) << "vkAcquireNextImage2KHR" << " failed with error code " << result << '.';
+	}
+#endif
+
+	return result;
 }
 
 VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
@@ -932,9 +993,11 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue))
 	{
+		const auto device_impl = static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device());
+
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
-			if (reshade::vulkan::swapchain_impl *const swapchain_impl = s_vulkan_swapchains.at(pPresentInfo->pSwapchains[i]))
+			if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pPresentInfo->pSwapchains[i]))
 			{
 #if RESHADE_ADDON
 				uint32_t dirty_rect_count = 0;
@@ -989,14 +1052,14 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 					dirty_rect_count,
 					dirty_rect_count != 0 ? dirty_rects.p : nullptr);
 #endif
-				swapchain_impl->on_present(queue, pPresentInfo->pImageIndices[i], const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
+				swapchain_impl->on_present(queue, const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
 			}
 		}
 
 		// Override wait semaphores based on the last queue submit
 		queue_impl->flush_immediate_command_list(const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
 
-		static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device())->advance_transient_descriptor_pool();
+		device_impl->advance_transient_descriptor_pool();
 	}
 
 	GET_DISPATCH_PTR(QueuePresentKHR, queue);
@@ -1190,7 +1253,7 @@ VkResult VKAPI_CALL vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(GetQueryPoolResults, device_impl);
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(stride <= std::numeric_limits<uint32_t>::max());
 
 	if (reshade::invoke_addon_event<reshade::addon_event::get_query_pool_results>(device_impl, reshade::api::query_pool { (uint64_t)queryPool }, firstQuery, queryCount, pData, static_cast<uint32_t>(stride)))
@@ -1486,35 +1549,41 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		{
 			const VkPipelineShaderStageCreateInfo &stage = create_info.pStages[k];
 
-			const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(stage.module);
-
+			reshade::api::shader_desc *desc = nullptr;
 			switch (stage.stage)
 			{
 			case VK_SHADER_STAGE_VERTEX_BIT:
-				vs_desc.code = module_data->spirv.data();
-				vs_desc.code_size = module_data->spirv.size();
-				vs_desc.entry_point = stage.pName;
+				desc = &vs_desc;
 				break;
 			case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
-				hs_desc.code = module_data->spirv.data();
-				hs_desc.code_size = module_data->spirv.size();
-				hs_desc.entry_point = stage.pName;
+				desc = &hs_desc;
 				break;
 			case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
-				ds_desc.code = module_data->spirv.data();
-				ds_desc.code_size = module_data->spirv.size();
-				ds_desc.entry_point = stage.pName;
+				desc = &ds_desc;
 				break;
 			case VK_SHADER_STAGE_GEOMETRY_BIT:
-				gs_desc.code = module_data->spirv.data();
-				gs_desc.code_size = module_data->spirv.size();
-				gs_desc.entry_point = stage.pName;
+				desc = &gs_desc;
 				break;
 			case VK_SHADER_STAGE_FRAGMENT_BIT:
-				ps_desc.code = module_data->spirv.data();
-				ps_desc.code_size = module_data->spirv.size();
-				ps_desc.entry_point = stage.pName;
+				desc = &ps_desc;
 				break;
+			default:
+				continue;
+			}
+
+			desc->entry_point = stage.pName;
+
+			if (stage.module != VK_NULL_HANDLE)
+			{
+				const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(stage.module);
+
+				desc->code = module_data->spirv.data();
+				desc->code_size = module_data->spirv.size();
+			}
+			else if (const auto module_info = find_in_structure_chain<VkShaderModuleCreateInfo>(stage.pNext, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO))
+			{
+				desc->code = module_info->pCode;
+				desc->code_size = module_info->codeSize;
 			}
 		}
 
@@ -1532,38 +1601,35 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		{
 			const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(create_info.renderPass);
 
-			const auto &subpass = render_pass_data->subpasses[create_info.subpass];
+			const reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS>::subpass &subpass = render_pass_data->subpasses[create_info.subpass];
 
-			if (subpass.pDepthStencilAttachment != nullptr)
-			{
-				const uint32_t a = subpass.pDepthStencilAttachment->attachment;
-				if (a != VK_ATTACHMENT_UNUSED)
-					depth_stencil_format = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
-			}
-
-			render_target_count = std::min(subpass.colorAttachmentCount, 8u);
+			render_target_count = subpass.num_color_attachments;
 
 			for (uint32_t k = 0; k < render_target_count; ++k)
 			{
-				const uint32_t a = subpass.pColorAttachments[k].attachment;
+				const uint32_t a = subpass.color_attachments[k];
 				if (a != VK_ATTACHMENT_UNUSED)
 					render_target_formats[k] = reshade::vulkan::convert_format(render_pass_data->attachments[a].format);
 			}
-		}
-		else
-		{
-			if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO))
+
 			{
-				if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
-					depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->depthAttachmentFormat);
-				else
-					depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->stencilAttachmentFormat);
-
-				render_target_count = std::min(dynamic_rendering_info->colorAttachmentCount, 8u);
-
-				for (uint32_t k = 0; k < render_target_count; ++k)
-					render_target_formats[k] = reshade::vulkan::convert_format(dynamic_rendering_info->pColorAttachmentFormats[k]);
+				const uint32_t a = subpass.depth_stencil_attachment;
+				if (a != VK_ATTACHMENT_UNUSED)
+					depth_stencil_format = reshade::vulkan::convert_format(render_pass_data->attachments[subpass.depth_stencil_attachment].format);
 			}
+		}
+		else if (const auto dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO))
+		{
+			assert(dynamic_rendering_info->colorAttachmentCount <= 8);
+			render_target_count = std::min(dynamic_rendering_info->colorAttachmentCount, 8u);
+
+			for (uint32_t k = 0; k < render_target_count; ++k)
+				render_target_formats[k] = reshade::vulkan::convert_format(dynamic_rendering_info->pColorAttachmentFormats[k]);
+
+			if (dynamic_rendering_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
+				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->depthAttachmentFormat);
+			else
+				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->stencilAttachmentFormat);
 		}
 
 		const reshade::api::pipeline_subobject subobjects[] = {
@@ -1634,12 +1700,22 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		const VkComputePipelineCreateInfo &create_info = pCreateInfos[i];
 
 		assert(create_info.stage.stage == VK_SHADER_STAGE_COMPUTE_BIT);
-		const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(create_info.stage.module);
 
 		reshade::api::shader_desc cs_desc = {};
-		cs_desc.code = module_data->spirv.data();
-		cs_desc.code_size = module_data->spirv.size();
 		cs_desc.entry_point = create_info.stage.pName;
+
+		if (create_info.stage.module != VK_NULL_HANDLE)
+		{
+			const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(create_info.stage.module);
+
+			cs_desc.code = module_data->spirv.data();
+			cs_desc.code_size = module_data->spirv.size();
+		}
+		else if (const auto module_info = find_in_structure_chain<VkShaderModuleCreateInfo>(create_info.stage.pNext, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO))
+		{
+			cs_desc.code = module_info->pCode;
+			cs_desc.code_size = module_info->codeSize;
+		}
 
 		const reshade::api::pipeline_subobject subobjects[] = {
 			{ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc }
@@ -1718,18 +1794,25 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	for (uint32_t i = 0; i < set_desc_count; ++i)
 	{
+		if (pCreateInfo->pSetLayouts[i] == VK_NULL_HANDLE)
+			continue; // This is optional when the pipeline layout is created with 'VK_PIPELINE_LAYOUT_CREATE_INDEPENDENT_SETS_BIT_EXT' flag
+
 		const auto set_layout_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pCreateInfo->pSetLayouts[i]);
 
-		if (set_layout_impl->push_descriptors)
+		if (!set_layout_impl->push_descriptors)
 		{
-			assert(set_layout_impl->ranges.size() == 1); // TODO
-
+			params[i].type = reshade::api::pipeline_layout_param_type::descriptor_set;
+			params[i].descriptor_set.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
+			params[i].descriptor_set.ranges = set_layout_impl->ranges.data();
+		}
+		else if (set_layout_impl->ranges.size() == 1)
+		{
 			params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors;
 			params[i].push_descriptors = set_layout_impl->ranges[0];
 		}
 		else
 		{
-			params[i].type = reshade::api::pipeline_layout_param_type::descriptor_set;
+			params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_ranges;
 			params[i].descriptor_set.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
 			params[i].descriptor_set.ranges = set_layout_impl->ranges.data();
 		}
@@ -2153,21 +2236,21 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS> data;
-	data.subpasses.assign(pCreateInfo->pSubpasses, pCreateInfo->pSubpasses + pCreateInfo->subpassCount);
+	data.subpasses.resize(pCreateInfo->subpassCount);
 	data.attachments.assign(pCreateInfo->pAttachments, pCreateInfo->pAttachments + pCreateInfo->attachmentCount);
 
-	for (VkSubpassDescription &subpass : data.subpasses)
+	for (uint32_t i = 0; i < pCreateInfo->subpassCount; ++i)
 	{
-		const auto color_attachments = new VkAttachmentReference[subpass.colorAttachmentCount];
-		std::memcpy(color_attachments, subpass.pColorAttachments, subpass.colorAttachmentCount * sizeof(VkAttachmentReference));
-		subpass.pColorAttachments = color_attachments;
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS>::subpass &dst_subpass = data.subpasses[i];
+		const VkSubpassDescription &src_subpass = pCreateInfo->pSubpasses[i];
 
-		if (subpass.pDepthStencilAttachment != nullptr)
-		{
-			const auto depth_stencil_attachment = new VkAttachmentReference;
-			std::memcpy(depth_stencil_attachment, subpass.pDepthStencilAttachment, sizeof(VkAttachmentReference));
-			subpass.pDepthStencilAttachment = depth_stencil_attachment;
-		}
+		assert(src_subpass.colorAttachmentCount <= 8);
+		dst_subpass.num_color_attachments = std::min(src_subpass.colorAttachmentCount, 8u);
+
+		for (uint32_t a = 0; a < dst_subpass.num_color_attachments; ++a)
+			dst_subpass.color_attachments[a] = src_subpass.pColorAttachments[a].attachment;
+
+		dst_subpass.depth_stencil_attachment = (src_subpass.pDepthStencilAttachment != nullptr) ? src_subpass.pDepthStencilAttachment->attachment : VK_ATTACHMENT_UNUSED;
 	}
 
 	device_impl->register_object<VK_OBJECT_TYPE_RENDER_PASS>(*pRenderPass, std::move(data));
@@ -2198,27 +2281,16 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 
 	for (uint32_t i = 0; i < pCreateInfo->subpassCount; ++i)
 	{
-		VkSubpassDescription &dst_subpass = data.subpasses[i];
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS>::subpass &dst_subpass = data.subpasses[i];
 		const VkSubpassDescription2 &src_subpass = pCreateInfo->pSubpasses[i];
 
-		const auto color_attachments = new VkAttachmentReference[src_subpass.colorAttachmentCount];
-		for (uint32_t a = 0; a < src_subpass.colorAttachmentCount; ++a)
-		{
-			color_attachments[a].attachment = src_subpass.pColorAttachments[a].attachment;
-			color_attachments[a].layout = src_subpass.pColorAttachments[a].layout;
-		}
+		assert(src_subpass.colorAttachmentCount <= 8);
+		dst_subpass.num_color_attachments = std::min(src_subpass.colorAttachmentCount, 8u);
 
-		dst_subpass.colorAttachmentCount = src_subpass.colorAttachmentCount;
-		dst_subpass.pColorAttachments = color_attachments;
+		for (uint32_t a = 0; a < dst_subpass.num_color_attachments; ++a)
+			dst_subpass.color_attachments[a] = src_subpass.pColorAttachments[a].attachment;
 
-		if (src_subpass.pDepthStencilAttachment != nullptr)
-		{
-			const auto depth_stencil_attachment = new VkAttachmentReference;
-			depth_stencil_attachment->attachment = src_subpass.pDepthStencilAttachment->attachment;
-			depth_stencil_attachment->layout = src_subpass.pDepthStencilAttachment->layout;
-
-			dst_subpass.pDepthStencilAttachment = depth_stencil_attachment;
-		}
+		dst_subpass.depth_stencil_attachment = (src_subpass.pDepthStencilAttachment != nullptr) ? src_subpass.pDepthStencilAttachment->attachment : VK_ATTACHMENT_UNUSED;
 	}
 	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
 	{
@@ -2247,14 +2319,6 @@ void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass
 	GET_DISPATCH_PTR_FROM(DestroyRenderPass, device_impl);
 
 #if RESHADE_ADDON
-	const auto data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(renderPass);
-
-	for (VkSubpassDescription &subpass : data->subpasses)
-	{
-		delete subpass.pDepthStencilAttachment;
-		delete[] subpass.pColorAttachments;
-	}
-
 	device_impl->unregister_object<VK_OBJECT_TYPE_RENDER_PASS>(renderPass);
 #endif
 

@@ -587,6 +587,9 @@
       <AdditionalOptions Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='Release Signed' Or '$(Configuration)'=='Release App'">
       </AdditionalOptions>
     </ClCompile>
+    <ClCompile Include="source\input_gamepad.cpp">
+      <PreprocessorDefinitions>_WIN32_WINNT=_WIN32_WINNT_WIN7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="source\opengl\opengl_hooks.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_ffp.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp" />
@@ -689,10 +692,11 @@
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\input_freepie.hpp" />
+    <ClInclude Include="source\input_gamepad.hpp" />
     <ClInclude Include="source\lockfree_linear_map.hpp" />
-    <ClInclude Include="source\opengl\opengl.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_device.hpp" />
+    <ClInclude Include="source\opengl\opengl_impl_render_context.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_state_block.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_swapchain.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp" />

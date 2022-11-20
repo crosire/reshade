@@ -13,6 +13,7 @@
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
 #include "opengl/opengl_impl_swapchain.hpp"
+#include "opengl/opengl_impl_type_convert.hpp"
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
 #include "vulkan/vulkan_impl_command_queue.hpp"
@@ -56,7 +57,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, texture, bounds, flags);
@@ -112,7 +113,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, texture, bounds, flags);
@@ -147,7 +148,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 		goto normal_submit; // No proxy command queue found, so just submit normally
 	else if (s_vr_swapchain == nullptr)
 		s_vr_swapchain = new reshade::openvr::swapchain_d3d12_impl(command_queue_proxy.get(), compositor);
-	else if (s_vr_swapchain->get_device() != command_queue_proxy->_device)
+	else if (s_vr_swapchain->get_device() != command_queue_proxy->get_device())
 		return vr::VRCompositorError_InvalidTexture;
 
 	// Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
@@ -155,7 +156,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, (void *)texture, bounds, flags);
@@ -192,13 +193,13 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor, vr::EVREye eye, GLuint object, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
-	extern thread_local reshade::opengl::swapchain_impl *g_current_context;
+	extern thread_local reshade::opengl::render_context_impl *g_current_context;
 
 	if (g_current_context == nullptr)
 		goto normal_submit;
 	else if (s_vr_swapchain == nullptr)
-		s_vr_swapchain = new reshade::openvr::swapchain_impl(g_current_context, g_current_context, compositor);
-	else if (s_vr_swapchain->get_device() != g_current_context)
+		s_vr_swapchain = new reshade::openvr::swapchain_impl(g_current_context->get_device(), g_current_context, compositor);
+	else if (s_vr_swapchain->get_device() != g_current_context->get_device())
 		return vr::VRCompositorError_InvalidTexture;
 
 	const reshade::api::resource eye_texture = reshade::opengl::make_resource_handle(
@@ -208,7 +209,7 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);
@@ -266,7 +267,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
 #endif
 	normal_submit:
 		return submit(eye, (void *)texture, bounds, flags);
@@ -467,7 +468,7 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 
 vr::IVRClientCore *g_client_core = nullptr;
 
-HOOK_EXPORT void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
+extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
 {
 	LOG(INFO) << "Redirecting " << "VRClientCoreFactory" << '(' << "pInterfaceName = " << pInterfaceName << ')' << " ...";
 

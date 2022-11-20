@@ -15,6 +15,8 @@ packages/
 *.aps
 *.VC.db
 *.VC.opendb
+
+# Visual Studio user config files
 *.sdf
 *.opensdf
 *.suo

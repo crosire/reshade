@@ -219,7 +219,7 @@ public:
 	/// <summary>
 	/// Loads all values from disk.
 	/// </summary>
-	void load();
+	bool load();
 	/// <summary>
 	/// Saves all changes to this INI file to disk.
 	/// </summary>

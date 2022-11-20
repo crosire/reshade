@@ -70,6 +70,10 @@ ULONG   STDMETHODCALLTYPE Direct3DDepthStencilSurface9::Release()
 			// Remove pointer to this proxy object from the private data of the device
 			_orig->SetPrivateData(__uuidof(this), nullptr, 0, 0);
 
+			// Make sure there won't be an attempt to release this surface again because it's still current despite a reference count of zero (happens in Star Wars: The Force Unleashed 2)
+			if (this == _device->_current_depth_stencil)
+				_device->_current_depth_stencil.release();
+
 			delete this;
 		}
 	}

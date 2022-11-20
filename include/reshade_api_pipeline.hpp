@@ -71,8 +71,9 @@ namespace reshade::api
 	enum class pipeline_layout_param_type : uint32_t
 	{
 		push_constants = 1,
+		descriptor_set = 0,
 		push_descriptors = 2,
-		descriptor_set = 0
+		push_descriptors_ranges = 3
 	};
 
 	/// <summary>
@@ -168,7 +169,7 @@ namespace reshade::api
 			descriptor_range push_descriptors;
 
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/> or <see cref="pipeline_layout_param_type::push_descriptors_ranges"/>.
 			/// </summary>
 			struct
 			{
@@ -435,34 +436,42 @@ namespace reshade::api
 		/// <summary>
 		/// Enable or disable blending for each render target.
 		/// </summary>
+		/// <seealso cref="device_caps::independent_blend"/>
 		bool blend_enable[8] = { false, false, false, false, false, false, false, false };
 		/// <summary>
 		/// Enable or disable a logical operation for each render target.
 		/// </summary>
+		/// <seealso cref="device_caps::logic_op"/>
 		bool logic_op_enable[8] = { false, false, false, false, false, false, false, false };
 		/// <summary>
 		/// Source to use for the RGB value that the pixel shader outputs.
 		/// </summary>
+		/// <seealso cref="device_caps::independent_blend"/>
 		blend_factor source_color_blend_factor[8] = { blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one };
 		/// <summary>
 		/// Destination to use for the current RGB value in the render target.
 		/// </summary>
+		/// <seealso cref="device_caps::independent_blend"/>
 		blend_factor dest_color_blend_factor[8] = { blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero };
 		/// <summary>
 		/// Operation to use to combine <see cref="source_color_blend_factor"/> and <see cref="dest_color_blend_factor"/>.
 		/// </summary>
+		/// <seealso cref="device_caps::independent_blend"/>
 		blend_op color_blend_op[8] = { blend_op::add, blend_op::add, blend_op::add, blend_op::add, blend_op::add, blend_op::add, blend_op::add, blend_op::add };
 		/// <summary>
 		/// Source to use for the alpha value that the pixel shader outputs.
 		/// </summary>
+		/// <seealso cref="device_caps::independent_blend"/>
 		blend_factor source_alpha_blend_factor[8] = { blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one, blend_factor::one };
 		/// <summary>
 		/// Destination to use for the current alpha value in the render target.
 		/// </summary>
+		/// <seealso cref="device_caps::independent_blend"/>
 		blend_factor dest_alpha_blend_factor[8] = { blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero, blend_factor::zero };
 		/// <summary>
 		/// Operation to use to combine <see cref="source_alpha_blend_factor"/> and <see cref="dest_alpha_blend_factor"/>.
 		/// </summary>
+		/// <seealso cref="device_caps::independent_blend"/>
 		blend_op alpha_blend_op[8] = { blend_op::add, blend_op::add, blend_op::add, blend_op::add, blend_op::add, blend_op::add, blend_op::add, blend_op::add };
 		/// <summary>
 		/// Constant RGBA value to use when <see cref="source_color_blend_factor"/> or <see cref="dest_color_blend_factor"/> is <see cref="blend_factor::constant_color"/>.
@@ -471,6 +480,7 @@ namespace reshade::api
 		/// <summary>
 		/// Logical operation for each render target. Ignored if <see cref="logic_op_enable"/> is <see langword="false"/>.
 		/// </summary>
+		/// <seealso cref="device_caps::logic_op"/>
 		logic_op logic_op[8] = { logic_op::noop, logic_op::noop, logic_op::noop, logic_op::noop, logic_op::noop, logic_op::noop, logic_op::noop, logic_op::noop };
 		/// <summary>
 		/// A write mask specifying which color components are written to each render target. Bitwise combination of <c>0x1</c> for red, <c>0x2</c> for green, <c>0x4</c> for blue and <c>0x8</c> for alpha.
@@ -486,6 +496,7 @@ namespace reshade::api
 		/// <summary>
 		/// Fill mode to use when rendering triangles.
 		/// </summary>
+		/// <seealso cref="device_caps::fill_mode_non_solid"/>
 		fill_mode fill_mode = fill_mode::solid;
 		/// <summary>
 		/// Triangles facing the specified direction are not drawn.
@@ -526,6 +537,7 @@ namespace reshade::api
 		/// <summary>
 		/// Enable or disable conservative rasterization mode.
 		/// </summary>
+		/// <seealso cref="device_caps::conservative_rasterization"/>
 		uint32_t conservative_rasterization = 0;
 	};
 

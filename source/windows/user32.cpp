@@ -7,7 +7,7 @@
 #include "hook_manager.hpp"
 #include <Windows.h>
 
-HOOK_EXPORT ATOM WINAPI HookRegisterClassA(const WNDCLASSA *lpWndClass)
+extern "C" ATOM WINAPI HookRegisterClassA(const WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
@@ -31,7 +31,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassA(const WNDCLASSA *lpWndClass)
 
 	return reshade::hooks::call(HookRegisterClassA)(&wndclass);
 }
-HOOK_EXPORT ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
+extern "C" ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
@@ -52,7 +52,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
 
 	return reshade::hooks::call(HookRegisterClassW)(&wndclass);
 }
-HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(const WNDCLASSEXA *lpWndClassEx)
+extern "C" ATOM WINAPI HookRegisterClassExA(const WNDCLASSEXA *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
@@ -73,7 +73,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(const WNDCLASSEXA *lpWndClassEx)
 
 	return reshade::hooks::call(HookRegisterClassExA)(&wndclass);
 }
-HOOK_EXPORT ATOM WINAPI HookRegisterClassExW(const WNDCLASSEXW *lpWndClassEx)
+extern "C" ATOM WINAPI HookRegisterClassExW(const WNDCLASSEXW *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 

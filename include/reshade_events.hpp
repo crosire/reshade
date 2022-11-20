@@ -788,6 +788,7 @@ namespace reshade
 		/// <item><description>vkCmdBeginRenderPass2</description></item>
 		/// <item><description>vkCmdNextSubpass</description></item>
 		/// <item><description>vkCmdNextSubpass2</description></item>
+		/// <item><description>vkCmdBeginRendering</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)</c></para>
 		/// </summary>
@@ -801,6 +802,7 @@ namespace reshade
 		/// <item><description>vkCmdEndRenderPass2</description></item>
 		/// <item><description>vkCmdNextSubpass</description></item>
 		/// <item><description>vkCmdNextSubpass2</description></item>
+		/// <item><description>vkCmdEndRendering</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
@@ -963,6 +965,10 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::CSSetConstantBuffers</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootConstantBufferView</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootConstantBufferView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootShaderResourceView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootShaderResourceView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootUnorderedAccessView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootUnorderedAccessView</description></item>
 		/// <item><description>glBindBufferBase</description></item>
 		/// <item><description>glBindBufferRange</description></item>
 		/// <item><description>glBindBuffersBase</description></item>
@@ -982,6 +988,8 @@ namespace reshade
 		/// <summary>
 		/// Called after:
 		/// <list type="bullet">
+		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootSignature</description></item>
+		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootSignature</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetComputeRootDescriptorTable</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::SetGraphicsRootDescriptorTable</description></item>
 		/// <item><description>vkCmdBindDescriptorSets</description></item>
@@ -1015,6 +1023,7 @@ namespace reshade
 		/// <item><description>glBindVertexBuffer</description></item>
 		/// <item><description>glBindVertexBuffers</description></item>
 		/// <item><description>vkCmdBindVertexBuffers</description></item>
+		/// <item><description>vkCmdBindVertexBuffers2</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)</c></para>
 		/// </summary>

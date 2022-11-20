@@ -131,6 +131,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			g_reshade_dll_path = get_module_path(hModule);
 			g_target_executable_path = get_module_path(nullptr);
 
+			ini_file &config = reshade::global_config();
+
 			const std::filesystem::path module_name = g_reshade_dll_path.stem();
 
 			const bool is_d3d = _wcsnicmp(module_name.c_str(), L"d3d", 3) == 0;
@@ -146,7 +148,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			if (default_base_to_target_executable_path && !GetEnvironmentVariableW(L"RESHADE_DISABLE_LOADING_CHECK", nullptr, 0))
 			{
 				std::error_code ec;
-				if (!std::filesystem::exists(reshade::global_config().path(), ec))
+				if (!std::filesystem::exists(config.path(), ec))
 				{
 #ifndef NDEBUG
 					// Log was not yet opened at this point, so this only writes to debug output
@@ -158,7 +160,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
-			if (reshade::global_config().get("INSTALL", "EnableLogging") || !reshade::global_config().has("INSTALL", "EnableLogging"))
+			if (config.get("INSTALL", "EnableLogging") || !config.has("INSTALL", "EnableLogging"))
 			{
 				std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
 				if (!reshade::log::open_log_file(log_path))
@@ -170,7 +172,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 					log_path.replace_filename(log_filename);
 
-					reshade::log::open_log_file(log_path);
+					if (!reshade::log::open_log_file(log_path))
+					{
+#ifndef NDEBUG
+						LOG(ERROR) << "Opening the ReShade log file" << " failed with error code " << GetLastError() << '.';
+#endif
+					}
 				}
 			}
 
@@ -196,7 +203,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			}
 
 #ifndef NDEBUG
-			if (reshade::global_config().get("INSTALL", "DumpExceptions"))
+			if (config.get("INSTALL", "DumpExceptions"))
 			{
 				CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(&LoadLibraryW), const_cast<LPVOID>(static_cast<LPCVOID>(L"dbghelp.dll")), 0, nullptr);
 
@@ -249,7 +256,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			}
 #endif
 
-			if (reshade::global_config().get("INSTALL", "PreventUnloading"))
+			if (config.get("INSTALL", "PreventUnloading"))
 			{
 				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(hModule), &hModule);
 			}

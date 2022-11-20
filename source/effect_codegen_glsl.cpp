@@ -45,8 +45,8 @@ private:
 	bool _vulkan_semantics = false;
 	bool _uniforms_to_spec_constants = false;
 	bool _enable_16bit_types = false;
-	bool _enable_control_flow_attributes = false;
 	bool _flip_vert_y = false;
+	bool _enable_control_flow_attributes = false;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 

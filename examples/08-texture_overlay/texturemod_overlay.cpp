@@ -29,11 +29,6 @@ struct tex_hash
 	}
 };
 
-struct __declspec(uuid("f326a1eb-5062-453e-9852-a787594a977a")) cmd_data
-{
-	std::unordered_set<resource_view, tex_hash> current_texture_list;
-};
-
 struct __declspec(uuid("0ce51b56-a973-4104-bcca-945686f50170")) device_data
 {
 	resource green_texture = {};
@@ -46,6 +41,11 @@ struct __declspec(uuid("0ce51b56-a973-4104-bcca-945686f50170")) device_data
 
 	bool filter = false;
 	float scale = 1.0f;
+};
+
+struct __declspec(uuid("f326a1eb-5062-453e-9852-a787594a977a")) command_list_data
+{
+	std::unordered_set<resource_view, tex_hash> current_texture_list;
 };
 
 static std::mutex s_mutex;
@@ -81,11 +81,11 @@ static void on_destroy_device(device *device)
 }
 static void on_init_cmd_list(command_list *cmd_list)
 {
-	cmd_list->create_private_data<cmd_data>();
+	cmd_list->create_private_data<command_list_data>();
 }
 static void on_destroy_cmd_list(command_list *cmd_list)
 {
-	cmd_list->destroy_private_data<cmd_data>();
+	cmd_list->destroy_private_data<command_list_data>();
 }
 
 static void on_init_texture(device *device, const resource_desc &desc, const subresource_data *, resource_usage, resource res)
@@ -145,8 +145,8 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 		return;
 
 	device *const device = cmd_list->get_device();
-	auto &data = device->get_private_data<struct device_data>();
-	auto &cmd_data = cmd_list->get_private_data<struct cmd_data>();
+	auto &data = device->get_private_data<device_data>();
+	auto &cmd_data = cmd_list->get_private_data<command_list_data>();
 
 	for (uint32_t i = 0; i < update.count; ++i)
 	{
@@ -198,8 +198,8 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 		return;
 
 	device *const device = cmd_list->get_device();
-	auto &cmd_data = cmd_list->get_private_data<struct cmd_data>();
-	auto &descriptor_data = device->get_private_data<struct descriptor_set_tracking>();
+	auto &cmd_data = cmd_list->get_private_data<command_list_data>();
+	auto &descriptor_data = device->get_private_data<descriptor_set_tracking>();
 	assert((&descriptor_data) != nullptr);
 
 	for (uint32_t i = 0; i < count; ++i)
@@ -233,14 +233,14 @@ static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages,
 static void on_execute(command_queue *, command_list *cmd_list)
 {
 	device *const device = cmd_list->get_device();
-	auto &data = device->get_private_data<struct device_data>();
-	auto &cmd_data = cmd_list->get_private_data<struct cmd_data>();
+	auto &data = device->get_private_data<device_data>();
+	auto &cmd_data = cmd_list->get_private_data<command_list_data>();
 
 	data.current_texture_list.insert(cmd_data.current_texture_list.begin(), cmd_data.current_texture_list.end());
 	cmd_data.current_texture_list.clear();
 }
 
-static void on_present(command_queue *queue, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
+static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
 {
 	device *const device = swapchain->get_device();
 

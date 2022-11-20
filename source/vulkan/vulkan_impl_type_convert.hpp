@@ -74,7 +74,14 @@ namespace reshade::vulkan
 	{
 		using Handle = VkRenderPass;
 
-		std::vector<VkSubpassDescription> subpasses;
+		struct subpass
+		{
+			uint32_t color_attachments[8];
+			uint32_t num_color_attachments;
+			uint32_t depth_stencil_attachment;
+		};
+
+		std::vector<subpass> subpasses;
 		std::vector<VkAttachmentDescription> attachments;
 	};
 

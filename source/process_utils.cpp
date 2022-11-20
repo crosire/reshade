@@ -8,7 +8,7 @@
 #include <Windows.h>
 #include <Shellapi.h>
 
-bool reshade::open_explorer(const std::filesystem::path &path)
+bool reshade::utils::open_explorer(const std::filesystem::path &path)
 {
 	// Use absolute path to explorer to avoid potential security issues when executable is replaced
 	WCHAR explorer_path[MAX_PATH];
@@ -19,7 +19,7 @@ bool reshade::open_explorer(const std::filesystem::path &path)
 	return ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + path.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT) != nullptr;
 }
 
-bool reshade::execute_command(const std::string &command_line, const std::filesystem::path &working_directory, bool no_window)
+bool reshade::utils::execute_command(const std::string &command_line, const std::filesystem::path &working_directory, bool no_window)
 {
 	std::wstring command_line_wide;
 	command_line_wide.reserve(command_line.size());

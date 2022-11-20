@@ -96,6 +96,9 @@
     <ClCompile Include="source\input_freepie.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="source\input_gamepad.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="source\runtime.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
@@ -309,6 +312,9 @@
     <ClCompile Include="source\opengl\opengl_impl_device.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClInclude Include="source\opengl\opengl_impl_render_context.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
     <ClCompile Include="source\opengl\opengl_impl_state_block.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
@@ -417,6 +423,9 @@
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\input_freepie.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\input_gamepad.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime.hpp">
@@ -571,9 +580,6 @@
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp">
       <Filter>hooks\dxgi</Filter>
-    </ClInclude>
-    <ClInclude Include="source\opengl\opengl.hpp">
-      <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_hooks.hpp">
       <Filter>hooks\opengl</Filter>

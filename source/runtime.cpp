@@ -15,11 +15,13 @@
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
 #include "input_freepie.hpp"
+#include "input_gamepad.hpp"
 #include "com_ptr.hpp"
 #include "process_utils.hpp"
 #include <set>
 #include <thread>
 #include <cstring>
+#include <fstream>
 #include <algorithm>
 #include <fpng.h>
 #include <stb_image.h>
@@ -27,6 +29,7 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 #include <malloc.h>
+#include <dwmapi.h>
 #include <d3dcompiler.h>
 
 #if RESHADE_FX
@@ -166,6 +169,8 @@ static inline int format_color_bit_depth(reshade::api::format value)
 }
 #endif
 
+static std::atomic<unsigned int> s_runtime_index = 0;
+
 reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queue) :
 	_device(device),
 	_graphics_queue(graphics_queue),
@@ -189,11 +194,22 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
+	// Increase global runtime index
+	const unsigned int runtime_index = s_runtime_index++;
+
 	// Fall back to alternative configuration file name if it exists
 	std::error_code ec;
 	if (std::filesystem::path config_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
 		std::filesystem::exists(config_path_alt, ec) && !std::filesystem::exists(_config_path, ec))
 		_config_path = std::move(config_path_alt);
+	// Add an index to the config file name in case there are multiple runtimes
+	else if (runtime_index != 0)
+	{
+		const std::filesystem::path config_path_default = _config_path;
+		_config_path.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
+		if (std::filesystem::exists(config_path_default, ec) && !std::filesystem::exists(_config_path, ec))
+			std::filesystem::copy_file(config_path_default, _config_path, ec);
+	}
 
 #if RESHADE_GUI
 	init_gui();
@@ -217,6 +233,9 @@ reshade::runtime::~runtime()
 #if RESHADE_GUI
 	 deinit_gui();
 #endif
+
+	// Decrease global runtime index
+	--s_runtime_index;
 }
 
 bool reshade::runtime::on_init(input::window_handle window)
@@ -401,6 +420,15 @@ bool reshade::runtime::on_init(input::window_handle window)
 	else
 		_input.reset();
 
+	// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
+	if (window != nullptr)
+	{
+		DWM_BLURBEHIND blur_behind = {};
+		blur_behind.dwFlags = DWM_BB_ENABLE;
+		blur_behind.fEnable = global_config().get("APP", "EnableTransparency");
+		DwmEnableBlurBehindWindow(GetAncestor(static_cast<HWND>(window), GA_ROOT), &blur_behind);
+	}
+
 	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_framecount = 0;
 
@@ -415,7 +443,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 #endif
 
 #if RESHADE_FX && RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
+	LOG(INFO) << "Recreated runtime environment on runtime " << this << " (" << _config_path << ").";
 #endif
 
 	return true;
@@ -530,7 +558,7 @@ void reshade::runtime::on_reset()
 #endif
 
 #if RESHADE_FX && RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
+	LOG(INFO) << "Destroyed runtime environment on runtime " << this << " (" << _config_path << ").";
 #endif
 }
 void reshade::runtime::on_present()
@@ -604,7 +632,11 @@ void reshade::runtime::on_present()
 	else
 		draw_gui();
 
-	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != 0 && _effects_enabled)))
+	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay
+#if RESHADE_FX
+		|| (_preview_texture != 0 && _effects_enabled)
+#endif
+		))
 		save_screenshot(" overlay");
 #endif
 
@@ -710,11 +742,15 @@ void reshade::runtime::on_present()
 
 	_is_in_present_call = false;
 #endif
+#if RESHADE_FX
 	_effects_rendered_this_frame = false;
+#endif
 
-	// Reset input status
+	// Update input status
 	if (_input != nullptr)
 		_input->next_frame();
+	if (_input_gamepad != nullptr)
+		_input_gamepad->next_frame();
 
 	// Save modified INI files
 	if (!ini_file::flush_cache())
@@ -749,6 +785,11 @@ void reshade::runtime::load_config()
 {
 	const ini_file &config = ini_file::load_cache(_config_path);
 
+	if (config.get("INPUT", "GamepadNavigation"))
+		_input_gamepad = input_gamepad::load();
+	else
+		_input_gamepad.reset();
+
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 #if RESHADE_FX
@@ -776,11 +817,8 @@ void reshade::runtime::load_config()
 	// Fall back to temp directory if cache path does not exist
 	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path))
 	{
-		WCHAR temp_path[MAX_PATH];
-		if (GetTempPathW(ARRAYSIZE(temp_path), temp_path))
-			_intermediate_cache_path = std::filesystem::path(temp_path) / "ReShade";
-
 		std::error_code ec;
+		_intermediate_cache_path = std::filesystem::temp_directory_path(ec) / "ReShade";
 		std::filesystem::create_directory(_intermediate_cache_path, ec);
 	}
 
@@ -1072,8 +1110,12 @@ void reshade::runtime::save_current_preset() const
 			preset.remove_key({}, "Key" + unique_name);
 	}
 
+	if (std::equal(technique_list.begin(), technique_list.end(), sorted_technique_list.begin()))
+		preset.remove_key({}, "TechniqueSorting");
+	else
+		preset.set({}, "TechniqueSorting", std::move(sorted_technique_list));
+
 	preset.set({}, "Techniques", std::move(technique_list));
-	preset.set({}, "TechniqueSorting", std::move(sorted_technique_list));
 	preset.set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
@@ -1542,7 +1584,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			if (entry_point.type == reshadefx::shader_type::cs && !_device->check_capability(api::device_caps::compute_shader))
 			{
-				effect.errors += "Compute shaders are not supported in D3D9/D3D10.";
+				effect.errors += "error: " + entry_point.name + ": compute shaders are not supported in D3D9/D3D10\n";
 				effect.compiled = false;
 				break;
 			}
@@ -1671,15 +1713,23 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						}
 					}
 
-					effect.errors += d3d_errors_string;
-
 					if (FAILED(hr))
 					{
+						// Add a prefix with the offending entry point name for generic error messages like an out of memory notification
+						if (d3d_errors_string.find("error") == std::string::npos)
+							effect.errors += "error: " + entry_point.name + ": ";
+
+						effect.errors += d3d_errors_string;
 						effect.compiled = false;
 
 						d3d_errors.reset();
 						d3d_compiled.reset();
 						break;
+					}
+					else
+					{
+						// Append warnings
+						effect.errors += d3d_errors_string;
 					}
 
 					cso.resize(d3d_compiled->GetBufferSize());
@@ -1761,7 +1811,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							functions_to_remove.push_back(spirv[inst + 2]);
 
 							// Get interface variables
-							for (uint32_t k = inst + 3 + static_cast<uint32_t>((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
+							for (uint32_t k = inst + 3 + static_cast<uint32_t>((std::strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
 								variables_to_remove.push_back(spirv[k]);
 
 							// Remove this entry point from the module
@@ -1855,7 +1905,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					{
 						if (sampler_info.srgb && sampler_info.texture_name == new_texture.unique_name)
 						{
-							effect.errors += "warning: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
+							effect.errors += "warning: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)\n";
 						}
 					}
 				}
@@ -2745,7 +2795,7 @@ bool reshade::runtime::create_texture(texture &tex)
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
 			return false;
 		}
-		if (view_format_srgb == view_format)
+		if (view_format_srgb == view_format || tex.storage_access) // sRGB formats do not support storage usage
 		{
 			tex.rtv[1] = tex.rtv[0];
 		}
@@ -2920,24 +2970,24 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		stbi_uc *filedata = nullptr;
+		stbi_uc *pixels = nullptr;
 		int width = 0, height = 0, channels = 0;
 
-		if (FILE *file = nullptr;
-			_wfopen_s(&file, source_path.c_str(), L"rb") == 0)
+		if (auto file = std::ifstream(source_path, std::ios::binary))
 		{
 			// Read texture data into memory in one go since that is faster than reading chunk by chunk
-			std::vector<uint8_t> mem(static_cast<size_t>(std::filesystem::file_size(source_path)));
-			fread(mem.data(), 1, mem.size(), file);
-			fclose(file);
+			std::error_code ec;
+			std::vector<stbi_uc> file_data(static_cast<size_t>(std::filesystem::file_size(source_path, ec)));
+			file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
+			file.close();
 
-			if (stbi_dds_test_memory(mem.data(), static_cast<int>(mem.size())))
-				filedata = stbi_dds_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
+			if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
+				pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
 			else
-				filedata = stbi_load_from_memory(mem.data(), static_cast<int>(mem.size()), &width, &height, &channels, STBI_rgb_alpha);
+				pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
-		if (filedata == nullptr)
+		if (pixels == nullptr)
 		{
 			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
 				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
@@ -2946,9 +2996,9 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		update_texture(tex, width, height, filedata);
+		update_texture(tex, width, height, pixels);
 
-		stbi_image_free(filedata);
+		stbi_image_free(pixels);
 
 		tex.loaded = true;
 	}
@@ -3019,15 +3069,13 @@ bool reshade::runtime::load_effect_cache(const std::string &id, const std::strin
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
-	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-		if (file == INVALID_HANDLE_VALUE)
-			return false;
-		DWORD size = GetFileSize(file, nullptr);
-		data.resize(size);
-		const BOOL result = ReadFile(file, data.data(), size, &size, nullptr);
-		CloseHandle(file);
-		return result != FALSE;
-	}
+	std::ifstream file(path, std::ios::binary);
+	if (!file)
+		return false;
+	std::error_code ec;
+	data.resize(static_cast<size_t>(std::filesystem::file_size(path, ec)), '\0');
+	file.read(data.data(), data.size());
+	return !file.fail();
 }
 bool reshade::runtime::save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const
 {
@@ -3037,14 +3085,11 @@ bool reshade::runtime::save_effect_cache(const std::string &id, const std::strin
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
-	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-		if (file == INVALID_HANDLE_VALUE)
-			return false;
-		DWORD size = static_cast<DWORD>(data.size());
-		const BOOL result = WriteFile(file, data.data(), size, &size, nullptr);
-		CloseHandle(file);
-		return result != FALSE;
-	}
+	std::ofstream file(path, std::ios::binary | std::ios::trunc);
+	if (!file)
+		return false;
+	file.write(data.data(), data.size());
+	return !file.fail();
 }
 void reshade::runtime::clear_effect_cache()
 {
@@ -3579,7 +3624,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 			const api::resource_usage state_new[2] = { api::resource_usage::copy_source, api::resource_usage::copy_dest };
 
 			cmd_list->barrier(2, resources, state_old, state_new);
-			cmd_list->copy_resource(back_buffer_resource, _effect_color_tex);
+			cmd_list->copy_texture_region(back_buffer_resource, 0, nullptr, _effect_color_tex, 0, nullptr);
 			cmd_list->barrier(2, resources, state_new, state_old);
 		}
 
@@ -3754,42 +3799,42 @@ void reshade::runtime::save_texture(const texture &tex)
 
 	_last_screenshot_save_successfull = true;
 
-	if (std::vector<uint8_t> data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
-		get_texture_data(tex.resource, api::resource_usage::shader_resource, data.data()))
+	if (std::vector<uint8_t> pixels(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
+		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data()))
 	{
-		_worker_threads.emplace_back([this, screenshot_path, data = std::move(data), width = tex.width, height = tex.height]() mutable {
+		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), width = tex.width, height = tex.height]() mutable {
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (FILE *file = nullptr;
-				_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+			if (auto file = std::ofstream(screenshot_path, std::ios::binary | std::ios::trunc))
 			{
 				const auto write_callback = [](void *context, void *data, int size) {
-					fwrite(data, 1, size, static_cast<FILE *>(context));
+					static_cast<std::ofstream *>(context)->write(static_cast<const char *>(data), size);
 				};
 
 				switch (_screenshot_format)
 				{
 				case 0:
-					save_success = stbi_write_bmp_to_func(write_callback, file, width, height, 4, data.data()) != 0;
+					save_success = stbi_write_bmp_to_func(write_callback, &file, width, height, 4, pixels.data()) != 0;
 					break;
 				case 1:
 				{
 #if 1
 					std::vector<uint8_t> encoded_data;
-					save_success = fpng::fpng_encode_image_to_memory(data.data(), width, height, 4, encoded_data);
-					fwrite(encoded_data.data(), 1, encoded_data.size(), file);
+					save_success = fpng::fpng_encode_image_to_memory(pixels.data(), width, height, 4, encoded_data);
+					write_callback(&file, encoded_data.data(), static_cast<int>(encoded_data.size()));
 #else
-					save_success = stbi_write_png_to_func(write_callback, file, width, height, 4, data.data(), 0) != 0;
+					save_success = stbi_write_png_to_func(write_callback, &file, width, height, 4, pixels.data(), 0) != 0;
 #endif
 					break;
 				}
 				case 2:
-					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, data.data(), _screenshot_jpeg_quality) != 0;
+					save_success = stbi_write_jpg_to_func(write_callback, &file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				}
 
-				fclose(file);
+				if (!file)
+					save_success = false;
 			}
 
 			if (_last_screenshot_save_successfull)
@@ -4213,8 +4258,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 
 	_last_screenshot_save_successfull = true;
 
-	if (std::vector<uint8_t> data(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
-		capture_screenshot(data.data()))
+	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
+		capture_screenshot(pixels.data()))
 	{
 #if RESHADE_FX
 		const bool include_preset = _screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path);
@@ -4222,14 +4267,14 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 		const bool include_preset = false;
 #endif
 
-		_worker_threads.emplace_back([this, screenshot_path, data = std::move(data), include_preset]() mutable {
+		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
 			int comp = 4;
 			if (_screenshot_clear_alpha)
 			{
 				comp = 3;
 				for (size_t i = 0; i < _width * _height; ++i)
-					*reinterpret_cast<uint32_t *>(data.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(data.data() + 4 * i);
+					*reinterpret_cast<uint32_t *>(pixels.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(pixels.data() + 4 * i);
 			}
 
 			// Create screenshot directory if it does not exist
@@ -4241,40 +4286,35 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (FILE *file = nullptr;
-				_wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+			if (auto file = std::ofstream(screenshot_path, std::ios::binary | std::ios::trunc))
 			{
-				struct write_context { FILE *file; bool write_success = true; } context = { file };
-
 				const auto write_callback = [](void *context, void *data, int size) {
-					if (fwrite(data, 1, size, static_cast<write_context *>(context)->file) != static_cast<size_t>(size))
-						static_cast<write_context *>(context)->write_success = false;
+					static_cast<std::ofstream *>(context)->write(static_cast<const char *>(data), size);
 				};
 
 				switch (_screenshot_format)
 				{
 				case 0:
-					save_success = stbi_write_bmp_to_func(write_callback, &context, _width, _height, comp, data.data()) != 0;
+					save_success = stbi_write_bmp_to_func(write_callback, &file, _width, _height, comp, pixels.data()) != 0;
 					break;
 				case 1:
 				{
 #if 1
 					std::vector<uint8_t> encoded_data;
-					save_success = fpng::fpng_encode_image_to_memory(data.data(), _width, _height, comp, encoded_data);
-					write_callback(&context, encoded_data.data(), static_cast<int>(encoded_data.size()));
+					save_success = fpng::fpng_encode_image_to_memory(pixels.data(), _width, _height, comp, encoded_data);
+					write_callback(&file, encoded_data.data(), static_cast<int>(encoded_data.size()));
 #else
-					save_success = stbi_write_png_to_func(write_callback, &context, _width, _height, comp, data.data(), 0) != 0;
+					save_success = stbi_write_png_to_func(write_callback, &file, _width, _height, comp, pixels.data(), 0) != 0;
 #endif
 					break;
 				}
 				case 2:
-					save_success = stbi_write_jpg_to_func(write_callback, &context, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
+					save_success = stbi_write_jpg_to_func(write_callback, &file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				}
 
-				save_success &= context.write_success;
-
-				fclose(file);
+				if (!file)
+					save_success = false;
 			}
 
 			if (save_success)
@@ -4345,7 +4385,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		});
 	}
 
-	if (!execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_no_window))
+	if (!utils::execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_no_window))
 	{
 		LOG(ERROR) << "Failed to execute screenshot post-save command!";
 		return false;

@@ -34,7 +34,7 @@ namespace reshade::d3d10
 #endif
 
 	private:
-		state_block _app_state;
 		com_ptr<ID3D10Texture2D> _backbuffer;
+		state_block _app_state;
 	};
 }

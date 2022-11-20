@@ -277,10 +277,14 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("benchmark") ||
 								path.ContainsIgnoreCase("cefprocess") ||
 								path.ContainsIgnoreCase("compile") ||
+								path.ContainsIgnoreCase("compress") ||
 								path.ContainsIgnoreCase("config") ||
 								path.ContainsIgnoreCase("console") ||
+								path.ContainsIgnoreCase("convert") ||
 								path.ContainsIgnoreCase("crash") ||
 								path.ContainsIgnoreCase("diagnostics") ||
+								path.ContainsIgnoreCase("download") ||
+								path.ContainsIgnoreCase("helper") ||
 								path.ContainsIgnoreCase("install") ||
 								path.ContainsIgnoreCase("launch") ||
 								path.ContainsIgnoreCase("openvr") ||
@@ -300,6 +304,7 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("update") ||
 								path.ContainsIgnoreCase("webview") ||
 								path.Contains("7za") ||
+								path.Contains("Rpt") || // CrashRpt, SndRpt
 								path.Contains("svc") ||
 								path.Contains("SystemSoftware") ||
 								path.Contains("TagesClient"))

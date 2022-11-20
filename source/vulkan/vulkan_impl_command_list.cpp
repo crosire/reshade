@@ -6,6 +6,7 @@
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_list.hpp"
 #include "vulkan_impl_type_convert.hpp"
+#include "dll_log.hpp"
 #include <algorithm>
 
 #define vk _device_impl->_dispatch_table
@@ -65,6 +66,9 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 			barrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
 			barrier.srcAccessMask = convert_usage_to_access(old_states[i]);
 			barrier.dstAccessMask = convert_usage_to_access(new_states[i]);
+
+			src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+			dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 			continue;
 		}
 
@@ -139,26 +143,32 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		VkRenderingAttachmentInfo depth_attachment, stencil_attachment;
 		if (ds != nullptr && ds->view.handle != 0)
 		{
-			depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-			depth_attachment.imageView = (VkImageView)ds->view.handle;
-			depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			depth_attachment.loadOp = convert_render_pass_load_op(ds->depth_load_op);
-			depth_attachment.storeOp = convert_render_pass_store_op(ds->depth_store_op);
-			depth_attachment.clearValue.depthStencil.depth = ds->clear_depth;
-
-			rendering_info.pDepthAttachment = &depth_attachment;
-
-			stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-			stencil_attachment.imageView = (VkImageView)ds->view.handle;
-			stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			stencil_attachment.loadOp = convert_render_pass_load_op(ds->stencil_load_op);
-			stencil_attachment.storeOp = convert_render_pass_store_op(ds->stencil_store_op);
-			stencil_attachment.clearValue.depthStencil.stencil = ds->clear_stencil;
-
-			rendering_info.pStencilAttachment = &stencil_attachment;
-
-			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(depth_attachment.imageView);
+			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)ds->view.handle);
 			const auto image_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(view_data->create_info.image);
+
+			if (aspect_flags_from_format(image_data->create_info.format) & VK_IMAGE_ASPECT_DEPTH_BIT)
+			{
+				depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+				depth_attachment.imageView = (VkImageView)ds->view.handle;
+				depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				depth_attachment.loadOp = convert_render_pass_load_op(ds->depth_load_op);
+				depth_attachment.storeOp = convert_render_pass_store_op(ds->depth_store_op);
+				depth_attachment.clearValue.depthStencil.depth = ds->clear_depth;
+
+				rendering_info.pDepthAttachment = &depth_attachment;
+			}
+
+			if (aspect_flags_from_format(image_data->create_info.format) & VK_IMAGE_ASPECT_STENCIL_BIT)
+			{
+				stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+				stencil_attachment.imageView = (VkImageView)ds->view.handle;
+				stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				stencil_attachment.loadOp = convert_render_pass_load_op(ds->stencil_load_op);
+				stencil_attachment.storeOp = convert_render_pass_store_op(ds->stencil_store_op);
+				stencil_attachment.clearValue.depthStencil.stencil = ds->clear_stencil;
+
+				rendering_info.pStencilAttachment = &stencil_attachment;
+			}
 
 			rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, image_data->create_info.extent.width);
 			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, image_data->create_info.extent.height);
@@ -552,7 +562,10 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	// Access to descriptor pools must be externally synchronized, so lock for the duration of allocation from the transient descriptor pool
 	if (const std::unique_lock<std::shared_mutex> lock(_device_impl->_mutex);
 		vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
+	{
+		LOG(ERROR) << "Failed to allocate " << update.count << " transient descriptor handle(s) of type " << static_cast<uint32_t>(update.type) << '!';
 		return;
+	}
 
 	vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
 
@@ -658,8 +671,8 @@ void reshade::vulkan::command_list_impl::copy_buffer_region(api::resource src, u
 {
 	_has_commands = true;
 
-	if (size == UINT64_MAX)
-		size  = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)src.handle)->create_info.size;
+	if (UINT64_MAX == size)
+		size = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)src.handle)->create_info.size;
 
 	VkBufferCopy region;
 	region.srcOffset = src_offset;
@@ -708,7 +721,8 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
 	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
-	if ((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && src_box->width() == dst_box->width() && src_box->height() == dst_box->height() && src_box->depth() == dst_box->depth()))
+	if ((src_box == nullptr && dst_box == nullptr && std::memcmp(&src_data->create_info.extent, &dst_data->create_info.extent, sizeof(VkExtent3D)) == 0) ||
+		(src_box != nullptr && dst_box != nullptr && src_box->width() == dst_box->width() && src_box->height() == dst_box->height() && src_box->depth() == dst_box->depth()))
 	{
 		VkImageCopy region;
 

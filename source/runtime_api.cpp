@@ -609,10 +609,24 @@ void reshade::runtime::get_texture_binding([[maybe_unused]] api::effect_texture_
 	const auto variable = reinterpret_cast<const texture *>(handle.handle);
 	if (variable != nullptr)
 	{
-		if (out_srv != nullptr)
-			*out_srv = variable->srv[0];
-		if (out_srv_srgb != nullptr)
-			*out_srv_srgb = variable->srv[1];
+		if (variable->semantic.empty())
+		{
+			if (out_srv != nullptr)
+				*out_srv = variable->srv[0];
+			if (out_srv_srgb != nullptr)
+				*out_srv_srgb = variable->srv[1];
+		}
+		else
+		{
+			const auto it = _texture_semantic_bindings.find(variable->semantic);
+			if (it != _texture_semantic_bindings.end())
+			{
+				if (out_srv != nullptr)
+					*out_srv = it->second.first;
+				if (out_srv_srgb != nullptr)
+					*out_srv_srgb = it->second.second;
+			}
+		}
 		return;
 	}
 #endif

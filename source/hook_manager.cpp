@@ -455,6 +455,7 @@ void reshade::hooks::uninstall()
 		if (LdrUnregisterDllNotification != nullptr)
 			LdrUnregisterDllNotification(s_dll_notification_cookie);
 	}
+
 	s_dll_notification_cookie = nullptr;
 #endif
 
@@ -462,8 +463,11 @@ void reshade::hooks::uninstall()
 	// Otherwise a subsequent call to 'LoadLibrary' could return the handle to the still loaded export module, instead of loading the ReShade module again
 	// Unfortunately this is not technically safe to call from 'DllMain' ...
 	if (g_export_module_handle)
-		FreeLibrary(g_export_module_handle);
-	g_export_module_handle = nullptr;
+	{
+		if (!FreeLibrary(g_export_module_handle))
+			LOG(WARN) << "Failed to unload " << s_export_hook_path << " with error code " << GetLastError() << '!';
+		g_export_module_handle = nullptr;
+	}
 }
 
 void reshade::hooks::register_module(const std::filesystem::path &target_path)
@@ -473,20 +477,28 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	{
 		const auto LdrRegisterDllNotification = reinterpret_cast<LONG (NTAPI *)(ULONG Flags, FARPROC NotificationFunction, PVOID Context, PVOID *Cookie)>(
 			GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrRegisterDllNotification"));
-		if (LdrRegisterDllNotification == nullptr || LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &s_dll_notification_cookie) != 0 /* STATUS_SUCCESS */)
+		if (LdrRegisterDllNotification == nullptr ||
+			// The Steam overlay is using 'LoadLibrary' hooks, so always use them too if it is used, to ensure that ReShade installs hooks after the Steam overlay already did so
+			// Detect whether the Steam overlay is used by checking for a 'SteamOverlayGameId' environment variable that Steam sets, instead of looking for 'GameOverlayRenderer[64].dll', since ReShade may be injected before the Steam overlay DLL
+			GetEnvironmentVariableW(L"SteamOverlayGameId", nullptr, 0) ||
+			LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &s_dll_notification_cookie) != 0 /* STATUS_SUCCESS */)
 		{
-			// Fall back 'LoadLibrary' hooks if DLL notification registration failed
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Using LoadLibrary hooks.";
+#endif
+
+			// Fall back 'LoadLibrary' hooks if DLL notification registration failed or the Steam overlay is used
+			// Skip this in the test application to make RenderDoc work (which hooks these too)
 			install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
 			install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
 			install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
 			install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
 
 			// Install all 'LoadLibrary' hooks in one go immediately
-			// Skip this in the test application to make RenderDoc work (which hooks these too)
 			if (hook::apply_queued_actions())
 				s_dll_notification_cookie = reinterpret_cast<PVOID>(-1); // Set cookie to something so that these hooks are only installed once
 			else
-				LOG(ERROR) << "Failed to install 'LoadLibrary' hooks!";
+				LOG(ERROR) << "Failed to install LoadLibrary hooks!";
 		}
 	}
 #endif

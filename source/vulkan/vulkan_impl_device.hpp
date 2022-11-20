@@ -119,13 +119,13 @@ namespace reshade::vulkan
 			_dispatch_table.SetPrivateData(_orig, type, object, _private_data_slot, 0);
 		}
 
-		template <VkObjectType type>
+		template <VkObjectType type, bool optional = false>
 		__forceinline object_data<type> *get_private_data_for_object(typename object_data<type>::Handle object) const
 		{
 			assert(object != VK_NULL_HANDLE);
 			uint64_t private_data = 0;
 			_dispatch_table.GetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
-			assert(private_data != 0);
+			assert(private_data != 0 || optional);
 			return reinterpret_cast<object_data<type> *>(private_data);
 		}
 

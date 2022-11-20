@@ -122,13 +122,15 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 	}
 #endif
 
-	if (reshade::global_config().get("APP", "ForceWindowed"))
+	ini_file &config = reshade::global_config();
+
+	if (config.get("APP", "ForceWindowed"))
 	{
 		internal_desc.Windowed = TRUE;
 
 		modified = true;
 	}
-	if (reshade::global_config().get("APP", "ForceFullscreen"))
+	if (config.get("APP", "ForceFullscreen"))
 	{
 		internal_desc.Windowed = FALSE;
 
@@ -136,7 +138,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 	}
 
 	if (unsigned int force_resolution[2] = {};
-		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
+		config.get("APP", "ForceResolution", force_resolution) &&
 		force_resolution[0] != 0 && force_resolution[1] != 0)
 	{
 		internal_desc.BufferDesc.Width = force_resolution[0];
@@ -145,7 +147,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 		modified = true;
 	}
 
-	if (reshade::global_config().get("APP", "Force10BitFormat"))
+	if (config.get("APP", "Force10BitFormat"))
 	{
 		internal_desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
@@ -217,8 +219,10 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]
 	}
 #endif
 
+	ini_file &config = reshade::global_config();
+
 	if (unsigned int force_resolution[2] = {};
-		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
+		config.get("APP", "ForceResolution", force_resolution) &&
 		force_resolution[0] != 0 && force_resolution[1] != 0)
 	{
 		internal_desc.Width = force_resolution[0];
@@ -227,7 +231,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]
 		modified = true;
 	}
 
-	if (reshade::global_config().get("APP", "Force10BitFormat"))
+	if (config.get("APP", "Force10BitFormat"))
 	{
 		internal_desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
@@ -284,11 +288,13 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 
 	modify_swapchain_desc(desc, hwnd);
 
-	if (reshade::global_config().get("APP", "ForceWindowed"))
+	ini_file &config = reshade::global_config();
+
+	if (config.get("APP", "ForceWindowed"))
 	{
 		fullscreen_desc.Windowed = TRUE;
 	}
-	if (reshade::global_config().get("APP", "ForceFullscreen"))
+	if (config.get("APP", "ForceFullscreen"))
 	{
 		fullscreen_desc.Windowed = FALSE;
 	}
@@ -385,9 +391,10 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 
 	if (swapchain_proxy != nullptr)
 	{
-		reshade::global_config().get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
-		reshade::global_config().get("APP", "ForceWindowed", swapchain_proxy->_force_windowed);
-		reshade::global_config().get("APP", "ForceFullscreen", swapchain_proxy->_force_fullscreen);
+		ini_file &config = reshade::global_config();
+		config.get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
+		config.get("APP", "ForceWindowed", swapchain_proxy->_force_windowed);
+		config.get("APP", "ForceFullscreen", swapchain_proxy->_force_fullscreen);
 
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "Returning " << "IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
@@ -547,7 +554,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	return hr;
 }
 
-HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
+extern "C" HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory" << '(' << "riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
@@ -557,10 +564,9 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 	// DXGI 1.1 should always be available, so to simplify code just call 'CreateDXGIFactory' which is otherwise identical
 	return CreateDXGIFactory1(riid, ppFactory);
 }
-HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
+extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
-	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(CreateDXGIFactory1)(riid, ppFactory);
+	// Do NOT skip in case this is called internally for D3D10/D3D11 (otherwise the 'IDXGIFactory::CreateSwapChain' call in 'D3D10/11CreateDeviceAndSwapChain' will not be redirected)
 
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory1" << '(' << "riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 
@@ -588,7 +594,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 #endif
 	return hr;
 }
-HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppFactory)
+extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppFactory)
 {
 	// IDXGIFactory  {7B7166EC-21C7-44AE-B21A-C9AE321AE369}
 	// IDXGIFactory1 {770AAE78-F26F-4DBA-A829-253C83D1B387}
@@ -611,6 +617,8 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 		return CreateDXGIFactory1(riid, ppFactory);
 	}
 
+	// It is crutial that ReShade hooks this after the Steam overlay already hooked it, so that ReShade is called first and the Steam overlay is called through the trampoline below
+	// This is because the Steam overlay only hooks the swap chain creation functions when the vtable entries for them still point to the original functions, it will no longer do so once ReShade replaced them ("... points to another module, skipping hooks" in GameOverlayRenderer.log)
 	const HRESULT hr = trampoline(Flags, riid, ppFactory);
 	if (FAILED(hr))
 	{
@@ -635,7 +643,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 	return hr;
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void **pDebug)
+extern "C" HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void **pDebug)
 {
 	const auto trampoline = reshade::hooks::call(DXGIGetDebugInterface1);
 
@@ -646,7 +654,7 @@ HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void 
 	return trampoline(Flags, riid, pDebug);
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGIDeclareAdapterRemovalSupport()
+extern "C" HRESULT WINAPI DXGIDeclareAdapterRemovalSupport()
 {
 	const auto trampoline = reshade::hooks::call(DXGIDeclareAdapterRemovalSupport);
 

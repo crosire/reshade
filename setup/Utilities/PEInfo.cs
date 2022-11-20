@@ -75,24 +75,45 @@ namespace ReShade.Setup.Utilities
 			public UInt32 FirstThunk;
 		}
 
-		[DllImport("imagehlp.dll")]
+		[DllImport("imagehlp.dll", SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		private static extern bool MapAndLoad([In, MarshalAs(UnmanagedType.LPStr)] string imageName, [In, MarshalAs(UnmanagedType.LPStr)] string dllPath, [Out] out LOADED_IMAGE loadedImage, [In, MarshalAs(UnmanagedType.Bool)] bool dotDll, [In, MarshalAs(UnmanagedType.Bool)] bool readOnly);
-		[DllImport("imagehlp.dll")]
+		[DllImport("imagehlp.dll", SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		private static extern bool UnMapAndLoad([In] ref LOADED_IMAGE loadedImage);
 
-		[DllImport("dbghelp.dll")]
+		[DllImport("dbghelp.dll", SetLastError = true)]
 		private static extern IntPtr ImageRvaToVa([In] IntPtr pNtHeaders, [In] IntPtr pBase, [In] uint rva, [In] IntPtr pLastRvaSection);
-		[DllImport("dbghelp.dll")]
+		[DllImport("dbghelp.dll", SetLastError = true)]
 		private static extern IntPtr ImageDirectoryEntryToData([In] IntPtr pBase, [In, MarshalAs(UnmanagedType.U1)] bool mappedAsImage, [In] ImageDirectory directoryEntry, [Out] out uint size);
+
+		[Flags]
+		public enum LoadLibraryFlags : UInt32
+		{
+			LOAD_LIBRARY_AS_DATAFILE = 0x00000002
+		}
+
+		[DllImport("kernel32.dll", SetLastError = true)]
+		private static extern IntPtr LoadLibraryEx([In] string lpFileName, [In] IntPtr hFile, [In] LoadLibraryFlags dwFlags);
+		[DllImport("kernel32.dll", SetLastError = true)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		private static extern bool FreeLibrary([In] IntPtr hModule);
+
+		[DllImport("kernel32.dll", SetLastError = true)]
+		private static extern IntPtr FindResource([In] IntPtr hModule, [In] string lpName, [In] string lpType);
+		[DllImport("kernel32.dll", SetLastError = true)]
+		private static extern IntPtr LoadResource([In] IntPtr hModule, [In] IntPtr hResInfo);
+		[DllImport("kernel32.dll", SetLastError = true)]
+		private static extern IntPtr LockResource([In] IntPtr hResData);
+		[DllImport("kernel32.dll", SetLastError = true)]
+		private static extern UInt32 SizeofResource([In] IntPtr hModule, [In] IntPtr hResInfo);
 
 		// Adapted from http://stackoverflow.com/a/4696857/2055880
 		public PEInfo(string path)
 		{
 			var modules = new List<string>();
 
-			if (MapAndLoad(path, null, out LOADED_IMAGE image, true, true))
+			if (MapAndLoad(path, null, out LOADED_IMAGE image, false, true))
 			{
 				var imports = (IMAGE_IMPORT_DESCRIPTOR*)ImageDirectoryEntryToData(image.MappedAddress, false, ImageDirectory.IMAGE_DIRECTORY_ENTRY_IMPORT, out uint size);
 
@@ -122,6 +143,32 @@ namespace ReShade.Setup.Utilities
 		public IEnumerable<string> Modules
 		{
 			get;
+		}
+
+		public static string ReadResourceString(string path, ushort id)
+		{
+			string result = null;
+
+			IntPtr module = LoadLibraryEx(path, IntPtr.Zero, LoadLibraryFlags.LOAD_LIBRARY_AS_DATAFILE);
+			if (module != IntPtr.Zero)
+			{
+				IntPtr info = FindResource(module, "#" + id.ToString(), "#10" /* RCDATA */);
+				if (info != IntPtr.Zero)
+				{
+					IntPtr handle = LoadResource(module, info);
+					if (handle != IntPtr.Zero)
+					{
+						IntPtr data = LockResource(handle);
+						UInt32 dataSize = SizeofResource(module, info);
+
+						result = Marshal.PtrToStringUni(data, (int)(dataSize / 2) - 1);
+					}
+				}
+
+				FreeLibrary(module);
+			}
+
+			return result;
 		}
 	}
 }

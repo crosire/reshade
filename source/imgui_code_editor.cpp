@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2017 BalazsJako
  * Copyright (C) 2018 Patrick Mours
- * SPDX-License-Identifier: BSD-3-Clause OR MIT
+ * SPDX-License-Identifier: MIT
  *
- * Heavily modified version of https://github.com/BalazsJako/ImGuiColorTextEdit
+ * Heavily modified fork of https://github.com/BalazsJako/ImGuiColorTextEdit
  */
 
 #include "effect_lexer.hpp"
@@ -11,6 +11,31 @@
 #include <imgui.h>
 #include <imgui_internal.h> // GetCurrentWindowRead
 #include <algorithm>
+
+static inline int get_parenthesis_type(char c)
+{
+	switch (c)
+	{
+	default:
+		return  0;
+	case '(':
+		return -1;
+	case ')':
+		return +1;
+	case '<':
+		return -2;
+	case '>':
+		return +2;
+	case '[':
+		return -3;
+	case ']':
+		return +3;
+	case '{':
+		return -4;
+	case '}':
+		return +4;
+	}
+}
 
 const char *reshade::imgui::code_editor::get_palette_color_name(unsigned int col)
 {
@@ -61,6 +86,12 @@ const char *reshade::imgui::code_editor::get_palette_color_name(unsigned int col
 	return nullptr;
 }
 
+// 'ImGui::CalcTextSize' cancels out character spacing at the end, but we do not want that, hence the custom function
+static inline ImVec2 calc_text_size(const char *text, const char *text_end = nullptr)
+{
+	return ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, text, text_end, nullptr);
+}
+
 reshade::imgui::code_editor::code_editor()
 {
 	_lines.emplace_back();
@@ -85,11 +116,6 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	const char *const editor_window_name = ImGui::GetCurrentWindowRead()->Name;
 
 	char buf[128] = "", *buf_end = buf;
-
-	// 'ImGui::CalcTextSize' cancels out character spacing at the end, but we do not want that, hence the custom function
-	const auto calc_text_size = [](const char *text, const char *text_end = nullptr) {
-		return ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, text, text_end, nullptr);
-	};
 
 	// Deduce text start offset by evaluating maximum number of lines plus two spaces as text width
 	snprintf(buf, 16, " %zu ", _lines.size());
@@ -175,7 +201,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	// Handle mouse input
 	if (ImGui::IsWindowHovered() && !alt)
 	{
-		const auto mouse_to_text_pos = [this, text_start, &char_advance, &calc_text_size]() {
+		const auto mouse_to_text_pos = [this, text_start, &char_advance]() {
 			const ImVec2 pos(ImGui::GetMousePos().x - ImGui::GetCursorScreenPos().x, ImGui::GetMousePos().y - ImGui::GetCursorScreenPos().y);
 
 			text_pos res;
@@ -264,6 +290,48 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		}
 	}
 
+	// If cursor is on a parenthesis or bracket, find the matching sibling to highlight
+	text_pos parenthesis_pos[2];
+	{
+		char parenthesis_c = 0;
+		text_pos search_pos = _cursor_pos;
+
+		// Check if character to the right or left of the cursor is a parenthesis or bracket
+		if (search_pos.column < _lines[search_pos.line].size())
+			parenthesis_c = _lines[search_pos.line][search_pos.column].c;
+		if (search_pos.column > 0 && !get_parenthesis_type(parenthesis_c))
+			parenthesis_c = _lines[search_pos.line][--search_pos.column].c;
+
+		if (const int parenthesis_type = get_parenthesis_type(parenthesis_c))
+		{
+			parenthesis_pos[0] = search_pos;
+
+			const bool backwards = parenthesis_type > 0;
+			int parentheses_level = 1;
+			// These wrap around at zero to 'std::numeric_limits<size_t>::max()' which fail the loop condition and therefore work
+			search_pos.column += (backwards ? -1 : 1);
+			for (; search_pos.line <= (_lines.size() - 1) && parentheses_level != 0; backwards ? --search_pos.line : ++search_pos.line)
+			{
+				for (; search_pos.column < _lines[search_pos.line].size(); backwards ? --search_pos.column : ++search_pos.column)
+				{
+					const int next_parenthesis_type = get_parenthesis_type(_lines[search_pos.line][search_pos.column].c);
+					if (std::abs(parenthesis_type) != std::abs(next_parenthesis_type))
+						continue;
+
+					if ((next_parenthesis_type < 0 && (backwards ? --parentheses_level : ++parentheses_level) == 0) ||
+						(next_parenthesis_type > 0 && (backwards ? ++parentheses_level : --parentheses_level) == 0))
+					{
+						parenthesis_pos[1] = text_pos(search_pos.line, search_pos.column);
+						break;
+					}
+				}
+
+				// Reset search column on new line
+				search_pos.column = backwards && search_pos.line > 0 && !_lines[search_pos.line - 1].empty() ? _lines[search_pos.line - 1].size() - 1 : 0;
+			}
+		}
+	}
+
 	// Update glyph colors
 	colorize();
 
@@ -275,7 +343,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	size_t line_no = static_cast<size_t>(floor(ImGui::GetScrollY() / char_advance.y));
 	size_t line_max = std::max<size_t>(0, std::min(_lines.size() - 1, line_no + static_cast<size_t>(floor((ImGui::GetScrollY() + ImGui::GetWindowContentRegionMax().y) / char_advance.y))));
 
-	const auto calc_text_distance_to_line_begin = [this, space_size, &calc_text_size](const text_pos &from) {
+	const auto calc_text_distance_to_line_begin = [this, space_size](const text_pos &from) {
 		float distance = 0.0f;
 		const auto &line = _lines[from.line];
 		for (size_t i = 0u; i < line.size() && i < from.column; ++i)
@@ -318,6 +386,21 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			const ImVec2 end = ImVec2(text_screen_pos.x + selection_end, text_screen_pos.y + char_advance.y);
 
 			draw_list->AddRectFilled(beg, end, palette[color_selection]);
+		}
+
+		// Highlight matching parentheses
+		if (parenthesis_pos[0] != text_pos() && parenthesis_pos[1] != text_pos())
+		{
+			for (int i = 0; i < 2; ++i)
+			{
+				if (parenthesis_pos[i].line == line_no)
+				{
+					const ImVec2 beg = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(parenthesis_pos[i]), text_screen_pos.y);
+					const ImVec2 end = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, parenthesis_pos[i].column + 1)), text_screen_pos.y + char_advance.y);
+
+					draw_list->AddRectFilled(beg, end, palette[color_selection]);
+				}
+			}
 		}
 
 		// Find any highlighted words and draw a selection rectangle below them

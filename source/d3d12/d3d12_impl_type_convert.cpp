@@ -45,7 +45,41 @@ auto reshade::d3d12::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 
 auto reshade::d3d12::convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api::resource_usage
 {
-	return access == D3D12_BARRIER_ACCESS_COMMON ? reshade::api::resource_usage::general : static_cast<api::resource_usage>(access);
+	if (access == D3D12_BARRIER_ACCESS_COMMON)
+		return api::resource_usage::general;
+	if (access == D3D12_BARRIER_ACCESS_NO_ACCESS)
+		return api::resource_usage::undefined;
+
+	api::resource_usage result = api::resource_usage::undefined;
+	if ((access & D3D12_BARRIER_ACCESS_VERTEX_BUFFER) != 0)
+		result |= api::resource_usage::vertex_buffer;
+	if ((access & D3D12_BARRIER_ACCESS_CONSTANT_BUFFER) != 0)
+		result |= api::resource_usage::constant_buffer;
+	if ((access & D3D12_BARRIER_ACCESS_INDEX_BUFFER) != 0)
+		result |= api::resource_usage::index_buffer;
+	if ((access & D3D12_BARRIER_ACCESS_RENDER_TARGET) != 0)
+		result |= api::resource_usage::render_target;
+	if ((access & D3D12_BARRIER_ACCESS_UNORDERED_ACCESS) != 0)
+		result |= api::resource_usage::unordered_access;
+	if ((access & D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE) != 0)
+		result |= api::resource_usage::depth_stencil_write;
+	if ((access & D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ) != 0)
+		result |= api::resource_usage::depth_stencil_read;
+	if ((access & D3D12_BARRIER_ACCESS_SHADER_RESOURCE) != 0)
+		result |= api::resource_usage::shader_resource;
+	if ((access & D3D12_BARRIER_ACCESS_STREAM_OUTPUT) != 0)
+		result |= api::resource_usage::stream_output;
+	if ((access & D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT) != 0)
+		result |= api::resource_usage::indirect_argument;
+	if ((access & D3D12_BARRIER_ACCESS_COPY_DEST) != 0)
+		result |= api::resource_usage::copy_dest;
+	if ((access & D3D12_BARRIER_ACCESS_COPY_SOURCE) != 0)
+		result |= api::resource_usage::copy_source;
+	if ((access & D3D12_BARRIER_ACCESS_RESOLVE_DEST) != 0)
+		result |= api::resource_usage::resolve_dest;
+	if ((access & D3D12_BARRIER_ACCESS_RESOLVE_SOURCE) != 0)
+		result |= api::resource_usage::resolve_source;
+	return result;
 }
 auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage
 {
@@ -55,22 +89,35 @@ auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout
 		return api::resource_usage::undefined;
 	default:
 	case D3D12_BARRIER_LAYOUT_COMMON:
+	case D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COMMON:
+	case D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_COMMON:
+	case D3D12_BARRIER_LAYOUT_VIDEO_QUEUE_COMMON:
 		return api::resource_usage::general;
 	case D3D12_BARRIER_LAYOUT_GENERIC_READ:
+	case D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_GENERIC_READ:
+	case D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_GENERIC_READ:
 		return api::resource_usage::cpu_access;
 	case D3D12_BARRIER_LAYOUT_RENDER_TARGET:
 		return api::resource_usage::render_target;
 	case D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS:
+	case D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS:
+	case D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_UNORDERED_ACCESS:
 		return api::resource_usage::unordered_access;
 	case D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE:
 		return api::resource_usage::depth_stencil_write;
 	case D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ:
 		return api::resource_usage::depth_stencil_read;
 	case D3D12_BARRIER_LAYOUT_SHADER_RESOURCE:
+	case D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE:
+	case D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE:
 		return api::resource_usage::shader_resource;
 	case D3D12_BARRIER_LAYOUT_COPY_SOURCE:
+	case D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_SOURCE:
+	case D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_COPY_SOURCE:
 		return api::resource_usage::copy_source;
 	case D3D12_BARRIER_LAYOUT_COPY_DEST:
+	case D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST:
+	case D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_COPY_DEST:
 		return api::resource_usage::copy_dest;
 	case D3D12_BARRIER_LAYOUT_RESOLVE_SOURCE:
 		return api::resource_usage::resolve_source;
@@ -80,33 +127,88 @@ auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout
 }
 auto reshade::d3d12::convert_resource_states_to_usage(D3D12_RESOURCE_STATES states) -> api::resource_usage
 {
-	return states == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<api::resource_usage>(states);
-}
-D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(api::resource_usage usage)
-{
-	// Undefined usage does not exist in D3D12
-	assert(usage != api::resource_usage::undefined);
+	static_assert(
+		api::resource_usage::index_buffer == D3D12_RESOURCE_STATE_INDEX_BUFFER &&
+		api::resource_usage::vertex_buffer == D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER &&
+		api::resource_usage::stream_output == D3D12_RESOURCE_STATE_STREAM_OUT &&
+		api::resource_usage::indirect_argument == D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT &&
+		api::resource_usage::depth_stencil_read == D3D12_RESOURCE_STATE_DEPTH_READ &&
+		api::resource_usage::depth_stencil_write == D3D12_RESOURCE_STATE_DEPTH_WRITE &&
+		api::resource_usage::render_target == D3D12_RESOURCE_STATE_RENDER_TARGET &&
+		api::resource_usage::shader_resource_pixel == D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE &&
+		api::resource_usage::shader_resource_non_pixel == D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE &&
+		api::resource_usage::unordered_access == D3D12_RESOURCE_STATE_UNORDERED_ACCESS &&
+		api::resource_usage::copy_dest == D3D12_RESOURCE_STATE_COPY_DEST &&
+		api::resource_usage::copy_source == D3D12_RESOURCE_STATE_COPY_SOURCE &&
+		api::resource_usage::resolve_dest == D3D12_RESOURCE_STATE_RESOLVE_DEST &&
+		api::resource_usage::resolve_source == D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
 
-	if (usage == api::resource_usage::general)
+	return states == D3D12_RESOURCE_STATE_COMMON ? api::resource_usage::general : static_cast<api::resource_usage>(states);
+}
+
+auto reshade::d3d12::convert_usage_to_access(api::resource_usage state) -> D3D12_BARRIER_ACCESS
+{
+	if (state == api::resource_usage::general)
+		return D3D12_BARRIER_ACCESS_COMMON;
+	if (state == api::resource_usage::undefined)
+		return D3D12_BARRIER_ACCESS_NO_ACCESS;
+
+	D3D12_BARRIER_ACCESS result = D3D12_BARRIER_ACCESS_COMMON;
+	if ((state & api::resource_usage::index_buffer) != 0)
+		result |= D3D12_BARRIER_ACCESS_INDEX_BUFFER;
+	if ((state & api::resource_usage::vertex_buffer) != 0)
+		result |= D3D12_BARRIER_ACCESS_VERTEX_BUFFER;
+	if ((state & api::resource_usage::constant_buffer) != 0)
+		result |= D3D12_BARRIER_ACCESS_CONSTANT_BUFFER;
+	if ((state & api::resource_usage::stream_output) != 0)
+		result |= D3D12_BARRIER_ACCESS_STREAM_OUTPUT;
+	if ((state & api::resource_usage::indirect_argument) != 0)
+		result |= D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT;
+	if ((state & api::resource_usage::depth_stencil_read) != 0)
+		result |= D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ;
+	if ((state & api::resource_usage::depth_stencil_write) != 0)
+		result |= D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE;
+	if ((state & api::resource_usage::render_target) != 0)
+		result |= D3D12_BARRIER_ACCESS_RENDER_TARGET;
+	if ((state & api::resource_usage::shader_resource) != 0)
+		result |= D3D12_BARRIER_ACCESS_SHADER_RESOURCE;
+	if ((state & api::resource_usage::unordered_access) != 0)
+		result |= D3D12_BARRIER_ACCESS_UNORDERED_ACCESS;
+	if ((state & api::resource_usage::copy_dest) != 0)
+		result |= D3D12_BARRIER_ACCESS_COPY_DEST;
+	if ((state & api::resource_usage::copy_source) != 0)
+		result |= D3D12_BARRIER_ACCESS_COPY_SOURCE;
+	if ((state & api::resource_usage::resolve_dest) != 0)
+		result |= D3D12_BARRIER_ACCESS_RESOLVE_DEST;
+	if ((state & api::resource_usage::resolve_source) != 0)
+		result |= D3D12_BARRIER_ACCESS_RESOLVE_SOURCE;
+	return result;
+}
+auto reshade::d3d12::convert_usage_to_resource_states(api::resource_usage state) -> D3D12_RESOURCE_STATES
+{
+	// Undefined resource state does not exist in D3D12
+	assert(state != api::resource_usage::undefined);
+
+	if (state == api::resource_usage::general)
 		return D3D12_RESOURCE_STATE_COMMON;
-	if (usage == api::resource_usage::present)
+	if (state == api::resource_usage::present)
 		return D3D12_RESOURCE_STATE_PRESENT;
-	if (usage == api::resource_usage::cpu_access)
+	if (state == api::resource_usage::cpu_access)
 		return D3D12_RESOURCE_STATE_GENERIC_READ;
 
-	auto result = static_cast<D3D12_RESOURCE_STATES>(static_cast<uint32_t>(usage) & 0xFFFFFFF);
+	auto result = static_cast<D3D12_RESOURCE_STATES>(static_cast<uint32_t>(state) & 0xFFFFFFF);
 
 	// Depth write state is mutually exclusive with other states, so remove it when read state is specified too
-	if ((usage & api::resource_usage::depth_stencil) == api::resource_usage::depth_stencil)
+	if ((state & api::resource_usage::depth_stencil) == api::resource_usage::depth_stencil)
 	{
-		if (usage == api::resource_usage::depth_stencil)
+		if (state == api::resource_usage::depth_stencil)
 			return D3D12_RESOURCE_STATE_DEPTH_WRITE; // Unless there are no other states specified, in that case only specify write state
 		else
 			result ^= D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	}
 
 	// The separate constant buffer state does not exist in D3D12, so replace it with the combined vertex/constant buffer one
-	if ((usage & api::resource_usage::constant_buffer) == api::resource_usage::constant_buffer)
+	if ((state & api::resource_usage::constant_buffer) == api::resource_usage::constant_buffer)
 	{
 		result |= D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 		result ^= static_cast<D3D12_RESOURCE_STATES>(api::resource_usage::constant_buffer);
