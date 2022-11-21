@@ -30,6 +30,7 @@ packages/
 
 # Visual Studio Code
 .vscode/
+*.code-workspace
 
 # Code signing
 *.pfx
