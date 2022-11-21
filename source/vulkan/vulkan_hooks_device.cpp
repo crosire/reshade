@@ -261,32 +261,48 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	private_data_info.privateDataSlotRequestCount = 1;
 
 	VkPhysicalDevicePrivateDataFeatures private_data_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES };
-	private_data_feature.pNext = &private_data_info;
-	private_data_feature.privateData = VK_TRUE;
-
-	create_info.pNext = &private_data_feature;
-
 	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
-	if (const auto existing_dynamic_rendering_feature = find_in_structure_chain<VkPhysicalDeviceDynamicRenderingFeatures>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES))
-	{
-		dynamic_rendering_ext = existing_dynamic_rendering_feature->dynamicRendering;
-	}
-	else if (dynamic_rendering_ext)
-	{
-		dynamic_rendering_feature.pNext = const_cast<void *>(create_info.pNext);
-		dynamic_rendering_feature.dynamicRendering = VK_TRUE;
 
-		create_info.pNext = &dynamic_rendering_feature;
+	if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES))
+	{
+		assert(instance_dispatch.api_version >= VK_API_VERSION_1_3);
+
+		create_info.pNext = &private_data_info;
+
+		dynamic_rendering_ext = existing_vulkan_13_features->dynamicRendering;
+
+		// Force enable private data in Vulkan 1.3, again, evil =)
+		const_cast<VkPhysicalDeviceVulkan13Features *>(existing_vulkan_13_features)->privateData = VK_TRUE;
+	}
+	else
+	{
+		private_data_feature.pNext = &private_data_info;
+		private_data_feature.privateData = VK_TRUE;
+
+		create_info.pNext = &private_data_feature;
+
+		if (const auto existing_dynamic_rendering_features = find_in_structure_chain<VkPhysicalDeviceDynamicRenderingFeatures>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES))
+		{
+			dynamic_rendering_ext = existing_dynamic_rendering_features->dynamicRendering;
+		}
+		else if (dynamic_rendering_ext)
+		{
+			dynamic_rendering_feature.pNext = const_cast<void *>(create_info.pNext);
+			dynamic_rendering_feature.dynamicRendering = VK_TRUE;
+
+			create_info.pNext = &dynamic_rendering_feature;
+		}
 	}
 
 #ifdef VK_EXT_custom_border_color
 	// Optionally enable custom border color feature
 	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
-	if (const auto existing_custom_border_feature = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
+	if (const auto existing_custom_border_features = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT))
 	{
-		custom_border_color_ext = existing_custom_border_feature->customBorderColors;
+		custom_border_color_ext = existing_custom_border_features->customBorderColors;
 	}
 	else if (custom_border_color_ext)
 	{
@@ -301,10 +317,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef VK_EXT_extended_dynamic_state
 	// Optionally enable extended dynamic state feature
 	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
-	if (const auto existing_extended_dynamic_state_feature = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
+	if (const auto existing_extended_dynamic_state_features = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT))
 	{
-		extended_dynamic_state_ext = existing_extended_dynamic_state_feature->extendedDynamicState;
+		extended_dynamic_state_ext = existing_extended_dynamic_state_features->extendedDynamicState;
 	}
 	else if (extended_dynamic_state_ext)
 	{
