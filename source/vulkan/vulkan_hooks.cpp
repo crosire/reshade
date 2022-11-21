@@ -139,7 +139,9 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 #  if !RESHADE_ADDON_LITE
 	HOOK_PROC_OPTIONAL(CmdPipelineBarrier2,);
 	HOOK_PROC_OPTIONAL(CmdWriteTimestamp2,);
+#  endif
 	HOOK_PROC_OPTIONAL(QueueSubmit2,);
+#  if !RESHADE_ADDON_LITE
 	HOOK_PROC_OPTIONAL(CmdCopyBuffer2,);
 	HOOK_PROC_OPTIONAL(CmdCopyImage2,);
 	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2,);
