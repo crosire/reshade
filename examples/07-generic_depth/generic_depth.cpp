@@ -182,6 +182,8 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 
 	depth_stencil_backup *track_depth_stencil_for_backup(device *device, resource resource, resource_desc desc)
 	{
+		std::unique_lock<std::shared_mutex> lock(s_mutex);
+
 		assert(depth_stencil_resources.find(resource) != depth_stencil_resources.end());
 
 		const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(),
@@ -204,6 +206,8 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		// Use depth format as-is in OpenGL and Vulkan, since those are valid for shader resource views there
 		else if (device->get_api() != device_api::opengl && device->get_api() != device_api::vulkan)
 			desc.texture.format = format_to_typeless(desc.texture.format);
+
+		lock.unlock();
 
 		// First try to revive a backup resource that was previously enqueued for delayed destruction
 		for (auto delayed_destroy_it = delayed_destroy_resources.begin(); delayed_destroy_it != delayed_destroy_resources.end(); ++delayed_destroy_it)
@@ -228,6 +232,8 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 
 	void untrack_depth_stencil(resource resource)
 	{
+		std::unique_lock<std::shared_mutex> lock(s_mutex);
+
 		const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(),
 			[resource](const depth_stencil_backup &existing) { return existing.depth_stencil_resource == resource; });
 		if (it == depth_stencil_backups.end() || --it->references != 0)
@@ -1007,9 +1013,13 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	std::vector<depth_stencil_item> sorted_item_list;
 	sorted_item_list.reserve(device_data.depth_stencil_resources.size());
 	for (const auto &[resource, info] : device_data.depth_stencil_resources)
-		sorted_item_list.push_back({ resource, info.last_counters, device->get_resource_desc(resource) });
+		sorted_item_list.push_back({ resource, info.last_counters });
 
+	// Unlock while calling into device below
 	lock.unlock();
+
+	for (depth_stencil_item &item : sorted_item_list)
+		item.desc = device->get_resource_desc(item.resource);
 
 	std::sort(sorted_item_list.begin(), sorted_item_list.end(), [](const depth_stencil_item &a, const depth_stencil_item &b) {
 		return ((a.desc.texture.width > b.desc.texture.width || (a.desc.texture.width == b.desc.texture.width && a.desc.texture.height > b.desc.texture.height)) ||
