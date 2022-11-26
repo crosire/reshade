@@ -42,7 +42,7 @@ struct clear_stats : public draw_stats
 	bool copied_during_frame = false;
 };
 
-struct depth_stencil_info
+struct depth_stencil_frame_stats
 {
 	draw_stats total_stats;
 	draw_stats current_stats; // Stats since last clear operation
@@ -50,7 +50,7 @@ struct depth_stencil_info
 	bool copied_during_frame = false;
 };
 
-struct depth_stencil_hash
+struct resource_hash
 {
 	inline size_t operator()(resource value) const
 	{
@@ -63,7 +63,7 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 {
 	viewport current_viewport = {};
 	resource current_depth_stencil = { 0 };
-	std::unordered_map<resource, depth_stencil_info, depth_stencil_hash> counters_per_used_depth_stencil;
+	std::unordered_map<resource, depth_stencil_frame_stats, resource_hash> counters_per_used_depth_stencil;
 	bool first_draw_since_bind = true;
 	draw_stats best_copy_stats;
 
@@ -96,19 +96,19 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 			return;
 
 		counters_per_used_depth_stencil.reserve(source.counters_per_used_depth_stencil.size());
-		for (const auto &[depth_stencil_handle, snapshot] : source.counters_per_used_depth_stencil)
+		for (const auto &[depth_stencil_handle, source_counters] : source.counters_per_used_depth_stencil)
 		{
-			depth_stencil_info &target_snapshot = counters_per_used_depth_stencil[depth_stencil_handle];
-			target_snapshot.total_stats.vertices += snapshot.total_stats.vertices;
-			target_snapshot.total_stats.drawcalls += snapshot.total_stats.drawcalls;
-			target_snapshot.total_stats.drawcalls_indirect += snapshot.total_stats.drawcalls_indirect;
-			target_snapshot.current_stats.vertices += snapshot.current_stats.vertices;
-			target_snapshot.current_stats.drawcalls += snapshot.current_stats.drawcalls;
-			target_snapshot.current_stats.drawcalls_indirect += snapshot.current_stats.drawcalls_indirect;
+			depth_stencil_frame_stats &counters = counters_per_used_depth_stencil[depth_stencil_handle];
+			counters.total_stats.vertices += source_counters.total_stats.vertices;
+			counters.total_stats.drawcalls += source_counters.total_stats.drawcalls;
+			counters.total_stats.drawcalls_indirect += source_counters.total_stats.drawcalls_indirect;
+			counters.current_stats.vertices += source_counters.current_stats.vertices;
+			counters.current_stats.drawcalls += source_counters.current_stats.drawcalls;
+			counters.current_stats.drawcalls_indirect += source_counters.current_stats.drawcalls_indirect;
 
-			target_snapshot.clears.insert(target_snapshot.clears.end(), snapshot.clears.begin(), snapshot.clears.end());
+			counters.clears.insert(counters.clears.end(), source_counters.clears.begin(), source_counters.clears.end());
 
-			target_snapshot.copied_during_frame |= snapshot.copied_during_frame;
+			counters.copied_during_frame |= source_counters.copied_during_frame;
 		}
 	}
 };
@@ -150,7 +150,7 @@ struct depth_stencil_backup
 
 struct depth_stencil_resource
 {
-	depth_stencil_info last_counters;
+	depth_stencil_frame_stats last_counters;
 
 	uint64_t last_used_in_frame = std::numeric_limits<uint64_t>::max();
 	uint64_t first_used_in_frame = std::numeric_limits<uint64_t>::max();
@@ -164,7 +164,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 	std::vector<command_queue *> queues;
 
 	// List of all encountered depth-stencils of the last frame
-	std::unordered_map<resource, depth_stencil_resource, depth_stencil_hash> depth_stencil_resources;
+	std::unordered_map<resource, depth_stencil_resource, resource_hash> depth_stencil_resources;
 
 	// List of depth-stencils that should be tracked throughout each frame and potentially be backed up during clear operations
 	std::vector<depth_stencil_backup> depth_stencil_backups;
@@ -274,7 +274,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 		return;
 
 	bool do_copy = true;
-	depth_stencil_info &counters = state.counters_per_used_depth_stencil[depth_stencil];
+	depth_stencil_frame_stats &counters = state.counters_per_used_depth_stencil[depth_stencil];
 
 	// Ignore clears when there was no meaningful workload (e.g. at the start of a frame)
 	if (counters.current_stats.drawcalls == 0)
@@ -382,15 +382,10 @@ static void on_destroy_device(device *device)
 
 	// Destroy any remaining resources
 	for (const auto &[resource, _] : device_data.delayed_destroy_resources)
-	{
 		device->destroy_resource(resource);
-	}
 
 	for (depth_stencil_backup &depth_stencil_backup : device_data.depth_stencil_backups)
-	{
-		if (depth_stencil_backup.backup_texture != 0)
-			device->destroy_resource(depth_stencil_backup.backup_texture);
-	}
+		device->destroy_resource(depth_stencil_backup.backup_texture);
 
 	device->destroy_private_data<generic_depth_device_data>();
 }
@@ -537,7 +532,7 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 
 	state.first_draw_since_bind = false;
 
-	depth_stencil_info &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
+	depth_stencil_frame_stats &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
 	counters.total_stats.vertices += vertices * instances;
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices * instances;
@@ -564,7 +559,7 @@ static bool on_draw_indirect(command_list *cmd_list, indirect_command type, reso
 	if (state.current_depth_stencil == 0)
 		return false; // This is a draw call with no depth-stencil bound
 
-	depth_stencil_info &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
+	depth_stencil_frame_stats &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
 	counters.total_stats.drawcalls += draw_count;
 	counters.total_stats.drawcalls_indirect += draw_count;
 	counters.current_stats.drawcalls += draw_count;
@@ -692,7 +687,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 	for (auto it = device_data.depth_stencil_resources.begin(); it != device_data.depth_stencil_resources.end();)
 	{
 		depth_stencil_resource &info = it->second;
-		info.last_counters = depth_stencil_info {}; // Clear previous frame statistics
+		info.last_counters = depth_stencil_frame_stats {}; // Clear previous frame statistics
 
 		if (queue_state.counters_per_used_depth_stencil.find(it->first) == queue_state.counters_per_used_depth_stencil.end() && device_data.frame_index > (info.last_used_in_frame + 10))
 		{
@@ -742,7 +737,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	resource best_match = { 0 };
 	resource_desc best_match_desc;
-	const depth_stencil_info *best_snapshot = nullptr;
+	const depth_stencil_frame_stats *best_snapshot = nullptr;
 
 	uint32_t frame_width, frame_height;
 	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
@@ -767,7 +762,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
 			continue; // Not a good fit
 
-		const depth_stencil_info &snapshot = info.last_counters;
+		const depth_stencil_frame_stats &snapshot = info.last_counters;
 		if (best_snapshot == nullptr || (snapshot.total_stats.drawcalls_indirect < (snapshot.total_stats.drawcalls / 3) ?
 				// Choose snapshot with the most vertices, since that is likely to contain the main scene
 				snapshot.total_stats.vertices > best_snapshot->total_stats.vertices :
@@ -1005,7 +1000,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	struct depth_stencil_item
 	{
 		resource resource;
-		depth_stencil_info snapshot;
+		depth_stencil_frame_stats snapshot;
 		resource_desc desc;
 	};
 
