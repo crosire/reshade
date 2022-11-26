@@ -772,27 +772,29 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		}
 	}
 
+	// Destroy existing resource view from previous frames, if the underlying resource has changed
+	if (data.selected_shader_resource != 0 && (best_match == 0 || best_match != data.selected_depth_stencil))
+	{
+		runtime->get_command_queue()->wait_idle(); // Ensure resource view is no longer in-use before destroying it
+		device->destroy_resource_view(data.selected_shader_resource);
+
+		device_data.untrack_depth_stencil(data.selected_depth_stencil);
+
+		data.using_backup_texture = false;
+		data.selected_depth_stencil = { 0 };
+		data.selected_shader_resource = { 0 };
+
+		update_effect_runtime(runtime);
+	}
+
 	if (best_match != 0)
 	{
 		const device_api api = device->get_api();
 
 		depth_stencil_backup *depth_stencil_backup = device_data.find_depth_stencil_backup(best_match);
 
-		if (best_match != data.selected_depth_stencil || data.selected_shader_resource == 0 || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))
+		if (data.selected_shader_resource == 0 || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))
 		{
-			// Destroy previous resource view, since the underlying resource has changed
-			if (data.selected_shader_resource != 0)
-			{
-				runtime->get_command_queue()->wait_idle(); // Ensure resource view is no longer in-use before destroying it
-				device->destroy_resource_view(data.selected_shader_resource);
-
-				device_data.untrack_depth_stencil(data.selected_depth_stencil);
-			}
-
-			data.using_backup_texture = false;
-			data.selected_depth_stencil = best_match;
-			data.selected_shader_resource = { 0 };
-
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
 			resource_view_desc srv_desc(api != device_api::opengl && api != device_api::vulkan ? format_to_default_typed(best_match_desc.texture.format) : best_match_desc.texture.format);
 
@@ -827,6 +829,8 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				if (!device->create_resource_view(best_match, resource_usage::shader_resource, srv_desc, &data.selected_shader_resource))
 					return;
 			}
+
+			data.selected_depth_stencil = best_match;
 
 			update_effect_runtime(runtime);
 		}
@@ -867,26 +871,6 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				cmd_list->bind_render_targets_and_depth_stencil(0, nullptr);
 
 			cmd_list->barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::shader_resource);
-		}
-	}
-	else
-	{
-		// Unset any existing depth-stencil selected in previous frames
-		if (data.selected_depth_stencil != 0)
-		{
-			if (data.selected_shader_resource != 0)
-			{
-				runtime->get_command_queue()->wait_idle(); // Ensure resource view is no longer in-use before destroying it
-				device->destroy_resource_view(data.selected_shader_resource);
-
-				device_data.untrack_depth_stencil(data.selected_depth_stencil);
-			}
-
-			data.using_backup_texture = false;
-			data.selected_depth_stencil = { 0 };
-			data.selected_shader_resource = { 0 };
-
-			update_effect_runtime(runtime);
 		}
 	}
 }
