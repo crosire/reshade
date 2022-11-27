@@ -1411,10 +1411,10 @@ void reshade::runtime::draw_gui_home()
 					[](const technique &lhs, const technique &rhs) {
 						std::string lhs_label(lhs.annotation_as_string("ui_label"));
 						if (lhs_label.empty()) lhs_label = lhs.name;
-						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
 						std::string rhs_label(rhs.annotation_as_string("ui_label"));
 						if (rhs_label.empty()) rhs_label = rhs.name;
-						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
 						return lhs_label < rhs_label;
 					});
 			}

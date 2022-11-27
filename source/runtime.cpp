@@ -995,14 +995,26 @@ void reshade::runtime::load_current_preset()
 	std::sort(_techniques.begin(), _techniques.end(),
 		[this, &sorted_technique_list](const technique &lhs, const technique &rhs) {
 			const std::string lhs_unique = lhs.name + '@' + _effects[lhs.effect_index].source_file.filename().u8string();
-			const std::string rhs_unique = rhs.name + '@' + _effects[rhs.effect_index].source_file.filename().u8string();
 			auto lhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs_unique);
+			lhs_it = (lhs_it == sorted_technique_list.end()) ? std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name) : lhs_it;
+			const std::string rhs_unique = rhs.name + '@' + _effects[rhs.effect_index].source_file.filename().u8string();
 			auto rhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs_unique);
-			if (lhs_it == sorted_technique_list.end())
-				lhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name);
-			if (rhs_it == sorted_technique_list.end())
-				rhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name);
-			return lhs_it < rhs_it;
+			rhs_it = (rhs_it == sorted_technique_list.end()) ? std::find(sorted_technique_list.begin(), sorted_technique_list.end(), rhs.name) : rhs_it;
+
+			if (lhs_it < rhs_it)
+				return true;
+			if (lhs_it > rhs_it)
+				return false;
+
+			// Sort the remaining techniques alphabetically
+			std::string lhs_label(lhs.annotation_as_string("ui_label"));
+			if (lhs_label.empty()) lhs_label = lhs.name;
+			std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
+			std::string rhs_label(rhs.annotation_as_string("ui_label"));
+			if (rhs_label.empty()) rhs_label = rhs.name;
+			std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
+
+			return lhs_label < rhs_label;
 		});
 
 	// Compute times since the transition has started and how much is left till it should end
@@ -1067,8 +1079,7 @@ void reshade::runtime::load_current_preset()
 
 	for (technique &tech : _techniques)
 	{
-		const std::string unique_name =
-			tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
+		const std::string unique_name = tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
 
 		// Ignore preset if "enabled" annotation is set
 		if (tech.annotation_as_int("enabled") ||
@@ -1104,8 +1115,7 @@ void reshade::runtime::save_current_preset() const
 
 	for (const technique &tech : _techniques)
 	{
-		const std::string unique_name =
-			tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
+		const std::string unique_name = tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
 
 		if (tech.enabled)
 			technique_list.push_back(unique_name);
