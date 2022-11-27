@@ -695,7 +695,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 		depth_stencil_resource &info = it->second;
 		info.last_counters = depth_stencil_frame_stats {}; // Clear previous frame statistics
 
-		if (queue_state.counters_per_used_depth_stencil.find(it->first) == queue_state.counters_per_used_depth_stencil.end() && device_data.frame_index > (info.last_used_in_frame + 10))
+		if (queue_state.counters_per_used_depth_stencil.find(it->first) == queue_state.counters_per_used_depth_stencil.end() && device_data.frame_index > (info.last_used_in_frame + 30))
 		{
 			// Remove from list when not used for a couple of frames (e.g. because the resource was actually destroyed since)
 			it = device_data.depth_stencil_resources.erase(it);
@@ -1007,13 +1007,14 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	{
 		resource resource;
 		depth_stencil_frame_stats snapshot;
+		bool unusable;
 		resource_desc desc;
 	};
 
 	std::vector<depth_stencil_item> sorted_item_list;
 	sorted_item_list.reserve(device_data.depth_stencil_resources.size());
 	for (const auto &[resource, info] : device_data.depth_stencil_resources)
-		sorted_item_list.push_back({ resource, info.last_counters });
+		sorted_item_list.push_back({ resource, info.last_counters, device_data.frame_index > (info.last_used_in_frame + 5) });
 
 	// Unlock while calling into device below
 	lock.unlock();
@@ -1034,10 +1035,12 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		char label[512] = "";
 		sprintf_s(label, "%c 0x%016llx", (item.resource == data.selected_depth_stencil ? '>' : ' '), item.resource.handle);
 
+		bool disabled = item.unusable;
 		if (item.desc.texture.samples > 1) // Disable widget for MSAA textures
-		{
-			has_msaa_depth_stencil = true;
+			has_msaa_depth_stencil = disabled = true;
 
+		if (disabled)
+		{
 			ImGui::BeginDisabled();
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 		}
@@ -1059,7 +1062,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			item.snapshot.total_stats.vertices,
 			(item.desc.texture.samples > 1 ? " MSAA" : ""));
 
-		if (item.desc.texture.samples > 1)
+		if (disabled)
 		{
 			ImGui::PopStyleColor();
 			ImGui::EndDisabled();
