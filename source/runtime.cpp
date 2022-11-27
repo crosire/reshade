@@ -1534,6 +1534,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					variable.special = special_uniform::overlay_active;
 				else if (special == "ui_hovered" || special == "overlay_hovered")
 					variable.special = special_uniform::overlay_hovered;
+				else if (special == "screenshot")
+					variable.special = special_uniform::screenshot;
 				else
 					variable.special = special_uniform::unknown;
 
@@ -3561,6 +3563,11 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 					break;
 				}
 #endif
+				case special_uniform::screenshot:
+				{
+					set_uniform_value(variable, _should_save_screenshot);
+					break;
+				}
 			}
 		}
 	}
