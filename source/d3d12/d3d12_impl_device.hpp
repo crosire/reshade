@@ -127,6 +127,15 @@ namespace reshade::d3d12
 			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 			_views.insert_or_assign(handle.ptr, std::make_pair(resource, desc));
 		}
+		inline void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_CPU_DESCRIPTOR_HANDLE source_handle)
+		{
+			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
+
+			if (const auto it = _views.find(source_handle.ptr); it != _views.end())
+				_views.insert_or_assign(handle.ptr, it->second);
+			else
+				assert(false);
+		}
 
 	private:
 		std::vector<command_queue_impl *> _queues;

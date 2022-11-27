@@ -926,8 +926,33 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 			descriptor_range_starts[NumSrcDescriptorRanges + i] = convert_to_original_cpu_descriptor_handle(pDestDescriptorRangeStarts[i]);
 
 		_orig->CopyDescriptors(NumDestDescriptorRanges, descriptor_range_starts.p + NumSrcDescriptorRanges, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, descriptor_range_starts.p, pSrcDescriptorRangeSizes, DescriptorHeapsType);
+		return;
 	}
-	else
+#endif
+#if RESHADE_ADDON
+	if (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_RTV || DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
+	{
+		for (UINT dst_range = 0, src_range = 0, dst_offset = 0, src_offset = 0; dst_range < NumDestDescriptorRanges; ++dst_range, dst_offset = 0)
+		{
+			const UINT dst_count = (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[dst_range] : 1);
+
+			while (dst_offset < dst_count)
+			{
+				const UINT src_count = (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1);
+
+				register_resource_view(offset_descriptor_handle(pDestDescriptorRangeStarts[dst_range], dst_offset, DescriptorHeapsType), offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType));
+
+				src_offset += 1;
+				dst_offset += 1;
+
+				if (src_offset >= src_count)
+				{
+					src_range += 1;
+					src_offset = 0;
+				}
+			}
+		}
+	}
 #endif
 	_orig->CopyDescriptors(NumDestDescriptorRanges, pDestDescriptorRangeStarts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 }
@@ -948,8 +973,15 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors
 		}
 
 		_orig->CopyDescriptorsSimple(NumDescriptors, convert_to_original_cpu_descriptor_handle(DestDescriptorRangeStart), convert_to_original_cpu_descriptor_handle(SrcDescriptorRangeStart), DescriptorHeapsType);
+		return;
 	}
-	else
+#endif
+#if RESHADE_ADDON
+	if (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_RTV || DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
+	{
+		for (UINT i = 0; i < NumDescriptors; ++i)
+			register_resource_view(offset_descriptor_handle(DestDescriptorRangeStart, i, DescriptorHeapsType), offset_descriptor_handle(SrcDescriptorRangeStart, i, DescriptorHeapsType));
+	}
 #endif
 	_orig->CopyDescriptorsSimple(NumDescriptors, DestDescriptorRangeStart, SrcDescriptorRangeStart, DescriptorHeapsType);
 }
