@@ -520,17 +520,16 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 							const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
 							immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
-
-							uint32_t num_wait_semaphores = 0;
-							immediate_command_list->flush(nullptr, num_wait_semaphores);
 						}
 						else
 						{
 							const api::resource_usage states_finalize[2] = { api::resource_usage::undefined, initial_state };
 							immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
-
-							// No need to flush immediate command list just yet
 						}
+
+						// Always flush right away, in case resource is destroyed again before an explicit flush of the immediate command list
+						uint32_t num_wait_semaphores = 0;
+						immediate_command_list->flush(nullptr, num_wait_semaphores);
 					}
 				}
 				return true;
