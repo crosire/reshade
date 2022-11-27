@@ -132,7 +132,7 @@ struct __declspec(uuid("7c6363c7-f94e-437a-9160-141782c44a98")) generic_depth_da
 struct depth_stencil_backup
 {
 	// The number of effect runtimes referencing this backup
-	size_t references = 1;
+	uint32_t references = 1;
 
 	// A resource used as target for a backup copy of this depth-stencil
 	resource backup_texture = { 0 };
@@ -140,18 +140,22 @@ struct depth_stencil_backup
 	// The depth-stencil that should be copied from
 	resource depth_stencil_resource = { 0 };
 
-	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
-	size_t force_clear_index = 0;
-
 	// Frame dimensions of the last effect runtime this backup was used with
 	uint32_t frame_width = 0;
 	uint32_t frame_height = 0;
+
+	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
+	uint32_t force_clear_index = 0;
+
+	// Index of the frame after which the backup resource may be destroyed (used to delay destruction until resource is no longer in use)
+	uint64_t destroy_after_frame = std::numeric_limits<uint64_t>::max();
 };
 
 struct depth_stencil_resource
 {
 	depth_stencil_frame_stats last_counters;
 
+	// Index of the frame in which the depth-stencil was last/first seen used in
 	uint64_t last_used_in_frame = std::numeric_limits<uint64_t>::max();
 	uint64_t first_used_in_frame = std::numeric_limits<uint64_t>::max();
 };
@@ -169,9 +173,6 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 	// List of depth-stencils that should be tracked throughout each frame and potentially be backed up during clear operations
 	std::vector<depth_stencil_backup> depth_stencil_backups;
 
-	// List of resources that are enqueued for delayed destruction in the future
-	std::vector<std::pair<resource, int>> delayed_destroy_resources;
-
 	depth_stencil_backup *find_depth_stencil_backup(resource resource)
 	{
 		for (depth_stencil_backup &backup : depth_stencil_backups)
@@ -182,20 +183,17 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 
 	depth_stencil_backup *track_depth_stencil_for_backup(device *device, resource resource, resource_desc desc)
 	{
-		std::unique_lock<std::shared_mutex> lock(s_mutex);
-
 		assert(depth_stencil_resources.find(resource) != depth_stencil_resources.end());
 
 		const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(),
 			[resource](const depth_stencil_backup &existing) { return existing.depth_stencil_resource == resource; });
 		if (it != depth_stencil_backups.end())
 		{
-			it->references++;
-			return &(*it);
-		}
+			depth_stencil_backup &backup = *it;
+			backup.references++;
 
-		depth_stencil_backup &backup = depth_stencil_backups.emplace_back();
-		backup.depth_stencil_resource = resource;
+			return &backup;
+		}
 
 		desc.type = resource_type::texture_2d;
 		desc.heap = memory_heap::gpu_only;
@@ -207,20 +205,27 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		else if (device->get_api() != device_api::opengl && device->get_api() != device_api::vulkan)
 			desc.texture.format = format_to_typeless(desc.texture.format);
 
-		lock.unlock();
-
 		// First try to revive a backup resource that was previously enqueued for delayed destruction
-		for (auto delayed_destroy_it = delayed_destroy_resources.begin(); delayed_destroy_it != delayed_destroy_resources.end(); ++delayed_destroy_it)
+		for (depth_stencil_backup &backup : depth_stencil_backups)
 		{
-			const resource_desc delayed_destroy_desc = device->get_resource_desc(delayed_destroy_it->first);
+			if (backup.depth_stencil_resource != 0)
+				continue;
 
-			if (desc.texture.width == delayed_destroy_desc.texture.width && desc.texture.height == delayed_destroy_desc.texture.height && desc.texture.format == delayed_destroy_desc.texture.format)
+			assert(backup.references == 0 && backup.destroy_after_frame != std::numeric_limits<uint64_t>::max());
+
+			const resource_desc existing_desc = device->get_resource_desc(backup.backup_texture);
+			if (desc.texture.width == existing_desc.texture.width && desc.texture.height == existing_desc.texture.height && desc.texture.format == existing_desc.texture.format)
 			{
-				backup.backup_texture = delayed_destroy_it->first;
-				delayed_destroy_resources.erase(delayed_destroy_it);
+				backup.references++;
+				backup.depth_stencil_resource = resource;
+				backup.destroy_after_frame = std::numeric_limits<uint64_t>::max();
+
 				return &backup;
 			}
 		}
+
+		depth_stencil_backup &backup = depth_stencil_backups.emplace_back();
+		backup.depth_stencil_resource = resource;
 
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
 			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
@@ -240,15 +245,11 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 			return;
 
 		depth_stencil_backup &backup = *it;
+		backup.depth_stencil_resource = { 0 };
 
-		if (backup.backup_texture != 0)
-		{
-			// Do not destroy backup texture immediately since it may still be referenced by a command list that is in flight or was prerecorded
-			// Instead enqueue it for delayed destruction in the future
-			delayed_destroy_resources.emplace_back(backup.backup_texture, 50); // Destroy after 50 frames
-		}
-
-		depth_stencil_backups.erase(it);
+		// Do not destroy backup texture immediately since it may still be referenced by a command list that is in flight or was prerecorded
+		// Instead mark it for delayed destruction in the future
+		backup.destroy_after_frame = frame_index + 50; // Destroy after 50 frames
 	}
 };
 
@@ -262,7 +263,7 @@ static bool check_aspect_ratio(float width_to_check, float height_to_check, uint
 	float w_ratio = w / width_to_check;
 	const float h = static_cast<float>(height);
 	float h_ratio = h / height_to_check;
-	const float aspect_ratio = (w / h) - (static_cast<float>(width_to_check) / height_to_check);
+	const float aspect_ratio = (w / h) - (width_to_check / height_to_check);
 
 	// Accept if dimensions are similar in value or almost exact multiples
 	return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (s_use_aspect_ratio_heuristics == 2 && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
@@ -311,7 +312,8 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 				// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge main menu)
 				do_copy = counters.current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && counters.current_stats.drawcalls >= state.best_copy_stats.drawcalls);
 			}
-			else if (std::numeric_limits<size_t>::max() == depth_stencil_backup->force_clear_index)
+			else
+			if (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max())
 			{
 				// Special case for Garry's Mod which chooses the last clear operation that has a high workload
 				do_copy = counters.current_stats.vertices >= 5000;
@@ -387,11 +389,8 @@ static void on_destroy_device(device *device)
 	auto &device_data = device->get_private_data<generic_depth_device_data>();
 
 	// Destroy any remaining resources
-	for (const auto &[resource, _] : device_data.delayed_destroy_resources)
-		device->destroy_resource(resource);
-
-	for (depth_stencil_backup &depth_stencil_backup : device_data.depth_stencil_backups)
-		device->destroy_resource(depth_stencil_backup.backup_texture);
+	for (depth_stencil_backup &backup : device_data.depth_stencil_backups)
+		device->destroy_resource(backup.backup_texture);
 
 	device->destroy_private_data<generic_depth_device_data>();
 }
@@ -408,11 +407,10 @@ static void on_destroy_command_queue(command_queue *cmd_queue)
 }
 static void on_destroy_effect_runtime(effect_runtime *runtime)
 {
-	device *const device = runtime->get_device();
-	generic_depth_data &data = runtime->get_private_data<generic_depth_data>();
+	auto &data = runtime->get_private_data<generic_depth_data>();
 
 	if (data.selected_shader_resource != 0)
-		device->destroy_resource_view(data.selected_shader_resource);
+		runtime->get_device()->destroy_resource_view(data.selected_shader_resource);
 
 	runtime->destroy_private_data<generic_depth_data>();
 }
@@ -441,7 +439,7 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 		break;
 	case device_api::d3d10:
 	case device_api::d3d11:
-		// Allow shader access to images that are used as depth-stencil attachments
+		// Allow shader access to textures that are used as depth-stencil attachments
 		desc.texture.format = format_to_typeless(desc.texture.format);
 		desc.usage |= resource_usage::shader_resource;
 		break;
@@ -671,14 +669,19 @@ static void on_execute_secondary(command_list *cmd_list, command_list *secondary
 static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
 {
 	device *const device = swapchain->get_device();
-	generic_depth_device_data &device_data = device->get_private_data<generic_depth_device_data>();
+	auto &device_data = device->get_private_data<generic_depth_device_data>();
 
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
-	// Merge state from all graphics queues
 	state_tracking queue_state;
+	// Merge state from all graphics queues
 	for (command_queue *const queue : device_data.queues)
-		queue_state.merge(queue->get_private_data<state_tracking>());
+	{
+		auto &state = queue->get_private_data<state_tracking>();
+		queue_state.merge(state);
+
+		state.reset_on_present();
+	}
 
 	// Only update device list if there are any depth-stencils, otherwise this may be a second present call (at which point 'reset_on_present' already cleared out the queue list in the first present call)
 	if (queue_state.counters_per_used_depth_stencil.empty())
@@ -718,16 +721,15 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 		info.last_used_in_frame = device_data.frame_index;
 	}
 
-	for (command_queue *const queue : device_data.queues)
-		queue->get_private_data<state_tracking>().reset_on_present();
-
 	// Destroy resources that were enqueued for delayed destruction and have reached the targeted number of passed frames
-	for (auto it = device_data.delayed_destroy_resources.begin(); it != device_data.delayed_destroy_resources.end();)
+	for (auto it = device_data.depth_stencil_backups.begin(); it != device_data.depth_stencil_backups.end();)
 	{
-		if (--it->second == 0)
+		if (device_data.frame_index >= it->destroy_after_frame)
 		{
-			device->destroy_resource(it->first);
-			it = device_data.delayed_destroy_resources.erase(it);
+			assert(it->references == 0);
+
+			device->destroy_resource(it->backup_texture);
+			it = device_data.depth_stencil_backups.erase(it);
 			continue;
 		}
 
@@ -738,8 +740,8 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_list, resource_view, resource_view)
 {
 	device *const device = runtime->get_device();
-	generic_depth_data &data = runtime->get_private_data<generic_depth_data>();
-	generic_depth_device_data &device_data = device->get_private_data<generic_depth_device_data>();
+	auto &data = runtime->get_private_data<generic_depth_data>();
+	auto &device_data = device->get_private_data<generic_depth_device_data>();
 
 	resource best_match = { 0 };
 	resource_desc best_match_desc;
@@ -848,6 +850,8 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			{
 				if (!device->create_resource_view(best_match, resource_usage::shader_resource, srv_desc, &data.selected_shader_resource))
 					return;
+
+				assert(!data.using_backup_texture);
 			}
 
 			data.selected_depth_stencil = best_match;
@@ -899,7 +903,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 }
 static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_list, resource_view, resource_view)
 {
-	const generic_depth_data &data = runtime->get_private_data<generic_depth_data>();
+	const auto &data = runtime->get_private_data<generic_depth_data>();
 
 	if (data.selected_shader_resource != 0)
 	{
@@ -945,7 +949,6 @@ static inline const char *format_to_string(format format)
 
 static void draw_settings_overlay(effect_runtime *runtime)
 {
-	device *const device = runtime->get_device();
 	bool force_reset = false;
 
 	if (bool use_aspect_ratio_heuristics = s_use_aspect_ratio_heuristics != 0;
@@ -975,6 +978,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		force_reset = true;
 	}
 
+	device *const device = runtime->get_device();
 	const bool is_d3d12_or_vulkan = device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan;
 
 	if (s_preserve_depth_buffers || is_d3d12_or_vulkan)
@@ -991,8 +995,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	generic_depth_data &data = runtime->get_private_data<generic_depth_data>();
-	generic_depth_device_data &device_data = device->get_private_data<generic_depth_device_data>();
+	auto &data = runtime->get_private_data<generic_depth_data>();
+	auto &device_data = device->get_private_data<generic_depth_device_data>();
 
 	std::shared_lock<std::shared_mutex> lock(s_mutex);
 
@@ -1082,14 +1086,14 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 			for (size_t clear_index = 1; clear_index <= item.snapshot.clears.size(); ++clear_index)
 			{
-				const auto &clear_stats = item.snapshot.clears[clear_index - 1];
+				const clear_stats &clear_stats = item.snapshot.clears[clear_index - 1];
 
 				sprintf_s(label, "%c   CLEAR %2zu", clear_stats.copied_during_frame ? '>' : ' ', clear_index);
 
-				if (bool value = (depth_stencil_backup->force_clear_index == clear_index);
+				if (bool value = (depth_stencil_backup->force_clear_index == static_cast<uint32_t>(clear_index));
 					ImGui::Checkbox(label, &value))
 				{
-					depth_stencil_backup->force_clear_index = value ? clear_index : 0;
+					depth_stencil_backup->force_clear_index = value ? static_cast<uint32_t>(clear_index) : 0;
 					reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				}
 
@@ -1103,10 +1107,10 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 			if (sorted_item_list.size() == 1 && !is_d3d12_or_vulkan)
 			{
-				if (bool value = (depth_stencil_backup->force_clear_index == std::numeric_limits<size_t>::max());
+				if (bool value = (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max());
 					ImGui::Checkbox("    Choose last clear operation with high number of draw calls", &value))
 				{
-					depth_stencil_backup->force_clear_index = value ? std::numeric_limits<size_t>::max() : 0;
+					depth_stencil_backup->force_clear_index = value ? std::numeric_limits<uint32_t>::max() : 0;
 					reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				}
 			}
