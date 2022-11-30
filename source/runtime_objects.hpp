@@ -27,6 +27,7 @@ namespace reshade
 		overlay_open,
 		overlay_active,
 		overlay_hovered,
+		screenshot,
 		unknown
 	};
 

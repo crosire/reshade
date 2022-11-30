@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <vulkan/vk_layer.h>
 
 // Windows SDK headers define these, which breaks the dispatch table
@@ -38,6 +39,8 @@ static const T *find_in_structure_chain(const void *structure_chain, VkStructure
 
 static inline void *dispatch_key_from_handle(const void *dispatch_handle)
 {
+	assert(dispatch_handle != nullptr);
+
 	// The Vulkan loader writes the dispatch table pointer right to the start of the object, so use that as a key for lookup
 	// This ensures that all objects of a specific level (device or instance) will use the same dispatch table
 	return *(void **)dispatch_handle;

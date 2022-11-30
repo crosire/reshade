@@ -1411,10 +1411,10 @@ void reshade::runtime::draw_gui_home()
 					[](const technique &lhs, const technique &rhs) {
 						std::string lhs_label(lhs.annotation_as_string("ui_label"));
 						if (lhs_label.empty()) lhs_label = lhs.name;
-						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
 						std::string rhs_label(rhs.annotation_as_string("ui_label"));
 						if (rhs_label.empty()) rhs_label = rhs.name;
-						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
 						return lhs_label < rhs_label;
 					});
 			}
@@ -2485,7 +2485,7 @@ void reshade::runtime::draw_gui_addons()
 {
 	ini_file &config = global_config();
 
-#if RESHADE_ADDON_LITE
+#  if RESHADE_ADDON_LITE
 	if (!addon_enabled)
 	{
 		ImGui::TextColored(COLOR_YELLOW, "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
@@ -2494,12 +2494,12 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted("This build of ReShade has only limited add-on functionality.");
-#else
+#  else
 	std::filesystem::path addon_search_path = g_reshade_base_path;
 	config.get("INSTALL", "AddonPath", addon_search_path);
 	if (imgui::directory_input_box("Add-on search path", addon_search_path, _file_selection_path))
 		config.set("INSTALL", "AddonPath", addon_search_path);
-#endif
+#  endif
 
 	ImGui::Spacing();
 	ImGui::Separator();
@@ -2558,8 +2558,8 @@ void reshade::runtime::draw_gui_addons()
 		if (open)
 		{
 			ImGui::Spacing();
-
 			ImGui::BeginGroup();
+
 			ImGui::Text("File:");
 			if (!info.author.empty())
 				ImGui::Text("Author:");
@@ -2567,10 +2567,17 @@ void reshade::runtime::draw_gui_addons()
 				ImGui::Text("Version:");
 			if (!info.description.empty())
 				ImGui::Text("Description:");
+
 			ImGui::EndGroup();
 			ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
 			ImGui::BeginGroup();
-			ImGui::TextUnformatted(info.file.c_str());
+
+			std::filesystem::path file = std::filesystem::u8path(info.file);
+#  if !RESHADE_ADDON_LITE
+			if (file.parent_path() == addon_search_path)
+#  endif
+				file = file.filename();
+			ImGui::TextUnformatted(file.u8string().c_str());
 			if (!info.author.empty())
 				ImGui::TextUnformatted(info.author.c_str());
 			if (!info.version.empty())
@@ -2581,6 +2588,7 @@ void reshade::runtime::draw_gui_addons()
 				ImGui::TextUnformatted(info.description.c_str());
 				ImGui::PopTextWrapPos();
 			}
+
 			ImGui::EndGroup();
 
 			if (info.settings_overlay_callback != nullptr)
