@@ -1265,6 +1265,8 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 
 bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required)
 {
+	const std::chrono::high_resolution_clock::time_point time_load_started = std::chrono::high_resolution_clock::now();
+
 	// Generate a unique string identifying this effect
 	std::string attributes;
 	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';
@@ -2002,6 +2004,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
+	const std::chrono::high_resolution_clock::time_point time_load_finished = std::chrono::high_resolution_clock::now();
+
 	if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 		_reload_remaining_effects--;
 	else
@@ -2010,9 +2014,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
 		if (effect.errors.empty())
-			LOG(INFO) << "Successfully compiled " << source_file << '.';
+			LOG(INFO) << "Successfully compiled " << source_file << " in " << (std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f) << " s.";
 		else
-			LOG(WARN) << "Successfully compiled " << source_file << " with warnings:\n" << effect.errors;
+			LOG(WARN) << "Successfully compiled " << source_file << " in " << (std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f) << " s with warnings:\n" << effect.errors;
 		return true;
 	}
 	else
