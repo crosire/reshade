@@ -53,3 +53,7 @@ Renders the ReShade post-processing effects at a different point during the fram
 ## [12-framerate_limit](/examples/12-framerate_limit)
 
 Limits the framerate of an application to a specified FPS value.
+
+## [13-freepie](/examples/13-freepie)
+
+Adds support for reading FreePIE input data in effects.

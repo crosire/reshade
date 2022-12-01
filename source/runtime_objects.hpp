@@ -23,7 +23,6 @@ namespace reshade
 		mouse_delta,
 		mouse_button,
 		mouse_wheel,
-		freepie,
 		overlay_open,
 		overlay_active,
 		overlay_hovered,

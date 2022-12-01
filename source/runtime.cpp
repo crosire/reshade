@@ -14,7 +14,6 @@
 #include "effect_codegen.hpp"
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
-#include "input_freepie.hpp"
 #include "input_gamepad.hpp"
 #include "com_ptr.hpp"
 #include "process_utils.hpp"
@@ -1526,8 +1525,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					variable.special = special_uniform::mouse_button;
 				else if (special == "mousewheel")
 					variable.special = special_uniform::mouse_wheel;
-				else if (special == "freepie")
-					variable.special = special_uniform::freepie;
 				else if (special == "ui_open" || special == "overlay_open")
 					variable.special = special_uniform::overlay_open;
 				else if (special == "ui_active" || special == "overlay_active")
@@ -3541,13 +3538,6 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 						value[0] = std::min(value[0], max);
 					}
 					set_uniform_value(variable, value, 2);
-					break;
-				}
-				case special_uniform::freepie:
-				{
-					if (freepie_io_data data;
-						freepie_io_read(variable.annotation_as_int("index"), &data))
-						set_uniform_value(variable, &data.yaw, 3 * 2);
 					break;
 				}
 #if RESHADE_GUI
