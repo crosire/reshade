@@ -3319,10 +3319,12 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
 
+#if RESHADE_ADDON
 	// Ensure format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 	// TODO: Technically would need to recompile effects as well to update 'BUFFER_COLOR_BIT_DEPTH' etc.
-	if (!update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
+	if (!_is_in_present_call && !update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
 		return;
+#endif
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
@@ -3596,8 +3598,6 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 	const effect &effect = _effects[tech.effect_index];
 
 #if RESHADE_GUI
-	const std::chrono::high_resolution_clock::time_point time_technique_started = std::chrono::high_resolution_clock::now();
-
 	if (_gather_gpu_statistics && effect.query_pool != 0)
 	{
 		// Evaluate queries from oldest frame in queue
@@ -3607,6 +3607,8 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2);
 	}
+
+	const std::chrono::high_resolution_clock::time_point time_technique_started = std::chrono::high_resolution_clock::now();
 #endif
 
 #ifndef NDEBUG
@@ -3661,9 +3663,10 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 			cmd_list->bind_pipeline(api::pipeline_stage::all_compute, pass_data.pipeline);
 
-			std::vector<api::resource_usage> state_old(num_barriers, api::resource_usage::shader_resource);
-			std::vector<api::resource_usage> state_new(num_barriers, api::resource_usage::unordered_access);
-			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_old.data(), state_new.data());
+			temp_mem<api::resource_usage> state_old, state_new;
+			std::fill_n(state_old.p, num_barriers, api::resource_usage::shader_resource);
+			std::fill_n(state_new.p, num_barriers, api::resource_usage::unordered_access);
+			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_old.p, state_new.p);
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
 			if (effect.cb != 0)
@@ -3678,16 +3681,17 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 			cmd_list->dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
-			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_new.data(), state_old.data());
+			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_new.p, state_old.p);
 		}
 		else
 		{
 			cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, pass_data.pipeline);
 
 			// Transition resource state for render targets
-			std::vector<api::resource_usage> state_old(num_barriers, api::resource_usage::shader_resource);
-			std::vector<api::resource_usage> state_new(num_barriers, api::resource_usage::render_target);
-			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_old.data(), state_new.data());
+			temp_mem<api::resource_usage> state_old, state_new;
+			std::fill_n(state_old.p, num_barriers, api::resource_usage::shader_resource);
+			std::fill_n(state_new.p, num_barriers, api::resource_usage::render_target);
+			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_old.p, state_new.p);
 
 			// Setup render targets
 			uint32_t render_target_count = 0;
@@ -3772,7 +3776,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 			cmd_list->end_render_pass();
 
 			// Transition resource state back to shader access
-			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_new.data(), state_old.data());
+			cmd_list->barrier(num_barriers, pass_data.modified_resources.data(), state_new.p, state_old.p);
 		}
 
 		// Generate mipmaps for modified resources
@@ -3789,12 +3793,12 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #endif
 
 #if RESHADE_GUI
-	if (_gather_gpu_statistics && effect.query_pool != 0)
-		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
-
 	const std::chrono::high_resolution_clock::time_point time_technique_finished = std::chrono::high_resolution_clock::now();
 
 	tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
+
+	if (_gather_gpu_statistics && effect.query_pool != 0)
+		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
 #endif
 
 #if RESHADE_ADDON
