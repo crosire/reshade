@@ -2557,10 +2557,13 @@ void reshade::runtime::draw_gui_addons()
 
 		if (open)
 		{
+			const bool builtin = info.file == g_reshade_dll_path;
+
 			ImGui::Spacing();
 			ImGui::BeginGroup();
 
-			ImGui::Text("File:");
+			if (!builtin)
+				ImGui::Text("File:");
 			if (!info.author.empty())
 				ImGui::Text("Author:");
 			if (!info.version.empty())
@@ -2572,12 +2575,15 @@ void reshade::runtime::draw_gui_addons()
 			ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
 			ImGui::BeginGroup();
 
-			std::filesystem::path file = std::filesystem::u8path(info.file);
+			if (!builtin)
+			{
+				std::filesystem::path file = std::filesystem::u8path(info.file);
 #  if !RESHADE_ADDON_LITE
-			if (file.parent_path() == addon_search_path)
+				if (file.parent_path() == addon_search_path)
 #  endif
-				file = file.filename();
-			ImGui::TextUnformatted(file.u8string().c_str());
+					file = file.filename();
+				ImGui::TextUnformatted(file.u8string().c_str());
+			}
 			if (!info.author.empty())
 				ImGui::TextUnformatted(info.author.c_str());
 			if (!info.version.empty())
