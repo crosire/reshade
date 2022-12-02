@@ -616,6 +616,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			dispatch_table.GetDeviceQueue(device, queue_create_info.queueFamilyIndex, queue_index, &queue);
 			assert(VK_NULL_HANDLE != queue);
 
+			// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
+			// This applies to 'vkGetDeviceQueue', 'vkGetDeviceQueue2' and 'vkAllocateCommandBuffers'
+			*reinterpret_cast<void **>(queue) = *reinterpret_cast<void **>(device);
+
 			const auto queue_impl = new reshade::vulkan::command_queue_impl(
 				device_impl,
 				queue_create_info.queueFamilyIndex,
