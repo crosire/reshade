@@ -169,7 +169,7 @@ public:
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			device, desc, &initial_data, reshade::api::resource_usage::general, resource);
+			device, desc, initial_data.data != nullptr ? &initial_data : nullptr, reshade::api::resource_usage::general, resource);
 
 		if (base_target == GL_BUFFER)
 			return;
@@ -196,10 +196,15 @@ public:
 
 	reshade::api::subresource_data *convert_mapped_subresource(GLenum format, GLenum type, const void *pixels, GLuint width, GLuint height = 1, GLuint depth = 1)
 	{
+		if (pixels == nullptr)
+			return nullptr;
+		if (desc.type != reshade::api::resource_type::texture_3d && desc.texture.depth_or_layers != 1)
+			return nullptr; // Currently only a single layer is passed to 'create_resource' and 'init_resource' (see 'initial_data' field), so cannot handle textures with multiple layers
+
 		GLint unpack = 0;
 		gl.GetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &unpack);
 
-		if (0 != unpack || pixels == nullptr)
+		if (0 != unpack)
 			return nullptr;
 
 		GLint row_length = 0;
@@ -613,7 +618,7 @@ static void update_current_primitive_topology(GLenum mode, GLenum type)
 	}
 }
 
-static __forceinline auto get_index_buffer_offset(const GLvoid *indices) -> GLuint
+static __forceinline GLuint get_index_buffer_offset(const GLvoid *indices)
 {
 	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
 }
@@ -631,7 +636,6 @@ extern "C" void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internal
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_1D);
 
-	// TODO: Add support for other mipmap levels
 	if (g_current_context && level == 0 && !proxy_object)
 	{
 		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, 1, 1);
@@ -655,7 +659,6 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 	// Ignore all cube map faces except for the first
 	const bool cube_map_face = (target > GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 
-	// TODO: Add support for other mipmap levels
 	if (g_current_context && level == 0 && !proxy_object && !cube_map_face)
 	{
 		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
@@ -1266,7 +1269,6 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_3D || target == GL_PROXY_TEXTURE_2D_ARRAY || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY);
 
-	// TODO: Add support for other mipmap levels
 	if (g_current_context && level == 0 && !proxy_object)
 	{
 		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
@@ -1327,7 +1329,6 @@ void APIENTRY glCompressedTexImage1D(GLenum target, GLint level, GLenum internal
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_1D);
 
-	// TODO: Add support for other mipmap levels
 	if (g_current_context && level == 0 && !proxy_object)
 	{
 		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, 1, 1);
@@ -1349,7 +1350,6 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 	// Ignore all cube map faces except for the first
 	const bool cube_map_face = (target > GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 
-	// TODO: Add support for other mipmap levels
 	if (g_current_context && level == 0 && !proxy_object && !cube_map_face)
 	{
 		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
@@ -1369,7 +1369,6 @@ void APIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internal
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_3D || target == GL_PROXY_TEXTURE_2D_ARRAY || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY);
 
-	// TODO: Add support for other mipmap levels
 	if (g_current_context && level == 0 && !proxy_object)
 	{
 		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
