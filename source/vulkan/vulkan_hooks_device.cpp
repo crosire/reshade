@@ -2132,15 +2132,6 @@ VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
 
 	assert(pDescriptorSets != nullptr);
 
-	const VkResult result = trampoline(device, descriptorPool, descriptorSetCount, pDescriptorSets);
-	if (result < VK_SUCCESS)
-	{
-#if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkFreeDescriptorSets" << " failed with error code " << result << '.';
-#endif
-		return result;
-	}
-
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	for (uint32_t i = 0; i < descriptorSetCount; ++i)
 	{
@@ -2151,7 +2142,7 @@ VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
 	}
 #endif
 
-	return result;
+	return trampoline(device, descriptorPool, descriptorSetCount, pDescriptorSets);
 }
 
 void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet *pDescriptorCopies)
@@ -2418,6 +2409,8 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(FreeCommandBuffers, device_impl);
+
+	assert(pCommandBuffers != nullptr);
 
 #if RESHADE_ADDON
 	for (uint32_t i = 0; i < commandBufferCount; ++i)
