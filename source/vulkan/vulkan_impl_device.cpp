@@ -96,7 +96,7 @@ reshade::vulkan::device_impl::device_impl(
 		}
 	}
 
-	if (vk.CmdPushDescriptorSetKHR == nullptr)
+	if (!_push_descriptor_ext)
 	{
 		for (uint32_t i = 0; i < 4; ++i)
 		{
@@ -235,7 +235,6 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 	VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	create_info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
 
-#ifdef VK_EXT_custom_border_color
 	VkSamplerCustomBorderColorCreateInfoEXT border_color_info { VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT };
 	if (_custom_border_color_ext && (
 		desc.border_color[0] != 0.0f || desc.border_color[1] != 0.0f || desc.border_color[2] != 0.0f || desc.border_color[3] != 0.0f))
@@ -243,7 +242,6 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 		create_info.pNext = &border_color_info;
 		create_info.borderColor = VK_BORDER_COLOR_FLOAT_CUSTOM_EXT;
 	}
-#endif
 
 	convert_sampler_desc(desc, create_info);
 
@@ -361,12 +359,9 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (is_shared)
 				{
-#ifdef VK_KHR_external_memory_win32
 					if (vk.GetMemoryWin32HandleKHR == nullptr)
-#endif
 						break;
 
-#ifdef VK_KHR_external_memory_win32
 					VkMemoryRequirements reqs = {};
 					vk.GetBufferMemoryRequirements(_orig, object, &reqs);
 
@@ -395,7 +390,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							break;
 						}
 					}
-#endif
 				}
 				else if (allocation != VMA_NULL)
 				{
@@ -451,12 +445,9 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (is_shared)
 				{
-#ifdef VK_KHR_external_memory_win32
 					if (vk.GetMemoryWin32HandleKHR == nullptr)
-#endif
 						break;
 
-#ifdef VK_KHR_external_memory_win32
 					VkMemoryRequirements reqs = {};
 					vk.GetImageMemoryRequirements(_orig, object, &reqs);
 
@@ -485,7 +476,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							break;
 						}
 					}
-#endif
 				}
 				else if (allocation != VMA_NULL)
 				{
@@ -1111,7 +1101,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineRasterizationStateCreateInfo rasterization_state_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 		create_info.pRasterizationState = &rasterization_state_info;
 
-#ifdef VK_EXT_conservative_rasterization
 		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
 		if (rasterizer_desc.conservative_rasterization != 0)
 		{
@@ -1121,7 +1110,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			conservative_rasterization_info.pNext = rasterization_state_info.pNext;
 			rasterization_state_info.pNext = &conservative_rasterization_info;
 		}
-#endif
 
 		convert_rasterizer_desc(rasterizer_desc, rasterization_state_info);
 		rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
@@ -1336,10 +1324,8 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
 		create_info.pBindings = internal_bindings.data();
 
-#ifdef VK_KHR_push_descriptor
 		if (push_descriptors && _push_descriptor_ext)
 			create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-#endif
 
 		if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)
 		{
@@ -1668,10 +1654,8 @@ void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view han
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 {
-#ifdef VK_KHR_push_descriptor
 	if (_push_descriptor_ext)
 		return;
-#endif
 
 	// This assumes that no other thread is currently allocating from the transient descriptor pool
 	const VkDescriptorPool next_pool = _transient_descriptor_pool[++_transient_index % 4];

@@ -538,7 +538,6 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		break;
 	}
 
-#ifdef VK_KHR_push_descriptor
 	if (_device_impl->_push_descriptor_ext)
 	{
 		vk.CmdPushDescriptorSetKHR(_orig,
@@ -547,7 +546,6 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 			1, &write);
 		return;
 	}
-#endif
 
 	assert(update.binding == 0 && update.array_offset == 0);
 
@@ -603,10 +601,8 @@ void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uin
 }
 void reshade::vulkan::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
 {
-#ifdef VK_EXT_transform_feedback
 	if (vk.CmdBindTransformFeedbackBuffersEXT != nullptr)
 		vk.CmdBindTransformFeedbackBuffersEXT(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets, max_sizes);
-#endif
 }
 
 void reshade::vulkan::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
@@ -1022,7 +1018,6 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::
 	default:
 		vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
 		break;
-#ifdef VK_EXT_transform_feedback
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
@@ -1030,7 +1025,6 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::
 		if (vk.CmdBeginQueryIndexedEXT != nullptr)
 			vk.CmdBeginQueryIndexedEXT(_orig, (VkQueryPool)pool.handle, index, 0, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
 		break;
-#endif
 	}
 }
 void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
@@ -1049,7 +1043,6 @@ void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::qu
 		vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
 		vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)pool.handle, index);
 		break;
-#ifdef VK_EXT_transform_feedback
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
@@ -1057,7 +1050,6 @@ void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::qu
 		if (vk.CmdEndQueryIndexedEXT != nullptr)
 			vk.CmdEndQueryIndexedEXT(_orig, (VkQueryPool)pool.handle, index, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
 		break;
-#endif
 	}
 }
 void reshade::vulkan::command_list_impl::copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)

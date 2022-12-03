@@ -220,9 +220,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
 
-#ifdef VK_KHR_push_descriptor
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
-#endif
 		dynamic_rendering_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
 		// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
 		if (dynamic_rendering_ext && instance_dispatch.api_version < VK_API_VERSION_1_3)
@@ -230,18 +228,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
 			add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
 		}
-#ifdef VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
-#endif
-#ifdef VK_EXT_extended_dynamic_state
 		extended_dynamic_state_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
-#endif
-#ifdef VK_EXT_conservative_rasterization
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
-#endif
-#ifdef VK_KHR_external_memory_win32
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
-#endif
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -296,7 +286,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		}
 	}
 
-#ifdef VK_EXT_custom_border_color
 	// Optionally enable custom border color feature
 	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
 	if (const auto existing_custom_border_features = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
@@ -312,9 +301,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &custom_border_feature;
 	}
-#endif
 
-#ifdef VK_EXT_extended_dynamic_state
 	// Optionally enable extended dynamic state feature
 	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
 	if (const auto existing_extended_dynamic_state_features = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
@@ -329,7 +316,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &extended_dynamic_state_feature;
 	}
-#endif
 
 	// Continue calling down the chain
 	g_in_dxgi_runtime = true;
@@ -561,7 +547,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
 
 	// VK_EXT_extended_dynamic_state
-#ifdef VK_EXT_extended_dynamic_state
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetCullMode, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetFrontFace, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetPrimitiveTopology, EXT);
@@ -574,7 +559,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthBoundsTestEnable, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilTestEnable, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilOp, EXT);
-#endif
 
 	// VK_EXT_private_data (try the EXT version if the core version does not exist)
 	INIT_DISPATCH_PTR_EXTENSION(CreatePrivateDataSlot, EXT);
@@ -616,8 +600,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			dispatch_table.GetDeviceQueue(device, queue_create_info.queueFamilyIndex, queue_index, &queue);
 			assert(VK_NULL_HANDLE != queue);
 
-			// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
-			// This applies to 'vkGetDeviceQueue', 'vkGetDeviceQueue2' and 'vkAllocateCommandBuffers'
+			// Subsequent layers (like the validation layer or the Steam overlay) expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
+			// This applies to 'vkGetDeviceQueue', 'vkGetDeviceQueue2' and 'vkAllocateCommandBuffers' (functions that return dispatchable objects)
 			*reinterpret_cast<void **>(queue) = *reinterpret_cast<void **>(device);
 
 			const auto queue_impl = new reshade::vulkan::command_queue_impl(

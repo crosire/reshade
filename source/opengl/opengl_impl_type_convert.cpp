@@ -115,13 +115,13 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_R16UI;
 	case api::format::r16_sint:
 		return GL_R16I;
-	case api::format::r16_float:
-		return GL_R16F;
 	case api::format::r16_typeless:
 	case api::format::r16_unorm:
 		return GL_R16;
 	case api::format::r16_snorm:
 		return GL_R16_SNORM;
+	case api::format::r16_float:
+		return GL_R16F;
 	case api::format::l16a16_unorm:
 		if (swizzle_mask != nullptr)
 		{
@@ -136,24 +136,24 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_RG16UI;
 	case api::format::r16g16_sint:
 		return GL_RG16I;
-	case api::format::r16g16_float:
-		return GL_RG16F;
 	case api::format::r16g16_typeless:
 	case api::format::r16g16_unorm:
 		return GL_RG16;
 	case api::format::r16g16_snorm:
 		return GL_RG16_SNORM;
+	case api::format::r16g16_float:
+		return GL_RG16F;
 	case api::format::r16g16b16a16_uint:
 		return GL_RGBA16UI;
 	case api::format::r16g16b16a16_sint:
 		return GL_RGBA16I;
-	case api::format::r16g16b16a16_float:
-		return GL_RGBA16F;
 	case api::format::r16g16b16a16_typeless:
 	case api::format::r16g16b16a16_unorm:
 		return GL_RGBA16;
 	case api::format::r16g16b16a16_snorm:
 		return GL_RGBA16_SNORM;
+	case api::format::r16g16b16a16_float:
+		return GL_RGBA16F;
 	case api::format::r32_uint:
 		return GL_R32UI;
 	case api::format::r32_sint:
@@ -355,8 +355,6 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16_uint;
 	case GL_R16I:
 		return api::format::r16_sint;
-	case GL_R16F:
-		return api::format::r16_float;
 	case GL_R16: // { R, 0, 0, 1 }
 		if (swizzle_mask != nullptr &&
 			swizzle_mask[0] == GL_RED &&
@@ -366,14 +364,14 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16_unorm;
 	case GL_R16_SNORM:
 		return api::format::r16_snorm;
+	case GL_R16F:
+		return api::format::r16_float;
 	case 0x8048 /* GL_LUMINANCE16_ALPHA16 */: // { R, R, R, G }
 		return api::format::l16a16_unorm;
 	case GL_RG16UI:
 		return api::format::r16g16_uint;
 	case GL_RG16I:
 		return api::format::r16g16_sint;
-	case GL_RG16F:
-		return api::format::r16g16_float;
 	case GL_RG16: // { R, G, 0, 1 }
 		if (swizzle_mask != nullptr &&
 			swizzle_mask[0] == GL_RED &&
@@ -384,16 +382,18 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16g16_unorm;
 	case GL_RG16_SNORM:
 		return api::format::r16g16_snorm;
+	case GL_RG16F:
+		return api::format::r16g16_float;
 	case GL_RGBA16UI:
 		return api::format::r16g16b16a16_uint;
 	case GL_RGBA16I:
 		return api::format::r16g16b16a16_sint;
-	case GL_RGBA16F:
-		return api::format::r16g16b16a16_float;
 	case GL_RGBA16:
 		return api::format::r16g16b16a16_unorm;
 	case GL_RGBA16_SNORM:
 		return api::format::r16g16b16a16_snorm;
+	case GL_RGBA16F:
+		return api::format::r16g16b16a16_float;
 	case GL_R32UI:
 		return api::format::r32_uint;
 	case GL_R32I:

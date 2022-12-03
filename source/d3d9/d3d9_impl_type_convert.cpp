@@ -206,14 +206,14 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 		return api::format::l16_unorm;
 	case D3DFMT_R16F:
 		return api::format::r16_float;
-	case D3DFMT_G16R16F:
-		return api::format::r16g16_float;
 	case D3DFMT_G16R16:
 		return api::format::r16g16_unorm;
-	case D3DFMT_A16B16G16R16F:
-		return api::format::r16g16b16a16_float;
+	case D3DFMT_G16R16F:
+		return api::format::r16g16_float;
 	case D3DFMT_A16B16G16R16:
 		return api::format::r16g16b16a16_unorm;
+	case D3DFMT_A16B16G16R16F:
+		return api::format::r16g16b16a16_float;
 	case D3DFMT_R32F:
 		return api::format::r32_float;
 	case D3DFMT_G32R32F:
@@ -231,12 +231,14 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 	case D3DFMT_S8_LOCKABLE:
 		return api::format::s8_uint;
 	case D3DFMT_D16:
+	case D3DFMT_D16_LOCKABLE:
 		return api::format::d16_unorm;
 	case D3DFMT_D24S8:
 		return api::format::d24_unorm_s8_uint;
 	case D3DFMT_D24X8:
 		return api::format::d24_unorm_x8_uint;
 	case D3DFMT_D32:
+	case D3DFMT_D32F_LOCKABLE:
 		return api::format::d32_float;
 	case D3DFMT_DXT1:
 		return api::format::bc1_unorm;
