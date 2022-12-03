@@ -22,16 +22,15 @@ reshade::input::input(window_handle window)
 {
 }
 
-void reshade::input::register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse)
+void reshade::input::register_window_with_raw_input(window_handle window, unsigned int flags)
 {
 	if (is_uwp_app()) // UWP apps never use legacy input messages
-		no_legacy_keyboard = no_legacy_mouse = true;
+		flags |= RIDEV_NOLEGACY;
 
 	assert(window != nullptr);
 
 	const std::unique_lock<std::shared_mutex> lock(s_windows_mutex);
 
-	const auto flags = (no_legacy_keyboard ? 0x1u : 0u) | (no_legacy_mouse ? 0x2u : 0u);
 	const auto insert = s_raw_input_windows.emplace(static_cast<HWND>(window), flags);
 
 	if (!insert.second) insert.first->second |= flags;
@@ -104,7 +103,8 @@ bool reshade::input::handle_window_message(const void *message_data)
 			input_window = s_windows.find(parent);
 	}
 
-	if (input_window == s_windows.end() && raw_input_window != s_raw_input_windows.end())
+	if (input_window == s_windows.end() &&
+		raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & RIDEV_INPUTSINK) != 0)
 	{
 		// Reroute this raw input message to the window with the most rendering
 		input_window = std::max_element(s_windows.begin(), s_windows.end(),
@@ -144,7 +144,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		case RIM_TYPEMOUSE:
 			is_mouse_message = true;
 
-			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & 0x2) == 0)
+			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & RIDEV_NOLEGACY) == 0)
 				break; // Input is already handled (since legacy mouse messages are enabled), so nothing to do here
 
 			if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
@@ -182,7 +182,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 			if (input->_block_keyboard && (raw_data.data.keyboard.Flags & RI_KEY_BREAK) != 0 && raw_data.data.keyboard.VKey < 0xFF && (input->_keys[raw_data.data.keyboard.VKey] & 0x04) == 0)
 				is_keyboard_message = false;
 
-			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & 0x1) == 0)
+			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & RIDEV_NOLEGACY) == 0)
 				break; // Input is already handled by 'WM_KEYDOWN' and friends (since legacy keyboard messages are enabled), so nothing to do here
 
 			// Filter out prefix messages without a key code
@@ -623,7 +623,7 @@ extern "C" BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDev
 		if (device.usUsagePage != 1 || device.hwndTarget == nullptr)
 			continue;
 
-		reshade::input::register_window_with_raw_input(device.hwndTarget, device.usUsage == 0x06 && (device.dwFlags & RIDEV_NOLEGACY) != 0, device.usUsage == 0x02 && (device.dwFlags & RIDEV_NOLEGACY) != 0);
+		reshade::input::register_window_with_raw_input(device.hwndTarget, device.dwFlags);
 	}
 
 	static const auto trampoline = reshade::hooks::call(HookRegisterRawInputDevices);
