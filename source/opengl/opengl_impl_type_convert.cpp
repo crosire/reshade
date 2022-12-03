@@ -1120,11 +1120,12 @@ auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> G
 		return GL_STENCIL_INDEX8;
 	case GL_DEPTH_COMPONENT:
 		return GL_DEPTH_COMPONENT24;
-	case GL_DEPTH_STENCIL:
-		return GL_DEPTH24_STENCIL8;
+	case GL_DEPTH_COMPONENT32:
 	// Replace formats from 'GL_NV_depth_buffer_float' extension with their core variants
 	case GL_DEPTH_COMPONENT32F_NV:
 		return GL_DEPTH_COMPONENT32F;
+	case GL_DEPTH_STENCIL:
+		return GL_DEPTH24_STENCIL8;
 	case GL_DEPTH32F_STENCIL8_NV:
 		return GL_DEPTH32F_STENCIL8;
 	default:

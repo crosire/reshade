@@ -2073,6 +2073,8 @@ void APIENTRY glRenderbufferStorage(GLenum target, GLenum internalformat, GLsize
 	static const auto trampoline = reshade::hooks::call(glRenderbufferStorage);
 
 #if RESHADE_ADDON
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+
 	if (g_current_context)
 	{
 		init_resource resource(target, 1, 1, internalformat, width, height, 1);
@@ -2089,6 +2091,8 @@ void APIENTRY glRenderbufferStorageMultisample(GLenum target, GLsizei samples, G
 	static const auto trampoline = reshade::hooks::call(glRenderbufferStorageMultisample);
 
 #if RESHADE_ADDON
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+
 	if (g_current_context)
 	{
 		init_resource resource(target, 1, samples, internalformat, width, height, 1);
