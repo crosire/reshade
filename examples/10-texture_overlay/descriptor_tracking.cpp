@@ -142,7 +142,7 @@ static bool on_update_descriptor_sets(device *device, uint32_t count, const desc
 	return false;
 }
 
-void register_descriptor_set_tracking()
+void register_descriptor_tracking()
 {
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
@@ -151,7 +151,7 @@ void register_descriptor_set_tracking()
 	reshade::register_event<reshade::addon_event::copy_descriptor_sets>(on_copy_descriptor_sets);
 	reshade::register_event<reshade::addon_event::update_descriptor_sets>(on_update_descriptor_sets);
 }
-void unregister_descriptor_set_tracking()
+void unregister_descriptor_tracking()
 {
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);

@@ -12,7 +12,7 @@ using namespace reshade::api;
 
 static thread_local std::vector<std::vector<uint8_t>> s_data_to_delete;
 
-static bool replace_shader_code(device_api device_type, shader_desc &desc, std::vector<std::vector<uint8_t>> &data_to_delete)
+static bool load_shader_code(device_api device_type, shader_desc &desc, std::vector<std::vector<uint8_t>> &data_to_delete)
 {
 	if (desc.code_size == 0)
 		return false;
@@ -40,23 +40,21 @@ static bool replace_shader_code(device_api device_type, shader_desc &desc, std::
 	replace_path += extension;
 
 	// Check if a replacement file for this shader hash exists and if so, overwrite the shader code with its contents
-	if (std::filesystem::exists(replace_path))
-	{
-		std::ifstream file(replace_path, std::ios::binary);
-		file.seekg(0, std::ios::end);
-		std::vector<uint8_t> shader_code(static_cast<size_t>(file.tellg()));
-		file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(shader_code.data()), shader_code.size());
+	if (!std::filesystem::exists(replace_path))
+		return false;
 
-		// Keep the shader code memory alive after returning from this 'create_pipeline' event callback
-		// It may only be freed after the 'init_pipeline' event was called for this pipeline
-		data_to_delete.push_back(std::move(shader_code));
+	std::ifstream file(replace_path, std::ios::binary);
+	file.seekg(0, std::ios::end);
+	std::vector<uint8_t> shader_code(static_cast<size_t>(file.tellg()));
+	file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(shader_code.data()), shader_code.size());
 
-		desc.code = data_to_delete.back().data();
-		desc.code_size = data_to_delete.back().size();
-		return true;
-	}
+	// Keep the shader code memory alive after returning from this 'create_pipeline' event callback
+	// It may only be freed after the 'init_pipeline' event was called for this pipeline
+	data_to_delete.push_back(std::move(shader_code));
 
-	return false;
+	desc.code = data_to_delete.back().data();
+	desc.code_size = data_to_delete.back().size();
+	return true;
 }
 
 static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobject_count, const pipeline_subobject *subobjects)
@@ -75,7 +73,7 @@ static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobje
 		case pipeline_subobject_type::geometry_shader:
 		case pipeline_subobject_type::pixel_shader:
 		case pipeline_subobject_type::compute_shader:
-			replaced_stages |= replace_shader_code(device_type, *static_cast<shader_desc *>(subobjects[i].data), s_data_to_delete);
+			replaced_stages |= load_shader_code(device_type, *static_cast<shader_desc *>(subobjects[i].data), s_data_to_delete);
 			break;
 		}
 	}
@@ -85,7 +83,7 @@ static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobje
 }
 static void on_after_create_pipeline(device *, pipeline_layout, uint32_t, const pipeline_subobject *, pipeline)
 {
-	// Free the memory allocated in 'replace_shader_code' above
+	// Free the memory allocated in the 'load_shader_code' call above
 	s_data_to_delete.clear();
 }
 

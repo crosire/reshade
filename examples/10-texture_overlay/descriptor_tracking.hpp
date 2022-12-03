@@ -35,5 +35,5 @@ private:
 	std::map<reshade::api::pipeline_layout, pipeline_layout_data> layouts;
 };
 
-extern void register_descriptor_set_tracking();
-extern void unregister_descriptor_set_tracking();
+extern void register_descriptor_tracking();
+extern void unregister_descriptor_tracking();

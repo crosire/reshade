@@ -10,8 +10,8 @@ using namespace reshade::api;
 
 static thread_local std::vector<std::vector<uint8_t>> s_data_to_delete;
 
-// See implementation in 'replace_texture.cpp'
-extern bool replace_texture(const resource_desc &desc, subresource_data &data, std::vector<std::vector<uint8_t>> &data_to_delete);
+// See implementation in 'load_texture.cpp'
+extern bool load_texture_image(const resource_desc &desc, subresource_data &data, std::vector<std::vector<uint8_t>> &data_to_delete);
 
 static inline bool filter_texture(device *device, const resource_desc &desc, const subresource_box *box)
 {
@@ -38,11 +38,11 @@ static bool on_create_texture(device *device, resource_desc &desc, subresource_d
 	if (!filter_texture(device, desc, nullptr))
 		return false;
 
-	return initial_data != nullptr && replace_texture(desc, *initial_data, s_data_to_delete);
+	return initial_data != nullptr && load_texture_image(desc, *initial_data, s_data_to_delete);
 }
 static void on_after_create_texture(device *, const resource_desc &, const subresource_data *, resource_usage, resource)
 {
-	// Free the memory allocated in 'replace_texture' above
+	// Free the memory allocated via the 'load_texture_image' call above
 	s_data_to_delete.clear();
 }
 
@@ -66,7 +66,7 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 	subresource_data new_data;
 	if (device->map_texture_region(src, src_subresource, nullptr, map_access::read_only, &new_data))
 	{
-		replace = replace_texture(dst_desc, new_data, s_data_to_delete);
+		replace = load_texture_image(dst_desc, new_data, s_data_to_delete);
 
 		device->unmap_texture_region(src, src_subresource);
 	}
@@ -76,7 +76,7 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 		// Update texture with the new data
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
 
-		// Free the memory allocated in 'replace_texture' above
+		// Free the memory allocated via the 'load_texture_image' call above
 		s_data_to_delete.clear();
 
 		return true; // Texture was already updated now, so skip the original copy command from the application
@@ -94,12 +94,12 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 		return false;
 
 	subresource_data new_data = data;
-	if (replace_texture(dst_desc, new_data, s_data_to_delete))
+	if (load_texture_image(dst_desc, new_data, s_data_to_delete))
 	{
 		// Update texture with the new data
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
 
-		// Free the memory allocated in 'replace_texture' above
+		// Free the memory allocated via the 'load_texture_image' call above
 		s_data_to_delete.clear();
 
 		return true; // Texture was already updated now, so skip the original update command from the application
@@ -137,11 +137,11 @@ static void on_unmap_texture(device *, resource resource, uint32_t subresource)
 
 	void *mapped_data = s_current_mapping.data.data;
 
-	if (replace_texture(s_current_mapping.desc, s_current_mapping.data, s_data_to_delete))
+	if (load_texture_image(s_current_mapping.desc, s_current_mapping.data, s_data_to_delete))
 	{
 		std::memcpy(mapped_data, s_current_mapping.data.data, s_current_mapping.data.slice_pitch);
 
-		// Free the memory allocated in 'replace_texture' above
+		// Free the memory allocated via the 'load_texture_image' call above
 		s_data_to_delete.clear();
 	}
 }

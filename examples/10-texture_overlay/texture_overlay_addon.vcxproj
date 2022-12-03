@@ -123,7 +123,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\07-texture_dump\dump_texture.cpp" />
+    <ClCompile Include="..\07-texture_dump\save_texture.cpp" />
     <ClCompile Include="descriptor_tracking.cpp" />
     <ClCompile Include="texture_overlay_addon.cpp" />
   </ItemGroup>

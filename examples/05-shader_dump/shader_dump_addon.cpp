@@ -10,7 +10,7 @@
 
 using namespace reshade::api;
 
-static void dump_shader_code(device_api device_type, const shader_desc &desc)
+static void save_shader_code(device_api device_type, const shader_desc &desc)
 {
 	if (desc.code_size == 0)
 		return;
@@ -56,7 +56,7 @@ static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobje
 		case pipeline_subobject_type::geometry_shader:
 		case pipeline_subobject_type::pixel_shader:
 		case pipeline_subobject_type::compute_shader:
-			dump_shader_code(device_type, *static_cast<const shader_desc *>(subobjects[i].data));
+			save_shader_code(device_type, *static_cast<const shader_desc *>(subobjects[i].data));
 			break;
 		}
 	}

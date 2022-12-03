@@ -3,25 +3,12 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-// The subdirectory to write textures to
-#define DUMP_DIR "texdump"
-
-// The hash method to use
-#define DUMP_HASH DUMP_HASH_TEXMOD
-
-// The image file format to write
-#define DUMP_FORMAT DUMP_FORMAT_PNG
-
+// The subdirectory to save textures to
+#define SAVE_DIR "texdump"
+#define SAVE_FORMAT L".png"
+#define SAVE_HASH_TEXMOD 1
 // Skip any textures that were already dumped this session, to reduce lag at the cost of increased memory usage
-#define DUMP_ENABLE_HASH_SET 1
-
-// --- END OPTIONS --- //
-
-#define DUMP_HASH_FULL 0
-#define DUMP_HASH_TEXMOD 1
-
-#define DUMP_FORMAT_BMP 0
-#define DUMP_FORMAT_PNG 1
+#define SAVE_ENABLE_HASH_SET 1
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
@@ -31,7 +18,7 @@
 #include <filesystem>
 #include <stb_image_write.h>
 
-#if DUMP_ENABLE_HASH_SET
+#if SAVE_ENABLE_HASH_SET
 #include <set>
 #endif
 
@@ -106,34 +93,31 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 	}
 }
 
-bool dump_texture(const resource_desc &desc, const subresource_data &data)
+bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 {
-#if DUMP_ENABLE_HASH_SET
-	static std::set<uint32_t> hash_set;
-#endif
-
 	uint8_t *data_p = static_cast<uint8_t *>(data.data);
 	std::vector<uint8_t> rgba_pixel_data(desc.texture.width * desc.texture.height * 4);
 
-#if DUMP_HASH == DUMP_HASH_FULL
+#if SAVE_HASH_TEXMOD
+	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
+	const uint32_t hash = ~compute_crc32(
+		static_cast<const uint8_t *>(data.data),
+		desc.texture.height * static_cast<size_t>(
+			(desc.texture.format >= format::bc1_typeless && desc.texture.format <= format::bc1_unorm_srgb) || (desc.texture.format >= format::bc4_typeless && desc.texture.format <= format::bc4_snorm) ? (desc.texture.width * 4) / 8 :
+			(desc.texture.format >= format::bc2_typeless && desc.texture.format <= format::bc2_unorm_srgb) || (desc.texture.format >= format::bc3_typeless && desc.texture.format <= format::bc3_unorm_srgb) || (desc.texture.format >= format::bc5_typeless && desc.texture.format <= format::bc7_unorm_srgb) ? desc.texture.width :
+			format_row_pitch(desc.texture.format, desc.texture.width)));
+#else
 	// Correct hash calculation using entire resource data
 	const uint32_t hash = compute_crc32(
 		static_cast<const uint8_t *>(data.data),
 		format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
-#elif DUMP_HASH == DUMP_HASH_TEXMOD
-	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
-	const uint32_t hash = ~compute_crc32(
-		static_cast<const uint8_t *>(data.data),
-		desc.texture.height * (
-			(desc.texture.format >= format::bc1_typeless && desc.texture.format <= format::bc1_unorm_srgb) || (desc.texture.format >= format::bc4_typeless && desc.texture.format <= format::bc4_snorm) ? (desc.texture.width * 4) / 8 :
-			(desc.texture.format >= format::bc2_typeless && desc.texture.format <= format::bc2_unorm_srgb) || (desc.texture.format >= format::bc3_typeless && desc.texture.format <= format::bc3_unorm_srgb) || (desc.texture.format >= format::bc5_typeless && desc.texture.format <= format::bc7_unorm_srgb) ? desc.texture.width :
-			format_row_pitch(desc.texture.format, desc.texture.width)));
 #endif
 
-#if DUMP_ENABLE_HASH_SET
+#if SAVE_ENABLE_HASH_SET
+	static std::set<uint32_t> hash_set;
 	if (hash_set.find(hash) != hash_set.end())
 	{
-		reshade::log_message(4, "Skipped texture that was already dumped");
+		reshade::log_message(4, "Skipped texture that was already dumped.");
 		return true;
 	}
 	else
@@ -148,9 +132,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	switch (desc.texture.format)
 	{
 	case format::l8_unorm:
-		for (uint32_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
+		for (size_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
 		{
-			for (uint32_t x = 0; x < desc.texture.width; ++x)
+			for (size_t x = 0; x < desc.texture.width; ++x)
 			{
 				const uint8_t *const src = data_p + x;
 				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
@@ -163,9 +147,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 		}
 		break;
 	case format::a8_unorm:
-		for (uint32_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
+		for (size_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
 		{
-			for (uint32_t x = 0; x < desc.texture.width; ++x)
+			for (size_t x = 0; x < desc.texture.width; ++x)
 			{
 				const uint8_t *const src = data_p + x;
 				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
@@ -180,9 +164,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	case format::r8_typeless:
 	case format::r8_unorm:
 	case format::r8_snorm:
-		for (uint32_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
+		for (size_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
 		{
-			for (uint32_t x = 0; x < desc.texture.width; ++x)
+			for (size_t x = 0; x < desc.texture.width; ++x)
 			{
 				const uint8_t *const src = data_p + x;
 				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
@@ -195,9 +179,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 		}
 		break;
 	case format::l8a8_unorm:
-		for (uint32_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
+		for (size_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
 		{
-			for (uint32_t x = 0; x < desc.texture.width; ++x)
+			for (size_t x = 0; x < desc.texture.width; ++x)
 			{
 				const uint8_t *const src = data_p + x * 2;
 				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
@@ -212,9 +196,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	case format::r8g8_typeless:
 	case format::r8g8_unorm:
 	case format::r8g8_snorm:
-		for (uint32_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
+		for (size_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
 		{
-			for (uint32_t x = 0; x < desc.texture.width; ++x)
+			for (size_t x = 0; x < desc.texture.width; ++x)
 			{
 				const uint8_t *const src = data_p + x * 2;
 				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
@@ -232,9 +216,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	case format::r8g8b8x8_typeless:
 	case format::r8g8b8x8_unorm:
 	case format::r8g8b8x8_unorm_srgb:
-		for (uint32_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
+		for (size_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
 		{
-			for (uint32_t x = 0; x < desc.texture.width; ++x)
+			for (size_t x = 0; x < desc.texture.width; ++x)
 			{
 				const uint8_t *const src = data_p + x * 4;
 				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
@@ -252,9 +236,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	case format::b8g8r8x8_typeless:
 	case format::b8g8r8x8_unorm:
 	case format::b8g8r8x8_unorm_srgb:
-		for (uint32_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
+		for (size_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)
 		{
-			for (uint32_t x = 0; x < desc.texture.width; ++x)
+			for (size_t x = 0; x < desc.texture.width; ++x)
 			{
 				const uint8_t *const src = data_p + x * 4;
 				uint8_t *const dst = rgba_pixel_data.data() + (y * desc.texture.width + x) * 4;
@@ -271,9 +255,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	case format::bc1_unorm:
 	case format::bc1_unorm_srgb:
 		// See https://docs.microsoft.com/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc1
-		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
+		for (size_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
 		{
-			for (uint32_t block_x = 0; block_x < block_count_x; ++block_x)
+			for (size_t block_x = 0; block_x < block_count_x; ++block_x)
 			{
 				const uint8_t *const src = data_p + block_x * 8;
 
@@ -303,9 +287,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	case format::bc3_unorm:
 	case format::bc3_unorm_srgb:
 		// See https://docs.microsoft.com/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc3
-		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
+		for (size_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
 		{
-			for (uint32_t block_x = 0; block_x < block_count_x; ++block_x)
+			for (size_t block_x = 0; block_x < block_count_x; ++block_x)
 			{
 				const uint8_t *const src = data_p + block_x * 16;
 
@@ -345,9 +329,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	case format::bc4_unorm:
 	case format::bc4_snorm:
 		// See https://docs.microsoft.com/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc4
-		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
+		for (size_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
 		{
-			for (uint32_t block_x = 0; block_x < block_count_x; ++block_x)
+			for (size_t block_x = 0; block_x < block_count_x; ++block_x)
 			{
 				const uint8_t *const src = data_p + block_x * 8;
 
@@ -380,9 +364,9 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	case format::bc5_unorm:
 	case format::bc5_snorm:
 		// See https://docs.microsoft.com/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc5
-		for (uint32_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
+		for (size_t block_y = 0; block_y < block_count_y; ++block_y, data_p += data.row_pitch)
 		{
-			for (uint32_t block_x = 0; block_x < block_count_x; ++block_x)
+			for (size_t block_x = 0; block_x < block_count_x; ++block_x)
 			{
 				const uint8_t *const src = data_p + block_x * 16;
 
@@ -426,13 +410,13 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 		return false;
 	}
 
-	// Prepend executable file name to image files
+	// Prepend executable directory to image files
 	wchar_t file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
 	std::filesystem::path dump_path = file_prefix;
 	dump_path  = dump_path.parent_path();
-	dump_path /= DUMP_DIR;
+	dump_path /= SAVE_DIR;
 
 	if (std::filesystem::exists(dump_path) == false)
 		std::filesystem::create_directory(dump_path);
@@ -441,14 +425,12 @@ bool dump_texture(const resource_desc &desc, const subresource_data &data)
 	swprintf_s(hash_string, L"0x%08X", hash);
 
 	dump_path /= hash_string;
+	dump_path += SAVE_FORMAT;
 
-#if DUMP_FORMAT == DUMP_FORMAT_BMP
-	dump_path += L".bmp";
-	return stbi_write_bmp(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;
-#elif DUMP_FORMAT == DUMP_FORMAT_PNG
-	dump_path += L".png";
-	return stbi_write_png(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data(), desc.texture.width * 4) != 0;
-#else
-	return false;
-#endif
+	if (dump_path.extension() == L".bmp")
+		return stbi_write_bmp(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;
+	else if (dump_path.extension() == L".png")
+		return stbi_write_png(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data(), desc.texture.width * 4) != 0;
+	else
+		return false;
 }

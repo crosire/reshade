@@ -7,8 +7,8 @@
 
 using namespace reshade::api;
 
-// See implementation in 'dump_texture.cpp'
-extern bool dump_texture(const resource_desc &desc, const subresource_data &data);
+// See implementation in 'save_texture.cpp'
+extern bool save_texture_image(const resource_desc &desc, const subresource_data &data);
 
 // There are multiple different ways textures can be initialized, so try and intercept them all
 // - Via initial data provided during texture creation (e.g. for immutable textures, common in D3D11 and OpenGL): See 'on_init_texture' implementation below
@@ -47,7 +47,7 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 	if (initial_data == nullptr || !filter_texture(device, desc, nullptr))
 		return;
 
-	dump_texture(desc, *initial_data);
+	save_texture_image(desc, *initial_data);
 }
 static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const subresource_box *dst_box)
 {
@@ -58,7 +58,7 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 	if (!filter_texture(device, dst_desc, dst_box))
 		return false;
 
-	dump_texture(dst_desc, data);
+	save_texture_image(dst_desc, data);
 
 	return false;
 }
@@ -90,7 +90,7 @@ static bool on_copy_buffer_to_texture(command_list *cmd_list, resource src, uint
 		if (device->get_api() == device_api::d3d12) // Align row pitch to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT (256)
 			mapped_data.row_pitch = (mapped_data.row_pitch + 255) & ~255;
 
-		dump_texture(dst_desc, mapped_data);
+		save_texture_image(dst_desc, mapped_data);
 
 		device->unmap_buffer_region(src);
 	}
@@ -125,7 +125,7 @@ static void on_unmap_texture(device *, resource resource, uint32_t subresource)
 
 	s_current_mapping.res = { 0 };
 
-	dump_texture(s_current_mapping.desc, s_current_mapping.data);
+	save_texture_image(s_current_mapping.desc, s_current_mapping.data);
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "Texture Dump";

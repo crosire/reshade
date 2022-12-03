@@ -268,14 +268,14 @@ static void on_init_swapchain(swapchain *swapchain)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
-	device *const device = swapchain->get_device();
+	const device_api api = swapchain->get_device()->get_api();
 
 	for (uint32_t i = 0; i < swapchain->get_back_buffer_count(); ++i)
 	{
 		const resource buffer = swapchain->get_back_buffer(i);
 
 		s_resources.emplace(buffer.handle);
-		if (device->get_api() == device_api::d3d9 || device->get_api() == device_api::opengl)
+		if (api == device_api::d3d9 || api == device_api::opengl)
 			s_resource_views.emplace(buffer.handle);
 	}
 }
@@ -283,14 +283,14 @@ static void on_destroy_swapchain(swapchain *swapchain)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
-	device *const device = swapchain->get_device();
+	const device_api api = swapchain->get_device()->get_api();
 
 	for (uint32_t i = 0; i < swapchain->get_back_buffer_count(); ++i)
 	{
 		const resource buffer = swapchain->get_back_buffer(i);
 
 		s_resources.erase(buffer.handle);
-		if (device->get_api() == device_api::d3d9 || device->get_api() == device_api::opengl)
+		if (api == device_api::d3d9 || api == device_api::opengl)
 			s_resource_views.erase(buffer.handle);
 	}
 }
@@ -546,11 +546,13 @@ static void on_bind_vertex_buffers(command_list *, uint32_t first, uint32_t coun
 	if (!s_do_capture)
 		return;
 
+#ifndef NDEBUG
 	{	const std::shared_lock<std::shared_mutex> lock(s_mutex);
 
 		for (uint32_t i = 0; i < count; ++i)
 			assert(buffers[i].handle == 0 || s_resources.find(buffers[i].handle) != s_resources.end());
 	}
+#endif
 
 	std::stringstream s;
 	for (uint32_t i = 0; i < count; ++i)

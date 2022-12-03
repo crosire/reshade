@@ -123,7 +123,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="replace_texture.cpp" />
+    <ClCompile Include="load_texture.cpp" />
     <ClCompile Include="texture_replace_addon.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -1713,8 +1713,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						d3d_errors_string.assign(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
 
 					// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
-					for (size_t line_offset = 0, next_line_offset;
-						(next_line_offset = d3d_errors_string.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
+					for (size_t line_offset = 0, next_line_offset; (next_line_offset = d3d_errors_string.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
 					{
 						const std::string_view cur_line(d3d_errors_string.c_str() + line_offset, next_line_offset - line_offset);
 
@@ -3929,8 +3928,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 	}
 
 	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
-	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-		 i < array_length; ++i)
+	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1); i < array_length; ++i)
 	{
 		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
 
@@ -4004,7 +4002,7 @@ template <> void reshade::runtime::get_uniform_value<bool>(const uniform &variab
 	const auto data = static_cast<uint8_t *>(alloca(variable.size));
 	get_uniform_value_data(variable, data, variable.size, array_index);
 
-	for (size_t i = 0; i < count; i++)
+	for (size_t i = 0; i < count; ++i)
 		values[i] = reinterpret_cast<const uint32_t *>(data)[i] != 0;
 }
 template <> void reshade::runtime::get_uniform_value<float>(const uniform &variable, float *values, size_t count, size_t array_index) const
@@ -4041,7 +4039,7 @@ template <> void reshade::runtime::get_uniform_value<int32_t>(const uniform &var
 	const auto data = static_cast<uint8_t *>(alloca(variable.size));
 	get_uniform_value_data(variable, data, variable.size, array_index);
 
-	for (size_t i = 0; i < count; i++)
+	for (size_t i = 0; i < count; ++i)
 		values[i] = static_cast<int32_t>(reinterpret_cast<const float *>(data)[i]);
 }
 template <> void reshade::runtime::get_uniform_value<uint32_t>(const uniform &variable, uint32_t *values, size_t count, size_t array_index) const
@@ -4301,7 +4299,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 			if (_screenshot_clear_alpha)
 			{
 				comp = 3;
-				for (size_t i = 0; i < _width * _height; ++i)
+				for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
 					*reinterpret_cast<uint32_t *>(pixels.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(pixels.data() + 4 * i);
 			}
 
@@ -4501,12 +4499,12 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	{
 		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
 
-		for (uint32_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
+		for (size_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
 		{
 			switch (view_format)
 			{
 			case api::format::r8_unorm:
-				for (uint32_t x = 0; x < desc.texture.width; ++x)
+				for (size_t x = 0; x < desc.texture.width; ++x)
 				{
 					pixels[x * 4 + 0] = mapped_pixels[x];
 					pixels[x * 4 + 1] = 0;
@@ -4515,7 +4513,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 				}
 				break;
 			case api::format::r8g8_unorm:
-				for (uint32_t x = 0; x < desc.texture.width; ++x)
+				for (size_t x = 0; x < desc.texture.width; ++x)
 				{
 					pixels[x * 4 + 0] = mapped_pixels[x * 2 + 0];
 					pixels[x * 4 + 1] = mapped_pixels[x * 2 + 1];
@@ -4527,22 +4525,22 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 			case api::format::r8g8b8x8_unorm:
 				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
 				if (view_format == api::format::r8g8b8x8_unorm)
-					for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
+					for (size_t x = 0; x < pixels_row_pitch; x += 4)
 						pixels[x + 3] = 0xFF;
 				break;
 			case api::format::b8g8r8a8_unorm:
 			case api::format::b8g8r8x8_unorm:
 				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
 				// Format is BGRA, but output should be RGBA, so flip channels
-				for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
+				for (size_t x = 0; x < pixels_row_pitch; x += 4)
 					std::swap(pixels[x + 0], pixels[x + 2]);
 				if (view_format == api::format::b8g8r8x8_unorm)
-					for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
+					for (size_t x = 0; x < pixels_row_pitch; x += 4)
 						pixels[x + 3] = 0xFF;
 				break;
 			case api::format::r10g10b10a2_unorm:
 			case api::format::b10g10r10a2_unorm:
-				for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
+				for (size_t x = 0; x < pixels_row_pitch; x += 4)
 				{
 					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
 					// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
