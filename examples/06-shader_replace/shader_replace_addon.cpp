@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+// The subdirectory to load shader binaries from
+#define LOAD_DIR L""
+
 #include <reshade.hpp>
 #include "crc32_hash.hpp"
 #include <fstream>
@@ -30,13 +33,14 @@ static bool load_shader_code(device_api device_type, shader_desc &desc, std::vec
 	wchar_t file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
 
+	std::filesystem::path replace_path = file_prefix;
+	replace_path  = replace_path.parent_path();
+	replace_path /= LOAD_DIR;
+
 	wchar_t hash_string[11];
 	swprintf_s(hash_string, L"0x%08X", shader_hash);
 
-	std::filesystem::path replace_path = file_prefix;
-	replace_path += L'_';
-	replace_path += L"shader_";
-	replace_path += hash_string;
+	replace_path /= hash_string;
 	replace_path += extension;
 
 	// Check if a replacement file for this shader hash exists and if so, overwrite the shader code with its contents

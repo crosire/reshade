@@ -4,7 +4,7 @@
  */
 
 // The subdirectory to load textures from
-#define LOAD_DIR "texreplace"
+#define LOAD_DIR L"texreplace"
 #define LOAD_FORMAT L".png"
 #define LOAD_HASH_TEXMOD 1
 
@@ -65,7 +65,10 @@ bool load_texture_image(const resource_desc &desc, subresource_data &data, std::
 	// Only support changing pixel data, but not texture dimensions
 	if (desc.texture.width != static_cast<uint32_t>(width) ||
 		desc.texture.height != static_cast<uint32_t>(height))
+	{
+		reshade::log_message(1, "Failed to replace texture data because dimensions do not match!");
 		return false;
+	}
 
 	switch (desc.texture.format)
 	{

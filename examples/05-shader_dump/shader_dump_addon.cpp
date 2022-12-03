@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+// The subdirectory to save shader binaries to
+#define SAVE_DIR L""
+
 #include <reshade.hpp>
 #include "crc32_hash.hpp"
 #include <fstream>
@@ -24,16 +27,20 @@ static void save_shader_code(device_api device_type, const shader_desc &desc)
 	else if (device_type == device_api::opengl)
 		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
 
-	// Prepend executable file name to image files
+	// Prepend executable directory to image files
 	wchar_t file_prefix[MAX_PATH] = L"";
 	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
+	std::filesystem::path dump_path = file_prefix;
+	dump_path  = dump_path.parent_path();
+	dump_path /= SAVE_DIR;
+
+	if (std::filesystem::exists(dump_path) == false)
+		std::filesystem::create_directory(dump_path);
 
 	wchar_t hash_string[11];
 	swprintf_s(hash_string, L"0x%08X", shader_hash);
 
-	std::filesystem::path dump_path = file_prefix;
-	dump_path += L'_';
-	dump_path += L"shader_";
 	dump_path += hash_string;
 	dump_path += extension;
 

@@ -4,7 +4,7 @@
  */
 
 // The subdirectory to save textures to
-#define SAVE_DIR "texdump"
+#define SAVE_DIR L"texdump"
 #define SAVE_FORMAT L".png"
 #define SAVE_HASH_TEXMOD 1
 // Skip any textures that were already dumped this session, to reduce lag at the cost of increased memory usage
