@@ -3,11 +3,11 @@ EXPORTS
 	D2D1CreateDevice @7 PRIVATE
 	D2D1CreateFactory @1 PRIVATE
 
-	; d3d9.dll (Uses ordinals in d3d9.lib for 'Direct3DCreate9on12' and 'Direct3DCreate9on12Ex')
+	; d3d9.dll (Uses ordinals in d3d9.lib for 'Direct3DCreate9On12' and 'Direct3DCreate9On12Ex')
 	Direct3DCreate9 PRIVATE
 	Direct3DCreate9Ex PRIVATE
-	Direct3DCreate9on12 @20 PRIVATE
-	Direct3DCreate9on12Ex @21 PRIVATE
+	Direct3DCreate9On12 @20 PRIVATE
+	Direct3DCreate9On12Ex @21 PRIVATE
 
 	D3DPERF_BeginEvent PRIVATE
 	D3DPERF_EndEvent PRIVATE

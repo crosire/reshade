@@ -38,12 +38,12 @@ void init_device_proxy_for_d3d9on12(Direct3DDevice9 *device_proxy)
 	}
 }
 
-extern "C" IDirect3D9 *WINAPI Direct3DCreate9on12(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries) // Export ordinal 20
+extern "C" IDirect3D9 *WINAPI Direct3DCreate9On12(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries) // Export ordinal 20
 {
 	if (g_in_d3d9_runtime)
-		return reshade::hooks::call(Direct3DCreate9on12)(SDKVersion, pOverrideList, NumOverrideEntries);
+		return reshade::hooks::call(Direct3DCreate9On12)(SDKVersion, pOverrideList, NumOverrideEntries);
 
-	LOG(INFO) << "Redirecting " << "Direct3DCreate9on12" << '('
+	LOG(INFO) << "Redirecting " << "Direct3DCreate9On12" << '('
 		<<   "SDKVersion = " << SDKVersion
 		<< ", pOverrideList = " << pOverrideList
 		<< ", NumOverrideEntries = " << NumOverrideEntries
@@ -70,11 +70,11 @@ extern "C" IDirect3D9 *WINAPI Direct3DCreate9on12(UINT SDKVersion, D3D9ON12_ARGS
 
 	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
-	IDirect3D9 *const res = reshade::hooks::call(Direct3DCreate9on12)(SDKVersion, override_list.p, NumOverrideEntries);
+	IDirect3D9 *const res = reshade::hooks::call(Direct3DCreate9On12)(SDKVersion, override_list.p, NumOverrideEntries);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 	if (res == nullptr)
 	{
-		LOG(WARN) << "Direct3DCreate9on12" << " failed.";
+		LOG(WARN) << "Direct3DCreate9On12" << " failed.";
 		return nullptr;
 	}
 
@@ -86,12 +86,12 @@ extern "C" IDirect3D9 *WINAPI Direct3DCreate9on12(UINT SDKVersion, D3D9ON12_ARGS
 	return res;
 }
 
-extern "C"     HRESULT WINAPI Direct3DCreate9on12Ex(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries, IDirect3D9Ex **ppOutputInterface) // Export ordinal 21
+extern "C"     HRESULT WINAPI Direct3DCreate9On12Ex(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries, IDirect3D9Ex **ppOutputInterface) // Export ordinal 21
 {
 	if (g_in_d3d9_runtime)
-		return reshade::hooks::call(Direct3DCreate9on12Ex)(SDKVersion, pOverrideList, NumOverrideEntries, ppOutputInterface);
+		return reshade::hooks::call(Direct3DCreate9On12Ex)(SDKVersion, pOverrideList, NumOverrideEntries, ppOutputInterface);
 
-	LOG(INFO) << "Redirecting " << "Direct3DCreate9on12Ex" << '('
+	LOG(INFO) << "Redirecting " << "Direct3DCreate9On12Ex" << '('
 		<<   "SDKVersion = " << SDKVersion
 		<< ", pOverrideList = " << pOverrideList
 		<< ", NumOverrideEntries = " << NumOverrideEntries
@@ -119,11 +119,11 @@ extern "C"     HRESULT WINAPI Direct3DCreate9on12Ex(UINT SDKVersion, D3D9ON12_AR
 
 	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(Direct3DCreate9on12Ex)(SDKVersion, override_list.p, NumOverrideEntries, ppOutputInterface);
+	const HRESULT hr = reshade::hooks::call(Direct3DCreate9On12Ex)(SDKVersion, override_list.p, NumOverrideEntries, ppOutputInterface);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "Direct3DCreate9on12Ex" << " failed with error code " << hr << '.';
+		LOG(WARN) << "Direct3DCreate9On12Ex" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
