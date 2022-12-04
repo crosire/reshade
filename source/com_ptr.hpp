@@ -58,11 +58,11 @@ public:
 	/// <param name="object">The new object to manage and take ownership and add a reference to.</param>
 	void reset(T *object = nullptr)
 	{
+		if (object != nullptr)
+			object->AddRef();
 		if (_object != nullptr)
 			_object->Release();
 		_object = object;
-		if (_object != nullptr)
-			_object->AddRef();
 	}
 
 	// Overloaded pointer operators which operate on the managed object.
