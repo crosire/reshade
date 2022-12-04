@@ -40,9 +40,7 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
 	{
-		LOG(ERROR) << "Layered OpenGL contexts of type " << static_cast<int>(ppfd->iLayerType) << " are not supported.";
-		SetLastError(ERROR_INVALID_PARAMETER);
-		return 0;
+		LOG(WARN) << "Layered OpenGL contexts are not supported.";
 	}
 	else if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
 	{
@@ -220,9 +218,7 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 
 	if (layerplanes)
 	{
-		LOG(ERROR) << "Layered OpenGL contexts are not supported.";
-		SetLastError(ERROR_INVALID_PARAMETER);
-		return FALSE;
+		LOG(WARN) << "Layered OpenGL contexts are not supported.";
 	}
 	else if (!doublebuffered)
 	{
