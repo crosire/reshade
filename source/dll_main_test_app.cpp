@@ -10,6 +10,7 @@
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
 #include "com_ptr.hpp"
+#include "ini_file.hpp"
 #include <d3d9.h>
 #include <d3d11.h>
 #include <d3d12.h>
@@ -31,6 +32,21 @@ extern std::filesystem::path get_module_path(HMODULE module);
 #define VK_CALL_DEVICE(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
 #define VK_CALL_INSTANCE(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
 
+static LONG APIENTRY HookD3DKMTQueryAdapterInfo(const void *pData)
+{
+	struct D3DKMT_QUERYADAPTERINFO { UINT hAdapter; UINT Type; VOID *pPrivateDriverData; UINT PrivateDriverDataSize; };
+
+	if (pData != nullptr && static_cast<const D3DKMT_QUERYADAPTERINFO *>(pData)->Type == 1 /* KMTQAITYPE_UMDRIVERNAME */)
+	{
+		if (reshade::global_config().get("APP", "ForceD3D9On12") && *static_cast<const UINT *>(static_cast<const D3DKMT_QUERYADAPTERINFO *>(pData)->pPrivateDriverData) == 0 /* KMTUMDVERSION_DX9 */)
+			return STATUS_INVALID_PARAMETER;
+		if (reshade::global_config().get("APP", "ForceD3D11On12") && *static_cast<const UINT *>(static_cast<const D3DKMT_QUERYADAPTERINFO *>(pData)->pPrivateDriverData) == 2 /* KMTUMDVERSION_DX11 */)
+			return STATUS_INVALID_PARAMETER;
+	}
+
+	return reshade::hooks::call(HookD3DKMTQueryAdapterInfo)(pData);
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
 	g_module_handle = hInstance;
@@ -41,6 +57,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	reshade::log::open_log_file(g_reshade_base_path / L"ReShade.log");
 
 	reshade::hooks::register_module(L"user32.dll");
+
+	reshade::hooks::install("D3DKMTQueryAdapterInfo", GetProcAddress(GetModuleHandleW(L"gdi32.dll"), "D3DKMTQueryAdapterInfo"), HookD3DKMTQueryAdapterInfo);
 
 	static UINT s_resize_w = 0, s_resize_h = 0;
 
