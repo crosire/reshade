@@ -626,13 +626,14 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		}
 		else
 		{
-			composite_type.array_length = static_cast<int>(elements.size());
-
 			// Resolve all access chains
 			for (expression &element : elements)
 			{
-				element.reset_to_rvalue(element.location, _codegen->emit_load(element), element.type);
+				element.add_cast_operation(composite_type);
+				element.reset_to_rvalue(element.location, _codegen->emit_load(element), composite_type);
 			}
+
+			composite_type.array_length = static_cast<int>(elements.size());
 
 			const auto result = _codegen->emit_construct(location, composite_type, elements);
 
