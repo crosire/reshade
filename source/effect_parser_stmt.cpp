@@ -395,10 +395,15 @@ bool reshadefx::parser::parse_statement(bool scoped)
 						return false;
 				} while (!peek(';'));
 			}
-			else // Initializer can also contain an expression if not a variable declaration list
+			else
 			{
-				expression expression;
-				parse_expression(expression); // It is valid for there to be no initializer expression, so ignore result
+				// Initializer can also contain an expression if not a variable declaration list and not empty
+				if (!peek(';'))
+				{
+					expression expression;
+					if (!parse_expression(expression))
+						return false;
+				}
 			}
 
 			if (!expect(';'))
@@ -423,8 +428,12 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{ // Parse condition block
 				_codegen->enter_block(condition_block);
 
-				if (expression condition; parse_expression(condition))
+				if (!peek(';'))
 				{
+					expression condition;
+					if (!parse_expression(condition))
+						return false;
+
 					if (!condition.type.is_scalar())
 						return error(condition.location, 3019, "scalar value expected"), false;
 
@@ -447,8 +456,12 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{ // Parse loop continue block into separate block so it can be appended to the end down the line
 				_codegen->enter_block(continue_label);
 
-				expression continue_exp;
-				parse_expression(continue_exp); // It is valid for there to be no continue expression, so ignore result
+				if (!peek(')'))
+				{
+					expression continue_exp;
+					if (!parse_expression(continue_exp))
+						return false;
+				}
 
 				if (!expect(')'))
 					return false;
