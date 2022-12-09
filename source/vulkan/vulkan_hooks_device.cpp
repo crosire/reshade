@@ -615,7 +615,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan device " << device << '.';
+	LOG(DEBUG) << "Returning Vulkan device " << device << '.';
 #endif
 	return result;
 }
@@ -855,7 +855,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan swap chain " << *pSwapchain << '.';
+	LOG(DEBUG) << "Returning Vulkan swap chain " << *pSwapchain << '.';
 #endif
 	return result;
 }

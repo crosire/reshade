@@ -347,7 +347,7 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
+	LOG(DEBUG) << "Returning OpenGL context " << hglrc << '.';
 #endif
 	return hglrc;
 }
@@ -459,7 +459,7 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
+	LOG(DEBUG) << "Returning OpenGL context " << hglrc << '.';
 #endif
 	return hglrc;
 }
@@ -811,7 +811,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning pixel buffer " << hpbuffer << '.';
+	LOG(INFO) << "Returning pixel buffer " << hpbuffer << '.';
 #endif
 	return hpbuffer;
 }
@@ -843,7 +843,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning pixel buffer device context " << hdc << '.';
+	LOG(INFO) << "Returning pixel buffer device context " << hdc << '.';
 #endif
 	return hdc;
 }

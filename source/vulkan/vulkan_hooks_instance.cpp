@@ -165,7 +165,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance, app_info.apiVersion });
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan instance " << instance << '.';
+	LOG(DEBUG) << "Returning Vulkan instance " << instance << '.';
 #endif
 	return VK_SUCCESS;
 }
