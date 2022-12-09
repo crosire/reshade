@@ -39,6 +39,14 @@ std::shared_ptr<reshade::input> reshade::input::register_window(window_handle wi
 {
 	assert(window != nullptr);
 
+	DWORD process_id = 0;
+	GetWindowThreadProcessId(static_cast<HWND>(window), &process_id);
+	if (process_id != GetCurrentProcessId())
+	{
+		LOG(WARN) << "Cannot capture input for window " << window << " created by a different process.";
+		return nullptr;
+	}
+
 	const std::unique_lock<std::shared_mutex> lock(s_windows_mutex);
 
 	const auto insert = s_windows.emplace(static_cast<HWND>(window), std::weak_ptr<input>());
