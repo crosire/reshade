@@ -105,8 +105,9 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		if (ImGui::InputText("##path", buf, sizeof(buf)))
 		{
 			path = std::filesystem::u8path(buf);
-			if (path.has_stem() && std::filesystem::is_directory(path, ec))
+			if ((path.has_stem() && std::filesystem::is_directory(path, ec)) || (path.has_root_name() && path == path.root_name()))
 				path += std::filesystem::path::preferred_separator;
+			parent_path = path.parent_path();
 		}
 
 		if (ImGui::IsItemActivated())
@@ -117,7 +118,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 	ImGui::BeginChild("##files", ImVec2(width, 200), true, ImGuiWindowFlags_NavFlattened);
 
-	if (parent_path.has_parent_path())
+	if (parent_path.has_parent_path() && parent_path != parent_path.root_path())
 	{
 		if (ImGui::Selectable(ICON_FK_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) && (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsNavInputTest(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed)))
 		{
