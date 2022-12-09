@@ -123,9 +123,6 @@ namespace reshade
 		};
 
 		void *handle = nullptr;
-#  if !RESHADE_ADDON_LITE
-		bool  loaded = false;
-#  endif
 		std::string name;
 		std::string description;
 		std::string file;

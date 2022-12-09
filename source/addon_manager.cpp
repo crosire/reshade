@@ -196,11 +196,7 @@ void reshade::load_addons()
 			LOG(WARN) << "No add-on was registered by " << path << ". Unloading again ...";
 
 			FreeLibrary(module);
-			continue;
 		}
-
-		// Indicate that this add-on needs to be unloaded explicitly
-		info->loaded = true;
 	}
 #endif
 }
@@ -215,10 +211,8 @@ void reshade::unload_addons()
 	const std::vector<addon_info> loaded_info_copy = addon_loaded_info;
 	for (const addon_info &info : loaded_info_copy)
 	{
-		if (!info.loaded)
+		if (info.handle == nullptr || info.handle == g_module_handle)
 			continue; // Skip disabled and built-in add-ons
-
-		assert(info.handle != nullptr && info.handle != g_module_handle);
 
 		LOG(INFO) << "Unloading add-on \"" << info.name << "\" ...";
 
