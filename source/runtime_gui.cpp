@@ -94,8 +94,10 @@ void reshade::runtime::build_font_atlas()
 		ImFontConfig cfg;
 		cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
 
-		const std::filesystem::path &font_path = i == 0 ? _font : _editor_font;
-		if (std::error_code ec; !std::filesystem::is_regular_file(font_path, ec) || !atlas->AddFontFromFileTTF(font_path.u8string().c_str(), cfg.SizePixels))
+		const std::filesystem::path &font_path = (i == 0) ? _font : _editor_font;
+
+		std::error_code ec;
+		if (!std::filesystem::is_regular_file(font_path, ec) || !atlas->AddFontFromFileTTF(font_path.u8string().c_str(), cfg.SizePixels))
 			atlas->AddFontDefault(&cfg); // Use default font if custom font failed to load or does not exist
 
 		if (i == 0)
@@ -1301,7 +1303,6 @@ void reshade::runtime::draw_gui_home()
 					new_preset_path += L".ini";
 
 				std::error_code ec;
-
 				if (const std::filesystem::file_type file_type = std::filesystem::status(new_preset_path, ec).type();
 					file_type != std::filesystem::file_type::directory)
 				{
@@ -1310,7 +1311,8 @@ void reshade::runtime::draw_gui_home()
 						ini_file::load_cache(new_preset_path).has({}, "Techniques");
 
 					if (_duplicate_current_preset && file_type == std::filesystem::file_type::not_found)
-						std::filesystem::copy_file(_current_preset_path, new_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
+						if (!std::filesystem::copy_file(_current_preset_path, new_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
+							LOG(ERROR) << "Failed to duplicate preset " << _current_preset_path << " to " << new_preset_path << " with error code " << ec.value() << '!';
 				}
 
 				if (reload_preset)
@@ -2341,15 +2343,15 @@ void reshade::runtime::draw_gui_log()
 		constexpr size_t LINE_LIMIT = 1000;
 
 		std::error_code ec;
-		const auto last_log_size = std::filesystem::file_size(log_path, ec);
-		if (filter_changed || _last_log_size != last_log_size)
+		const uintmax_t file_size = std::filesystem::file_size(log_path, ec);
+		if (filter_changed || _last_log_size != file_size)
 		{
 			_log_lines.clear();
 			std::ifstream log_file(log_path);
 			for (std::string line; std::getline(log_file, line) && _log_lines.size() < LINE_LIMIT;)
 				if (filter_text(line, _log_filter))
 					_log_lines.push_back(line);
-			_last_log_size = last_log_size;
+			_last_log_size = file_size;
 
 			if (_log_lines.size() == LINE_LIMIT)
 				_log_lines.push_back("Log was truncated to reduce memory footprint!");
@@ -2557,7 +2559,7 @@ void reshade::runtime::draw_gui_addons()
 
 		if (open)
 		{
-			const bool builtin = info.file == g_reshade_dll_path;
+			const bool builtin = (info.file == g_reshade_dll_path);
 
 			ImGui::Spacing();
 			ImGui::BeginGroup();
@@ -2577,12 +2579,15 @@ void reshade::runtime::draw_gui_addons()
 
 			if (!builtin)
 			{
+#  if RESHADE_ADDON_LITE
+				ImGui::TextUnformatted(info.file.c_str());
+#  else
+				std::error_code ec;
 				std::filesystem::path file = std::filesystem::u8path(info.file);
-#  if !RESHADE_ADDON_LITE
-				if (file.parent_path() == addon_search_path)
-#  endif
+				if (std::filesystem::equivalent(file.parent_path(), addon_search_path, ec))
 					file = file.filename();
 				ImGui::TextUnformatted(file.u8string().c_str());
+#  endif
 			}
 			if (!info.author.empty())
 				ImGui::TextUnformatted(info.author.c_str());

@@ -72,8 +72,12 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 
 	// Read file contents into memory
 	std::error_code ec;
-	std::string file_data(static_cast<size_t>(std::filesystem::file_size(path, ec)) + 1, '\0');
-	if (!file.read(file_data.data(), file_data.size() - 1))
+	const uintmax_t file_size = std::filesystem::file_size(path, ec);
+	if (ec)
+		return false;
+
+	std::string file_data(static_cast<size_t>(file_size + 1), '\0');
+	if (!file.read(file_data.data(), file_size))
 		return false;
 
 	// No longer need to have a handle open to the file, since all data was read, so can safely close it
@@ -667,7 +671,8 @@ void reshadefx::preprocessor::parse_include()
 	std::filesystem::path file_path = std::filesystem::u8path(_output_location.source);
 	file_path.replace_filename(file_name);
 
-	if (std::error_code ec; !std::filesystem::exists(file_path, ec))
+	std::error_code ec;
+	if (!std::filesystem::exists(file_path, ec))
 		for (const std::filesystem::path &include_path : _include_paths)
 			if (std::filesystem::exists(file_path = include_path / file_name, ec))
 				break;

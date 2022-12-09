@@ -198,6 +198,9 @@ void reshade::load_addons()
 			FreeLibrary(module);
 		}
 	}
+
+	if (ec)
+		LOG(WARN) << "Failed to iterate all files in " << addon_search_path << " with error code " << ec.value() << '!';
 #endif
 }
 void reshade::unload_addons()

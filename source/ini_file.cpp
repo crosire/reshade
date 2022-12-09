@@ -205,7 +205,7 @@ bool ini_file::save()
 	file.close();
 	_modified_at = std::filesystem::last_write_time(_path, ec);
 
-	assert(std::filesystem::file_size(_path, ec) > 0);
+	assert(!ec && std::filesystem::file_size(_path, ec) > 0);
 
 	return true;
 }

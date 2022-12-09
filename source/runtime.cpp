@@ -200,7 +200,9 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	std::error_code ec;
 	if (std::filesystem::path config_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
 		std::filesystem::exists(config_path_alt, ec) && !std::filesystem::exists(_config_path, ec))
+	{
 		_config_path = std::move(config_path_alt);
+	}
 	// Add an index to the config file name in case there are multiple runtimes
 	else if (runtime_index != 0)
 	{
@@ -832,6 +834,8 @@ void reshade::runtime::load_config()
 		std::error_code ec;
 		_intermediate_cache_path = std::filesystem::temp_directory_path(ec) / "ReShade";
 		std::filesystem::create_directory(_intermediate_cache_path, ec);
+		if (ec)
+			LOG(ERROR) << "Failed to create effect cache directory " << _intermediate_cache_path << " with error code " << ec.value() << '!';
 	}
 
 	// Use default if the preset file does not exist yet
@@ -2995,14 +2999,24 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
+		std::error_code ec;
+		const uintmax_t file_size = std::filesystem::file_size(source_path, ec);
+		if (ec)
+		{
+			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
+				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
+
+			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
+			continue;
+		}
+
 		stbi_uc *pixels = nullptr;
 		int width = 0, height = 0, channels = 0;
 
 		if (auto file = std::ifstream(source_path, std::ios::binary))
 		{
 			// Read texture data into memory in one go since that is faster than reading chunk by chunk
-			std::error_code ec;
-			std::vector<stbi_uc> file_data(static_cast<size_t>(std::filesystem::file_size(source_path, ec)));
+			std::vector<stbi_uc> file_data(static_cast<size_t>(file_size));
 			file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
 			file.close();
 
@@ -3017,7 +3031,7 @@ void reshade::runtime::load_textures()
 			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
 				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
 
-			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
+			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "'! Make sure it is of a compatible file format.";
 			continue;
 		}
 
@@ -3097,8 +3111,13 @@ bool reshade::runtime::load_effect_cache(const std::string &id, const std::strin
 	std::ifstream file(path, std::ios::binary);
 	if (!file)
 		return false;
+
 	std::error_code ec;
-	data.resize(static_cast<size_t>(std::filesystem::file_size(path, ec)), '\0');
+	const uintmax_t file_size = std::filesystem::file_size(path, ec);
+	if (ec)
+		return false;
+
+	data.resize(static_cast<size_t>(file_size), '\0');
 	file.read(data.data(), data.size());
 	return !file.fail();
 }
@@ -3113,6 +3132,7 @@ bool reshade::runtime::save_effect_cache(const std::string &id, const std::strin
 	std::ofstream file(path, std::ios::binary | std::ios::trunc);
 	if (!file)
 		return false;
+
 	file.write(data.data(), data.size());
 	return !file.fail();
 }
@@ -3133,6 +3153,9 @@ void reshade::runtime::clear_effect_cache()
 
 		std::filesystem::remove(entry, ec);
 	}
+
+	if (ec)
+		LOG(ERROR) << "Failed to clear effect cache directory with error code " << ec.value() << '!';
 }
 
 bool reshade::runtime::update_effect_color_tex(api::format format)
@@ -4304,10 +4327,11 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 			}
 
 			// Create screenshot directory if it does not exist
-			if (std::error_code ec; !std::filesystem::exists(screenshot_path.parent_path(), ec))
-				_screenshot_directory_creation_successfull = std::filesystem::create_directories(screenshot_path.parent_path(), ec);
-			else
-				_screenshot_directory_creation_successfull = true;
+			std::error_code ec;
+			_screenshot_directory_creation_successfull = true;
+			if (!std::filesystem::exists(screenshot_path.parent_path(), ec))
+				if (!(_screenshot_directory_creation_successfull = std::filesystem::create_directories(screenshot_path.parent_path(), ec)))
+					LOG(ERROR) << "Failed to create screenshot directory " << screenshot_path.parent_path() << " with error code " << ec.value() << '!';
 
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
@@ -4354,8 +4378,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 					screenshot_preset_path.replace_extension(L".ini");
 
 					// Preset was flushed to disk, so can just copy it over to the new location
-					std::error_code ec;
-					std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec);
+					if (!std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
+						LOG(ERROR) << "Failed to copy preset file for screenshot to " << screenshot_preset_path << " with error code " << ec.value() << '!';
 				}
 #endif
 
