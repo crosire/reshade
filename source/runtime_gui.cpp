@@ -3580,9 +3580,11 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 		instance.editor.set_text(instance.entry_point_name == "Generated code" ?
 			effect.module.hlsl : effect.assembly.at(instance.entry_point_name).second);
 		instance.editor.set_readonly(true);
+		return; // Errors only apply to the effect source, not generated code
 	}
+
 	// Only update text if there is no undo history (in which case it can be assumed that the text is already up-to-date)
-	else if (!instance.editor.is_modified() && !instance.editor.can_undo())
+	if (!instance.editor.is_modified() && !instance.editor.can_undo())
 	{
 		if (auto file = std::ifstream(instance.file_path))
 		{
