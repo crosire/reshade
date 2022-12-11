@@ -104,16 +104,15 @@ namespace reshade::opengl
 
 	auto is_depth_stencil_format(api::format format) -> GLenum;
 
-	void convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage);
-	void convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags);
-	void convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage);
-	void convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags);
+	void convert_memory_usage_to_flags(GLenum usage, GLbitfield &flags);
+	void convert_memory_flags_to_usage(GLbitfield flags, GLenum &usage);
 
-	GLbitfield convert_access_flags(api::map_access flags);
+	auto convert_access_flags(api::map_access flags) -> GLbitfield;
 	api::map_access convert_access_flags(GLbitfield flags);
 
+	void convert_resource_desc(const api::resource_desc &desc, GLsizeiptr &buffer_size, GLenum &usage);
 	api::resource_type convert_resource_type(GLenum target);
-	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size, GLenum usage);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1, const GLint swizzle_mask[4] = nullptr);
 
 	api::resource_view_type convert_resource_view_type(GLenum target);

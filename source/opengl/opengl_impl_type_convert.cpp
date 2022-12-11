@@ -1151,77 +1151,38 @@ auto reshade::opengl::is_depth_stencil_format(api::format format) -> GLenum
 	}
 }
 
-void reshade::opengl::convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage)
-{
-	switch (desc.heap)
-	{
-	case api::memory_heap::gpu_only:
-		usage = GL_STATIC_DRAW;
-		break;
-	case api::memory_heap::cpu_to_gpu:
-		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
-		break;
-	case api::memory_heap::gpu_to_cpu:
-		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_READ : GL_STREAM_READ;
-		break;
-	}
-}
-void reshade::opengl::convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags)
-{
-	switch (desc.heap)
-	{
-	case api::memory_heap::cpu_to_gpu:
-		flags |= GL_MAP_WRITE_BIT;
-		break;
-	case api::memory_heap::gpu_to_cpu:
-		flags |= GL_MAP_READ_BIT;
-		break;
-	case api::memory_heap::cpu_only:
-		flags |= GL_CLIENT_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
-		break;
-	}
-
-	if ((desc.flags & api::resource_flags::dynamic) != 0)
-		flags |= GL_DYNAMIC_STORAGE_BIT;
-}
-void reshade::opengl::convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage)
+void reshade::opengl::convert_memory_usage_to_flags(GLenum usage, GLbitfield &flags)
 {
 	switch (usage)
 	{
 	case GL_STATIC_DRAW:
-		desc.heap = api::memory_heap::gpu_only;
 		break;
 	case GL_STREAM_DRAW:
-		desc.heap = api::memory_heap::cpu_to_gpu;
+		flags |= GL_MAP_WRITE_BIT;
 		break;
 	case GL_DYNAMIC_DRAW:
-		desc.heap = api::memory_heap::cpu_to_gpu;
-		desc.flags |= api::resource_flags::dynamic;
+		flags |= GL_MAP_WRITE_BIT | GL_DYNAMIC_STORAGE_BIT;
 		break;
 	case GL_STREAM_READ:
 	case GL_STATIC_READ:
-		desc.heap = api::memory_heap::gpu_to_cpu;
+		flags |= GL_MAP_READ_BIT;
 		break;
 	case GL_DYNAMIC_READ:
-		desc.heap = api::memory_heap::gpu_to_cpu;
-		desc.flags |= api::resource_flags::dynamic;
+		flags |= GL_MAP_READ_BIT | GL_DYNAMIC_STORAGE_BIT;
 		break;
 	}
 }
-void reshade::opengl::convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags)
+void reshade::opengl::convert_memory_flags_to_usage(GLbitfield flags, GLenum &usage)
 {
 	if ((flags & GL_MAP_WRITE_BIT) != 0)
-		desc.heap = api::memory_heap::cpu_to_gpu;
+		usage = (flags & GL_DYNAMIC_STORAGE_BIT) != 0 ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
 	else if ((flags & GL_MAP_READ_BIT) != 0)
-		desc.heap = api::memory_heap::gpu_to_cpu;
-	else if ((flags & GL_CLIENT_STORAGE_BIT) != 0)
-		desc.heap = api::memory_heap::cpu_only;
-
-	if ((flags & GL_DYNAMIC_STORAGE_BIT) != 0)
-		desc.flags |= api::resource_flags::dynamic;
+		usage = (flags & GL_DYNAMIC_STORAGE_BIT) != 0 ? GL_DYNAMIC_READ : GL_STREAM_READ;
+	else if ((flags & GL_CLIENT_STORAGE_BIT) == 0)
+		usage = GL_STATIC_DRAW;
 }
 
-GLbitfield reshade::opengl::convert_access_flags(reshade::api::map_access flags)
+auto reshade::opengl::convert_access_flags(reshade::api::map_access flags) -> GLbitfield
 {
 	switch (flags)
 	{
@@ -1253,6 +1214,24 @@ reshade::api::map_access reshade::opengl::convert_access_flags(GLbitfield flags)
 	}
 }
 
+void reshade::opengl::convert_resource_desc(const api::resource_desc &desc, GLsizeiptr &buffer_size, GLenum &usage)
+{
+	assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+	buffer_size = static_cast<GLsizeiptr>(desc.buffer.size);
+
+	switch (desc.heap)
+	{
+	case api::memory_heap::gpu_only:
+		usage = GL_STATIC_DRAW;
+		break;
+	case api::memory_heap::cpu_to_gpu:
+		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
+		break;
+	case api::memory_heap::gpu_to_cpu:
+		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_READ : GL_STREAM_READ;
+		break;
+	}
+}
 reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target)
 {
 	switch (target)
@@ -1312,12 +1291,33 @@ reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target
 		return api::resource_type::unknown;
 	}
 }
-reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size)
+reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size, GLenum usage)
 {
 	api::resource_desc desc = {};
 	desc.type = convert_resource_type(target);
 	desc.buffer.size = buffer_size;
-	desc.heap = api::memory_heap::gpu_only;
+
+	switch (usage)
+	{
+	case GL_STATIC_DRAW:
+		desc.heap = api::memory_heap::gpu_only;
+		break;
+	case GL_STREAM_DRAW:
+		desc.heap = api::memory_heap::cpu_to_gpu;
+		break;
+	case GL_DYNAMIC_DRAW:
+		desc.heap = api::memory_heap::cpu_to_gpu;
+		desc.flags |= api::resource_flags::dynamic;
+		break;
+	case GL_STREAM_READ:
+	case GL_STATIC_READ:
+		desc.heap = api::memory_heap::gpu_to_cpu;
+		break;
+	case GL_DYNAMIC_READ:
+		desc.heap = api::memory_heap::gpu_to_cpu;
+		desc.flags |= api::resource_flags::dynamic;
+		break;
+	}
 
 	desc.usage = api::resource_usage::copy_dest | api::resource_usage::copy_source;
 	if (target == GL_ELEMENT_ARRAY_BUFFER)

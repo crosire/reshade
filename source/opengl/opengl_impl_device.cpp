@@ -415,30 +415,32 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		gl.GenBuffers(1, &object);
 		gl.BindBuffer(target, object);
 
-		GLbitfield usage_flags = GL_NONE;
-		convert_memory_heap_to_flags(desc, usage_flags);
-
-		// Upload of initial data is using 'glBufferSubData', which requires the dynamic storage flag
-		if (initial_data != nullptr)
-			usage_flags |= GL_DYNAMIC_STORAGE_BIT;
-
-		assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		GLsizeiptr buffer_size = 0;
+		GLenum usage = GL_NONE;
+		convert_resource_desc(desc, buffer_size, usage);
 
 #if 0
 		if (shared_handle_type != GL_NONE)
 		{
 			GLuint mem = 0;
 			gl.CreateMemoryObjectsEXT(1, &mem);
-			gl.ImportMemoryWin32HandleEXT(mem, desc.buffer.size, shared_handle_type, *shared_handle);
+			gl.ImportMemoryWin32HandleEXT(mem, buffer_size, shared_handle_type, *shared_handle);
 
-			gl.BufferStorageMemEXT(target, static_cast<GLsizeiptr>(desc.buffer.size), mem, 0);
+			gl.BufferStorageMemEXT(target, buffer_size, mem, 0);
 
 			gl.DeleteMemoryObjectsEXT(1, &mem);
 		}
 		else
 #endif
 		{
-			gl.BufferStorage(target, static_cast<GLsizeiptr>(desc.buffer.size), nullptr, usage_flags);
+			GLbitfield usage_flags = GL_NONE;
+			convert_memory_usage_to_flags(usage, usage_flags);
+
+			// Upload of initial data is using 'glBufferSubData', which requires the dynamic storage flag
+			if (initial_data != nullptr)
+				usage_flags |= GL_DYNAMIC_STORAGE_BIT;
+
+			gl.BufferStorage(target, buffer_size, nullptr, usage_flags);
 		}
 
 		status = gl.GetError();
@@ -624,6 +626,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #else
 			GLint64 size = 0;
 #endif
+			GLint usage = GL_NONE;
+
 			if (_supports_dsa)
 			{
 #ifndef _WIN64
@@ -631,6 +635,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #else
 				gl.GetNamedBufferParameteri64v(object, GL_BUFFER_SIZE, &size);
 #endif
+				gl.GetNamedBufferParameteriv(object, GL_BUFFER_USAGE, &usage);
 			}
 			else
 			{
@@ -643,11 +648,12 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #else
 				gl.GetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
 #endif
+				gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_USAGE, &usage);
 
 				gl.BindBuffer(GL_COPY_READ_BUFFER, prev_binding);
 			}
 
-			return convert_resource_desc(target, size);
+			return convert_resource_desc(target, size, usage);
 		}
 		case GL_TEXTURE_BUFFER:
 		case GL_TEXTURE_1D:
