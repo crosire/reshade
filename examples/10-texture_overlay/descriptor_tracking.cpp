@@ -14,10 +14,13 @@ resource_view descriptor_tracking::get_shader_resource_view(descriptor_pool pool
 
 	const descriptor_pool_data &pool_data = pools.at(pool);
 
-	if (offset < pool_data.descriptors.size() && pool_data.descriptors[offset].first == descriptor_type::shader_resource_view)
-		return { pool_data.descriptors[offset].second };
-	else
-		return { 0 };
+	if (offset < pool_data.descriptors.size())
+	{
+		if (pool_data.descriptors[offset].first == descriptor_type::shader_resource_view || pool_data.descriptors[offset].first == descriptor_type::sampler_with_resource_view)
+			return { pool_data.descriptors[offset].second };
+	}
+
+	return { 0 };
 }
 
 pipeline_layout_param descriptor_tracking::get_pipeline_layout_param(pipeline_layout layout, uint32_t param) const
@@ -136,6 +139,8 @@ static bool on_update_descriptor_sets(device *device, uint32_t count, const desc
 				pool_data.descriptors[offset + k].second = static_cast<const sampler *>(update.descriptors)[k].handle;
 			else if (update.type == descriptor_type::shader_resource_view || update.type == descriptor_type::unordered_access_view)
 				pool_data.descriptors[offset + k].second = static_cast<const resource_view *>(update.descriptors)[k].handle;
+			else if (update.type == descriptor_type::sampler_with_resource_view)
+				pool_data.descriptors[offset + k].second = static_cast<const sampler_with_resource_view *>(update.descriptors)[k].view.handle;
 		}
 	}
 
