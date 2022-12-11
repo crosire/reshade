@@ -1898,6 +1898,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			new_texture.effect_index = effect_index;
 
+			if (!new_texture.semantic.empty() && (new_texture.render_target || new_texture.storage_access))
+			{
+				effect.errors += "error: " + new_texture.unique_name + ": texture with a semantic used as a render target or storage\n";
+				effect.compiled = false;
+				break;
+			}
+
 			// Try to share textures with the same name across effects
 			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 				[&new_texture](const auto &item) { return item.unique_name == new_texture.unique_name; });
@@ -2375,6 +2382,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = pass_info.render_target_names[render_target_count]](const auto &item) {
 							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
 						assert(texture != _textures.end());
+						assert(texture->semantic.empty() && texture->rtv[pass_info.srgb_write_enable] != 0);
 
 						if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), texture->resource) == pass_data.modified_resources.end())
 						{
