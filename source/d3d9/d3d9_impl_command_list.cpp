@@ -208,6 +208,8 @@ void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t cou
 
 void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const void *values)
 {
+	assert((first % 4) == 0 && (count % 4) == 0);
+
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->SetVertexShaderConstantF(first / 4, static_cast<const float *>(values), count / 4);
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)

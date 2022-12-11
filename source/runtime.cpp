@@ -1625,13 +1625,28 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				assert(_d3d_compiler_module != nullptr);
 
+				std::string texture_pixel_sizes;
+				if (_renderer_id == 0x9000)
+				{
+					texture_pixel_sizes = "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + '\n';
+
+					uint32_t semantic_index = 0;
+					for (const reshadefx::texture_info &tex : effect.module.textures)
+					{
+						if (tex.semantic.empty() || tex.semantic == "COLOR")
+							continue;
+
+						semantic_index++;
+						assert((effect.uniform_data_storage.size() / 16) < (255 - semantic_index));
+
+						texture_pixel_sizes += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
+					}
+				}
+
 				// Add specialization constant defines to source code
 				const std::string hlsl =
 					pragma_warnings +
-					"#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
-					"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
-					"#define SV_DEPTH_PIXEL_SIZE DEPTH_PIXEL_SIZE\n"
-					"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
+					texture_pixel_sizes +
 					"#line 1\n" + // Reset line number, so it matches what is shown when viewing the generated code
 					effect.module.hlsl;
 
@@ -3662,7 +3677,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 	}
 	else if (_renderer_id == 0x9000)
 	{
-		cmd_list->push_constants(api::shader_stage::all, effect.layout, 0, 0, static_cast<uint32_t>(effect.uniform_data_storage.size() / sizeof(uint32_t)), effect.uniform_data_storage.data());
+		cmd_list->push_constants(api::shader_stage::all, effect.layout, 0, 0, static_cast<uint32_t>(effect.uniform_data_storage.size() / 4), effect.uniform_data_storage.data());
 	}
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
@@ -3805,6 +3820,28 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 					 1.0f / pass_info.viewport_height
 				};
 				cmd_list->push_constants(api::shader_stage::vertex, effect.layout, 0, 255 * 4, 4, texel_size);
+
+				// Set SEMANTIC_PIXEL_SIZE constants (see 'load_effect' above)
+				uint32_t semantic_index = 0;
+				for (const reshadefx::texture_info &tex : effect.module.textures)
+				{
+					if (tex.semantic.empty() || tex.semantic == "COLOR")
+						continue;
+
+					semantic_index++;
+
+					if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
+					{
+						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
+
+						const float pixel_size[4] = {
+							1.0f / desc.texture.width,
+							1.0f / desc.texture.height
+						};
+
+						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, effect.layout, 0, (255 - semantic_index) * 4, 4, pixel_size);
+					}
+				}
 			}
 
 			// Draw primitives

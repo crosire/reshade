@@ -64,7 +64,8 @@ private:
 		}
 		else
 		{
-			module.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\nuniform float2 __TEXEL_SIZE__ : register(c255);\n";
+			module.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\n";
+			module.hlsl += "uniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
 			if (_uses_bitwise_cast)
 				module.hlsl +=
