@@ -429,6 +429,12 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		case api::dynamic_state::stencil_enable:
 			vk.CmdSetStencilTestEnable(_orig, values[i]);
 			continue;
+		case api::dynamic_state::logic_op:
+			vk.CmdSetLogicOpEXT(_orig, convert_logic_op(static_cast<api::logic_op>(values[i])));
+			continue;
+		case api::dynamic_state::render_target_write_mask:
+			vk.CmdSetColorWriteEnableEXT(_orig, 1, &values[i]);
+			continue;
 		default:
 			assert(false);
 			continue;

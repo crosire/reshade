@@ -1301,42 +1301,57 @@ void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_
 	{
 		switch (states[i])
 		{
+		case api::dynamic_state::depth_bias:
+		case api::dynamic_state::depth_bias_clamp:
+		case api::dynamic_state::depth_bias_slope_scaled:
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_BIAS);
+			break;
 		case api::dynamic_state::blend_constant:
 			internal_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-			continue;
+			break;
 		case api::dynamic_state::stencil_read_mask:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
-			continue;
+			break;
 		case api::dynamic_state::stencil_write_mask:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
-			continue;
+			break;
 		case api::dynamic_state::stencil_reference_value:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
-			continue;
+			break;
 		case api::dynamic_state::cull_mode:
 			internal_states.push_back(VK_DYNAMIC_STATE_CULL_MODE);
-			continue;
+			break;
 		case api::dynamic_state::front_counter_clockwise:
 			internal_states.push_back(VK_DYNAMIC_STATE_FRONT_FACE);
-			continue;
+			break;
 		case api::dynamic_state::primitive_topology:
 			internal_states.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
-			continue;
+			break;
 		case api::dynamic_state::depth_enable:
 			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
-			continue;
+			break;
 		case api::dynamic_state::depth_write_mask:
 			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE);
-			continue;
+			break;
 		case api::dynamic_state::depth_func:
 			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_COMPARE_OP);
-			continue;
+			break;
 		case api::dynamic_state::stencil_enable:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE);
-			continue;
+			break;
+		case api::dynamic_state::back_stencil_func:
+		case api::dynamic_state::front_stencil_func:
+			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_OP);
+			break;
+		case api::dynamic_state::logic_op:
+			internal_states.push_back(VK_DYNAMIC_STATE_LOGIC_OP_EXT);
+			break;
+		case api::dynamic_state::render_target_write_mask:
+			internal_states.push_back(VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT);
+			break;
 		default:
 			assert(false);
-			continue;
+			break;
 		}
 	}
 }
@@ -1387,9 +1402,6 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 		case VK_DYNAMIC_STATE_DEPTH_COMPARE_OP:
 			states.push_back(api::dynamic_state::depth_func);
 			break;
-		case VK_DYNAMIC_STATE_DEPTH_BOUNDS_TEST_ENABLE:
-			states.push_back(api::dynamic_state::depth_clip_enable);
-			break;
 		case VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE:
 			states.push_back(api::dynamic_state::stencil_enable);
 			break;
@@ -1397,14 +1409,10 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 			states.push_back(api::dynamic_state::back_stencil_func);
 			states.push_back(api::dynamic_state::front_stencil_func);
 			break;
-		case VK_DYNAMIC_STATE_RASTERIZER_DISCARD_ENABLE:
-			break;
 		case VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE:
 			states.push_back(api::dynamic_state::depth_bias);
 			states.push_back(api::dynamic_state::depth_bias_clamp);
 			states.push_back(api::dynamic_state::depth_bias_slope_scaled);
-			break;
-		case VK_DYNAMIC_STATE_PRIMITIVE_RESTART_ENABLE:
 			break;
 		case VK_DYNAMIC_STATE_LOGIC_OP_EXT:
 			states.push_back(api::dynamic_state::logic_op);
