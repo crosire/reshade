@@ -897,6 +897,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	api::shader_desc ps_desc = {};
 	api::shader_desc cs_desc = {};
 	api::pipeline_subobject input_layout_desc = {};
+	api::stream_output_desc stream_output_desc = {};
 	api::blend_desc blend_desc = {};
 	api::rasterizer_desc rasterizer_desc = {};
 	api::depth_stencil_desc depth_stencil_desc = {};
@@ -944,7 +945,8 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			break;
 		case api::pipeline_subobject_type::stream_output_state:
 			assert(subobjects[i].count == 1);
-			goto exit_failure; // Not implemented
+			stream_output_desc = *static_cast<const api::stream_output_desc *>(subobjects[i].data);
+			break;
 		case api::pipeline_subobject_type::blend_state:
 			assert(subobjects[i].count == 1);
 			blend_desc = *static_cast<const api::blend_desc *>(subobjects[i].data);
@@ -1114,6 +1116,13 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		convert_rasterizer_desc(rasterizer_desc, rasterization_state_info);
 		rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
 		rasterization_state_info.lineWidth = 1.0f;
+
+		VkPipelineRasterizationStateStreamCreateInfoEXT stream_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT };
+		if (stream_output_desc.rasterized_stream != 0)
+		{
+			rasterization_state_info.pNext = &stream_rasterization_info;
+			convert_stream_output_desc(stream_output_desc, rasterization_state_info);
+		}
 
 		VkPipelineMultisampleStateCreateInfo multisample_state_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 		create_info.pMultisampleState = &multisample_state_info;
