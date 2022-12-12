@@ -111,8 +111,8 @@ bool reshade::input::handle_window_message(const void *message_data)
 			input_window = s_windows.find(parent);
 	}
 
-	if (input_window == s_windows.end() &&
-		raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & RIDEV_INPUTSINK) != 0)
+	if (input_window == s_windows.end() && raw_input_window != s_raw_input_windows.end() &&
+		(raw_input_window->second & (RIDEV_INPUTSINK | RIDEV_EXINPUTSINK | RIDEV_CAPTUREMOUSE)) != 0)
 	{
 		// Reroute this raw input message to the window with the most rendering
 		input_window = std::max_element(s_windows.begin(), s_windows.end(),
