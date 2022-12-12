@@ -1653,6 +1653,11 @@ reshade::api::depth_stencil_desc reshade::vulkan::convert_depth_stencil_desc(con
 		desc.front_stencil_depth_fail_op = convert_stencil_op(create_info->front.depthFailOp);
 		desc.front_stencil_func = convert_compare_op(create_info->front.compareOp);
 	}
+	else
+	{
+		desc.depth_enable = false;
+		desc.depth_write_mask = false;
+	}
 
 	return desc;
 }
