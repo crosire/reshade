@@ -411,7 +411,14 @@ static void on_destroy_effect_runtime(effect_runtime *runtime)
 	auto &data = runtime->get_private_data<generic_depth_data>();
 
 	if (data.selected_shader_resource != 0)
-		runtime->get_device()->destroy_resource_view(data.selected_shader_resource);
+	{
+		device *const device = runtime->get_device();
+
+		device->destroy_resource_view(data.selected_shader_resource);
+
+		auto &device_data = device->get_private_data<generic_depth_device_data>();
+		device_data.untrack_depth_stencil(data.selected_depth_stencil);
+	}
 
 	runtime->destroy_private_data<generic_depth_data>();
 }
