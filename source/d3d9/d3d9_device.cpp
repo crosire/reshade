@@ -208,11 +208,13 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	const auto orig = _orig;
 	const bool extended_interface = _extended_interface;
 
-	// Borderlands 2 is not counting references correctly and will release the device before 'IDirect3DDevice9::Reset' calls, so try and detect this
+	// Borderlands 2 is not counting references correctly and will release the device before 'IDirect3DDevice9::Reset' calls, so try and detect this and prevent deletion
 	if (_resource_ref > 25)
 	{
 		LOG(WARN) << "Reference count for " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent! Leaking resources ...";
-		return _ref = 1;
+		_ref = 1;
+		// Always return zero in case a game is trying to release all references in a while loop, which would otherwise run indefinitely
+		return 0;
 	}
 
 	if (_d3d9on12_device != nullptr)
