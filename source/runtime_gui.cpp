@@ -1383,7 +1383,7 @@ void reshade::runtime::draw_gui_home()
 				if (label.empty())
 					label = tech.name;
 
-				tech.hidden = tech.annotation_as_int("hidden") != 0 || !filter_text(label, _effect_filter);
+				tech.hidden = tech.annotation_as_int("hidden") != 0 || !(filter_text(label, _effect_filter) || filter_text(_effects[tech.effect_index].source_file.filename().u8string(), _effect_filter));
 			}
 		}
 
