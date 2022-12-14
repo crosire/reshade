@@ -722,11 +722,11 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 		// This might add a resource again that was destroyed during the frame, so need to add a grace period of a couple of frames before using it to be sure
 		depth_stencil_resource &info = device_data.depth_stencil_resources[resource];
 
-		if (device_data.frame_index > (info.last_used_in_frame + 1) || info.first_used_in_frame == std::numeric_limits<uint64_t>::max())
-			info.first_used_in_frame = device_data.frame_index;
-
 		info.last_counters = counters;
 		info.last_used_in_frame = device_data.frame_index;
+
+		if (std::numeric_limits<uint64_t>::max() == info.first_used_in_frame)
+			info.first_used_in_frame = device_data.frame_index;
 	}
 
 	// Destroy resources that were enqueued for delayed destruction and have reached the targeted number of passed frames
