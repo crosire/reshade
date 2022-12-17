@@ -369,9 +369,8 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 
 #ifndef NDEBUG
 	pipeline_layout_extra_data extra_data;
-
-	if (UINT extra_data_size = sizeof(extra_data);
-		SUCCEEDED(root_signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	UINT extra_data_size = sizeof(extra_data);
+	if (SUCCEEDED(root_signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		assert(heap_type == extra_data.ranges[layout_param].first);
 		assert(update.binding + update.count <= extra_data.ranges[layout_param].second);
@@ -605,15 +604,50 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 	// Blit between different region dimensions is not supported
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
+	D3D12_RESOURCE_DESC src_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
+	D3D12_RESOURCE_DESC dst_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
+
 	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
 	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
-	src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-	src_copy_location.SubresourceIndex = src_subresource;
+	if (src_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src_copy_location.PlacedFootprint.Offset = 0;
+
+		UINT private_size = sizeof(src_copy_location.PlacedFootprint.Footprint);
+		if (FAILED(src_copy_location.pResource->GetPrivateData(extra_data_guid, &private_size, &src_copy_location.PlacedFootprint.Footprint)))
+		{
+			assert(dst_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
+
+			_device_impl->_orig->GetCopyableFootprints(&dst_desc, dst_subresource, 1, 0, &src_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
+		}
+	}
+	else
+	{
+		src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		src_copy_location.SubresourceIndex = src_subresource;
+	}
 
 	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
 	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
-	dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-	dst_copy_location.SubresourceIndex = dst_subresource;
+	if (dst_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		dst_copy_location.PlacedFootprint.Offset = 0;
+
+		UINT private_size = sizeof(dst_copy_location.PlacedFootprint.Footprint);
+		if (FAILED(dst_copy_location.pResource->GetPrivateData(extra_data_guid, &private_size, &dst_copy_location.PlacedFootprint.Footprint)))
+		{
+			assert(src_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
+
+			_device_impl->_orig->GetCopyableFootprints(&src_desc, src_subresource, 1, 0, &dst_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
+		}
+	}
+	else
+	{
+		dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst_copy_location.SubresourceIndex = dst_subresource;
+	}
 
 	_orig->CopyTextureRegion(
 		&dst_copy_location, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,

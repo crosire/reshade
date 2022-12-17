@@ -4507,44 +4507,20 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 		return false;
 	}
 
-	uint32_t row_pitch = api::format_row_pitch(view_format, desc.texture.width);
-	if (_device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
-		row_pitch = (row_pitch + 255) & ~255;
-	const uint32_t slice_pitch = api::format_slice_pitch(view_format, row_pitch, desc.texture.height);
-	const uint32_t pixels_row_pitch = desc.texture.width * 4;
-
 	// Copy back buffer data into system memory buffer
 	api::resource intermediate;
-	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
+	if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, view_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 	{
-		if (!_device->create_resource(api::resource_desc(slice_pitch, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
-		{
-			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
-			return false;
-		}
-
-		_device->set_resource_name(intermediate, "ReShade screenshot buffer");
-
-		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(resource, state, api::resource_usage::copy_source);
-		cmd_list->copy_texture_to_buffer(resource, 0, nullptr, intermediate, 0, desc.texture.width, desc.texture.height);
-		cmd_list->barrier(resource, api::resource_usage::copy_source, state);
+		LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
+		return false;
 	}
-	else
-	{
-		if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, view_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
-		{
-			LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
-			return false;
-		}
 
-		_device->set_resource_name(intermediate, "ReShade screenshot texture");
+	_device->set_resource_name(intermediate, "ReShade screenshot texture");
 
-		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(resource, state, api::resource_usage::copy_source);
-		cmd_list->copy_texture_region(resource, 0, nullptr, intermediate, 0, nullptr);
-		cmd_list->barrier(resource, api::resource_usage::copy_source, state);
-	}
+	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+	cmd_list->barrier(resource, state, api::resource_usage::copy_source);
+	cmd_list->copy_texture_region(resource, 0, nullptr, intermediate, 0, nullptr);
+	cmd_list->barrier(resource, api::resource_usage::copy_source, state);
 
 	// Wait for any rendering by the application finish before submitting
 	// It may have submitted that to a different queue, so simply wait for all to idle here
@@ -4552,21 +4528,10 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 
 	// Copy data from intermediate image into output buffer
 	api::subresource_data mapped_data = {};
-	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
-	{
-		_device->map_buffer_region(intermediate, 0, std::numeric_limits<uint64_t>::max(), api::map_access::read_only, &mapped_data.data);
-
-		mapped_data.row_pitch = row_pitch;
-		mapped_data.slice_pitch = slice_pitch;
-	}
-	else
-	{
-		_device->map_texture_region(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data);
-	}
-
-	if (mapped_data.data != nullptr)
+	if (_device->map_texture_region(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data))
 	{
 		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
+		const uint32_t pixels_row_pitch = desc.texture.width * 4;
 
 		for (size_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
 		{
@@ -4624,10 +4589,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 			}
 		}
 
-		if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
-			_device->unmap_buffer_region(intermediate);
-		else
-			_device->unmap_texture_region(intermediate, 0);
+		_device->unmap_texture_region(intermediate, 0);
 	}
 
 	_device->destroy_resource(intermediate);

@@ -265,6 +265,8 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	convert_resource_desc(desc, internal_desc, heap_props, heap_flags);
 
+	D3D12_SUBRESOURCE_FOOTPRINT footprint = {};
+
 	if (desc.type == api::resource_type::buffer)
 	{
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
@@ -272,6 +274,28 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		// Constant buffer views need to be aligned to 256 bytes, so make buffer large enough to ensure that is possible
 		if ((desc.usage & (api::resource_usage::constant_buffer)) != 0)
 			internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
+	}
+	else if ((desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only) && desc.texture.levels == 1)
+	{
+		// Textures in the upload or readback heap are created as buffers, so that they can be mapped
+		internal_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+
+		auto row_pitch = api::format_row_pitch(desc.texture.format, desc.texture.width);
+		row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+		const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, desc.texture.height);
+
+		footprint.Format = internal_desc.Format;
+		footprint.Width = internal_desc.Width;
+		footprint.Height = internal_desc.Height;
+		footprint.Depth = internal_desc.DepthOrArraySize;
+		footprint.RowPitch = row_pitch;
+
+		internal_desc.Width = slice_pitch * desc.texture.depth_or_layers;
+		internal_desc.Height = 1;
+		internal_desc.DepthOrArraySize = 1;
+		internal_desc.Format = DXGI_FORMAT_UNKNOWN;
+		internal_desc.SampleDesc = { 1, 0 };
+		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	}
 
 	// Use a default clear value of transparent black (all zeroes)
@@ -291,6 +315,9 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	{
 		if (is_shared && FAILED(_orig->CreateSharedHandle(object.get(), nullptr, GENERIC_ALL, nullptr, shared_handle)))
 			return false;
+
+		if (footprint.Format != DXGI_FORMAT_UNKNOWN)
+			object->SetPrivateData(extra_data_guid, sizeof(footprint), &footprint);
 
 		register_resource(object.get());
 
@@ -513,8 +540,24 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 	const D3D12_RANGE no_read = { 0, 0 };
 
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
+
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-	_orig->GetCopyableFootprints(&desc, subresource, 1, 0, &layout, &out_data->slice_pitch, nullptr, nullptr);
+	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		if (subresource != 0)
+			return false;
+
+		UINT private_size = sizeof(layout.Footprint);
+		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &private_size, &layout.Footprint)))
+			return false;
+
+		out_data->slice_pitch = layout.Footprint.Height;
+	}
+	else
+	{
+		_orig->GetCopyableFootprints(&desc, subresource, 1, 0, &layout, &out_data->slice_pitch, nullptr, nullptr);
+	}
+
 	out_data->row_pitch = layout.Footprint.RowPitch;
 	out_data->slice_pitch *= layout.Footprint.RowPitch;
 
@@ -575,6 +618,14 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	assert(resource.handle != 0);
 
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
+	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		if (subresource != 0 || box != nullptr)
+			return;
+
+		update_buffer_region(data.data, resource, 0, data.slice_pitch);
+		return;
+	}
 
 	UINT width = static_cast<UINT>(desc.Width);
 	UINT num_rows = desc.Height;
@@ -968,10 +1019,9 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 	const com_ptr<ID3D12RootSignature> signature(reinterpret_cast<ID3D12RootSignature *>(handle.handle), true);
 
 	pipeline_layout_extra_data extra_data;
-
+	UINT extra_data_size = sizeof(extra_data);
 	// Only destroy attached extra data when this is the last reference to the root signature object
-	if (UINT extra_data_size = sizeof(extra_data);
-		signature.ref_count() == 1 && SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	if (signature.ref_count() == 1 && SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		delete[] extra_data.ranges;
 	}
@@ -987,9 +1037,8 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::
 	if (signature != nullptr)
 	{
 		pipeline_layout_extra_data extra_data;
-
-		if (UINT extra_data_size = sizeof(extra_data);
-			SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+		UINT extra_data_size = sizeof(extra_data);
+		if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			heap_type = extra_data.ranges[layout_param].first;
 			total_count = extra_data.ranges[layout_param].second;

@@ -229,6 +229,8 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 		{
 			reshade::log_message(3, "Stopping video recording ...");
 
+			runtime->get_command_queue()->wait_idle();
+
 			device->destroy_resource(data.host_resource);
 			data.host_resource = { 0 };
 
@@ -249,8 +251,9 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 			desc.type = reshade::api::resource_type::texture_2d;
 			desc.heap = reshade::api::memory_heap::gpu_to_cpu;
 			desc.usage = reshade::api::resource_usage::copy_dest;
+			desc.flags = reshade::api::resource_flags::none;
 
-			if (device->create_resource(desc, nullptr, reshade::api::resource_usage::cpu_access, &data.host_resource))
+			if (device->create_resource(desc, nullptr, reshade::api::resource_usage::copy_dest, &data.host_resource))
 			{
 				reshade::log_message(3, "Starting video recording ...");
 
@@ -279,10 +282,8 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 	// Instead multiple resources should be created and copied into in a round-robin fashion, only the oldest of which is mapped below and copied into the video frame.
 	// See the OBS capture add-on example which does this.
 	reshade::api::command_list *const cmd_list = runtime->get_command_queue()->get_immediate_command_list();
-	cmd_list->barrier(data.host_resource, reshade::api::resource_usage::cpu_access, reshade::api::resource_usage::copy_dest);
 	cmd_list->barrier(rtv_resource, reshade::api::resource_usage::render_target, reshade::api::resource_usage::copy_source);
-	cmd_list->copy_resource(rtv_resource, data.host_resource);
-	cmd_list->barrier(data.host_resource, reshade::api::resource_usage::copy_dest, reshade::api::resource_usage::cpu_access);
+	cmd_list->copy_texture_region(rtv_resource, 0, nullptr, data.host_resource, 0, nullptr);
 	cmd_list->barrier(rtv_resource, reshade::api::resource_usage::copy_source, reshade::api::resource_usage::render_target);
 
 	runtime->get_command_queue()->flush_immediate_command_list();

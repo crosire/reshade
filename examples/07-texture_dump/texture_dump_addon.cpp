@@ -85,10 +85,9 @@ static bool on_copy_buffer_to_texture(command_list *cmd_list, resource src, uint
 		subresource_data mapped_data;
 		mapped_data.data = mapped_ptr;
 		mapped_data.row_pitch = format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : dst_desc.texture.width);
-		mapped_data.slice_pitch = format_slice_pitch(dst_desc.texture.format, mapped_data.row_pitch, slice_height != 0 ? slice_height : dst_desc.texture.height);
-
 		if (device->get_api() == device_api::d3d12) // Align row pitch to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT (256)
 			mapped_data.row_pitch = (mapped_data.row_pitch + 255) & ~255;
+		mapped_data.slice_pitch = format_slice_pitch(dst_desc.texture.format, mapped_data.row_pitch, slice_height != 0 ? slice_height : dst_desc.texture.height);
 
 		save_texture_image(dst_desc, mapped_data);
 
