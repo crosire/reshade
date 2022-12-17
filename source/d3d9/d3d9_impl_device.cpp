@@ -340,7 +340,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 			UINT levels = 0;
 			D3DSURFACE_DESC internal_desc = {};
-			convert_resource_desc(desc, internal_desc, &levels, _caps);
+			convert_resource_desc(desc, internal_desc, &levels, nullptr, _caps);
 
 			if (!convert_format_internal(desc.texture.format, internal_desc.Format))
 				break;
@@ -421,7 +421,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				case api::resource_usage::depth_stencil_write:
 				{
 					D3DSURFACE_DESC internal_desc = {};
-					convert_resource_desc(desc, internal_desc, nullptr, _caps);
+					convert_resource_desc(desc, internal_desc, nullptr, nullptr, _caps);
 					assert(internal_desc.Usage == D3DUSAGE_DEPTHSTENCIL);
 
 					if (com_ptr<IDirect3DSurface9> object;
@@ -436,14 +436,15 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				}
 				case api::resource_usage::render_target:
 				{
+					BOOL lockable = FALSE;
 					D3DSURFACE_DESC internal_desc = {};
-					convert_resource_desc(desc, internal_desc, nullptr, _caps);
+					convert_resource_desc(desc, internal_desc, nullptr, &lockable, _caps);
 					assert(internal_desc.Usage == D3DUSAGE_RENDERTARGET);
 
 					if (com_ptr<IDirect3DSurface9> object;
 						SUCCEEDED((desc.usage & api::resource_usage::shader_resource) != 0 ?
 							create_surface_replacement(internal_desc, &object, shared_handle) :
-							_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, shared_handle)))
+							_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, lockable, &object, shared_handle)))
 					{
 						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 						return true;
@@ -476,7 +477,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 			D3DSURFACE_DESC internal_desc;
 			IDirect3DSurface9_GetDesc(static_cast<IDirect3DSurface9 *>(object), &internal_desc);
 
-			return convert_resource_desc(internal_desc, 1, _caps);
+			return convert_resource_desc(internal_desc, 1, FALSE, _caps);
 		}
 		case D3DRTYPE_TEXTURE:
 		{
@@ -486,7 +487,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 
 			const UINT levels = IDirect3DTexture9_GetLevelCount(static_cast<IDirect3DTexture9 *>(object));
 
-			return convert_resource_desc(internal_desc, levels, _caps);
+			return convert_resource_desc(internal_desc, levels, FALSE, _caps);
 		}
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
@@ -506,7 +507,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 
 			const UINT levels = IDirect3DCubeTexture9_GetLevelCount(static_cast<IDirect3DCubeTexture9 *>(object));
 
-			return convert_resource_desc(internal_desc, levels, _caps);
+			return convert_resource_desc(internal_desc, levels, FALSE, _caps);
 		}
 		case D3DRTYPE_VERTEXBUFFER:
 		{

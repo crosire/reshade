@@ -9,7 +9,7 @@
 #include "reshade_api_pipeline.hpp"
 #include "d3d9_impl_type_convert.hpp"
 
-auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORMAT
+auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORMAT
 {
 	switch (format)
 	{
@@ -175,7 +175,7 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 
 	return D3DFMT_UNKNOWN;
 }
-auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
+auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api::format
 {
 	switch (static_cast<DWORD>(d3d_format))
 	{
@@ -229,16 +229,24 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 	case D3DFMT_A4R4G4B4:
 		return api::format::b4g4r4a4_unorm;
 	case D3DFMT_S8_LOCKABLE:
+		if (lockable != nullptr)
+			*lockable = TRUE;
 		return api::format::s8_uint;
-	case D3DFMT_D16:
 	case D3DFMT_D16_LOCKABLE:
+		if (lockable != nullptr)
+			*lockable = TRUE;
+		[[fallthrough]];
+	case D3DFMT_D16:
 		return api::format::d16_unorm;
 	case D3DFMT_D24S8:
 		return api::format::d24_unorm_s8_uint;
 	case D3DFMT_D24X8:
 		return api::format::d24_unorm_x8_uint;
-	case D3DFMT_D32:
 	case D3DFMT_D32F_LOCKABLE:
+		if (lockable != nullptr)
+			*lockable = TRUE;
+		[[fallthrough]];
+	case D3DFMT_D32:
 		return api::format::d32_float;
 	case D3DFMT_DXT1:
 		return api::format::bc1_unorm;
@@ -389,14 +397,14 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 	else
 		assert(desc.texture.levels == 1);
 }
-void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps)
+void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels, BOOL *lockable, const D3DCAPS9 &caps)
 {
 	assert(desc.type == api::resource_type::surface || desc.type == api::resource_type::texture_2d);
 
 	internal_desc.Width = desc.texture.width;
 	internal_desc.Height = desc.texture.height;
 
-	if (const D3DFORMAT format = convert_format(desc.texture.format);
+	if (const D3DFORMAT format = convert_format(desc.texture.format, (desc.flags & api::resource_flags::dynamic) != 0);
 		format != D3DFMT_UNKNOWN)
 		internal_desc.Format = format;
 
@@ -425,6 +433,10 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		if (desc.heap == api::memory_heap::gpu_only)
 			convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 
+		if (desc.type == api::resource_type::surface && lockable != nullptr)
+		{
+			*lockable = (desc.flags & api::resource_flags::dynamic) != 0;
+		}
 		if (desc.type == api::resource_type::texture_2d && (desc.flags & api::resource_flags::dynamic) != 0 && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
@@ -559,7 +571,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME
 
 	return desc;
 }
-reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps, bool shared_handle)
+reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, BOOL lockable, const D3DCAPS9 &caps, bool shared_handle)
 {
 	assert(internal_desc.Type == D3DRTYPE_SURFACE || internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE);
 
@@ -570,7 +582,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 	desc.texture.depth_or_layers = internal_desc.Type == D3DRTYPE_CUBETEXTURE ? 6 : 1;
 	assert(levels <= std::numeric_limits<uint16_t>::max());
 	desc.texture.levels = static_cast<uint16_t>(levels);
-	desc.texture.format = convert_format(internal_desc.Format);
+	desc.texture.format = convert_format(internal_desc.Format, &lockable);
 
 	if (internal_desc.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
 		desc.texture.samples = static_cast<uint16_t>(internal_desc.MultiSampleType);
@@ -664,7 +676,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 
 	if (internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.flags |= api::resource_flags::cube_compatible;
-	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
+	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0 || lockable)
 		desc.flags |= api::resource_flags::dynamic;
 	if ((internal_desc.Usage & D3DUSAGE_AUTOGENMIPMAP) != 0)
 		desc.flags |= api::resource_flags::generate_mipmaps;
