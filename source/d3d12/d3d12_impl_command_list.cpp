@@ -614,8 +614,8 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 		src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 		src_copy_location.PlacedFootprint.Offset = 0;
 
-		UINT private_size = sizeof(src_copy_location.PlacedFootprint.Footprint);
-		if (FAILED(src_copy_location.pResource->GetPrivateData(extra_data_guid, &private_size, &src_copy_location.PlacedFootprint.Footprint)))
+		UINT extra_data_size = sizeof(src_copy_location.PlacedFootprint.Footprint);
+		if (FAILED(src_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &src_copy_location.PlacedFootprint.Footprint)))
 		{
 			assert(dst_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
 
@@ -635,8 +635,8 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 		dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 		dst_copy_location.PlacedFootprint.Offset = 0;
 
-		UINT private_size = sizeof(dst_copy_location.PlacedFootprint.Footprint);
-		if (FAILED(dst_copy_location.pResource->GetPrivateData(extra_data_guid, &private_size, &dst_copy_location.PlacedFootprint.Footprint)))
+		UINT extra_data_size = sizeof(dst_copy_location.PlacedFootprint.Footprint);
+		if (FAILED(dst_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &dst_copy_location.PlacedFootprint.Footprint)))
 		{
 			assert(src_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
 
@@ -930,8 +930,8 @@ void reshade::d3d12::command_list_impl::end_query(api::query_pool pool, api::que
 	_orig->EndQuery(heap_object, d3d_query_type, index);
 
 	com_ptr<ID3D12Resource> readback_resource;
-	UINT private_size = sizeof(ID3D12Resource *);
-	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &private_size, &readback_resource)))
+	UINT extra_data_size = sizeof(ID3D12Resource *);
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &readback_resource)))
 	{
 		_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(pool.handle), convert_query_type(type), index, 1, readback_resource.get(), index * sizeof(uint64_t));
 	}

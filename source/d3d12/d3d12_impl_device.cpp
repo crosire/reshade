@@ -285,12 +285,12 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, desc.texture.height);
 
 		footprint.Format = internal_desc.Format;
-		footprint.Width = internal_desc.Width;
+		footprint.Width = static_cast<UINT>(internal_desc.Width);
 		footprint.Height = internal_desc.Height;
 		footprint.Depth = internal_desc.DepthOrArraySize;
 		footprint.RowPitch = row_pitch;
 
-		internal_desc.Width = slice_pitch * desc.texture.depth_or_layers;
+		internal_desc.Width = static_cast<UINT64>(slice_pitch) * desc.texture.depth_or_layers;
 		internal_desc.Height = 1;
 		internal_desc.DepthOrArraySize = 1;
 		internal_desc.Format = DXGI_FORMAT_UNKNOWN;
@@ -547,8 +547,8 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 		if (subresource != 0)
 			return false;
 
-		UINT private_size = sizeof(layout.Footprint);
-		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &private_size, &layout.Footprint)))
+		UINT extra_data_size = sizeof(layout.Footprint);
+		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &layout.Footprint)))
 			return false;
 
 		out_data->slice_pitch = layout.Footprint.Height;
@@ -980,11 +980,11 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	{
 		pipeline_layout_extra_data extra_data;
 		extra_data.ranges = set_ranges;
+		UINT extra_data_size = sizeof(extra_data);
 
 		// D3D12 runtime returns the same root signature object for identical input blobs, just with the reference count increased
 		// Do not overwrite the existing attached extra data in this case
-		if (UINT extra_data_size = sizeof(extra_data);
-			signature.ref_count() == 1 || FAILED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+		if (signature.ref_count() == 1 || FAILED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			signature->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
 		}
@@ -1258,8 +1258,8 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(pool.handle);
 
 	com_ptr<ID3D12Resource> readback_resource;
-	UINT private_size = sizeof(ID3D12Resource *);
-	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &private_size, &readback_resource)))
+	UINT extra_data_size = sizeof(ID3D12Resource *);
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &readback_resource)))
 	{
 		const D3D12_RANGE read_range = { static_cast<SIZE_T>(first) * sizeof(uint64_t), (static_cast<SIZE_T>(first) + static_cast<SIZE_T>(count)) * sizeof(uint64_t) };
 		const D3D12_RANGE write_range = { 0, 0 };
