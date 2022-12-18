@@ -2530,7 +2530,9 @@ void reshade::runtime::draw_gui_addons()
 
 		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, settings_height + _imgui_context->Style.FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
 
-		bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), info.file == g_reshade_dll_path.u8string());
+		const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
+
+		bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), builtin);
 		if (ImGui::ArrowButton("##addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
 			ImGui::GetStateStorage()->SetBool(ImGui::GetID("##addon_open"), open = !open);
 
@@ -2538,13 +2540,20 @@ void reshade::runtime::draw_gui_addons()
 
 		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[info.handle != nullptr ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
 
-		bool enabled = std::find(disabled_addons.begin(), disabled_addons.end(), info.name) == disabled_addons.end();
+		const auto disabled_it = std::find_if(disabled_addons.begin(), disabled_addons.end(), [&info](const std::string_view &addon_name) {
+			const size_t at_pos = addon_name.find('@');
+			if (at_pos == std::string::npos)
+				return addon_name == info.name;
+			return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
+			});
+
+		bool enabled = (disabled_it == disabled_addons.end());
 		if (ImGui::Checkbox(info.name.c_str(), &enabled))
 		{
 			if (enabled)
-				disabled_addons.erase(std::remove(disabled_addons.begin(), disabled_addons.end(), info.name), disabled_addons.end());
+				disabled_addons.erase(disabled_it);
 			else
-				disabled_addons.push_back(info.name);
+				disabled_addons.push_back(builtin ? info.name : info.name + '@' + info.file);
 
 			config.set("ADDON", "DisabledAddons", disabled_addons);
 		}
@@ -2559,8 +2568,6 @@ void reshade::runtime::draw_gui_addons()
 
 		if (open)
 		{
-			const bool builtin = (info.file == g_reshade_dll_path);
-
 			ImGui::Spacing();
 			ImGui::BeginGroup();
 
@@ -2578,17 +2585,7 @@ void reshade::runtime::draw_gui_addons()
 			ImGui::BeginGroup();
 
 			if (!builtin)
-			{
-#  if RESHADE_ADDON_LITE
 				ImGui::TextUnformatted(info.file.c_str());
-#  else
-				std::error_code ec;
-				std::filesystem::path file = std::filesystem::u8path(info.file);
-				if (std::filesystem::equivalent(file.parent_path(), addon_search_path, ec))
-					file = file.filename();
-				ImGui::TextUnformatted(file.u8string().c_str());
-#  endif
-			}
 			if (!info.author.empty())
 				ImGui::TextUnformatted(info.author.c_str());
 			if (!info.version.empty())

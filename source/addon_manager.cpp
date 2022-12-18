@@ -142,7 +142,7 @@ void reshade::load_addons()
 	{	addon_info &info = addon_loaded_info.emplace_back();
 		info.name = "Generic Depth";
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
-		info.file = g_reshade_dll_path.u8string();
+		info.file = g_reshade_dll_path.filename().u8string();
 		info.author = "crosire";
 
 		if (std::find(disabled_addons.begin(), disabled_addons.end(), info.name) == disabled_addons.end())
@@ -168,6 +168,22 @@ void reshade::load_addons()
 		if (path.extension() != L".addon")
 			continue;
 
+		// Avoid loading library alltogether when it is found in the disabled add-on list
+		if (addon_info info;
+			std::find_if(disabled_addons.begin(), disabled_addons.end(), [file_name = path.filename().u8string(), &info](const std::string_view &addon_name) {
+				const size_t at_pos = addon_name.find('@');
+				if (at_pos == std::string::npos)
+					return false;
+				info.name = addon_name.substr(0, at_pos);
+				info.file = addon_name.substr(at_pos + 1);
+				return file_name == info.file;
+				}) != disabled_addons.end())
+		{
+			info.handle = nullptr;
+			addon_loaded_info.push_back(std::move(info));
+			continue;
+		}
+
 		LOG(INFO) << "Loading add-on from " << path << " ...";
 
 		// Use 'LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR' to temporarily add add-on search path to the list of directories 'LoadLibraryEx' will use to resolve DLL dependencies
@@ -176,7 +192,7 @@ void reshade::load_addons()
 		{
 			const DWORD error_code = GetLastError();
 
-			if (!addon_loaded_info.empty() && std::filesystem::equivalent(std::filesystem::u8path(addon_loaded_info.back().file), path, ec))
+			if (!addon_loaded_info.empty() && path.filename().u8string() == addon_loaded_info.back().file)
 			{
 				// Avoid logging an error if loading failed because the add-on is disabled
 				assert(addon_loaded_info.back().handle == nullptr);
@@ -190,8 +206,7 @@ void reshade::load_addons()
 			continue;
 		}
 
-		addon_info *const info = find_addon(module);
-		if (info == nullptr)
+		if (find_addon(module) == nullptr)
 		{
 			LOG(WARN) << "No add-on was registered by " << path << ". Unloading again ...";
 
@@ -294,7 +309,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	reshade::addon_info info;
 	info.name = path.stem().u8string();
-	info.file = path.u8string();
+	info.file = path.filename().u8string();
 	info.handle = module;
 
 	DWORD version_dummy, version_size = GetFileVersionInfoSizeW(path.c_str(), &version_dummy);
@@ -335,7 +350,12 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	if (std::vector<std::string> disabled_addons;
 		reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons) &&
-		std::find(disabled_addons.begin(), disabled_addons.end(), info.name) != disabled_addons.end())
+		std::find_if(disabled_addons.begin(), disabled_addons.end(), [&info](const std::string_view &addon_name) {
+			const size_t at_pos = addon_name.find('@');
+			if (at_pos == std::string::npos)
+				return addon_name == info.name;
+			return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
+			}) != disabled_addons.end())
 	{
 		info.handle = nullptr;
 		reshade::addon_loaded_info.push_back(std::move(info));

@@ -975,11 +975,11 @@ void reshade::runtime::load_current_preset()
 			return; // Preset values are loaded in 'update_effects' during effect loading
 		}
 
-		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string &technique_name) {
+		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string_view &technique_name) {
 				if (const size_t at_pos = technique_name.find('@'); at_pos == std::string::npos)
 					return true;
 				else if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-					[effect_name = static_cast<std::string_view>(technique_name).substr(at_pos + 1)](const effect &effect) { return effect_name == effect.source_file.filename().u8string(); }); it == _effects.end())
+					[effect_name = technique_name.substr(at_pos + 1)](const effect &effect) { return effect_name == effect.source_file.filename().u8string(); }); it == _effects.end())
 					return true;
 				else
 					return it->skipped; }) != technique_list.end())
