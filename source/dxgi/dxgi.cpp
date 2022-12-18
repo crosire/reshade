@@ -136,6 +136,12 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 
 		modified = true;
 	}
+	if (config.get("APP", "ForceDefaultRefreshRate"))
+	{
+		internal_desc.BufferDesc.RefreshRate = { 0, 1 };
+
+		modified = true;
+	}
 
 	if (unsigned int force_resolution[2] = {};
 		config.get("APP", "ForceResolution", force_resolution) &&
@@ -297,6 +303,10 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	if (config.get("APP", "ForceFullscreen"))
 	{
 		fullscreen_desc.Windowed = FALSE;
+	}
+	if (config.get("APP", "ForceDefaultRefreshRate"))
+	{
+		fullscreen_desc.RefreshRate = { 0, 1 };
 	}
 }
 

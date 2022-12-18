@@ -161,6 +161,14 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 			pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
 		}
 	}
+	if (config.get("APP", "ForceDefaultRefreshRate") && !pp.Windowed)
+	{
+		D3DDISPLAYMODE current_mode;
+		if (SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
+		{
+			pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
+		}
+	}
 
 	if (unsigned int force_resolution[2] = {};
 		config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
