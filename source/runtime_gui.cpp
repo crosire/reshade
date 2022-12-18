@@ -838,14 +838,21 @@ void reshade::runtime::draw_gui()
 				}
 			}
 
+			std::string error_message;
 #if RESHADE_FX
 			if (!_last_reload_successfull)
+				error_message += "compiling some effects";
+#endif
+#if RESHADE_ADDON
+			if (!addon_all_loaded)
+				error_message += (error_message.empty() ? std::string() : " and ") + "loading some add-ons";
+#endif
+			if (!error_message.empty())
 			{
 				ImGui::Spacing();
 				ImGui::TextColored(COLOR_RED,
-					"There were errors compiling some effects. Check the log for more details.");
+					"There were errors %s. Check the log for more details.", error_message.c_str());
 			}
-#endif
 		}
 
 		viewport_offset.y += ImGui::GetWindowHeight() + 10; // Add small space between windows
@@ -2514,6 +2521,12 @@ void reshade::runtime::draw_gui_addons()
 	const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y;
 
 	ImGui::BeginChild("##addons", ImVec2(0, -bottom_height), false, ImGuiWindowFlags_NavFlattened);
+
+	if (!addon_all_loaded)
+	{
+		ImGui::TextColored(COLOR_RED, "There were errors loading some add-ons. Check the log for more details.");
+		ImGui::Spacing();
+	}
 
 	std::vector<std::string> disabled_addons;
 	config.get("ADDON", "DisabledAddons", disabled_addons);

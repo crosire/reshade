@@ -18,6 +18,7 @@ namespace reshade
 	/// </summary>
 	extern bool addon_enabled;
 #  endif
+	extern bool addon_all_loaded;
 
 	/// <summary>
 	/// List of add-on event callbacks.

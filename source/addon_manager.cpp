@@ -116,6 +116,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 #if RESHADE_ADDON_LITE
 bool reshade::addon_enabled = true;
 #endif
+bool reshade::addon_all_loaded = true;
 std::vector<void *> reshade::addon_event_list[static_cast<uint32_t>(reshade::addon_event::max)];
 std::vector<reshade::addon_info> reshade::addon_loaded_info;
 static unsigned long s_reference_count = 0;
@@ -132,6 +133,7 @@ void reshade::load_addons()
 	LOG(INFO) << "Loading built-in add-ons ...";
 #endif
 
+	addon_all_loaded = true;
 	internal::get_reshade_module_handle() = g_module_handle;
 	internal::get_current_module_handle() = g_module_handle;
 
@@ -201,6 +203,7 @@ void reshade::load_addons()
 			}
 			else
 			{
+				addon_all_loaded = false;
 				LOG(WARN) << "Failed to load add-on from " << path << " with error code " << error_code << '.';
 			}
 			continue;
@@ -218,6 +221,7 @@ void reshade::load_addons()
 			}
 			else
 			{
+				addon_all_loaded = false;
 				LOG(WARN) << "Failed to load add-on from " << path << " because initialization was not successfull.";
 			}
 
@@ -227,6 +231,7 @@ void reshade::load_addons()
 
 		if (find_addon(module) == nullptr)
 		{
+			addon_all_loaded = false;
 			LOG(WARN) << "No add-on was registered by " << path << ". Unloading again ...";
 
 			FreeLibrary(module);
