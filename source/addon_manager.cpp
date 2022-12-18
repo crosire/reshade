@@ -342,21 +342,26 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 	std::vector<uint8_t> version_data(version_size);
 	if (GetFileVersionInfoW(path.c_str(), version_dummy, version_size, version_data.data()))
 	{
-		if (char *product_name = nullptr;
-			VerQueryValueA(version_data.data(), "\\StringFileInfo\\040004b0\\ProductName", reinterpret_cast<LPVOID *>(&product_name), nullptr))
-			info.name = product_name;
+		WORD language = 0x0400;
+		WORD codepage = 0x04b0;
 
-		if (char *company_name = nullptr;
-			VerQueryValueA(version_data.data(), "\\StringFileInfo\\040004b0\\CompanyName", reinterpret_cast<LPVOID *>(&company_name), nullptr))
-			info.author = company_name;
+		if (WORD *translation = nullptr;
+			VerQueryValueA(version_data.data(), "\\VarFileInfo\\Translation", reinterpret_cast<LPVOID *>(&translation), nullptr))
+			// Simply use the first translation available
+			language = translation[0], codepage = translation[1];
 
-		if (char *file_version = nullptr;
-			VerQueryValueA(version_data.data(), "\\StringFileInfo\\040004b0\\FileVersion", reinterpret_cast<LPVOID *>(&file_version), nullptr))
-			info.version = file_version;
+		const auto query_file_version_info = [&version_data, language, codepage](std::string &target, const char *name) {
+			char subblock[64] = "";
+			sprintf_s(subblock, "\\StringFileInfo\\%04x%04x\\%s", language, codepage, name);
+			if (char *value = nullptr;
+				VerQueryValueA(version_data.data(), subblock, reinterpret_cast<LPVOID *>(&value), nullptr))
+				target = value;
+		};
 
-		if (char *file_description = nullptr;
-			VerQueryValueA(version_data.data(), "\\StringFileInfo\\040004b0\\FileDescription", reinterpret_cast<LPVOID *>(&file_description), nullptr))
-			info.description = file_description;
+		query_file_version_info(info.name, "ProductName");
+		query_file_version_info(info.author, "CompanyName");
+		query_file_version_info(info.version, "FileVersion");
+		query_file_version_info(info.description, "FileDescription");
 	}
 
 	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(module, "NAME"));
