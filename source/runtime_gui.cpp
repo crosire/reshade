@@ -839,13 +839,13 @@ void reshade::runtime::draw_gui()
 			}
 
 			std::string error_message;
-#if RESHADE_FX
-			if (!_last_reload_successfull)
-				error_message += "compiling some effects";
-#endif
 #if RESHADE_ADDON
 			if (!addon_all_loaded)
-				error_message += (error_message.empty() ? std::string() : " and ") + "loading some add-ons";
+				error_message += "loading some add-ons";
+#endif
+#if RESHADE_FX
+			if (!_last_reload_successfull)
+				error_message += (error_message.empty() ? std::string() : " and ") + "compiling some effects";
 #endif
 			if (!error_message.empty())
 			{
