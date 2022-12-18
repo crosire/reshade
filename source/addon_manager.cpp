@@ -159,7 +159,7 @@ void reshade::load_addons()
 #if !RESHADE_ADDON_LITE
 	// Get directory from where to load add-ons from
 	std::filesystem::path addon_search_path = g_reshade_base_path;
-	if (config.get("INSTALL", "AddonPath", addon_search_path))
+	if (config.get("ADDON", "AddonPath", addon_search_path))
 		addon_search_path = g_reshade_base_path / addon_search_path;
 
 	LOG(INFO) << "Searching for add-ons (*.addon) in " << addon_search_path << " ...";

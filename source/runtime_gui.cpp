@@ -2505,9 +2505,9 @@ void reshade::runtime::draw_gui_addons()
 	ImGui::TextUnformatted("This build of ReShade has only limited add-on functionality.");
 #  else
 	std::filesystem::path addon_search_path = g_reshade_base_path;
-	config.get("INSTALL", "AddonPath", addon_search_path);
+	config.get("ADDON", "AddonPath", addon_search_path);
 	if (imgui::directory_input_box("Add-on search path", addon_search_path, _file_selection_path))
-		config.set("INSTALL", "AddonPath", addon_search_path);
+		config.set("ADDON", "AddonPath", addon_search_path);
 #  endif
 
 	ImGui::Spacing();
