@@ -206,6 +206,25 @@ void reshade::load_addons()
 			continue;
 		}
 
+		// Call optional loading entry point (for add-ons wanting to do more complicated one-time initialization than possible in 'DllMain')
+		const auto init_func = reinterpret_cast<bool(*)(HMODULE reshade_module, HMODULE addon_module)>(GetProcAddress(module, "AddonInit"));
+		if (init_func != nullptr && !init_func(g_module_handle, module))
+		{
+			if (!addon_loaded_info.empty() && path.filename().u8string() == addon_loaded_info.back().file)
+			{
+				assert(addon_loaded_info.back().handle == nullptr);
+
+				LOG(INFO) << "> Add-on is disabled. Skipped.";
+			}
+			else
+			{
+				LOG(WARN) << "Failed to load add-on from " << path << " because initialization was not successfull.";
+			}
+
+			FreeLibrary(module);
+			continue;
+		}
+
 		if (find_addon(module) == nullptr)
 		{
 			LOG(WARN) << "No add-on was registered by " << path << ". Unloading again ...";
@@ -234,7 +253,14 @@ void reshade::unload_addons()
 
 		LOG(INFO) << "Unloading add-on \"" << info.name << "\" ...";
 
-		if (!FreeLibrary(static_cast<HMODULE>(info.handle)))
+		const auto module = static_cast<HMODULE>(info.handle);
+
+		// Call optional unloading entry point
+		const auto unload_func = reinterpret_cast<void(*)(HMODULE reshade_module, HMODULE addon_module)>(GetProcAddress(module, "AddonUnload"));
+		if (unload_func != nullptr)
+			unload_func(g_module_handle, module);
+
+		if (!FreeLibrary(module))
 			LOG(WARN) << "Failed to unload " << std::filesystem::u8path(info.file) << " with error code " << GetLastError() << '!';
 	}
 #endif
