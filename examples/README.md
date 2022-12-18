@@ -45,6 +45,8 @@ Built-in add-on that attempts to find the depth buffer the application uses for 
 
 Adds an overlay to inspect textures used by the application in-game and allows dumping individual ones to disk. This allows for more control over which textures to dump, in constrast to the [texture_dump](#07-texture_dump) add-on, which simply dumps them all.
 
+This example includes a standalone utility (descriptor_tracking.cpp and descriptor_tracking.hpp) that tracks the contents of all descriptor sets, making it possible to query information about which resources those contain at any time.
+
 ## [11-obs_capture](/examples/11-obs_capture)
 
 An [OBS](https://obsproject.com/) capture driver which overrides the one OBS ships with to be able to give more control over where in the frame to send images to OBS.
@@ -57,3 +59,5 @@ To build this example, first place a built version of the FFmpeg SDK into a subd
 ## [13-effects_during_frame](/examples/13-effects_during_frame)
 
 Renders the ReShade post-processing effects at a different point during the frame, e.g. to apply them before the user interface of the game.
+
+This example includes a standalone utility (state_tracking.cpp and state_tracking.hpp) that tracks all render state currently bound on a command list, making it possible to query information about it at any time, e.g. to re-apply state after it was modified by a call to `reshade::api::effect_runtime::render_effects()`.

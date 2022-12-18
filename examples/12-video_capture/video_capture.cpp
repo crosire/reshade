@@ -12,7 +12,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 }
 
-struct __declspec(uuid("0D7525F9-C4E1-426E-BC99-15BBD5FD51F2")) video_capture
+struct __declspec(uuid("0d7525f9-c4e1-426e-bc99-15bbd5fd51f2")) video_capture
 {
 	AVCodecContext *codec_ctx = nullptr;
 	AVFormatContext *output_ctx = nullptr;

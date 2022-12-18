@@ -40,7 +40,7 @@ struct history
 	bool confirmed = false;
 };
 
-struct __declspec(uuid("EE32DAA4-6B5C-47E6-9409-F87CCA0E5797")) history_context
+struct __declspec(uuid("ee32daa4-6b5c-47e6-9409-f87cca0e5797")) history_context
 {
 	bool was_updated = false;
 	size_t history_pos = 0;

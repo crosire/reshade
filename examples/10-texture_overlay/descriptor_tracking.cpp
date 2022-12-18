@@ -153,6 +153,7 @@ void register_descriptor_tracking()
 	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
 	reshade::register_event<reshade::addon_event::init_pipeline_layout>(on_init_pipeline_layout);
 	reshade::register_event<reshade::addon_event::destroy_pipeline_layout>(on_destroy_pipeline_layout);
+
 	reshade::register_event<reshade::addon_event::copy_descriptor_sets>(on_copy_descriptor_sets);
 	reshade::register_event<reshade::addon_event::update_descriptor_sets>(on_update_descriptor_sets);
 }
@@ -162,6 +163,7 @@ void unregister_descriptor_tracking()
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
 	reshade::unregister_event<reshade::addon_event::init_pipeline_layout>(on_init_pipeline_layout);
 	reshade::unregister_event<reshade::addon_event::destroy_pipeline_layout>(on_destroy_pipeline_layout);
+
 	reshade::unregister_event<reshade::addon_event::copy_descriptor_sets>(on_copy_descriptor_sets);
 	reshade::unregister_event<reshade::addon_event::update_descriptor_sets>(on_update_descriptor_sets);
 }

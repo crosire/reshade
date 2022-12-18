@@ -124,6 +124,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="effects_during_frame.cpp" />
+    <ClCompile Include="state_tracking.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="state_tracking.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

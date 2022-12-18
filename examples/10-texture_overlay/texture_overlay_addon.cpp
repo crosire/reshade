@@ -396,45 +396,6 @@ static void draw_overlay(effect_runtime *runtime)
 		ImGui::NewLine(); // Reset ImGui::SameLine() so the following starts on a new line
 }
 
-void register_addon_texmod_overlay()
-{
-	reshade::register_overlay("TexMod", draw_overlay);
-
-	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
-	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
-	reshade::register_event<reshade::addon_event::init_command_list>(on_init_cmd_list);
-	reshade::register_event<reshade::addon_event::destroy_command_list>(on_destroy_cmd_list);
-
-	reshade::register_event<reshade::addon_event::init_resource>(on_init_texture);
-	reshade::register_event<reshade::addon_event::destroy_resource>(on_destroy_texture);
-	reshade::register_event<reshade::addon_event::destroy_resource_view>(on_destroy_texture_view);
-
-	reshade::register_event<reshade::addon_event::push_descriptors>(on_push_descriptors);
-	reshade::register_event<reshade::addon_event::bind_descriptor_sets>(on_bind_descriptor_sets);
-
-	reshade::register_event<reshade::addon_event::execute_command_list>(on_execute);
-	reshade::register_event<reshade::addon_event::present>(on_present);
-}
-void unregister_addon_texmod_overlay()
-{
-	reshade::unregister_overlay("TexMod", draw_overlay);
-
-	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
-	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
-	reshade::unregister_event<reshade::addon_event::init_command_list>(on_init_cmd_list);
-	reshade::unregister_event<reshade::addon_event::destroy_command_list>(on_destroy_cmd_list);
-
-	reshade::unregister_event<reshade::addon_event::init_resource>(on_init_texture);
-	reshade::unregister_event<reshade::addon_event::destroy_resource>(on_destroy_texture);
-	reshade::unregister_event<reshade::addon_event::destroy_resource_view>(on_destroy_texture_view);
-
-	reshade::unregister_event<reshade::addon_event::push_descriptors>(on_push_descriptors);
-	reshade::unregister_event<reshade::addon_event::bind_descriptor_sets>(on_bind_descriptor_sets);
-
-	reshade::unregister_event<reshade::addon_event::execute_command_list>(on_execute);
-	reshade::unregister_event<reshade::addon_event::present>(on_present);
-}
-
 extern "C" __declspec(dllexport) const char *NAME = "Texture Overlay";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that adds an overlay to inspect textures used by the application in-game and allows dumping individual ones to disk.";
 
@@ -445,12 +406,29 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_ATTACH:
 		if (!reshade::register_addon(hModule))
 			return FALSE;
-		register_addon_texmod_overlay();
+
+		reshade::register_event<reshade::addon_event::init_device>(on_init_device);
+		reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
+		reshade::register_event<reshade::addon_event::init_command_list>(on_init_cmd_list);
+		reshade::register_event<reshade::addon_event::destroy_command_list>(on_destroy_cmd_list);
+
+		reshade::register_event<reshade::addon_event::init_resource>(on_init_texture);
+		reshade::register_event<reshade::addon_event::destroy_resource>(on_destroy_texture);
+		reshade::register_event<reshade::addon_event::destroy_resource_view>(on_destroy_texture_view);
+
+		reshade::register_event<reshade::addon_event::push_descriptors>(on_push_descriptors);
+		reshade::register_event<reshade::addon_event::bind_descriptor_sets>(on_bind_descriptor_sets);
+
+		reshade::register_event<reshade::addon_event::execute_command_list>(on_execute);
+		reshade::register_event<reshade::addon_event::present>(on_present);
+
+		reshade::register_overlay("TexMod", draw_overlay);
+
 		register_descriptor_tracking();
 		break;
 	case DLL_PROCESS_DETACH:
-		unregister_addon_texmod_overlay();
 		unregister_descriptor_tracking();
+
 		reshade::unregister_addon(hModule);
 		break;
 	}

@@ -5,6 +5,7 @@
 
 #include <imgui.h>
 #include <reshade.hpp>
+#include "state_tracking.hpp"
 
 using namespace reshade::api;
 
@@ -73,9 +74,16 @@ static void on_end_render_pass(command_list *cmd_list)
 		return; // Ignore render targets that do not match the effect runtime back buffer dimensions
 
 	// Render post-processing effects when a specific render pass is found (instead of at the end of the frame)
-	// This is not perfect, since there may be multiple command lists at this will try and render effects in every single one ...
+	// This is not perfect, since there may be multiple command lists and this will try and render effects in every single one ...
 	if (data.current_render_pass_index++ == (dev_data.last_render_pass_count - dev_data.offset_from_last_pass))
+	{
+		const auto &current_state = cmd_list->get_private_data<state_block>();
+
 		dev_data.main_runtime->render_effects(cmd_list, data.current_main_rtv);
+
+		// Re-apply state to the command-list, as it may have been modified by the call to 'render_effects'
+		current_state.apply(cmd_list);
+	}
 }
 
 static void on_begin_render_pass(command_list *cmd_list, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *)
@@ -166,21 +174,28 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_ATTACH:
 		if (!reshade::register_addon(hModule))
 			return FALSE;
+
 		reshade::register_event<reshade::addon_event::init_device>(on_init_device);
 		reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
 		reshade::register_event<reshade::addon_event::init_command_list>(on_init_command_list);
 		reshade::register_event<reshade::addon_event::destroy_command_list>(on_destroy_command_list);
 		reshade::register_event<reshade::addon_event::init_effect_runtime>(on_init_effect_runtime);
 		reshade::register_event<reshade::addon_event::destroy_effect_runtime>(on_destroy_effect_runtime);
+
 		reshade::register_event<reshade::addon_event::end_render_pass>(on_end_render_pass);
 		reshade::register_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
 		reshade::register_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_render_targets_and_depth_stencil);
 		reshade::register_event<reshade::addon_event::execute_command_list>(on_execute);
 		reshade::register_event<reshade::addon_event::reset_command_list>(on_reset_command_list);
 		reshade::register_event<reshade::addon_event::reshade_present>(on_present);
+
 		reshade::register_overlay(nullptr, on_draw_settings);
+
+		register_state_tracking();
 		break;
 	case DLL_PROCESS_DETACH:
+		unregister_state_tracking();
+
 		reshade::unregister_addon(hModule);
 		break;
 	}
