@@ -3364,26 +3364,14 @@ void reshade::runtime::update_effects()
 void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
 	// Cannot render effects twice in a frame or while they are still loading
-	if (is_loading() || _effects_rendered_this_frame || rtv == 0)
+	if (is_loading() || _effects_rendered_this_frame)
 		return;
 
 	_effects_rendered_this_frame = true;
 
-	if (rtv_srgb == 0)
-		rtv_srgb = rtv;
-
 	// Nothing to do here if effects are disabled globally
 	if (!_effects_enabled || _techniques.empty())
 		return;
-
-	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
-
-#if RESHADE_ADDON
-	// Ensure format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
-	// TODO: Technically would need to recompile effects as well to update 'BUFFER_COLOR_BIT_DEPTH' etc.
-	if (!_is_in_present_call && !update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
-		return;
-#endif
 
 #ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
@@ -3613,7 +3601,19 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		}
 	}
 
+	if (rtv == 0)
+		return;
+	if (rtv_srgb == 0)
+		rtv_srgb = rtv;
+
+	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
+
 #if RESHADE_ADDON
+	// Ensure format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
+	// TODO: Technically would need to recompile effects as well to update 'BUFFER_COLOR_BIT_DEPTH' etc.
+	if (!_is_in_present_call && !update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
+		return;
+
 	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 
