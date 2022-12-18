@@ -261,9 +261,9 @@ void reshade::unload_addons()
 		const auto module = static_cast<HMODULE>(info.handle);
 
 		// Call optional unloading entry point
-		const auto unload_func = reinterpret_cast<void(*)(HMODULE reshade_module, HMODULE addon_module)>(GetProcAddress(module, "AddonUnload"));
-		if (unload_func != nullptr)
-			unload_func(g_module_handle, module);
+		const auto uninit_func = reinterpret_cast<void(*)(HMODULE reshade_module, HMODULE addon_module)>(GetProcAddress(module, "AddonUninit"));
+		if (uninit_func != nullptr)
+			uninit_func(g_module_handle, module);
 
 		if (!FreeLibrary(module))
 			LOG(WARN) << "Failed to unload " << std::filesystem::u8path(info.file) << " with error code " << GetLastError() << '!';
