@@ -97,6 +97,8 @@ namespace reshade::opengl
 
 	auto convert_format(api::format format, GLint swizzle_mask[4] = nullptr) -> GLenum;
 	auto convert_format(GLenum internal_format, const GLint swizzle_mask[4] = nullptr) -> api::format;
+	void convert_pixel_format(api::format format, PIXELFORMATDESCRIPTOR &pfd);
+	auto convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> api::format;
 	auto convert_upload_format(api::format format, GLenum &type) -> GLenum;
 	auto convert_upload_format(GLenum format, GLenum type) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;

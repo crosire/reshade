@@ -14,54 +14,50 @@
 reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, bool compatibility_context) :
 	api_object_impl(shared_hglrc), _compatibility_context(compatibility_context)
 {
-	RECT window_rect = {};
-	GetClientRect(WindowFromDC(initial_hdc), &window_rect);
-
-	_default_fbo_width = window_rect.right - window_rect.left;
-	_default_fbo_height = window_rect.bottom - window_rect.top;
-
 	// The pixel format has to be the same for all device contexts used with this rendering context, so can cache information about it here
 	// See https://docs.microsoft.com/windows/win32/api/wingdi/nf-wingdi-wglmakecurrent
 	_pixel_format = GetPixelFormat(initial_hdc);
 
+	RECT window_rect = {};
+	GetClientRect(WindowFromDC(initial_hdc), &window_rect);
+
 	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
 	DescribePixelFormat(initial_hdc, _pixel_format, sizeof(pfd), &pfd);
-
-	switch (pfd.cRedBits)
-	{
-	default:
-	case  0: _default_color_format = GL_NONE;
-		break;
-	case  8: _default_color_format = GL_RGBA8;
-		break;
-	case 10: _default_color_format = GL_RGB10_A2;
-		break;
-	case 16: _default_color_format = GL_RGBA16F;
-		break;
-	}
 
 	switch (pfd.cDepthBits)
 	{
 	default:
-	case  0: _default_depth_format = GL_NONE; // No depth in this pixel format
+	case  0: _default_depth_format = api::format::unknown; // No depth in this pixel format
 		break;
-	case 16: _default_depth_format = GL_DEPTH_COMPONENT16;
+	case 16: _default_depth_format = pfd.cStencilBits ? api::format::d16_unorm_s8_uint : api::format::d16_unorm;
 		break;
-	case 24: _default_depth_format = pfd.cStencilBits ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
+	case 24: _default_depth_format = pfd.cStencilBits ? api::format::d24_unorm_s8_uint : api::format::d24_unorm_x8_uint;
 		break;
-	case 32: _default_depth_format = pfd.cStencilBits ? GL_DEPTH32F_STENCIL8 : GL_DEPTH_COMPONENT32;
+	case 32: _default_depth_format = pfd.cStencilBits ? api::format::d32_float_s8_uint : api::format::d32_float;
 		break;
 	}
 
+	_default_fbo_desc.type = reshade::api::resource_type::surface;
+	_default_fbo_desc.texture.width = window_rect.right;
+	_default_fbo_desc.texture.height = window_rect.bottom;
+	_default_fbo_desc.texture.format = convert_pixel_format(pfd);
+	_default_fbo_desc.heap = reshade::api::memory_heap::gpu_only;
+	_default_fbo_desc.usage = reshade::api::resource_usage::render_target | reshade::api::resource_usage::copy_dest | reshade::api::resource_usage::copy_source | reshade::api::resource_usage::resolve_dest;
+
 	if (pfd.dwFlags & PFD_STEREO)
-		_default_fbo_stereo = true;
+		_default_fbo_desc.texture.depth_or_layers = 2;
 
 	const auto wglGetPixelFormatAttribivARB = reinterpret_cast<BOOL(WINAPI *)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)>(wglGetProcAddress("wglGetPixelFormatAttribivARB"));
 	if (wglGetPixelFormatAttribivARB != nullptr)
 	{
-		int attribs[2] = { 0x2042 /* WGL_SAMPLES_ARB */, 1 };
-		if (wglGetPixelFormatAttribivARB(initial_hdc, _pixel_format, 0, 1, &attribs[0], &attribs[1]) && attribs[1] != 0)
-			_default_fbo_samples = attribs[1];
+		int attrib_names[2] = { 0x20A9 /* WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB */, 0x2042 /* WGL_SAMPLES_ARB */ }, attrib_values[2] = {};
+		if (wglGetPixelFormatAttribivARB(initial_hdc, _pixel_format, 0, 2, attrib_names, attrib_values))
+		{
+			if (attrib_values[0] != 0)
+				_default_fbo_desc.texture.format = reshade::api::format_to_default_typed(_default_fbo_desc.texture.format, 1);
+			if (attrib_values[1] != 0)
+				_default_fbo_desc.texture.samples = static_cast<uint16_t>(attrib_values[1]);
+		}
 	}
 
 	// Check whether this context supports Direct State Access
@@ -772,9 +768,16 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		}
 		case GL_FRAMEBUFFER_DEFAULT:
 		{
-			const GLenum internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
-
-			return convert_resource_desc(target, 1, _default_fbo_samples, internal_format, _default_fbo_width, _default_fbo_height, _default_fbo_stereo ? 2 : 1);
+			if (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT)
+			{
+				api::resource_desc default_fbo_depth_desc = _default_fbo_desc;
+				default_fbo_depth_desc.texture.format = _default_depth_format;
+				return default_fbo_depth_desc;
+			}
+			else
+			{
+				return _default_fbo_desc;
+			}
 		}
 	}
 
@@ -791,7 +794,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 
 	const GLenum resource_target = resource.handle >> 40;
 	const GLenum resource_object = resource.handle & 0xFFFFFFFF;
-	if (resource_target == GL_FRAMEBUFFER_DEFAULT && _default_fbo_stereo && desc.texture.layer_count == 1)
+	if (resource_target == GL_FRAMEBUFFER_DEFAULT && _default_fbo_desc.texture.depth_or_layers == 2 && desc.texture.layer_count == 1)
 	{
 		*out_handle = make_resource_view_handle(resource_target, desc.texture.first_layer == 0 ? GL_BACK_LEFT : GL_BACK_RIGHT);
 		return true;
@@ -1001,11 +1004,10 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 		}
 		break;
 	case GL_FRAMEBUFFER_DEFAULT:
-		internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
-		break;
+		return (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_fbo_desc.texture.format;
 	default:
 		assert(false);
-		break;
+		return api::format::unknown;
 	}
 
 	return convert_format(internal_format, swizzle_mask);
@@ -1125,7 +1127,7 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 			{
 				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 			}
-			if (_device_impl->_default_depth_format != GL_NONE)
+			if (_device_impl->_default_depth_format != api::format::unknown)
 			{
 				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 			}

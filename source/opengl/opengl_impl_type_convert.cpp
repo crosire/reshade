@@ -86,10 +86,45 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_SRGB8;
 	case api::format::b8g8r8a8_typeless:
 	case api::format::b8g8r8a8_unorm:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_BLUE;
+			swizzle_mask[1] = GL_GREEN;
+			swizzle_mask[2] = GL_RED;
+			swizzle_mask[3] = GL_ALPHA;
+			return GL_RGBA8;
+		}
+		return GL_BGRA8_EXT;
 	case api::format::b8g8r8a8_unorm_srgb:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_BLUE;
+			swizzle_mask[1] = GL_GREEN;
+			swizzle_mask[2] = GL_RED;
+			swizzle_mask[3] = GL_ALPHA;
+			return GL_SRGB8_ALPHA8;
+		}
+		break; // Unsupported
 	case api::format::b8g8r8x8_typeless:
 	case api::format::b8g8r8x8_unorm:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_BLUE;
+			swizzle_mask[1] = GL_GREEN;
+			swizzle_mask[2] = GL_RED;
+			swizzle_mask[3] = GL_ONE;
+			return GL_RGBA8;
+		}
+		break; // Unsupported
 	case api::format::b8g8r8x8_unorm_srgb:
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_BLUE;
+			swizzle_mask[1] = GL_GREEN;
+			swizzle_mask[2] = GL_RED;
+			swizzle_mask[3] = GL_ONE;
+			return GL_SRGB8_ALPHA8;
+		}
 		break; // Unsupported
 	case api::format::r10g10b10a2_uint:
 		return GL_RGB10_A2UI;
@@ -325,8 +360,18 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	case GL_RGBA8I:
 		return api::format::r8g8b8a8_sint;
 	case GL_RGBA8:
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_BLUE &&
+			swizzle_mask[1] == GL_GREEN &&
+			swizzle_mask[2] == GL_RED)
+			return swizzle_mask[3] == GL_ALPHA ? api::format::b8g8r8a8_unorm : api::format::b8g8r8x8_unorm;
 		return api::format::r8g8b8a8_unorm;
 	case GL_SRGB8_ALPHA8:
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_BLUE &&
+			swizzle_mask[1] == GL_GREEN &&
+			swizzle_mask[2] == GL_RED)
+			return swizzle_mask[3] == GL_ALPHA ? api::format::b8g8r8a8_unorm_srgb : api::format::b8g8r8x8_unorm_srgb;
 		return api::format::r8g8b8a8_unorm_srgb;
 	case GL_RGBA8_SNORM:
 		return api::format::r8g8b8a8_snorm;
@@ -337,13 +382,25 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r8g8b8x8_sint;
 #endif
 	case GL_RGB8:
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_BLUE &&
+			swizzle_mask[1] == GL_GREEN &&
+			swizzle_mask[2] == GL_RED)
+			return api::format::b8g8r8x8_unorm;
 		return api::format::r8g8b8x8_unorm;
 	case GL_SRGB8:
+		if (swizzle_mask != nullptr &&
+			swizzle_mask[0] == GL_BLUE &&
+			swizzle_mask[1] == GL_GREEN &&
+			swizzle_mask[2] == GL_RED)
+			return api::format::b8g8r8x8_unorm_srgb;
 		return api::format::r8g8b8x8_unorm_srgb;
 #if 0
 	case GL_RGB8_SNORM:
 		return api::format::r8g8b8x8_snorm;
 #endif
+	case GL_BGRA8_EXT:
+		return api::format::b8g8r8a8_unorm;
 	case GL_RGB10_A2UI:
 		return api::format::r10g10b10a2_uint;
 	case GL_RGB10_A2:
@@ -476,6 +533,156 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::bc7_unorm_srgb;
 	}
 }
+
+void reshade::opengl::convert_pixel_format(api::format format, PIXELFORMATDESCRIPTOR &pfd)
+{
+	switch (format)
+	{
+	default:
+		assert(false);
+		break;
+	case api::format::r8g8b8a8_unorm:
+	case api::format::r8g8b8a8_unorm_srgb:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 8;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 8;
+		pfd.cGreenShift = 8;
+		pfd.cBlueBits = 8;
+		pfd.cBlueShift = 16;
+		pfd.cAlphaBits = 8;
+		pfd.cAlphaShift = 24;
+		break;
+	case api::format::r8g8b8x8_unorm:
+	case api::format::r8g8b8x8_unorm_srgb:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 8;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 8;
+		pfd.cGreenShift = 8;
+		pfd.cBlueBits = 8;
+		pfd.cBlueShift = 16;
+		pfd.cAlphaBits = 0;
+		pfd.cAlphaShift = 0;
+		break;
+	case api::format::b8g8r8a8_unorm:
+	case api::format::b8g8r8a8_unorm_srgb:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 8;
+		pfd.cRedShift = 16;
+		pfd.cGreenBits = 8;
+		pfd.cGreenShift = 8;
+		pfd.cBlueBits = 8;
+		pfd.cBlueShift = 0;
+		pfd.cAlphaBits = 8;
+		pfd.cAlphaShift = 24;
+		break;
+	case api::format::b8g8r8x8_unorm:
+	case api::format::b8g8r8x8_unorm_srgb:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 8;
+		pfd.cRedShift = 16;
+		pfd.cGreenBits = 8;
+		pfd.cGreenShift = 8;
+		pfd.cBlueBits = 8;
+		pfd.cBlueShift = 0;
+		pfd.cAlphaBits = 0;
+		pfd.cAlphaShift = 0;
+		break;
+	case api::format::r10g10b10a2_unorm:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 10;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 10;
+		pfd.cGreenBits = 10;
+		pfd.cBlueBits = 10;
+		pfd.cBlueShift = 20;
+		pfd.cAlphaBits = 2;
+		pfd.cAlphaShift = 30;
+		break;
+	case api::format::r16g16b16a16_float:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 64;
+		pfd.cRedBits = 16;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 16;
+		pfd.cGreenShift = 16;
+		pfd.cBlueBits = 16;
+		pfd.cBlueShift = 32;
+		pfd.cAlphaBits = 16;
+		pfd.cAlphaShift = 48;
+		break;
+	case api::format::r32g32b32a32_float:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 128;
+		pfd.cRedBits = 32;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 32;
+		pfd.cGreenShift = 32;
+		pfd.cBlueBits = 32;
+		pfd.cBlueShift = 64;
+		pfd.cAlphaBits = 32;
+		pfd.cAlphaShift = 96;
+		break;
+	case api::format::r11g11b10_float:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 11;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 11;
+		pfd.cGreenShift = 11;
+		pfd.cBlueBits = 10;
+		pfd.cBlueShift = 22;
+		pfd.cAlphaBits = 0;
+		pfd.cAlphaShift = 0;
+		break;
+	case api::format::b5g6r5_unorm:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 16;
+		pfd.cRedBits = 5;
+		pfd.cRedShift = 11;
+		pfd.cGreenBits = 6;
+		pfd.cGreenShift = 5;
+		pfd.cBlueBits = 5;
+		pfd.cBlueShift = 0;
+		pfd.cAlphaBits = 0;
+		pfd.cAlphaShift = 0;
+		break;
+	}
+}
+auto reshade::opengl::convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> api::format
+{
+	assert(pfd.iPixelType == PFD_TYPE_RGBA);
+
+	switch (pfd.cColorBits)
+	{
+	default:
+		assert(false);
+		return api::format::unknown;
+	case 16:
+		return api::format::b5g6r5_unorm;
+	case 24:
+	case 32:
+		if (pfd.cRedBits == 11 && pfd.cGreenBits == 11 && pfd.cBlueBits == 10)
+			return api::format::r11g11b10_float;
+		if (pfd.cAlphaBits != 0)
+			return pfd.cRedShift == 0 ? api::format::r8g8b8a8_unorm : api::format::b8g8r8a8_unorm;
+		else
+			return pfd.cRedShift == 0 ? api::format::r8g8b8x8_unorm : api::format::b8g8r8x8_unorm;
+	case 30:
+		return api::format::r10g10b10a2_unorm;
+	case 64:
+		return api::format::r16g16b16a16_float;
+	case 128:
+		return api::format::r32g32b32a32_float;
+	}
+}
+
 auto reshade::opengl::convert_upload_format(api::format format, GLenum &type) -> GLenum
 {
 	switch (format)
@@ -977,6 +1184,7 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 		return convert_format(format);
 	}
 }
+
 auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum
 {
 	size = 0;
@@ -1091,6 +1299,7 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 
 	return GL_NONE;
 }
+
 auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> GLenum
 {
 	// Convert base internal formats to sized internal formats

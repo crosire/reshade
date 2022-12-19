@@ -59,20 +59,19 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 {
 	assert(width != 0 && height != 0);
 
-	_default_fbo_width = width;
-	_default_fbo_height = height;
-	_current_window_height = height;
+	_default_fbo_desc.texture.width = width;
+	_default_fbo_desc.texture.height = _current_window_height = height;
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
 
 	api::resource_view default_rtv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 	api::resource_view default_dsv = { 0 };
-	if (_default_depth_format != GL_NONE)
+	if (_default_depth_format != api::format::unknown)
 	{
 		default_dsv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 		invoke_addon_event<addon_event::init_resource>(this, get_resource_desc(get_resource_from_view(default_dsv)), nullptr, api::resource_usage::depth_stencil, get_resource_from_view(default_dsv));
-		invoke_addon_event<addon_event::init_resource_view>(this, get_resource_from_view(default_dsv), api::resource_usage::depth_stencil, api::resource_view_desc(convert_format(_default_depth_format)), default_dsv);
+		invoke_addon_event<addon_event::init_resource_view>(this, get_resource_from_view(default_dsv), api::resource_usage::depth_stencil, api::resource_view_desc(_default_depth_format), default_dsv);
 	}
 
 	// Communicate default state to add-ons
@@ -90,7 +89,7 @@ void reshade::opengl::swapchain_impl::on_reset()
 
 #if RESHADE_ADDON
 	api::resource_view default_dsv = { 0 };
-	if (_default_depth_format != GL_NONE)
+	if (_default_depth_format != api::format::unknown)
 	{
 		default_dsv = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 		invoke_addon_event<addon_event::destroy_resource_view>(this, default_dsv);

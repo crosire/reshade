@@ -461,7 +461,7 @@ void reshade::opengl::render_context_impl::update_current_window_height(GLuint f
 		}
 		case GL_FRAMEBUFFER_DEFAULT:
 		{
-			_current_window_height = _device_impl->_default_fbo_height;
+			_current_window_height = _device_impl->_default_fbo_desc.texture.height;
 			break;
 		}
 		default:

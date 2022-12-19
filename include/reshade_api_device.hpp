@@ -975,13 +975,13 @@ namespace reshade::api
 
 		/// <summary>
 		/// Defines how the back buffers should be swapped when a present occurs.
-		/// <para>Depending on the render API this can be a 'D3DSWAPEFFECT', 'DXGI_SWAP_EFFECT' or 'VkPresentModeKHR' value.</para>
+		/// <para>Depending on the render API this can be a 'D3DSWAPEFFECT', 'DXGI_SWAP_EFFECT', 'WGL_SWAP_METHOD_ARB' or 'VkPresentModeKHR' value.</para>
 		/// </summary>
 		uint32_t present_mode = 0;
 
 		/// <summary>
 		/// Swap chain creation flags.
-		/// <para>Depending on the render API this can be a 'D3DPRESENT', 'DXGI_PRESENT' or 'VkSwapchainCreateFlagsKHR' value.</para>
+		/// <para>Depending on the render API this can be a 'D3DPRESENT', 'DXGI_PRESENT', 'PFD_*' or 'VkSwapchainCreateFlagsKHR' value.</para>
 		/// </summary>
 		uint32_t present_flags = 0;
 	};
@@ -995,7 +995,7 @@ namespace reshade::api
 		/// <summary>
 		/// Gets the window handle of the window this swap chain was created with, or <see langword="nullptr"/> if this is an offscreen swap chain.
 		/// </summary>
-		virtual   void * get_hwnd() const = 0;
+		virtual void *get_hwnd() const = 0;
 
 		/// <summary>
 		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
