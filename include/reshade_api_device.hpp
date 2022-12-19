@@ -961,20 +961,27 @@ namespace reshade::api
 	/// <summary>
 	/// Describes a swap chain and its back buffer resources.
 	/// </summary>
-	struct swapchain_desc : resource_desc
+	struct swapchain_desc
 	{
+		/// <summary>
+		/// Description of the back buffer resources.
+		/// </summary>
+		resource_desc back_buffer;
+
 		/// <summary>
 		/// Number of back buffer resources in the swap chain.
 		/// </summary>
-		uint32_t buffer_count = 0;
+		uint32_t back_buffer_count = 0;
 
 		/// <summary>
 		/// Defines how the back buffers should be swapped when a present occurs.
+		/// <para>Depending on the render API this can be a 'D3DSWAPEFFECT', 'DXGI_SWAP_EFFECT' or 'VkPresentModeKHR' value.</para>
 		/// </summary>
 		uint32_t present_mode = 0;
 
 		/// <summary>
 		/// Swap chain creation flags.
+		/// <para>Depending on the render API this can be a 'D3DPRESENT', 'DXGI_PRESENT' or 'VkSwapchainCreateFlagsKHR' value.</para>
 		/// </summary>
 		uint32_t present_flags = 0;
 	};

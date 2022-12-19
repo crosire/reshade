@@ -66,21 +66,21 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 
 #if RESHADE_ADDON
 	reshade::api::swapchain_desc desc = {};
-	desc.type = reshade::api::resource_type::surface;
-	desc.texture.width = pp.BackBufferWidth;
-	desc.texture.height = pp.BackBufferHeight;
-	desc.texture.depth_or_layers = 1;
-	desc.texture.levels = 1;
-	desc.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
-	desc.heap = reshade::api::memory_heap::gpu_only;
-	desc.usage = reshade::api::resource_usage::render_target;
+	desc.back_buffer.type = reshade::api::resource_type::surface;
+	desc.back_buffer.texture.width = pp.BackBufferWidth;
+	desc.back_buffer.texture.height = pp.BackBufferHeight;
+	desc.back_buffer.texture.depth_or_layers = 1;
+	desc.back_buffer.texture.levels = 1;
+	desc.back_buffer.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
+	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.usage = reshade::api::resource_usage::render_target;
 
 	if (pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
-		desc.texture.samples = static_cast<uint16_t>(pp.MultiSampleType);
+		desc.back_buffer.texture.samples = static_cast<uint16_t>(pp.MultiSampleType);
 	else if (pp.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
-		desc.texture.samples = static_cast<uint16_t>(1 << pp.MultiSampleQuality);
+		desc.back_buffer.texture.samples = static_cast<uint16_t>(1 << pp.MultiSampleQuality);
 	else
-		desc.texture.samples = 1;
+		desc.back_buffer.texture.samples = 1;
 
 	const HWND hwnd = (pp.hDeviceWindow != nullptr) ? pp.hDeviceWindow : focus_window;
 
@@ -89,39 +89,39 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		RECT window_rect = {};
 		GetClientRect(hwnd, &window_rect);
 		if (pp.BackBufferWidth == 0)
-			desc.texture.width = window_rect.right;
+			desc.back_buffer.texture.width = window_rect.right;
 		if (pp.BackBufferHeight == 0)
-			desc.texture.height = window_rect.bottom;
+			desc.back_buffer.texture.height = window_rect.bottom;
 
 		if (pp.BackBufferFormat == D3DFMT_UNKNOWN)
 		{
 			D3DDISPLAYMODE current_mode;
 			if (SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
 			{
-				desc.texture.format = reshade::d3d9::convert_format(current_mode.Format);
+				desc.back_buffer.texture.format = reshade::d3d9::convert_format(current_mode.Format);
 			}
 		}
 	}
 
-	desc.buffer_count = pp.BackBufferCount;
+	desc.back_buffer_count = pp.BackBufferCount;
 	desc.present_mode = pp.SwapEffect;
 	desc.present_flags = pp.Flags;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
 	{
-		pp.BackBufferWidth = desc.texture.width;
-		pp.BackBufferHeight = desc.texture.height;
-		pp.BackBufferFormat = reshade::d3d9::convert_format(desc.texture.format);
+		pp.BackBufferWidth = desc.back_buffer.texture.width;
+		pp.BackBufferHeight = desc.back_buffer.texture.height;
+		pp.BackBufferFormat = reshade::d3d9::convert_format(desc.back_buffer.texture.format);
 
-		if (desc.texture.samples > 1)
+		if (desc.back_buffer.texture.samples > 1)
 		{
 			if (pp.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
 			{
-				BitScanReverse(&pp.MultiSampleQuality, desc.texture.samples);
+				BitScanReverse(&pp.MultiSampleQuality, desc.back_buffer.texture.samples);
 			}
 			else
 			{
-				pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.texture.samples);
+				pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.back_buffer.texture.samples);
 				pp.MultiSampleQuality = 0;
 			}
 		}
@@ -131,7 +131,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 			pp.MultiSampleQuality = 0;
 		}
 
-		pp.BackBufferCount = desc.buffer_count;
+		pp.BackBufferCount = desc.back_buffer_count;
 		pp.SwapEffect = static_cast<D3DSWAPEFFECT>(desc.present_mode);
 		pp.Flags = desc.present_flags;
 	}

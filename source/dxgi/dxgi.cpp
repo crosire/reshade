@@ -73,48 +73,48 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 
 #if RESHADE_ADDON
 	reshade::api::swapchain_desc desc = {};
-	desc.type = reshade::api::resource_type::texture_2d;
-	desc.texture.width = internal_desc.BufferDesc.Width;
-	desc.texture.height = internal_desc.BufferDesc.Height;
-	desc.texture.depth_or_layers = 1;
-	desc.texture.levels = 1;
-	desc.texture.format = static_cast<reshade::api::format>(internal_desc.BufferDesc.Format);
-	desc.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
-	desc.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
+	desc.back_buffer.texture.width = internal_desc.BufferDesc.Width;
+	desc.back_buffer.texture.height = internal_desc.BufferDesc.Height;
+	desc.back_buffer.texture.depth_or_layers = 1;
+	desc.back_buffer.texture.levels = 1;
+	desc.back_buffer.texture.format = static_cast<reshade::api::format>(internal_desc.BufferDesc.Format);
+	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
+	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
 
 	RECT window_rect = {};
 	GetClientRect(internal_desc.OutputWindow, &window_rect);
 	if (internal_desc.BufferDesc.Width == 0)
-		desc.texture.width = window_rect.right;
+		desc.back_buffer.texture.width = window_rect.right;
 	if (internal_desc.BufferDesc.Height == 0)
-		desc.texture.height = window_rect.bottom;
+		desc.back_buffer.texture.height = window_rect.bottom;
 
 	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
-		desc.usage |= reshade::api::resource_usage::shader_resource;
+		desc.back_buffer.usage |= reshade::api::resource_usage::shader_resource;
 	if (internal_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
-		desc.usage |= reshade::api::resource_usage::render_target;
+		desc.back_buffer.usage |= reshade::api::resource_usage::render_target;
 	if (internal_desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
-		desc.usage |= reshade::api::resource_usage::unordered_access;
+		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
 
-	desc.buffer_count = internal_desc.BufferCount;
+	desc.back_buffer_count = internal_desc.BufferCount;
 	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
 	desc.present_flags = internal_desc.Flags;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, internal_desc.OutputWindow))
 	{
-		internal_desc.BufferDesc.Width = desc.texture.width;
-		internal_desc.BufferDesc.Height = desc.texture.height;
-		internal_desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(desc.texture.format);
-		internal_desc.SampleDesc.Count = desc.texture.samples;
+		internal_desc.BufferDesc.Width = desc.back_buffer.texture.width;
+		internal_desc.BufferDesc.Height = desc.back_buffer.texture.height;
+		internal_desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
+		internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
 
-		if ((desc.usage & reshade::api::resource_usage::shader_resource) != 0)
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-		if ((desc.usage & reshade::api::resource_usage::render_target) != 0)
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::render_target) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((desc.usage & reshade::api::resource_usage::unordered_access) != 0)
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::unordered_access) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 
-		internal_desc.BufferCount = desc.buffer_count;
+		internal_desc.BufferCount = desc.back_buffer_count;
 		internal_desc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(desc.present_mode);
 		internal_desc.Flags = desc.present_flags;
 
@@ -168,56 +168,56 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]
 
 #if RESHADE_ADDON
 	reshade::api::swapchain_desc desc = {};
-	desc.type = reshade::api::resource_type::texture_2d;
-	desc.texture.width = internal_desc.Width;
-	desc.texture.height = internal_desc.Height;
-	desc.texture.depth_or_layers = internal_desc.Stereo ? 2 : 1;
-	desc.texture.levels = 1;
-	desc.texture.format = static_cast<reshade::api::format>(internal_desc.Format);
-	desc.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
-	desc.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
+	desc.back_buffer.texture.width = internal_desc.Width;
+	desc.back_buffer.texture.height = internal_desc.Height;
+	desc.back_buffer.texture.depth_or_layers = internal_desc.Stereo ? 2 : 1;
+	desc.back_buffer.texture.levels = 1;
+	desc.back_buffer.texture.format = static_cast<reshade::api::format>(internal_desc.Format);
+	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
+	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
 
 	if (hwnd != nullptr)
 	{
 		RECT window_rect = {};
 		GetClientRect(hwnd, &window_rect);
 		if (internal_desc.Width == 0)
-			desc.texture.width = window_rect.right;
+			desc.back_buffer.texture.width = window_rect.right;
 		if (internal_desc.Height == 0)
-			desc.texture.height = window_rect.bottom;
+			desc.back_buffer.texture.height = window_rect.bottom;
 	}
 
 	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
-		desc.usage |= reshade::api::resource_usage::shader_resource;
+		desc.back_buffer.usage |= reshade::api::resource_usage::shader_resource;
 	if (internal_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
-		desc.usage |= reshade::api::resource_usage::render_target;
+		desc.back_buffer.usage |= reshade::api::resource_usage::render_target;
 	if (internal_desc.BufferUsage & DXGI_USAGE_SHARED)
-		desc.flags |= reshade::api::resource_flags::shared;
+		desc.back_buffer.flags |= reshade::api::resource_flags::shared;
 	if (internal_desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
-		desc.usage |= reshade::api::resource_usage::unordered_access;
+		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
 
-	desc.buffer_count = internal_desc.BufferCount;
+	desc.back_buffer_count = internal_desc.BufferCount;
 	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
 	desc.present_flags = internal_desc.Flags;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
 	{
-		internal_desc.Width = desc.texture.width;
-		internal_desc.Height = desc.texture.height;
-		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.texture.format);
-		internal_desc.Stereo = desc.texture.depth_or_layers > 1;
-		internal_desc.SampleDesc.Count = desc.texture.samples;
+		internal_desc.Width = desc.back_buffer.texture.width;
+		internal_desc.Height = desc.back_buffer.texture.height;
+		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
+		internal_desc.Stereo = desc.back_buffer.texture.depth_or_layers > 1;
+		internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
 
-		if ((desc.usage & reshade::api::resource_usage::shader_resource) != 0)
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-		if ((desc.usage & reshade::api::resource_usage::render_target) != 0)
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::render_target) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((desc.flags & reshade::api::resource_flags::shared) == 0)
+		if ((desc.back_buffer.flags & reshade::api::resource_flags::shared) == 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHARED;
-		if ((desc.usage & reshade::api::resource_usage::unordered_access) != 0)
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::unordered_access) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 
-		internal_desc.BufferCount = desc.buffer_count;
+		internal_desc.BufferCount = desc.back_buffer_count;
 		internal_desc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(desc.present_mode);
 		internal_desc.Flags = desc.present_flags;
 

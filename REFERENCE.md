@@ -174,11 +174,11 @@ Showing results on the screen is done through a `reshade::api::swapchain` object
 static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *hwnd)
 {
     // Change resolution to 1920x1080 if the application is trying to create a swap chain at 800x600.
-    if (desc.texture.width == 800 &&
-        desc.texture.height == 600)
+    if (desc.back_buffer.texture.width == 800 &&
+        desc.back_buffer.texture.height == 600)
     {
-        desc.texture.width = 1920;
-        desc.texture.height = 1080;
+        desc.back_buffer.texture.width = 1920;
+        desc.back_buffer.texture.height = 1080;
     }
 
     // Return 'true' for ReShade to overwrite the swap chain description of the application with the values set in this callback.

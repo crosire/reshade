@@ -770,30 +770,30 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 #if RESHADE_ADDON
 	reshade::api::swapchain_desc desc = {};
-	desc.type = reshade::api::resource_type::texture_2d;
-	desc.texture.width = create_info.imageExtent.width;
-	desc.texture.height = create_info.imageExtent.height;
+	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
+	desc.back_buffer.texture.width = create_info.imageExtent.width;
+	desc.back_buffer.texture.height = create_info.imageExtent.height;
 	assert(create_info.imageArrayLayers <= std::numeric_limits<uint16_t>::max());
-	desc.texture.depth_or_layers = static_cast<uint16_t>(create_info.imageArrayLayers);
-	desc.texture.levels = 1;
-	desc.texture.format = reshade::vulkan::convert_format(create_info.imageFormat);
-	desc.texture.samples = 1;
-	desc.heap = reshade::api::memory_heap::gpu_only;
-	reshade::vulkan::convert_image_usage_flags_to_usage(create_info.imageUsage, desc.usage);
+	desc.back_buffer.texture.depth_or_layers = static_cast<uint16_t>(create_info.imageArrayLayers);
+	desc.back_buffer.texture.levels = 1;
+	desc.back_buffer.texture.format = reshade::vulkan::convert_format(create_info.imageFormat);
+	desc.back_buffer.texture.samples = 1;
+	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	reshade::vulkan::convert_image_usage_flags_to_usage(create_info.imageUsage, desc.back_buffer.usage);
 
-	desc.buffer_count = create_info.minImageCount;
+	desc.back_buffer_count = create_info.minImageCount;
 	desc.present_mode = static_cast<uint32_t>(create_info.presentMode);
 	desc.present_flags = create_info.flags;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
 	{
-		create_info.imageFormat = reshade::vulkan::convert_format(desc.texture.format);
-		create_info.imageExtent.width = desc.texture.width;
-		create_info.imageExtent.height = desc.texture.height;
-		create_info.imageArrayLayers = desc.texture.depth_or_layers;
-		reshade::vulkan::convert_usage_to_image_usage_flags(desc.usage, create_info.imageUsage);
+		create_info.imageFormat = reshade::vulkan::convert_format(desc.back_buffer.texture.format);
+		create_info.imageExtent.width = desc.back_buffer.texture.width;
+		create_info.imageExtent.height = desc.back_buffer.texture.height;
+		create_info.imageArrayLayers = desc.back_buffer.texture.depth_or_layers;
+		reshade::vulkan::convert_usage_to_image_usage_flags(desc.back_buffer.usage, create_info.imageUsage);
 
-		create_info.minImageCount = desc.buffer_count;
+		create_info.minImageCount = desc.back_buffer_count;
 		create_info.presentMode = static_cast<VkPresentModeKHR>(desc.present_mode);
 		create_info.flags = static_cast<uint32_t>(desc.present_flags);
 	}
