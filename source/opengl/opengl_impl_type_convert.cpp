@@ -74,67 +74,31 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_RGBA8I;
 	case api::format::r8g8b8a8_typeless:
 	case api::format::r8g8b8a8_unorm:
+	case api::format::b8g8r8a8_typeless:
+	case api::format::b8g8r8a8_unorm:
 		return GL_RGBA8;
 	case api::format::r8g8b8a8_unorm_srgb:
+	case api::format::b8g8r8a8_unorm_srgb:
 		return GL_SRGB8_ALPHA8;
 	case api::format::r8g8b8a8_snorm:
 		return GL_RGBA8_SNORM;
 	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
-		return GL_RGB8;
-	case api::format::r8g8b8x8_unorm_srgb:
-		return GL_SRGB8;
-	case api::format::b8g8r8a8_typeless:
-	case api::format::b8g8r8a8_unorm:
-		if (swizzle_mask != nullptr)
-		{
-			swizzle_mask[0] = GL_BLUE;
-			swizzle_mask[1] = GL_GREEN;
-			swizzle_mask[2] = GL_RED;
-			swizzle_mask[3] = GL_ALPHA;
-			return GL_RGBA8;
-		}
-		return GL_BGRA8_EXT;
-	case api::format::b8g8r8a8_unorm_srgb:
-		if (swizzle_mask != nullptr)
-		{
-			swizzle_mask[0] = GL_BLUE;
-			swizzle_mask[1] = GL_GREEN;
-			swizzle_mask[2] = GL_RED;
-			swizzle_mask[3] = GL_ALPHA;
-			return GL_SRGB8_ALPHA8;
-		}
-		break; // Unsupported
 	case api::format::b8g8r8x8_typeless:
 	case api::format::b8g8r8x8_unorm:
-		if (swizzle_mask != nullptr)
-		{
-			swizzle_mask[0] = GL_BLUE;
-			swizzle_mask[1] = GL_GREEN;
-			swizzle_mask[2] = GL_RED;
-			swizzle_mask[3] = GL_ONE;
-			return GL_RGBA8;
-		}
-		break; // Unsupported
+		return GL_RGB8;
+	case api::format::r8g8b8x8_unorm_srgb:
 	case api::format::b8g8r8x8_unorm_srgb:
-		if (swizzle_mask != nullptr)
-		{
-			swizzle_mask[0] = GL_BLUE;
-			swizzle_mask[1] = GL_GREEN;
-			swizzle_mask[2] = GL_RED;
-			swizzle_mask[3] = GL_ONE;
-			return GL_SRGB8_ALPHA8;
-		}
-		break; // Unsupported
+		return GL_SRGB8;
 	case api::format::r10g10b10a2_uint:
+	case api::format::b10g10r10a2_uint:
 		return GL_RGB10_A2UI;
 	case api::format::r10g10b10a2_typeless:
 	case api::format::r10g10b10a2_unorm:
+	case api::format::b10g10r10a2_typeless:
+	case api::format::b10g10r10a2_unorm:
 		return GL_RGB10_A2;
 	case api::format::r10g10b10a2_xr_bias:
-	case api::format::b10g10r10a2_typeless:
-	case api::format::b10g10r10a2_uint:
-	case api::format::b10g10r10a2_unorm:
 		break; // Unsupported
 	case api::format::l16_unorm:
 		if (swizzle_mask != nullptr)
@@ -360,18 +324,8 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	case GL_RGBA8I:
 		return api::format::r8g8b8a8_sint;
 	case GL_RGBA8:
-		if (swizzle_mask != nullptr &&
-			swizzle_mask[0] == GL_BLUE &&
-			swizzle_mask[1] == GL_GREEN &&
-			swizzle_mask[2] == GL_RED)
-			return swizzle_mask[3] == GL_ALPHA ? api::format::b8g8r8a8_unorm : api::format::b8g8r8x8_unorm;
 		return api::format::r8g8b8a8_unorm;
 	case GL_SRGB8_ALPHA8:
-		if (swizzle_mask != nullptr &&
-			swizzle_mask[0] == GL_BLUE &&
-			swizzle_mask[1] == GL_GREEN &&
-			swizzle_mask[2] == GL_RED)
-			return swizzle_mask[3] == GL_ALPHA ? api::format::b8g8r8a8_unorm_srgb : api::format::b8g8r8x8_unorm_srgb;
 		return api::format::r8g8b8a8_unorm_srgb;
 	case GL_RGBA8_SNORM:
 		return api::format::r8g8b8a8_snorm;
@@ -382,18 +336,8 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r8g8b8x8_sint;
 #endif
 	case GL_RGB8:
-		if (swizzle_mask != nullptr &&
-			swizzle_mask[0] == GL_BLUE &&
-			swizzle_mask[1] == GL_GREEN &&
-			swizzle_mask[2] == GL_RED)
-			return api::format::b8g8r8x8_unorm;
 		return api::format::r8g8b8x8_unorm;
 	case GL_SRGB8:
-		if (swizzle_mask != nullptr &&
-			swizzle_mask[0] == GL_BLUE &&
-			swizzle_mask[1] == GL_GREEN &&
-			swizzle_mask[2] == GL_RED)
-			return api::format::b8g8r8x8_unorm_srgb;
 		return api::format::r8g8b8x8_unorm_srgb;
 #if 0
 	case GL_RGB8_SNORM:
