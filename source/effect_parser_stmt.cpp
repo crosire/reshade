@@ -962,6 +962,12 @@ bool reshadefx::parser::parse_struct()
 						warning(member.location, 4568, '\'' + member.name + "': integer fields have the 'nointerpolation' qualifier by default");
 					}
 				}
+				else
+				{
+					// Remove optional trailing zero from system value semantics, so that e.g. SV_POSITION and SV_POSITION0 mean the same thing
+					if (member.semantic.back() == '0' && (member.semantic[member.semantic.size() - 2] < '0' || member.semantic[member.semantic.size() - 2] > '9'))
+						member.semantic.pop_back();
+				}
 			}
 
 			// Save member name and type for book keeping
@@ -1110,6 +1116,12 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 					param.type.qualifiers |= type::q_nointerpolation; // Integer parameters do not interpolate, so make this explicit (to avoid issues with GLSL)
 					warning(param.location, 4568, '\'' + param.name + "': integer parameters have the 'nointerpolation' qualifier by default");
 				}
+			}
+			else
+			{
+				// Remove optional trailing zero from system value semantics, so that e.g. SV_POSITION and SV_POSITION0 mean the same thing
+				if (param.semantic.back() == '0' && (param.semantic[param.semantic.size() - 2] < '0' || param.semantic[param.semantic.size() - 2] > '9'))
+					param.semantic.pop_back();
 			}
 		}
 
