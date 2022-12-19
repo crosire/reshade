@@ -653,6 +653,9 @@ static void on_execute_primary(command_queue *queue, command_list *cmd_list)
 	// Skip merging state when this execution event is just the immediate command list getting flushed
 	if (std::addressof(target_state) != std::addressof(source_state))
 	{
+		// Need to protect access to the queue state, since another thread may be in a present call, which can reset this state
+		const std::unique_lock<std::shared_mutex> lock(s_mutex);
+
 		target_state.merge(source_state);
 	}
 }
