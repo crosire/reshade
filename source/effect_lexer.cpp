@@ -729,6 +729,14 @@ next_token:
 		tok.id = tokenid::bracket_open;
 		break;
 	case '\\':
+		if (!_ignore_whitespace && (_cur[1] == '\n' || (_cur[1] == '\r' && _cur[2] == '\n')))
+		{
+			// Skip to next line if current line ends with a backslash
+			skip_space();
+			tok.id = tokenid::space;
+			tok.length = input_offset() - tok.offset;
+			return tok;
+		}
 		tok.id = tokenid::backslash;
 		break;
 	case ']':
@@ -778,8 +786,21 @@ void reshadefx::lexer::skip(size_t length)
 void reshadefx::lexer::skip_space()
 {
 	// Skip each character until a space is found
-	while (type_lookup[uint8_t(*_cur)] == SPACE && _cur < _end)
-		skip(1);
+	while (_cur < _end)
+	{
+		if (_cur[0] == '\\' && (_cur[1] == '\n' || (_cur[1] == '\r' && _cur[2] == '\n')))
+		{
+			skip(_cur[1] == '\r' ? 3 : 2);
+			_cur_location.line++;
+			_cur_location.column = 1;
+			continue;
+		}
+
+		if (type_lookup[uint8_t(*_cur)] == SPACE)
+			skip(1);
+		else
+			break;
+	}
 }
 void reshadefx::lexer::skip_to_next_line()
 {
@@ -799,7 +820,8 @@ void reshadefx::lexer::parse_identifier(token &tok) const
 	auto *const begin = _cur, *end = begin;
 
 	// Skip to the end of the identifier sequence
-	do end++; while (type_lookup[uint8_t(*end)] == IDENT || type_lookup[uint8_t(*end)] == DIGIT);
+	while (type_lookup[uint8_t(*end)] == IDENT || type_lookup[uint8_t(*end)] == DIGIT)
+		end++;
 
 	tok.id = tokenid::identifier;
 	tok.offset = input_offset();

@@ -397,8 +397,11 @@ void reshadefx::preprocessor::parse()
 			parse_include();
 			continue;
 		case tokenid::hash_unknown:
-			error(_token.location, "unrecognized preprocessing directive '" + _token.literal_as_string + '\'');
-			consume_until(tokenid::end_of_line);
+			// Standalone "#" is valid and should be ignored
+			if (_token.length != 0)
+				error(_token.location, "unrecognized preprocessing directive '" + _token.literal_as_string + '\'');
+			if (!expect(tokenid::end_of_line))
+				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::end_of_line:
 			if (line.empty())
@@ -747,12 +750,6 @@ bool reshadefx::preprocessor::evaluate_expression()
 		{
 		case tokenid::space:
 			continue;
-		case tokenid::backslash:
-			// Skip to next line if the line ends with a backslash
-			if (accept(tokenid::end_of_line))
-				continue;
-			else // Otherwise continue on processing the token (it is not valid here, but make that an error below)
-				break;
 		case tokenid::exclaim:
 			op = op_not;
 			is_left_associative = false;
@@ -1223,9 +1220,13 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 	if (macro.parameters.size() >= std::numeric_limits<unsigned char>::max())
 		return error(_token.location, "too many macro parameters");
 
+	// Ignore whitespace preceding the replacement list
+	accept(tokenid::space);
+
 	while (!peek(tokenid::end_of_file) && !peek(tokenid::end_of_line))
 	{
 		consume();
+
 		switch (_token)
 		{
 		case tokenid::hash:
@@ -1258,13 +1259,10 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 				continue;
 			}
 			break;
-		case tokenid::backslash:
-			if (peek(tokenid::end_of_line))
-			{
-				consume();
-				continue;
-			}
-			break;
+		case tokenid::space:
+			// Replace all whitespace with a single space
+			macro.replacement_list += ' ';
+			continue;
 		case tokenid::identifier:
 			if (const auto it = std::find(macro.parameters.begin(), macro.parameters.end(), _token.literal_as_string);
 				it != macro.parameters.end())
@@ -1283,15 +1281,10 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 		macro.replacement_list += _current_token_raw_data;
 	}
 
-	// Trim whitespace from replacement list
-	const size_t first = macro.replacement_list.find_first_not_of(" \t");
-	if (first == std::string::npos)
-	{
+	// Trim whitespace following the replacement list
+	const size_t last = macro.replacement_list.find_last_not_of(" \t");
+	if (last == std::string::npos)
 		macro.replacement_list.clear();
-	}
 	else
-	{
-		const size_t last = macro.replacement_list.find_last_not_of(" \t");
-		macro.replacement_list = macro.replacement_list.substr(first, last - first + 1);
-	}
+		macro.replacement_list.erase(last + 1);
 }
