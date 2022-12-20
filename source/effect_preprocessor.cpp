@@ -1282,4 +1282,16 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 
 		macro.replacement_list += _current_token_raw_data;
 	}
+
+	// Trim whitespace from replacement list
+	const size_t first = macro.replacement_list.find_first_not_of(" \t");
+	if (first == std::string::npos)
+	{
+		macro.replacement_list.clear();
+	}
+	else
+	{
+		const size_t last = macro.replacement_list.find_last_not_of(" \t");
+		macro.replacement_list = macro.replacement_list.substr(first, last - first + 1);
+	}
 }
