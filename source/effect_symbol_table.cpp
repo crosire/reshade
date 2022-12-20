@@ -9,8 +9,6 @@
 #include <algorithm> // std::upper_bound, std::sort
 #include <functional> // std::greater
 
-#pragma region Import intrinsic functions
-
 enum class intrinsic_id : uint32_t
 {
 #define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
@@ -113,8 +111,6 @@ static const intrinsic s_intrinsics[] =
 #undef out_float4
 #undef sampler
 #undef storage
-
-#pragma endregion
 
 unsigned int reshadefx::type::rank(const type &src, const type &dst)
 {

@@ -97,9 +97,10 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 	return true;
 }
 
+template <char ESCAPE_CHAR = '\\'>
 static std::string escape_string(std::string s)
 {
-	for (size_t offset = 0; (offset = s.find('\\', offset)) != std::string::npos; offset += 2)
+	for (size_t offset = 0; (offset = s.find(ESCAPE_CHAR, offset)) != std::string::npos; offset += 2)
 		s.insert(offset, "\\", 1);
 	return '\"' + s + '\"';
 }
@@ -124,16 +125,11 @@ bool reshadefx::preprocessor::add_macro_definition(const std::string &name, cons
 
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
-	std::string data;
-	if (!read_file(path, data))
+	std::string source_code;
+	if (!read_file(path, source_code))
 		return false;
 
-	_success = true; // Clear success flag before parsing a new file
-
-	push(std::move(data), path.u8string());
-	parse();
-
-	return _success;
+	return append_string(std::move(source_code), path);
 }
 bool reshadefx::preprocessor::append_string(std::string source_code, const std::filesystem::path &path)
 {
@@ -213,12 +209,12 @@ void reshadefx::preprocessor::push(std::string input, const std::string &name)
 	consume();
 }
 
-bool reshadefx::preprocessor::peek(tokenid token) const
+bool reshadefx::preprocessor::peek(tokenid tokid) const
 {
 	if (_input_stack.empty())
-		return token == tokenid::end_of_file;
+		return tokid == tokenid::end_of_file;
 
-	return _input_stack[_next_input_index].next_token == token;
+	return _input_stack[_next_input_index].next_token == tokid;
 }
 bool reshadefx::preprocessor::consume()
 {
@@ -277,22 +273,25 @@ bool reshadefx::preprocessor::consume()
 
 	return true;
 }
-void reshadefx::preprocessor::consume_until(tokenid token)
+void reshadefx::preprocessor::consume_until(tokenid tokid)
 {
-	while (!accept(token) && !peek(tokenid::end_of_file))
+	while (!accept(tokid) && !peek(tokenid::end_of_file))
 	{
 		consume();
 	}
 }
 
-bool reshadefx::preprocessor::accept(tokenid token)
+bool reshadefx::preprocessor::accept(tokenid tokid, bool ignore_whitespace)
 {
-	while (peek(tokenid::space))
+	if (ignore_whitespace)
 	{
-		consume();
+		while (peek(tokenid::space))
+		{
+			consume();
+		}
 	}
 
-	if (peek(token))
+	if (peek(tokid))
 	{
 		consume();
 		return true;
@@ -300,9 +299,9 @@ bool reshadefx::preprocessor::accept(tokenid token)
 
 	return false;
 }
-bool reshadefx::preprocessor::expect(tokenid token)
+bool reshadefx::preprocessor::expect(tokenid tokid)
 {
-	if (!accept(token))
+	if (!accept(tokid))
 	{
 		if (!_input_stack.empty())
 		{
@@ -326,6 +325,7 @@ void reshadefx::preprocessor::parse()
 {
 	std::string line;
 
+	// Consume all tokens in the input
 	while (consume())
 	{
 		_recursion_count = 0;
@@ -370,6 +370,7 @@ void reshadefx::preprocessor::parse()
 		}
 
 		if (skip)
+			// Ignore token since the current section is disabled
 			continue;
 
 		switch (_token)
@@ -411,12 +412,12 @@ void reshadefx::preprocessor::parse()
 			continue;
 		case tokenid::end_of_line:
 			if (line.empty())
-				continue;
+				continue; // Do not append empty lines to output, instead emit "#line" statements
 			_output_location.line++;
-			if (_output_location.line != _token.location.line)
+			if (_token.location.line != _output_location.line)
 			{
 				_output += "#line " + std::to_string(_token.location.line) + '\n';
-				_output_location.line  = _token.location.line;
+				_output_location.line = _token.location.line;
 			}
 			_output += line;
 			_output += '\n';
@@ -432,7 +433,7 @@ void reshadefx::preprocessor::parse()
 		}
 	}
 
-	// Append the last line after the EOF was reached to the output
+	// Append the last line after the EOF token was reached to the output
 	_output += line;
 	_output += '\n';
 }
@@ -441,7 +442,7 @@ void reshadefx::preprocessor::parse_def()
 {
 	if (!expect(tokenid::identifier))
 		return;
-	else if (_token.literal_as_string == "defined")
+	if (_token.literal_as_string == "defined")
 		return warning(_token.location, "macro name 'defined' is reserved");
 
 	macro m;
@@ -449,11 +450,9 @@ void reshadefx::preprocessor::parse_def()
 	const auto macro_name = std::move(_token.literal_as_string);
 	const auto macro_name_end_offset = _token.offset + _token.length;
 
-	// Check input string here directly to ensure the parenthesis follows the macro name without any whitespace between
-	if (!_input_stack.empty() && _input_stack[_current_input_index].lexer->input_string()[macro_name_end_offset] == '(')
+	// Only create function-like macro if the parenthesis follows the macro name without any whitespace between
+	if (accept(tokenid::parenthesis_open, false))
 	{
-		accept(tokenid::parenthesis_open);
-
 		m.is_function_like = true;
 
 		while (accept(tokenid::identifier))
@@ -487,7 +486,7 @@ void reshadefx::preprocessor::parse_undef()
 {
 	if (!expect(tokenid::identifier))
 		return;
-	else if (_token.literal_as_string == "defined")
+	if (_token.literal_as_string == "defined")
 		return warning(_token.location, "macro name 'defined' is reserved");
 
 	_macros.erase(_token.literal_as_string);
@@ -516,12 +515,7 @@ void reshadefx::preprocessor::parse_ifdef()
 	if (!expect(tokenid::identifier))
 		return;
 
-	level.value = _macros.find(_token.literal_as_string) != _macros.end() ||
-		// Check built-in macros as well
-		_token.literal_as_string == "__LINE__" ||
-		_token.literal_as_string == "__FILE__" ||
-		_token.literal_as_string == "__FILE_NAME__" ||
-		_token.literal_as_string == "__FILE_STEM__";
+	level.value = is_defined(_token.literal_as_string);
 
 	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
 	level.skipping = parent_skipping || !level.value;
@@ -539,11 +533,7 @@ void reshadefx::preprocessor::parse_ifndef()
 	if (!expect(tokenid::identifier))
 		return;
 
-	level.value = _macros.find(_token.literal_as_string) == _macros.end() &&
-		_token.literal_as_string != "__LINE__" &&
-		_token.literal_as_string != "__FILE__" &&
-		_token.literal_as_string != "__FILE_NAME__" &&
-		_token.literal_as_string != "__FILE_STEM__";
+	level.value = !is_defined(_token.literal_as_string);
 
 	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
 	level.skipping = parent_skipping || !level.value;
@@ -598,48 +588,51 @@ void reshadefx::preprocessor::parse_endif()
 
 void reshadefx::preprocessor::parse_error()
 {
-	const auto keyword_location = std::move(_token.location);
+	const location keyword_location = std::move(_token.location);
+
 	if (!expect(tokenid::string_literal))
 		return;
+
 	error(keyword_location, _token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_warning()
 {
-	const auto keyword_location = std::move(_token.location);
+	const location keyword_location = std::move(_token.location);
+
 	if (!expect(tokenid::string_literal))
 		return;
+
 	warning(keyword_location, _token.literal_as_string);
 }
 
 void reshadefx::preprocessor::parse_pragma()
 {
-	const auto keyword_location = std::move(_token.location);
+	const location keyword_location = std::move(_token.location);
+
 	if (!expect(tokenid::identifier))
 		return;
 
 	std::string pragma = std::move(_token.literal_as_string);
-	std::vector<std::string> pragma_args;
-	int parentheses_level = accept(tokenid::parenthesis_open) ? 1 : 0;
+	std::string pragma_args;
+
+	// Ignore whitespace preceding the argument list
+	accept(tokenid::space);
 
 	while (!peek(tokenid::end_of_line) && consume())
 	{
-		if (_token == tokenid::comma || _token == tokenid::space)
-			continue;
 		if (_token == tokenid::identifier && evaluate_identifier_as_macro())
 			continue;
 
-		if (parentheses_level > 0)
-		{
-			if ((_token == tokenid::parenthesis_open && parentheses_level++ == 0) ||
-				(_token == tokenid::parenthesis_close && --parentheses_level == 0))
-				continue;
-		}
-
-		pragma_args.push_back(std::move(_current_token_raw_data));
+		// Collapse all whitespace down to a single space
+		if (_token == tokenid::space)
+			pragma_args += ' ';
+		else
+			pragma_args += _current_token_raw_data;
 	}
 
 	if (pragma == "once")
 	{
+		// Clear file contents, so that future include statements simply push an empty string instead of these file contents again
 		if (const auto it = _file_cache.find(_output_location.source); it != _file_cache.end())
 			it->second.clear();
 		return;
@@ -656,16 +649,16 @@ void reshadefx::preprocessor::parse_pragma()
 
 void reshadefx::preprocessor::parse_include()
 {
-	const auto keyword_location = std::move(_token.location);
+	const location keyword_location = std::move(_token.location);
 
 	while (accept(tokenid::identifier))
 	{
-		if (evaluate_identifier_as_macro())
-			continue;
-
-		error(_token.location, "syntax error: unexpected identifier in #include");
-		consume_until(tokenid::end_of_line);
-		return;
+		if (!evaluate_identifier_as_macro())
+		{
+			error(_token.location, "syntax error: unexpected identifier in #include");
+			consume_until(tokenid::end_of_line);
+			return;
+		}
 	}
 
 	if (!expect(tokenid::string_literal))
@@ -688,34 +681,26 @@ void reshadefx::preprocessor::parse_include()
 
 	// Detect recursive include and abort to avoid infinite loop
 	if (std::find_if(_input_stack.begin(), _input_stack.end(),
-		[&file_path_string](const input_level &level) { return level.name == file_path_string; }) != _input_stack.end())
-	{
-		error(_token.location, "recursive #include");
-		return;
-	}
+			[&file_path_string](const input_level &level) { return level.name == file_path_string; }) != _input_stack.end())
+		return error(_token.location, "recursive #include");
 
-	std::string data;
-	if (auto it = _file_cache.find(file_path_string);
-		it != _file_cache.end())
+	std::string input;
+	if (const auto it = _file_cache.find(file_path_string); it != _file_cache.end())
 	{
-		data = it->second;
+		input = it->second;
 	}
 	else
 	{
-		if (!read_file(file_path, data))
-		{
-			error(keyword_location, "could not open included file '" + file_path_string + '\'');
-			consume_until(tokenid::end_of_line);
-			return;
-		}
+		if (!read_file(file_path, input))
+			return error(keyword_location, "could not open included file '" + file_path_string + '\'');
 
-		_file_cache.emplace(file_path_string, data);
+		_file_cache.emplace(file_path_string, input);
 	}
 
 	// Clear out input stack before pushing include so that hidden macros do not bleed into the include
 	while (_input_stack.size() > (_next_input_index + 1))
 		_input_stack.pop_back();
-	push(std::move(data), file_path_string);
+	push(std::move(input), file_path_string);
 }
 
 bool reshadefx::preprocessor::evaluate_expression()
@@ -739,13 +724,10 @@ bool reshadefx::preprocessor::evaluate_expression()
 	while (!peek(tokenid::end_of_line) && consume())
 	{
 		if (stack_index >= STACK_SIZE || rpn_index >= STACK_SIZE)
-		{
-			error(_token.location, "expression evaluator ran out of stack space");
-			return false;
-		}
+			return error(_token.location, "expression evaluator ran out of stack space"), false;
 
-		int op = op_none;
-		bool is_left_associative = true;
+		auto op = op_none;
+		bool left_associative = true;
 		bool parenthesis_matched = false;
 
 		switch (_token)
@@ -754,7 +736,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 			continue;
 		case tokenid::exclaim:
 			op = op_not;
-			is_left_associative = false;
+			left_associative = false;
 			break;
 		case tokenid::percent:
 			op = op_modulo;
@@ -766,20 +748,20 @@ bool reshadefx::preprocessor::evaluate_expression()
 			op = op_multiply;
 			break;
 		case tokenid::plus:
-			is_left_associative =
+			left_associative =
 				previous_token == tokenid::int_literal ||
 				previous_token == tokenid::uint_literal ||
 				previous_token == tokenid::identifier ||
 				previous_token == tokenid::parenthesis_close;
-			op = is_left_associative ? op_add : op_plus;
+			op = left_associative ? op_add : op_plus;
 			break;
 		case tokenid::minus:
-			is_left_associative =
+			left_associative =
 				previous_token == tokenid::int_literal ||
 				previous_token == tokenid::uint_literal ||
 				previous_token == tokenid::identifier ||
 				previous_token == tokenid::parenthesis_close;
-			op = is_left_associative ? op_subtract : op_negate;
+			op = left_associative ? op_subtract : op_negate;
 			break;
 		case tokenid::slash:
 			op = op_divide;
@@ -798,7 +780,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 			break;
 		case tokenid::tilde:
 			op = op_bitnot;
-			is_left_associative = false;
+			left_associative = false;
 			break;
 		case tokenid::exclaim_equal:
 			op = op_not_equal;
@@ -849,10 +831,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 			}
 
 			if (!parenthesis_matched)
-			{
-				error(_token.location, "unmatched ')'");
-				return false;
-			}
+				return error(_token.location, "unmatched ')'"), false;
 			break;
 		case tokenid::identifier:
 			if (evaluate_identifier_as_macro())
@@ -861,6 +840,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 			if (_token.literal_as_string == "exists")
 			{
 				const bool has_parentheses = accept(tokenid::parenthesis_open);
+
 				while (accept(tokenid::identifier))
 				{
 					if (!evaluate_identifier_as_macro())
@@ -869,13 +849,16 @@ bool reshadefx::preprocessor::evaluate_expression()
 						return false;
 					}
 				}
+
 				if (!expect(tokenid::string_literal))
 					return false;
+
 				std::filesystem::path file_name = std::filesystem::u8path(_token.literal_as_string);
-				if (has_parentheses && !expect(tokenid::parenthesis_close))
-					return false;
 				std::filesystem::path file_path = std::filesystem::u8path(_output_location.source);
 				file_path.replace_filename(file_name);
+
+				if (has_parentheses && !expect(tokenid::parenthesis_close))
+					return false;
 
 				std::error_code ec;
 				if (!std::filesystem::exists(file_path, ec))
@@ -889,13 +872,16 @@ bool reshadefx::preprocessor::evaluate_expression()
 			if (_token.literal_as_string == "defined")
 			{
 				const bool has_parentheses = accept(tokenid::parenthesis_open);
+
 				if (!expect(tokenid::identifier))
 					return false;
+
 				const std::string macro_name = std::move(_token.literal_as_string);
+
 				if (has_parentheses && !expect(tokenid::parenthesis_close))
 					return false;
 
-				rpn[rpn_index++] = { _macros.find(macro_name) != _macros.end() ? 1 : 0, false };
+				rpn[rpn_index++] = { is_defined(macro_name) ? 1 : 0, false };
 				continue;
 			}
 
@@ -908,10 +894,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 			break;
 		default:
 			if (op == op_none)
-			{
-				error(_token.location, "invalid expression");
-				return false;
-			}
+				return error(_token.location, "invalid expression"), false;
 
 			while (stack_index > 0)
 			{
@@ -919,7 +902,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 				if (prev_op == op_parentheses)
 					break;
 
-				if (is_left_associative ?
+				if (left_associative ?
 					(precedence_lookup[op] > precedence_lookup[prev_op]) :
 					(precedence_lookup[op] >= precedence_lookup[prev_op]))
 					break;
@@ -939,10 +922,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 	{
 		const int op = stack[--stack_index];
 		if (op == op_parentheses)
-		{
-			error(_token.location, "unmatched ')'");
-			return false;
-		}
+			return error(_token.location, "unmatched ')'"), false;
 
 		rpn[rpn_index++] = { op, true };
 	}
@@ -1041,10 +1021,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 	}
 
 	if (stack_index != 1)
-	{
-		error(_token.location, "invalid expression");
-		return false;
-	}
+		return error(_token.location, "invalid expression"), false;
 
 	return stack[0] != 0;
 }
@@ -1085,32 +1062,29 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 			return false;
 	}
 
-	const auto macro_location = _token.location;
+	const location macro_location = _token.location;
 	if (_recursion_count++ >= 256)
-	{
-		error(macro_location, "macro recursion too high");
-		return false;
-	}
+		return error(macro_location, "macro recursion too high"), false;
 
 	std::vector<std::string> arguments;
 	if (it->second.is_function_like)
 	{
 		if (!accept(tokenid::parenthesis_open))
-			return false;
+			return false; // Function like macro used without arguments, handle that like a normal identifier instead
 
 		while (true)
 		{
 			int parentheses_level = 0;
 			std::string argument;
 
+			// Ignore whitespace preceding the argument
+			accept(tokenid::space);
+
 			while (true)
 			{
 				// Consume all tokens here, so spaces are added to the output too
 				if (!consume())
-				{
-					error(macro_location, "unexpected end of file in macro expansion");
-					return false;
-				}
+					return error(macro_location, "unexpected end of file in macro expansion"), false;
 
 				if (_token == tokenid::comma && parentheses_level == 0)
 					break; // Comma marks end of an argument
@@ -1126,17 +1100,13 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 					argument += _current_token_raw_data;
 			}
 
-			// Trim whitespace from argument
-			const size_t first = argument.find_first_not_of(" \t");
-			if (first == std::string::npos)
-			{
+			// Trim whitespace following the argument
+			const size_t last = argument.find_last_not_of(" \t");
+			if (last == std::string::npos)
 				argument.clear();
-			}
 			else
-			{
-				const size_t last = argument.find_last_not_of(" \t");
-				argument = argument.substr(first, last - first + 1);
-			}
+				argument.erase(last + 1);
+
 			arguments.push_back(std::move(argument));
 
 			if (parentheses_level < 0)
@@ -1157,13 +1127,23 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	return true;
 }
 
-void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &out)
+bool reshadefx::preprocessor::is_defined(const std::string &name) const
+{
+	return _macros.find(name) != _macros.end() ||
+		// Check built-in macros as well
+		name == "__LINE__" ||
+		name == "__FILE__" ||
+		name == "__FILE_NAME__" ||
+		name == "__FILE_STEM__";
+}
+
+void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &output)
 {
 	for (size_t offset = 0; offset < macro.replacement_list.size(); ++offset)
 	{
 		if (macro.replacement_list[offset] != macro_replacement_start)
 		{
-			out += macro.replacement_list[offset];
+			output += macro.replacement_list[offset];
 			continue;
 		}
 
@@ -1171,12 +1151,11 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 		const auto type = macro.replacement_list[++offset];
 		if (type == macro_replacement_concat)
 		{
-			// Remove any whitespace preceeding or following the concatenation operator (so "a ## b" becomes "ab")
-			if (const size_t last = out.find_last_not_of(" \t");
-				last != std::string::npos && last + 1 < out.size())
-				out.erase(last + 1);
-			while (offset + 1 != macro.replacement_list.size() &&
-				(macro.replacement_list[offset + 1] == ' ' || macro.replacement_list[offset + 1] == '\t'))
+			// Remove any whitespace preceding or following the concatenation operator (so "a ## b" becomes "ab")
+			// They were already collapsed to a single space in 'create_macro_replacement_list', so enough to test a single character on each side here
+			if (output.size() && output.back() == ' ')
+				output.pop_back();
+			if (offset + 1 != macro.replacement_list.size() && macro.replacement_list[offset + 1] == ' ')
 				++offset;
 			continue;
 		}
@@ -1191,16 +1170,8 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 		switch (type)
 		{
 		case macro_replacement_stringize:
-			out.reserve(out.size() + 2 + arguments[index].size());
-			out += '"';
-			for (const char c : arguments[index])
-			{
-				// Adds backslashes to escape quotes
-				if (c == '"')
-					out += '\\';
-				out += c;
-			}
-			out += '"';
+			// Adds backslashes to escape quotes
+			output += escape_string<'\"'>(arguments[index]);
 			break;
 		case macro_replacement_argument:
 			push(arguments[index] + static_cast<char>(macro_replacement_argument));
@@ -1208,17 +1179,20 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 			{
 				// Consume all tokens here, so spaces are added to the output too
 				consume();
+
 				if (_token == tokenid::unknown) // 'macro_replacement_argument' is 'tokenid::unknown'
 					break;
 				if (_token == tokenid::identifier && evaluate_identifier_as_macro())
 					continue;
-				out += _current_token_raw_data;
+
+				output += _current_token_raw_data;
 			}
 			assert(_current_token_raw_data[0] == macro_replacement_argument);
 			break;
 		}
 	}
 }
+
 void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 {
 	// Since the number of parameters is encoded in the string, it may not exceed the available size of a char
@@ -1236,17 +1210,14 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 			if (accept(tokenid::hash))
 			{
 				if (peek(tokenid::end_of_line))
-				{
-					error(_token.location, "## cannot appear at end of macro text");
-					return;
-				}
+					return error(_token.location, "## cannot appear at end of macro text");
 
 				// Start a ## token concatenation operator
 				macro.replacement_list += macro_replacement_start;
 				macro.replacement_list += macro_replacement_concat;
 				continue;
 			}
-			else if (macro.is_function_like)
+			if (macro.is_function_like)
 			{
 				if (!expect(tokenid::identifier))
 					return;
@@ -1263,7 +1234,7 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 			}
 			break;
 		case tokenid::space:
-			// Replace all whitespace with a single space
+			// Collapse all whitespace down to a single space
 			macro.replacement_list += ' ';
 			continue;
 		case tokenid::identifier:

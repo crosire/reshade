@@ -101,6 +101,7 @@ namespace reshadefx
 		std::string _input;
 		location _cur_location;
 		const std::string::value_type *_cur, *_end;
+
 		bool _ignore_comments;
 		bool _ignore_whitespace;
 		bool _ignore_pp_directives;

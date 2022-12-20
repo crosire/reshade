@@ -14,6 +14,7 @@ struct on_scope_exit
 	template <typename F>
 	explicit on_scope_exit(F lambda) : leave(lambda) { }
 	~on_scope_exit() { leave(); }
+
 	std::function<void()> leave;
 };
 
@@ -23,6 +24,7 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 	// Set backend for subsequent code-generation
 	_codegen = backend;
+	assert(backend != nullptr);
 
 	consume();
 
@@ -38,6 +40,7 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 	return parse_success;
 }
+
 void reshadefx::parser::parse_top(bool &parse_success)
 {
 	if (accept(tokenid::namespace_))
@@ -208,7 +211,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 		const auto location = _token_next.location;
 
-		#pragma region If
 		if (accept(tokenid::if_))
 		{
 			codegen::id true_block = _codegen->create_block(); // Block which contains the statements executed when the condition is true
@@ -251,9 +253,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region Switch
 		if (accept(tokenid::switch_))
 		{
 			const codegen::id merge_block = _codegen->create_block(); // Block that is executed after the switch re-merged with the current control flow
@@ -373,9 +373,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect('}') && parse_success;
 		}
-		#pragma endregion
 
-		#pragma region For
 		if (accept(tokenid::for_))
 		{
 			if (!expect('('))
@@ -495,9 +493,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region While
 		if (accept(tokenid::while_))
 		{
 			enter_scope();
@@ -567,9 +563,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region DoWhile
 		if (accept(tokenid::do_))
 		{
 			const codegen::id merge_block = _codegen->create_block();
@@ -629,9 +623,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region Break
 		if (accept(tokenid::break_))
 		{
 			if (_loop_break_target_stack.empty())
@@ -642,9 +634,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Continue
 		if (accept(tokenid::continue_))
 		{
 			if (_loop_continue_target_stack.empty())
@@ -655,9 +645,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Return
 		if (accept(tokenid::return_))
 		{
 			const type &ret_type = _current_function->return_type;
@@ -704,9 +692,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Discard
 		if (accept(tokenid::discard_))
 		{
 			// Leave the current function block
@@ -714,10 +700,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 	}
 
-	#pragma region Declaration
 	// Handle variable declarations
 	if (type type; parse_type(type))
 	{
@@ -732,7 +716,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 		return expect(';');
 	}
-	#pragma endregion
 
 	// Handle expression statements
 	if (expression expression; parse_expression(expression))

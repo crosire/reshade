@@ -486,7 +486,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 {
 	auto location = _token_next.location;
 
-	#pragma region Prefix Expression
 	// Check if a prefix operator exists
 	if (accept_unary_op())
 	{
@@ -956,9 +955,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			return error(location, 3005, "identifier '" + identifier + "' represents a function, not a variable"), false;
 		}
 	}
-	#pragma endregion
 
-	#pragma region Postfix Expression
 	while (!peek(tokenid::end_of_file))
 	{
 		location = _token_next.location;
@@ -1181,7 +1178,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			break;
 		}
 	}
-	#pragma endregion
 
 	return true;
 }
@@ -1209,7 +1205,6 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 		// Check if this is a binary or ternary operation
 		if (op != tokenid::question)
 		{
-			#pragma region Binary Expression
 #if RESHADEFX_SHORT_CIRCUIT
 			codegen::id lhs_block = 0;
 			codegen::id rhs_block = 0;
@@ -1326,11 +1321,9 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			const auto result_value = _codegen->emit_binary_op(lhs.location, op, type, lhs.type, lhs_value, rhs_value);
 
 			lhs.reset_to_rvalue(lhs.location, result_value, type);
-			#pragma endregion
 		}
 		else
 		{
-			#pragma region Ternary Expression
 			// A conditional expression needs a scalar or vector type condition
 			if (!lhs.type.is_scalar() && !lhs.type.is_vector())
 				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
@@ -1414,7 +1407,6 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			const auto result_value = _codegen->emit_ternary_op(lhs.location, op, type, condition_value, true_value, false_value);
 #endif
 			lhs.reset_to_rvalue(lhs.location, result_value, type);
-			#pragma endregion
 		}
 	}
 

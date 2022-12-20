@@ -1360,7 +1360,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	bool skip_optimization = false;
-	std::string pragma_warnings;
+	std::string pragma_directives;
 
 	bool source_cached = false; std::string source;
 	if (!effect.preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
@@ -1420,21 +1420,14 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			for (const auto &pragma : pp.used_pragmas())
 			{
-				if (pragma.first == "reshade" && pragma.second.size() == 1)
+				if (pragma.first == "reshade")
 				{
-					const std::string &pragma_command = pragma.second.front();
-					if (pragma_command == "skipoptimization" || pragma_command == "nooptimization")
+					if (pragma.second == "skipoptimization" || pragma.second == "nooptimization")
 						skip_optimization = true;
 					continue;
 				}
-				if (pragma.first == "warning")
-				{
-					pragma_warnings += "#pragma " + pragma.first + '(';
-					for (const std::string &pragma_arg : pragma.second)
-						pragma_warnings += ' ' + pragma_arg;
-					pragma_warnings += " )\n";
-					continue;
-				}
+
+				pragma_directives += "#pragma " + pragma.first + ' ' + pragma.second + '\n';
 			}
 
 			// Do not cache if any pragma commands were used, to ensure they are read again next time
@@ -1645,7 +1638,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				// Add specialization constant defines to source code
 				const std::string hlsl =
-					pragma_warnings +
+					pragma_directives +
 					texture_pixel_sizes +
 					"#line 1\n" + // Reset line number, so it matches what is shown when viewing the generated code
 					effect.module.hlsl;
