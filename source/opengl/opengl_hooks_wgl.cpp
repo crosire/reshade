@@ -304,20 +304,26 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 
 	const HWND hwnd = WindowFromDC(hdc);
 
-	RECT window_rect = {};
-	GetClientRect(hwnd, &window_rect);
-
 	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
 	DescribePixelFormat(hdc, iPixelFormat, sizeof(pfd), &pfd);
 
 	reshade::api::swapchain_desc desc = {};
 	desc.back_buffer.type = reshade::api::resource_type::surface;
-	desc.back_buffer.texture.width = window_rect.right;
-	desc.back_buffer.texture.height = window_rect.bottom;
 	desc.back_buffer.texture.format = reshade::opengl::convert_pixel_format(pfd);
 	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
 	desc.back_buffer.usage = reshade::api::resource_usage::render_target | reshade::api::resource_usage::copy_dest | reshade::api::resource_usage::copy_source | reshade::api::resource_usage::resolve_dest;
 	desc.back_buffer_count = 1;
+
+	if (hwnd != nullptr)
+	{
+		assert((pfd.dwFlags & PFD_DRAW_TO_WINDOW) != 0);
+
+		RECT window_rect = {};
+		GetClientRect(hwnd, &window_rect);
+
+		desc.back_buffer.texture.width = window_rect.right;
+		desc.back_buffer.texture.height = window_rect.bottom;
+	}
 
 	if (pfd.dwFlags & PFD_DOUBLEBUFFER)
 		desc.back_buffer_count = 2;
@@ -618,7 +624,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			it != s_opengl_queues.end())
 		{
 			// Separate command queue objects are only created for shared contexts
-			// It is important that the context that is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
+			// It is important that the context that it is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
 			const HGLRC prev_hglrc = wglGetCurrentContext();
 			if (prev_hglrc == hglrc || (prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
 			{
@@ -1053,14 +1059,24 @@ extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 }
 extern "C" DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP *pBuffers)
 {
-	for (UINT i = 0; i < cNumBuffers; ++i)
-	{
-		assert(pBuffers != nullptr);
+	DWORD result = 0;
 
-		wglSwapBuffers(pBuffers[i].hdc);
+	if (cNumBuffers <= WGL_SWAPMULTIPLE_MAX)
+	{
+		for (UINT i = 0; i < cNumBuffers; ++i)
+		{
+			assert(pBuffers != nullptr);
+
+			if (wglSwapBuffers(pBuffers[i].hdc))
+				result |= 1 << i;
+		}
+	}
+	else
+	{
+		SetLastError(ERROR_INVALID_PARAMETER);
 	}
 
-	return 0;
+	return result;
 }
 
 extern "C" BOOL  WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
