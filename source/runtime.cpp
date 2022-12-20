@@ -1445,11 +1445,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			}
 
 			std::sort(effect.definitions.begin(), effect.definitions.end());
-
-			// Keep track of included files
-			effect.included_files = pp.included_files();
-			std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
 		}
+
+		// Keep track of included files
+		effect.included_files = pp.included_files();
+		std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
 	}
 
 	if (!effect.compiled && !source.empty())
