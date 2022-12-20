@@ -1424,6 +1424,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				{
 					if (pragma.second == "skipoptimization" || pragma.second == "nooptimization")
 						skip_optimization = true;
+#if RESHADE_GUI
+					else if (pragma.second == "showfps")
+						_show_fps = true;
+					else if (pragma.second == "showclock")
+						_show_clock = true;
+#endif
 					continue;
 				}
 
