@@ -326,14 +326,12 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 
 	if (s_hooks_installed)
 	{
-		int attrib_names[3] = { attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB, attribute::WGL_SAMPLES_ARB, attribute::WGL_SWAP_METHOD_ARB }, attrib_values[3] = {};
-		if (reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, 3, attrib_names, attrib_values))
+		int attrib_names[2] = { attribute::WGL_SAMPLES_ARB, attribute::WGL_SWAP_METHOD_ARB }, attrib_values[2] = {};
+		if (reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, 2, attrib_names, attrib_values))
 		{
 			if (attrib_values[0] != 0)
-				desc.back_buffer.texture.format = reshade::api::format_to_default_typed(desc.back_buffer.texture.format, 1);
-			if (attrib_values[1] != 0)
-				desc.back_buffer.texture.samples = static_cast<uint16_t>(attrib_values[1]);
-			desc.present_mode = attrib_values[2];
+				desc.back_buffer.texture.samples = static_cast<uint16_t>(attrib_values[0]);
+			desc.present_mode = attrib_values[1];
 		}
 	}
 
@@ -354,10 +352,10 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 
 		if (s_hooks_installed)
 		{
-			const attribute attribs[] = {
+			int i = 14;
+			attribute attribs[17] = {
 				{ attribute::WGL_DRAW_TO_WINDOW_ARB, (pfd.dwFlags & PFD_DRAW_TO_WINDOW) != 0 },
 				{ attribute::WGL_DRAW_TO_BITMAP_ARB, (pfd.dwFlags & PFD_DRAW_TO_BITMAP) != 0 },
-				{ attribute::WGL_SWAP_METHOD_ARB, static_cast<int>(desc.present_mode) },
 				{ attribute::WGL_SUPPORT_GDI_ARB, (pfd.dwFlags & PFD_SUPPORT_GDI) != 0 },
 				{ attribute::WGL_SUPPORT_OPENGL_ARB, (pfd.dwFlags & PFD_SUPPORT_OPENGL) != 0 },
 				{ attribute::WGL_DOUBLE_BUFFER_ARB, (pfd.dwFlags & PFD_DOUBLEBUFFER) != 0 },
@@ -370,9 +368,21 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 				{ attribute::WGL_STENCIL_BITS_ARB, pfd.cStencilBits },
 				{ attribute::WGL_SAMPLE_BUFFERS_ARB, desc.back_buffer.texture.samples > 1 },
 				{ attribute::WGL_SAMPLES_ARB, desc.back_buffer.texture.samples > 1 ? desc.back_buffer.texture.samples : 0 },
-				{ attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB, desc.back_buffer.texture.format != reshade::api::format_to_default_typed(desc.back_buffer.texture.format, 0) && desc.back_buffer.texture.format == reshade::api::format_to_default_typed(desc.back_buffer.texture.format, 1) },
-				0, 0
 			};
+
+			if (desc.present_mode)
+			{
+				attribs[i].name = attribute::WGL_SWAP_METHOD_ARB;
+				attribs[i++].value = static_cast<int>(desc.present_mode);
+			}
+
+			if (desc.back_buffer.texture.format == reshade::api::format::r8g8b8a8_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::r8g8b8x8_unorm_srgb ||
+				desc.back_buffer.texture.format == reshade::api::format::b8g8r8a8_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::b8g8r8x8_unorm_srgb ||
+				desc.back_buffer.texture.format == reshade::api::format::bc1_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::bc2_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::bc3_unorm_srgb)
+			{
+				attribs[i].name = attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB;
+				attribs[i++].value = 1;
+			}
 
 			UINT num_formats = 0;
 			if (!reshade::hooks::call(wglChoosePixelFormatARB)(hdc, reinterpret_cast<const int *>(attribs), nullptr, 1, &iPixelFormat, &num_formats) || num_formats == 0)

@@ -50,13 +50,11 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	const auto wglGetPixelFormatAttribivARB = reinterpret_cast<BOOL(WINAPI *)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)>(wglGetProcAddress("wglGetPixelFormatAttribivARB"));
 	if (wglGetPixelFormatAttribivARB != nullptr)
 	{
-		int attrib_names[2] = { 0x20A9 /* WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB */, 0x2042 /* WGL_SAMPLES_ARB */ }, attrib_values[2] = {};
-		if (wglGetPixelFormatAttribivARB(initial_hdc, _pixel_format, 0, 2, attrib_names, attrib_values))
+		int attrib_names[1] = { 0x2042 /* WGL_SAMPLES_ARB */ }, attrib_values[1] = {};
+		if (wglGetPixelFormatAttribivARB(initial_hdc, _pixel_format, 0, 1, attrib_names, attrib_values))
 		{
 			if (attrib_values[0] != 0)
-				_default_fbo_desc.texture.format = reshade::api::format_to_default_typed(_default_fbo_desc.texture.format, 1);
-			if (attrib_values[1] != 0)
-				_default_fbo_desc.texture.samples = static_cast<uint16_t>(attrib_values[1]);
+				_default_fbo_desc.texture.samples = static_cast<uint16_t>(attrib_values[0]);
 		}
 	}
 
