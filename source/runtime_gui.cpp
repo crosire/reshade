@@ -3331,7 +3331,8 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 		// Prevent user from disabling the technique when it is set to always be enabled via annotation
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, tech.annotation_as_int("enabled"));
+		const bool force_enabled = tech.annotation_as_int("enabled");
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, force_enabled);
 		// Gray out disabled techniques
 		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
 
@@ -3382,16 +3383,19 @@ void reshade::runtime::draw_technique_editor()
 		}
 
 		// Create context menu
-		if (ImGui::BeginPopupContextItem("##context"))
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenDisabled))
+			ImGui::OpenPopup("##context", ImGuiPopupFlags_MouseButtonRight);
+		if (ImGui::BeginPopup("##context"))
 		{
 			ImGui::TextUnformatted(tech.name.c_str());
 			ImGui::Separator();
 
 			ImGui::SetNextItemWidth(230.0f);
-			if (_input != nullptr &&
-				imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input) &&
-				_save_present_on_modification)
-				save_current_preset();
+			if (_input != nullptr && !force_enabled)
+			{
+				if (imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input) && _save_present_on_modification)
+					save_current_preset();
+			}
 
 			const bool is_not_top = index > 0;
 			const bool is_not_bottom = index < _techniques.size() - 1;
@@ -3413,7 +3417,8 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::CloseCurrentPopup();
 			}
 
-			ImGui::Separator();
+			if (is_not_top || is_not_bottom || (_input != nullptr && !force_enabled))
+				ImGui::Separator();
 
 			if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
 				utils::open_explorer(effect.source_file);
