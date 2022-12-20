@@ -215,6 +215,9 @@ void reshadefx::preprocessor::push(std::string input, const std::string &name)
 
 bool reshadefx::preprocessor::peek(tokenid token) const
 {
+	if (_input_stack.empty())
+		return token == tokenid::end_of_file;
+
 	return _input_stack[_next_input_index].next_token == token;
 }
 bool reshadefx::preprocessor::consume()
@@ -301,14 +304,17 @@ bool reshadefx::preprocessor::expect(tokenid token)
 {
 	if (!accept(token))
 	{
-		auto actual_token = _input_stack[_next_input_index].next_token;
-		actual_token.location.source = _output_location.source;
+		if (!_input_stack.empty())
+		{
+			auto actual_token = _input_stack[_next_input_index].next_token;
+			actual_token.location.source = _output_location.source;
 
-		if (actual_token == tokenid::end_of_line)
-			error(actual_token.location, "syntax error: unexpected new line");
-		else
-			error(actual_token.location, "syntax error: unexpected token '" +
-				_input_stack[_next_input_index].lexer->input_string().substr(actual_token.offset, actual_token.length) + '\'');
+			if (actual_token == tokenid::end_of_line)
+				error(actual_token.location, "syntax error: unexpected new line");
+			else
+				error(actual_token.location, "syntax error: unexpected token '" +
+					_input_stack[_next_input_index].lexer->input_string().substr(actual_token.offset, actual_token.length) + '\'');
+		}
 
 		return false;
 	}
@@ -444,7 +450,7 @@ void reshadefx::preprocessor::parse_def()
 	const auto macro_name_end_offset = _token.offset + _token.length;
 
 	// Check input string here directly to ensure the parenthesis follows the macro name without any whitespace between
-	if (_input_stack[_current_input_index].lexer->input_string()[macro_name_end_offset] == '(')
+	if (!_input_stack.empty() && _input_stack[_current_input_index].lexer->input_string()[macro_name_end_offset] == '(')
 	{
 		accept(tokenid::parenthesis_open);
 
@@ -615,13 +621,11 @@ void reshadefx::preprocessor::parse_pragma()
 	std::vector<std::string> pragma_args;
 	int parentheses_level = accept(tokenid::parenthesis_open) ? 1 : 0;
 
-	while (!peek(tokenid::end_of_line) && !peek(tokenid::end_of_file))
+	while (!peek(tokenid::end_of_line) && consume())
 	{
-		consume();
-
-		if (_token == tokenid::identifier && evaluate_identifier_as_macro())
-			continue;
 		if (_token == tokenid::comma || _token == tokenid::space)
+			continue;
+		if (_token == tokenid::identifier && evaluate_identifier_as_macro())
 			continue;
 
 		if (parentheses_level > 0)
@@ -732,7 +736,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 	tokenid previous_token = _token;
 
 	// Run shunting-yard algorithm
-	while (!peek(tokenid::end_of_line))
+	while (!peek(tokenid::end_of_line) && consume())
 	{
 		if (stack_index >= STACK_SIZE || rpn_index >= STACK_SIZE)
 		{
@@ -743,8 +747,6 @@ bool reshadefx::preprocessor::evaluate_expression()
 		int op = op_none;
 		bool is_left_associative = true;
 		bool parenthesis_matched = false;
-
-		consume();
 
 		switch (_token)
 		{
@@ -1076,9 +1078,12 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	if (it == _macros.end())
 		return false;
 
-	const std::unordered_set<std::string> &hidden_macros = _input_stack[_current_input_index].hidden_macros;
-	if (hidden_macros.find(_token.literal_as_string) != hidden_macros.end())
-		return false;
+	if (!_input_stack.empty())
+	{
+		const std::unordered_set<std::string> &hidden_macros = _input_stack[_current_input_index].hidden_macros;
+		if (hidden_macros.find(_token.literal_as_string) != hidden_macros.end())
+			return false;
+	}
 
 	const auto macro_location = _token.location;
 	if (_recursion_count++ >= 256)
@@ -1223,10 +1228,8 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 	// Ignore whitespace preceding the replacement list
 	accept(tokenid::space);
 
-	while (!peek(tokenid::end_of_file) && !peek(tokenid::end_of_line))
+	while (!peek(tokenid::end_of_line) && consume())
 	{
-		consume();
-
 		switch (_token)
 		{
 		case tokenid::hash:
