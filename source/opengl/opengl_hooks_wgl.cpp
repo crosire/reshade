@@ -324,7 +324,7 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 	if (pfd.dwFlags & PFD_STEREO)
 		desc.back_buffer.texture.depth_or_layers = 2;
 
-	if (s_hooks_installed)
+	if (s_hooks_installed && reshade::hooks::call(wglGetPixelFormatAttribivARB) != nullptr)
 	{
 		int attrib_names[2] = { attribute::WGL_SAMPLES_ARB, attribute::WGL_SWAP_METHOD_ARB }, attrib_values[2] = {};
 		if (reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, 2, attrib_names, attrib_values))
@@ -348,9 +348,7 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 		if (desc.back_buffer.texture.depth_or_layers == 2)
 			pfd.dwFlags |= PFD_STEREO;
 
-		ppfd = &pfd;
-
-		if (s_hooks_installed)
+		if (s_hooks_installed && reshade::hooks::call(wglChoosePixelFormatARB) != nullptr)
 		{
 			int i = 14;
 			attribute attribs[17] = {
@@ -386,17 +384,28 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 
 			UINT num_formats = 0;
 			if (!reshade::hooks::call(wglChoosePixelFormatARB)(hdc, reinterpret_cast<const int *>(attribs), nullptr, 1, &iPixelFormat, &num_formats) || num_formats == 0)
-				LOG(ERROR) << "Failed to find a suitable pixel format!";
+			{
+				LOG(ERROR) << "Failed to find a suitable pixel format with error code " << (GetLastError() & 0xFFFF) << '!';
+			}
+			else
+			{
+				ppfd = &pfd;
+			}
 		}
 		else
 		{
 			assert(desc.back_buffer.texture.samples <= 1);
 
 			const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
-			if (pixel_format != 0)
-				iPixelFormat = pixel_format;
-			else
+			if (pixel_format == 0)
+			{
 				LOG(ERROR) << "Failed to find a suitable pixel format with error code " << (GetLastError() & 0xFFFF) << '!';
+			}
+			else
+			{
+				iPixelFormat = pixel_format;
+				ppfd = &pfd;
+			}
 		}
 	}
 
