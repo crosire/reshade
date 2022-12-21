@@ -89,9 +89,9 @@ namespace reshadefx
 		std::vector<std::pair<std::string, std::string>> used_macro_definitions() const;
 
 		/// <summary>
-		/// Gets a list of pragmas that occured.
+		/// Gets a list of pragma directives that occured.
 		/// </summary>
-		const std::unordered_map<std::string, std::string> &used_pragmas() const { return _used_pragmas; }
+		std::vector<std::pair<std::string, std::string>> used_pragma_directives() const { return _used_pragmas; }
 
 	private:
 		struct if_level
@@ -160,6 +160,6 @@ namespace reshadefx
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _file_cache;
 
-		std::unordered_map<std::string, std::string> _used_pragmas;
+		std::vector<std::pair<std::string, std::string>> _used_pragmas;
 	};
 }

@@ -1435,7 +1435,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			source = std::move(pp.output());
 
-			for (const auto &pragma : pp.used_pragmas())
+			for (const auto &pragma : pp.used_pragma_directives())
 			{
 				if (pragma.first == "reshade")
 				{
@@ -1470,7 +1470,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			std::sort(effect.definitions.begin(), effect.definitions.end());
 
 			// Do not cache if any pragma directives were used, to ensure they are read again next time
-			if (pp.used_pragmas().empty())
+			if (pragma_directives.empty() && !skip_optimization)
 				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 		}
 

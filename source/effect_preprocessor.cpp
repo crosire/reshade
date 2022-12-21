@@ -642,7 +642,7 @@ void reshadefx::preprocessor::parse_pragma()
 
 	if (pragma == "warning" || pragma == "reshade")
 	{
-		_used_pragmas.emplace(std::move(pragma), std::move(pragma_args));
+		_used_pragmas.emplace_back(std::move(pragma), std::move(pragma_args));
 		return;
 	}
 
