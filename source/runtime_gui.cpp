@@ -29,6 +29,32 @@ static bool filter_text(const std::string_view &text, const std::string_view &fi
 			}) != text.end();
 }
 
+template <typename Cb>
+static void parse_errors(const std::string &errors, const std::string &file_path, Cb &&callback)
+{
+	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
+	{
+		const size_t pos_error = errors.find(": ", offset);
+		const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
+		if (pos_error == std::string::npos || pos_error_line == std::string::npos)
+			break;
+
+		const size_t pos_linefeed = errors.find('\n', pos_error);
+
+		next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
+
+		// Ignore errors that aren't in the current source file
+		if (const std::string_view error_file(errors.c_str() + offset, pos_error_line - offset);
+			error_file != file_path)
+			continue;
+
+		int error_line = std::strtol(errors.c_str() + pos_error_line + 1, nullptr, 10);
+		std::string error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
+
+		callback(error_line, error_text, error_text.find("warning") != std::string::npos);
+	}
+}
+
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
@@ -3243,9 +3269,23 @@ void reshade::runtime::draw_technique_editor()
 
 				if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
 				{
+					bool has_error = false;
+					bool has_warning = false;
+					const auto check_error_and_warning_predicate = [&has_error, &has_warning](int, const std::string &, bool warning) {
+						if (!warning)
+							has_error = true;
+						else
+							has_warning = true;
+					};
+					parse_errors(effect.errors, effect.source_file.u8string(), check_error_and_warning_predicate);
+
+					ImGui::PushStyleColor(ImGuiCol_Text, has_error ? COLOR_RED : has_warning ? COLOR_YELLOW : _imgui_context->Style.Colors[ImGuiCol_Text]);
+
 					std::filesystem::path source_file;
 					if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
 						source_file = effect.source_file;
+
+					ImGui::PopStyleColor();
 
 					if (!effect.included_files.empty())
 					{
@@ -3253,9 +3293,17 @@ void reshade::runtime::draw_technique_editor()
 
 						for (const std::filesystem::path &included_file : effect.included_files)
 						{
+							has_error = has_warning = false;
+							parse_errors(effect.errors, included_file.u8string(), check_error_and_warning_predicate);
+
+							// Color file entries that contain warnings or errors
+							ImGui::PushStyleColor(ImGuiCol_Text, has_error ? COLOR_RED : has_warning ? COLOR_YELLOW : _imgui_context->Style.Colors[ImGuiCol_Text]);
+
 							std::filesystem::path relative_path = std::filesystem::relative(included_file, effect.source_file.parent_path());
 							if (ImGui::MenuItem(relative_path.u8string().c_str()))
 								source_file = included_file;
+
+							ImGui::PopStyleColor();
 						}
 					}
 
@@ -3595,27 +3643,9 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 
 	instance.editor.clear_errors();
 
-	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
-	{
-		const size_t pos_error = effect.errors.find(": ", offset);
-		const size_t pos_error_line = effect.errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
-		if (pos_error == std::string::npos || pos_error_line == std::string::npos)
-			break;
-
-		const size_t pos_linefeed = effect.errors.find('\n', pos_error);
-
-		next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
-
-		// Ignore errors that aren't in the current source file
-		if (const std::string_view error_file(effect.errors.c_str() + offset, pos_error_line - offset);
-			error_file != instance.file_path.u8string())
-			continue;
-
-		const int error_line = std::strtol(effect.errors.c_str() + pos_error_line + 1, nullptr, 10);
-		const std::string error_text = effect.errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
-
-		instance.editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
-	}
+	parse_errors(effect.errors, instance.file_path.u8string(), [&instance](int line, const std::string &message, bool warning) {
+		instance.editor.add_error(line, message, warning);
+	});
 }
 void reshade::runtime::draw_code_editor(editor_instance &instance)
 {
