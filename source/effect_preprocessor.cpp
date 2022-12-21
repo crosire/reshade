@@ -216,7 +216,7 @@ bool reshadefx::preprocessor::peek(tokenid tokid) const
 
 	return _input_stack[_next_input_index].next_token == tokid;
 }
-bool reshadefx::preprocessor::consume()
+void reshadefx::preprocessor::consume()
 {
 	_current_input_index = _next_input_index;
 
@@ -224,7 +224,7 @@ bool reshadefx::preprocessor::consume()
 	{
 		// End of input has been reached already (this can happen when the input text is not terminated with a new line)
 		assert(_current_input_index == 0);
-		return false;
+		return;
 	}
 
 	// Clear out input stack, now that the current token is overwritten
@@ -263,15 +263,13 @@ bool reshadefx::preprocessor::consume()
 		{
 			// End of input has been reached, so cannot pop further and this is the last token
 			_input_stack.pop_back();
-			return false;
+			return;
 		}
 		else
 		{
 			_next_input_index -= 1;
 		}
 	}
-
-	return true;
 }
 void reshadefx::preprocessor::consume_until(tokenid tokid)
 {
@@ -303,17 +301,17 @@ bool reshadefx::preprocessor::expect(tokenid tokid)
 {
 	if (!accept(tokid))
 	{
-		if (!_input_stack.empty())
-		{
-			auto actual_token = _input_stack[_next_input_index].next_token;
-			actual_token.location.source = _output_location.source;
+		if (_input_stack.empty())
+			return tokid == tokenid::end_of_line || tokid == tokenid::end_of_file;
 
-			if (actual_token == tokenid::end_of_line)
-				error(actual_token.location, "syntax error: unexpected new line");
-			else
-				error(actual_token.location, "syntax error: unexpected token '" +
-					_input_stack[_next_input_index].lexer->input_string().substr(actual_token.offset, actual_token.length) + '\'');
-		}
+		auto actual_token = _input_stack[_next_input_index].next_token;
+		actual_token.location.source = _output_location.source;
+
+		if (actual_token == tokenid::end_of_line)
+			error(actual_token.location, "syntax error: unexpected new line");
+		else
+			error(actual_token.location, "syntax error: unexpected token '" +
+				_input_stack[_next_input_index].lexer->input_string().substr(actual_token.offset, actual_token.length) + '\'');
 
 		return false;
 	}
@@ -326,8 +324,10 @@ void reshadefx::preprocessor::parse()
 	std::string line;
 
 	// Consume all tokens in the input
-	while (consume())
+	while (!peek(tokenid::end_of_file))
 	{
+		consume();
+
 		_recursion_count = 0;
 
 		const bool skip = !_if_stack.empty() && _if_stack.back().skipping;
@@ -618,8 +618,10 @@ void reshadefx::preprocessor::parse_pragma()
 	// Ignore whitespace preceding the argument list
 	accept(tokenid::space);
 
-	while (!peek(tokenid::end_of_line) && consume())
+	while (!peek(tokenid::end_of_line) && !peek(tokenid::end_of_file))
 	{
+		consume();
+
 		if (_token == tokenid::identifier && evaluate_identifier_as_macro())
 			continue;
 
@@ -721,10 +723,12 @@ bool reshadefx::preprocessor::evaluate_expression()
 	tokenid previous_token = _token;
 
 	// Run shunting-yard algorithm
-	while (!peek(tokenid::end_of_line) && consume())
+	while (!peek(tokenid::end_of_line) && !peek(tokenid::end_of_file))
 	{
 		if (stack_index >= STACK_SIZE || rpn_index >= STACK_SIZE)
 			return error(_token.location, "expression evaluator ran out of stack space"), false;
+
+		consume();
 
 		auto op = op_none;
 		bool left_associative = true;
@@ -1082,9 +1086,11 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 
 			while (true)
 			{
-				// Consume all tokens here, so spaces are added to the output too
-				if (!consume())
+				if (peek(tokenid::end_of_file))
 					return error(macro_location, "unexpected end of file in macro expansion"), false;
+
+				// Consume all tokens here, so spaces are added to the output too
+				consume();
 
 				if (_token == tokenid::comma && parentheses_level == 0)
 					break; // Comma marks end of an argument
@@ -1101,7 +1107,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 			}
 
 			// Trim whitespace following the argument
-			const size_t last = argument.find_last_not_of(" \t");
+			const size_t last = argument.find_last_not_of(' ');
 			if (last == std::string::npos)
 				argument.clear();
 			else
@@ -1202,8 +1208,10 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 	// Ignore whitespace preceding the replacement list
 	accept(tokenid::space);
 
-	while (!peek(tokenid::end_of_line) && consume())
+	while (!peek(tokenid::end_of_line) && !peek(tokenid::end_of_file))
 	{
+		consume();
+
 		switch (_token)
 		{
 		case tokenid::hash:
@@ -1256,7 +1264,7 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 	}
 
 	// Trim whitespace following the replacement list
-	const size_t last = macro.replacement_list.find_last_not_of(" \t");
+	const size_t last = macro.replacement_list.find_last_not_of(' ');
 	if (last == std::string::npos)
 		macro.replacement_list.clear();
 	else

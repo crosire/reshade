@@ -115,7 +115,7 @@ namespace reshadefx
 		void push(std::string input, const std::string &name = std::string());
 
 		bool peek(tokenid tokid) const;
-		bool consume();
+		void consume();
 		void consume_until(tokenid tokid);
 		bool accept(tokenid tokid, bool ignore_whitespace = true);
 		bool expect(tokenid tokid);
