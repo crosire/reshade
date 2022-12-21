@@ -1336,12 +1336,28 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	// Also check the last write time of all included files if possible
 	if (source_file == effect.source_file && effect.preprocessed)
 	{
-		for (const std::filesystem::path &included_file_path : effect.included_files)
+		for (const std::filesystem::path &include_file : effect.included_files)
 		{
-			attributes += included_file_path.filename().u8string();
+			attributes += include_file.filename().u8string();
 			attributes += '?';
-			attributes += std::to_string(std::filesystem::last_write_time(included_file_path, ec).time_since_epoch().count());
+			attributes += std::to_string(std::filesystem::last_write_time(include_file, ec).time_since_epoch().count());
 			attributes += ';';
+		}
+	}
+	else
+	{
+		for (const std::filesystem::path &include_path : include_paths)
+		{
+			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			{
+				if (entry.path().extension() == L".fxh")
+				{
+					attributes += entry.path().filename().u8string();
+					attributes += '?';
+					attributes += std::to_string(entry.last_write_time(ec).time_since_epoch().count());
+					attributes += ';';
+				}
+			}
 		}
 	}
 
