@@ -3320,7 +3320,7 @@ void reshade::runtime::update_effects()
 		{
 			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
 					[this, &instance](const effect &effect) {
-						return effect.source_file == instance.file_path;
+						return effect.source_file == instance.file_path || std::find(effect.included_files.begin(), effect.included_files.end(), instance.file_path) != effect.included_files.end();
 					});
 				it != _effects.end())
 			{
