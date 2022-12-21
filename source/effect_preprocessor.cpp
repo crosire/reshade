@@ -124,7 +124,7 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
 	std::string source_code;
 	if (!read_file(path, source_code))
-	return false;
+		return false;
 
 	return append_string(std::move(source_code), path);
 }
@@ -1103,11 +1103,8 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 			}
 
 			// Trim whitespace following the argument
-			const size_t last = argument.find_last_not_of(' ');
-			if (last == std::string::npos)
-				argument.clear();
-			else
-				argument.erase(last + 1);
+			if (argument.size() && argument.back() == ' ')
+				argument.pop_back();
 
 			arguments.push_back(std::move(argument));
 
@@ -1248,6 +1245,11 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 			// Collapse all whitespace down to a single space
 			macro.replacement_list += ' ';
 			continue;
+		case tokenid::minus:
+			// Special case to handle things like "#define NUM -1\n -NUM", which would otherwise result in "--1", making parsing fail
+			if (macro.replacement_list.empty())
+				macro.replacement_list += ' ';
+			break;
 		case tokenid::identifier:
 			if (const auto it = std::find(macro.parameters.begin(), macro.parameters.end(), _token.literal_as_string);
 				it != macro.parameters.end())
@@ -1269,9 +1271,6 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 	}
 
 	// Trim whitespace following the replacement list
-	const size_t last = macro.replacement_list.find_last_not_of(' ');
-	if (last == std::string::npos)
-		macro.replacement_list.clear();
-	else
-		macro.replacement_list.erase(last + 1);
+	if (macro.replacement_list.size() && macro.replacement_list.back() == ' ')
+		macro.replacement_list.pop_back();
 }
