@@ -208,7 +208,7 @@ namespace reshade
 		void disable_technique(technique &technique);
 
 		void load_effects();
-		bool reload_effect(size_t effect_index, bool preprocess_required = false);
+		bool reload_effect(size_t effect_index);
 		void reload_effects();
 		void destroy_effects();
 

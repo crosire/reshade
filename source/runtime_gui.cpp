@@ -3189,13 +3189,13 @@ void reshade::runtime::draw_variable_editor()
 			const bool reload_successful_before = _last_reload_successfull;
 
 			// Reload current effect file
-			if (!reload_effect(effect_index, true) &&
+			if (!reload_effect(effect_index) &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the effect to not compile, so reset to default and try again
 				_preset_preprocessor_definitions.erase(modified_definition);
 
-				if (reload_effect(effect_index, true))
+				if (reload_effect(effect_index))
 				{
 					_last_reload_successfull = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
@@ -3600,7 +3600,7 @@ void reshade::runtime::draw_technique_editor()
 
 	if (force_reload_effect != std::numeric_limits<size_t>::max())
 	{
-		reload_effect(force_reload_effect, true);
+		reload_effect(force_reload_effect);
 
 		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
 		if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics"))

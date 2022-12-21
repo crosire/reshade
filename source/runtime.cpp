@@ -3111,7 +3111,7 @@ void reshade::runtime::load_effects()
 					load_effect(effect_files[i], preset, offset + i);
 		});
 }
-bool reshade::runtime::reload_effect(size_t effect_index, bool preprocess_required)
+bool reshade::runtime::reload_effect(size_t effect_index)
 {
 #if RESHADE_GUI
 	_show_splash = false; // Hide splash bar when reloading a single effect file
@@ -3119,7 +3119,7 @@ bool reshade::runtime::reload_effect(size_t effect_index, bool preprocess_requir
 
 	const std::filesystem::path source_file = _effects[effect_index].source_file;
 	destroy_effect(effect_index);
-	return load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, preprocess_required);
+	return load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true);
 }
 void reshade::runtime::reload_effects()
 {
