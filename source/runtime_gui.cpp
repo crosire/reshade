@@ -3305,7 +3305,10 @@ void reshade::runtime::draw_technique_editor()
 							if (included_file_errors_it != file_errors_lookup.end())
 								ImGui::PushStyleColor(ImGuiCol_Text, included_file_errors_it->second.find("error") != std::string::npos ? COLOR_RED : COLOR_YELLOW);
 
-							if (ImGui::MenuItem(included_file.lexically_relative(effect.source_file.parent_path()).u8string().c_str()))
+							std::filesystem::path display_path = included_file.lexically_relative(effect.source_file.parent_path());
+							if (display_path.empty())
+								display_path = included_file.filename();
+							if (ImGui::MenuItem(display_path.u8string().c_str()))
 								source_file = included_file;
 
 							if (included_file_errors_it != file_errors_lookup.end())
@@ -3489,7 +3492,10 @@ void reshade::runtime::draw_technique_editor()
 
 					for (const std::filesystem::path &included_file : effect.included_files)
 					{
-						if (ImGui::MenuItem(included_file.lexically_relative(effect.source_file.parent_path()).u8string().c_str()))
+						std::filesystem::path display_path = included_file.lexically_relative(effect.source_file.parent_path());
+						if (display_path.empty())
+							display_path = included_file.filename();
+						if (ImGui::MenuItem(display_path.u8string().c_str()))
 							source_file = included_file;
 					}
 				}
