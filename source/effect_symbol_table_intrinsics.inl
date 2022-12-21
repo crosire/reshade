@@ -1211,16 +1211,29 @@ IMPLEMENT_INTRINSIC_SPIRV(fwidth, 0, {
 	})
 
 // ret dot(x, y)
-DEFINE_INTRINSIC(dot, 0, float, float2, float2)
-DEFINE_INTRINSIC(dot, 0, float, float3, float3)
-DEFINE_INTRINSIC(dot, 0, float, float4, float4)
+DEFINE_INTRINSIC(dot, 0, float, float, float)
+DEFINE_INTRINSIC(dot, 1, float, float2, float2)
+DEFINE_INTRINSIC(dot, 1, float, float3, float3)
+DEFINE_INTRINSIC(dot, 1, float, float4, float4)
 IMPLEMENT_INTRINSIC_GLSL(dot, 0, {
+	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_GLSL(dot, 1, {
 	code += "dot(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(dot, 0, {
+	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(dot, 1, {
 	code += "dot(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(dot, 0, {
+	return add_instruction(spv::OpFMul, convert_type(res_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(dot, 1, {
 	return add_instruction(spv::OpDot, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
