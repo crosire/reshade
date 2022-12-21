@@ -1331,35 +1331,22 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += std::to_string(std::filesystem::last_write_time(source_file, ec).time_since_epoch().count());
 	attributes += ';';
 
-	effect &effect = _effects[effect_index];
-
-	// Also check the last write time of all included files if possible
-	if (source_file == effect.source_file && effect.preprocessed)
+	// The actual included files are not known at this point, so detect changes to any ".fxh" files in the search paths
+	for (const std::filesystem::path &include_path : include_paths)
 	{
-		for (const std::filesystem::path &include_file : effect.included_files)
+		for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
 		{
-			attributes += include_file.filename().u8string();
-			attributes += '?';
-			attributes += std::to_string(std::filesystem::last_write_time(include_file, ec).time_since_epoch().count());
-			attributes += ';';
-		}
-	}
-	else
-	{
-		for (const std::filesystem::path &include_path : include_paths)
-		{
-			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			if (entry.path().extension() == L".fxh")
 			{
-				if (entry.path().extension() == L".fxh")
-				{
-					attributes += entry.path().filename().u8string();
-					attributes += '?';
-					attributes += std::to_string(entry.last_write_time(ec).time_since_epoch().count());
-					attributes += ';';
-				}
+				attributes += entry.path().filename().u8string();
+				attributes += '?';
+				attributes += std::to_string(entry.last_write_time(ec).time_since_epoch().count());
+				attributes += ';';
 			}
 		}
 	}
+
+	effect &effect = _effects[effect_index];
 
 	const size_t source_hash = std::hash<std::string>()(attributes);
 	if (source_file != effect.source_file || source_hash != effect.source_hash)
