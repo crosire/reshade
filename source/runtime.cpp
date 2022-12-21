@@ -1437,21 +1437,25 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				pragma_directives += "#pragma " + pragma.first + ' ' + pragma.second + '\n';
 			}
 
-			// Do not cache if any pragma commands were used, to ensure they are read again next time
-			if (pp.used_pragmas().empty())
-				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
-
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			effect.definitions.clear();
 			for (const auto &definition : pp.used_macro_definitions())
 			{
-				if (definition.first.size() <= 10 || definition.first[0] == '_' || !definition.first.compare(0, 8, "RESHADE_") || !definition.first.compare(0, 7, "BUFFER_"))
+				if (definition.first.size() <= 10 ||
+					definition.first[0] == '_' ||
+					definition.first.compare(0,  7, "BUFFER_") == 0 ||
+					definition.first.compare(0,  8, "RESHADE_") == 0 ||
+					definition.first.compare(0, 14, "INCLUDE_GUARD_") == 0)
 					continue;
 
 				effect.definitions.emplace_back(definition.first, trim(definition.second));
 			}
 
 			std::sort(effect.definitions.begin(), effect.definitions.end());
+
+			// Do not cache if any pragma directives were used, to ensure they are read again next time
+			if (pp.used_pragmas().empty())
+				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 		}
 
 		// Keep track of included files
