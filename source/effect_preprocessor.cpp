@@ -304,7 +304,7 @@ bool reshadefx::preprocessor::expect(tokenid tokid)
 		if (_input_stack.empty())
 			return tokid == tokenid::end_of_line || tokid == tokenid::end_of_file;
 
-		auto actual_token = _input_stack[_next_input_index].next_token;
+		token actual_token = _input_stack[_next_input_index].next_token;
 		actual_token.location.source = _output_location.source;
 
 		if (actual_token == tokenid::end_of_line)
@@ -446,9 +446,8 @@ void reshadefx::preprocessor::parse_def()
 		return warning(_token.location, "macro name 'defined' is reserved");
 
 	macro m;
-	const auto location = std::move(_token.location);
-	const auto macro_name = std::move(_token.literal_as_string);
-	const auto macro_name_end_offset = _token.offset + _token.length;
+	const location location = std::move(_token.location);
+	const std::string macro_name = std::move(_token.literal_as_string);
 
 	// Only create function-like macro if the parenthesis follows the macro name without any whitespace between
 	if (accept(tokenid::parenthesis_open, false))
