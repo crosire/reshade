@@ -30,7 +30,7 @@ static bool filter_text(const std::string_view &text, const std::string_view &fi
 }
 
 template <typename F>
-static void parse_errors(const std::string &errors, const std::string &file_path, F &&callback)
+static void parse_errors(const std::string_view &errors, F &&callback)
 {
 	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
 	{
@@ -43,15 +43,11 @@ static void parse_errors(const std::string &errors, const std::string &file_path
 
 		next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
 
-		// Ignore errors that aren't in the current source file
-		if (const std::string_view error_file(errors.c_str() + offset, pos_error_line - offset);
-			error_file != file_path)
-			continue;
+		const std::string error_file(errors.data() + offset, pos_error_line - offset);
+		int error_line = std::strtol(errors.data() + pos_error_line + 1, nullptr, 10);
+		const std::string error_text(errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2));
 
-		int error_line = std::strtol(errors.c_str() + pos_error_line + 1, nullptr, 10);
-		std::string error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
-
-		callback(error_line, error_text, error_text.find("warning") != std::string::npos);
+		callback(error_file, error_line, error_text);
 	}
 }
 
@@ -3240,9 +3236,8 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::PushID(static_cast<int>(_techniques.size() + effect_index));
 
-			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 
 			const std::string label = '[' + effect.source_file.filename().u8string() + ']' + " failed to compile";
 			bool value = false;
@@ -3273,23 +3268,31 @@ void reshade::runtime::draw_technique_editor()
 
 				if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
 				{
-					bool has_error = false;
-					bool has_warning = false;
-					const auto check_has_error_or_warning = [&has_error, &has_warning](int, const std::string &, bool warning) {
-						if (!warning)
-							has_error = true;
-						else
-							has_warning = true;
-					};
-					parse_errors(effect.errors, effect.source_file.u8string(), check_has_error_or_warning);
+					std::unordered_map<std::string, std::string> file_errors_lookup;
+					parse_errors(effect.errors,
+						[&file_errors_lookup](const std::string &file, int line, const std::string &message) {
+							file_errors_lookup[file] += file + '(' + std::to_string(line) + "): " + message + '\n';
+						});
 
-					ImGui::PushStyleColor(ImGuiCol_Text, has_error ? COLOR_RED : has_warning ? COLOR_YELLOW : _imgui_context->Style.Colors[ImGuiCol_Text]);
+					const auto source_file_errors_it = file_errors_lookup.find(effect.source_file.u8string());
+					if (source_file_errors_it != file_errors_lookup.end())
+						ImGui::PushStyleColor(ImGuiCol_Text, source_file_errors_it->second.find("error") != std::string::npos ? COLOR_RED : COLOR_YELLOW);
 
 					std::filesystem::path source_file;
 					if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
 						source_file = effect.source_file;
 
-					ImGui::PopStyleColor();
+					if (source_file_errors_it != file_errors_lookup.end())
+					{
+						if (ImGui::IsItemHovered())
+						{
+							ImGui::BeginTooltip();
+							ImGui::TextUnformatted(source_file_errors_it->second.c_str());
+							ImGui::EndTooltip();
+						}
+
+						ImGui::PopStyleColor();
+					}
 
 					if (!effect.included_files.empty())
 					{
@@ -3297,17 +3300,25 @@ void reshade::runtime::draw_technique_editor()
 
 						for (const std::filesystem::path &included_file : effect.included_files)
 						{
-							has_error = has_warning = false;
-							parse_errors(effect.errors, included_file.u8string(), check_has_error_or_warning);
-
 							// Color file entries that contain warnings or errors
-							ImGui::PushStyleColor(ImGuiCol_Text, has_error ? COLOR_RED : has_warning ? COLOR_YELLOW : _imgui_context->Style.Colors[ImGuiCol_Text]);
+							const auto included_file_errors_it = file_errors_lookup.find(included_file.u8string());
+							if (included_file_errors_it != file_errors_lookup.end())
+								ImGui::PushStyleColor(ImGuiCol_Text, included_file_errors_it->second.find("error") != std::string::npos ? COLOR_RED : COLOR_YELLOW);
 
-							std::filesystem::path relative_path = std::filesystem::relative(included_file, effect.source_file.parent_path());
-							if (ImGui::MenuItem(relative_path.u8string().c_str()))
+							if (ImGui::MenuItem(included_file.lexically_relative(effect.source_file.parent_path()).u8string().c_str()))
 								source_file = included_file;
 
-							ImGui::PopStyleColor();
+							if (included_file_errors_it != file_errors_lookup.end())
+							{
+								if (ImGui::IsItemHovered())
+								{
+									ImGui::BeginTooltip();
+									ImGui::TextUnformatted(included_file_errors_it->second.c_str());
+									ImGui::EndTooltip();
+								}
+
+								ImGui::PopStyleColor();
+							}
 						}
 					}
 
@@ -3478,8 +3489,7 @@ void reshade::runtime::draw_technique_editor()
 
 					for (const std::filesystem::path &included_file : effect.included_files)
 					{
-						std::filesystem::path relative_path = std::filesystem::relative(included_file, effect.source_file.parent_path());
-						if (ImGui::MenuItem(relative_path.u8string().c_str()))
+						if (ImGui::MenuItem(included_file.lexically_relative(effect.source_file.parent_path()).u8string().c_str()))
 							source_file = included_file;
 					}
 				}
@@ -3654,9 +3664,14 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 
 	instance.editor.clear_errors();
 
-	parse_errors(effect.errors, instance.file_path.u8string(), [&instance](int line, const std::string &message, bool warning) {
-		instance.editor.add_error(line, message, warning);
-	});
+	parse_errors(effect.errors,
+		[&instance](const std::string_view &file, int line, const std::string &message) {
+			// Ignore errors that aren't in the current source file
+			if (file != instance.file_path.u8string())
+				return;
+
+			instance.editor.add_error(line, message, message.find("error") == std::string::npos);
+		});
 }
 void reshade::runtime::draw_code_editor(editor_instance &instance)
 {
