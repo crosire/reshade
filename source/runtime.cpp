@@ -32,9 +32,8 @@
 #include <d3dcompiler.h>
 
 #if RESHADE_FX
-bool resolve_path(std::filesystem::path &path)
+bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
-	std::error_code ec;
 	// First convert path to an absolute path
 	// Ignore the working directory and instead start relative paths at the DLL location
 	if (!path.is_absolute())
@@ -44,15 +43,16 @@ bool resolve_path(std::filesystem::path &path)
 		path = std::move(canonical_path);
 	return !ec; // The canonicalization step fails if the path does not exist
 }
-bool resolve_preset_path(std::filesystem::path &path)
+bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec)
 {
+	ec.clear();
 	// First make sure the extension matches, before diving into the file system
 	if (const std::filesystem::path ext = path.extension();
 		ext != L".ini" && ext != L".txt")
 		return false;
 	// A non-existent path is valid for a new preset
 	// Otherwise ensure the file has a technique list, which should make it a preset
-	return !resolve_path(path) || ini_file::load_cache(path).has({}, "Techniques");
+	return !resolve_path(path, ec) || ini_file::load_cache(path).has({}, "Techniques");
 }
 
 static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
@@ -70,7 +70,7 @@ static bool find_file(const std::vector<std::filesystem::path> &search_paths, st
 
 		// Append relative file path to absolute search path
 		if (std::filesystem::path search_sub_path = search_path / path;
-			resolve_path(search_sub_path))
+			resolve_path(search_sub_path, ec))
 		{
 			path = std::move(search_sub_path);
 			return true;
@@ -84,7 +84,7 @@ static bool find_file(const std::vector<std::filesystem::path> &search_paths, st
 					continue;
 
 				if (std::filesystem::path search_sub_path = entry / path;
-					resolve_path(search_sub_path))
+					resolve_path(search_sub_path, ec))
 				{
 					path = std::move(search_sub_path);
 					return true;
@@ -108,7 +108,7 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 		if (recursive_search)
 			search_path.remove_filename();
 
-		if (resolve_path(search_path))
+		if (resolve_path(search_path, ec))
 		{
 			if (const auto it = std::find_if(resolved_search_paths.begin(), resolved_search_paths.end(),
 					[&search_path](const auto &recursive_search_path) {
@@ -834,9 +834,9 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 
 	// Fall back to temp directory if cache path does not exist
-	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path))
+	std::error_code ec;
+	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path, ec))
 	{
-		std::error_code ec;
 		_intermediate_cache_path = std::filesystem::temp_directory_path(ec) / "ReShade";
 		std::filesystem::create_directory(_intermediate_cache_path, ec);
 		if (ec)
@@ -844,7 +844,7 @@ void reshade::runtime::load_config()
 	}
 
 	// Use default if the preset file does not exist yet
-	if (!resolve_preset_path(_current_preset_path))
+	if (!resolve_preset_path(_current_preset_path, ec))
 		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
 
 	std::vector<unsigned int> preset_key_data;
@@ -1207,10 +1207,10 @@ void reshade::runtime::save_current_preset() const
 
 bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, bool reversed)
 {
-	resolve_path(filter_path);
-
 	std::error_code ec; // This is here to ignore file system errors below
 	std::filesystem::path filter_text;
+
+	resolve_path(filter_path, ec);
 
 	if (const std::filesystem::file_type file_type = std::filesystem::status(filter_path, ec).type();
 		file_type != std::filesystem::file_type::directory)
@@ -1237,7 +1237,7 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	for (std::filesystem::path preset_path : std::filesystem::directory_iterator(filter_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		// Skip anything that is not a valid preset file
-		if (!resolve_preset_path(preset_path))
+		if (!resolve_preset_path(preset_path, ec))
 			continue;
 
 		// Keep track of the index of the current preset in the list of found preset files that is being build
@@ -1313,7 +1313,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		if (recursive_search)
 			include_path.remove_filename();
 
-		if (resolve_path(include_path))
+		if (resolve_path(include_path, ec))
 		{
 			include_paths.emplace(include_path);
 
