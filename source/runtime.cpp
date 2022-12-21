@@ -1283,6 +1283,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
 	attributes += "device=" + std::to_string(_device_id) + ';';
 
+	std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
+	// Insert preset preprocessor definitions before global ones, so that if there are duplicates, the preset ones are used (since 'add_macro_definition' succeeds only for the first occurance)
+	preprocessor_definitions.insert(preprocessor_definitions.begin(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
+	for (const std::string &definition : preprocessor_definitions)
+		attributes += definition + ';';
+
 	std::error_code ec;
 	std::set<std::filesystem::path> include_paths;
 	if (source_file.is_absolute())
@@ -1306,33 +1312,26 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	for (const std::filesystem::path &include_path : include_paths)
-	{
-		attributes += include_path.u8string();
-		for (const auto &entry : std::filesystem::directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
-		{
-			const std::filesystem::path filename = entry.path().filename();
-			if (filename == source_file.filename() || filename.extension() == L".fxh")
-			{
-				attributes += ',';
-				attributes += filename.u8string();
-				attributes += '?';
-				attributes += std::to_string(entry.last_write_time(ec).time_since_epoch().count());
-			}
-		}
-		attributes += ';';
-	}
-
-	std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
-	// Insert preset preprocessor definitions before global ones, so that if there are duplicates, the preset ones are used (since 'add_macro_definition' succeeds only for the first occurance)
-	preprocessor_definitions.insert(preprocessor_definitions.begin(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
-	for (const std::string &definition : preprocessor_definitions)
-		attributes += definition + ';';
-
-	const size_t source_hash = std::hash<std::string>()(attributes);
+	attributes += source_file.filename().u8string();
+	attributes += '?';
+	attributes += std::to_string(std::filesystem::last_write_time(source_file, ec).time_since_epoch().count());
+	attributes += ';';
 
 	effect &effect = _effects[effect_index];
-	const std::string effect_name = source_file.filename().u8string();
+
+	// Also check the last write time of all included files if possible
+	if (source_file == effect.source_file && effect.preprocessed)
+	{
+		for (const std::filesystem::path &included_file_path : effect.included_files)
+		{
+			attributes += included_file_path.filename().u8string();
+			attributes += '?';
+			attributes += std::to_string(std::filesystem::last_write_time(included_file_path, ec).time_since_epoch().count());
+			attributes += ';';
+		}
+	}
+
+	const size_t source_hash = std::hash<std::string>()(attributes);
 	if (source_file != effect.source_file || source_hash != effect.source_hash)
 	{
 		// Source hash has changed, reset effect and load from scratch, rather than updating
@@ -1340,6 +1339,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
 	}
+
+	const std::string effect_name = source_file.filename().u8string();
 
 	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty()) // Only skip during 'load_effects'
 	{
