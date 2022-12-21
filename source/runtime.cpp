@@ -1393,9 +1393,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	bool skip_optimization = false;
-	std::string pragma_directives;
+	std::string hlsl_preamble;
 
-	bool source_cached = false; std::string source;
+	bool source_cached = false;
+	std::string source;
 	if (!effect.preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
 	{
 		reshadefx::preprocessor pp;
@@ -1466,7 +1467,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					continue;
 				}
 
-				pragma_directives += "#pragma " + pragma.first + ' ' + pragma.second + '\n';
+				hlsl_preamble += "#pragma " + pragma.first + ' ' + pragma.second + '\n';
 			}
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
@@ -1486,7 +1487,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			std::sort(effect.definitions.begin(), effect.definitions.end());
 
 			// Do not cache if any pragma directives were used, to ensure they are read again next time
-			if (pragma_directives.empty() && !skip_optimization)
+			if (hlsl_preamble.empty() && !skip_optimization)
 				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 		}
 
@@ -1584,8 +1585,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			// Fill all specialization constants with values from the current preset
 			if (_performance_mode)
 			{
-				std::string preamble;
-
 				for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 				{
 					switch (constant.type.base)
@@ -1609,34 +1608,32 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					if (effect.module.hlsl.empty())
 						continue;
 
-					preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
+					hlsl_preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
 
 					for (unsigned int i = 0; i < constant.type.components(); ++i)
 					{
 						switch (constant.type.base)
 						{
 						case reshadefx::type::t_bool:
-							preamble += constant.initializer_value.as_uint[i] ? "true" : "false";
+							hlsl_preamble += constant.initializer_value.as_uint[i] ? "true" : "false";
 							break;
 						case reshadefx::type::t_int:
-							preamble += std::to_string(constant.initializer_value.as_int[i]);
+							hlsl_preamble += std::to_string(constant.initializer_value.as_int[i]);
 							break;
 						case reshadefx::type::t_uint:
-							preamble += std::to_string(constant.initializer_value.as_uint[i]);
+							hlsl_preamble += std::to_string(constant.initializer_value.as_uint[i]);
 							break;
 						case reshadefx::type::t_float:
-							preamble += std::to_string(constant.initializer_value.as_float[i]);
+							hlsl_preamble += std::to_string(constant.initializer_value.as_float[i]);
 							break;
 						}
 
 						if (i + 1 < constant.type.components())
-							preamble += ", ";
+							hlsl_preamble += ", ";
 					}
 
-					preamble += '\n';
+					hlsl_preamble += '\n';
 				}
-
-				effect.module.hlsl = preamble + effect.module.hlsl;
 			}
 		}
 	}
@@ -1661,10 +1658,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				assert(_d3d_compiler_module != nullptr);
 
-				std::string texture_pixel_sizes;
+				std::string hlsl = hlsl_preamble;
+
 				if (_renderer_id == 0x9000)
 				{
-					texture_pixel_sizes = "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + '\n';
+					// Create SEMANTIC_PIXEL_SIZE constants
+					hlsl += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + '\n';
 
 					uint32_t semantic_index = 0;
 					for (const reshadefx::texture_info &tex : effect.module.textures)
@@ -1675,16 +1674,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						semantic_index++;
 						assert((effect.uniform_data_storage.size() / 16) < (255 - semantic_index));
 
-						texture_pixel_sizes += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
+						hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
 					}
 				}
 
-				// Add specialization constant defines to source code
-				const std::string hlsl =
-					pragma_directives +
-					texture_pixel_sizes +
-					"#line 1\n" + // Reset line number, so it matches what is shown when viewing the generated code
-					effect.module.hlsl;
+				hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
+				hlsl += effect.module.hlsl;
 
 				// Overwrite position semantic in pixel shaders
 				const D3D_SHADER_MACRO ps_defines[] = {
@@ -1829,39 +1824,40 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			}
 			else if (effect.module.spirv.empty())
 			{
-				cso = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
+				std::string glsl = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
 
 				if (entry_point.type != reshadefx::shader_type::ps)
 				{
 					// OpenGL does not allow using 'discard' in the vertex shader profile
-					cso += "#define discard\n";
+					glsl += "#define discard\n";
 					// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-					cso += "#define dFdx(x) x\n";
-					cso += "#define dFdy(y) y\n";
-					cso += "#define fwidth(p) p\n";
+					glsl += "#define dFdx(x) x\n";
+					glsl += "#define dFdy(y) y\n";
+					glsl += "#define fwidth(p) p\n";
 				}
 				if (entry_point.type != reshadefx::shader_type::cs)
 				{
 					// OpenGL does not allow using 'shared' in vertex/fragment shader profile
-					cso += "#define shared\n";
-					cso += "#define atomicAdd(a, b) a\n";
-					cso += "#define atomicAnd(a, b) a\n";
-					cso += "#define atomicOr(a, b) a\n";
-					cso += "#define atomicXor(a, b) a\n";
-					cso += "#define atomicMin(a, b) a\n";
-					cso += "#define atomicMax(a, b) a\n";
-					cso += "#define atomicExchange(a, b) a\n";
-					cso += "#define atomicCompSwap(a, b, c) a\n";
+					glsl += "#define shared\n";
+					glsl += "#define atomicAdd(a, b) a\n";
+					glsl += "#define atomicAnd(a, b) a\n";
+					glsl += "#define atomicOr(a, b) a\n";
+					glsl += "#define atomicXor(a, b) a\n";
+					glsl += "#define atomicMin(a, b) a\n";
+					glsl += "#define atomicMax(a, b) a\n";
+					glsl += "#define atomicExchange(a, b) a\n";
+					glsl += "#define atomicCompSwap(a, b, c) a\n";
 					// Barrier intrinsics are only available in compute shaders
-					cso += "#define barrier()\n";
-					cso += "#define memoryBarrier()\n";
-					cso += "#define groupMemoryBarrier()\n";
+					glsl += "#define barrier()\n";
+					glsl += "#define memoryBarrier()\n";
+					glsl += "#define groupMemoryBarrier()\n";
 				}
 
-				cso += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
-				cso += effect.module.hlsl;
+				glsl += hlsl_preamble;
+				glsl += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
+				glsl += effect.module.hlsl;
 
-				cso_text = cso;
+				cso_text = cso = std::move(glsl);
 			}
 			else
 			{
