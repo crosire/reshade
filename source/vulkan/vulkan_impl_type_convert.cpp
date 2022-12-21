@@ -1444,7 +1444,7 @@ void reshade::vulkan::convert_input_layout_desc(uint32_t count, const api::input
 		const VkVertexInputRate input_rate = element.instance_step_rate > 0 ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
 
 		if (const auto it = std::find_if(vertex_bindings.begin(), vertex_bindings.end(),
-			[&element](const VkVertexInputBindingDescription &input_binding) { return input_binding.binding == element.buffer_binding; });
+				[&element](const VkVertexInputBindingDescription &input_binding) { return input_binding.binding == element.buffer_binding; });
 			it != vertex_bindings.end())
 		{
 			assert(it->inputRate == input_rate && it->stride == element.stride);

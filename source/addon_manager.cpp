@@ -172,13 +172,14 @@ void reshade::load_addons()
 
 		// Avoid loading library alltogether when it is found in the disabled add-on list
 		if (addon_info info;
-			std::find_if(disabled_addons.begin(), disabled_addons.end(), [file_name = path.filename().u8string(), &info](const std::string_view &addon_name) {
-				const size_t at_pos = addon_name.find('@');
-				if (at_pos == std::string::npos)
-					return false;
-				info.name = addon_name.substr(0, at_pos);
-				info.file = addon_name.substr(at_pos + 1);
-				return file_name == info.file;
+			std::find_if(disabled_addons.begin(), disabled_addons.end(),
+				[file_name = path.filename().u8string(), &info](const std::string_view &addon_name) {
+					const size_t at_pos = addon_name.find('@');
+					if (at_pos == std::string::npos)
+						return false;
+					info.name = addon_name.substr(0, at_pos);
+					info.file = addon_name.substr(at_pos + 1);
+					return file_name == info.file;
 				}) != disabled_addons.end())
 		{
 			info.handle = nullptr;
@@ -291,7 +292,9 @@ bool reshade::has_loaded_addons()
 {
 	// Ignore disabled and built-in add-ons
 	return s_reference_count != 0 && std::find_if(addon_loaded_info.begin(), addon_loaded_info.end(),
-		[](const addon_info &info) { return info.handle != nullptr && info.handle != g_module_handle; }) != addon_loaded_info.end();
+		[](const addon_info &info) {
+			return info.handle != nullptr && info.handle != g_module_handle;
+		}) != addon_loaded_info.end();
 }
 
 reshade::addon_info *reshade::find_addon(void *address)
@@ -377,7 +380,9 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		info.description = *description;
 
 	if (std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
-			[&info](const reshade::addon_info &existing_info) { return existing_info.name == info.name; }) != reshade::addon_loaded_info.end())
+			[&info](const reshade::addon_info &existing_info) {
+				return existing_info.name == info.name;
+			}) != reshade::addon_loaded_info.end())
 	{
 		// Prevent registration if another add-on with the same name already exists
 		LOG(ERROR) << "Failed to register add-on, because another one with the same name (\"" << info.name << "\") was already registered!";
@@ -386,11 +391,12 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	if (std::vector<std::string> disabled_addons;
 		reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons) &&
-		std::find_if(disabled_addons.begin(), disabled_addons.end(), [&info](const std::string_view &addon_name) {
-			const size_t at_pos = addon_name.find('@');
-			if (at_pos == std::string::npos)
-				return addon_name == info.name;
-			return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
+		std::find_if(disabled_addons.begin(), disabled_addons.end(),
+			[&info](const std::string_view &addon_name) {
+				const size_t at_pos = addon_name.find('@');
+				if (at_pos == std::string::npos)
+					return addon_name == info.name;
+				return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
 			}) != disabled_addons.end())
 	{
 		info.handle = nullptr;

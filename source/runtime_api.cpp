@@ -174,9 +174,9 @@ bool reshade::runtime::get_annotation_bool_from_uniform_variable([[maybe_unused]
 	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
 	if (variable != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = variable->annotation_as_int(name, i + array_index) != 0;
@@ -195,9 +195,9 @@ bool reshade::runtime::get_annotation_float_from_uniform_variable([[maybe_unused
 	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
 	if (variable != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = variable->annotation_as_float(name, i + array_index);
@@ -216,9 +216,9 @@ bool reshade::runtime::get_annotation_int_from_uniform_variable([[maybe_unused]]
 	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
 	if (variable != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = variable->annotation_as_int(name, array_index + i);
@@ -237,9 +237,9 @@ bool reshade::runtime::get_annotation_uint_from_uniform_variable([[maybe_unused]
 	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
 	if (variable != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = variable->annotation_as_uint(name, array_index + i);
@@ -258,9 +258,9 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
 	if (variable != nullptr && length != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			const std::string_view annotation = variable->annotation_as_string(name);
 
@@ -434,7 +434,9 @@ void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *
 	{
 		if (effect_name != nullptr &&
 			std::find_if(variable.shared.begin(), variable.shared.end(),
-				[this, effect_name](size_t effect_index) { return _effects[effect_index].source_file.filename() == effect_name; }) == variable.shared.end())
+				[this, effect_name](size_t effect_index) {
+					return _effects[effect_index].source_file.filename() == effect_name;
+				}) == variable.shared.end())
 			continue;
 
 		callback(this, { reinterpret_cast<uintptr_t>(&variable) }, user_data);
@@ -452,7 +454,9 @@ reshade::api::effect_texture_variable reshade::runtime::find_texture_variable([[
 	{
 		if (effect_name != nullptr &&
 			std::find_if(variable.shared.begin(), variable.shared.end(),
-				[this, effect_name](size_t effect_index) { return _effects[effect_index].source_file.filename() == effect_name; }) == variable.shared.end())
+				[this, effect_name](size_t effect_index) {
+					return _effects[effect_index].source_file.filename() == effect_name;
+				}) == variable.shared.end())
 			continue;
 
 		if (variable.name == variable_name || variable.unique_name == variable_name)
@@ -488,9 +492,9 @@ bool reshade::runtime::get_annotation_bool_from_texture_variable([[maybe_unused]
 	const auto variable = reinterpret_cast<const texture *>(handle.handle);
 	if (variable != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = variable->annotation_as_int(name, array_index + i) != 0;
@@ -509,9 +513,9 @@ bool reshade::runtime::get_annotation_float_from_texture_variable([[maybe_unused
 	const auto variable = reinterpret_cast<const texture *>(handle.handle);
 	if (variable != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = variable->annotation_as_float(name, array_index + i);
@@ -530,9 +534,9 @@ bool reshade::runtime::get_annotation_int_from_texture_variable([[maybe_unused]]
 	const auto variable = reinterpret_cast<const texture *>(handle.handle);
 	if (variable != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = variable->annotation_as_int(name, array_index + i);
@@ -551,9 +555,9 @@ bool reshade::runtime::get_annotation_uint_from_texture_variable([[maybe_unused]
 	const auto variable = reinterpret_cast<const texture *>(handle.handle);
 	if (variable != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = variable->annotation_as_uint(name, array_index + i);
@@ -572,9 +576,9 @@ bool reshade::runtime::get_annotation_string_from_texture_variable([[maybe_unuse
 	const auto variable = reinterpret_cast<const texture *>(handle.handle);
 	if (variable != nullptr && length != nullptr)
 	{
-		const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != variable->annotations.end())
+		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != variable->annotations.end())
 		{
 			const std::string_view annotation = variable->annotation_as_string(name);
 
@@ -616,16 +620,13 @@ void reshade::runtime::get_texture_binding([[maybe_unused]] api::effect_texture_
 			if (out_srv_srgb != nullptr)
 				*out_srv_srgb = variable->srv[1];
 		}
-		else
+		else if (const auto it = _texture_semantic_bindings.find(variable->semantic);
+			it != _texture_semantic_bindings.end())
 		{
-			const auto it = _texture_semantic_bindings.find(variable->semantic);
-			if (it != _texture_semantic_bindings.end())
-			{
-				if (out_srv != nullptr)
-					*out_srv = it->second.first;
-				if (out_srv_srgb != nullptr)
-					*out_srv_srgb = it->second.second;
-			}
+			if (out_srv != nullptr)
+				*out_srv = it->second.first;
+			if (out_srv_srgb != nullptr)
+				*out_srv_srgb = it->second.second;
 		}
 		return;
 	}
@@ -759,9 +760,9 @@ bool reshade::runtime::get_annotation_bool_from_technique([[maybe_unused]] api::
 	const auto tech = reinterpret_cast<const technique *>(handle.handle);
 	if (tech != nullptr)
 	{
-		const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != tech->annotations.end())
+		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = tech->annotation_as_int(name, array_index + i) != 0;
@@ -780,9 +781,9 @@ bool reshade::runtime::get_annotation_float_from_technique([[maybe_unused]] api:
 	const auto tech = reinterpret_cast<const technique *>(handle.handle);
 	if (tech != nullptr)
 	{
-		const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != tech->annotations.end())
+		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = tech->annotation_as_float(name, array_index + i);
@@ -801,9 +802,9 @@ bool reshade::runtime::get_annotation_int_from_technique([[maybe_unused]] api::e
 	const auto tech = reinterpret_cast<const technique *>(handle.handle);
 	if (tech != nullptr)
 	{
-		const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != tech->annotations.end())
+		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = tech->annotation_as_int(name, array_index + i);
@@ -822,9 +823,9 @@ bool reshade::runtime::get_annotation_uint_from_technique([[maybe_unused]] api::
 	const auto tech = reinterpret_cast<const technique *>(handle.handle);
 	if (tech != nullptr)
 	{
-		const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != tech->annotations.end())
+		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
 				values[i] = tech->annotation_as_uint(name, array_index + i);
@@ -843,9 +844,9 @@ bool reshade::runtime::get_annotation_string_from_technique([[maybe_unused]] api
 	const auto tech = reinterpret_cast<const technique *>(handle.handle);
 	if (tech != nullptr && length != nullptr)
 	{
-		const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-			[name](const auto &annotation) { return annotation.name == name; });
-		if (it != tech->annotations.end())
+		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
+				[name](const auto &annotation) { return annotation.name == name; });
+			it != tech->annotations.end())
 		{
 			const std::string_view annotation = tech->annotation_as_string(name);
 

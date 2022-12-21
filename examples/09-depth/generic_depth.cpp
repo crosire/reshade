@@ -1037,10 +1037,11 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	for (depth_stencil_item &item : sorted_item_list)
 		item.desc = device->get_resource_desc(item.resource);
 
-	std::sort(sorted_item_list.begin(), sorted_item_list.end(), [](const depth_stencil_item &a, const depth_stencil_item &b) {
-		return ((a.desc.texture.width > b.desc.texture.width || (a.desc.texture.width == b.desc.texture.width && a.desc.texture.height > b.desc.texture.height)) ||
-		        (a.desc.texture.width == b.desc.texture.width && a.desc.texture.height == b.desc.texture.height && a.resource < b.resource));
-	});
+	std::sort(sorted_item_list.begin(), sorted_item_list.end(),
+		[](const depth_stencil_item &a, const depth_stencil_item &b) {
+			return ((a.desc.texture.width > b.desc.texture.width || (a.desc.texture.width == b.desc.texture.width && a.desc.texture.height > b.desc.texture.height)) ||
+					(a.desc.texture.width == b.desc.texture.width && a.desc.texture.height == b.desc.texture.height && a.resource < b.resource));
+		});
 
 	bool has_msaa_depth_stencil = false;
 	bool has_no_clear_operations = false;

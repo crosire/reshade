@@ -110,7 +110,10 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 
 		if (resolve_path(search_path))
 		{
-			if (const auto it = std::find_if(resolved_search_paths.begin(), resolved_search_paths.end(), [&search_path](const auto &recursive_search_path) { return recursive_search_path.first == search_path; });
+			if (const auto it = std::find_if(resolved_search_paths.begin(), resolved_search_paths.end(),
+					[&search_path](const auto &recursive_search_path) {
+						return recursive_search_path.first == search_path;
+					});
 				it != resolved_search_paths.end())
 				it->second |= recursive_search;
 			else
@@ -162,6 +165,8 @@ static inline int format_color_bit_depth(reshade::api::format value)
 	case reshade::api::format::r10g10b10a2_xr_bias:
 	case reshade::api::format::b10g10r10a2_unorm:
 		return 10;
+	case reshade::api::format::r11g11b10_float:
+		return 11;
 	case reshade::api::format::r16g16b16a16_float:
 		return 16;
 	}
@@ -227,12 +232,12 @@ reshade::runtime::~runtime()
 	assert(!_is_initialized && _techniques.empty());
 #endif
 
+#if RESHADE_GUI
 	// Save configuration before shutting down to ensure the current window state is written to disk
 	save_config();
 	ini_file::flush_cache(_config_path);
 
-#if RESHADE_GUI
-	 deinit_gui();
+	deinit_gui();
 #endif
 
 	// Decrease global runtime index
@@ -481,7 +486,7 @@ exit_failure:
 	_device->destroy_resource_view(_back_buffer_resolved_srv);
 	_back_buffer_resolved_srv = {};
 
-	for (const auto view : _back_buffer_targets)
+	for (const api::resource_view view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
 
@@ -541,7 +546,7 @@ void reshade::runtime::on_reset()
 	_device->destroy_resource_view(_back_buffer_resolved_srv);
 	_back_buffer_resolved_srv = {};
 
-	for (const auto view : _back_buffer_targets)
+	for (const api::resource_view view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
 
@@ -975,14 +980,17 @@ void reshade::runtime::load_current_preset()
 			return; // Preset values are loaded in 'update_effects' during effect loading
 		}
 
-		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string_view &technique_name) {
-				if (const size_t at_pos = technique_name.find('@'); at_pos == std::string::npos)
-					return true;
-				else if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-					[effect_name = technique_name.substr(at_pos + 1)](const effect &effect) { return effect_name == effect.source_file.filename().u8string(); }); it == _effects.end())
-					return true;
-				else
-					return it->skipped; }) != technique_list.end())
+		if (std::find_if(technique_list.begin(), technique_list.end(),
+				[this](const std::string_view &technique_name) {
+					const size_t at_pos = technique_name.find('@');
+					if (at_pos == std::string::npos)
+						return true;
+					const auto it = std::find_if(_effects.begin(), _effects.end(),
+						[effect_name = technique_name.substr(at_pos + 1)](const effect &effect) {
+							return effect_name == effect.source_file.filename().u8string();
+						});
+					return it == _effects.end() || it->skipped;
+				}) != technique_list.end())
 		{
 			reload_effects();
 			return;
@@ -1116,10 +1124,10 @@ void reshade::runtime::save_current_preset() const
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	// Build list of active techniques and effects
-	std::vector<std::string> technique_list, sorted_technique_list;
-	std::unordered_set<size_t> effect_list;
-	effect_list.reserve(_techniques.size());
+	std::set<size_t> effect_list;
+	std::vector<std::string> technique_list;
 	technique_list.reserve(_techniques.size());
+	std::vector<std::string> sorted_technique_list;
 	sorted_technique_list.reserve(_techniques.size());
 
 	for (const technique &tech : _techniques)
@@ -1353,9 +1361,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		if (std::vector<std::string> techniques;
 			preset.get({}, "Techniques", techniques))
 		{
-			effect.skipped = std::find_if(techniques.cbegin(), techniques.cend(), [&effect_name](const std::string &technique) {
-				const size_t at_pos = technique.find('@') + 1;
-				return at_pos == 0 || technique.find(effect_name, at_pos) == at_pos; }) == techniques.cend();
+			effect.skipped = std::find_if(techniques.cbegin(), techniques.cend(),
+				[&effect_name](const std::string &technique) {
+					const size_t at_pos = technique.find('@') + 1;
+					return at_pos == 0 || technique.find(effect_name, at_pos) == at_pos;
+				}) == techniques.cend();
 
 			if (effect.skipped)
 			{
@@ -1932,7 +1942,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			// Try to share textures with the same name across effects
 			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-				[&new_texture](const auto &item) { return item.unique_name == new_texture.unique_name; });
+					[&new_texture](const auto &item) {
+						return item.unique_name == new_texture.unique_name;
+					});
 				existing_texture != _textures.end())
 			{
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
@@ -1982,7 +1994,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				// Try to find another pooled texture to share with (and do not share within the same effect)
 				if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&new_texture](const auto &item) { return item.annotation_as_int("pooled") && item.effect_index != new_texture.effect_index && item.matches_description(new_texture); });
+						[&new_texture](const auto &item) {
+							return item.annotation_as_int("pooled") && item.effect_index != new_texture.effect_index && item.matches_description(new_texture);
+						});
 					existing_texture != _textures.end())
 				{
 					// Overwrite referenced texture in samplers with the pooled one
@@ -2096,7 +2110,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 		spec_constants.push_back(id);
 	}
 
-	// Create query pool for time measurements
+	// Create optional query pool for time measurements
 	if (!_device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_pool))
 		LOG(ERROR) << "Failed to create query pool for effect file " << effect.source_file << '!';
 
@@ -2404,8 +2418,10 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					int render_target_count = 0;
 					for (; render_target_count < 8 && !pass_info.render_target_names[render_target_count].empty(); ++render_target_count)
 					{
-						const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = pass_info.render_target_names[render_target_count]](const auto &item) {
-							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+						const auto texture = std::find_if(_textures.begin(), _textures.end(),
+							[&unique_name = pass_info.render_target_names[render_target_count]](const auto &item) {
+								return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
+							});
 						assert(texture != _textures.end());
 						assert(texture->semantic.empty() && texture->rtv[pass_info.srgb_write_enable] != 0);
 
@@ -2542,8 +2558,10 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
-					const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = info.texture_name](const auto &item) {
-						return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+					const auto texture = std::find_if(_textures.begin(), _textures.end(),
+						[&unique_name = info.texture_name](const auto &item) {
+							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
+						});
 					assert(texture != _textures.end());
 
 					api::resource_view &srv = sampler_descriptors[sampler_with_resource_view ? info.binding : effect.module.num_sampler_bindings + info.texture_binding].view;
@@ -2614,8 +2632,10 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
-					const auto texture = std::find_if(_textures.begin(), _textures.end(), [&unique_name = info.texture_name](const auto &item) {
-						return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
+					const auto texture = std::find_if(_textures.begin(), _textures.end(),
+						[&unique_name = info.texture_name](const auto &item) {
+							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
+						});
 					assert(texture != _textures.end());
 					assert(texture->semantic.empty() && texture->uav[info.level] != 0);
 
@@ -2903,7 +2923,7 @@ void reshade::runtime::destroy_texture(texture &tex)
 	tex.rtv[0] = {};
 	tex.rtv[1] = {};
 
-	for (api::resource_view uav : tex.uav)
+	for (const api::resource_view uav : tex.uav)
 		_device->destroy_resource_view(uav);
 	tex.uav.clear();
 }
@@ -3298,9 +3318,11 @@ void reshade::runtime::update_effects()
 		// Update all editors after a reload
 		for (editor_instance &instance : _editors)
 		{
-			const auto it = std::find_if(_effects.begin(), _effects.end(), [this, &instance](const auto &effect) {
-				return effect.source_file == instance.file_path; });
-			if (it != _effects.end())
+			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
+					[this, &instance](const effect &effect) {
+						return effect.source_file == instance.file_path;
+					});
+				it != _effects.end())
 			{
 				instance.effect_index = std::distance(_effects.begin(), it);
 

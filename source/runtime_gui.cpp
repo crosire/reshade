@@ -2557,11 +2557,12 @@ void reshade::runtime::draw_gui_addons()
 
 		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[info.handle != nullptr ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
 
-		const auto disabled_it = std::find_if(disabled_addons.begin(), disabled_addons.end(), [&info](const std::string_view &addon_name) {
-			const size_t at_pos = addon_name.find('@');
-			if (at_pos == std::string::npos)
-				return addon_name == info.name;
-			return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
+		const auto disabled_it = std::find_if(disabled_addons.begin(), disabled_addons.end(),
+			[&info](const std::string_view &addon_name) {
+				const size_t at_pos = addon_name.find('@');
+				if (at_pos == std::string::npos)
+					return addon_name == info.name;
+				return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
 			});
 
 		bool enabled = (disabled_it == disabled_addons.end());
@@ -3589,10 +3590,12 @@ void reshade::runtime::draw_technique_editor()
 void reshade::runtime::open_code_editor(size_t effect_index, const std::string &entry_point)
 {
 	assert(effect_index < _effects.size());
-	const std::filesystem::path path = _effects[effect_index].source_file;
+	const std::filesystem::path &path = _effects[effect_index].source_file;
 
-	auto it = std::find_if(_editors.begin(), _editors.end(), [&](const auto &instance) {
-		return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name == entry_point; });
+	auto it = std::find_if(_editors.begin(), _editors.end(),
+		[effect_index, &path, &entry_point](const editor_instance &instance) {
+			return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name == entry_point;
+		});
 	if (it == _editors.end())
 	{
 		_editors.push_back({ effect_index, path, entry_point });
@@ -3607,8 +3610,10 @@ void reshade::runtime::open_code_editor(size_t effect_index, const std::filesyst
 {
 	assert(effect_index < _effects.size());
 
-	auto it = std::find_if(_editors.begin(), _editors.end(), [&](const auto &instance) {
-		return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name.empty(); });
+	auto it = std::find_if(_editors.begin(), _editors.end(),
+		[effect_index, &path](const editor_instance &instance) {
+			return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name.empty();
+		});
 	if (it == _editors.end())
 	{
 		_editors.push_back({ effect_index, path });
