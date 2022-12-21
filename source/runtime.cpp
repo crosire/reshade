@@ -2759,6 +2759,73 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 	// Do not clear effect here, since it is common to be re-used immediately
 }
 
+void reshade::runtime::load_textures()
+{
+	for (texture &tex : _textures)
+	{
+		if (tex.resource == 0 || !tex.semantic.empty())
+			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
+
+		std::filesystem::path source_path = std::filesystem::u8path(tex.annotation_as_string("source"));
+		// Ignore textures that have no image file attached to them (e.g. plain render targets)
+		if (source_path.empty())
+			continue;
+
+		// Search for image file using the provided search paths unless the path provided is already absolute
+		if (!find_file(_texture_search_paths, source_path))
+		{
+			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
+				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" was not found.\n";
+
+			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' was not found in any of the texture search paths!";
+			continue;
+		}
+
+		std::error_code ec;
+		const uintmax_t file_size = std::filesystem::file_size(source_path, ec);
+		if (ec)
+		{
+			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
+				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
+
+			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
+			continue;
+		}
+
+		stbi_uc *pixels = nullptr;
+		int width = 0, height = 0, channels = 0;
+
+		if (auto file = std::ifstream(source_path, std::ios::binary))
+		{
+			// Read texture data into memory in one go since that is faster than reading chunk by chunk
+			std::vector<stbi_uc> file_data(static_cast<size_t>(file_size));
+			file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
+			file.close();
+
+			if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
+				pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+			else
+				pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+		}
+
+		if (pixels == nullptr)
+		{
+			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
+				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
+
+			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "'! Make sure it is of a compatible file format.";
+			continue;
+		}
+
+		update_texture(tex, width, height, pixels);
+
+		stbi_image_free(pixels);
+
+		tex.loaded = true;
+	}
+
+	_textures_loaded = true;
+}
 bool reshade::runtime::create_texture(texture &tex)
 {
 	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'update_texture_bindings'
@@ -3030,73 +3097,6 @@ void reshade::runtime::load_effects()
 					load_effect(effect_files[i], preset, offset + i);
 		});
 }
-void reshade::runtime::load_textures()
-{
-	for (texture &tex : _textures)
-	{
-		if (tex.resource == 0 || !tex.semantic.empty())
-			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
-
-		std::filesystem::path source_path = std::filesystem::u8path(tex.annotation_as_string("source"));
-		// Ignore textures that have no image file attached to them (e.g. plain render targets)
-		if (source_path.empty())
-			continue;
-
-		// Search for image file using the provided search paths unless the path provided is already absolute
-		if (!find_file(_texture_search_paths, source_path))
-		{
-			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
-				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" was not found.\n";
-
-			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' was not found in any of the texture search paths!";
-			continue;
-		}
-
-		std::error_code ec;
-		const uintmax_t file_size = std::filesystem::file_size(source_path, ec);
-		if (ec)
-		{
-			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
-				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
-
-			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
-			continue;
-		}
-
-		stbi_uc *pixels = nullptr;
-		int width = 0, height = 0, channels = 0;
-
-		if (auto file = std::ifstream(source_path, std::ios::binary))
-		{
-			// Read texture data into memory in one go since that is faster than reading chunk by chunk
-			std::vector<stbi_uc> file_data(static_cast<size_t>(file_size));
-			file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
-			file.close();
-
-			if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
-				pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
-			else
-				pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
-		}
-
-		if (pixels == nullptr)
-		{
-			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
-				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
-
-			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "'! Make sure it is of a compatible file format.";
-			continue;
-		}
-
-		update_texture(tex, width, height, pixels);
-
-		stbi_image_free(pixels);
-
-		tex.loaded = true;
-	}
-
-	_textures_loaded = true;
-}
 bool reshade::runtime::reload_effect(size_t effect_index, bool preprocess_required)
 {
 #if RESHADE_GUI
@@ -3271,8 +3271,8 @@ bool reshade::runtime::update_effect_stencil_tex(api::format format)
 	}
 
 	if (!_device->create_resource(
-		api::resource_desc(_width, _height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
-		nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
+			api::resource_desc(_width, _height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
+			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
 	{
 		LOG(ERROR) << "Failed to create effect stencil resource!";
 		return false;
@@ -3315,20 +3315,22 @@ void reshade::runtime::update_effects()
 		_load_option_disable_skipping = false;
 
 #if RESHADE_GUI
-		// Update all editors after a reload
+		// Update all code editors after a reload
 		for (editor_instance &instance : _editors)
 		{
 			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-					[this, &instance](const effect &effect) {
+					[&instance](const effect &effect) {
 						return effect.source_file == instance.file_path || std::find(effect.included_files.begin(), effect.included_files.end(), instance.file_path) != effect.included_files.end();
 					});
 				it != _effects.end())
 			{
+				// Set effect index again in case it was moved during the reload
 				instance.effect_index = std::distance(_effects.begin(), it);
 
 				if (instance.entry_point_name.empty() || instance.entry_point_name == "Generated code")
 					open_code_editor(instance);
 				else
+					// Those editors referencing assembly will be updated in a separate step below
 					instance.editor.clear_text();
 			}
 		}
@@ -3367,13 +3369,14 @@ void reshade::runtime::update_effects()
 		_textures_loaded = false;
 
 #if RESHADE_GUI
-		effect &effect = _effects[effect_index];
+		const effect &effect = _effects[effect_index];
 
-		// Update assembly in all editors after a reload
+		// Update assembly in all code editors after a reload
 		for (editor_instance &instance : _editors)
 		{
 			if (instance.entry_point_name.empty() || instance.file_path != effect.source_file)
 				continue;
+
 			assert(instance.effect_index == effect_index);
 
 			if (const auto assembly_it = effect.assembly.find(instance.entry_point_name);

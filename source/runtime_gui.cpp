@@ -29,8 +29,8 @@ static bool filter_text(const std::string_view &text, const std::string_view &fi
 			}) != text.end();
 }
 
-template <typename Cb>
-static void parse_errors(const std::string &errors, const std::string &file_path, Cb &&callback)
+template <typename F>
+static void parse_errors(const std::string &errors, const std::string &file_path, F &&callback)
 {
 	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
 	{
@@ -134,6 +134,7 @@ void reshade::runtime::build_font_atlas()
 			icon_config.PixelSnapH = true;
 			icon_config.GlyphOffset = ImVec2(0.0f, 0.1f * _font_size);
 			constexpr ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
+
 			atlas->AddFontFromMemoryCompressedBase85TTF(FONT_ICON_BUFFER_NAME_FK, cfg.SizePixels, &icon_config, icon_ranges);
 		}
 	}
@@ -141,6 +142,8 @@ void reshade::runtime::build_font_atlas()
 	// If unable to build font atlas due to an invalid font, revert to the default font
 	if (!atlas->Build())
 	{
+		LOG(ERROR) << "Failed to build front atlas!";
+
 		_font.clear();
 		_editor_font.clear();
 
@@ -186,7 +189,7 @@ void reshade::runtime::build_font_atlas()
 		return;
 	}
 
-	_device->set_resource_name(_font_atlas_tex, "ImGui Font Atlas");
+	_device->set_resource_name(_font_atlas_tex, "ImGui font atlas");
 }
 
 void reshade::runtime::load_config_gui(const ini_file &config)
@@ -2408,7 +2411,6 @@ void reshade::runtime::draw_gui_about()
 	ImGui::PushTextWrapPos();
 
 	ImGui::TextUnformatted("Developed and maintained by crosire.");
-	ImGui::TextUnformatted("Shout-out to CeeJay.dk and Marty McFly for their involvement.");
 	ImGui::TextUnformatted("This project makes use of several open source libraries, licenses of which are listed below:");
 
 	if (ImGui::CollapsingHeader("ReShade", ImGuiTreeNodeFlags_DefaultOpen))
@@ -3239,25 +3241,26 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::PushID(static_cast<int>(_techniques.size() + effect_index));
 
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 
 			const std::string label = '[' + effect.source_file.filename().u8string() + ']' + " failed to compile";
-
 			bool value = false;
 			ImGui::Checkbox(label.c_str(), &value);
 
-			ImGui::PopStyleColor();
 			ImGui::PopItemFlag();
 
-			if (!effect.errors.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+			// Display tooltip
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !effect.errors.empty())
 			{
 				ImGui::BeginTooltip();
-				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 				ImGui::TextUnformatted(effect.errors.c_str());
-				ImGui::PopStyleColor();
 				ImGui::EndTooltip();
 			}
 
+			ImGui::PopStyleColor();
+
+			// Create context menu
 			if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenDisabled))
 				ImGui::OpenPopup("##context", ImGuiPopupFlags_MouseButtonRight);
 
@@ -3272,13 +3275,13 @@ void reshade::runtime::draw_technique_editor()
 				{
 					bool has_error = false;
 					bool has_warning = false;
-					const auto check_error_and_warning_predicate = [&has_error, &has_warning](int, const std::string &, bool warning) {
+					const auto check_has_error_or_warning = [&has_error, &has_warning](int, const std::string &, bool warning) {
 						if (!warning)
 							has_error = true;
 						else
 							has_warning = true;
 					};
-					parse_errors(effect.errors, effect.source_file.u8string(), check_error_and_warning_predicate);
+					parse_errors(effect.errors, effect.source_file.u8string(), check_has_error_or_warning);
 
 					ImGui::PushStyleColor(ImGuiCol_Text, has_error ? COLOR_RED : has_warning ? COLOR_YELLOW : _imgui_context->Style.Colors[ImGuiCol_Text]);
 
@@ -3295,7 +3298,7 @@ void reshade::runtime::draw_technique_editor()
 						for (const std::filesystem::path &included_file : effect.included_files)
 						{
 							has_error = has_warning = false;
-							parse_errors(effect.errors, included_file.u8string(), check_error_and_warning_predicate);
+							parse_errors(effect.errors, included_file.u8string(), check_has_error_or_warning);
 
 							// Color file entries that contain warnings or errors
 							ImGui::PushStyleColor(ImGuiCol_Text, has_error ? COLOR_RED : has_warning ? COLOR_YELLOW : _imgui_context->Style.Colors[ImGuiCol_Text]);
@@ -3323,6 +3326,7 @@ void reshade::runtime::draw_technique_editor()
 					std::string entry_point_name;
 					if (ImGui::MenuItem("Generated code"))
 						entry_point_name = "Generated code";
+
 					ImGui::EndPopup();
 
 					if (!entry_point_name.empty())
@@ -3363,6 +3367,7 @@ void reshade::runtime::draw_technique_editor()
 		// Prevent user from disabling the technique when it is set to always be enabled via annotation
 		const bool force_enabled = tech.annotation_as_int("enabled");
 		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, force_enabled);
+
 		// Gray out disabled techniques
 		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
 
@@ -3590,6 +3595,7 @@ void reshade::runtime::draw_technique_editor()
 void reshade::runtime::open_code_editor(size_t effect_index, const std::string &entry_point)
 {
 	assert(effect_index < _effects.size());
+
 	const std::filesystem::path &path = _effects[effect_index].source_file;
 
 	auto it = std::find_if(_editors.begin(), _editors.end(),

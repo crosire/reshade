@@ -200,6 +200,7 @@ namespace reshade
 		bool create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
 
+		void load_textures();
 		bool create_texture(texture &texture);
 		void destroy_texture(texture &texture);
 
@@ -207,7 +208,6 @@ namespace reshade
 		void disable_technique(technique &technique);
 
 		void load_effects();
-		void load_textures();
 		bool reload_effect(size_t effect_index, bool preprocess_required = false);
 		void reload_effects();
 		void destroy_effects();
