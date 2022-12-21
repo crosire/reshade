@@ -3232,7 +3232,7 @@ void reshade::runtime::draw_technique_editor()
 			}
 
 			if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenDisabled))
-				ImGui::OpenPopup("##context");
+				ImGui::OpenPopup("##context", ImGuiPopupFlags_MouseButtonRight);
 
 			if (ImGui::BeginPopup("##context"))
 			{
@@ -3252,8 +3252,11 @@ void reshade::runtime::draw_technique_editor()
 						ImGui::Separator();
 
 						for (const std::filesystem::path &included_file : effect.included_files)
-							if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
+						{
+							std::filesystem::path relative_path = std::filesystem::relative(included_file, effect.source_file.parent_path());
+							if (ImGui::MenuItem(relative_path.u8string().c_str()))
 								source_file = included_file;
+						}
 					}
 
 					ImGui::EndPopup();
@@ -3363,6 +3366,7 @@ void reshade::runtime::draw_technique_editor()
 		// Create context menu
 		if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenDisabled))
 			ImGui::OpenPopup("##context", ImGuiPopupFlags_MouseButtonRight);
+
 		if (ImGui::BeginPopup("##context"))
 		{
 			ImGui::TextUnformatted(tech.name.c_str());
@@ -3419,8 +3423,11 @@ void reshade::runtime::draw_technique_editor()
 					ImGui::Separator();
 
 					for (const std::filesystem::path &included_file : effect.included_files)
-						if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
+					{
+						std::filesystem::path relative_path = std::filesystem::relative(included_file, effect.source_file.parent_path());
+						if (ImGui::MenuItem(relative_path.u8string().c_str()))
 							source_file = included_file;
+					}
 				}
 
 				ImGui::EndPopup();
