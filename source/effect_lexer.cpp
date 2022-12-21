@@ -729,10 +729,12 @@ next_token:
 		tok.id = tokenid::bracket_open;
 		break;
 	case '\\':
-		if (!_ignore_whitespace && (_cur[1] == '\n' || (_cur[1] == '\r' && _cur[2] == '\n')))
+		if (_cur[1] == '\n' || (_cur[1] == '\r' && _cur[2] == '\n'))
 		{
 			// Skip to next line if current line ends with a backslash
 			skip_space();
+			if (_ignore_whitespace)
+				goto next_token;
 			tok.id = tokenid::space;
 			tok.length = input_offset() - tok.offset;
 			return tok;
