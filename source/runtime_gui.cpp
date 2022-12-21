@@ -1398,34 +1398,12 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button("Active to top", ImVec2(10.0f * _font_size, 0)))
 		{
-			for (auto i = _techniques.begin(); i != _techniques.end(); ++i)
+			for (auto it = _techniques.begin(), target_it = it; it != _techniques.end(); ++it)
 			{
-				if (!i->enabled && i->toggle_key_data[0] == 0)
+				if (it->enabled || it->toggle_key_data[0] != 0)
 				{
-					for (auto k = i + 1; k != _techniques.end(); ++k)
-					{
-						if (k->enabled || k->toggle_key_data[0] != 0)
-						{
-							std::iter_swap(i, k);
-							break;
-						}
-					}
+					target_it = std::rotate(target_it, it, std::next(it));
 				}
-			}
-
-			if (const auto it = std::find_if_not(_techniques.begin(), _techniques.end(),
-					[](const technique &a) { return a.enabled || a.toggle_key_data[0] != 0; }); it != _techniques.end())
-			{
-				std::stable_sort(it, _techniques.end(),
-					[](const technique &lhs, const technique &rhs) {
-						std::string lhs_label(lhs.annotation_as_string("ui_label"));
-						if (lhs_label.empty()) lhs_label = lhs.name;
-						std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-						std::string rhs_label(rhs.annotation_as_string("ui_label"));
-						if (rhs_label.empty()) rhs_label = rhs.name;
-						std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-						return lhs_label < rhs_label;
-					});
 			}
 
 			if (_save_present_on_modification)

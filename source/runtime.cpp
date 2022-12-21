@@ -995,7 +995,7 @@ void reshade::runtime::load_current_preset()
 		sorted_technique_list = technique_list;
 
 	// Reorder techniques
-	std::sort(_techniques.begin(), _techniques.end(),
+	std::stable_sort(_techniques.begin(), _techniques.end(),
 		[this, &sorted_technique_list](const technique &lhs, const technique &rhs) {
 			const std::string lhs_unique = lhs.name + '@' + _effects[lhs.effect_index].source_file.filename().u8string();
 			auto lhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs_unique);
@@ -1009,12 +1009,18 @@ void reshade::runtime::load_current_preset()
 			if (lhs_it > rhs_it)
 				return false;
 
-			// Sort the remaining techniques alphabetically
+			// Keep the declaration order within an effect file
+			if (lhs.effect_index == rhs.effect_index)
+				return false;
+
+			// Sort the remaining techniques alphabetically using their label or name
 			std::string lhs_label(lhs.annotation_as_string("ui_label"));
-			if (lhs_label.empty()) lhs_label = lhs.name;
+			if (lhs_label.empty())
+				lhs_label = lhs.name;
 			std::transform(lhs_label.begin(), lhs_label.end(), lhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
 			std::string rhs_label(rhs.annotation_as_string("ui_label"));
-			if (rhs_label.empty()) rhs_label = rhs.name;
+			if (rhs_label.empty())
+				rhs_label = rhs.name;
 			std::transform(rhs_label.begin(), rhs_label.end(), rhs_label.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
 
 			return lhs_label < rhs_label;
