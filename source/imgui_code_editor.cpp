@@ -1751,7 +1751,7 @@ void reshade::imgui::code_editor::colorize()
 			input_string.push_back(_lines[l][k].c);
 
 	reshadefx::lexer lexer(
-		input_string,
+		std::move(input_string),
 		false /* ignore_comments */,
 		true  /* ignore_whitespace */,
 		false /* ignore_pp_directives */,
@@ -1946,8 +1946,13 @@ void reshade::imgui::code_editor::colorize()
 		case reshadefx::tokenid::hash_include:
 		case reshadefx::tokenid::hash_unknown:
 			col = color_preprocessor;
-			tok.offset--; // Add # to token
-			tok.length++;
+			// Find matching starting hash
+			assert(tok.offset > 0);
+			do
+			{
+				tok.offset--;
+				tok.length++;
+			} while (tok.offset > 0 && lexer.input_string()[tok.offset] != '#');
 			break;
 		case reshadefx::tokenid::single_line_comment:
 			col = color_comment;
