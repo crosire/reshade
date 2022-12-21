@@ -47,12 +47,9 @@ enum op_type
 enum macro_replacement
 {
 	macro_replacement_start = '\x00',
-	macro_replacement_argument = '\xFA',
+	macro_replacement_argument = '\xFD',
 	macro_replacement_concat = '\xFF',
 	macro_replacement_stringize = '\xFE',
-	macro_replacement_space = '\xFD',
-	macro_replacement_break = '\xFC',
-	macro_replacement_expand = '\xFB',
 };
 
 static const int precedence_lookup[] = {
@@ -127,7 +124,7 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 {
 	std::string source_code;
 	if (!read_file(path, source_code))
-		return false;
+	return false;
 
 	return append_string(std::move(source_code), path);
 }
@@ -1088,7 +1085,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 				if (peek(tokenid::end_of_file))
 					return error(macro_location, "unexpected end of file in macro expansion"), false;
 
-				// Consume all tokens here, so spaces are added to the output too
+				// Consume all tokens of the argument
 				consume();
 
 				if (_token == tokenid::comma && parentheses_level == 0)
@@ -1119,15 +1116,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 		}
 	}
 
-	std::string input;
-	expand_macro(it->first, it->second, arguments, input);
-
-	if (!input.empty())
-	{
-		push(std::move(input));
-
-		_input_stack[_current_input_index].hidden_macros.insert(it->first);
-	}
+	expand_macro(it->first, it->second, arguments);
 
 	return true;
 }
@@ -1142,30 +1131,25 @@ bool reshadefx::preprocessor::is_defined(const std::string &name) const
 		name == "__FILE_STEM__";
 }
 
-void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &output)
+void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments)
 {
+	if (macro.replacement_list.empty())
+		return;
+
+	std::string input;
+	input.reserve(macro.replacement_list.size());
+
 	for (size_t offset = 0; offset < macro.replacement_list.size(); ++offset)
 	{
 		if (macro.replacement_list[offset] != macro_replacement_start)
 		{
-			output += macro.replacement_list[offset];
+			input += macro.replacement_list[offset];
 			continue;
 		}
 
 		// This is a special replacement sequence
-		const auto type = macro.replacement_list[++offset];
-		if (type == macro_replacement_concat)
-		{
-			// Remove any whitespace preceding or following the concatenation operator (so "a ## b" becomes "ab")
-			// They were already collapsed to a single space in 'create_macro_replacement_list', so enough to test a single character on each side here
-			if (output.size() && output.back() == ' ')
-				output.pop_back();
-			if (offset + 1 != macro.replacement_list.size() && macro.replacement_list[offset + 1] == ' ')
-				++offset;
-			continue;
-		}
-
-		const auto index = macro.replacement_list[++offset];
+		const char type = macro.replacement_list[++offset];
+		const char index = macro.replacement_list[++offset];
 		if (static_cast<size_t>(index) >= arguments.size())
 		{
 			warning(_token.location, "not enough arguments for function-like macro invocation '" + name + "'");
@@ -1174,15 +1158,12 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 
 		switch (type)
 		{
-		case macro_replacement_stringize:
-			// Adds backslashes to escape quotes
-			output += escape_string<'\"'>(arguments[index]);
-			break;
 		case macro_replacement_argument:
+			// Argument prescan
 			push(arguments[index] + static_cast<char>(macro_replacement_argument));
 			while (true)
 			{
-				// Consume all tokens here, so spaces are added to the output too
+				// Consume all tokens of the argument (until the end marker is reached)
 				consume();
 
 				if (_token == tokenid::unknown) // 'macro_replacement_argument' is 'tokenid::unknown'
@@ -1190,12 +1171,24 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 				if (_token == tokenid::identifier && evaluate_identifier_as_macro())
 					continue;
 
-				output += _current_token_raw_data;
+				input += _current_token_raw_data;
 			}
 			assert(_current_token_raw_data[0] == macro_replacement_argument);
 			break;
+		case macro_replacement_concat:
+			input += arguments[index];
+			break;
+		case macro_replacement_stringize:
+			// Adds backslashes to escape quotes
+			input += escape_string<'\"'>(arguments[index]);
+			break;
 		}
 	}
+
+	push(std::move(input));
+
+	// Avoid expanding macros again that are referencing themselves
+	_input_stack[_current_input_index].hidden_macros.insert(name);
 }
 
 void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
@@ -1207,6 +1200,8 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 	// Ignore whitespace preceding the replacement list
 	accept(tokenid::space);
 
+	bool next_concat = false;
+
 	while (!peek(tokenid::end_of_line) && !peek(tokenid::end_of_file))
 	{
 		consume();
@@ -1214,14 +1209,22 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 		switch (_token)
 		{
 		case tokenid::hash:
-			if (accept(tokenid::hash))
+			if (accept(tokenid::hash, false))
 			{
+				if (macro.replacement_list.empty())
+					return error(_token.location, "## cannot appear at start of macro expansion");
 				if (peek(tokenid::end_of_line))
-					return error(_token.location, "## cannot appear at end of macro text");
+					return error(_token.location, "## cannot appear at end of macro expansion");
 
-				// Start a ## token concatenation operator
-				macro.replacement_list += macro_replacement_start;
-				macro.replacement_list += macro_replacement_concat;
+				// Remove any whitespace preceding or following the concatenation operator (so "a ## b" becomes "ab")
+				if (macro.replacement_list.back() == ' ')
+					macro.replacement_list.pop_back();
+				accept(tokenid::space);
+
+				// Disable macro expansion for any argument preceding or following the ## token concatenation operator
+				if (macro.replacement_list.size() > 2 && macro.replacement_list[macro.replacement_list.size() - 2] == macro_replacement_argument)
+					macro.replacement_list[macro.replacement_list.size() - 2] = macro_replacement_concat;
+				next_concat = true;
 				continue;
 			}
 			if (macro.is_function_like)
@@ -1237,6 +1240,7 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 				macro.replacement_list += macro_replacement_start;
 				macro.replacement_list += macro_replacement_stringize;
 				macro.replacement_list += static_cast<char>(std::distance(macro.parameters.begin(), it));
+				next_concat = false;
 				continue;
 			}
 			break;
@@ -1249,8 +1253,9 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 				it != macro.parameters.end())
 			{
 				macro.replacement_list += macro_replacement_start;
-				macro.replacement_list += macro_replacement_argument;
+				macro.replacement_list += static_cast<char>(next_concat ? macro_replacement_concat : macro_replacement_argument);
 				macro.replacement_list += static_cast<char>(std::distance(macro.parameters.begin(), it));
+				next_concat = false;
 				continue;
 			}
 			break;
@@ -1260,6 +1265,7 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 		}
 
 		macro.replacement_list += _current_token_raw_data;
+		next_concat = false;
 	}
 
 	// Trim whitespace following the replacement list

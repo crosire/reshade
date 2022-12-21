@@ -138,7 +138,7 @@ namespace reshadefx
 		bool evaluate_identifier_as_macro();
 
 		bool is_defined(const std::string &name) const;
-		void expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &output);
+		void expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments);
 		void create_macro_replacement_list(macro &macro);
 
 		bool _success = true;
