@@ -808,7 +808,17 @@ void reshadefx::lexer::skip_to_next_line()
 {
 	// Skip each character until a new line feed is found
 	while (*_cur != '\n' && _cur < _end)
+	{
+		if (_cur[0] == '\\' && (_cur[1] == '\n' || (_cur[1] == '\r' && _cur[2] == '\n')))
+		{
+			skip(_cur[1] == '\r' ? 3 : 2);
+			_cur_location.line++;
+			_cur_location.column = 1;
+			continue;
+		}
+
 		skip(1);
+	}
 }
 
 void reshadefx::lexer::reset_to_offset(size_t offset)
