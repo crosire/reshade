@@ -1658,7 +1658,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				assert(_d3d_compiler_module != nullptr);
 
-				std::string hlsl = hlsl_preamble;
+				std::string hlsl = std::move(hlsl_preamble);
 
 				if (_renderer_id == 0x9000)
 				{
@@ -1672,9 +1672,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							continue;
 
 						semantic_index++;
-						assert((effect.uniform_data_storage.size() / 16) < (255 - semantic_index));
+						assert((effect.uniform_data_storage.size() / 16) <= (255 - semantic_index));
 
-						hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
+						// Avoid duplicate declarations if the semantic was used multiple times
+						if (hlsl.find(tex.semantic) == std::string::npos)
+							hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
 					}
 				}
 
