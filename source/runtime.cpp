@@ -1646,7 +1646,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				assert(_d3d_compiler_module != nullptr);
 
-				std::string hlsl = std::move(hlsl_preamble);
+				// Copy string, since this has to be repeated for every entry point
+				std::string hlsl = hlsl_preamble;
 
 				if (_renderer_id == 0x9000)
 				{
