@@ -209,7 +209,7 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	const bool extended_interface = _extended_interface;
 
 	// Borderlands 2 is not counting references correctly and will release the device before 'IDirect3DDevice9::Reset' calls, so try and detect this and prevent deletion
-	if (_resource_ref > 25)
+	if (_resource_ref > 5)
 	{
 		LOG(WARN) << "Reference count for " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent! Leaking resources ...";
 		_ref = 1;
@@ -243,8 +243,8 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for " << "IDirect3DDevice9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
-
-	operator delete(this, sizeof(Direct3DDevice9));
+	else
+		operator delete(this, sizeof(Direct3DDevice9));
 	return 0;
 }
 
