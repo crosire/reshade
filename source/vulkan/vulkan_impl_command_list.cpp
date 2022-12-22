@@ -704,6 +704,12 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 		region.imageExtent.width  = dst_box->right - dst_box->left;
 		region.imageExtent.height = dst_box->bottom - dst_box->top;
 		region.imageExtent.depth  = dst_box->back - dst_box->front;
+
+		if (dst_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+		{
+			region.imageSubresource.layerCount = region.imageExtent.depth;
+			region.imageExtent.depth = 1;
+		}
 	}
 	else
 	{
@@ -745,6 +751,13 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 			region.extent.width  = src_box->width();
 			region.extent.height = src_box->height();
 			region.extent.depth  = src_box->depth();
+
+			if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				region.srcSubresource.layerCount = region.extent.depth;
+				region.dstSubresource.layerCount = region.extent.depth;
+				region.extent.depth = 1;
+			}
 		}
 		else
 		{
@@ -766,6 +779,12 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 		if (src_box != nullptr)
 		{
 			std::copy_n(&src_box->left, 6, &region.srcOffsets[0].x);
+
+			if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				region.srcSubresource.layerCount = src_box->depth();
+				region.srcOffsets[1].z = region.srcOffsets[0].z + 1;
+			}
 		}
 		else
 		{
@@ -780,6 +799,12 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 		if (dst_box != nullptr)
 		{
 			std::copy_n(&dst_box->left, 6, &region.dstOffsets[0].x);
+
+			if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				region.dstSubresource.layerCount = dst_box->depth();
+				region.dstOffsets[1].z = region.dstOffsets[0].z + 1;
+			}
 		}
 		else
 		{
@@ -819,6 +844,12 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 		region.imageExtent.width  = src_box->width();
 		region.imageExtent.height = src_box->height();
 		region.imageExtent.depth  = src_box->depth();
+
+		if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+		{
+			region.imageSubresource.layerCount = region.imageExtent.depth;
+			region.imageExtent.depth = 1;
+		}
 	}
 	else
 	{
@@ -852,6 +883,13 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		region.extent.width  = src_box->width();
 		region.extent.height = src_box->height();
 		region.extent.depth  = src_box->depth();
+
+		if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+		{
+			region.srcSubresource.layerCount = region.extent.depth;
+			region.dstSubresource.layerCount = region.extent.depth;
+			region.extent.depth = 1;
+		}
 	}
 	else
 	{

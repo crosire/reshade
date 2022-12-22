@@ -734,7 +734,6 @@ bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, ui
 	out_data->slice_pitch = 0;
 
 	// Mapping a subset of a texture is not supported
-	// TODO: Add support for subresources other than zero for images
 	if (subresource != 0 || box != nullptr)
 		return false;
 
