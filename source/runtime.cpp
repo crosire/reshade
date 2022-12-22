@@ -852,6 +852,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PresetShortcutKeys", preset_key_data);
 	config.get("GENERAL", "PresetShortcutPaths", preset_shortcut_paths);
 
+	_preset_shortcuts.clear();
 	for (size_t i = 0; i < preset_shortcut_paths.size() && (i * 4 + 4) <= preset_key_data.size(); ++i)
 	{
 		preset_shortcut shortcut;
