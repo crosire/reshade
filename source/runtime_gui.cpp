@@ -774,7 +774,7 @@ void reshade::runtime::draw_gui()
 	// Create ImGui widgets and windows
 	if (show_splash)
 	{
-		ImGui::SetNextWindowPos(ImVec2(10, 10));
+		ImGui::SetNextWindowPos(_imgui_context->Style.WindowPadding);
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
@@ -880,7 +880,7 @@ void reshade::runtime::draw_gui()
 			}
 		}
 
-		viewport_offset.y += ImGui::GetWindowHeight() + 10; // Add small space between windows
+		viewport_offset.y += ImGui::GetWindowHeight() + _imgui_context->Style.WindowPadding.x; // Add small space between windows
 
 		ImGui::End();
 		ImGui::PopStyleColor(2);
