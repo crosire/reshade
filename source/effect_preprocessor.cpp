@@ -233,7 +233,8 @@ void reshadefx::preprocessor::consume()
 	if (!input.name.empty() && input.name != _output_location.source)
 	{
 		_output += "#line " + std::to_string(input.next_token.location.line) + " \"" + input.name + "\"\n";
-		_output_location.line = input.next_token.location.line;
+		// Line number is increased before checking against next token in 'tokenid::end_of_line' handling in 'parse' function below, so compensate for that here
+		_output_location.line = input.next_token.location.line - 1;
 		_output_location.source = input.name;
 	}
 
@@ -695,9 +696,14 @@ void reshadefx::preprocessor::parse_include()
 		_file_cache.emplace(file_path_string, input);
 	}
 
-	// Clear out input stack before pushing include so that hidden macros do not bleed into the include
+	// Skip end of line character following the include statement before pushing, so that the line number is already pointing to the next line when popping out of it again
+	if (!expect(tokenid::end_of_line))
+		consume_until(tokenid::end_of_line);
+
+	// Clear out input stack before pushing include, so that hidden macros do not bleed into the include
 	while (_input_stack.size() > (_next_input_index + 1))
 		_input_stack.pop_back();
+
 	push(std::move(input), file_path_string);
 }
 
