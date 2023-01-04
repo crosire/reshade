@@ -34,8 +34,9 @@ namespace reshade
 		/// Registers a window using raw input with the input manager.
 		/// </summary>
 		/// <param name="window">Window handle of the target window.</param>
-		/// <param name="flags">Raw input mode flags that were used to register the device.</param>
-		static void register_window_with_raw_input(window_handle window, unsigned int flags);
+		/// <param name="no_legacy_keyboard"><c>true</c> if 'RIDEV_NOLEGACY' is set for the keyboard device, <c>false</c> otherwise.</param>
+		/// <param name="no_legacy_mouse"><c>true</c> if 'RIDEV_NOLEGACY' is set for the mouse device, <c>false</c> otherwise.</param>
+		static void register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse);
 		/// <summary>
 		/// Registers a window using normal input window messages with the input manager.
 		/// </summary>
