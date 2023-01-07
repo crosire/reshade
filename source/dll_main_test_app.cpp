@@ -64,6 +64,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	// Register window class
 	WNDCLASS wc = { sizeof(wc) };
+	wc.hIcon = LoadIcon(hInstance, TEXT("MAIN_ICON"));
 	wc.hInstance = hInstance;
 	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
 	wc.lpszClassName = TEXT("Test");
