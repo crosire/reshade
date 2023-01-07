@@ -1663,7 +1663,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						assert((effect.uniform_data_storage.size() / 16) <= (255 - semantic_index));
 
 						// Avoid duplicate declarations if the semantic was used multiple times
-						if (hlsl.find(tex.semantic) == std::string::npos)
+						if (hlsl.find(tex.semantic + "_PIXEL_SIZE") == std::string::npos)
 							hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
 					}
 				}
