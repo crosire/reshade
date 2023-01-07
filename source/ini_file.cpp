@@ -60,7 +60,7 @@ bool ini_file::load()
 		}
 
 		// Read section content
-		const auto assign_index = line.find('=');
+		const size_t assign_index = line.find('=');
 		if (assign_index != std::string::npos)
 		{
 			const std::string key = trim(line.substr(0, assign_index));
@@ -125,7 +125,7 @@ bool ini_file::save()
 	std::vector<std::string> section_names, key_names;
 
 	section_names.reserve(_sections.size());
-	for (const auto &section : _sections)
+	for (const std::pair<const std::string, section_type> &section : _sections)
 		section_names.push_back(section.first);
 
 	// Sort sections to generate consistent files
@@ -138,11 +138,11 @@ bool ini_file::save()
 
 	for (const std::string &section_name : section_names)
 	{
-		const auto &keys = _sections.at(section_name);
+		const section_type &keys = _sections.at(section_name);
 
 		key_names.clear();
 		key_names.reserve(keys.size());
-		for (const auto &key : keys)
+		for (const std::pair<const std::string, value_type> &key : keys)
 			key_names.push_back(key.first);
 
 		std::sort(key_names.begin(), key_names.end(),

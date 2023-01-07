@@ -281,7 +281,7 @@ void reshade::unload_addons()
 
 #ifndef NDEBUG
 	// All events should have been unregistered at this point
-	for (const auto &event_info : addon_event_list)
+	for (const std::vector<void *> &event_info : addon_event_list)
 		assert(event_info.empty());
 #endif
 
@@ -461,7 +461,7 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 	}
 #endif
 
-	auto &event_list = reshade::addon_event_list[static_cast<uint32_t>(ev)];
+	std::vector<void *> &event_list = reshade::addon_event_list[static_cast<uint32_t>(ev)];
 	event_list.push_back(callback);
 
 	info->event_callbacks.emplace_back(static_cast<uint32_t>(ev), callback);
@@ -484,7 +484,7 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 		return;
 #endif
 
-	auto &event_list = reshade::addon_event_list[static_cast<uint32_t>(ev)];
+	std::vector<void *> &event_list = reshade::addon_event_list[static_cast<uint32_t>(ev)];
 	event_list.erase(std::remove(event_list.begin(), event_list.end(), callback), event_list.end());
 
 	info->event_callbacks.erase(std::remove(info->event_callbacks.begin(), info->event_callbacks.end(), std::make_pair(static_cast<uint32_t>(ev), callback)), info->event_callbacks.end());

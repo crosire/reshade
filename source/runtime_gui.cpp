@@ -63,8 +63,8 @@ void reshade::runtime::init_gui()
 	_overlay_key_data[3] = false;
 
 	_imgui_context = ImGui::CreateContext();
-	auto &imgui_io = _imgui_context->IO;
-	auto &imgui_style = _imgui_context->Style;
+
+	ImGuiIO &imgui_io = _imgui_context->IO;
 	imgui_io.IniFilename = nullptr;
 	imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
 	imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
@@ -90,6 +90,7 @@ void reshade::runtime::init_gui()
 	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
 	imgui_io.BackendFlags = ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_RendererHasVtxOffset;
 
+	ImGuiStyle &imgui_style = _imgui_context->Style;
 	// Disable rounding by default
 	imgui_style.GrabRounding = 0.0f;
 	imgui_style.FrameRounding = 0.0f;
@@ -215,7 +216,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "SavePresetOnModification", _save_present_on_modification);
 #endif
 
-	auto &imgui_style = _imgui_context->Style;
+	ImGuiStyle &imgui_style = _imgui_context->Style;
 	config.get("STYLE", "Alpha", imgui_style.Alpha);
 	config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
 	config.get("STYLE", "ColFPSText", _fps_col);
@@ -246,11 +247,11 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	ImGui::SetCurrentContext(_imgui_context);
 
 	// Call all pre-read handlers, before reading config data (since they affect state that is then updated in the read handlers below)
-	for (auto &handler : _imgui_context->SettingsHandlers)
+	for (ImGuiSettingsHandler &handler : _imgui_context->SettingsHandlers)
 		if (handler.ReadInitFn)
 			handler.ReadInitFn(_imgui_context, &handler);
 
-	for (auto &handler : _imgui_context->SettingsHandlers)
+	for (ImGuiSettingsHandler &handler : _imgui_context->SettingsHandlers)
 	{
 		std::vector<std::string> lines;
 		if (config.get("OVERLAY", handler.TypeName, lines))
@@ -280,7 +281,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 
 	_imgui_context->SettingsLoaded = true;
 
-	for (auto &handler : _imgui_context->SettingsHandlers)
+	for (ImGuiSettingsHandler &handler : _imgui_context->SettingsHandlers)
 		if (handler.ApplyAllFn)
 			handler.ApplyAllFn(_imgui_context, &handler);
 
@@ -308,7 +309,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("OVERLAY", "SavePresetOnModification", _save_present_on_modification);
 #endif
 
-	const auto &imgui_style = _imgui_context->Style;
+	const ImGuiStyle &imgui_style = _imgui_context->Style;
 	config.set("STYLE", "Alpha", imgui_style.Alpha);
 	config.set("STYLE", "ChildRounding", imgui_style.ChildRounding);
 	config.set("STYLE", "ColFPSText", _fps_col);
@@ -331,7 +332,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	ImGui::SetCurrentContext(_imgui_context);
 
-	for (auto &handler : _imgui_context->SettingsHandlers)
+	for (ImGuiSettingsHandler &handler : _imgui_context->SettingsHandlers)
 	{
 		ImGuiTextBuffer buffer;
 		handler.WriteAllFn(_imgui_context, &handler, &buffer);
@@ -707,7 +708,7 @@ void reshade::runtime::draw_gui()
 	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	ImGui::SetCurrentContext(_imgui_context);
 
-	auto &imgui_io = _imgui_context->IO;
+	ImGuiIO &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
@@ -993,7 +994,7 @@ void reshade::runtime::draw_gui()
 			ImGui::DockBuilderSplitNode(root_space_id, ImGuiDir_Left, 0.35f, &main_space_id, &right_space_id);
 
 			// Attach most windows to the main dock space
-			for (const auto &widget : overlay_callbacks)
+			for (const std::pair<const char *, void(runtime::*)()> &widget : overlay_callbacks)
 				ImGui::DockBuilderDockWindow(widget.first, main_space_id);
 
 			// Attach editor window to the remaining dock space
@@ -1027,7 +1028,7 @@ void reshade::runtime::draw_gui()
 				ImGui::SetNextWindowFocus();
 		}
 
-		for (const auto &widget : overlay_callbacks)
+		for (const std::pair<const char *, void(runtime:: *)()> &widget : overlay_callbacks)
 		{
 			if (ImGui::Begin(widget.first, nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
 				(this->*widget.second)();
@@ -2162,7 +2163,7 @@ void reshade::runtime::draw_gui_statistics()
 				if (std::find(tex.shared.begin(), tex.shared.end(), tech.effect_index) == tex.shared.end())
 					continue;
 
-				auto &reference = references.emplace_back();
+				std::pair<size_t, std::vector<std::string>> &reference = references.emplace_back();
 				reference.first = tech.effect_index;
 
 				for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index)
@@ -2208,14 +2209,14 @@ void reshade::runtime::draw_gui_statistics()
 				}
 			}
 
-			const auto button_size = ImGui::GetFrameHeight();
-			const auto button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 			const bool supports_saving = (
 				tex.format == reshadefx::texture_format::r8 ||
 				tex.format == reshadefx::texture_format::rg8 ||
 				tex.format == reshadefx::texture_format::rgba8 ||
 				tex.format == reshadefx::texture_format::rgb10a2);
 
+			const float button_size = ImGui::GetFrameHeight();
+			const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (const std::string label = "Referenced by " + std::to_string(num_referenced_passes) + " pass(es) in " + std::to_string(tex.shared.size()) + " effect(s) ...";
 				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width - (supports_saving ? button_spacing + button_size : 0), 0)))
@@ -2235,7 +2236,7 @@ void reshade::runtime::draw_gui_statistics()
 				bool is_open = false;
 				size_t effect_index = std::numeric_limits<size_t>::max();
 
-				for (const auto &reference : references)
+				for (const std::pair<size_t, std::vector<std::string>> &reference : references)
 				{
 					if (effect_index != reference.first)
 					{
@@ -2245,7 +2246,7 @@ void reshade::runtime::draw_gui_statistics()
 
 					if (is_open)
 					{
-						for (const auto &pass : reference.second)
+						for (const std::string &pass : reference.second)
 						{
 							ImGui::Dummy(ImVec2(_imgui_context->Style.IndentSpacing, 0.0f));
 							ImGui::SameLine(0.0f, 0.0f);
@@ -2411,17 +2412,17 @@ void reshade::runtime::draw_gui_about()
 
 	if (ImGui::CollapsingHeader("ReShade", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_RESHADE);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_RESHADE);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("MinHook"))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_MINHOOK);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_MINHOOK);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("Dear ImGui"))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_IMGUI);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_IMGUI);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("ImGuiColorTextEdit"))
@@ -2436,17 +2437,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	if (ImGui::CollapsingHeader("gl3w"))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_GL3W);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_GL3W);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("UTF8-CPP"))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_UTFCPP);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_UTFCPP);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("stb_image, stb_image_write"))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_STB);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_STB);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("DDS loading from SOIL"))
@@ -2459,17 +2460,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	if (ImGui::CollapsingHeader("SPIR-V"))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_SPIRV);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_SPIRV);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("Vulkan & Vulkan-Loader"))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_VULKAN);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_VULKAN);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("Vulkan Memory Allocator"))
 	{
-		const auto resource = resources::load_data_resource(IDR_LICENSE_VMA);
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_VMA);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("Solarized"))
@@ -2778,8 +2779,7 @@ void reshade::runtime::draw_variable_editor()
 		_was_preprocessor_popup_edited = false;
 	}
 
-	const auto find_definition_value = [](auto &list, const auto &name, char value[128] = nullptr)
-	{
+	const auto find_definition_value = [](auto &list, const auto &name, char value[128] = nullptr) {
 		for (auto it = list.begin(); it != list.end(); ++it)
 		{
 			char current_name[128] = "";
@@ -2986,9 +2986,9 @@ void reshade::runtime::draw_variable_editor()
 					int data[16];
 					get_uniform_value(variable, data, 16);
 
-					const auto ui_min_val = variable.annotation_as_int("ui_min", 0, ui_type == "slider" ? 0 : std::numeric_limits<int>::lowest());
-					const auto ui_max_val = variable.annotation_as_int("ui_max", 0, ui_type == "slider" ? 1 : std::numeric_limits<int>::max());
-					const auto ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
+					const int ui_min_val = variable.annotation_as_int("ui_min", 0, ui_type == "slider" ? 0 : std::numeric_limits<int>::lowest());
+					const int ui_max_val = variable.annotation_as_int("ui_max", 0, ui_type == "slider" ? 1 : std::numeric_limits<int>::max());
+					const int ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
 
 					if (ui_type == "slider")
 						modified = imgui::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
@@ -3017,9 +3017,9 @@ void reshade::runtime::draw_variable_editor()
 					float data[16];
 					get_uniform_value(variable, data, 16);
 
-					const auto ui_min_val = variable.annotation_as_float("ui_min", 0, ui_type == "slider" ? 0.0f : std::numeric_limits<float>::lowest());
-					const auto ui_max_val = variable.annotation_as_float("ui_max", 0, ui_type == "slider" ? 1.0f : std::numeric_limits<float>::max());
-					const auto ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
+					const float ui_min_val = variable.annotation_as_float("ui_min", 0, ui_type == "slider" ? 0.0f : std::numeric_limits<float>::lowest());
+					const float ui_max_val = variable.annotation_as_float("ui_max", 0, ui_type == "slider" ? 1.0f : std::numeric_limits<float>::max());
+					const float ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
 
 					// Calculate display precision based on step value
 					char precision_format[] = "%.0f";

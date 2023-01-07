@@ -372,7 +372,7 @@ void reshade::input::next_frame()
 {
 	_frame_count++;
 
-	for (auto &state : _keys)
+	for (uint8_t &state : _keys)
 		state &= ~0x08;
 
 	// Reset any pressed down key states (apart from mouse buttons) that have not been updated for more than 5 seconds
@@ -477,7 +477,7 @@ bool is_blocking_mouse_input()
 {
 	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
-	const auto predicate = [](const auto &input_window) {
+	const auto predicate = [](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_mouse_input();
 	};
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
@@ -486,7 +486,7 @@ bool is_blocking_keyboard_input()
 {
 	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
-	const auto predicate = [](const auto &input_window) {
+	const auto predicate = [](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
 		return !input_window.second.expired() && input_window.second.lock()->is_blocking_keyboard_input();
 	};
 	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
@@ -614,7 +614,7 @@ extern "C" BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDev
 
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
-		const auto &device = pRawInputDevices[i];
+		const RAWINPUTDEVICE &device = pRawInputDevices[i];
 
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "> Dumping device registration at index " << i << ":";

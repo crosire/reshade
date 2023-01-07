@@ -39,7 +39,7 @@ bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 	if (!path.is_absolute())
 		path = std::filesystem::absolute(g_reshade_base_path / path, ec);
 	// Finally try to canonicalize the path too
-	if (auto canonical_path = std::filesystem::canonical(path, ec); !ec)
+	if (std::filesystem::path canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
 	return !ec; // The canonicalization step fails if the path does not exist
 }
@@ -111,7 +111,7 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 		if (resolve_path(search_path, ec))
 		{
 			if (const auto it = std::find_if(resolved_search_paths.begin(), resolved_search_paths.end(),
-					[&search_path](const auto &recursive_search_path) {
+					[&search_path](const std::pair<std::filesystem::path, bool> &recursive_search_path) {
 						return recursive_search_path.first == search_path;
 					});
 				it != resolved_search_paths.end())
@@ -1434,13 +1434,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.preprocessed = pp.append_file(source_file);
 
 		// Append preprocessor errors to the error list
-		effect.errors      += pp.errors();
+		effect.errors += pp.errors();
 
 		if (effect.preprocessed)
 		{
-			source = std::move(pp.output());
+			source = pp.output();
 
-			for (const auto &pragma : pp.used_pragma_directives())
+			for (const std::pair<std::string, std::string> &pragma : pp.used_pragma_directives())
 			{
 				if (pragma.first == "reshade")
 				{
@@ -1460,7 +1460,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			effect.definitions.clear();
-			for (const auto &definition : pp.used_macro_definitions())
+			for (const std::pair<std::string, std::string> &definition : pp.used_macro_definitions())
 			{
 				if (definition.first.size() <= 10 ||
 					definition.first[0] == '_' ||
@@ -1638,9 +1638,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				break;
 			}
 
-			auto &assembly = effect.assembly[entry_point.name];
-			std::string &cso = assembly.first;
-			std::string &cso_text = assembly.second;
+			std::string &cso = effect.assembly[entry_point.name].first;
+			std::string &cso_text = effect.assembly[entry_point.name].second;
 
 			if ((_renderer_id & 0xF0000) == 0)
 			{
@@ -1945,7 +1944,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			// Try to share textures with the same name across effects
 			if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&new_texture](const auto &item) {
+					[&new_texture](const texture &item) {
 						return item.unique_name == new_texture.unique_name;
 					});
 				existing_texture != _textures.end())
@@ -1975,7 +1974,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				if (existing_texture->semantic == "COLOR" && format_color_bit_depth(_back_buffer_format) != 8)
 				{
-					for (const auto &sampler_info : effect.module.samplers)
+					for (const reshadefx::sampler_info &sampler_info : effect.module.samplers)
 					{
 						if (sampler_info.srgb && sampler_info.texture_name == new_texture.unique_name)
 						{
@@ -1997,33 +1996,33 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				// Try to find another pooled texture to share with (and do not share within the same effect)
 				if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-						[&new_texture](const auto &item) {
+						[&new_texture](const texture &item) {
 							return item.annotation_as_int("pooled") && item.effect_index != new_texture.effect_index && item.matches_description(new_texture);
 						});
 					existing_texture != _textures.end())
 				{
 					// Overwrite referenced texture in samplers with the pooled one
-					for (auto &sampler_info : effect.module.samplers)
+					for (reshadefx::sampler_info &sampler_info : effect.module.samplers)
 						if (sampler_info.texture_name == new_texture.unique_name)
-							sampler_info.texture_name  = existing_texture->unique_name;
+							sampler_info.texture_name = existing_texture->unique_name;
 					// Overwrite referenced texture in storages with the pooled one
-					for (auto &storage_info : effect.module.storages)
+					for (reshadefx::storage_info &storage_info : effect.module.storages)
 						if (storage_info.texture_name == new_texture.unique_name)
-							storage_info.texture_name  = existing_texture->unique_name;
+							storage_info.texture_name = existing_texture->unique_name;
 					// Overwrite referenced texture in render targets with the pooled one
-					for (auto &technique_info : effect.module.techniques)
+					for (reshadefx::technique_info &technique_info : effect.module.techniques)
 					{
-						for (auto &pass_info : technique_info.passes)
+						for (reshadefx::pass_info &pass_info : technique_info.passes)
 						{
 							std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 								new_texture.unique_name, existing_texture->unique_name);
 
-							for (auto &sampler_info : pass_info.samplers)
+							for (reshadefx::sampler_info &sampler_info : pass_info.samplers)
 								if (sampler_info.texture_name == new_texture.unique_name)
-									sampler_info.texture_name  = existing_texture->unique_name;
-							for (auto &storage_info : pass_info.storages)
+									sampler_info.texture_name = existing_texture->unique_name;
+							for (reshadefx::storage_info &storage_info : pass_info.storages)
 								if (storage_info.texture_name == new_texture.unique_name)
-									storage_info.texture_name  = existing_texture->unique_name;
+									storage_info.texture_name = existing_texture->unique_name;
 						}
 					}
 
@@ -2343,8 +2342,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 			if (!pass_info.cs_entry_point.empty())
 			{
-				const auto &cs = effect.assembly.at(pass_info.cs_entry_point).first;
 				api::shader_desc cs_desc = {};
+				const std::string &cs = effect.assembly.at(pass_info.cs_entry_point).first;
 				cs_desc.code = cs.data();
 				cs_desc.code_size = cs.size();
 				if (_renderer_id & 0x20000)
@@ -2368,8 +2367,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			}
 			else
 			{
-				const auto &vs = effect.assembly.at(pass_info.vs_entry_point).first;
 				api::shader_desc vs_desc = {};
+				const std::string &vs = effect.assembly.at(pass_info.vs_entry_point).first;
 				vs_desc.code = vs.data();
 				vs_desc.code_size = vs.size();
 				if (_renderer_id & 0x20000)
@@ -2382,8 +2381,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
 
-				const auto &ps = effect.assembly.at(pass_info.ps_entry_point).first;
 				api::shader_desc ps_desc = {};
+				const std::string &ps = effect.assembly.at(pass_info.ps_entry_point).first;
 				ps_desc.code = ps.data();
 				ps_desc.code_size = ps.size();
 				if (_renderer_id & 0x20000)
@@ -2421,26 +2420,26 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					int render_target_count = 0;
 					for (; render_target_count < 8 && !pass_info.render_target_names[render_target_count].empty(); ++render_target_count)
 					{
-						const auto texture = std::find_if(_textures.begin(), _textures.end(),
-							[&unique_name = pass_info.render_target_names[render_target_count]](const auto &item) {
+						const auto render_target_texture = std::find_if(_textures.begin(), _textures.end(),
+							[&unique_name = pass_info.render_target_names[render_target_count]](const texture &item) {
 								return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
 							});
-						assert(texture != _textures.end());
-						assert(texture->semantic.empty() && texture->rtv[pass_info.srgb_write_enable] != 0);
+						assert(render_target_texture != _textures.end());
+						assert(render_target_texture->semantic.empty() && render_target_texture->rtv[pass_info.srgb_write_enable] != 0);
 
-						if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), texture->resource) == pass_data.modified_resources.end())
+						if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), render_target_texture->resource) == pass_data.modified_resources.end())
 						{
-							pass_data.modified_resources.push_back(texture->resource);
+							pass_data.modified_resources.push_back(render_target_texture->resource);
 
-							if (pass_info.generate_mipmaps && texture->levels > 1)
-								pass_data.generate_mipmap_views.push_back(texture->srv[pass_info.srgb_write_enable]);
+							if (pass_info.generate_mipmaps && render_target_texture->levels > 1)
+								pass_data.generate_mipmap_views.push_back(render_target_texture->srv[pass_info.srgb_write_enable]);
 						}
 
-						const api::resource_desc res_desc = _device->get_resource_desc(texture->resource);
+						const api::resource_desc res_desc = _device->get_resource_desc(render_target_texture->resource);
 
 						render_target_formats[render_target_count] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
 
-						pass_data.render_target_views[render_target_count] = texture->rtv[pass_info.srgb_write_enable];
+						pass_data.render_target_views[render_target_count] = render_target_texture->rtv[pass_info.srgb_write_enable];
 					}
 
 					subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, static_cast<uint32_t>(render_target_count), render_target_formats });
@@ -2561,11 +2560,11 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
-					const auto texture = std::find_if(_textures.begin(), _textures.end(),
-						[&unique_name = info.texture_name](const auto &item) {
+					const auto sampler_texture = std::find_if(_textures.begin(), _textures.end(),
+						[&unique_name = info.texture_name](const texture &item) {
 							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
 						});
-					assert(texture != _textures.end());
+					assert(sampler_texture != _textures.end());
 
 					api::resource_view &srv = sampler_descriptors[sampler_with_resource_view ? info.binding : effect.module.num_sampler_bindings + info.texture_binding].view;
 
@@ -2610,19 +2609,19 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						write.descriptors = &srv;
 					}
 
-					if (!texture->semantic.empty())
+					if (!sampler_texture->semantic.empty())
 					{
-						if (const auto it = _texture_semantic_bindings.find(texture->semantic); it != _texture_semantic_bindings.end())
+						if (const auto it = _texture_semantic_bindings.find(sampler_texture->semantic); it != _texture_semantic_bindings.end())
 							srv = info.srgb ? it->second.second : it->second.first;
 						else
 							srv = _empty_srv;
 
 						// Keep track of the texture descriptor to simplify updating it
-						effect.texture_semantic_to_binding.push_back({ texture->semantic, write.set, write.binding, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 }, !!info.srgb });
+						effect.texture_semantic_to_binding.push_back({ sampler_texture->semantic, write.set, write.binding, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 }, !!info.srgb });
 					}
 					else
 					{
-						srv = texture->srv[info.srgb];
+						srv = sampler_texture->srv[info.srgb];
 					}
 
 					assert(srv != 0);
@@ -2635,19 +2634,19 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
-					const auto texture = std::find_if(_textures.begin(), _textures.end(),
-						[&unique_name = info.texture_name](const auto &item) {
+					const auto storage_texture = std::find_if(_textures.begin(), _textures.end(),
+						[&unique_name = info.texture_name](const texture &item) {
 							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
 						});
-					assert(texture != _textures.end());
-					assert(texture->semantic.empty() && texture->uav[info.level] != 0);
+					assert(storage_texture != _textures.end());
+					assert(storage_texture->semantic.empty() && storage_texture->uav[info.level] != 0);
 
-					if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), texture->resource) == pass_data.modified_resources.end())
+					if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), storage_texture->resource) == pass_data.modified_resources.end())
 					{
-						pass_data.modified_resources.push_back(texture->resource);
+						pass_data.modified_resources.push_back(storage_texture->resource);
 
-						if (pass_info.generate_mipmaps && texture->levels > 1)
-							pass_data.generate_mipmap_views.push_back(texture->srv[0]);
+						if (pass_info.generate_mipmaps && storage_texture->levels > 1)
+							pass_data.generate_mipmap_views.push_back(storage_texture->srv[0]);
 					}
 
 					api::descriptor_set_update &write = descriptor_writes.emplace_back();
@@ -2655,7 +2654,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
-					write.descriptors = &texture->uav[info.level];
+					write.descriptors = &storage_texture->uav[info.level];
 				}
 			}
 		}
@@ -3868,7 +3867,8 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 					semantic_index++;
 
-					if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
+					if (const auto it = _texture_semantic_bindings.find(tex.semantic);
+						it != _texture_semantic_bindings.end())
 					{
 						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
 
@@ -4068,7 +4068,7 @@ void reshade::runtime::get_uniform_value_data(const uniform &variable, uint8_t *
 	size = std::min(size, static_cast<size_t>(variable.size));
 	assert(data != nullptr && (size % 4) == 0);
 
-	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
+	const std::vector<uint8_t> &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
 	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
@@ -4169,7 +4169,7 @@ void reshade::runtime::set_uniform_value_data(uniform &variable, const uint8_t *
 	size = std::min(size, static_cast<size_t>(variable.size));
 	assert(data != nullptr && (size % 4) == 0);
 
-	auto &data_storage = _effects[variable.effect_index].uniform_data_storage;
+	std::vector<uint8_t> &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
 	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);

@@ -212,7 +212,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			std::string cumulated_string = "";
 			float cumulated_string_width[2] = { 0.0f, 0.0f }; // [0] is the latest, [1] is the previous. I use that trick to check where cursor is exactly (important for tabs).
 
-			const auto &line = _lines[res.line];
+			const std::vector<glyph> &line = _lines[res.line];
 
 			// First we find the hovered column
 			while (text_start + cumulated_string_width[0] < pos.x && res.column < line.size())
@@ -335,7 +335,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	// Update glyph colors
 	colorize();
 
-	const auto draw_list = ImGui::GetWindowDrawList();
+	ImDrawList *const draw_list = ImGui::GetWindowDrawList();
 
 	float longest_line = 0.0f;
 	const float space_size = calc_text_size(" ").x;
@@ -345,7 +345,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 
 	const auto calc_text_distance_to_line_begin = [this, space_size](const text_pos &from) {
 		float distance = 0.0f;
-		const auto &line = _lines[from.line];
+		const std::vector<glyph> &line = _lines[from.line];
 		for (size_t i = 0u; i < line.size() && i < from.column; ++i)
 			if (line[i].c == '\t')
 				distance += _tab_size * space_size;
@@ -356,7 +356,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 
 	for (; line_no <= line_max; ++line_no, buf_end = buf)
 	{
-		const auto &line = _lines[line_no];
+		const std::vector<glyph> &line = _lines[line_no];
 
 		// Position of the line number
 		const ImVec2 line_screen_pos = ImVec2(ImGui::GetCursorScreenPos().x, ImGui::GetCursorScreenPos().y + line_no * char_advance.y);
@@ -493,8 +493,8 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			continue;
 
 		// Draw colorized line text
-		auto text_offset = 0.0f;
-		auto current_color = line[0].col;
+		float text_offset = 0.0f;
+		color current_color = line[0].col;
 
 		// Fill temporary buffer with glyph characters and commit it every time the color changes or a tab character is encountered
 		for (const glyph &glyph : line)
@@ -668,8 +668,8 @@ void reshade::imgui::code_editor::select(const text_pos &beg, const text_pos &en
 		_select_beg = end;
 
 	const auto select_word = [this](text_pos &beg, text_pos &end) {
-		const auto &beg_line = _lines[beg.line];
-		const auto &end_line = _lines[end.line];
+		const std::vector<glyph> &beg_line = _lines[beg.line];
+		const std::vector<glyph> &end_line = _lines[end.line];
 		// Empty lines cannot have any words, so abort
 		if (beg_line.empty() || end_line.empty())
 			return;
@@ -679,11 +679,11 @@ void reshade::imgui::code_editor::select(const text_pos &beg, const text_pos &en
 		if (end.column == end_line.size() || (end.column > 0 && end_line[end.column].col == color_default))
 			end.column--;
 		// Search from the first position backwards until a character with a different color is found
-		for (auto word_color = beg_line[beg.column].col;
+		for (color word_color = beg_line[beg.column].col;
 			beg.column > 0 && beg_line[beg.column - 1].col == word_color;
 			--beg.column) continue;
 		// Search from the selection end position forwards until a character with a different color is found
-		for (auto word_color = end_line[end.column].col;
+		for (color word_color = end_line[end.column].col;
 			end.column < end_line.size() && end_line[end.column].col == word_color;
 			++end.column) continue;
 	};
@@ -776,8 +776,8 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 	{
 		if (c == '\t' && auto_indent) // Pressing tab with a selection indents the entire selection
 		{
-			auto &beg = _select_beg;
-			auto &end = _select_end;
+			text_pos &beg = _select_beg;
+			text_pos &end = _select_end;
 
 			_colorize_line_beg = std::min(_colorize_line_beg, beg.line - std::min<size_t>(beg.line, 10));
 			_colorize_line_end = std::max(_colorize_line_end, end.line + 10 + 1);
@@ -792,7 +792,7 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 
 			for (size_t i = beg.line; i <= end.line; i++)
 			{
-				auto &line = _lines[i];
+				std::vector<glyph> &line = _lines[i];
 
 				if (ImGui::GetIO().KeyShift)
 				{
@@ -840,7 +840,7 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 	{
 		if (c == '\t' && auto_indent && ImGui::GetIO().KeyShift)
 		{
-			auto &line = _lines[_cursor_pos.line];
+			std::vector<glyph> &line = _lines[_cursor_pos.line];
 
 			if (line.empty())
 				return; // Line is already empty, so there is no indentation to remove
@@ -884,12 +884,12 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 		// Move all error markers after the new line one up
 		std::unordered_map<size_t, std::pair<std::string, bool>> errors;
 		errors.reserve(_errors.size());
-		for (auto &i : _errors)
+		for (std::pair<const size_t, std::pair<std::string, bool>> &i : _errors)
 			errors.insert({ i.first >= _cursor_pos.line + 1 ? i.first + 1 : i.first, i.second });
 		_errors = std::move(errors);
 
-		auto &new_line = *_lines.emplace(_lines.begin() + _cursor_pos.line + 1);
-		auto &line = _lines[_cursor_pos.line];
+		std::vector<glyph> &new_line = *_lines.emplace(_lines.begin() + _cursor_pos.line + 1);
+		std::vector<glyph> &line = _lines[_cursor_pos.line];
 
 		// Auto indentation
 		if (auto_indent && _cursor_pos.column == line.size())
@@ -905,7 +905,7 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 	}
 	else if (c != '\r') // Ignore carriage return
 	{
-		auto &line = _lines[_cursor_pos.line];
+		std::vector<glyph> &line = _lines[_cursor_pos.line];
 
 		if (_overwrite && _cursor_pos.column < line.size())
 			line[_cursor_pos.column] = { c, color_default };
@@ -934,15 +934,15 @@ std::string reshade::imgui::code_editor::get_text(const text_pos &beg, const tex
 {
 	// Calculate length of text to pre-allocate memory before building the string
 	size_t length = 0;
-	for (auto it = beg; it < end; it.line++)
+	for (text_pos it = beg; it < end; it.line++)
 		length += _lines[it.line].size() + 1;
 
 	std::string result;
 	result.reserve(length);
 
-	for (auto it = beg; it < end;)
+	for (text_pos it = beg; it < end;)
 	{
-		const auto &line = _lines[it.line];
+		const std::vector<glyph> &line = _lines[it.line];
 
 		if (it.column < line.size())
 		{
@@ -1056,7 +1056,7 @@ void reshade::imgui::code_editor::delete_next()
 
 	assert(!_lines.empty());
 
-	auto &line = _lines[_cursor_pos.line];
+	std::vector<glyph> &line = _lines[_cursor_pos.line];
 
 	undo_record u;
 	u.removed_beg = _cursor_pos;
@@ -1068,7 +1068,7 @@ void reshade::imgui::code_editor::delete_next()
 		if (_cursor_pos.line == _lines.size() - 1)
 			return; // This already is the last line
 
-		const auto &next_line = _lines[_cursor_pos.line + 1];
+		const std::vector<glyph> &next_line = _lines[_cursor_pos.line + 1];
 
 		u.removed = '\n';
 		u.removed_end.line++;
@@ -1107,7 +1107,7 @@ void reshade::imgui::code_editor::delete_previous()
 
 	assert(!_lines.empty());
 
-	auto &line = _lines[_cursor_pos.line];
+	std::vector<glyph> &line = _lines[_cursor_pos.line];
 
 	undo_record u;
 	u.removed_end = _cursor_pos;
@@ -1118,7 +1118,7 @@ void reshade::imgui::code_editor::delete_previous()
 		if (_cursor_pos.line == 0)
 			return; // This already is the first line
 
-		auto &prev_line = _lines[_cursor_pos.line - 1];
+		std::vector<glyph> &prev_line = _lines[_cursor_pos.line - 1];
 		_cursor_pos.line--;
 		_cursor_pos.column = prev_line.size();
 
@@ -1166,7 +1166,7 @@ void reshade::imgui::code_editor::delete_selection()
 
 	if (_select_beg.line == _select_end.line)
 	{
-		auto &line = _lines[_select_beg.line];
+		std::vector<glyph> &line = _lines[_select_beg.line];
 
 		if (_select_end.column >= line.size())
 			line.erase(line.begin() + _select_beg.column, line.end());
@@ -1175,8 +1175,8 @@ void reshade::imgui::code_editor::delete_selection()
 	}
 	else
 	{
-		auto &beg_line = _lines[_select_beg.line];
-		auto &end_line = _lines[_select_end.line];
+		std::vector<glyph> &beg_line = _lines[_select_beg.line];
+		std::vector<glyph> &end_line = _lines[_select_end.line];
 
 		beg_line.erase(beg_line.begin() + _select_beg.column, beg_line.end());
 		end_line.erase(end_line.begin(), end_line.begin() + _select_end.column);
@@ -1206,7 +1206,7 @@ void reshade::imgui::code_editor::delete_lines(size_t first_line, size_t last_li
 	// Move all error markers after the deleted lines down
 	std::unordered_map<size_t, std::pair<std::string, bool>> errors;
 	errors.reserve(_errors.size());
-	for (auto &i : _errors)
+	for (std::pair<const size_t, std::pair<std::string, bool>> &i : _errors)
 		if (i.first < first_line && i.first > last_line)
 			errors.insert({ i.first > last_line ? i.first - (last_line - first_line) : i.first, i.second });
 	_errors = std::move(errors);
@@ -1297,7 +1297,7 @@ void reshade::imgui::code_editor::move_up(size_t amount, bool selection)
 {
 	assert(!_lines.empty());
 
-	const auto prev_pos = _cursor_pos;
+	const text_pos prev_pos = _cursor_pos;
 	_cursor_pos.line = std::max<intptr_t>(0, _cursor_pos.line - amount);
 
 	// The line before could be shorter, so adjust column
@@ -1329,7 +1329,7 @@ void reshade::imgui::code_editor::move_down(size_t amount, bool selection)
 {
 	assert(!_lines.empty());
 
-	const auto prev_pos = _cursor_pos;
+	const text_pos prev_pos = _cursor_pos;
 	_cursor_pos.line = std::min<intptr_t>(_cursor_pos.line + amount, _lines.size() - 1);
 
 	// The line after could be shorter, so adjust column
@@ -1361,7 +1361,7 @@ void reshade::imgui::code_editor::move_left(size_t amount, bool selection, bool 
 {
 	assert(!_lines.empty());
 
-	const auto prev_pos = _cursor_pos;
+	const text_pos prev_pos = _cursor_pos;
 
 	// Move cursor to selection start when moving left and no longer selecting
 	if (!selection && _interactive_beg != _interactive_end)
@@ -1383,7 +1383,7 @@ void reshade::imgui::code_editor::move_left(size_t amount, bool selection, bool 
 			}
 			else if (word_mode)
 			{
-				for (const auto word_color = _lines[_cursor_pos.line][_cursor_pos.column - 1].col; _cursor_pos.column > 0; --_cursor_pos.column)
+				for (const color word_color = _lines[_cursor_pos.line][_cursor_pos.column - 1].col; _cursor_pos.column > 0; --_cursor_pos.column)
 					if (_lines[_cursor_pos.line][_cursor_pos.column - 1].col != word_color)
 						break;
 			}
@@ -1417,11 +1417,11 @@ void reshade::imgui::code_editor::move_right(size_t amount, bool selection, bool
 {
 	assert(!_lines.empty());
 
-	const auto prev_pos = _cursor_pos;
+	const text_pos prev_pos = _cursor_pos;
 
 	while (amount-- > 0)
 	{
-		auto &line = _lines[_cursor_pos.line];
+		std::vector<glyph> &line = _lines[_cursor_pos.line];
 
 		if (_cursor_pos.column >= line.size()) // At the end of the current line, so move on to next
 		{
@@ -1433,7 +1433,7 @@ void reshade::imgui::code_editor::move_right(size_t amount, bool selection, bool
 		}
 		else if (word_mode)
 		{
-			for (const auto word_color = _lines[_cursor_pos.line][_cursor_pos.column].col; _cursor_pos.column < _lines[_cursor_pos.line].size(); ++_cursor_pos.column)
+			for (const color word_color = _lines[_cursor_pos.line][_cursor_pos.column].col; _cursor_pos.column < _lines[_cursor_pos.line].size(); ++_cursor_pos.column)
 				if (_lines[_cursor_pos.line][_cursor_pos.column].col != word_color)
 					break;
 		}
@@ -1465,7 +1465,7 @@ void reshade::imgui::code_editor::move_top(bool selection)
 {
 	assert(!_lines.empty());
 
-	const auto prev_pos = _cursor_pos;
+	const text_pos prev_pos = _cursor_pos;
 	_cursor_pos = text_pos(0, 0);
 
 	if (prev_pos == _cursor_pos)
@@ -1494,7 +1494,7 @@ void reshade::imgui::code_editor::move_bottom(bool selection)
 {
 	assert(!_lines.empty());
 
-	const auto prev_pos = _cursor_pos;
+	const text_pos prev_pos = _cursor_pos;
 	_cursor_pos = text_pos(_lines.size() - 1, 0);
 
 	if (prev_pos == _cursor_pos)
@@ -1522,7 +1522,7 @@ void reshade::imgui::code_editor::move_home(bool selection)
 {
 	assert(!_lines.empty());
 
-	const auto prev_pos = _cursor_pos;
+	const text_pos prev_pos = _cursor_pos;
 	_cursor_pos.column = 0;
 
 	if (prev_pos == _cursor_pos &&
@@ -1551,7 +1551,7 @@ void reshade::imgui::code_editor::move_end(bool selection)
 {
 	assert(!_lines.empty());
 
-	const auto prev_pos = _cursor_pos;
+	const text_pos prev_pos = _cursor_pos;
 	_cursor_pos.column = _lines[_cursor_pos.line].size();
 
 	if (prev_pos == _cursor_pos &&

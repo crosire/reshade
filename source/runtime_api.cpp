@@ -175,7 +175,7 @@ bool reshade::runtime::get_annotation_bool_from_uniform_variable([[maybe_unused]
 	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -196,7 +196,7 @@ bool reshade::runtime::get_annotation_float_from_uniform_variable([[maybe_unused
 	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -217,7 +217,7 @@ bool reshade::runtime::get_annotation_int_from_uniform_variable([[maybe_unused]]
 	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -238,7 +238,7 @@ bool reshade::runtime::get_annotation_uint_from_uniform_variable([[maybe_unused]
 	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -259,7 +259,7 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 	if (variable != nullptr && length != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			const std::string_view annotation = variable->annotation_as_string(name);
@@ -493,7 +493,7 @@ bool reshade::runtime::get_annotation_bool_from_texture_variable([[maybe_unused]
 	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -514,7 +514,7 @@ bool reshade::runtime::get_annotation_float_from_texture_variable([[maybe_unused
 	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -535,7 +535,7 @@ bool reshade::runtime::get_annotation_int_from_texture_variable([[maybe_unused]]
 	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -556,7 +556,7 @@ bool reshade::runtime::get_annotation_uint_from_texture_variable([[maybe_unused]
 	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -577,7 +577,7 @@ bool reshade::runtime::get_annotation_string_from_texture_variable([[maybe_unuse
 	if (variable != nullptr && length != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != variable->annotations.end())
 		{
 			const std::string_view annotation = variable->annotation_as_string(name);
@@ -670,7 +670,7 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 
 	for (effect &effect_data : _effects)
 	{
-		for (const auto &binding : effect_data.texture_semantic_to_binding)
+		for (const effect::binding_data &binding : effect_data.texture_semantic_to_binding)
 		{
 			if (binding.semantic != semantic)
 				continue;
@@ -761,7 +761,7 @@ bool reshade::runtime::get_annotation_bool_from_technique([[maybe_unused]] api::
 	if (tech != nullptr)
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -782,7 +782,7 @@ bool reshade::runtime::get_annotation_float_from_technique([[maybe_unused]] api:
 	if (tech != nullptr)
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -803,7 +803,7 @@ bool reshade::runtime::get_annotation_int_from_technique([[maybe_unused]] api::e
 	if (tech != nullptr)
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -824,7 +824,7 @@ bool reshade::runtime::get_annotation_uint_from_technique([[maybe_unused]] api::
 	if (tech != nullptr)
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != tech->annotations.end())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -845,7 +845,7 @@ bool reshade::runtime::get_annotation_string_from_technique([[maybe_unused]] api
 	if (tech != nullptr && length != nullptr)
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
-				[name](const auto &annotation) { return annotation.name == name; });
+				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
 			it != tech->annotations.end())
 		{
 			const std::string_view annotation = tech->annotation_as_string(name);

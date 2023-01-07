@@ -109,7 +109,7 @@ void reshade::runtime::draw_gui_vr()
 	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	ImGui::SetCurrentContext(_imgui_context);
 
-	auto &imgui_io = ImGui::GetIO();
+	ImGuiIO &imgui_io = ImGui::GetIO();
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 	imgui_io.DisplaySize.x = static_cast<float>(OVERLAY_WIDTH);
 	imgui_io.DisplaySize.y = static_cast<float>(OVERLAY_HEIGHT);
@@ -217,7 +217,7 @@ void reshade::runtime::draw_gui_vr()
 	ImGui::BeginChild("##overlay", ImVec2(0, ImGui::GetFrameHeight()), false, ImGuiWindowFlags_NoScrollbar);
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 
-	for (const auto &widget : overlay_callbacks)
+	for (const std::pair<const char *, void(runtime:: *)()> &widget : overlay_callbacks)
 	{
 		if (bool state = (overlay_index == selected_overlay_index);
 			imgui::toggle_button(widget.first, state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))

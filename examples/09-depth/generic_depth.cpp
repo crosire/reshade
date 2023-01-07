@@ -351,7 +351,7 @@ static void update_effect_runtime(effect_runtime *runtime)
 
 	runtime->update_texture_bindings("DEPTH", instance.selected_shader_resource);
 
-	runtime->enumerate_uniform_variables(nullptr, [&instance](effect_runtime *runtime, auto variable) {
+	runtime->enumerate_uniform_variables(nullptr, [&instance](effect_runtime *runtime, effect_uniform_variable variable) {
 		char source[32] = "";
 		if (runtime->get_annotation_string_from_uniform_variable(variable, "source", source) &&
 			std::strcmp(source, "bufready_depth") == 0)
@@ -762,7 +762,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
 
 	std::shared_lock<std::shared_mutex> lock(s_mutex);
-	const auto current_depth_stencil_resources = device_data.depth_stencil_resources;
+	const std::unordered_map<resource, depth_stencil_resource, resource_hash> current_depth_stencil_resources = device_data.depth_stencil_resources;
 	// Unlock while calling into device below, since device may hold a lock itself and that then can deadlock another thread that calls into 'on_destroy_resource' from the device holding that lock
 	lock.unlock();
 

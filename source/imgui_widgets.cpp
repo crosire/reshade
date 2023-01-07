@@ -129,7 +129,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	}
 
 	std::vector<std::filesystem::path> file_entries;
-	for (const auto &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		if (entry.is_directory())
 		{
@@ -735,7 +735,7 @@ bool reshade::imgui::slider_for_alpha_value(const char *label, float *v)
 
 void reshade::imgui::image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col)
 {
-	const auto draw_list = ImGui::GetWindowDrawList();
+	ImDrawList *const draw_list = ImGui::GetWindowDrawList();
 
 	// Render background checkerboard pattern
 	const ImVec2 pos_min = ImGui::GetCursorScreenPos();
