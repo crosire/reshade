@@ -1268,9 +1268,7 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 		if (SUCCEEDED(ID3D12Resource_Map(readback_resource.get(), 0, &read_range, &mapped_data)))
 		{
 			for (size_t i = 0; i < count; ++i)
-			{
 				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[first + i];
-			}
 
 			ID3D12Resource_Unmap(readback_resource.get(), 0, &write_range);
 

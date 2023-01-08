@@ -1293,7 +1293,8 @@ bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, u
 
 	for (size_t i = 0; i < count; ++i)
 	{
-		if (FAILED(immediate_context->GetData(impl->queries[first + i].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH)))
+		// May return 'S_FALSE' if the data is not yet available
+		if (immediate_context->GetData(impl->queries[first + i].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH) != S_OK)
 			return false;
 	}
 
