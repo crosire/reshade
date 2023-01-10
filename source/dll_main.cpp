@@ -162,22 +162,23 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			if (config.get("INSTALL", "EnableLogging") || !config.has("INSTALL", "EnableLogging"))
 			{
+				std::error_code ec;
 				std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
-				if (!reshade::log::open_log_file(log_path))
+				if (!reshade::log::open_log_file(log_path, ec))
 				{
-					// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
-					std::filesystem::path log_filename = L"ReShade_";
-					log_filename += g_target_executable_path.stem();
-					log_filename += L".log";
-
-					log_path.replace_filename(log_filename);
-
-					if (!reshade::log::open_log_file(log_path))
+					for (int log_index = 1; std::filesystem::exists(log_path, ec); ++log_index)
 					{
-#ifndef NDEBUG
-						LOG(ERROR) << "Opening the ReShade log file" << " failed with error code " << GetLastError() << '.';
-#endif
+						// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
+						log_path.replace_filename(L"ReShade" + std::to_wstring(log_index + 1) + L".log");
+
+						if (reshade::log::open_log_file(log_path, ec))
+							break;
 					}
+
+#ifndef NDEBUG
+					if (ec)
+						LOG(ERROR) << "Opening the ReShade log file" << " failed with error code " << ec.value() << '.';
+#endif
 				}
 			}
 

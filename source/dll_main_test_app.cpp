@@ -54,7 +54,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	g_target_executable_path = g_reshade_dll_path;
 	g_reshade_base_path = g_reshade_dll_path.parent_path();
 
-	reshade::log::open_log_file(g_reshade_base_path / L"ReShade.log");
+	std::error_code ec;
+	reshade::log::open_log_file(g_reshade_base_path / L"ReShade.log", ec);
 
 	reshade::hooks::register_module(L"user32.dll");
 

@@ -2332,6 +2332,7 @@ void reshade::runtime::draw_gui_statistics()
 }
 void reshade::runtime::draw_gui_log()
 {
+	std::error_code ec;
 	const std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
 
 	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(16.0f * _font_size + 2 * _imgui_context->Style.ItemSpacing.x));
@@ -2344,7 +2345,7 @@ void reshade::runtime::draw_gui_log()
 
 	if (ImGui::Button("Clear Log", ImVec2(8.0f * _font_size, 0.0f)))
 		// Close and open the stream again, which will clear the file too
-		log::open_log_file(log_path);
+		log::open_log_file(log_path, ec);
 
 	ImGui::Spacing();
 
@@ -2353,7 +2354,6 @@ void reshade::runtime::draw_gui_log()
 		// Limit number of log lines to read, to avoid stalling when log gets too big
 		constexpr size_t LINE_LIMIT = 1000;
 
-		std::error_code ec;
 		const uintmax_t file_size = std::filesystem::file_size(log_path, ec);
 		if (filter_changed || _last_log_size != file_size)
 		{
