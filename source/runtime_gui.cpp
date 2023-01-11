@@ -1464,8 +1464,10 @@ void reshade::runtime::draw_gui_home()
 		{
 			if (_effect_load_skipping && _show_force_load_effects_button)
 			{
-				if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
-						[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
+				const size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
+					[](const effect &effect) { return effect.skipped; });
+
+				if (skipped_effects > 0)
 				{
 					char buf[60];
 					ImFormatString(buf, sizeof(buf), "Force load all effects (%zu remaining)", skipped_effects);
@@ -1649,7 +1651,7 @@ void reshade::runtime::draw_gui_settings()
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
 			clear_effect_cache();
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Clear effect cache located in \"%s\".", _intermediate_cache_path.u8string().c_str());
+			ImGui::SetTooltip("Clear effect cache located in \"%s\".", _effect_cache_path.u8string().c_str());
 #endif
 	}
 
@@ -1982,7 +1984,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::TextUnformatted("Hardware:");
 		ImGui::TextUnformatted("Application:");
 		ImGui::TextUnformatted("Time:");
-		ImGui::Text("Frame %llu:", _framecount + 1);
+		ImGui::Text("Frame %llu:", _frame_count + 1);
 #if RESHADE_FX
 		ImGui::TextUnformatted("Post-Processing:");
 #endif
@@ -3519,8 +3521,8 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::Separator();
 
 				for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
-					if (const auto assembly_it = effect.assembly.find(entry_point.name);
-						assembly_it != effect.assembly.end() && ImGui::MenuItem(entry_point.name.c_str()))
+					if (const auto assembly_it = effect.assembly_text.find(entry_point.name);
+						assembly_it != effect.assembly_text.end() && ImGui::MenuItem(entry_point.name.c_str()))
 						entry_point_name = entry_point.name;
 
 				ImGui::EndPopup();
@@ -3653,7 +3655,7 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 	if (!instance.entry_point_name.empty())
 	{
 		instance.editor.set_text(instance.entry_point_name == "Generated code" ?
-			effect.module.hlsl : effect.assembly.at(instance.entry_point_name).second);
+			effect.module.hlsl : effect.assembly_text.at(instance.entry_point_name));
 		instance.editor.set_readonly(true);
 		return; // Errors only apply to the effect source, not generated code
 	}
@@ -3867,7 +3869,7 @@ bool reshade::runtime::init_imgui_resources()
 void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv)
 {
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
-	const size_t buffer_index = _framecount % std::size(_imgui_vertices);
+	const size_t buffer_index = _frame_count % std::size(_imgui_vertices);
 
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_num_indices[buffer_index] < draw_data->TotalIdxCount)

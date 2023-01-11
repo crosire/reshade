@@ -436,7 +436,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	}
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
-	_framecount = 0;
+	_frame_count = 0;
 
 	_is_initialized = true;
 	_last_reload_time = std::chrono::high_resolution_clock::now();
@@ -621,7 +621,7 @@ void reshade::runtime::on_present()
 	if (_should_save_screenshot)
 		save_screenshot();
 
-	_framecount++;
+	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
 	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
 
@@ -828,19 +828,19 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.get("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
-	config.get("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
+	config.get("GENERAL", "IntermediateCachePath", _effect_cache_path);
 
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 
 	// Fall back to temp directory if cache path does not exist
 	std::error_code ec;
-	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path, ec))
+	if (_effect_cache_path.empty() || !resolve_path(_effect_cache_path, ec))
 	{
-		_intermediate_cache_path = std::filesystem::temp_directory_path(ec) / "ReShade";
-		std::filesystem::create_directory(_intermediate_cache_path, ec);
+		_effect_cache_path = std::filesystem::temp_directory_path(ec) / "ReShade";
+		std::filesystem::create_directory(_effect_cache_path, ec);
 		if (ec)
-			LOG(ERROR) << "Failed to create effect cache directory " << _intermediate_cache_path << " with error code " << ec.value() << '!';
+			LOG(ERROR) << "Failed to create effect cache directory " << _effect_cache_path << " with error code " << ec.value() << '!';
 	}
 
 	// Use default if the preset file does not exist yet
@@ -906,7 +906,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.set("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
-	config.set("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
+	config.set("GENERAL", "IntermediateCachePath", _effect_cache_path);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
 	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
@@ -1251,12 +1251,13 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 
 		const std::wstring preset_name = preset_path.stem();
 		// Only add those files that are matching the filter text
-		if (filter_text.empty() || std::search(preset_name.begin(), preset_name.end(), filter_text.native().begin(), filter_text.native().end(),
-			[](wchar_t c1, wchar_t c2) { return towlower(c1) == towlower(c2); }) != preset_name.end())
+		if (filter_text.empty() ||
+			std::search(preset_name.begin(), preset_name.end(), filter_text.native().begin(), filter_text.native().end(),
+				[](auto c1, auto c2) { return towlower(c1) == towlower(c2); }) != preset_name.end())
 			preset_paths.push_back(std::move(preset_path));
 	}
 
-	if (preset_paths.begin() == preset_paths.end())
+	if (preset_paths.empty())
 		return false; // No valid preset files were found, so nothing more to do
 
 	if (current_preset_index == std::numeric_limits<size_t>::max())
@@ -1271,9 +1272,9 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	{
 		// Current preset was found in the filter path, so use the file before or after it
 		if (auto it = std::next(preset_paths.begin(), current_preset_index); reversed)
-			_current_preset_path = it == preset_paths.begin() ? preset_paths.back() : *--it;
+			_current_preset_path = (it == preset_paths.begin()) ? preset_paths.back() : *(--it);
 		else
-			_current_preset_path = it == std::prev(preset_paths.end()) ? preset_paths.front() : *++it;
+			_current_preset_path = (it == std::prev(preset_paths.end())) ? preset_paths.front() : *(++it);
 	}
 
 	_last_preset_switching_time = _last_present_time;
@@ -1638,8 +1639,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				break;
 			}
 
-			std::string &cso = effect.assembly[entry_point.name].first;
-			std::string &cso_text = effect.assembly[entry_point.name].second;
+			std::string &cso = effect.assembly[entry_point.name];
+			std::string &cso_text = effect.assembly_text[entry_point.name];
 
 			if ((_renderer_id & 0xF0000) == 0)
 			{
@@ -1806,7 +1807,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DDisassemble"));
 					assert(D3DDisassemble != nullptr);
 
-					if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
+					com_ptr<ID3DBlob> d3d_disassembled;
+					if (SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 						cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
 
 					save_effect_cache(cache_id, "asm", cso_text);
@@ -2343,7 +2345,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			if (!pass_info.cs_entry_point.empty())
 			{
 				api::shader_desc cs_desc = {};
-				const std::string &cs = effect.assembly.at(pass_info.cs_entry_point).first;
+				const std::string &cs = effect.assembly.at(pass_info.cs_entry_point);
 				cs_desc.code = cs.data();
 				cs_desc.code_size = cs.size();
 				if (_renderer_id & 0x20000)
@@ -2368,7 +2370,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			else
 			{
 				api::shader_desc vs_desc = {};
-				const std::string &vs = effect.assembly.at(pass_info.vs_entry_point).first;
+				const std::string &vs = effect.assembly.at(pass_info.vs_entry_point);
 				vs_desc.code = vs.data();
 				vs_desc.code_size = vs.size();
 				if (_renderer_id & 0x20000)
@@ -2382,7 +2384,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
 
 				api::shader_desc ps_desc = {};
-				const std::string &ps = effect.assembly.at(pass_info.ps_entry_point).first;
+				const std::string &ps = effect.assembly.at(pass_info.ps_entry_point);
 				ps_desc.code = ps.data();
 				ps_desc.code_size = ps.size();
 				if (_renderer_id & 0x20000)
@@ -2617,7 +2619,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 							srv = _empty_srv;
 
 						// Keep track of the texture descriptor to simplify updating it
-						effect.texture_semantic_to_binding.push_back({ sampler_texture->semantic, write.set, write.binding, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 }, !!info.srgb });
+						effect.texture_semantic_to_binding.push_back({
+							sampler_texture->semantic,
+							write.set,
+							write.binding,
+							sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 },
+							!!info.srgb
+						});
 					}
 					else
 					{
@@ -2662,6 +2670,9 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	if (!descriptor_writes.empty())
 		_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
+
+	// Clear effect assembly now that it was consumed
+	effect.assembly.clear();
 
 	return true;
 }
@@ -3160,7 +3171,7 @@ bool reshade::runtime::load_effect_cache(const std::string &id, const std::strin
 	if (_no_effect_cache)
 		return false;
 
-	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
+	std::filesystem::path path = g_reshade_base_path / _effect_cache_path;
 	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
 	std::ifstream file(path, std::ios::binary);
@@ -3181,7 +3192,7 @@ bool reshade::runtime::save_effect_cache(const std::string &id, const std::strin
 	if (_no_effect_cache)
 		return false;
 
-	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
+	std::filesystem::path path = g_reshade_base_path / _effect_cache_path;
 	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
 	std::ofstream file(path, std::ios::binary | std::ios::trunc);
@@ -3196,7 +3207,7 @@ void reshade::runtime::clear_effect_cache()
 	std::error_code ec;
 
 	// Find all cached effect files and delete them
-	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(g_reshade_base_path / _intermediate_cache_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(g_reshade_base_path / _effect_cache_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		if (entry.is_directory(ec))
 			continue;
@@ -3296,7 +3307,7 @@ bool reshade::runtime::update_effect_stencil_tex(api::format format)
 void reshade::runtime::update_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
-	if (_framecount == 0 && !_no_reload_on_init && !(_no_reload_for_non_vr && !_is_vr))
+	if (_frame_count == 0 && !_no_reload_on_init && !(_no_reload_for_non_vr && !_is_vr))
 		reload_effects();
 
 	if (_reload_remaining_effects == 0)
@@ -3434,7 +3445,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				{
 					case reshadefx::type::t_bool:
 					{
-						bool data;
+						bool data = false;
 						get_uniform_value(variable, &data);
 						set_uniform_value(variable, !data);
 						break;
@@ -3442,7 +3453,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 					case reshadefx::type::t_int:
 					case reshadefx::type::t_uint:
 					{
-						int data[4];
+						int data[4] = {};
 						get_uniform_value(variable, data, 4);
 						const std::string_view ui_items = variable.annotation_as_string("ui_items");
 						int num_items = 0;
@@ -3467,9 +3478,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				case special_uniform::frame_count:
 				{
 					if (variable.type.is_boolean())
-						set_uniform_value(variable, (_framecount % 2) == 0);
+						set_uniform_value(variable, (_frame_count % 2) == 0);
 					else
-						set_uniform_value(variable, static_cast<unsigned int>(_framecount % UINT_MAX));
+						set_uniform_value(variable, static_cast<unsigned int>(_frame_count % UINT_MAX));
 					break;
 				}
 				case special_uniform::random:
@@ -3691,10 +3702,10 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
-			_device->get_query_pool_results(effect.query_pool, tech.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
+			_device->get_query_pool_results(effect.query_pool, tech.query_base_index + ((_frame_count + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
 			tech.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 
-		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2);
+		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2);
 	}
 
 	const std::chrono::high_resolution_clock::time_point time_technique_started = std::chrono::high_resolution_clock::now();
@@ -3910,7 +3921,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 	tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 
 	if (_gather_gpu_statistics && effect.query_pool != 0)
-		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
+		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2 + 1);
 #endif
 
 #if RESHADE_ADDON
