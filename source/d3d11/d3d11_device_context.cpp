@@ -97,7 +97,7 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 {
 	// The immediate device context is tightly coupled with its device, so simply use the device reference count
 	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
-		return _device->AddRef();
+		return _device->AddRef() - 1;
 
 	_orig->AddRef();
 	return InterlockedIncrement(&_ref);
@@ -105,7 +105,7 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 {
 	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
-		return _device->Release();
+		return _device->Release() - 1;
 
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
