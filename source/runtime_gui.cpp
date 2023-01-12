@@ -3868,6 +3868,10 @@ bool reshade::runtime::init_imgui_resources()
 }
 void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv)
 {
+#ifndef NDEBUG
+	cmd_list->begin_debug_event("ReShade overlay");
+#endif
+
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const size_t buffer_index = _frame_count % std::size(_imgui_vertices);
 
@@ -4009,6 +4013,10 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	}
 
 	cmd_list->end_render_pass();
+
+#ifndef NDEBUG
+	cmd_list->end_debug_event();
+#endif
 }
 void reshade::runtime::destroy_imgui_resources()
 {

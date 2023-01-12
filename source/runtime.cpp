@@ -3665,6 +3665,10 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 
+#ifndef NDEBUG
+	cmd_list->begin_debug_event("ReShade effects");
+#endif
+
 	// Render all enabled techniques
 	for (technique &tech : _techniques)
 	{
@@ -3689,6 +3693,10 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		}
 	}
 
+#ifndef NDEBUG
+	cmd_list->end_debug_event();
+#endif
+
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
@@ -3712,8 +3720,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #endif
 
 #ifndef NDEBUG
-	const float debug_event_col[4] = { 1.0f, 0.8f, 0.8f, 1.0f };
-	cmd_list->begin_debug_event(tech.name.c_str(), debug_event_col);
+	cmd_list->begin_debug_event(tech.name.c_str());
 #endif
 
 	// Update shader constants
@@ -3751,7 +3758,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 		const technique::pass_data &pass_data = tech.passes_data[pass_index];
 
 #ifndef NDEBUG
-		cmd_list->begin_debug_event((pass_info.name.empty() ? "Pass " + std::to_string(pass_index) : pass_info.name).c_str(), debug_event_col);
+		cmd_list->begin_debug_event((pass_info.name.empty() ? "Pass " + std::to_string(pass_index) : pass_info.name).c_str());
 #endif
 
 		const uint32_t num_barriers = static_cast<uint32_t>(pass_data.modified_resources.size());
