@@ -50,7 +50,10 @@ END
 // ICON
 //
 
+#if defined(RESHADE_FXC) || defined(RESHADE_TEST_APPLICATION)
 MAIN_ICON                ICON                   "main_icon.ico"
+
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 //
