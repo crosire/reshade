@@ -730,7 +730,20 @@ bool reshade::imgui::slider_for_alpha_value(const char *label, float *v)
 	ImGui::EndGroup();
 
 	return modified;
+}
 
+bool reshade::imgui::checkbox_tristate(const char *label, unsigned int *v)
+{
+	const bool mixed = *v > 1;
+	bool value = *v != 0;
+
+	ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, mixed);
+	const bool modified = ImGui::Checkbox(label, &value);
+	if (modified)
+		*v = value ? 1 : mixed ? 0 : 2;
+	ImGui::PopItemFlag();
+
+	return modified;
 }
 
 void reshade::imgui::image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col)

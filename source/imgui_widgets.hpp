@@ -107,6 +107,11 @@ namespace reshade::imgui
 	bool slider_for_alpha_value(const char *label, float *v);
 
 	/// <summary>
+	/// Adds a checkbox with three states (checkmark, filled out, empty) instead of just two.
+	/// </summary>
+	bool checkbox_tristate(const char *label, unsigned int *v);
+
+	/// <summary>
 	/// Adds an image widget which has a checkerboard background for transparent images.
 	/// </summary>
 	/// <param name="user_texture_id">Texture handle to be rendered as the image.</param>

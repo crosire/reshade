@@ -646,18 +646,6 @@ void reshade::runtime::draw_gui()
 {
 	assert(_is_initialized);
 
-#if RESHADE_FX
-	bool show_splash = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0));
-#else
-	bool show_splash = _show_splash && (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
-#endif
-
-	const bool show_stats_window = _show_clock || _show_fps || _show_frametime;
-	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
-	const bool show_screenshot_message = (_show_screenshot_message || !_last_screenshot_save_successfull) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_last_screenshot_save_successfull ? 3 : 5);
-	if (show_screenshot_message || !_preset_save_successfull)
-		show_splash = true;
-
 	if (_input != nullptr)
 	{
 		if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
@@ -676,6 +664,21 @@ void reshade::runtime::draw_gui()
 			_imgui_context->NavInputSource = ImGuiInputSource_Gamepad;
 		}
 	}
+
+#if RESHADE_FX
+	bool show_splash = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0));
+#else
+	bool show_splash = _show_splash && (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
+#endif
+
+	const bool show_clock = _show_clock == 1 || (_show_overlay && _show_clock > 1);
+	const bool show_fps = _show_fps == 1 || (_show_overlay && _show_fps > 1);
+	const bool show_frametime = _show_frametime == 1 || (_show_overlay && _show_frametime > 1);
+	const bool show_stats_window = show_clock || show_fps || show_frametime;
+	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
+	const bool show_screenshot_message = (_show_screenshot_message || !_last_screenshot_save_successfull) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_last_screenshot_save_successfull ? 3 : 5);
+	if (show_screenshot_message || !_preset_save_successfull)
+		show_splash = true;
 
 	_ignore_shortcuts = false;
 #if RESHADE_FX
@@ -897,7 +900,7 @@ void reshade::runtime::draw_gui()
 		{
 			fps_window_size  = fps_window->Size;
 			fps_window_size.y = std::max(fps_window_size.y, _imgui_context->Style.FramePadding.y * 4.0f + _imgui_context->Style.ItemSpacing.y +
-				(_imgui_context->Style.ItemSpacing.y + _imgui_context->FontBaseSize * _fps_scale) * ((_show_clock ? 1 : 0) + (_show_fps ? 1 : 0) + (_show_frametime ? 1 : 0)));
+				(_imgui_context->Style.ItemSpacing.y + _imgui_context->FontBaseSize * _fps_scale) * ((show_clock ? 1 : 0) + (show_fps ? 1 : 0) + (show_frametime ? 1 : 0)));
 		}
 
 		if (_fps_pos % 2)
@@ -922,7 +925,7 @@ void reshade::runtime::draw_gui()
 
 		char temp[512];
 
-		if (_show_clock)
+		if (show_clock)
 		{
 			const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 			struct tm tm; localtime_s(&tm, &t);
@@ -932,14 +935,14 @@ void reshade::runtime::draw_gui()
 				ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(temp).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp);
 		}
-		if (_show_fps)
+		if (show_fps)
 		{
 			ImFormatString(temp, sizeof(temp), "%.0f fps", imgui_io.Framerate);
 			if (_fps_pos % 2)
 				ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(temp).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp);
 		}
-		if (_show_frametime)
+		if (show_frametime)
 		{
 			ImFormatString(temp, sizeof(temp), "%5.2f ms", 1000.0f / imgui_io.Framerate);
 			if (_fps_pos % 2)
@@ -1926,9 +1929,16 @@ void reshade::runtime::draw_gui_settings()
 			modified = true;
 		}
 
-		modified |= ImGui::Checkbox("Show clock", &_show_clock);
-		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show FPS", &_show_fps);
-		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show frame time", &_show_frametime);
+		ImGui::BeginGroup();
+		modified |= imgui::checkbox_tristate("Show clock", &_show_clock);
+		ImGui::SameLine(0, 10);
+		modified |= imgui::checkbox_tristate("Show FPS", &_show_fps);
+		ImGui::SameLine(0, 10);
+		modified |= imgui::checkbox_tristate("Show frame time", &_show_frametime);
+		ImGui::EndGroup();
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Check to always show, fill out to only show while overlay is open");
+
 		modified |= ImGui::Combo("Clock format", reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0");
 		modified |= ImGui::SliderFloat("OSD text size", &_fps_scale, 0.2f, 2.5f, "%.1f");
 		modified |= ImGui::ColorEdit4("OSD text color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);

@@ -416,9 +416,9 @@ namespace reshade
 
 		bool _show_splash = true;
 		bool _show_overlay = false;
-		bool _show_fps = false;
-		bool _show_clock = false;
-		bool _show_frametime = false;
+		unsigned int _show_fps = 2;
+		unsigned int _show_clock = false;
+		unsigned int _show_frametime = false;
 		bool _show_screenshot_message = true;
 		bool _rebuild_font_atlas = true;
 #  if RESHADE_FX
