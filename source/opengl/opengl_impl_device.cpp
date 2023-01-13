@@ -2179,7 +2179,7 @@ void reshade::opengl::device_impl::set_resource_name(api::resource handle, const
 void reshade::opengl::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
 {
 	if (((handle.handle >> 32) & 0x1) == 0)
-		return;
+		return; // This is not a standalone object, so name may have already been set via 'set_resource_name' before
 
 	gl.ObjectLabel(GL_TEXTURE, handle.handle & 0xFFFFFFFF, -1, name);
 }

@@ -545,7 +545,7 @@ namespace reshade
 		/// <item><description>glCompressedTextureSubData2D</description></item>
 		/// <item><description>glCompressedTextureSubData3D</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &amp;data, api::resource resource, uint32_t subresource, const api::subresource_box *box)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.

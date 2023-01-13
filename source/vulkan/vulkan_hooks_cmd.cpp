@@ -13,8 +13,6 @@
 
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
-#define GET_DISPATCH_PTR(name, object) \
-	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
 #define GET_DISPATCH_PTR_FROM(name, data) \
 	assert((data) != nullptr); \
 	PFN_vk##name trampoline = (data)->_dispatch_table.name; \
