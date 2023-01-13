@@ -448,9 +448,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
 #endif
 
-#if RESHADE_FX && RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << " (" << _config_path << ").";
-#endif
 
 	return true;
 
@@ -563,9 +561,7 @@ void reshade::runtime::on_reset()
 	invoke_addon_event<addon_event::destroy_effect_runtime>(this);
 #endif
 
-#if RESHADE_FX && RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << " (" << _config_path << ").";
-#endif
 }
 void reshade::runtime::on_present()
 {
