@@ -201,9 +201,12 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 
 	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
 	const  int32_t width_difference = std::abs(static_cast<int32_t>(target_width) - static_cast<int32_t>(_width));
+	const  int32_t height_difference = std::abs(static_cast<int32_t>(region_height) - static_cast<int32_t>(_height));
 
-	if (width_difference > 2 || region_height != _height || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(_back_buffer_format))
+	if (width_difference > 2 || height_difference > 2 || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(_back_buffer_format))
 	{
+		LOG(INFO) << "Resizing runtime " << this << " in VR to " << target_width << "x" << region_height << " ...";
+
 		on_reset();
 
 		if (!_device->create_resource(
