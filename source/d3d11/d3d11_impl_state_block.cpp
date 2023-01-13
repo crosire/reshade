@@ -39,10 +39,8 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 	_device_context = device_context;
 
 	com_ptr<ID3D11DeviceContext1> device_context1;
-	if (_state != nullptr && SUCCEEDED(_device_context->QueryInterface(&device_context1)))
+	if (_state != nullptr && SUCCEEDED(_device_context->QueryInterface(&device_context1)) && device_context1->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
 	{
-		assert(device_context1->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE);
-
 		device_context1->SwapDeviceContextState(_state.get(), &_captured_state);
 		return;
 	}
@@ -110,7 +108,7 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 void reshade::d3d11::state_block::apply_and_release()
 {
 	com_ptr<ID3D11DeviceContext1> device_context1;
-	if (_state != nullptr && SUCCEEDED(_device_context->QueryInterface(&device_context1)))
+	if (_state != nullptr && SUCCEEDED(_device_context->QueryInterface(&device_context1)) && device_context1->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
 	{
 		device_context1->SwapDeviceContextState(_captured_state.get(), nullptr);
 
