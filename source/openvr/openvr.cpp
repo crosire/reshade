@@ -39,9 +39,8 @@ static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, con
 }
 
 static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, vr::EVREye eye, ID3D10Texture2D *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
-	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit, com_ptr<ID3D10Device> device)
+	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit, D3D10Device *device_proxy)
 {
-	const auto device_proxy = get_private_pointer_d3dx<D3D10Device>(device.get());
 	if (device_proxy == nullptr)
 		goto normal_submit; // No proxy device found, so just submit normally
 	else if (s_vr_swapchain == nullptr)
@@ -101,7 +100,8 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 		device->QueryInterface(&device10) == S_OK)
 	{
 		// Whoops, this is actually a D3D10 texture, redirect ...
-		return on_vr_submit_d3d10(compositor, eye, reinterpret_cast<ID3D10Texture2D *>(texture), bounds, flags, submit, std::move(device10));
+		if (const auto device10_proxy = get_private_pointer_d3dx<D3D10Device>(device10.get()))
+			return on_vr_submit_d3d10(compositor, eye, reinterpret_cast<ID3D10Texture2D *>(texture), bounds, flags, submit, device10_proxy);
 	}
 
 	const auto device_proxy = get_private_pointer_d3dx<D3D11Device>(device.get());
