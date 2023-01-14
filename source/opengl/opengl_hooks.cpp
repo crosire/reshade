@@ -2275,7 +2275,7 @@ void APIENTRY glBindBufferBase(GLenum target, GLuint index, GLuint buffer)
 			uint64_t offset_64 = 0;
 			uint64_t max_size_64 = UINT64_MAX;
 
-			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, index, 1, &buffer_handle, &offset_64, &max_size_64);
+			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, index, 1, &buffer_handle, &offset_64, &max_size_64, nullptr, nullptr);
 		}
 	}
 #endif
@@ -2312,7 +2312,7 @@ void APIENTRY glBindBufferRange(GLenum target, GLuint index, GLuint buffer, GLin
 			uint64_t offset_64 = offset;
 			uint64_t max_size_64 = size;
 
-			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, index, 1, &buffer_handle, &offset_64, &max_size_64);
+			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, index, 1, &buffer_handle, &offset_64, &max_size_64, nullptr, nullptr);
 		}
 	}
 #endif
@@ -3293,7 +3293,7 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 				std::memset(max_sizes_64.p, 0, count * sizeof(reshade::api::resource));
 			}
 
-			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, first, count, buffer_handles.p, offsets_64.p, max_sizes_64.p);
+			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, first, count, buffer_handles.p, offsets_64.p, max_sizes_64.p, nullptr, nullptr);
 		}
 	}
 #endif
@@ -3356,7 +3356,7 @@ void APIENTRY glBindBuffersRange(GLenum target, GLuint first, GLsizei count, con
 				std::memset(max_sizes_64.p, 0, count * sizeof(reshade::api::resource));
 			}
 
-			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, first, count, buffer_handles.p, offsets_64.p, max_sizes_64.p);
+			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_current_context, first, count, buffer_handles.p, offsets_64.p, max_sizes_64.p, nullptr, nullptr);
 		}
 	}
 #endif

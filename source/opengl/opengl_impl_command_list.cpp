@@ -784,7 +784,7 @@ void reshade::opengl::render_context_impl::bind_vertex_buffers(uint32_t first, u
 		gl.BindVertexBuffer(first + i, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
 	}
 }
-void reshade::opengl::render_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+void reshade::opengl::render_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *, const uint64_t *)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{

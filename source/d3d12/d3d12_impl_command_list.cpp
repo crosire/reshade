@@ -488,15 +488,16 @@ void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
+		const auto offset = (offsets != nullptr ? offsets[i] : 0);
 
-		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offsets[i];
-		views[i].SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offsets[i]);
+		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
+		views[i].SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offset);
 		views[i].StrideInBytes = strides[i];
 	}
 
 	_orig->IASetVertexBuffers(first, count, views.p);
 }
-void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets)
 {
 	assert(count <= D3D12_SO_BUFFER_SLOT_COUNT);
 
@@ -504,10 +505,13 @@ void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t firs
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
+		const auto offset = (offsets != nullptr ? offsets[i] : 0);
+		const auto counter_buffer_resource = reinterpret_cast<ID3D12Resource *>(counter_buffers[i].handle);
+		const auto counter_offset = (counter_offsets != nullptr ? counter_offsets[i] : 0);
 
-		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offsets[i];
+		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
 		views[i].SizeInBytes = max_sizes != nullptr && max_sizes[i] != UINT64_MAX ? max_sizes[0] : 0;
-		views[i].BufferFilledSizeLocation = NULL; // TODO: Not currently implemented
+		views[i].BufferFilledSizeLocation = counter_buffer_resource->GetGPUVirtualAddress() + counter_offset;
 	}
 
 	_orig->SOSetTargets(first, count, views.p);

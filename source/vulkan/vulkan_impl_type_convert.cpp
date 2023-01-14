@@ -729,9 +729,9 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
 	if ((usage & api::resource_usage::stream_output) != 0)
-		buffer_flags |= VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
+		buffer_flags |= VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT | VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT;
 	else
-		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
+		buffer_flags &= ~(VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT | VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT);
 
 	if ((usage & api::resource_usage::indirect_argument) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
@@ -780,7 +780,7 @@ void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFla
 		usage |= api::resource_usage::vertex_buffer;
 	if ((buffer_flags & VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::indirect_argument;
-	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT) != 0)
+	if ((buffer_flags & (VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT | VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT)) != 0)
 		usage |= api::resource_usage::stream_output;
 }
 

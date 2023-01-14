@@ -661,7 +661,9 @@ namespace reshade::api
 		/// <param name="buffers">Pointer to an array of buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
 		/// <param name="offsets">Pointer to an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the buffer to the first element to write to.</param>
 		/// <param name="max_sizes">Optional pointer to an array of size values, one for each buffer. Can be <see langword="nullptr"/> or have elements set to UINT64_MAX to use the entire buffer.</param>
-		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes) = 0;
+		/// <param name="counter_buffers">Pointer to an array of counter buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
+		/// <param name="counter_offsets">Pointer to an array of counter offset values, one for each counter buffer. Each offset is the number of bytes from the start of the counter buffer to the first element to write to.</param>
+		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets) = 0;
 
 		/// <summary>
 		/// Draws non-indexed primitives.

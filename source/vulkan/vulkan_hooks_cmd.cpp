@@ -1773,7 +1773,7 @@ void VKAPI_CALL vkCmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuff
 	static_assert(sizeof(*pBuffers) == sizeof(reshade::api::resource));
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(
-		cmd_impl, firstBinding, bindingCount, reinterpret_cast<const reshade::api::resource *>(pBuffers), pOffsets, pSizes);
+		cmd_impl, firstBinding, bindingCount, reinterpret_cast<const reshade::api::resource *>(pBuffers), pOffsets, pSizes, nullptr, nullptr);
 #endif
 }
 

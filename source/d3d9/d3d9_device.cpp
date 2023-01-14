@@ -1699,12 +1699,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, U
 	_orig->GetVertexDeclaration(&prev_decl);
 
 	const reshade::api::resource buffer = to_handle(pDestBuffer);
-	const uint64_t offset_64 = DestIndex; // TODO: Multiply with vertex stride
+	const uint64_t offset_64 = DestIndex;
 
 	_current_stream_output = pDestBuffer;
 	_current_stream_output_offset = DestIndex;
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, 1, &buffer, &offset_64, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, 1, &buffer, &offset_64, nullptr, nullptr, nullptr);
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, to_handle(pVertexDecl)); // TODO: Handle case where this changed the vertex declaration
 
 	const HRESULT hr = reshade::invoke_addon_event<reshade::addon_event::draw>(this, VertexCount, 1, SrcStartIndex, 0) ? D3D_OK :
@@ -1716,7 +1716,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, U
 	_current_stream_output = nullptr;
 	_current_stream_output_offset = 0;
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, 1, &prev_buffer, &prev_offset_64, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, 1, &prev_buffer, &prev_offset_64, nullptr, nullptr, nullptr);
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, to_handle(prev_decl.get()));
 
 	return hr;

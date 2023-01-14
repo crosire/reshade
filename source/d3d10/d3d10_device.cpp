@@ -401,7 +401,7 @@ void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffe
 	for (UINT i = 0; i < NumBuffers; ++i)
 		offsets_64[i] = pOffsets[i];
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, NumBuffers, buffer_handles, offsets_64.p, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, NumBuffers, buffer_handles, offsets_64.p, nullptr, nullptr, nullptr);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawAuto()

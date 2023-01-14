@@ -605,7 +605,7 @@ void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uin
 {
 	vk.CmdBindVertexBuffers(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets);
 }
-void reshade::vulkan::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+void reshade::vulkan::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *, const uint64_t *)
 {
 	if (vk.CmdBindTransformFeedbackBuffersEXT != nullptr)
 		vk.CmdBindTransformFeedbackBuffersEXT(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets, max_sizes);

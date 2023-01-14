@@ -333,7 +333,7 @@ void reshade::d3d9::device_impl::bind_vertex_buffers(uint32_t first, uint32_t co
 		_orig->SetStreamSource(first + i, reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[i].handle), offsets != nullptr ? static_cast<UINT>(offsets[i]) : 0, strides[i]);
 	}
 }
-void reshade::d3d9::device_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *)
+void reshade::d3d9::device_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *, const api::resource *, const uint64_t *)
 {
 	assert(first == 0 && count == 1);
 	assert(offsets == nullptr || offsets[0] <= std::numeric_limits<UINT>::max());
