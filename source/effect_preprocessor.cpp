@@ -461,14 +461,7 @@ void reshadefx::preprocessor::parse_def()
 		}
 
 		if (accept(tokenid::ellipsis))
-		{
 			m.is_variadic = true;
-			m.parameters.push_back("__VA_ARGS__");
-
-			// TODO: Implement variadic macros
-			error(_token.location, "variadic macros are not currently supported");
-			return;
-		}
 
 		if (!expect(tokenid::parenthesis_close))
 			return;
@@ -1086,6 +1079,9 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 			// Ignore whitespace preceding the argument
 			accept(tokenid::space);
 
+			if (accept(tokenid::parenthesis_close))
+				break; // Special case for when there are no arguments
+
 			while (true)
 			{
 				if (peek(tokenid::end_of_file))
@@ -1094,8 +1090,8 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 				// Consume all tokens of the argument
 				consume();
 
-				if (_token == tokenid::comma && parentheses_level == 0)
-					break; // Comma marks end of an argument
+				if (_token == tokenid::comma && parentheses_level == 0 && !(it->second.is_variadic && arguments.size() == it->second.parameters.size()))
+					break; // Comma marks end of an argument (unless this is the last argument in a variadic macro invocation)
 				if (_token == tokenid::parenthesis_open)
 					parentheses_level++;
 				if (_token == tokenid::parenthesis_close && --parentheses_level < 0)
@@ -1139,6 +1135,12 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 	if (macro.replacement_list.empty())
 		return;
 
+	// Verify argument count for function-like macros
+	if (arguments.size() < macro.parameters.size())
+		return warning(_token.location, "not enough arguments for function-like macro invocation '" + name + "'");
+	if (arguments.size() > macro.parameters.size() && !macro.is_variadic)
+		return warning(_token.location, "too many arguments for function-like macro invocation '" + name + "'");
+
 	std::string input;
 	input.reserve(macro.replacement_list.size());
 
@@ -1155,7 +1157,14 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 		const char index = macro.replacement_list[++offset];
 		if (static_cast<size_t>(index) >= arguments.size())
 		{
-			warning(_token.location, "not enough arguments for function-like macro invocation '" + name + "'");
+			if (macro.is_variadic)
+			{
+				// The concatenation operator has a special meaning when placed between a comma and a variable argument, deleting the preceding comma
+				if (type == macro_replacement_concat && input.back() == ',')
+					input.pop_back();
+				if (type == macro_replacement_stringize)
+					input += "\"\"";
+			}
 			continue;
 		}
 
@@ -1236,7 +1245,7 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 					return;
 
 				const auto it = std::find(macro.parameters.begin(), macro.parameters.end(), _token.literal_as_string);
-				if (it == macro.parameters.end())
+				if (it == macro.parameters.end() && !(macro.is_variadic && _token.literal_as_string == "__VA_ARGS__"))
 					return error(_token.location, "# must be followed by parameter name");
 
 				// Start a # stringize operator
@@ -1258,7 +1267,7 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 			break;
 		case tokenid::identifier:
 			if (const auto it = std::find(macro.parameters.begin(), macro.parameters.end(), _token.literal_as_string);
-				it != macro.parameters.end())
+				it != macro.parameters.end() || (macro.is_variadic && _token.literal_as_string == "__VA_ARGS__"))
 			{
 				macro.replacement_list += macro_replacement_start;
 				macro.replacement_list += static_cast<char>(next_concat ? macro_replacement_concat : macro_replacement_argument);
