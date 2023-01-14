@@ -1170,7 +1170,19 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 
 			// Get actual texture target from the texture object
 			if (target == GL_TEXTURE)
+			{
 				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+
+				// Layered attachments are only valid for texture target types
+				GLint layered = GL_FALSE;
+				gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_LAYERED, &layered);
+
+				if (target == GL_TEXTURE_CUBE_MAP && !layered)
+				{
+					gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, reinterpret_cast<GLint *>(&target));
+					assert(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+				}
+			}
 		}
 	}
 	else
@@ -1188,7 +1200,18 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 			gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
 
 			if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
+			{
 				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+
+				GLint layered = GL_FALSE;
+				gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_LAYERED, &layered);
+
+				if (target == GL_TEXTURE_CUBE_MAP && !layered)
+				{
+					gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, reinterpret_cast<GLint *>(&target));
+					assert(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+				}
+			}
 		}
 
 		if (fbo_object != prev_binding)
@@ -1198,7 +1221,7 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 	if (target == GL_NONE)
 		return { 0 };
 
-	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL', 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
+	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
 	return make_resource_view_handle(target, object);
 }
 

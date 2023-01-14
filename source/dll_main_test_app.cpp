@@ -445,8 +445,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		// Create an OpenGL 4.3 context
 		const int attribs[] = {
-			0x2091 /*WGL_CONTEXT_MAJOR_VERSION_ARB*/, 4,
-			0x2092 /*WGL_CONTEXT_MINOR_VERSION_ARB*/, 3,
+			0x2091 /* WGL_CONTEXT_MAJOR_VERSION_ARB */, 4,
+			0x2092 /* WGL_CONTEXT_MINOR_VERSION_ARB */, 3,
 			0 // Terminate list
 		};
 
