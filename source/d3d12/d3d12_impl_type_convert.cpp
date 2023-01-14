@@ -380,6 +380,7 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	if (desc.type == api::resource_type::buffer)
 	{
 		desc.buffer.size = internal_desc.Width;
+		desc.buffer.stride = 0;
 
 		// Buffers may be of any type in D3D12, so add all possible usage flags
 		desc.usage |= api::resource_usage::vertex_buffer | api::resource_usage::index_buffer | api::resource_usage::constant_buffer | api::resource_usage::stream_output;

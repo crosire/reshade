@@ -1176,6 +1176,7 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBuffe
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = create_info.size;
+	desc.buffer.stride = 0;
 	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 
 	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryBufferCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO))

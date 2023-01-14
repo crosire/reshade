@@ -687,6 +687,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXB
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.Size;
+	desc.buffer.stride = 0;
 	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Usage & D3DUSAGE_WRITEONLY) == 0)
 		desc.heap = api::memory_heap::gpu_to_cpu;
 	else
@@ -709,6 +710,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.Size;
+	desc.buffer.stride = 0;
 	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Usage & D3DUSAGE_WRITEONLY) == 0)
 		desc.heap = api::memory_heap::gpu_to_cpu;
 	else

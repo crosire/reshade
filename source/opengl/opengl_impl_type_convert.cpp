@@ -1447,6 +1447,7 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	api::resource_desc desc = {};
 	desc.type = convert_resource_type(target);
 	desc.buffer.size = buffer_size;
+	desc.buffer.stride = 0;
 
 	switch (usage)
 	{
