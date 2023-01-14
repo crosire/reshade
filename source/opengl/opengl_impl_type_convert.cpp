@@ -82,7 +82,6 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_SRGB8_ALPHA8;
 	case api::format::r8g8b8a8_snorm:
 		return GL_RGBA8_SNORM;
-	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
 	case api::format::b8g8r8x8_typeless:
 	case api::format::b8g8r8x8_unorm:
@@ -671,7 +670,6 @@ auto reshade::opengl::convert_upload_format(api::format format, GLenum &type) ->
 	case api::format::r8g8b8a8_typeless:
 	case api::format::r8g8b8a8_unorm:
 	case api::format::r8g8b8a8_unorm_srgb:
-	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
 	case api::format::r8g8b8x8_unorm_srgb:
 		type = GL_UNSIGNED_BYTE;

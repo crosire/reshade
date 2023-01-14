@@ -213,7 +213,6 @@ bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 	case format::r8g8b8a8_typeless:
 	case format::r8g8b8a8_unorm:
 	case format::r8g8b8a8_unorm_srgb:
-	case format::r8g8b8x8_typeless:
 	case format::r8g8b8x8_unorm:
 	case format::r8g8b8x8_unorm_srgb:
 		for (size_t y = 0; y < desc.texture.height; ++y, data_p += data.row_pitch)

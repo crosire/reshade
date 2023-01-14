@@ -53,7 +53,6 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_R8G8B8A8_UINT;
 	case api::format::r8g8b8a8_sint:
 		return VK_FORMAT_R8G8B8A8_SINT;
-	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE };

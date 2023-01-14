@@ -46,7 +46,6 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORM
 	case api::format::r8g8b8a8_sint:
 	case api::format::r8g8b8a8_snorm:
 		break; // Unsupported
-	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
 	case api::format::r8g8b8x8_unorm_srgb:
 		return D3DFMT_X8B8G8R8;

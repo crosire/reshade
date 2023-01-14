@@ -115,7 +115,6 @@ bool load_texture_image(const resource_desc &desc, subresource_data &data, std::
 	case format::r8g8b8a8_typeless:
 	case format::r8g8b8a8_unorm:
 	case format::r8g8b8a8_unorm_srgb:
-	case format::r8g8b8x8_typeless:
 	case format::r8g8b8x8_unorm:
 	case format::r8g8b8x8_unorm_srgb:
 		data.data = pixel_data.data();
