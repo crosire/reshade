@@ -674,19 +674,28 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D || target == GL_PROXY_TEXTURE_1D_ARRAY || target == GL_PROXY_TEXTURE_RECTANGLE || target == GL_PROXY_TEXTURE_CUBE_MAP);
-	// Ignore all cube map faces except for the first
-	const bool cube_map_face = (target > GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 
-	if (g_current_context && level == 0 && !proxy_object && !cube_map_face)
+	if (g_current_context && level == 0 && !proxy_object)
 	{
-		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
-		resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum &>(internalformat), &width, &height, nullptr, format, type, pixels);
-		trampoline(target, level, internalformat, width, height, border, format, type, pixels);
-		resource.invoke_initialize_event(0);
+		if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+		{
+#  if !RESHADE_ADDON_LITE
+			if (update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, format, type, pixels))
+				return;
+#  endif
+		}
+		else
+		{
+			init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
+			resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum &>(internalformat), &width, &height, nullptr, format, type, pixels);
+			trampoline(target, level, internalformat, width, height, border, format, type, pixels);
+			resource.invoke_initialize_event(0);
+			return;
+		}
 	}
-	else
 #endif
-		trampoline(target, level, internalformat, width, height, border, format, type, pixels);
+
+	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 }
 
 extern "C" void APIENTRY glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum type)
@@ -1365,19 +1374,28 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 #if RESHADE_ADDON
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D || target == GL_PROXY_TEXTURE_1D_ARRAY || target == GL_PROXY_TEXTURE_CUBE_MAP);
-	// Ignore all cube map faces except for the first
-	const bool cube_map_face = (target > GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 
-	if (g_current_context && level == 0 && !proxy_object && !cube_map_face)
+	if (g_current_context && level == 0 && !proxy_object)
 	{
-		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
-		resource.invoke_create_event(nullptr, nullptr, internalformat, &width, &height, nullptr, internalformat, GL_UNSIGNED_BYTE, data);
-		trampoline(target, level, internalformat, width, height, border, imageSize, data);
-		resource.invoke_initialize_event(0);
+		if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+		{
+#  if !RESHADE_ADDON_LITE
+			if (update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, internalformat, GL_UNSIGNED_BYTE, data))
+				return;
+#  endif
+		}
+		else
+		{
+			init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
+			resource.invoke_create_event(nullptr, nullptr, internalformat, &width, &height, nullptr, internalformat, GL_UNSIGNED_BYTE, data);
+			trampoline(target, level, internalformat, width, height, border, imageSize, data);
+			resource.invoke_initialize_event(0);
+			return;
+		}
 	}
-	else
 #endif
-		trampoline(target, level, internalformat, width, height, border, imageSize, data);
+
+	trampoline(target, level, internalformat, width, height, border, imageSize, data);
 }
 void APIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data)
 {
@@ -2571,7 +2589,10 @@ void APIENTRY glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum int
 #if RESHADE_ADDON
 	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
 
-	if (g_current_context)
+	// Ignore proxy texture objects
+	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D_MULTISAMPLE);
+
+	if (g_current_context && !proxy_object)
 	{
 		init_resource resource(target, 1, samples, internalformat, width, height, 1);
 		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, nullptr);
@@ -2589,7 +2610,10 @@ void APIENTRY glTexImage3DMultisample(GLenum target, GLsizei samples, GLenum int
 #if RESHADE_ADDON
 	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
 
-	if (g_current_context)
+	// Ignore proxy texture objects
+	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D_MULTISAMPLE_ARRAY);
+
+	if (g_current_context && !proxy_object)
 	{
 		init_resource resource(target, 1, samples, internalformat, width, height, depth);
 		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, &depth);

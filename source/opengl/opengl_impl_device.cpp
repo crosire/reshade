@@ -854,7 +854,11 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 			gl.GetIntegerv(get_binding_for_target(resource_target), reinterpret_cast<GLint *>(&prev_binding));
 			gl.BindTexture(resource_target, resource_object);
 
-			gl.GetTexLevelParameteriv(resource_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
+			GLenum level_target = resource_target;
+			if (resource_target == GL_TEXTURE_CUBE_MAP || resource_target == GL_TEXTURE_CUBE_MAP_ARRAY)
+				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
+
+			gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
 
 			gl.BindTexture(resource_target, prev_binding);
 		}
@@ -1421,7 +1425,7 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	{
 		assert(layer == 0);
 
-		gl.GetTexImage(target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY ? level_target : target, level, format, type, pixels);
+		gl.GetTexImage(level_target, level, format, type, pixels);
 	}
 	else if (_supports_dsa)
 	{
