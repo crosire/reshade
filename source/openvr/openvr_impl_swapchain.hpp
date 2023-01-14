@@ -30,6 +30,9 @@ namespace reshade::openvr
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }
 
+		api::rect get_eye_rect(vr::EVREye eye) const;
+		api::subresource_box get_eye_subresource_box(vr::EVREye eye) const;
+
 		bool on_init();
 		void on_reset();
 

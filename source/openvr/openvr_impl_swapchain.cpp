@@ -89,6 +89,21 @@ reshade::api::resource reshade::openvr::swapchain_impl::get_back_buffer(uint32_t
 	return _side_by_side_texture;
 }
 
+reshade::api::rect reshade::openvr::swapchain_impl::get_eye_rect(vr::EVREye eye) const
+{
+	return api::rect {
+		static_cast<int32_t>(eye * (_width / 2)), 0,
+		static_cast<int32_t>((eye + 1) * (_width / 2)), static_cast<int32_t>(_height)
+	};
+}
+reshade::api::subresource_box reshade::openvr::swapchain_impl::get_eye_subresource_box(vr::EVREye eye) const
+{
+	return api::subresource_box {
+		static_cast<int32_t>(eye * (_width / 2)), 0, 0,
+		static_cast<int32_t>((eye + 1) * (_width / 2)), static_cast<int32_t>(_height), 1
+	};
+}
+
 bool reshade::openvr::swapchain_impl::on_init()
 {
 	// Created in 'on_vr_submit' below
@@ -213,13 +228,7 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)
-	api::subresource_box dest_box;
-	dest_box.left = eye * region_width;
-	dest_box.top = 0;
-	dest_box.front = 0;
-	dest_box.right = (eye + 1) * region_width;
-	dest_box.bottom = _height;
-	dest_box.back = 1;
+	const api::subresource_box dest_box = get_eye_subresource_box(eye);
 
 	if (source_desc.texture.depth_or_layers <= 1)
 		layer = 0;
