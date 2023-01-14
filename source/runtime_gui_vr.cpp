@@ -20,8 +20,8 @@ extern vr::IVRClientCore *g_client_core;
 static vr::VROverlayHandle_t s_main_handle = vr::k_ulOverlayHandleInvalid;
 static vr::VROverlayHandle_t s_thumbnail_handle = vr::k_ulOverlayHandleInvalid;
 
-static const uint32_t OVERLAY_WIDTH = 400;
-static const uint32_t OVERLAY_HEIGHT = 400;
+static const uint32_t OVERLAY_WIDTH = 500;
+static const uint32_t OVERLAY_HEIGHT = 500;
 
 bool reshade::runtime::init_gui_vr()
 {
@@ -180,6 +180,8 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 	ImGui::NewFrame();
+
+	s_overlay->SetOverlayAlpha(s_main_handle, ImGui::GetStyle().Alpha);
 
 	if (imgui_io.WantTextInput && !keyboard_closed)
 	{
