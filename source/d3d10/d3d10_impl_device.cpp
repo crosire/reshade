@@ -309,7 +309,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			convert_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10DepthStencilView> object;
-				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
+				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 			{
 				*out_handle = to_handle(object.release());
 				return true;
@@ -322,7 +322,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			convert_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10RenderTargetView> object;
-				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
+				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 			{
 				*out_handle = to_handle(object.release());
 				return true;
@@ -335,7 +335,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			convert_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10ShaderResourceView1> object;
-				SUCCEEDED(_orig->CreateShaderResourceView1(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
+				SUCCEEDED(_orig->CreateShaderResourceView1(reinterpret_cast<ID3D10Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 			{
 				*out_handle = to_handle(object.release());
 				return true;

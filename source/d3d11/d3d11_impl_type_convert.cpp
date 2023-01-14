@@ -643,7 +643,7 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &desc, D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = convert_format(desc.format);
-	assert(desc.type == api::resource_view_type::buffer || desc.texture.level_count == 1);
+	assert(desc.type == api::resource_view_type::unknown || desc.type == api::resource_view_type::buffer || desc.texture.level_count == 1);
 	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::buffer:

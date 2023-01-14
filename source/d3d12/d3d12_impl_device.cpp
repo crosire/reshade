@@ -400,7 +400,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			D3D12_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);
@@ -415,7 +415,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			D3D12_RENDER_TARGET_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			_orig->CreateRenderTargetView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+			_orig->CreateRenderTargetView(reinterpret_cast<ID3D12Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);
@@ -431,7 +431,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			internal_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 			convert_resource_view_desc(desc, internal_desc);
 
-			_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+			_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);
@@ -446,7 +446,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &internal_desc, descriptor_handle);
+			_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);

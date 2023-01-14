@@ -373,7 +373,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 			convert_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11DepthStencilView> object;
-				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 			{
 				*out_handle = to_handle(object.release());
 				return true;
@@ -389,7 +389,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11RenderTargetView> object;
-					SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -401,7 +401,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11RenderTargetView1> object;
-					SUCCEEDED(device3->CreateRenderTargetView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(device3->CreateRenderTargetView1(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -418,7 +418,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11ShaderResourceView> object;
-					SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -430,7 +430,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11ShaderResourceView1> object;
-					SUCCEEDED(device3->CreateShaderResourceView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(device3->CreateShaderResourceView1(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -447,7 +447,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11UnorderedAccessView> object;
-					SUCCEEDED(_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -459,7 +459,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11UnorderedAccessView1> object;
-					SUCCEEDED(device3->CreateUnorderedAccessView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(device3->CreateUnorderedAccessView1(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;

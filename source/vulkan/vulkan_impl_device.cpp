@@ -602,8 +602,34 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 	if (resource_data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 	{
 		VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		convert_resource_view_desc(desc, create_info);
 		create_info.image = (VkImage)resource.handle;
+
+		if (desc.type != api::resource_view_type::unknown)
+		{
+			convert_resource_view_desc(desc, create_info);
+		}
+		else
+		{
+			switch (resource_data->create_info.imageType)
+			{
+			case VK_IMAGE_TYPE_1D:
+				create_info.viewType = VK_IMAGE_VIEW_TYPE_1D;
+				break;
+			case VK_IMAGE_TYPE_2D:
+				create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+				break;
+			case VK_IMAGE_TYPE_3D:
+				create_info.viewType = VK_IMAGE_VIEW_TYPE_3D;
+				break;
+			}
+
+			create_info.format = resource_data->create_info.format;
+			create_info.subresourceRange.baseMipLevel = 0;
+			create_info.subresourceRange.levelCount = (usage_type & api::resource_usage::render_target) != api::resource_usage::undefined ? 1 : VK_REMAINING_MIP_LEVELS;
+			create_info.subresourceRange.baseArrayLayer = 0;
+			create_info.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+		}
+
 		create_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
 
 		// Shader resource views can never access stencil data (except for the explicit formats that do that), so remove that aspect flag for views created with a format that supports stencil
@@ -627,8 +653,18 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 	else
 	{
 		VkBufferViewCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO };
-		convert_resource_view_desc(desc, create_info);
 		create_info.buffer = (VkBuffer)resource.handle;
+
+		if (desc.type != api::resource_view_type::unknown)
+		{
+			convert_resource_view_desc(desc, create_info);
+		}
+		else
+		{
+			create_info.format = VK_FORMAT_UNDEFINED;
+			create_info.offset = 0;
+			create_info.range = VK_WHOLE_SIZE;
+		}
 
 		VkBufferView buffer_view = VK_NULL_HANDLE;
 		if (vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
