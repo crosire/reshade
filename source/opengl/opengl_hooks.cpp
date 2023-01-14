@@ -35,18 +35,21 @@ thread_local reshade::opengl::render_context_impl *g_current_context = nullptr;
 class init_resource
 {
 public:
-	explicit init_resource(GLenum target, GLsizeiptr buffer_size, GLenum usage) : target(target)
+	init_resource(GLenum target, GLsizeiptr buffer_size, GLenum usage) :
+		target(target)
 	{
 		desc = reshade::opengl::convert_resource_desc(target, buffer_size, usage);
 	}
-	explicit init_resource(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth, bool named = false) : target(named ? GL_TEXTURE : target), use_swizzle_mask(target != GL_RENDERBUFFER && !named)
+	init_resource(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth, bool named = false) :
+		target(named ? GL_TEXTURE : target), use_swizzle_mask(target != GL_RENDERBUFFER && !named)
 	{
 		if (use_swizzle_mask)
 			gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
 		desc = reshade::opengl::convert_resource_desc(target, levels, samples, internal_format, width, height, depth, use_swizzle_mask ? swizzle_mask : nullptr);
 	}
-	explicit init_resource(const reshade::api::resource_desc &desc) : target(GL_NONE), desc(desc)
+	explicit init_resource(const reshade::api::resource_desc &desc) :
+		target(GL_NONE), desc(desc)
 	{
 	}
 
@@ -302,12 +305,14 @@ private:
 class init_resource_view
 {
 public:
-	explicit init_resource_view(GLenum target, GLuint orig_buffer, GLenum internal_format, GLintptr offset, GLsizeiptr size) : target(target)
+	init_resource_view(GLenum target, GLuint orig_buffer, GLenum internal_format, GLintptr offset, GLsizeiptr size) :
+		target(target)
 	{
 		resource = reshade::opengl::make_resource_handle(GL_BUFFER, orig_buffer);
 		desc = reshade::opengl::convert_resource_view_desc(target, internal_format, offset, size);
 	}
-	explicit init_resource_view(GLenum target, GLuint orig_texture, GLenum internal_format, GLuint min_level, GLuint num_levels, GLuint min_layer, GLuint num_layers) : target(target)
+	init_resource_view(GLenum target, GLuint orig_texture, GLenum internal_format, GLuint min_level, GLuint num_levels, GLuint min_layer, GLuint num_layers) :
+		target(target)
 	{
 		GLenum orig_target = GL_TEXTURE;
 		// 'glTextureView' is available since OpenGL 4.3, so no guarantee that 'glGetTextureParameteriv' exists, since it was introduced in OpenGL 4.5
@@ -411,15 +416,17 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 	if (!g_current_context || !(target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER))
 		return;
 
+	// Only interested in existing framebuffers that were bound to the render pipeline
+	if (gl.CheckFramebufferStatus(target) != GL_FRAMEBUFFER_COMPLETE)
+		return;
+
 	// Get object from current binding in case it was not specified
 	if (framebuffer == 0)
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&framebuffer));
 
 	g_current_context->update_current_window_height(framebuffer);
 
-	if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() &&
-		// Only interested in existing framebuffers that were bound to the render pipeline
-		gl.CheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE)
+	if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 	{
 		uint32_t count = 0;
 		reshade::api::resource_view rtvs[8], dsv;
