@@ -368,6 +368,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	case api::resource_type::texture_3d:
 		target = GL_TEXTURE_3D;
 		break;
+	case api::resource_type::surface:
+		target = GL_RENDERBUFFER;
+		break;
 	default:
 		return false;
 	}
@@ -455,7 +458,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			return false;
 		}
 	}
-	else
+	else if (desc.type != api::resource_type::surface)
 	{
 		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 
@@ -467,6 +470,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		gl.BindTexture(target, object);
 
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
+		GLuint levels = desc.texture.levels;
+		if (0 == levels)
+			levels = static_cast<uint32_t>(std::log2(std::max(desc.texture.width, desc.texture.height))) + 1;
 
 #if 0
 		if (shared_handle_type != GL_NONE)
@@ -475,7 +481,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			gl.CreateMemoryObjectsEXT(1, &mem);
 
 			GLuint64 import_size = 0;
-			for (uint32_t level = 0, width = desc.texture.width, height = desc.texture.height; level < desc.texture.levels; ++level, width /= 2, height /= 2)
+			for (uint32_t level = 0, width = desc.texture.width, height = desc.texture.height; level < levels; ++level, width /= 2, height /= 2)
 				import_size += api::format_slice_pitch(desc.texture.format, api::format_row_pitch(desc.texture.format, width), height);
 			import_size *= desc.texture.depth_or_layers;
 
@@ -488,7 +494,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				if (desc.texture.samples > 1)
 					gl.TexStorageMem2DMultisampleEXT(target, desc.texture.samples, internal_format, desc.texture.width, depth_or_layers, GL_FALSE, mem, 0);
 				else
-					gl.TexStorageMem2DEXT(target, desc.texture.levels, internal_format, desc.texture.width, depth_or_layers, mem, 0);
+					gl.TexStorageMem2DEXT(target, levels, internal_format, desc.texture.width, depth_or_layers, mem, 0);
 				break;
 			case GL_TEXTURE_CUBE_MAP:
 				assert(depth_or_layers == 6);
@@ -497,7 +503,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				if (desc.texture.samples > 1)
 					gl.TexStorageMem2DMultisampleEXT(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height, GL_FALSE, mem, 0);
 				else
-					gl.TexStorageMem2DEXT(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, mem, 0);
+					gl.TexStorageMem2DEXT(target, levels, internal_format, desc.texture.width, desc.texture.height, mem, 0);
 				break;
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
 				assert((depth_or_layers % 6) == 0);
@@ -508,7 +514,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				if (desc.texture.samples > 1)
 					gl.TexStorageMem3DMultisampleEXT(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, GL_FALSE, mem, 0);
 				else
-					gl.TexStorageMem3DEXT(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, mem, 0);
+					gl.TexStorageMem3DEXT(target, levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, mem, 0);
 				break;
 			}
 
@@ -520,13 +526,13 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			switch (target)
 			{
 			case GL_TEXTURE_1D:
-				gl.TexStorage1D(target, desc.texture.levels, internal_format, desc.texture.width);
+				gl.TexStorage1D(target, levels, internal_format, desc.texture.width);
 				break;
 			case GL_TEXTURE_1D_ARRAY:
 				if (desc.texture.samples > 1)
 					gl.TexStorage2DMultisample(target, desc.texture.samples, internal_format, desc.texture.width, depth_or_layers, GL_FALSE);
 				else
-					gl.TexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, depth_or_layers);
+					gl.TexStorage2D(target, levels, internal_format, desc.texture.width, depth_or_layers);
 				break;
 			case GL_TEXTURE_CUBE_MAP:
 				assert(depth_or_layers == 6);
@@ -535,7 +541,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				if (desc.texture.samples > 1)
 					gl.TexStorage2DMultisample(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height, GL_FALSE);
 				else
-					gl.TexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height);
+					gl.TexStorage2D(target, levels, internal_format, desc.texture.width, desc.texture.height);
 				break;
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
 				assert((depth_or_layers % 6) == 0);
@@ -546,7 +552,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				if (desc.texture.samples > 1)
 					gl.TexStorage3DMultisample(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, GL_FALSE);
 				else
-					gl.TexStorage3D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers);
+					gl.TexStorage3D(target, levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers);
 				break;
 			}
 		}
@@ -557,7 +563,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		if (initial_data != nullptr && status == GL_NO_ERROR)
 		{
-			for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+			for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * levels; ++subresource)
 				update_texture_region(initial_data[subresource], make_resource_handle(target, object), subresource, nullptr);
 		}
 
@@ -566,6 +572,30 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		if (status != GL_NO_ERROR)
 		{
 			gl.DeleteTextures(1, &object);
+			return false;
+		}
+	}
+	else
+	{
+		const GLenum internal_format = convert_format(desc.texture.format);
+		if (desc.texture.width == 0 || desc.texture.height == 0 || internal_format == GL_NONE)
+			return false;
+
+		gl.GenRenderbuffers(1, &object);
+		gl.BindRenderbuffer(target, object);
+
+		if (desc.texture.samples > 1)
+			gl.RenderbufferStorageMultisample(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height);
+		else
+			gl.RenderbufferStorage(target, internal_format, desc.texture.width, desc.texture.height);
+
+		status = gl.GetError();
+
+		gl.BindRenderbuffer(target, prev_binding);
+
+		if (status != GL_NO_ERROR)
+		{
+			gl.DeleteRenderbuffers(1, &object);
 			return false;
 		}
 	}
