@@ -915,6 +915,7 @@ bool reshade::d3d10::device_impl::allocate_descriptor_sets(uint32_t count, api::
 			const auto set_impl = new descriptor_set_impl();
 			set_impl->type = layout_impl->ranges[layout_param].type;
 			set_impl->count = layout_impl->ranges[layout_param].count;
+			set_impl->base_binding = layout_impl->ranges[layout_param].binding;
 
 			switch (set_impl->type)
 			{
@@ -972,14 +973,17 @@ void reshade::d3d10::device_impl::copy_descriptor_sets(uint32_t count, const api
 
 		assert(src_set_impl != nullptr && dst_set_impl != nullptr && src_set_impl->type == dst_set_impl->type);
 
+		const uint32_t dst_binding = copy.dest_binding - dst_set_impl->base_binding;
+		const uint32_t src_binding = copy.source_binding - src_set_impl->base_binding;
+
 		switch (src_set_impl->type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
-			std::memcpy(&dst_set_impl->descriptors[copy.dest_binding * 1], &src_set_impl->descriptors[copy.source_binding * 1], copy.count * sizeof(uint64_t) * 1);
+			std::memcpy(&dst_set_impl->descriptors[dst_binding * 1], &src_set_impl->descriptors[src_binding * 1], copy.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&dst_set_impl->descriptors[copy.dest_binding * 3], &src_set_impl->descriptors[copy.source_binding * 3], copy.count * sizeof(uint64_t) * 3);
+			std::memcpy(&dst_set_impl->descriptors[dst_binding * 3], &src_set_impl->descriptors[src_binding * 3], copy.count * sizeof(uint64_t) * 3);
 			break;
 		default:
 			assert(false);
@@ -999,14 +1003,16 @@ void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t count, const a
 
 		assert(set_impl != nullptr && set_impl->type == update.type);
 
+		const uint32_t update_binding = update.binding - set_impl->base_binding;
+
 		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
-			std::memcpy(&set_impl->descriptors[update.binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
+			std::memcpy(&set_impl->descriptors[update_binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&set_impl->descriptors[update.binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
+			std::memcpy(&set_impl->descriptors[update_binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
 		default:
 			assert(false);

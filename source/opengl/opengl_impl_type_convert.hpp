@@ -68,7 +68,8 @@ namespace reshade::opengl
 	struct descriptor_set_impl
 	{
 		api::descriptor_type type;
-		GLuint count;
+		uint32_t count;
+		uint32_t base_binding;
 		std::vector<uint64_t> descriptors;
 	};
 
