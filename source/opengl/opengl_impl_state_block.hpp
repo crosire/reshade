@@ -18,6 +18,9 @@ namespace reshade::opengl
 		void apply(bool compatibility) const;
 
 	private:
+		GLint _copy_read;
+		GLint _copy_write;
+
 		GLint _vao;
 		GLint _vbo;
 		GLint _ibo;

@@ -22,6 +22,9 @@ reshade::opengl::state_block::state_block()
 
 void reshade::opengl::state_block::capture(bool compatibility)
 {
+	gl.GetIntegerv(GL_COPY_READ_BUFFER_BINDING, &_copy_read);
+	gl.GetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &_copy_write);
+
 	gl.GetIntegerv(GL_VERTEX_ARRAY_BINDING, &_vao);
 	gl.GetIntegerv(GL_ARRAY_BUFFER_BINDING, &_vbo);
 	gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &_ibo);
@@ -110,6 +113,9 @@ void reshade::opengl::state_block::capture(bool compatibility)
 }
 void reshade::opengl::state_block::apply(bool compatibility) const
 {
+	gl.BindBuffer(GL_COPY_READ_BUFFER, _copy_read);
+	gl.BindBuffer(GL_COPY_WRITE_BUFFER, _copy_write);
+
 	gl.BindVertexArray(_vao);
 	gl.BindBuffer(GL_ARRAY_BUFFER, _vbo);
 	gl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ibo);

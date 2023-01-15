@@ -242,7 +242,7 @@ void reshade::opengl::render_context_impl::bind_render_targets_and_depth_stencil
 		{
 			draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
-			const api::format format = _device_impl->get_resource_view_format(rtvs[i]);
+			const api::format format = _device_impl->get_resource_format(rtvs[i].handle >> 40, rtvs[i].handle & 0xFFFFFFFF);
 			if (format != api::format_to_default_typed(format, 0) &&
 				format == api::format_to_default_typed(format, 1))
 				has_srgb_attachment = true;
@@ -360,7 +360,7 @@ void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(
 
 	if (dsv.handle != 0)
 	{
-		const GLenum attachment = is_depth_stencil_format(_device_impl->get_resource_view_format(dsv));
+		const GLenum attachment = is_depth_stencil_format(_device_impl->get_resource_format(dsv.handle >> 40, dsv.handle & 0xFFFFFFFF));
 
 		switch (dsv.handle >> 40)
 		{
@@ -427,11 +427,13 @@ void reshade::opengl::render_context_impl::update_current_window_height(GLuint f
 			{
 				GLuint prev_binding = 0;
 				gl.GetIntegerv(get_binding_for_target(default_attachment_target), reinterpret_cast<GLint *>(&prev_binding));
-				gl.BindTexture(default_attachment_target, default_attachment_object);
+				if (default_attachment_object != prev_binding)
+					gl.BindTexture(default_attachment_target, default_attachment_object);
 
 				gl.GetTexLevelParameteriv(default_attachment_target, 0, GL_TEXTURE_HEIGHT, &height);
 
-				gl.BindTexture(default_attachment_target, prev_binding);
+				if (default_attachment_object != prev_binding)
+					gl.BindTexture(default_attachment_target, prev_binding);
 			}
 
 			_current_window_height = height;
@@ -449,11 +451,13 @@ void reshade::opengl::render_context_impl::update_current_window_height(GLuint f
 			{
 				GLuint prev_binding = 0;
 				gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-				gl.BindRenderbuffer(GL_RENDERBUFFER, default_attachment_object);
+				if (default_attachment_object != prev_binding)
+					gl.BindRenderbuffer(GL_RENDERBUFFER, default_attachment_object);
 
 				gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
 
-				gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
+				if (default_attachment_object != prev_binding)
+					gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
 			}
 
 			_current_window_height = height;
@@ -764,8 +768,7 @@ void reshade::opengl::render_context_impl::bind_scissor_rects(uint32_t first, ui
 
 void reshade::opengl::render_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
-	const GLuint push_constants_binding = (layout.handle != 0 && layout != global_pipeline_layout) ?
-		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
+	const GLuint push_constants_binding = (layout.handle != 0 && layout != global_pipeline_layout) ? reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
 
 	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
 	gl.BindBufferBase(GL_UNIFORM_BUFFER, push_constants_binding, _push_constants);
@@ -782,8 +785,7 @@ void reshade::opengl::render_context_impl::push_constants(api::shader_stage, api
 		_push_constants_size = count;
 	}
 	// Otherwise discard the previous range (so driver can return a new memory region to avoid stalls) and update it with the new constants
-	else if (void *const data = gl.MapBufferRange(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
-		data != nullptr)
+	else if (void *const data = gl.MapBufferRange(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT))
 	{
 		std::memcpy(data, values, count * sizeof(uint32_t));
 		gl.UnmapBuffer(GL_UNIFORM_BUFFER);
@@ -853,23 +855,7 @@ void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, a
 			const GLenum target = descriptor.handle >> 40;
 			const GLuint object = descriptor.handle & 0xFFFFFFFF;
 
-			GLint internal_format = 0;
-			if (_device_impl->_supports_dsa)
-			{
-				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-			}
-			else
-			{
-				GLuint prev_binding = 0;
-				gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
-				gl.BindTexture(target, object);
-
-				gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-
-				gl.BindTexture(target, prev_binding);
-			}
-
-			gl.BindImageTexture(first + i, descriptor.handle & 0xFFFFFFFF, 0, GL_FALSE, 0, GL_READ_WRITE, internal_format);
+			gl.BindImageTexture(first + i, descriptor.handle & 0xFFFFFFFF, 0, GL_FALSE, 0, GL_READ_WRITE, convert_format(_device_impl->get_resource_format(target, object)));
 		}
 		break;
 	case api::descriptor_type::constant_buffer:
@@ -879,11 +865,13 @@ void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, a
 			if (descriptor.size == UINT64_MAX)
 			{
 				assert(descriptor.offset == 0);
+
 				gl.BindBufferBase(GL_UNIFORM_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF);
 			}
 			else
 			{
 				assert(descriptor.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && descriptor.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+
 				gl.BindBufferRange(GL_UNIFORM_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF, static_cast<GLintptr>(descriptor.offset), static_cast<GLsizeiptr>(descriptor.size));
 			}
 		}
@@ -895,11 +883,13 @@ void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, a
 			if (descriptor.size == UINT64_MAX)
 			{
 				assert(descriptor.offset == 0);
+
 				gl.BindBufferBase(GL_SHADER_STORAGE_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF);
 			}
 			else
 			{
 				assert(descriptor.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && descriptor.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+
 				gl.BindBufferRange(GL_SHADER_STORAGE_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF, static_cast<GLintptr>(descriptor.offset), static_cast<GLsizeiptr>(descriptor.size));
 			}
 		}
@@ -1043,7 +1033,7 @@ void reshade::opengl::render_context_impl::copy_buffer_region(api::resource src,
 
 	if (_device_impl->_supports_dsa)
 	{
-		if (UINT64_MAX == size)
+		if (size == UINT64_MAX)
 		{
 #ifndef _WIN64
 			GLint max_size = 0;
@@ -1059,15 +1049,10 @@ void reshade::opengl::render_context_impl::copy_buffer_region(api::resource src,
 	}
 	else
 	{
-		GLuint prev_read_binding = 0;
-		gl.GetIntegerv(GL_COPY_READ_BUFFER, reinterpret_cast<GLint *>(&prev_read_binding));
-		GLuint prev_write_binding = 0;
-		gl.GetIntegerv(GL_COPY_WRITE_BUFFER, reinterpret_cast<GLint *>(&prev_write_binding));
-
 		gl.BindBuffer(GL_COPY_READ_BUFFER, src_object);
 		gl.BindBuffer(GL_COPY_WRITE_BUFFER, dst_object);
 
-		if (UINT64_MAX == size)
+		if (size == UINT64_MAX)
 		{
 #ifndef _WIN64
 			GLint max_size = 0;
@@ -1080,9 +1065,6 @@ void reshade::opengl::render_context_impl::copy_buffer_region(api::resource src,
 		}
 
 		gl.CopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
-
-		gl.BindBuffer(GL_COPY_READ_BUFFER, prev_read_binding);
-		gl.BindBuffer(GL_COPY_WRITE_BUFFER, prev_write_binding);
 	}
 }
 void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
@@ -1153,7 +1135,8 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 
 		GLuint prev_binding = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		if (0 != prev_binding)
+			gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
 		gl.DrawBuffer(dst_object);
 
@@ -1161,7 +1144,8 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 		assert(_device_impl->_compatibility_context);
 		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 
-		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_binding);
+		if (0 != prev_binding)
+			gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_binding);
 	}
 	else if (dst_target == GL_RENDERBUFFER)
 	{
@@ -1173,7 +1157,8 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 		GLuint prev_fbo_binding = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_fbo_binding));
 
-		gl.BindRenderbuffer(GL_RENDERBUFFER, dst_object);
+		if (dst_object != prev_rbo_binding)
+			gl.BindRenderbuffer(GL_RENDERBUFFER, dst_object);
 
 		bind_framebuffer_with_resource(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dst, dst_subresource, {});
 
@@ -1183,14 +1168,16 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 		assert(_device_impl->_compatibility_context);
 		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 
-		gl.BindRenderbuffer(GL_RENDERBUFFER, prev_rbo_binding);
 		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_fbo_binding);
+		if (dst_object != prev_rbo_binding)
+			gl.BindRenderbuffer(GL_RENDERBUFFER, prev_rbo_binding);
 	}
 	else
 	{
 		GLuint prev_binding = 0;
 		gl.GetIntegerv(get_binding_for_target(dst_target), reinterpret_cast<GLint *>(&prev_binding));
-		gl.BindTexture(dst_target, dst_object);
+		if (dst_object != prev_binding)
+			gl.BindTexture(dst_target, dst_object);
 
 		const GLuint level = dst_subresource % dst_desc.texture.levels;
 		      GLuint layer = dst_subresource / dst_desc.texture.levels;
@@ -1250,7 +1237,8 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 			break;
 		}
 
-		gl.BindTexture(dst_target, prev_binding);
+		if (dst_object != prev_binding)
+			gl.BindTexture(dst_target, prev_binding);
 	}
 
 	// Restore previous state from application
@@ -1328,8 +1316,8 @@ void reshade::opengl::render_context_impl::copy_texture_region(api::resource src
 		GLuint prev_draw_binding = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_draw_binding));
 
-		GLboolean prev_srgb_enable = gl.IsEnabled(GL_FRAMEBUFFER_SRGB);
 		GLboolean prev_scissor_test = gl.IsEnabled(GL_SCISSOR_TEST);
+		GLboolean prev_framebuffer_srgb = gl.IsEnabled(GL_FRAMEBUFFER_SRGB);
 
 		const GLenum copy_depth = is_depth_stencil_format(src_desc.texture.format);
 		assert(copy_depth != GL_STENCIL_ATTACHMENT && is_depth_stencil_format(dst_desc.texture.format) == copy_depth);
@@ -1337,8 +1325,10 @@ void reshade::opengl::render_context_impl::copy_texture_region(api::resource src
 		bind_framebuffer_with_resource(GL_READ_FRAMEBUFFER, copy_depth != GL_NONE ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, src, src_subresource, src_desc);
 		bind_framebuffer_with_resource(GL_DRAW_FRAMEBUFFER, copy_depth != GL_NONE ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, dst, dst_subresource, dst_desc);
 
-		gl.Disable(GL_SCISSOR_TEST);
-		gl.Disable(GL_FRAMEBUFFER_SRGB);
+		if (prev_scissor_test)
+			gl.Disable(GL_SCISSOR_TEST);
+		if (prev_framebuffer_srgb)
+			gl.Disable(GL_FRAMEBUFFER_SRGB);
 
 		assert(src_region[2] == 0 && dst_region[2] == 0 && src_region[5] == 1 && dst_region[5] == 1);
 		gl.BlitFramebuffer(
@@ -1351,8 +1341,10 @@ void reshade::opengl::render_context_impl::copy_texture_region(api::resource src
 		gl.BindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_binding);
 		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 
-		glEnableOrDisable(GL_SCISSOR_TEST, prev_scissor_test);
-		glEnableOrDisable(GL_FRAMEBUFFER_SRGB, prev_srgb_enable);
+		if (prev_scissor_test)
+			gl.Enable(GL_SCISSOR_TEST);
+		if (prev_framebuffer_srgb)
+			gl.Enable(GL_FRAMEBUFFER_SRGB);
 	}
 }
 void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
@@ -1423,13 +1415,15 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 
 		GLuint prev_binding = 0;
 		gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-		gl.BindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		if (0 != prev_binding)
+			gl.BindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
 		gl.ReadBuffer(src_object);
 
 		gl.ReadPixels(xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 
-		gl.BindFramebuffer(GL_READ_FRAMEBUFFER, prev_binding);
+		if (0 != prev_binding)
+			gl.BindFramebuffer(GL_READ_FRAMEBUFFER, prev_binding);
 	}
 	else if (src_target == GL_RENDERBUFFER)
 	{
@@ -1441,7 +1435,8 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 		GLuint prev_fbo_binding = 0;
 		gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_fbo_binding));
 
-		gl.BindRenderbuffer(GL_RENDERBUFFER, src_object);
+		if (src_object != prev_rbo_binding)
+			gl.BindRenderbuffer(GL_RENDERBUFFER, src_object);
 
 		bind_framebuffer_with_resource(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, src, src_subresource, {});
 
@@ -1449,14 +1444,16 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 
 		gl.ReadPixels(xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 
-		gl.BindRenderbuffer(GL_RENDERBUFFER, prev_rbo_binding);
 		gl.BindFramebuffer(GL_READ_FRAMEBUFFER, prev_fbo_binding);
+		if (src_object != prev_rbo_binding)
+			gl.BindRenderbuffer(GL_RENDERBUFFER, prev_rbo_binding);
 	}
 	else
 	{
 		GLuint prev_binding = 0;
 		gl.GetIntegerv(get_binding_for_target(src_target), reinterpret_cast<GLint *>(&prev_binding));
-		gl.BindTexture(src_target, src_object);
+		if (src_object != prev_binding)
+			gl.BindTexture(src_target, src_object);
 
 		const GLuint level = src_subresource % src_desc.texture.levels;
 		      GLuint layer = src_subresource / src_desc.texture.levels;
@@ -1505,7 +1502,8 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 			gl.GetTextureSubImage(src_object, level, xoffset, yoffset, zoffset, width, height, depth, format, type, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
 
-		gl.BindTexture(src_target, prev_binding);
+		if (src_object != prev_binding)
+			gl.BindTexture(src_target, prev_binding);
 	}
 
 	// Restore previous state from application

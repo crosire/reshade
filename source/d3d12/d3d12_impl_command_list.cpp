@@ -554,8 +554,8 @@ void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, ui
 
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (size == UINT64_MAX)
-		size  = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc().Width;
+	if (UINT64_MAX == size)
+		size = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc().Width;
 
 	_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(src.handle), src_offset, size);
 }

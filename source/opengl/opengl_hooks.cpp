@@ -531,9 +531,7 @@ static bool update_buffer_region(GLenum target, GLuint object, GLintptr offset, 
 }
 static bool update_texture_region(GLenum target, GLuint object, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels)
 {
-	if (!g_current_context || !(
-		reshade::has_addon_event<reshade::addon_event::update_texture_region>() ||
-		reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>()))
+	if (!g_current_context || (!reshade::has_addon_event<reshade::addon_event::update_texture_region>() && !reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>()))
 		return false;
 
 	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
@@ -565,6 +563,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	GLuint subresource = level;
 	if (base_target == GL_TEXTURE_CUBE_MAP)
 	{
+		assert(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * dst_desc.texture.levels;
 	}
 
@@ -607,7 +606,7 @@ static void update_current_primitive_topology(GLenum mode, GLenum type)
 	{
 		g_current_context->_current_prim_mode = mode;
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#  if !RESHADE_ADDON_LITE
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
 		uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
 
@@ -621,7 +620,7 @@ static void update_current_primitive_topology(GLenum mode, GLenum type)
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
-#endif
+#  endif
 	}
 }
 
@@ -672,7 +671,7 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 		{
 			trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 			if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X)
-				resource.invoke_initialize_event(0);
+				resource.invoke_initialize_event(0); // Initialize resource with the first cubemap face
 #  if !RESHADE_ADDON_LITE
 			update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, format, type, pixels);
 #  endif
@@ -1374,7 +1373,7 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 		{
 			trampoline(target, level, internalformat, width, height, border, imageSize, data);
 			if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X)
-				resource.invoke_initialize_event(0);
+				resource.invoke_initialize_event(0); // Initialize resource with the first cubemap face
 #  if !RESHADE_ADDON_LITE
 			update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, internalformat, GL_UNSIGNED_BYTE, data);
 #  endif
@@ -3250,6 +3249,7 @@ void APIENTRY glBufferStorage(GLenum target, GLsizeiptr size, const void *data, 
 	{
 		GLenum usage = GL_NONE;
 		reshade::opengl::convert_memory_flags_to_usage(flags, usage);
+
 		init_resource resource(target, size, usage);
 		resource.invoke_create_event(size, usage, data);
 		reshade::opengl::convert_memory_usage_to_flags(usage, flags);
@@ -3557,6 +3557,7 @@ void APIENTRY glNamedBufferStorage(GLuint buffer, GLsizeiptr size, const void *d
 	{
 		GLenum usage = GL_NONE;
 		reshade::opengl::convert_memory_flags_to_usage(flags, usage);
+
 		init_resource resource(GL_BUFFER, size, usage);
 		resource.invoke_create_event(size, usage, data);
 		reshade::opengl::convert_memory_usage_to_flags(usage, flags);

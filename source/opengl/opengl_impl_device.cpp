@@ -665,7 +665,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			{
 				GLuint prev_binding = 0;
 				gl.GetIntegerv(GL_COPY_READ_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-				gl.BindBuffer(GL_COPY_READ_BUFFER, object);
+				if (object != prev_binding)
+					gl.BindBuffer(GL_COPY_READ_BUFFER, object);
 
 #ifndef _WIN64
 				gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
@@ -674,7 +675,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #endif
 				gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_USAGE, &usage);
 
-				gl.BindBuffer(GL_COPY_READ_BUFFER, prev_binding);
+				if (object != prev_binding)
+					gl.BindBuffer(GL_COPY_READ_BUFFER, prev_binding);
 			}
 
 			return convert_resource_desc(target, size, usage);
@@ -725,7 +727,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			{
 				GLuint prev_binding = 0;
 				gl.GetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
-				gl.BindTexture(target, object);
+				if (object != prev_binding)
+					gl.BindTexture(target, object);
 
 				GLenum level_target = target;
 				if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
@@ -754,7 +757,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 				gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
-				gl.BindTexture(target, prev_binding);
+				if (object != prev_binding)
+					gl.BindTexture(target, prev_binding);
 			}
 
 			if (0 == levels)
@@ -779,14 +783,16 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			{
 				GLuint prev_binding = 0;
 				gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-				gl.BindRenderbuffer(GL_RENDERBUFFER, object);
+				if (object != prev_binding)
+					gl.BindRenderbuffer(GL_RENDERBUFFER, object);
 
 				gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &width);
 				gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
 				gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
 				gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_SAMPLES, &samples);
 
-				gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
+				if (object != prev_binding)
+					gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
 			}
 
 			if (0 == samples)
@@ -871,29 +877,6 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		return false;
 	}
 
-	GLenum resource_format = GL_NONE;
-	if (desc.type != api::resource_view_type::buffer)
-	{
-		if (_supports_dsa)
-		{
-			gl.GetTextureLevelParameteriv(resource_object, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
-		}
-		else
-		{
-			GLuint prev_binding = 0;
-			gl.GetIntegerv(get_binding_for_target(resource_target), reinterpret_cast<GLint *>(&prev_binding));
-			gl.BindTexture(resource_target, resource_object);
-
-			GLenum level_target = resource_target;
-			if (resource_target == GL_TEXTURE_CUBE_MAP || resource_target == GL_TEXTURE_CUBE_MAP_ARRAY)
-				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
-
-			gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
-
-			gl.BindTexture(resource_target, prev_binding);
-		}
-	}
-
 	GLint texture_swizzle[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 
 	const GLenum internal_format = convert_format(desc.format, texture_swizzle);
@@ -901,7 +884,8 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		return false;
 
 	if (target == resource_target &&
-		desc.texture.first_level == 0 && desc.texture.first_layer == 0 && internal_format == resource_format)
+		desc.texture.first_level == 0 && desc.texture.first_layer == 0 &&
+		desc.format == get_resource_format(resource_target, resource_object))
 	{
 		assert(target != GL_TEXTURE_BUFFER);
 
@@ -971,11 +955,8 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view hand
 		destroy_resource({ handle.handle });
 }
 
-reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api::resource_view view) const
+reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum target, GLenum object) const
 {
-	const GLenum target = view.handle >> 40;
-	const GLuint object = view.handle & 0xFFFFFFFF;
-
 	GLint internal_format = GL_NONE;
 	GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 
@@ -1007,7 +988,8 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 		{
 			GLuint prev_binding = 0;
 			gl.GetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
-			gl.BindTexture(target, object);
+			if (object != prev_binding)
+				gl.BindTexture(target, object);
 
 			GLenum level_target = target;
 			if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
@@ -1016,7 +998,8 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 			gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 			gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
-			gl.BindTexture(target, prev_binding);
+			if (object != prev_binding)
+				gl.BindTexture(target, prev_binding);
 		}
 		break;
 	case GL_RENDERBUFFER:
@@ -1028,11 +1011,13 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 		{
 			GLuint prev_binding = 0;
 			gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-			gl.BindRenderbuffer(GL_RENDERBUFFER, object);
+			if (object != prev_binding)
+				gl.BindRenderbuffer(GL_RENDERBUFFER, object);
 
 			gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
 
-			gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
+			if (object != prev_binding)
+				gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
 		}
 		break;
 	case GL_FRAMEBUFFER_DEFAULT:
@@ -1044,6 +1029,7 @@ reshade::api::format reshade::opengl::device_impl::get_resource_view_format(api:
 
 	return convert_format(internal_format, swizzle_mask);
 }
+
 reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
@@ -1070,11 +1056,13 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 		{
 			GLuint prev_binding = 0;
 			gl.GetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
-			gl.BindTexture(target, object);
+			if (object != prev_binding)
+				gl.BindTexture(target, object);
 
 			gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &binding);
 
-			gl.BindTexture(target, prev_binding);
+			if (object != prev_binding)
+				gl.BindTexture(target, prev_binding);
 		}
 
 		return make_resource_handle(GL_BUFFER, binding);
@@ -1088,9 +1076,9 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 	const GLuint object = view.handle & 0xFFFFFFFF;
 
 	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
-		return api::resource_view_desc(get_resource_view_format(view), 0, UINT32_MAX, target - GL_TEXTURE_CUBE_MAP_POSITIVE_X, 1);
+		return api::resource_view_desc(get_resource_format(target, object), 0, UINT32_MAX, target - GL_TEXTURE_CUBE_MAP_POSITIVE_X, 1);
 	if (((view.handle >> 32) & 0x1) == 0)
-		return api::resource_view_desc(get_resource_view_format(view), 0, UINT32_MAX, 0, UINT32_MAX);
+		return api::resource_view_desc(get_resource_format(target, object), 0, UINT32_MAX, 0, UINT32_MAX);
 
 	if (target != GL_TEXTURE_BUFFER)
 	{
@@ -1108,7 +1096,8 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 		{
 			GLuint prev_binding = 0;
 			gl.GetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
-			gl.BindTexture(target, object);
+			if (object != prev_binding)
+				gl.BindTexture(target, object);
 
 			gl.GetTexParameteriv(target, GL_TEXTURE_VIEW_MIN_LEVEL, &min_level);
 			gl.GetTexParameteriv(target, GL_TEXTURE_VIEW_MIN_LAYER, &min_layer);
@@ -1116,7 +1105,8 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 			gl.GetTexParameteriv(target, GL_TEXTURE_VIEW_NUM_LAYERS, &num_layers);
 			gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 
-			gl.BindTexture(target, prev_binding);
+			if (object != prev_binding)
+				gl.BindTexture(target, prev_binding);
 		}
 
 		return convert_resource_view_desc(target, internal_format, min_level, num_levels, min_layer, num_layers);
@@ -1135,13 +1125,15 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 		{
 			GLuint prev_binding = 0;
 			gl.GetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
-			gl.BindTexture(target, object);
+			if (object != prev_binding)
+				gl.BindTexture(target, object);
 
 			gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_BUFFER_OFFSET, &offset);
 			gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_BUFFER_SIZE, &size);
 			gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 
-			gl.BindTexture(target, prev_binding);
+			if (object != prev_binding)
+				gl.BindTexture(target, prev_binding);
 		}
 
 		return convert_resource_view_desc(target, internal_format, offset, size);
@@ -1271,7 +1263,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 
 	if (_supports_dsa)
 	{
-		if (UINT64_MAX == size)
+		if (size == UINT64_MAX)
 		{
 #ifndef _WIN64
 			GLint max_size = 0;
@@ -1289,9 +1281,10 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 	{
 		GLuint prev_binding = 0;
 		gl.GetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-		gl.BindBuffer(GL_COPY_WRITE_BUFFER, object);
+		if (object != prev_binding)
+			gl.BindBuffer(GL_COPY_WRITE_BUFFER, object);
 
-		if (UINT64_MAX == size)
+		if (size == UINT64_MAX)
 		{
 #ifndef _WIN64
 			GLint max_size = 0;
@@ -1305,7 +1298,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 
 		*out_data = gl.MapBufferRange(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), convert_access_flags(access));
 
-		gl.BindBuffer(GL_COPY_WRITE_BUFFER, prev_binding);
+		// The 'GL_COPY_WRITE_BUFFER' target does not affect other OpenGL state, so should be fine to leave it bound
 	}
 
 	return *out_data != nullptr;
@@ -1324,11 +1317,12 @@ void reshade::opengl::device_impl::unmap_buffer_region(api::resource resource)
 	{
 		GLuint prev_binding = 0;
 		gl.GetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-		gl.BindBuffer(GL_COPY_WRITE_BUFFER, object);
+		if (object != prev_binding)
+			gl.BindBuffer(GL_COPY_WRITE_BUFFER, object);
 
 		gl.UnmapBuffer(GL_COPY_WRITE_BUFFER);
 
-		gl.BindBuffer(GL_COPY_WRITE_BUFFER, prev_binding);
+		// The 'GL_COPY_WRITE_BUFFER' target does not affect other OpenGL state, so should be fine to leave it bound
 	}
 }
 bool reshade::opengl::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
@@ -1424,7 +1418,8 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	gl.GetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 
 	// Unset any existing pack buffer so pointer is not interpreted as an offset
-	gl.BindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+	if (prev_pack_binding != 0)
+		gl.BindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
 	// Clear pixel storage modes to defaults (texture downloads can break otherwise)
 	gl.PixelStorei(GL_PACK_SWAP_BYTES, GL_FALSE);
@@ -1437,7 +1432,8 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	gl.PixelStorei(GL_PACK_SKIP_IMAGES, 0);
 
 	// Bind and download texture data
-	gl.BindTexture(target, object);
+	if (object != prev_binding)
+		gl.BindTexture(target, object);
 
 	GLenum level_target = target;
 	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
@@ -1475,9 +1471,11 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	}
 
 	// Restore previous state from application
-	gl.BindTexture(target, prev_binding);
+	if (object != prev_binding)
+		gl.BindTexture(target, prev_binding);
 
-	gl.BindBuffer(GL_PIXEL_PACK_BUFFER, prev_pack_binding);
+	if (prev_pack_binding != 0)
+		gl.BindBuffer(GL_PIXEL_PACK_BUFFER, prev_pack_binding);
 
 	gl.PixelStorei(GL_PACK_LSB_FIRST, prev_pack_lsb);
 	gl.PixelStorei(GL_PACK_SWAP_BYTES, prev_pack_swap);
@@ -1529,11 +1527,12 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 	{
 		GLuint prev_binding = 0;
 		gl.GetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-		gl.BindBuffer(GL_COPY_WRITE_BUFFER, object);
+		if (object != prev_binding)
+			gl.BindBuffer(GL_COPY_WRITE_BUFFER, object);
 
 		gl.BufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 
-		gl.BindBuffer(GL_COPY_WRITE_BUFFER, prev_binding);
+		// The 'GL_COPY_WRITE_BUFFER' target does not affect other OpenGL state, so should be fine to leave it bound
 	}
 }
 void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
@@ -1568,7 +1567,8 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	gl.GetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
 
 	// Unset any existing unpack buffer so pointer is not interpreted as an offset
-	gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	if (prev_unpack_binding != 0)
+		gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
 	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
 	gl.PixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
@@ -1581,7 +1581,8 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	gl.PixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
 
 	// Bind and upload texture data
-	gl.BindTexture(target, object);
+	if (object != prev_binding)
+		gl.BindTexture(target, object);
 
 	const api::resource_desc desc = get_resource_desc(resource);
 
@@ -1673,9 +1674,11 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	}
 
 	// Restore previous state from application
-	gl.BindTexture(target, prev_binding);
+	if (object != prev_binding)
+		gl.BindTexture(target, prev_binding);
 
-	gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, prev_unpack_binding);
+	if (prev_unpack_binding != 0)
+		gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, prev_unpack_binding);
 
 	gl.PixelStorei(GL_UNPACK_LSB_FIRST, prev_unpack_lsb);
 	gl.PixelStorei(GL_UNPACK_SWAP_BYTES, prev_unpack_swap);
