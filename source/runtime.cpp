@@ -2356,6 +2356,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				if (!_device->create_pipeline(effect.layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pass_data.pipeline))
 				{
+					effect.errors += "error: internal compiler error";
 					effect.compiled = false;
 					_last_reload_successfull = false;
 
@@ -2543,6 +2544,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				if (!_device->create_pipeline(effect.layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pass_data.pipeline))
 				{
+					effect.errors += "error: internal compiler error";
 					effect.compiled = false;
 					_last_reload_successfull = false;
 
