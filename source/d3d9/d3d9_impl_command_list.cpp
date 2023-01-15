@@ -161,8 +161,38 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 		case api::dynamic_state::logic_op:
 			assert(false);
 			break;
+		case api::dynamic_state::color_blend_op:
+		case api::dynamic_state::alpha_blend_op:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_blend_op(static_cast<api::blend_op>(values[i])));
+			break;
+		case api::dynamic_state::source_color_blend_factor:
+		case api::dynamic_state::dest_color_blend_factor:
+		case api::dynamic_state::source_alpha_blend_factor:
+		case api::dynamic_state::dest_alpha_blend_factor:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_blend_factor(static_cast<api::blend_factor>(values[i])));
+			break;
+		case api::dynamic_state::fill_mode:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_fill_mode(static_cast<api::fill_mode>(values[i])));
+			break;
+		case api::dynamic_state::cull_mode:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_cull_mode(static_cast<api::cull_mode>(values[i]), false));
+			break;
+		case api::dynamic_state::depth_func:
+		case api::dynamic_state::alpha_func:
+		case api::dynamic_state::front_stencil_func:
+		case api::dynamic_state::back_stencil_func:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_compare_op(static_cast<api::compare_op>(values[i])));
+			break;
+		case api::dynamic_state::front_stencil_pass_op:
+		case api::dynamic_state::front_stencil_fail_op:
+		case api::dynamic_state::front_stencil_depth_fail_op:
+		case api::dynamic_state::back_stencil_pass_op:
+		case api::dynamic_state::back_stencil_fail_op:
+		case api::dynamic_state::back_stencil_depth_fail_op:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_stencil_op(static_cast<api::stencil_op>(values[i])));
+			break;
 		default:
-			_orig->SetRenderState(static_cast<D3DRENDERSTATETYPE>(states[i]), values[i]);
+			_orig->SetRenderState(convert_dynamic_state(states[i]), values[i]);
 			break;
 		}
 	}
