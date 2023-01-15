@@ -1148,10 +1148,10 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 	}
 }
 
-reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffer_attachment(GLuint fbo_object, GLenum type, uint32_t index) const
+reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffer_attachment(GLuint fbo, GLenum type, uint32_t index) const
 {
 	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
-	if (!fbo_object)
+	if (fbo == 0)
 	{
 		if (index == 0)
 		{
@@ -1195,12 +1195,12 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 	GLenum target = GL_NONE, object = 0;
 	if (_device_impl->_supports_dsa)
 	{
-		gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
+		gl.GetNamedFramebufferAttachmentParameteriv(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
 
 		// Check if FBO does have this attachment
 		if (target != GL_NONE)
 		{
-			gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+			gl.GetNamedFramebufferAttachmentParameteriv(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
 
 			// Get actual texture target from the texture object
 			if (target == GL_TEXTURE)
@@ -1209,11 +1209,11 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 
 				// Layered attachments are only valid for texture target types
 				GLint layered = GL_FALSE;
-				gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_LAYERED, &layered);
+				gl.GetNamedFramebufferAttachmentParameteriv(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_LAYERED, &layered);
 
 				if (target == GL_TEXTURE_CUBE_MAP && !layered)
 				{
-					gl.GetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, reinterpret_cast<GLint *>(&target));
+					gl.GetNamedFramebufferAttachmentParameteriv(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, reinterpret_cast<GLint *>(&target));
 					assert(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 				}
 			}
@@ -1222,34 +1222,34 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 	else
 	{
 		GLuint prev_binding = 0;
-		gl.GetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
+		gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 		// Must not bind framebuffer again if this was called from 'glBindFramebuffer' hook, or else black screen occurs in Jak Project for some reason
-		if (fbo_object != prev_binding)
-			gl.BindFramebuffer(GL_FRAMEBUFFER, fbo_object);
+		if (fbo != prev_binding)
+			gl.BindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
 
-		gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
+		gl.GetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
 
 		if (target != GL_NONE)
 		{
-			gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+			gl.GetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
 
 			if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
 			{
 				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 
 				GLint layered = GL_FALSE;
-				gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_LAYERED, &layered);
+				gl.GetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_LAYERED, &layered);
 
 				if (target == GL_TEXTURE_CUBE_MAP && !layered)
 				{
-					gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, reinterpret_cast<GLint *>(&target));
+					gl.GetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, reinterpret_cast<GLint *>(&target));
 					assert(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 				}
 			}
 		}
 
-		if (fbo_object != prev_binding)
-			gl.BindFramebuffer(GL_FRAMEBUFFER, prev_binding);
+		if (fbo != prev_binding)
+			gl.BindFramebuffer(GL_READ_FRAMEBUFFER, prev_binding);
 	}
 
 	if (target == GL_NONE)

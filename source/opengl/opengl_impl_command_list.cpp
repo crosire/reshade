@@ -392,9 +392,9 @@ void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(
 	update_current_window_height(fbo);
 }
 
-void reshade::opengl::render_context_impl::update_current_window_height(GLuint fbo_object)
+void reshade::opengl::render_context_impl::update_current_window_height(GLuint fbo)
 {
-	const api::resource_view default_attachment = get_framebuffer_attachment(fbo_object, GL_COLOR, 0);
+	const api::resource_view default_attachment = get_framebuffer_attachment(fbo, GL_COLOR, 0);
 	if (default_attachment.handle == 0)
 		return;
 

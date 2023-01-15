@@ -1019,6 +1019,7 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 			return api::format::r32g32b32a32_sint;
 		case GL_UNSIGNED_INT:
 			return api::format::r32g32b32a32_uint;
+		case GL_UNSIGNED_INT_8_8_8_8: // Not technically correct here, since it is ABGR8, but used by RPCS3
 		case GL_UNSIGNED_INT_8_8_8_8_REV: // On a little endian machine the least-significant byte is stored first
 			return api::format::r8g8b8a8_unorm;
 		case GL_UNSIGNED_INT_2_10_10_10_REV:
@@ -1051,6 +1052,7 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 		case GL_UNSIGNED_INT:
 			assert(false);
 			return api::format::unknown;
+		case GL_UNSIGNED_INT_8_8_8_8:
 		case GL_UNSIGNED_INT_8_8_8_8_REV:
 			return api::format::b8g8r8a8_unorm;
 		case GL_UNSIGNED_INT_2_10_10_10_REV:
