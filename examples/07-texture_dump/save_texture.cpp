@@ -95,9 +95,6 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 
 bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 {
-	uint8_t *data_p = static_cast<uint8_t *>(data.data);
-	std::vector<uint8_t> rgba_pixel_data(desc.texture.width * desc.texture.height * 4);
-
 #if SAVE_HASH_TEXMOD
 	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
 	const uint32_t hash = ~compute_crc32(
@@ -128,6 +125,10 @@ bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 
 	const uint32_t block_count_x = (desc.texture.width + 3) / 4;
 	const uint32_t block_count_y = (desc.texture.height + 3) / 4;
+
+	uint8_t *data_p = static_cast<uint8_t *>(data.data);
+	// Add sufficient padding for block compressed textures that are not a multiple of 4 in all dimensions
+	std::vector<uint8_t> rgba_pixel_data((block_count_x * 4) * (block_count_y * 4) * 4);
 
 	switch (desc.texture.format)
 	{
