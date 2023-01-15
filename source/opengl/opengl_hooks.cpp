@@ -35,21 +35,15 @@ thread_local reshade::opengl::render_context_impl *g_current_context = nullptr;
 class init_resource
 {
 public:
-	init_resource(GLenum target, GLsizeiptr buffer_size, GLenum usage) :
-		target(target)
+	init_resource(GLenum target, GLsizeiptr buffer_size, GLenum usage) : target(target)
 	{
 		desc = reshade::opengl::convert_resource_desc(target, buffer_size, usage);
 	}
-	init_resource(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth, bool named = false) :
-		target(named ? GL_TEXTURE : target), use_swizzle_mask(target != GL_RENDERBUFFER && !(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z) && !named)
+	init_resource(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth, bool named = false) : target(named ? GL_TEXTURE : target)
 	{
-		if (use_swizzle_mask)
-			gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
-
-		desc = reshade::opengl::convert_resource_desc(target, levels, samples, internal_format, width, height, depth, use_swizzle_mask ? swizzle_mask : nullptr);
+		desc = reshade::opengl::convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 	}
-	explicit init_resource(const reshade::api::resource_desc &desc) :
-		target(GL_NONE), desc(desc)
+	explicit init_resource(const reshade::api::resource_desc &desc) : target(GL_NONE), desc(desc)
 	{
 	}
 
@@ -62,7 +56,9 @@ public:
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, convert_mapped_subresource(format, type, pixels, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers), reshade::api::resource_usage::general))
+		reshade::api::subresource_data *const data = convert_mapped_subresource(format, type, pixels, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, data, reshade::api::resource_usage::general))
 		{
 			if (levels != nullptr)
 				*levels = desc.texture.levels;
@@ -73,7 +69,7 @@ public:
 			else
 				assert(desc.texture.samples <= 1);
 
-			internal_format = reshade::opengl::convert_format(desc.texture.format, use_swizzle_mask ? swizzle_mask : nullptr);
+			internal_format = reshade::opengl::convert_format(desc.texture.format);
 
 			if (width != nullptr)
 				*width = desc.texture.width;
@@ -91,9 +87,6 @@ public:
 			// Skip initial upload, data is uploaded after creation in 'invoke_initialize_event' below
 			pixels = nullptr;
 			update_texture = (initial_data.data != nullptr);
-
-			if (use_swizzle_mask)
-				gl.TexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 		}
 	}
 	void invoke_create_event(GLsizeiptr &size, GLenum &usage, const void *&data)
@@ -293,26 +286,22 @@ public:
 
 private:
 	GLenum target;
-	GLint  swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 	reshade::api::resource_desc desc;
 	std::vector<uint8_t> temp_data;
 	reshade::api::subresource_data initial_data = {};
 	bool update_texture = false;
-	const bool use_swizzle_mask = false;
 };
 
 // Helper class invoking the 'create/init_resource_view' add-on events for OpenGL resource views
 class init_resource_view
 {
 public:
-	init_resource_view(GLenum target, GLuint orig_buffer, GLenum internal_format, GLintptr offset, GLsizeiptr size) :
-		target(target)
+	init_resource_view(GLenum target, GLuint orig_buffer, GLenum internal_format, GLintptr offset, GLsizeiptr size) : target(target)
 	{
 		resource = reshade::opengl::make_resource_handle(GL_BUFFER, orig_buffer);
 		desc = reshade::opengl::convert_resource_view_desc(target, internal_format, offset, size);
 	}
-	init_resource_view(GLenum target, GLuint orig_texture, GLenum internal_format, GLuint min_level, GLuint num_levels, GLuint min_layer, GLuint num_layers) :
-		target(target)
+	init_resource_view(GLenum target, GLuint orig_texture, GLenum internal_format, GLuint min_level, GLuint num_levels, GLuint min_layer, GLuint num_layers) : target(target)
 	{
 		GLenum orig_target = GL_TEXTURE;
 		// 'glTextureView' is available since OpenGL 4.3, so no guarantee that 'glGetTextureParameteriv' exists, since it was introduced in OpenGL 4.5
