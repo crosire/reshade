@@ -406,6 +406,8 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 	if (const D3DFORMAT format = convert_format(desc.texture.format, (desc.flags & api::resource_flags::dynamic) != 0);
 		format != D3DFMT_UNKNOWN)
 		internal_desc.Format = format;
+	else if (desc.type == api::resource_type::surface && desc.texture.format == api::format::unknown)
+		internal_desc.Format = static_cast<D3DFORMAT>(MAKEFOURCC('N', 'U', 'L', 'L'));
 
 	if (desc.texture.samples > 1)
 	{

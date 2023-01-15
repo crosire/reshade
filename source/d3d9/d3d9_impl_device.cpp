@@ -566,7 +566,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 					if (FAILED(IDirect3DSurface9_GetDesc(static_cast<IDirect3DSurface9 *>(object), &internal_desc)))
 						break;
 
-					if (!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format)
+					if (internal_desc.Format != MAKEFOURCC('N', 'U', 'L', 'L') && (!convert_format_internal(desc.format, view_format) || internal_desc.Format != view_format))
 						break;
 				}
 
