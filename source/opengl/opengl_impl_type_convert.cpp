@@ -258,7 +258,6 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 {
 	// These should already have been converted by 'convert_sized_internal_format' before
 	assert(
-		internal_format != 1 &&
 		internal_format != 2 &&
 		internal_format != 3 &&
 		internal_format != 4 &&

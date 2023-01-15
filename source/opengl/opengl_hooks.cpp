@@ -41,7 +41,7 @@ public:
 		desc = reshade::opengl::convert_resource_desc(target, buffer_size, usage);
 	}
 	init_resource(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth, bool named = false) :
-		target(named ? GL_TEXTURE : target), use_swizzle_mask(target != GL_RENDERBUFFER && !named)
+		target(named ? GL_TEXTURE : target), use_swizzle_mask(target != GL_RENDERBUFFER && !(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z) && !named)
 	{
 		if (use_swizzle_mask)
 			gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
@@ -191,7 +191,7 @@ public:
 	{
 		if (pixels == nullptr)
 			return nullptr; // Likely a 'GL_PIXEL_UNPACK_BUFFER' currently bound ...
-		if (desc.type != reshade::api::resource_type::texture_3d && desc.texture.depth_or_layers != 1)
+		if (target != GL_NONE && desc.type != reshade::api::resource_type::texture_3d && desc.texture.depth_or_layers != 1)
 			return nullptr; // Currently only a single layer is passed to 'create_resource' and 'init_resource' (see 'initial_data' field), so cannot handle textures with multiple layers
 
 		GLint row_length = 0;
@@ -677,25 +677,27 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 
 	if (g_current_context && level == 0 && !proxy_object)
 	{
+		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
+
 		if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
 		{
+			trampoline(target, level, internalformat, width, height, border, format, type, pixels);
+			if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X)
+				resource.invoke_initialize_event(0);
 #  if !RESHADE_ADDON_LITE
-			if (update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, format, type, pixels))
-				return;
+			update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, format, type, pixels);
 #  endif
 		}
 		else
 		{
-			init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
 			resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum &>(internalformat), &width, &height, nullptr, format, type, pixels);
 			trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 			resource.invoke_initialize_event(0);
-			return;
 		}
 	}
+	else
 #endif
-
-	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
+		trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 }
 
 extern "C" void APIENTRY glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum type)
@@ -1377,25 +1379,27 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 
 	if (g_current_context && level == 0 && !proxy_object)
 	{
+		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
+
 		if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
 		{
+			trampoline(target, level, internalformat, width, height, border, imageSize, data);
+			if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X)
+				resource.invoke_initialize_event(0);
 #  if !RESHADE_ADDON_LITE
-			if (update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, internalformat, GL_UNSIGNED_BYTE, data))
-				return;
+			update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, internalformat, GL_UNSIGNED_BYTE, data);
 #  endif
 		}
 		else
 		{
-			init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
 			resource.invoke_create_event(nullptr, nullptr, internalformat, &width, &height, nullptr, internalformat, GL_UNSIGNED_BYTE, data);
 			trampoline(target, level, internalformat, width, height, border, imageSize, data);
 			resource.invoke_initialize_event(0);
-			return;
 		}
 	}
+	else
 #endif
-
-	trampoline(target, level, internalformat, width, height, border, imageSize, data);
+		trampoline(target, level, internalformat, width, height, border, imageSize, data);
 }
 void APIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data)
 {
