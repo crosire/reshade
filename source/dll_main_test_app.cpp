@@ -90,7 +90,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	LONG window_w = 1024;
 	if (LPSTR width_arg = strstr(lpCmdLine, "-width "))
 		window_w = strtol(width_arg + 7, nullptr, 10);
-	LONG window_h = 800;
+	LONG window_h =  800;
 	if (LPSTR height_arg = strstr(lpCmdLine, "-height "))
 		window_h = strtol(height_arg + 8, nullptr, 10);
 
@@ -98,11 +98,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	const LONG window_y = (GetSystemMetrics(SM_CYSCREEN) - window_h) / 2;
 
 	RECT window_rect = { window_x, window_y, window_x + window_w, window_y + window_h };
-	AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, FALSE);
+	AdjustWindowRect(&window_rect, window_x > 0 && window_y > 0 ? WS_OVERLAPPEDWINDOW : WS_POPUP, FALSE);
 
 	// Create and show window instance
 	const HWND window_handle = CreateWindow(
-		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_PRODUCT), WS_OVERLAPPEDWINDOW,
+		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_PRODUCT), window_x > 0 && window_y > 0 ? WS_OVERLAPPEDWINDOW : WS_POPUP,
 		window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, nullptr, nullptr, hInstance, nullptr);
 
 	if (window_handle == nullptr)
@@ -144,10 +144,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
 		// Initialize Direct3D 9
-		com_ptr<IDirect3D9Ex> d3d;
-		HR_CHECK(Direct3DCreate9Ex(D3D_SDK_VERSION, &d3d));
-		com_ptr<IDirect3DDevice9Ex> device;
-		HR_CHECK(d3d->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, nullptr, &device));
+		com_ptr<IDirect3D9> d3d = Direct3DCreate9(D3D_SDK_VERSION);
+		com_ptr<IDirect3DDevice9> device;
+		HR_CHECK(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device));
 
 		while (true)
 		{
@@ -161,7 +160,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				pp.BackBufferWidth = s_resize_w;
 				pp.BackBufferHeight = s_resize_h;
 
-				HR_CHECK(device->ResetEx(&pp, nullptr));
+				HR_CHECK(device->Reset(&pp));
 
 				s_resize_w = s_resize_h = 0;
 			}
