@@ -462,7 +462,7 @@ static void on_bind_scissor_rects(command_list *, uint32_t first, uint32_t count
 
 	reshade::log_message(3, s.str().c_str());
 }
-static void on_push_constants(command_list *, shader_stage stages, pipeline_layout layout, uint32_t param_index, uint32_t first, uint32_t count, const uint32_t *values)
+static void on_push_constants(command_list *, shader_stage stages, pipeline_layout layout, uint32_t param_index, uint32_t first, uint32_t count, const void *values)
 {
 	if (!s_do_capture)
 		return;
@@ -470,7 +470,7 @@ static void on_push_constants(command_list *, shader_stage stages, pipeline_layo
 	std::stringstream s;
 	s << "push_constants(" << to_string(stages) << ", " << (void *)layout.handle << ", " << param_index << ", " << first << ", " << count << ", { ";
 	for (uint32_t i = 0; i < count; ++i)
-		s << std::hex << values[i] << std::dec << ", ";
+		s << std::hex << static_cast<const uint32_t *>(values)[i] << std::dec << ", ";
 	s << " })";
 
 	reshade::log_message(3, s.str().c_str());

@@ -1856,8 +1856,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantF(UINT StartRe
 			reshade::api::shader_stage::vertex,
 			// See global pipeline layout specified in 'device_impl::on_init'
 			reshade::d3d9::global_pipeline_layout, 2,
-			StartRegister,
-			Vector4fCount,
+			StartRegister * 4,
+			Vector4fCount * 4,
 			reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
@@ -1879,8 +1879,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantI(UINT StartRe
 			reshade::api::shader_stage::vertex,
 			// See global pipeline layout specified in 'device_impl::on_init'
 			reshade::d3d9::global_pipeline_layout, 3,
-			StartRegister,
-			Vector4iCount,
+			StartRegister * 4,
+			Vector4iCount * 4,
 			reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
@@ -2040,8 +2040,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantF(UINT StartReg
 			reshade::api::shader_stage::pixel,
 			// See global pipeline layout specified in 'device_impl::on_init'
 			reshade::d3d9::global_pipeline_layout, 5,
-			StartRegister,
-			Vector4fCount,
+			StartRegister * 4,
+			Vector4fCount * 4,
 			reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
@@ -2063,8 +2063,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantI(UINT StartReg
 			reshade::api::shader_stage::pixel,
 			// See global pipeline layout specified in 'device_impl::on_init'
 			reshade::d3d9::global_pipeline_layout, 6,
-			StartRegister,
-			Vector4iCount,
+			StartRegister * 4,
+			Vector4iCount * 4,
 			reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
