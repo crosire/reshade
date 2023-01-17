@@ -270,6 +270,26 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 
 	modify_swapchain_desc(desc);
 }
+static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
+{
+	LOG(INFO) << "> Dumping swap chain description:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Parameter                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width << " |";
+	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height << " |";
+	dump_format(desc.Format);
+	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo ? "TRUE" : "FALSE") << " |";
+	dump_sample_desc(desc.SampleDesc);
+	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
+	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
+	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
+	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode << " |";
+	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+
+	modify_swapchain_desc(desc, nullptr);
+}
 static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc, HWND hwnd = nullptr)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
@@ -335,6 +355,7 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 	}
 
 	// Fall back to checking private data in case original device pointer was passed in (e.g. because D3D11 device was created with video support and then queried though 'D3D11Device::QueryInterface')
+	// Note that D3D11 devices can expose the 'ID3D10Device' interface too, but since there is follow-up check for the proxy 'D3D10Device' interface that is only set on real D3D10 devices, the query order doesn't matter here
 	if (com_ptr<ID3D10Device> device_d3d10_orig;
 		SUCCEEDED(device->QueryInterface(&device_d3d10_orig)))
 	{
@@ -508,8 +529,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		return DXGI_ERROR_INVALID_CALL;
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
-	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc; // UWP applications cannot be set into fullscreen mode
-	dump_and_modify_swapchain_desc(desc, fullscreen_desc);
+	// UWP applications cannot be set into fullscreen mode
+	dump_and_modify_swapchain_desc(desc);
 
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
@@ -544,8 +565,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		return DXGI_ERROR_INVALID_CALL;
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
-	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc; // Composition swap chains cannot be set into fullscreen mode
-	dump_and_modify_swapchain_desc(desc, fullscreen_desc);
+	// Composition swap chains cannot be set into fullscreen mode
+	dump_and_modify_swapchain_desc(desc);
 
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
