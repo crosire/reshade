@@ -355,7 +355,8 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 	}
 
 	// Fall back to checking private data in case original device pointer was passed in (e.g. because D3D11 device was created with video support and then queried though 'D3D11Device::QueryInterface')
-	// Note that D3D11 devices can expose the 'ID3D10Device' interface too, but since there is follow-up check for the proxy 'D3D10Device' interface that is only set on real D3D10 devices, the query order doesn't matter here
+	// Note that D3D11 devices can expose the 'ID3D10Device' interface too, after 'ID3D11Device::CreateDeviceContextState' was called
+	// But since there is a follow-up check for the proxy 'D3D10Device' interface that is only set on real D3D10 devices, the query order doesn't matter here
 	if (com_ptr<ID3D10Device> device_d3d10_orig;
 		SUCCEEDED(device->QueryInterface(&device_d3d10_orig)))
 	{
