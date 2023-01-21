@@ -1034,22 +1034,6 @@ extern "C" void APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask)
 	}
 #endif
 }
-extern "C" void APIENTRY glStencilMask(GLuint mask)
-{
-	static const auto trampoline = reshade::hooks::call(glStencilMask);
-	trampoline(mask);
-
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
-	{
-		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_write_mask };
-		const uint32_t values[1] = { mask };
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
-	}
-#endif
-}
 extern "C" void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 {
 	static const auto trampoline = reshade::hooks::call(glStencilOp);
@@ -1063,6 +1047,22 @@ extern "C" void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		const uint32_t values[6] = { static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 6, states, values);
+	}
+#endif
+}
+extern "C" void APIENTRY glStencilMask(GLuint mask)
+{
+	static const auto trampoline = reshade::hooks::call(glStencilMask);
+	trampoline(mask);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_write_mask };
+		const uint32_t values[1] = { mask };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
 	}
 #endif
 }
@@ -1442,6 +1442,59 @@ void APIENTRY glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffse
 #endif
 
 #ifdef GL_VERSION_1_4
+void APIENTRY glBlendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha)
+{
+	static const auto trampoline = reshade::hooks::call(glBlendFuncSeparate);
+	trampoline(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[4] = { reshade::api::dynamic_state::source_color_blend_factor, reshade::api::dynamic_state::dest_color_blend_factor, reshade::api::dynamic_state::source_alpha_blend_factor, reshade::api::dynamic_state::dest_alpha_blend_factor };
+		const uint32_t values[4] = { static_cast<uint32_t>(reshade::opengl::convert_blend_factor(sfactorRGB)), static_cast<uint32_t>(reshade::opengl::convert_blend_factor(dfactorRGB)), static_cast<uint32_t>(reshade::opengl::convert_blend_factor(sfactorAlpha)), static_cast<uint32_t>(reshade::opengl::convert_blend_factor(dfactorAlpha)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 4, states, values);
+	}
+#endif
+}
+void APIENTRY glBlendColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
+{
+	static const auto trampoline = reshade::hooks::call(glBlendColor);
+	trampoline(red, green, blue, alpha);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::blend_constant };
+		const uint32_t values[1] = {
+			((static_cast<uint32_t>(red   * 255.f) & 0xFF)) |
+			((static_cast<uint32_t>(green * 255.f) & 0xFF) << 8) |
+			((static_cast<uint32_t>(blue  * 255.f) & 0xFF) << 16) |
+			((static_cast<uint32_t>(alpha * 255.f) & 0xFF) << 24) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
+	}
+#endif
+}
+void APIENTRY glBlendEquation(GLenum mode)
+{
+	static const auto trampoline = reshade::hooks::call(glBlendEquation);
+	trampoline(mode);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::color_blend_op, reshade::api::dynamic_state::alpha_blend_op };
+		const uint32_t values[2] = { static_cast<uint32_t>(reshade::opengl::convert_blend_op(mode)), static_cast<uint32_t>(reshade::opengl::convert_blend_op(mode)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);
+	}
+#endif
+}
+
 void APIENTRY glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
 {
 #if RESHADE_ADDON
@@ -1786,6 +1839,82 @@ void APIENTRY glUseProgram(GLuint program)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::all_shader_stages, program != 0 ? reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program } : reshade::api::pipeline {});
+	}
+#endif
+}
+
+void APIENTRY glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha)
+{
+	static const auto trampoline = reshade::hooks::call(glBlendEquationSeparate);
+	trampoline(modeRGB, modeAlpha);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::color_blend_op, reshade::api::dynamic_state::alpha_blend_op };
+		const uint32_t values[2] = { static_cast<uint32_t>(reshade::opengl::convert_blend_op(modeRGB)), static_cast<uint32_t>(reshade::opengl::convert_blend_op(modeAlpha)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);
+	}
+#endif
+}
+
+void APIENTRY glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask)
+{
+	static const auto trampoline = reshade::hooks::call(glStencilFuncSeparate);
+	trampoline(face, func, ref, mask);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const auto front_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_func : reshade::api::dynamic_state::back_stencil_func;
+		const auto back_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_func : reshade::api::dynamic_state::front_stencil_func;
+
+		const reshade::api::dynamic_state states[4] = { front_state, back_state, reshade::api::dynamic_state::stencil_reference_value, reshade::api::dynamic_state::stencil_read_mask };
+		const uint32_t values[4] = { static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(ref), mask };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 4, states, values);
+	}
+#endif
+}
+void APIENTRY glStencilOpSeparate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass)
+{
+	static const auto trampoline = reshade::hooks::call(glStencilOpSeparate);
+	trampoline(face, fail, zfail, zpass);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const auto front_fail_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_fail_op : reshade::api::dynamic_state::back_stencil_fail_op;
+		const auto back_fail_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_fail_op : reshade::api::dynamic_state::front_stencil_fail_op;
+		const auto front_depth_fail_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_depth_fail_op : reshade::api::dynamic_state::back_stencil_depth_fail_op;
+		const auto back_depth_fail_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_depth_fail_op : reshade::api::dynamic_state::front_stencil_depth_fail_op;
+		const auto front_pass_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_pass_op : reshade::api::dynamic_state::back_stencil_pass_op;
+		const auto back_passs_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_pass_op : reshade::api::dynamic_state::front_stencil_pass_op;
+
+		const reshade::api::dynamic_state states[6] = { front_fail_state, back_fail_state, front_depth_fail_state, back_depth_fail_state, front_pass_state, back_passs_state };
+		const uint32_t values[6] = { static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 6, states, values);
+	}
+#endif
+}
+void APIENTRY glStencilMaskSeparate(GLenum face, GLuint mask)
+{
+	static const auto trampoline = reshade::hooks::call(glStencilMaskSeparate);
+	trampoline(face, mask);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_write_mask };
+		const uint32_t values[1] = { mask };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
 	}
 #endif
 }

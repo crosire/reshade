@@ -1335,6 +1335,9 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glCompressedTexSubImage3D);
 #  endif
 #  ifdef GL_VERSION_1_4
+		HOOK_PROC(glBlendFuncSeparate);
+		HOOK_PROC(glBlendColor);
+		HOOK_PROC(glBlendEquation);
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawElements);
 #  endif
@@ -1351,6 +1354,10 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glLinkProgram);
 		HOOK_PROC(glShaderSource);
 		HOOK_PROC(glUseProgram);
+		HOOK_PROC(glBlendEquationSeparate);
+		HOOK_PROC(glStencilFuncSeparate);
+		HOOK_PROC(glStencilOpSeparate);
+		HOOK_PROC(glStencilMaskSeparate);
 		HOOK_PROC(glUniform1f);
 		HOOK_PROC(glUniform2f);
 		HOOK_PROC(glUniform3f);
