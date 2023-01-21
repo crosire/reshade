@@ -161,8 +161,38 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 		case api::dynamic_state::logic_op:
 			assert(false);
 			break;
+		case api::dynamic_state::color_blend_op:
+		case api::dynamic_state::alpha_blend_op:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_blend_op(static_cast<api::blend_op>(values[i])));
+			break;
+		case api::dynamic_state::source_color_blend_factor:
+		case api::dynamic_state::dest_color_blend_factor:
+		case api::dynamic_state::source_alpha_blend_factor:
+		case api::dynamic_state::dest_alpha_blend_factor:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_blend_factor(static_cast<api::blend_factor>(values[i])));
+			break;
+		case api::dynamic_state::fill_mode:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_fill_mode(static_cast<api::fill_mode>(values[i])));
+			break;
+		case api::dynamic_state::cull_mode:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_cull_mode(static_cast<api::cull_mode>(values[i]), false));
+			break;
+		case api::dynamic_state::depth_func:
+		case api::dynamic_state::alpha_func:
+		case api::dynamic_state::front_stencil_func:
+		case api::dynamic_state::back_stencil_func:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_compare_op(static_cast<api::compare_op>(values[i])));
+			break;
+		case api::dynamic_state::front_stencil_pass_op:
+		case api::dynamic_state::front_stencil_fail_op:
+		case api::dynamic_state::front_stencil_depth_fail_op:
+		case api::dynamic_state::back_stencil_pass_op:
+		case api::dynamic_state::back_stencil_fail_op:
+		case api::dynamic_state::back_stencil_depth_fail_op:
+			_orig->SetRenderState(convert_dynamic_state(states[i]), convert_stencil_op(static_cast<api::stencil_op>(values[i])));
+			break;
 		default:
-			_orig->SetRenderState(static_cast<D3DRENDERSTATETYPE>(states[i]), values[i]);
+			_orig->SetRenderState(convert_dynamic_state(states[i]), values[i]);
 			break;
 		}
 	}
@@ -208,6 +238,8 @@ void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t cou
 
 void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const void *values)
 {
+	assert((first % 4) == 0 && (count % 4) == 0);
+
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->SetVertexShaderConstantF(first / 4, static_cast<const float *>(values), count / 4);
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
@@ -265,8 +297,8 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 			for (uint32_t i = 0; i < count; ++i)
 			{
 				const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[i];
-				_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.view.handle & ~1ull));
-				_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.view.handle & 1);
+				_orig->SetTexture(first + i, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.view.handle & ~1ull));
+				_orig->SetSamplerState(first + i, D3DSAMP_SRGBTEXTURE, descriptor.view.handle & 1);
 
 				if (descriptor.sampler.handle != 0)
 				{
@@ -301,7 +333,7 @@ void reshade::d3d9::device_impl::bind_descriptor_sets(api::shader_stage stages, 
 			stages,
 			layout,
 			first + i,
-			api::descriptor_set_update { {}, 0, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
+			api::descriptor_set_update { {}, set_impl->base_binding, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
 	}
 }
 
@@ -331,7 +363,7 @@ void reshade::d3d9::device_impl::bind_vertex_buffers(uint32_t first, uint32_t co
 		_orig->SetStreamSource(first + i, reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[i].handle), offsets != nullptr ? static_cast<UINT>(offsets[i]) : 0, strides[i]);
 	}
 }
-void reshade::d3d9::device_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *)
+void reshade::d3d9::device_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *, const api::resource *, const uint64_t *)
 {
 	assert(first == 0 && count == 1);
 	assert(offsets == nullptr || offsets[0] <= std::numeric_limits<UINT>::max());
@@ -361,7 +393,21 @@ void reshade::d3d9::device_impl::draw_indexed(uint32_t index_count, uint32_t ins
 	assert(instance_count == 1 && first_instance == 0);
 	assert(_current_prim_type != 0);
 
-	_orig->DrawIndexedPrimitive(_current_prim_type, vertex_offset, 0, 0xFFFF, first_index, calc_prim_from_vertex_count(_current_prim_type, index_count));
+	UINT vertex_count = 0;
+	{
+		com_ptr<IDirect3DVertexBuffer9> stream;
+		UINT offset = 0, stride = 0;
+		if (SUCCEEDED(_orig->GetStreamSource(0, &stream, &offset, &stride)))
+		{
+			D3DVERTEXBUFFER_DESC desc;
+			if (SUCCEEDED(stream->GetDesc(&desc)))
+			{
+				vertex_count = ((desc.Size - offset) / stride) - vertex_offset;
+			}
+		}
+	}
+
+	_orig->DrawIndexedPrimitive(_current_prim_type, vertex_offset, 0, vertex_count, first_index, calc_prim_from_vertex_count(_current_prim_type, index_count));
 }
 void reshade::d3d9::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 {

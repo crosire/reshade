@@ -36,7 +36,7 @@ namespace reshade::opengl
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
 		void destroy_resource_view(api::resource_view handle) override;
 
-		api::format get_resource_view_format(api::resource_view view) const;
+		api::format get_resource_format(GLenum target, GLenum object) const;
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
 
@@ -72,15 +72,11 @@ namespace reshade::opengl
 
 	protected:
 		// Cached context information for quick access
-		int    _pixel_format = 0;
-		GLuint _default_fbo_width = 0;
-		GLuint _default_fbo_height = 0;
-		bool   _default_fbo_stereo = false;
-		GLuint _default_fbo_samples = 1;
-		GLenum _default_color_format = GL_NONE;
-		GLenum _default_depth_format = GL_NONE;
-		bool   _supports_dsa = false; // Direct State Access (core since OpenGL 4.5)
-		bool   _compatibility_context = false;
+		int  _pixel_format;
+		api::format _default_depth_format;
+		api::resource_desc _default_fbo_desc = {};
+		bool _supports_dsa; // Direct State Access (core since OpenGL 4.5)
+		bool _compatibility_context;
 
 	private:
 		std::vector<GLuint> _reserved_buffer_names;

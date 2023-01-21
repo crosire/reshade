@@ -35,7 +35,7 @@ namespace reshade::opengl
 
 		int get_pixel_format() const { return _pixel_format; }
 
-		api::resource get_back_buffer(uint32_t index) final;
+		api::resource get_back_buffer(uint32_t index = 0) final;
 
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }

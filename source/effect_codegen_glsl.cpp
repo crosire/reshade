@@ -732,13 +732,10 @@ private:
 				'_' + std::to_string(num_threads[1]) +
 				'_' + std::to_string(num_threads[2]);
 
-		{	const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-				[&func](const auto &ep) {
-					return ep.name == func.unique_name;
-				});
-			if (it != _module.entry_points.end())
-				return;
-		}
+		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+				[&func](const auto &ep) { return ep.name == func.unique_name; });
+			it != _module.entry_points.end())
+			return;
 
 		_module.entry_points.push_back({ func.unique_name, stype });
 

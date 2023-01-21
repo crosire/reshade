@@ -6,10 +6,91 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "opengl_impl_swapchain.hpp"
+#include "opengl_impl_type_convert.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
+
+struct attribute
+{
+	enum
+	{
+		// Pixel format attributes
+
+		WGL_NUMBER_PIXEL_FORMATS_ARB = 0x2000,
+		WGL_DRAW_TO_WINDOW_ARB = 0x2001,
+		WGL_DRAW_TO_BITMAP_ARB = 0x2002,
+		WGL_ACCELERATION_ARB = 0x2003,
+		WGL_NEED_PALETTE_ARB = 0x2004,
+		WGL_NEED_SYSTEM_PALETTE_ARB = 0x2005,
+		WGL_SWAP_LAYER_BUFFERS_ARB = 0x2006,
+		WGL_SWAP_METHOD_ARB = 0x2007,
+		WGL_NUMBER_OVERLAYS_ARB = 0x2008,
+		WGL_NUMBER_UNDERLAYS_ARB = 0x2009,
+		WGL_TRANSPARENT_ARB = 0x200A,
+		WGL_TRANSPARENT_RED_VALUE_ARB = 0x2037,
+		WGL_TRANSPARENT_GREEN_VALUE_ARB = 0x2038,
+		WGL_TRANSPARENT_BLUE_VALUE_ARB = 0x2039,
+		WGL_TRANSPARENT_ALPHA_VALUE_ARB = 0x203A,
+		WGL_TRANSPARENT_INDEX_VALUE_ARB = 0x203B,
+		WGL_SHARE_DEPTH_ARB = 0x200C,
+		WGL_SHARE_STENCIL_ARB = 0x200D,
+		WGL_SHARE_ACCUM_ARB = 0x200E,
+		WGL_SUPPORT_GDI_ARB = 0x200F,
+		WGL_SUPPORT_OPENGL_ARB = 0x2010,
+		WGL_DOUBLE_BUFFER_ARB = 0x2011,
+		WGL_STEREO_ARB = 0x2012,
+		WGL_PIXEL_TYPE_ARB = 0x2013,
+		WGL_COLOR_BITS_ARB = 0x2014,
+		WGL_RED_BITS_ARB = 0x2015,
+		WGL_RED_SHIFT_ARB = 0x2016,
+		WGL_GREEN_BITS_ARB = 0x2017,
+		WGL_GREEN_SHIFT_ARB = 0x2018,
+		WGL_BLUE_BITS_ARB = 0x2019,
+		WGL_BLUE_SHIFT_ARB = 0x201A,
+		WGL_ALPHA_BITS_ARB = 0x201B,
+		WGL_ALPHA_SHIFT_ARB = 0x201C,
+		WGL_ACCUM_BITS_ARB = 0x201D,
+		WGL_ACCUM_RED_BITS_ARB = 0x201E,
+		WGL_ACCUM_GREEN_BITS_ARB = 0x201F,
+		WGL_ACCUM_BLUE_BITS_ARB = 0x2020,
+		WGL_ACCUM_ALPHA_BITS_ARB = 0x2021,
+		WGL_DEPTH_BITS_ARB = 0x2022,
+		WGL_STENCIL_BITS_ARB = 0x2023,
+		WGL_AUX_BUFFERS_ARB = 0x2024,
+		WGL_DRAW_TO_PBUFFER_ARB = 0x202D,
+		WGL_SAMPLE_BUFFERS_ARB = 0x2041,
+		WGL_SAMPLES_ARB = 0x2042,
+		WGL_BIND_TO_TEXTURE_RGB_ARB = 0x2070,
+		WGL_BIND_TO_TEXTURE_RGBA_ARB = 0x2071,
+		WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB = 0x20A9,
+
+		WGL_NO_ACCELERATION_ARB = 0x2025,
+		WGL_GENERIC_ACCELERATION_ARB = 0x2026,
+		WGL_FULL_ACCELERATION_ARB = 0x2027,
+		WGL_SWAP_EXCHANGE_ARB = 0x2028,
+		WGL_SWAP_COPY_ARB = 0x2029,
+		WGL_SWAP_UNDEFINED_ARB = 0x202A,
+		WGL_TYPE_RGBA_ARB = 0x202B,
+		WGL_TYPE_COLORINDEX_ARB = 0x202C,
+
+		// Context creation attributes
+
+		WGL_CONTEXT_MAJOR_VERSION_ARB = 0x2091,
+		WGL_CONTEXT_MINOR_VERSION_ARB = 0x2092,
+		WGL_CONTEXT_LAYER_PLANE_ARB = 0x2093,
+		WGL_CONTEXT_FLAGS_ARB = 0x2094,
+		WGL_CONTEXT_PROFILE_MASK_ARB = 0x9126,
+
+		WGL_CONTEXT_DEBUG_BIT_ARB = 0x0001,
+		WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB = 0x0002,
+		WGL_CONTEXT_CORE_PROFILE_BIT_ARB = 0x00000001,
+		WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB = 0x00000002,
+	};
+
+	int name, value;
+};
 
 DECLARE_HANDLE(HPBUFFERARB);
 
@@ -40,9 +121,7 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
 	{
-		LOG(ERROR) << "Layered OpenGL contexts of type " << static_cast<int>(ppfd->iLayerType) << " are not supported.";
-		SetLastError(ERROR_INVALID_PARAMETER);
-		return 0;
+		LOG(WARN) << "Layered OpenGL contexts are not supported.";
 	}
 	else if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
 	{
@@ -61,68 +140,6 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 		   BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
 	LOG(INFO) << "Redirecting " << "wglChoosePixelFormatARB" << '(' << "hdc = " << hdc << ", piAttribIList = " << piAttribIList << ", pfAttribFList = " << pfAttribFList << ", nMaxFormats = " << nMaxFormats << ", piFormats = " << piFormats << ", nNumFormats = " << nNumFormats << ')' << " ...";
-
-	struct attribute
-	{
-		enum
-		{
-			WGL_NUMBER_PIXEL_FORMATS_ARB = 0x2000,
-			WGL_DRAW_TO_WINDOW_ARB = 0x2001,
-			WGL_DRAW_TO_BITMAP_ARB = 0x2002,
-			WGL_ACCELERATION_ARB = 0x2003,
-			WGL_NEED_PALETTE_ARB = 0x2004,
-			WGL_NEED_SYSTEM_PALETTE_ARB = 0x2005,
-			WGL_SWAP_LAYER_BUFFERS_ARB = 0x2006,
-			WGL_SWAP_METHOD_ARB = 0x2007,
-			WGL_NUMBER_OVERLAYS_ARB = 0x2008,
-			WGL_NUMBER_UNDERLAYS_ARB = 0x2009,
-			WGL_TRANSPARENT_ARB = 0x200A,
-			WGL_TRANSPARENT_RED_VALUE_ARB = 0x2037,
-			WGL_TRANSPARENT_GREEN_VALUE_ARB = 0x2038,
-			WGL_TRANSPARENT_BLUE_VALUE_ARB = 0x2039,
-			WGL_TRANSPARENT_ALPHA_VALUE_ARB = 0x203A,
-			WGL_TRANSPARENT_INDEX_VALUE_ARB = 0x203B,
-			WGL_SHARE_DEPTH_ARB = 0x200C,
-			WGL_SHARE_STENCIL_ARB = 0x200D,
-			WGL_SHARE_ACCUM_ARB = 0x200E,
-			WGL_SUPPORT_GDI_ARB = 0x200F,
-			WGL_SUPPORT_OPENGL_ARB = 0x2010,
-			WGL_DOUBLE_BUFFER_ARB = 0x2011,
-			WGL_STEREO_ARB = 0x2012,
-			WGL_PIXEL_TYPE_ARB = 0x2013,
-			WGL_COLOR_BITS_ARB = 0x2014,
-			WGL_RED_BITS_ARB = 0x2015,
-			WGL_RED_SHIFT_ARB = 0x2016,
-			WGL_GREEN_BITS_ARB = 0x2017,
-			WGL_GREEN_SHIFT_ARB = 0x2018,
-			WGL_BLUE_BITS_ARB = 0x2019,
-			WGL_BLUE_SHIFT_ARB = 0x201A,
-			WGL_ALPHA_BITS_ARB = 0x201B,
-			WGL_ALPHA_SHIFT_ARB = 0x201C,
-			WGL_ACCUM_BITS_ARB = 0x201D,
-			WGL_ACCUM_RED_BITS_ARB = 0x201E,
-			WGL_ACCUM_GREEN_BITS_ARB = 0x201F,
-			WGL_ACCUM_BLUE_BITS_ARB = 0x2020,
-			WGL_ACCUM_ALPHA_BITS_ARB = 0x2021,
-			WGL_DEPTH_BITS_ARB = 0x2022,
-			WGL_STENCIL_BITS_ARB = 0x2023,
-			WGL_AUX_BUFFERS_ARB = 0x2024,
-			WGL_DRAW_TO_PBUFFER_ARB = 0x202D,
-			WGL_SAMPLE_BUFFERS_ARB = 0x2041,
-			WGL_SAMPLES_ARB = 0x2042,
-			WGL_BIND_TO_TEXTURE_RGB_ARB = 0x2070,
-			WGL_BIND_TO_TEXTURE_RGBA_ARB = 0x2071,
-
-			WGL_NO_ACCELERATION_ARB = 0x2025,
-			WGL_GENERIC_ACCELERATION_ARB = 0x2026,
-			WGL_FULL_ACCELERATION_ARB = 0x2027,
-			WGL_SWAP_EXCHANGE_ARB = 0x2028,
-			WGL_SWAP_COPY_ARB = 0x2029,
-			WGL_SWAP_UNDEFINED_ARB = 0x202A,
-			WGL_TYPE_RGBA_ARB = 0x202B,
-			WGL_TYPE_COLORINDEX_ARB = 0x202C,
-		};
-	};
 
 	bool layerplanes = false, doublebuffered = false;
 
@@ -205,6 +222,9 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 		case attribute::WGL_SAMPLES_ARB:
 			LOG(INFO) << "  | WGL_SAMPLES_ARB                         | " << std::setw(39) << attrib[1] << " |";
 			break;
+		case attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB:
+			LOG(INFO) << "  | WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			break;
 		default:
 			LOG(INFO) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
 			break;
@@ -220,9 +240,7 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 
 	if (layerplanes)
 	{
-		LOG(ERROR) << "Layered OpenGL contexts are not supported.";
-		SetLastError(ERROR_INVALID_PARAMETER);
-		return FALSE;
+		LOG(WARN) << "Layered OpenGL contexts are not supported.";
 	}
 	else if (!doublebuffered)
 	{
@@ -280,6 +298,126 @@ extern "C" int   WINAPI wglGetPixelFormat(HDC hdc)
 extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXELFORMATDESCRIPTOR *ppfd)
 {
 	LOG(INFO) << "Redirecting " << "wglSetPixelFormat" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", ppfd = " << ppfd << ')' << " ...";
+
+#if RESHADE_ADDON
+	reshade::load_addons();
+
+	const HWND hwnd = WindowFromDC(hdc);
+
+	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
+	DescribePixelFormat(hdc, iPixelFormat, sizeof(pfd), &pfd);
+
+	reshade::api::swapchain_desc desc = {};
+	desc.back_buffer.type = reshade::api::resource_type::surface;
+	desc.back_buffer.texture.format = reshade::opengl::convert_pixel_format(pfd);
+	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.usage = reshade::api::resource_usage::render_target | reshade::api::resource_usage::copy_dest | reshade::api::resource_usage::copy_source | reshade::api::resource_usage::resolve_dest;
+	desc.back_buffer_count = 1;
+
+	if (hwnd != nullptr)
+	{
+		assert((pfd.dwFlags & PFD_DRAW_TO_WINDOW) != 0);
+
+		RECT window_rect = {};
+		GetClientRect(hwnd, &window_rect);
+
+		desc.back_buffer.texture.width = window_rect.right;
+		desc.back_buffer.texture.height = window_rect.bottom;
+	}
+
+	if (pfd.dwFlags & PFD_DOUBLEBUFFER)
+		desc.back_buffer_count = 2;
+	if (pfd.dwFlags & PFD_STEREO)
+		desc.back_buffer.texture.depth_or_layers = 2;
+
+	if (s_hooks_installed && reshade::hooks::call(wglGetPixelFormatAttribivARB) != nullptr)
+	{
+		int attrib_names[2] = { attribute::WGL_SAMPLES_ARB, attribute::WGL_SWAP_METHOD_ARB }, attrib_values[2] = {};
+		if (reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, 2, attrib_names, attrib_values))
+		{
+			if (attrib_values[0] != 0)
+				desc.back_buffer.texture.samples = static_cast<uint16_t>(attrib_values[0]);
+			desc.present_mode = attrib_values[1];
+		}
+	}
+
+	desc.present_flags = pfd.dwFlags;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
+	{
+		reshade::opengl::convert_pixel_format(desc.back_buffer.texture.format, pfd);
+
+		pfd.dwFlags = desc.present_flags & ~(PFD_DOUBLEBUFFER | PFD_STEREO);
+
+		if (desc.back_buffer_count > 1)
+			pfd.dwFlags |= PFD_DOUBLEBUFFER;
+		if (desc.back_buffer.texture.depth_or_layers == 2)
+			pfd.dwFlags |= PFD_STEREO;
+
+		if (s_hooks_installed && reshade::hooks::call(wglChoosePixelFormatARB) != nullptr)
+		{
+			int i = 14;
+			attribute attribs[17] = {
+				{ attribute::WGL_DRAW_TO_WINDOW_ARB, (pfd.dwFlags & PFD_DRAW_TO_WINDOW) != 0 },
+				{ attribute::WGL_DRAW_TO_BITMAP_ARB, (pfd.dwFlags & PFD_DRAW_TO_BITMAP) != 0 },
+				{ attribute::WGL_SUPPORT_GDI_ARB, (pfd.dwFlags & PFD_SUPPORT_GDI) != 0 },
+				{ attribute::WGL_SUPPORT_OPENGL_ARB, (pfd.dwFlags & PFD_SUPPORT_OPENGL) != 0 },
+				{ attribute::WGL_DOUBLE_BUFFER_ARB, (pfd.dwFlags & PFD_DOUBLEBUFFER) != 0 },
+				{ attribute::WGL_STEREO_ARB, (pfd.dwFlags & PFD_STEREO) != 0 },
+				{ attribute::WGL_RED_BITS_ARB, pfd.cRedBits },
+				{ attribute::WGL_GREEN_BITS_ARB, pfd.cGreenBits },
+				{ attribute::WGL_BLUE_BITS_ARB, pfd.cBlueBits },
+				{ attribute::WGL_ALPHA_BITS_ARB, pfd.cAlphaBits },
+				{ attribute::WGL_DEPTH_BITS_ARB, pfd.cDepthBits },
+				{ attribute::WGL_STENCIL_BITS_ARB, pfd.cStencilBits },
+				{ attribute::WGL_SAMPLE_BUFFERS_ARB, desc.back_buffer.texture.samples > 1 },
+				{ attribute::WGL_SAMPLES_ARB, desc.back_buffer.texture.samples > 1 ? desc.back_buffer.texture.samples : 0 },
+			};
+
+			if (desc.present_mode)
+			{
+				attribs[i].name = attribute::WGL_SWAP_METHOD_ARB;
+				attribs[i++].value = static_cast<int>(desc.present_mode);
+			}
+
+			if (desc.back_buffer.texture.format == reshade::api::format::r8g8b8a8_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::r8g8b8x8_unorm_srgb ||
+				desc.back_buffer.texture.format == reshade::api::format::b8g8r8a8_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::b8g8r8x8_unorm_srgb ||
+				desc.back_buffer.texture.format == reshade::api::format::bc1_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::bc2_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::bc3_unorm_srgb)
+			{
+				attribs[i].name = attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB;
+				attribs[i++].value = 1;
+			}
+
+			UINT num_formats = 0;
+			if (!reshade::hooks::call(wglChoosePixelFormatARB)(hdc, reinterpret_cast<const int *>(attribs), nullptr, 1, &iPixelFormat, &num_formats) || num_formats == 0)
+			{
+				LOG(ERROR) << "Failed to find a suitable pixel format with error code " << (GetLastError() & 0xFFFF) << '!';
+			}
+			else
+			{
+				ppfd = &pfd;
+			}
+		}
+		else
+		{
+			assert(desc.back_buffer.texture.samples <= 1);
+
+			const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
+			if (pixel_format == 0)
+			{
+				LOG(ERROR) << "Failed to find a suitable pixel format with error code " << (GetLastError() & 0xFFFF) << '!';
+			}
+			else
+			{
+				iPixelFormat = pixel_format;
+				ppfd = &pfd;
+			}
+		}
+	}
+
+	// This is not great, since it will mean add-ons are loaded/unloaded multiple times, but otherwise they will never be unloaded
+	reshade::unload_addons();
+#endif
 
 	if (!reshade::hooks::call(wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
@@ -351,32 +489,13 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
+	LOG(DEBUG) << "Returning OpenGL context " << hglrc << '.';
 #endif
 	return hglrc;
 }
 		   HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
 {
 	LOG(INFO) << "Redirecting " << "wglCreateContextAttribsARB" << '(' << "hdc = " << hdc << ", hShareContext = " << hShareContext << ", piAttribList = " << piAttribList << ')' << " ...";
-
-	struct attribute
-	{
-		enum
-		{
-			WGL_CONTEXT_MAJOR_VERSION_ARB = 0x2091,
-			WGL_CONTEXT_MINOR_VERSION_ARB = 0x2092,
-			WGL_CONTEXT_LAYER_PLANE_ARB = 0x2093,
-			WGL_CONTEXT_FLAGS_ARB = 0x2094,
-			WGL_CONTEXT_PROFILE_MASK_ARB = 0x9126,
-
-			WGL_CONTEXT_DEBUG_BIT_ARB = 0x0001,
-			WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB = 0x0002,
-			WGL_CONTEXT_CORE_PROFILE_BIT_ARB = 0x00000001,
-			WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB = 0x00000002,
-		};
-
-		int name, value;
-	};
 
 	int i = 0, major = 1, minor = 0, flags = 0;
 	bool compatibility = false;
@@ -463,7 +582,7 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
+	LOG(DEBUG) << "Returning OpenGL context " << hglrc << '.';
 #endif
 	return hglrc;
 }
@@ -505,7 +624,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			it != s_opengl_queues.end())
 		{
 			// Separate command queue objects are only created for shared contexts
-			// It is important that the context that is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
+			// It is important that the context that it is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
 			const HGLRC prev_hglrc = wglGetCurrentContext();
 			if (prev_hglrc == hglrc || (prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
 			{
@@ -701,11 +820,12 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			extern std::filesystem::path get_system_path();
 			// First attempt to load from the OpenGL ICD
 			FARPROC address = reshade::hooks::call(wglGetProcAddress)(name);
-			if (address == nullptr) address = GetProcAddress( // Load from the Windows OpenGL DLL if that fails
-				GetModuleHandleW((get_system_path() / "opengl32.dll").c_str()), name);
+			if (address == nullptr)
+				// Load from the Windows OpenGL DLL if that fails
+				address = GetProcAddress(GetModuleHandleW((get_system_path() / "opengl32.dll").c_str()), name);
 			// Get trampoline pointers to any hooked functions, so that effect runtime always calls into original OpenGL functions
 			if (address != nullptr && reshade::hooks::is_hooked(address))
-				address  = reshade::hooks::call<FARPROC>(nullptr, address);
+				address = reshade::hooks::call<FARPROC>(nullptr, address);
 			return reinterpret_cast<GL3WglProc>(address);
 		});
 
@@ -815,7 +935,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning pixel buffer " << hpbuffer << '.';
+	LOG(INFO) << "Returning pixel buffer " << hpbuffer << '.';
 #endif
 	return hpbuffer;
 }
@@ -847,7 +967,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning pixel buffer device context " << hdc << '.';
+	LOG(INFO) << "Returning pixel buffer device context " << hdc << '.';
 #endif
 	return hdc;
 }
@@ -940,14 +1060,24 @@ extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 }
 extern "C" DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, const WGLSWAP *pBuffers)
 {
-	for (UINT i = 0; i < cNumBuffers; ++i)
-	{
-		assert(pBuffers != nullptr);
+	DWORD result = 0;
 
-		wglSwapBuffers(pBuffers[i].hdc);
+	if (cNumBuffers <= WGL_SWAPMULTIPLE_MAX)
+	{
+		for (UINT i = 0; i < cNumBuffers; ++i)
+		{
+			assert(pBuffers != nullptr);
+
+			if (wglSwapBuffers(pBuffers[i].hdc))
+				result |= 1 << i;
+		}
+	}
+	else
+	{
+		SetLastError(ERROR_INVALID_PARAMETER);
 	}
 
-	return 0;
+	return result;
 }
 
 extern "C" BOOL  WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)

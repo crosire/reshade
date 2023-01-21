@@ -87,13 +87,10 @@
     <ClCompile Include="source\addon_manager.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="examples\07-generic_depth\generic_depth.cpp">
+    <ClCompile Include="examples\09-depth\generic_depth.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\input.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\input_freepie.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\input_gamepad.cpp">
@@ -420,9 +417,6 @@
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\input.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\input_freepie.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\input_gamepad.hpp">

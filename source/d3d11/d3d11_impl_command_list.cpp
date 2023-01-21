@@ -477,7 +477,7 @@ void reshade::d3d11::device_context_impl::bind_descriptor_sets(api::shader_stage
 			stages,
 			layout,
 			first + i,
-			api::descriptor_set_update { {}, 0, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
+			api::descriptor_set_update { {}, set_impl->base_binding, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
 	}
 }
 
@@ -507,7 +507,7 @@ void reshade::d3d11::device_context_impl::bind_vertex_buffers(uint32_t first, ui
 
 	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32.p);
 }
-void reshade::d3d11::device_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *)
+void reshade::d3d11::device_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *, const api::resource *, const uint64_t *)
 {
 	assert(first == 0 && count <= D3D11_SO_BUFFER_SLOT_COUNT);
 

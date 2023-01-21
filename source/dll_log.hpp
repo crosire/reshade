@@ -36,7 +36,7 @@ namespace reshade::log
 	/// Opens a log file for writing.
 	/// </summary>
 	/// <param name="path">Path to the log file.</param>
-	bool open_log_file(const std::filesystem::path &path);
+	bool open_log_file(const std::filesystem::path &path, std::error_code &ec);
 
 	/// <summary>
 	/// Constructs a single log message including current time and level and writes it to the open log file.

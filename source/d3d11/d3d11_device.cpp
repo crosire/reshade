@@ -1075,7 +1075,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 		*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Returning " << "ID3D11DeviceContext" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
+		LOG(DEBUG) << "Returning " << "ID3D11DeviceContext" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
 #endif
 	}
 	else
@@ -1248,7 +1248,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 		*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Returning " << "ID3D11DeviceContext1" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
+		LOG(DEBUG) << "Returning " << "ID3D11DeviceContext1" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
 #endif
 	}
 	else
@@ -1532,7 +1532,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 		*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Returning " << "ID3D11DeviceContext2" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
+		LOG(DEBUG) << "Returning " << "ID3D11DeviceContext2" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
 #endif
 	}
 	else
@@ -1866,7 +1866,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 		*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Returning " << "ID3D11DeviceContext3" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
+		LOG(DEBUG) << "Returning " << "ID3D11DeviceContext3" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
 #endif
 	}
 	else

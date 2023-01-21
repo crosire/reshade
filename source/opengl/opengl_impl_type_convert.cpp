@@ -74,32 +74,30 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_RGBA8I;
 	case api::format::r8g8b8a8_typeless:
 	case api::format::r8g8b8a8_unorm:
+	case api::format::b8g8r8a8_typeless:
+	case api::format::b8g8r8a8_unorm:
 		return GL_RGBA8;
 	case api::format::r8g8b8a8_unorm_srgb:
+	case api::format::b8g8r8a8_unorm_srgb:
 		return GL_SRGB8_ALPHA8;
 	case api::format::r8g8b8a8_snorm:
 		return GL_RGBA8_SNORM;
-	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
-		return GL_RGB8;
-	case api::format::r8g8b8x8_unorm_srgb:
-		return GL_SRGB8;
-	case api::format::b8g8r8a8_typeless:
-	case api::format::b8g8r8a8_unorm:
-	case api::format::b8g8r8a8_unorm_srgb:
 	case api::format::b8g8r8x8_typeless:
 	case api::format::b8g8r8x8_unorm:
+		return GL_RGB8;
+	case api::format::r8g8b8x8_unorm_srgb:
 	case api::format::b8g8r8x8_unorm_srgb:
-		break; // Unsupported
+		return GL_SRGB8;
 	case api::format::r10g10b10a2_uint:
+	case api::format::b10g10r10a2_uint:
 		return GL_RGB10_A2UI;
 	case api::format::r10g10b10a2_typeless:
 	case api::format::r10g10b10a2_unorm:
+	case api::format::b10g10r10a2_typeless:
+	case api::format::b10g10r10a2_unorm:
 		return GL_RGB10_A2;
 	case api::format::r10g10b10a2_xr_bias:
-	case api::format::b10g10r10a2_typeless:
-	case api::format::b10g10r10a2_uint:
-	case api::format::b10g10r10a2_unorm:
 		break; // Unsupported
 	case api::format::l16_unorm:
 		if (swizzle_mask != nullptr)
@@ -115,13 +113,13 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_R16UI;
 	case api::format::r16_sint:
 		return GL_R16I;
-	case api::format::r16_float:
-		return GL_R16F;
 	case api::format::r16_typeless:
 	case api::format::r16_unorm:
 		return GL_R16;
 	case api::format::r16_snorm:
 		return GL_R16_SNORM;
+	case api::format::r16_float:
+		return GL_R16F;
 	case api::format::l16a16_unorm:
 		if (swizzle_mask != nullptr)
 		{
@@ -136,24 +134,24 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_RG16UI;
 	case api::format::r16g16_sint:
 		return GL_RG16I;
-	case api::format::r16g16_float:
-		return GL_RG16F;
 	case api::format::r16g16_typeless:
 	case api::format::r16g16_unorm:
 		return GL_RG16;
 	case api::format::r16g16_snorm:
 		return GL_RG16_SNORM;
+	case api::format::r16g16_float:
+		return GL_RG16F;
 	case api::format::r16g16b16a16_uint:
 		return GL_RGBA16UI;
 	case api::format::r16g16b16a16_sint:
 		return GL_RGBA16I;
-	case api::format::r16g16b16a16_float:
-		return GL_RGBA16F;
 	case api::format::r16g16b16a16_typeless:
 	case api::format::r16g16b16a16_unorm:
 		return GL_RGBA16;
 	case api::format::r16g16b16a16_snorm:
 		return GL_RGBA16_SNORM;
+	case api::format::r16g16b16a16_float:
+		return GL_RGBA16F;
 	case api::format::r32_uint:
 		return GL_R32UI;
 	case api::format::r32_sint:
@@ -260,7 +258,6 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 {
 	// These should already have been converted by 'convert_sized_internal_format' before
 	assert(
-		internal_format != 1 &&
 		internal_format != 2 &&
 		internal_format != 3 &&
 		internal_format != 4 &&
@@ -344,6 +341,8 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	case GL_RGB8_SNORM:
 		return api::format::r8g8b8x8_snorm;
 #endif
+	case GL_BGRA8_EXT:
+		return api::format::b8g8r8a8_unorm;
 	case GL_RGB10_A2UI:
 		return api::format::r10g10b10a2_uint;
 	case GL_RGB10_A2:
@@ -355,8 +354,6 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16_uint;
 	case GL_R16I:
 		return api::format::r16_sint;
-	case GL_R16F:
-		return api::format::r16_float;
 	case GL_R16: // { R, 0, 0, 1 }
 		if (swizzle_mask != nullptr &&
 			swizzle_mask[0] == GL_RED &&
@@ -366,14 +363,14 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16_unorm;
 	case GL_R16_SNORM:
 		return api::format::r16_snorm;
+	case GL_R16F:
+		return api::format::r16_float;
 	case 0x8048 /* GL_LUMINANCE16_ALPHA16 */: // { R, R, R, G }
 		return api::format::l16a16_unorm;
 	case GL_RG16UI:
 		return api::format::r16g16_uint;
 	case GL_RG16I:
 		return api::format::r16g16_sint;
-	case GL_RG16F:
-		return api::format::r16g16_float;
 	case GL_RG16: // { R, G, 0, 1 }
 		if (swizzle_mask != nullptr &&
 			swizzle_mask[0] == GL_RED &&
@@ -384,16 +381,18 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16g16_unorm;
 	case GL_RG16_SNORM:
 		return api::format::r16g16_snorm;
+	case GL_RG16F:
+		return api::format::r16g16_float;
 	case GL_RGBA16UI:
 		return api::format::r16g16b16a16_uint;
 	case GL_RGBA16I:
 		return api::format::r16g16b16a16_sint;
-	case GL_RGBA16F:
-		return api::format::r16g16b16a16_float;
 	case GL_RGBA16:
 		return api::format::r16g16b16a16_unorm;
 	case GL_RGBA16_SNORM:
 		return api::format::r16g16b16a16_snorm;
+	case GL_RGBA16F:
+		return api::format::r16g16b16a16_float;
 	case GL_R32UI:
 		return api::format::r32_uint;
 	case GL_R32I:
@@ -476,6 +475,156 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::bc7_unorm_srgb;
 	}
 }
+
+void reshade::opengl::convert_pixel_format(api::format format, PIXELFORMATDESCRIPTOR &pfd)
+{
+	switch (format)
+	{
+	default:
+		assert(false);
+		break;
+	case api::format::r8g8b8a8_unorm:
+	case api::format::r8g8b8a8_unorm_srgb:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 8;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 8;
+		pfd.cGreenShift = 8;
+		pfd.cBlueBits = 8;
+		pfd.cBlueShift = 16;
+		pfd.cAlphaBits = 8;
+		pfd.cAlphaShift = 24;
+		break;
+	case api::format::r8g8b8x8_unorm:
+	case api::format::r8g8b8x8_unorm_srgb:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 8;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 8;
+		pfd.cGreenShift = 8;
+		pfd.cBlueBits = 8;
+		pfd.cBlueShift = 16;
+		pfd.cAlphaBits = 0;
+		pfd.cAlphaShift = 0;
+		break;
+	case api::format::b8g8r8a8_unorm:
+	case api::format::b8g8r8a8_unorm_srgb:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 8;
+		pfd.cRedShift = 16;
+		pfd.cGreenBits = 8;
+		pfd.cGreenShift = 8;
+		pfd.cBlueBits = 8;
+		pfd.cBlueShift = 0;
+		pfd.cAlphaBits = 8;
+		pfd.cAlphaShift = 24;
+		break;
+	case api::format::b8g8r8x8_unorm:
+	case api::format::b8g8r8x8_unorm_srgb:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 8;
+		pfd.cRedShift = 16;
+		pfd.cGreenBits = 8;
+		pfd.cGreenShift = 8;
+		pfd.cBlueBits = 8;
+		pfd.cBlueShift = 0;
+		pfd.cAlphaBits = 0;
+		pfd.cAlphaShift = 0;
+		break;
+	case api::format::r10g10b10a2_unorm:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 10;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 10;
+		pfd.cGreenBits = 10;
+		pfd.cBlueBits = 10;
+		pfd.cBlueShift = 20;
+		pfd.cAlphaBits = 2;
+		pfd.cAlphaShift = 30;
+		break;
+	case api::format::r16g16b16a16_float:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 64;
+		pfd.cRedBits = 16;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 16;
+		pfd.cGreenShift = 16;
+		pfd.cBlueBits = 16;
+		pfd.cBlueShift = 32;
+		pfd.cAlphaBits = 16;
+		pfd.cAlphaShift = 48;
+		break;
+	case api::format::r32g32b32a32_float:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 128;
+		pfd.cRedBits = 32;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 32;
+		pfd.cGreenShift = 32;
+		pfd.cBlueBits = 32;
+		pfd.cBlueShift = 64;
+		pfd.cAlphaBits = 32;
+		pfd.cAlphaShift = 96;
+		break;
+	case api::format::r11g11b10_float:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 32;
+		pfd.cRedBits = 11;
+		pfd.cRedShift = 0;
+		pfd.cGreenBits = 11;
+		pfd.cGreenShift = 11;
+		pfd.cBlueBits = 10;
+		pfd.cBlueShift = 22;
+		pfd.cAlphaBits = 0;
+		pfd.cAlphaShift = 0;
+		break;
+	case api::format::b5g6r5_unorm:
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 16;
+		pfd.cRedBits = 5;
+		pfd.cRedShift = 11;
+		pfd.cGreenBits = 6;
+		pfd.cGreenShift = 5;
+		pfd.cBlueBits = 5;
+		pfd.cBlueShift = 0;
+		pfd.cAlphaBits = 0;
+		pfd.cAlphaShift = 0;
+		break;
+	}
+}
+auto reshade::opengl::convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> api::format
+{
+	assert(pfd.iPixelType == PFD_TYPE_RGBA);
+
+	switch (pfd.cColorBits)
+	{
+	default:
+		assert(false);
+		return api::format::unknown;
+	case 16:
+		return api::format::b5g6r5_unorm;
+	case 24:
+	case 32:
+		if (pfd.cRedBits == 11 && pfd.cGreenBits == 11 && pfd.cBlueBits == 10)
+			return api::format::r11g11b10_float;
+		if (pfd.cAlphaBits != 0)
+			return pfd.cRedShift == 0 ? api::format::r8g8b8a8_unorm : api::format::b8g8r8a8_unorm;
+		else
+			return pfd.cRedShift == 0 ? api::format::r8g8b8x8_unorm : api::format::b8g8r8x8_unorm;
+	case 30:
+		return api::format::r10g10b10a2_unorm;
+	case 64:
+		return api::format::r16g16b16a16_float;
+	case 128:
+		return api::format::r32g32b32a32_float;
+	}
+}
+
 auto reshade::opengl::convert_upload_format(api::format format, GLenum &type) -> GLenum
 {
 	switch (format)
@@ -520,7 +669,6 @@ auto reshade::opengl::convert_upload_format(api::format format, GLenum &type) ->
 	case api::format::r8g8b8a8_typeless:
 	case api::format::r8g8b8a8_unorm:
 	case api::format::r8g8b8a8_unorm_srgb:
-	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
 	case api::format::r8g8b8x8_unorm_srgb:
 		type = GL_UNSIGNED_BYTE;
@@ -870,6 +1018,7 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 			return api::format::r32g32b32a32_sint;
 		case GL_UNSIGNED_INT:
 			return api::format::r32g32b32a32_uint;
+		case GL_UNSIGNED_INT_8_8_8_8: // Not technically correct here, since it is ABGR8, but used by RPCS3
 		case GL_UNSIGNED_INT_8_8_8_8_REV: // On a little endian machine the least-significant byte is stored first
 			return api::format::r8g8b8a8_unorm;
 		case GL_UNSIGNED_INT_2_10_10_10_REV:
@@ -902,6 +1051,7 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 		case GL_UNSIGNED_INT:
 			assert(false);
 			return api::format::unknown;
+		case GL_UNSIGNED_INT_8_8_8_8:
 		case GL_UNSIGNED_INT_8_8_8_8_REV:
 			return api::format::b8g8r8a8_unorm;
 		case GL_UNSIGNED_INT_2_10_10_10_REV:
@@ -977,6 +1127,7 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 		return convert_format(format);
 	}
 }
+
 auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum
 {
 	size = 0;
@@ -1091,6 +1242,7 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 
 	return GL_NONE;
 }
+
 auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> GLenum
 {
 	// Convert base internal formats to sized internal formats
@@ -1120,11 +1272,12 @@ auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> G
 		return GL_STENCIL_INDEX8;
 	case GL_DEPTH_COMPONENT:
 		return GL_DEPTH_COMPONENT24;
-	case GL_DEPTH_STENCIL:
-		return GL_DEPTH24_STENCIL8;
+	case GL_DEPTH_COMPONENT32:
 	// Replace formats from 'GL_NV_depth_buffer_float' extension with their core variants
 	case GL_DEPTH_COMPONENT32F_NV:
 		return GL_DEPTH_COMPONENT32F;
+	case GL_DEPTH_STENCIL:
+		return GL_DEPTH24_STENCIL8;
 	case GL_DEPTH32F_STENCIL8_NV:
 		return GL_DEPTH32F_STENCIL8;
 	default:
@@ -1150,77 +1303,38 @@ auto reshade::opengl::is_depth_stencil_format(api::format format) -> GLenum
 	}
 }
 
-void reshade::opengl::convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage)
-{
-	switch (desc.heap)
-	{
-	case api::memory_heap::gpu_only:
-		usage = GL_STATIC_DRAW;
-		break;
-	case api::memory_heap::cpu_to_gpu:
-		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
-		break;
-	case api::memory_heap::gpu_to_cpu:
-		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_READ : GL_STREAM_READ;
-		break;
-	}
-}
-void reshade::opengl::convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags)
-{
-	switch (desc.heap)
-	{
-	case api::memory_heap::cpu_to_gpu:
-		flags |= GL_MAP_WRITE_BIT;
-		break;
-	case api::memory_heap::gpu_to_cpu:
-		flags |= GL_MAP_READ_BIT;
-		break;
-	case api::memory_heap::cpu_only:
-		flags |= GL_CLIENT_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
-		break;
-	}
-
-	if ((desc.flags & api::resource_flags::dynamic) != 0)
-		flags |= GL_DYNAMIC_STORAGE_BIT;
-}
-void reshade::opengl::convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage)
+void reshade::opengl::convert_memory_usage_to_flags(GLenum usage, GLbitfield &flags)
 {
 	switch (usage)
 	{
 	case GL_STATIC_DRAW:
-		desc.heap = api::memory_heap::gpu_only;
 		break;
 	case GL_STREAM_DRAW:
-		desc.heap = api::memory_heap::cpu_to_gpu;
+		flags |= GL_MAP_WRITE_BIT;
 		break;
 	case GL_DYNAMIC_DRAW:
-		desc.heap = api::memory_heap::cpu_to_gpu;
-		desc.flags |= api::resource_flags::dynamic;
+		flags |= GL_MAP_WRITE_BIT | GL_DYNAMIC_STORAGE_BIT;
 		break;
 	case GL_STREAM_READ:
 	case GL_STATIC_READ:
-		desc.heap = api::memory_heap::gpu_to_cpu;
+		flags |= GL_MAP_READ_BIT;
 		break;
 	case GL_DYNAMIC_READ:
-		desc.heap = api::memory_heap::gpu_to_cpu;
-		desc.flags |= api::resource_flags::dynamic;
+		flags |= GL_MAP_READ_BIT | GL_DYNAMIC_STORAGE_BIT;
 		break;
 	}
 }
-void reshade::opengl::convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags)
+void reshade::opengl::convert_memory_flags_to_usage(GLbitfield flags, GLenum &usage)
 {
 	if ((flags & GL_MAP_WRITE_BIT) != 0)
-		desc.heap = api::memory_heap::cpu_to_gpu;
+		usage = (flags & GL_DYNAMIC_STORAGE_BIT) != 0 ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
 	else if ((flags & GL_MAP_READ_BIT) != 0)
-		desc.heap = api::memory_heap::gpu_to_cpu;
-	else if ((flags & GL_CLIENT_STORAGE_BIT) != 0)
-		desc.heap = api::memory_heap::cpu_only;
-
-	if ((flags & GL_DYNAMIC_STORAGE_BIT) != 0)
-		desc.flags |= api::resource_flags::dynamic;
+		usage = (flags & GL_DYNAMIC_STORAGE_BIT) != 0 ? GL_DYNAMIC_READ : GL_STREAM_READ;
+	else if ((flags & GL_CLIENT_STORAGE_BIT) == 0)
+		usage = GL_STATIC_DRAW;
 }
 
-GLbitfield reshade::opengl::convert_access_flags(reshade::api::map_access flags)
+auto reshade::opengl::convert_access_flags(reshade::api::map_access flags) -> GLbitfield
 {
 	switch (flags)
 	{
@@ -1252,6 +1366,24 @@ reshade::api::map_access reshade::opengl::convert_access_flags(GLbitfield flags)
 	}
 }
 
+void reshade::opengl::convert_resource_desc(const api::resource_desc &desc, GLsizeiptr &buffer_size, GLenum &usage)
+{
+	assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+	buffer_size = static_cast<GLsizeiptr>(desc.buffer.size);
+
+	switch (desc.heap)
+	{
+	case api::memory_heap::gpu_only:
+		usage = GL_STATIC_DRAW;
+		break;
+	case api::memory_heap::cpu_to_gpu:
+		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
+		break;
+	case api::memory_heap::gpu_to_cpu:
+		usage = (desc.flags & api::resource_flags::dynamic) != 0 ? GL_DYNAMIC_READ : GL_STREAM_READ;
+		break;
+	}
+}
 reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target)
 {
 	switch (target)
@@ -1311,12 +1443,34 @@ reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target
 		return api::resource_type::unknown;
 	}
 }
-reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size)
+reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size, GLenum usage)
 {
 	api::resource_desc desc = {};
 	desc.type = convert_resource_type(target);
 	desc.buffer.size = buffer_size;
-	desc.heap = api::memory_heap::gpu_only;
+	desc.buffer.stride = 0;
+
+	switch (usage)
+	{
+	case GL_STATIC_DRAW:
+		desc.heap = api::memory_heap::gpu_only;
+		break;
+	case GL_STREAM_DRAW:
+		desc.heap = api::memory_heap::cpu_to_gpu;
+		break;
+	case GL_DYNAMIC_DRAW:
+		desc.heap = api::memory_heap::cpu_to_gpu;
+		desc.flags |= api::resource_flags::dynamic;
+		break;
+	case GL_STREAM_READ:
+	case GL_STATIC_READ:
+		desc.heap = api::memory_heap::gpu_to_cpu;
+		break;
+	case GL_DYNAMIC_READ:
+		desc.heap = api::memory_heap::gpu_to_cpu;
+		desc.flags |= api::resource_flags::dynamic;
+		break;
+	}
 
 	desc.usage = api::resource_usage::copy_dest | api::resource_usage::copy_source;
 	if (target == GL_ELEMENT_ARRAY_BUFFER)

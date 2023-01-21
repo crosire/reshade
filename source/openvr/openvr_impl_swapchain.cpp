@@ -15,43 +15,27 @@
 #include "opengl/opengl_impl_swapchain.hpp"
 #include "opengl/opengl_impl_state_block.hpp"
 
-reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor) :
-	api_object_impl(compositor, device, graphics_queue)
-{
-	_is_vr = true;
-	_renderer_id = static_cast<unsigned int>(device->get_api());
-
-	switch (_device->get_api())
-	{
-	case api::device_api::d3d10:
-		_app_state = new d3d10::state_block(reinterpret_cast<ID3D10Device *>(device->get_native()));
-		break;
-	case api::device_api::d3d11:
-		_app_state = new d3d11::state_block(reinterpret_cast<ID3D11Device *>(device->get_native()));
-		break;
-	case api::device_api::opengl:
-		_app_state = new opengl::state_block();
-		break;
-	}
-}
-
-reshade::openvr::swapchain_d3d10_impl::swapchain_d3d10_impl(D3D10Device *device, vr::IVRCompositor *compositor) :
+reshade::openvr::swapchain_impl::swapchain_impl(D3D10Device *device, vr::IVRCompositor *compositor) :
 	swapchain_impl(device, device, compositor)
 {
+	_app_state = new d3d10::state_block(device->_orig);
+
 	_direct3d_device = static_cast<ID3D10Device *>(device);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
 	_direct3d_device->AddRef();
 }
 
-reshade::openvr::swapchain_d3d11_impl::swapchain_d3d11_impl(D3D11Device *device, vr::IVRCompositor *compositor) :
+reshade::openvr::swapchain_impl::swapchain_impl(D3D11Device *device, vr::IVRCompositor *compositor) :
 	swapchain_impl(device, device->_immediate_context, compositor)
 {
+	_app_state = new d3d11::state_block(device->_orig);
+
 	_direct3d_device = static_cast<ID3D11Device *>(device);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
 	_direct3d_device->AddRef();
 }
 
-reshade::openvr::swapchain_d3d12_impl::swapchain_d3d12_impl(D3D12CommandQueue *queue, vr::IVRCompositor *compositor) :
+reshade::openvr::swapchain_impl::swapchain_impl(D3D12CommandQueue *queue, vr::IVRCompositor *compositor) :
 	swapchain_impl(queue->_device, queue, compositor)
 {
 	_direct3d_device = queue;
@@ -59,11 +43,24 @@ reshade::openvr::swapchain_d3d12_impl::swapchain_d3d12_impl(D3D12CommandQueue *q
 	_direct3d_device->AddRef();
 }
 
+reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor) :
+	api_object_impl(compositor, device, graphics_queue)
+{
+	_is_vr = true;
+	_renderer_id = static_cast<unsigned int>(device->get_api());
+
+	if (static_cast<api::device_api>(_renderer_id) == api::device_api::opengl)
+		_app_state = new opengl::state_block();
+}
+
 reshade::openvr::swapchain_impl::~swapchain_impl()
 {
 	extern thread_local reshade::opengl::render_context_impl *g_current_context;
 	if (static_cast<api::device_api>(_renderer_id) == api::device_api::opengl && g_current_context == nullptr)
+	{
+		delete static_cast<opengl::state_block *>(_app_state);
 		return; // Cannot clean up if OpenGL context was already destroyed
+	}
 
 	on_reset();
 
@@ -92,17 +89,24 @@ reshade::api::resource reshade::openvr::swapchain_impl::get_back_buffer(uint32_t
 	return _side_by_side_texture;
 }
 
-uint32_t reshade::openvr::swapchain_impl::get_back_buffer_count() const
+reshade::api::rect reshade::openvr::swapchain_impl::get_eye_rect(vr::EVREye eye) const
 {
-	return 1;
+	return api::rect {
+		static_cast<int32_t>(eye * (_width / 2)), 0,
+		static_cast<int32_t>((eye + 1) * (_width / 2)), static_cast<int32_t>(_height)
+	};
 }
-uint32_t reshade::openvr::swapchain_impl::get_current_back_buffer_index() const
+reshade::api::subresource_box reshade::openvr::swapchain_impl::get_eye_subresource_box(vr::EVREye eye) const
 {
-	return 0;
+	return api::subresource_box {
+		static_cast<int32_t>(eye * (_width / 2)), 0, 0,
+		static_cast<int32_t>((eye + 1) * (_width / 2)), static_cast<int32_t>(_height), 1
+	};
 }
 
 bool reshade::openvr::swapchain_impl::on_init()
 {
+	// Created in 'on_vr_submit' below
 	assert(_side_by_side_texture != 0);
 
 #if RESHADE_ADDON
@@ -201,9 +205,12 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 
 	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
 	const  int32_t width_difference = std::abs(static_cast<int32_t>(target_width) - static_cast<int32_t>(_width));
+	const  int32_t height_difference = std::abs(static_cast<int32_t>(region_height) - static_cast<int32_t>(_height));
 
-	if (width_difference > 2 || region_height != _height || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(_back_buffer_format))
+	if (width_difference > 2 || height_difference > 2 || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(_back_buffer_format))
 	{
+		LOG(INFO) << "Resizing runtime " << this << " in VR to " << target_width << "x" << region_height << " ...";
+
 		on_reset();
 
 		if (!_device->create_resource(
@@ -221,40 +228,36 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)
-	api::subresource_box dest_box;
-	dest_box.left = eye * region_width;
-	dest_box.top = 0;
-	dest_box.front = 0;
-	dest_box.right = (eye + 1) * region_width;
-	dest_box.bottom = _height;
-	dest_box.back = 1;
+	const api::subresource_box dest_box = get_eye_subresource_box(eye);
 
 	if (source_desc.texture.depth_or_layers <= 1)
 		layer = 0;
 
+	const bool is_d3d12 = _device->get_api() == api::device_api::d3d12;
+
 	if (source_desc.texture.samples <= 1)
 	{
 		// In all but D3D12 the eye texture resource is already in copy source state at this point
-		if (_device->get_api() == api::device_api::d3d12)
+		if (is_d3d12)
 			cmd_list->barrier(eye_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::copy_source);
 		cmd_list->barrier(_side_by_side_texture, api::resource_usage::general, api::resource_usage::copy_dest);
 
 		cmd_list->copy_texture_region(eye_texture, layer, &source_box, _side_by_side_texture, 0, &dest_box, api::filter_mode::min_mag_mip_point);
 
 		cmd_list->barrier(_side_by_side_texture, api::resource_usage::copy_dest, api::resource_usage::general);
-		if (_device->get_api() == api::device_api::d3d12)
+		if (is_d3d12)
 			cmd_list->barrier(eye_texture, api::resource_usage::copy_source, api::resource_usage::shader_resource_pixel);
 	}
 	else
 	{
-		if (_device->get_api() == api::device_api::d3d12)
+		if (is_d3d12)
 			cmd_list->barrier(eye_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::resolve_source);
 		cmd_list->barrier(_side_by_side_texture, api::resource_usage::general, api::resource_usage::resolve_dest);
 
 		cmd_list->resolve_texture_region(eye_texture, layer, &source_box, _side_by_side_texture, 0, dest_box.left, dest_box.top, dest_box.front, source_desc.texture.format);
 
 		cmd_list->barrier(_side_by_side_texture, api::resource_usage::resolve_dest, api::resource_usage::general);
-		if (_device->get_api() == api::device_api::d3d12)
+		if (is_d3d12)
 			cmd_list->barrier(eye_texture, api::resource_usage::resolve_source, api::resource_usage::shader_resource_pixel);
 	}
 

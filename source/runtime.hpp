@@ -200,6 +200,7 @@ namespace reshade
 		bool create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
 
+		void load_textures();
 		bool create_texture(texture &texture);
 		void destroy_texture(texture &texture);
 
@@ -207,8 +208,7 @@ namespace reshade
 		void disable_technique(technique &technique);
 
 		void load_effects();
-		void load_textures();
-		bool reload_effect(size_t effect_index, bool preprocess_required = false);
+		bool reload_effect(size_t effect_index);
 		void reload_effects();
 		void destroy_effects();
 
@@ -269,9 +269,8 @@ namespace reshade
 #endif
 
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
-		std::chrono::high_resolution_clock::time_point _start_time;
-		std::chrono::high_resolution_clock::time_point _last_present_time;
-		unsigned long long _framecount = 0;
+		std::chrono::high_resolution_clock::time_point _start_time, _last_present_time;
+		uint64_t _frame_count = 0;
 		#pragma endregion
 
 		#pragma region Effect Loading
@@ -287,7 +286,7 @@ namespace reshade
 		unsigned int _performance_mode_key_data[4] = {};
 		std::vector<std::string> _global_preprocessor_definitions;
 		std::vector<std::string> _preset_preprocessor_definitions;
-		std::filesystem::path _intermediate_cache_path;
+		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
 
@@ -319,6 +318,8 @@ namespace reshade
 
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;
+#endif
+#if RESHADE_ADDON_LITE && RESHADE_FX
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _backup_texture_semantic_bindings;
 #endif
 		api::pipeline _copy_pipeline = {};
@@ -415,9 +416,9 @@ namespace reshade
 
 		bool _show_splash = true;
 		bool _show_overlay = false;
-		bool _show_fps = false;
-		bool _show_clock = false;
-		bool _show_frametime = false;
+		unsigned int _show_fps = 2;
+		unsigned int _show_clock = false;
+		unsigned int _show_frametime = false;
 		bool _show_screenshot_message = true;
 		bool _rebuild_font_atlas = true;
 #  if RESHADE_FX
@@ -483,7 +484,7 @@ namespace reshade
 		#pragma region Overlay Statistics
 #  if RESHADE_FX
 		bool _gather_gpu_statistics = false;
-		api::resource_view _preview_texture = { 0 };
+		api::resource_view _preview_texture = {};
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
 #  endif
 		#pragma endregion

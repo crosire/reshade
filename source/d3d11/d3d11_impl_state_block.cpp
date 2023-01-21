@@ -20,6 +20,12 @@ reshade::d3d11::state_block::state_block(ID3D11Device *device)
 	ZeroMemory(this, sizeof(*this));
 
 	_device_feature_level = device->GetFeatureLevel();
+
+	com_ptr<ID3D11Device1> device1;
+	if (SUCCEEDED(device->QueryInterface(&device1)))
+	{
+		device1->CreateDeviceContextState((device->GetCreationFlags() & D3D11_CREATE_DEVICE_SINGLETHREADED) ? D3D11_1_CREATE_DEVICE_CONTEXT_STATE_SINGLETHREADED : 0, &_device_feature_level, 1, D3D11_SDK_VERSION, __uuidof(ID3D11Device1), nullptr, &_state);
+	}
 }
 reshade::d3d11::state_block::~state_block()
 {
@@ -31,6 +37,13 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 	assert(_device_context == nullptr);
 
 	_device_context = device_context;
+
+	com_ptr<ID3D11DeviceContext1> device_context1;
+	if (_state != nullptr && SUCCEEDED(_device_context->QueryInterface(&device_context1)) && device_context1->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+	{
+		device_context1->SwapDeviceContextState(_state.get(), &_captured_state);
+		return;
+	}
 
 	_device_context->IAGetPrimitiveTopology(&_ia_primitive_topology);
 	_device_context->IAGetInputLayout(&_ia_input_layout);
@@ -94,6 +107,16 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 }
 void reshade::d3d11::state_block::apply_and_release()
 {
+	com_ptr<ID3D11DeviceContext1> device_context1;
+	if (_state != nullptr && SUCCEEDED(_device_context->QueryInterface(&device_context1)) && device_context1->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+	{
+		device_context1->SwapDeviceContextState(_captured_state.get(), nullptr);
+
+		_captured_state.reset();
+		_device_context.reset();
+		return;
+	}
+
 	_device_context->IASetPrimitiveTopology(_ia_primitive_topology);
 	_device_context->IASetInputLayout(_ia_input_layout);
 

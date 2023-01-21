@@ -62,8 +62,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
 
 	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
-	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(
-		GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
+	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
+		GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
 	assert(enum_instance_extensions != nullptr);
 
 	std::vector<const char *> enabled_extensions;
@@ -81,7 +81,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		// Make sure the driver actually supports the requested extensions
 		const auto add_extension = [&extensions, &enabled_extensions](const char *name, bool required) {
 			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
-				[name](const auto &props) { return std::strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
+					[name](const auto &props) { return std::strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
 				it != extensions.end())
 			{
 				enabled_extensions.push_back(name);
@@ -165,7 +165,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance, app_info.apiVersion });
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan instance " << instance << '.';
+	LOG(DEBUG) << "Returning Vulkan instance " << instance << '.';
 #endif
 	return VK_SUCCESS;
 }

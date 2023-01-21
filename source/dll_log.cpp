@@ -80,7 +80,7 @@ reshade::log::message::~message()
 #endif
 }
 
-bool reshade::log::open_log_file(const std::filesystem::path &path)
+bool reshade::log::open_log_file(const std::filesystem::path &path, std::error_code &ec)
 {
 	// Close the previous file first
 	// Do this here, instead of in 'scoped_file_handle::operator=', so that the old handle is closed before the new handle is created
@@ -89,6 +89,8 @@ bool reshade::log::open_log_file(const std::filesystem::path &path)
 
 	// Open the log file for writing (and flush on each write) and clear previous contents
 	s_file_handle = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, NULL);
+
+	ec.assign(GetLastError(), std::system_category());
 
 	return s_file_handle != INVALID_HANDLE_VALUE;
 }

@@ -105,8 +105,9 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		if (ImGui::InputText("##path", buf, sizeof(buf)))
 		{
 			path = std::filesystem::u8path(buf);
-			if (path.has_stem() && std::filesystem::is_directory(path, ec))
+			if ((path.has_stem() && std::filesystem::is_directory(path, ec)) || (path.has_root_name() && path == path.root_name()))
 				path += std::filesystem::path::preferred_separator;
+			parent_path = path.parent_path();
 		}
 
 		if (ImGui::IsItemActivated())
@@ -117,7 +118,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 	ImGui::BeginChild("##files", ImVec2(width, 200), true, ImGuiWindowFlags_NavFlattened);
 
-	if (parent_path.has_parent_path())
+	if (parent_path.has_parent_path() && parent_path != parent_path.root_path())
 	{
 		if (ImGui::Selectable(ICON_FK_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) && (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsNavInputTest(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed)))
 		{
@@ -128,7 +129,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	}
 
 	std::vector<std::filesystem::path> file_entries;
-	for (const auto &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		if (entry.is_directory())
 		{
@@ -729,12 +730,25 @@ bool reshade::imgui::slider_for_alpha_value(const char *label, float *v)
 	ImGui::EndGroup();
 
 	return modified;
+}
 
+bool reshade::imgui::checkbox_tristate(const char *label, unsigned int *v)
+{
+	const bool mixed = *v > 1;
+	bool value = *v != 0;
+
+	ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, mixed);
+	const bool modified = ImGui::Checkbox(label, &value);
+	if (modified)
+		*v = value ? 1 : mixed ? 0 : 2;
+	ImGui::PopItemFlag();
+
+	return modified;
 }
 
 void reshade::imgui::image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col)
 {
-	const auto draw_list = ImGui::GetWindowDrawList();
+	ImDrawList *const draw_list = ImGui::GetWindowDrawList();
 
 	// Render background checkerboard pattern
 	const ImVec2 pos_min = ImGui::GetCursorScreenPos();

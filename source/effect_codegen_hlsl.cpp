@@ -64,7 +64,8 @@ private:
 		}
 		else
 		{
-			module.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\nuniform float2 __TEXEL_SIZE__ : register(c255);\n";
+			module.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\n";
+			module.hlsl += "uniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
 			if (_uses_bitwise_cast)
 				module.hlsl +=
@@ -727,13 +728,10 @@ private:
 		else if (_shader_model < 40)
 			func.unique_name = 'E' + func.unique_name;
 
-		{	const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-				[&func](const auto &ep) {
-					return ep.name == func.unique_name;
-				});
-			if (it != _module.entry_points.end())
-				return;
-		}
+		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+				[&func](const auto &ep) { return ep.name == func.unique_name; });
+			it != _module.entry_points.end())
+			return;
 
 		_module.entry_points.push_back({ func.unique_name, stype });
 

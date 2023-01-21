@@ -96,7 +96,7 @@ reshade::vulkan::device_impl::device_impl(
 		}
 	}
 
-	if (vk.CmdPushDescriptorSetKHR == nullptr)
+	if (!_push_descriptor_ext)
 	{
 		for (uint32_t i = 0; i < 4; ++i)
 		{
@@ -235,7 +235,6 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 	VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	create_info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
 
-#ifdef VK_EXT_custom_border_color
 	VkSamplerCustomBorderColorCreateInfoEXT border_color_info { VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT };
 	if (_custom_border_color_ext && (
 		desc.border_color[0] != 0.0f || desc.border_color[1] != 0.0f || desc.border_color[2] != 0.0f || desc.border_color[3] != 0.0f))
@@ -243,7 +242,6 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 		create_info.pNext = &border_color_info;
 		create_info.borderColor = VK_BORDER_COLOR_FLOAT_CUSTOM_EXT;
 	}
-#endif
 
 	convert_sampler_desc(desc, create_info);
 
@@ -361,12 +359,9 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (is_shared)
 				{
-#ifdef VK_KHR_external_memory_win32
 					if (vk.GetMemoryWin32HandleKHR == nullptr)
-#endif
 						break;
 
-#ifdef VK_KHR_external_memory_win32
 					VkMemoryRequirements reqs = {};
 					vk.GetBufferMemoryRequirements(_orig, object, &reqs);
 
@@ -395,7 +390,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							break;
 						}
 					}
-#endif
 				}
 				else if (allocation != VMA_NULL)
 				{
@@ -451,12 +445,9 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (is_shared)
 				{
-#ifdef VK_KHR_external_memory_win32
 					if (vk.GetMemoryWin32HandleKHR == nullptr)
-#endif
 						break;
 
-#ifdef VK_KHR_external_memory_win32
 					VkMemoryRequirements reqs = {};
 					vk.GetImageMemoryRequirements(_orig, object, &reqs);
 
@@ -485,7 +476,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							break;
 						}
 					}
-#endif
 				}
 				else if (allocation != VMA_NULL)
 				{
@@ -612,8 +602,34 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 	if (resource_data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 	{
 		VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		convert_resource_view_desc(desc, create_info);
 		create_info.image = (VkImage)resource.handle;
+
+		if (desc.type != api::resource_view_type::unknown)
+		{
+			convert_resource_view_desc(desc, create_info);
+		}
+		else
+		{
+			switch (resource_data->create_info.imageType)
+			{
+			case VK_IMAGE_TYPE_1D:
+				create_info.viewType = VK_IMAGE_VIEW_TYPE_1D;
+				break;
+			case VK_IMAGE_TYPE_2D:
+				create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+				break;
+			case VK_IMAGE_TYPE_3D:
+				create_info.viewType = VK_IMAGE_VIEW_TYPE_3D;
+				break;
+			}
+
+			create_info.format = resource_data->create_info.format;
+			create_info.subresourceRange.baseMipLevel = 0;
+			create_info.subresourceRange.levelCount = (usage_type & api::resource_usage::render_target) != api::resource_usage::undefined ? 1 : VK_REMAINING_MIP_LEVELS;
+			create_info.subresourceRange.baseArrayLayer = 0;
+			create_info.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+		}
+
 		create_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
 
 		// Shader resource views can never access stencil data (except for the explicit formats that do that), so remove that aspect flag for views created with a format that supports stencil
@@ -637,8 +653,18 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 	else
 	{
 		VkBufferViewCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO };
-		convert_resource_view_desc(desc, create_info);
 		create_info.buffer = (VkBuffer)resource.handle;
+
+		if (desc.type != api::resource_view_type::unknown)
+		{
+			convert_resource_view_desc(desc, create_info);
+		}
+		else
+		{
+			create_info.format = VK_FORMAT_UNDEFINED;
+			create_info.offset = 0;
+			create_info.range = VK_WHOLE_SIZE;
+		}
 
 		VkBufferView buffer_view = VK_NULL_HANDLE;
 		if (vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
@@ -744,7 +770,6 @@ bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, ui
 	out_data->slice_pitch = 0;
 
 	// Mapping a subset of a texture is not supported
-	// TODO: Add support for subresources other than zero for images
 	if (subresource != 0 || box != nullptr)
 		return false;
 
@@ -907,6 +932,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	api::shader_desc ps_desc = {};
 	api::shader_desc cs_desc = {};
 	api::pipeline_subobject input_layout_desc = {};
+	api::stream_output_desc stream_output_desc = {};
 	api::blend_desc blend_desc = {};
 	api::rasterizer_desc rasterizer_desc = {};
 	api::depth_stencil_desc depth_stencil_desc = {};
@@ -954,7 +980,8 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			break;
 		case api::pipeline_subobject_type::stream_output_state:
 			assert(subobjects[i].count == 1);
-			goto exit_failure; // Not implemented
+			stream_output_desc = *static_cast<const api::stream_output_desc *>(subobjects[i].data);
+			break;
 		case api::pipeline_subobject_type::blend_state:
 			assert(subobjects[i].count == 1);
 			blend_desc = *static_cast<const api::blend_desc *>(subobjects[i].data);
@@ -1111,7 +1138,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineRasterizationStateCreateInfo rasterization_state_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 		create_info.pRasterizationState = &rasterization_state_info;
 
-#ifdef VK_EXT_conservative_rasterization
 		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
 		if (rasterizer_desc.conservative_rasterization != 0)
 		{
@@ -1121,11 +1147,17 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			conservative_rasterization_info.pNext = rasterization_state_info.pNext;
 			rasterization_state_info.pNext = &conservative_rasterization_info;
 		}
-#endif
 
 		convert_rasterizer_desc(rasterizer_desc, rasterization_state_info);
 		rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
 		rasterization_state_info.lineWidth = 1.0f;
+
+		VkPipelineRasterizationStateStreamCreateInfoEXT stream_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT };
+		if (stream_output_desc.rasterized_stream != 0)
+		{
+			rasterization_state_info.pNext = &stream_rasterization_info;
+			convert_stream_output_desc(stream_output_desc, rasterization_state_info);
+		}
 
 		VkPipelineMultisampleStateCreateInfo multisample_state_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 		create_info.pMultisampleState = &multisample_state_info;
@@ -1336,10 +1368,8 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
 		create_info.pBindings = internal_bindings.data();
 
-#ifdef VK_KHR_push_descriptor
 		if (push_descriptors && _push_descriptor_ext)
 			create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-#endif
 
 		if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)
 		{
@@ -1668,10 +1698,8 @@ void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view han
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 {
-#ifdef VK_KHR_push_descriptor
 	if (_push_descriptor_ext)
 		return;
-#endif
 
 	// This assumes that no other thread is currently allocating from the transient descriptor pool
 	const VkDescriptorPool next_pool = _transient_descriptor_pool[++_transient_index % 4];

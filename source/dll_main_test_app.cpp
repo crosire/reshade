@@ -10,6 +10,7 @@
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
 #include "com_ptr.hpp"
+#include "ini_file.hpp"
 #include <d3d9.h>
 #include <d3d11.h>
 #include <d3d12.h>
@@ -31,6 +32,21 @@ extern std::filesystem::path get_module_path(HMODULE module);
 #define VK_CALL_DEVICE(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
 #define VK_CALL_INSTANCE(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
 
+static LONG APIENTRY HookD3DKMTQueryAdapterInfo(const void *pData)
+{
+	struct D3DKMT_QUERYADAPTERINFO { UINT hAdapter; UINT Type; VOID *pPrivateDriverData; UINT PrivateDriverDataSize; };
+
+	if (pData != nullptr && static_cast<const D3DKMT_QUERYADAPTERINFO *>(pData)->Type == 1 /* KMTQAITYPE_UMDRIVERNAME */)
+	{
+		if (reshade::global_config().get("APP", "ForceD3D9On12") && *static_cast<const UINT *>(static_cast<const D3DKMT_QUERYADAPTERINFO *>(pData)->pPrivateDriverData) == 0 /* KMTUMDVERSION_DX9 */)
+			return STATUS_INVALID_PARAMETER;
+		if (reshade::global_config().get("APP", "ForceD3D11On12") && *static_cast<const UINT *>(static_cast<const D3DKMT_QUERYADAPTERINFO *>(pData)->pPrivateDriverData) == 2 /* KMTUMDVERSION_DX11 */)
+			return STATUS_INVALID_PARAMETER;
+	}
+
+	return reshade::hooks::call(HookD3DKMTQueryAdapterInfo)(pData);
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
 	g_module_handle = hInstance;
@@ -38,14 +54,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	g_target_executable_path = g_reshade_dll_path;
 	g_reshade_base_path = g_reshade_dll_path.parent_path();
 
-	reshade::log::open_log_file(g_reshade_base_path / L"ReShade.log");
+	std::error_code ec;
+	reshade::log::open_log_file(g_reshade_base_path / L"ReShade.log", ec);
 
 	reshade::hooks::register_module(L"user32.dll");
+
+	reshade::hooks::install("D3DKMTQueryAdapterInfo", GetProcAddress(GetModuleHandleW(L"gdi32.dll"), "D3DKMTQueryAdapterInfo"), HookD3DKMTQueryAdapterInfo);
 
 	static UINT s_resize_w = 0, s_resize_h = 0;
 
 	// Register window class
 	WNDCLASS wc = { sizeof(wc) };
+	wc.hIcon = LoadIcon(hInstance, TEXT("MAIN_ICON"));
 	wc.hInstance = hInstance;
 	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
 	wc.lpszClassName = TEXT("Test");
@@ -70,7 +90,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	LONG window_w = 1024;
 	if (LPSTR width_arg = strstr(lpCmdLine, "-width "))
 		window_w = strtol(width_arg + 7, nullptr, 10);
-	LONG window_h = 800;
+	LONG window_h =  800;
 	if (LPSTR height_arg = strstr(lpCmdLine, "-height "))
 		window_h = strtol(height_arg + 8, nullptr, 10);
 
@@ -78,11 +98,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	const LONG window_y = (GetSystemMetrics(SM_CYSCREEN) - window_h) / 2;
 
 	RECT window_rect = { window_x, window_y, window_x + window_w, window_y + window_h };
-	AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, FALSE);
+	AdjustWindowRect(&window_rect, window_x > 0 && window_y > 0 ? WS_OVERLAPPEDWINDOW : WS_POPUP, FALSE);
 
 	// Create and show window instance
 	const HWND window_handle = CreateWindow(
-		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_PRODUCT), WS_OVERLAPPEDWINDOW,
+		wc.lpszClassName, TEXT("ReShade ") TEXT(VERSION_STRING_PRODUCT), window_x > 0 && window_y > 0 ? WS_OVERLAPPEDWINDOW : WS_POPUP,
 		window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, nullptr, nullptr, hInstance, nullptr);
 
 	if (window_handle == nullptr)
@@ -124,10 +144,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
 		// Initialize Direct3D 9
-		com_ptr<IDirect3D9Ex> d3d;
-		HR_CHECK(Direct3DCreate9Ex(D3D_SDK_VERSION, &d3d));
-		com_ptr<IDirect3DDevice9Ex> device;
-		HR_CHECK(d3d->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, nullptr, &device));
+		com_ptr<IDirect3D9> d3d = Direct3DCreate9(D3D_SDK_VERSION);
+		com_ptr<IDirect3DDevice9> device;
+		HR_CHECK(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device));
 
 		while (true)
 		{
@@ -141,7 +160,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				pp.BackBufferWidth = s_resize_w;
 				pp.BackBufferHeight = s_resize_h;
 
-				HR_CHECK(device->ResetEx(&pp, nullptr));
+				HR_CHECK(device->Reset(&pp));
 
 				s_resize_w = s_resize_h = 0;
 			}
@@ -425,8 +444,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		// Create an OpenGL 4.3 context
 		const int attribs[] = {
-			0x2091 /*WGL_CONTEXT_MAJOR_VERSION_ARB*/, 4,
-			0x2092 /*WGL_CONTEXT_MINOR_VERSION_ARB*/, 3,
+			0x2091 /* WGL_CONTEXT_MAJOR_VERSION_ARB */, 4,
+			0x2092 /* WGL_CONTEXT_MINOR_VERSION_ARB */, 3,
 			0 // Terminate list
 		};
 

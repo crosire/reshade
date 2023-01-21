@@ -429,6 +429,12 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		case api::dynamic_state::stencil_enable:
 			vk.CmdSetStencilTestEnable(_orig, values[i]);
 			continue;
+		case api::dynamic_state::logic_op:
+			vk.CmdSetLogicOpEXT(_orig, convert_logic_op(static_cast<api::logic_op>(values[i])));
+			continue;
+		case api::dynamic_state::render_target_write_mask:
+			vk.CmdSetColorWriteEnableEXT(_orig, 1, &values[i]);
+			continue;
 		default:
 			assert(false);
 			continue;
@@ -538,7 +544,6 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		break;
 	}
 
-#ifdef VK_KHR_push_descriptor
 	if (_device_impl->_push_descriptor_ext)
 	{
 		vk.CmdPushDescriptorSetKHR(_orig,
@@ -547,7 +552,6 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 			1, &write);
 		return;
 	}
-#endif
 
 	assert(update.binding == 0 && update.array_offset == 0);
 
@@ -601,12 +605,10 @@ void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uin
 {
 	vk.CmdBindVertexBuffers(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets);
 }
-void reshade::vulkan::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+void reshade::vulkan::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *, const uint64_t *)
 {
-#ifdef VK_EXT_transform_feedback
 	if (vk.CmdBindTransformFeedbackBuffersEXT != nullptr)
 		vk.CmdBindTransformFeedbackBuffersEXT(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets, max_sizes);
-#endif
 }
 
 void reshade::vulkan::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
@@ -702,6 +704,12 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 		region.imageExtent.width  = dst_box->right - dst_box->left;
 		region.imageExtent.height = dst_box->bottom - dst_box->top;
 		region.imageExtent.depth  = dst_box->back - dst_box->front;
+
+		if (dst_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+		{
+			region.imageSubresource.layerCount = region.imageExtent.depth;
+			region.imageExtent.depth = 1;
+		}
 	}
 	else
 	{
@@ -743,6 +751,13 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 			region.extent.width  = src_box->width();
 			region.extent.height = src_box->height();
 			region.extent.depth  = src_box->depth();
+
+			if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				region.srcSubresource.layerCount = region.extent.depth;
+				region.dstSubresource.layerCount = region.extent.depth;
+				region.extent.depth = 1;
+			}
 		}
 		else
 		{
@@ -764,6 +779,12 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 		if (src_box != nullptr)
 		{
 			std::copy_n(&src_box->left, 6, &region.srcOffsets[0].x);
+
+			if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				region.srcSubresource.layerCount = src_box->depth();
+				region.srcOffsets[1].z = region.srcOffsets[0].z + 1;
+			}
 		}
 		else
 		{
@@ -778,6 +799,12 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 		if (dst_box != nullptr)
 		{
 			std::copy_n(&dst_box->left, 6, &region.dstOffsets[0].x);
+
+			if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				region.dstSubresource.layerCount = dst_box->depth();
+				region.dstOffsets[1].z = region.dstOffsets[0].z + 1;
+			}
 		}
 		else
 		{
@@ -817,6 +844,12 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 		region.imageExtent.width  = src_box->width();
 		region.imageExtent.height = src_box->height();
 		region.imageExtent.depth  = src_box->depth();
+
+		if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+		{
+			region.imageSubresource.layerCount = region.imageExtent.depth;
+			region.imageExtent.depth = 1;
+		}
 	}
 	else
 	{
@@ -850,6 +883,13 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		region.extent.width  = src_box->width();
 		region.extent.height = src_box->height();
 		region.extent.depth  = src_box->depth();
+
+		if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+		{
+			region.srcSubresource.layerCount = region.extent.depth;
+			region.dstSubresource.layerCount = region.extent.depth;
+			region.extent.depth = 1;
+		}
 	}
 	else
 	{
@@ -1022,7 +1062,6 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::
 	default:
 		vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
 		break;
-#ifdef VK_EXT_transform_feedback
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
@@ -1030,7 +1069,6 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::
 		if (vk.CmdBeginQueryIndexedEXT != nullptr)
 			vk.CmdBeginQueryIndexedEXT(_orig, (VkQueryPool)pool.handle, index, 0, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
 		break;
-#endif
 	}
 }
 void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
@@ -1049,7 +1087,6 @@ void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::qu
 		vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
 		vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)pool.handle, index);
 		break;
-#ifdef VK_EXT_transform_feedback
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
@@ -1057,7 +1094,6 @@ void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::qu
 		if (vk.CmdEndQueryIndexedEXT != nullptr)
 			vk.CmdEndQueryIndexedEXT(_orig, (VkQueryPool)pool.handle, index, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
 		break;
-#endif
 	}
 }
 void reshade::vulkan::command_list_impl::copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)

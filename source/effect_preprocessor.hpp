@@ -72,12 +72,10 @@ namespace reshadefx
 		/// <summary>
 		/// Gets the list of error messages.
 		/// </summary>
-		std::string &errors() { return _errors; }
 		const std::string &errors() const { return _errors; }
 		/// <summary>
 		/// Gets the current pre-processed output string.
 		/// </summary>
-		std::string &output() { return _output; }
 		const std::string &output() const { return _output; }
 
 		/// <summary>
@@ -91,9 +89,9 @@ namespace reshadefx
 		std::vector<std::pair<std::string, std::string>> used_macro_definitions() const;
 
 		/// <summary>
-		/// Gets a list of pragmas that occured.
+		/// Gets a list of pragma directives that occured.
 		/// </summary>
-		const std::unordered_map<std::string, std::vector<std::string>> &used_pragmas() const { return _used_pragmas; }
+		std::vector<std::pair<std::string, std::string>> used_pragma_directives() const { return _used_pragmas; }
 
 	private:
 		struct if_level
@@ -116,11 +114,11 @@ namespace reshadefx
 
 		void push(std::string input, const std::string &name = std::string());
 
-		bool peek(tokenid token) const;
-		bool consume();
-		void consume_until(tokenid token);
-		bool accept(tokenid token);
-		bool expect(tokenid token);
+		bool peek(tokenid tokid) const;
+		void consume();
+		void consume_until(tokenid tokid);
+		bool accept(tokenid tokid, bool ignore_whitespace = true);
+		bool expect(tokenid tokid);
 
 		void parse();
 		void parse_def();
@@ -139,23 +137,29 @@ namespace reshadefx
 		bool evaluate_expression();
 		bool evaluate_identifier_as_macro();
 
-		void expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &out);
+		bool is_defined(const std::string &name) const;
+		void expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments);
 		void create_macro_replacement_list(macro &macro);
 
 		bool _success = true;
 		std::string _output, _errors;
+
 		std::string _current_token_raw_data;
 		reshadefx::token _token;
-		std::vector<if_level> _if_stack;
+		location _output_location;
 		std::vector<input_level> _input_stack;
 		size_t _next_input_index = 0;
 		size_t _current_input_index = 0;
+
+		std::vector<if_level> _if_stack;
+
 		unsigned short _recursion_count = 0;
-		location _output_location;
 		std::unordered_set<std::string> _used_macros;
 		std::unordered_map<std::string, macro> _macros;
+
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _file_cache;
-		std::unordered_map<std::string, std::vector<std::string>> _used_pragmas;
+
+		std::vector<std::pair<std::string, std::string>> _used_pragmas;
 	};
 }

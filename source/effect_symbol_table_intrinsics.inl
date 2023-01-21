@@ -1211,16 +1211,29 @@ IMPLEMENT_INTRINSIC_SPIRV(fwidth, 0, {
 	})
 
 // ret dot(x, y)
-DEFINE_INTRINSIC(dot, 0, float, float2, float2)
-DEFINE_INTRINSIC(dot, 0, float, float3, float3)
-DEFINE_INTRINSIC(dot, 0, float, float4, float4)
+DEFINE_INTRINSIC(dot, 0, float, float, float)
+DEFINE_INTRINSIC(dot, 1, float, float2, float2)
+DEFINE_INTRINSIC(dot, 1, float, float3, float3)
+DEFINE_INTRINSIC(dot, 1, float, float4, float4)
 IMPLEMENT_INTRINSIC_GLSL(dot, 0, {
+	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_GLSL(dot, 1, {
 	code += "dot(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(dot, 0, {
+	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(dot, 1, {
 	code += "dot(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(dot, 0, {
+	return add_instruction(spv::OpFMul, convert_type(res_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(dot, 1, {
 	return add_instruction(spv::OpDot, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
@@ -1892,7 +1905,11 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 1, {
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 2, {
 	const std::string s = id_to_name(args[0].base);
 	if (_shader_model >= 50) {
-		code += s + ".t.GatherRed(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + ')';
+		code += s + ".t.GatherRed(" + s + ".s, " + id_to_name(args[1].base) + ", " +
+			id_to_name(args[2].base) + " - int2(0, 1), " +
+			id_to_name(args[3].base) + " - int2(1, 1), " +
+			id_to_name(args[4].base) + " - int2(1, 0), " +
+			id_to_name(args[5].base) + ')';
 	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'r' + ", " +
@@ -2005,7 +2022,11 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 1, {
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 2, {
 	const std::string s = id_to_name(args[0].base);
 	if (_shader_model >= 50) {
-		code += s + ".t.GatherGreen(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + ')';
+		code += s + ".t.GatherGreen(" + s + ".s, " + id_to_name(args[1].base) + ", " +
+			id_to_name(args[2].base) + " - int2(0, 1), " +
+			id_to_name(args[3].base) + " - int2(1, 1), " +
+			id_to_name(args[4].base) + " - int2(1, 0), " +
+			id_to_name(args[5].base) + ')';
 	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'g' + ", " +
@@ -2118,7 +2139,11 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 1, {
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 2, {
 	const std::string s = id_to_name(args[0].base);
 	if (_shader_model >= 50) {
-		code += s + ".t.GatherBlue(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + ')';
+		code += s + ".t.GatherBlue(" + s + ".s, " + id_to_name(args[1].base) + ", " +
+			id_to_name(args[2].base) + " - int2(0, 1), " +
+			id_to_name(args[3].base) + " - int2(1, 1), " +
+			id_to_name(args[4].base) + " - int2(1, 0), " +
+			id_to_name(args[5].base) + ')';
 	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'b' + ", " +
@@ -2231,7 +2256,11 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 1, {
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 2, {
 	const std::string s = id_to_name(args[0].base);
 	if (_shader_model >= 50) {
-		code += s + ".t.GatherAlpha(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + ')';
+		code += s + ".t.GatherAlpha(" + s + ".s, " + id_to_name(args[1].base) + ", " +
+			id_to_name(args[2].base) + " - int2(0, 1), " +
+			id_to_name(args[3].base) + " - int2(1, 1), " +
+			id_to_name(args[4].base) + " - int2(1, 0), " +
+			id_to_name(args[5].base) + ')';
 	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'a' + ", " +

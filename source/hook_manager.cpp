@@ -137,8 +137,8 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 	assert(target_module != nullptr && replacement_module != nullptr && target_module != replacement_module);
 
 	// Load export tables from both modules
-	const auto target_exports = enumerate_module_exports(target_module);
-	const auto replacement_exports = enumerate_module_exports(replacement_module);
+	const std::vector<module_export> target_exports = enumerate_module_exports(target_module);
+	const std::vector<module_export> replacement_exports = enumerate_module_exports(replacement_module);
 
 	if (target_exports.empty())
 	{
@@ -158,14 +158,14 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 #endif
 
 	// Analyze export tables and find entries that exist in both modules
-	for (const auto &symbol : target_exports)
+	for (const module_export &symbol : target_exports)
 	{
 		if (symbol.name == nullptr || symbol.address == nullptr)
 			continue;
 
 		// Find appropriate replacement
 		const auto it = std::find_if(replacement_exports.cbegin(), replacement_exports.cend(),
-			[&symbol](const auto &module_export) {
+			[&symbol](const module_export &module_export) {
 				return std::strcmp(module_export.name, symbol.name) == 0;
 			});
 
@@ -199,7 +199,7 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 	LOG(INFO) << "> Found " << matches.size() << " match(es). Installing ...";
 
 	// Hook all matching exports
-	for (const auto &match : matches)
+	for (const std::tuple<const char *, reshade::hook::address, reshade::hook::address> &match : matches)
 	{
 		reshade::hook hook;
 #ifdef RESHADE_TEST_APPLICATION
@@ -422,7 +422,8 @@ bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned 
 
 	hook hook = find_internal(nullptr, replacement);
 	// Check if the hook was already installed to this virtual function table
-	if (hook.installed())
+	if (hook.installed() && hook.target == &vtable[offset])
+		// It may happen that some other third party (like NVIDIA Streamline) replaced the virtual function table entry since it was originally installed, just ignore that
 		return vtable[offset] == hook.replacement;
 
 	hook.target = &vtable[offset]; // Target is the address of the virtual function table entry
@@ -436,13 +437,13 @@ void reshade::hooks::uninstall()
 	LOG(INFO) << "Uninstalling " << s_hooks.size() << " hook(s) ...";
 
 	// Disable all hooks in a single batch job
-	for (auto &hook_info : s_hooks)
+	for (named_hook &hook_info : s_hooks)
 		hook_info.disable();
 
 	hook::apply_queued_actions();
 
 	// Afterwards uninstall and remove all hooks from the list
-	for (auto &hook_info : s_hooks)
+	for (named_hook &hook_info : s_hooks)
 		uninstall_internal(hook_info.name, hook_info, hook_info.method);
 
 	s_hooks.clear();

@@ -68,7 +68,8 @@ namespace reshade::opengl
 	struct descriptor_set_impl
 	{
 		api::descriptor_type type;
-		GLuint count;
+		uint32_t count;
+		uint32_t base_binding;
 		std::vector<uint64_t> descriptors;
 	};
 
@@ -97,6 +98,8 @@ namespace reshade::opengl
 
 	auto convert_format(api::format format, GLint swizzle_mask[4] = nullptr) -> GLenum;
 	auto convert_format(GLenum internal_format, const GLint swizzle_mask[4] = nullptr) -> api::format;
+	void convert_pixel_format(api::format format, PIXELFORMATDESCRIPTOR &pfd);
+	auto convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> api::format;
 	auto convert_upload_format(api::format format, GLenum &type) -> GLenum;
 	auto convert_upload_format(GLenum format, GLenum type) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;
@@ -104,16 +107,15 @@ namespace reshade::opengl
 
 	auto is_depth_stencil_format(api::format format) -> GLenum;
 
-	void convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage);
-	void convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags);
-	void convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage);
-	void convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags);
+	void convert_memory_usage_to_flags(GLenum usage, GLbitfield &flags);
+	void convert_memory_flags_to_usage(GLbitfield flags, GLenum &usage);
 
-	GLbitfield convert_access_flags(api::map_access flags);
+	auto convert_access_flags(api::map_access flags) -> GLbitfield;
 	api::map_access convert_access_flags(GLbitfield flags);
 
+	void convert_resource_desc(const api::resource_desc &desc, GLsizeiptr &buffer_size, GLenum &usage);
 	api::resource_type convert_resource_type(GLenum target);
-	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size, GLenum usage);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1, const GLint swizzle_mask[4] = nullptr);
 
 	api::resource_view_type convert_resource_view_type(GLenum target);

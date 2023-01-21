@@ -19,13 +19,19 @@ namespace reshade::openvr
 	class swapchain_impl : public api::api_object_impl<vr::IVRCompositor *, runtime>
 	{
 	public:
+		swapchain_impl(D3D10Device *device, vr::IVRCompositor *compositor);
+		swapchain_impl(D3D11Device *device, vr::IVRCompositor *compositor);
+		swapchain_impl(D3D12CommandQueue *queue, vr::IVRCompositor *compositor);
 		swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor);
 		~swapchain_impl();
 
-		api::resource get_back_buffer(uint32_t index) final;
+		api::resource get_back_buffer(uint32_t index = 0) final;
 
-		uint32_t get_back_buffer_count() const final;
-		uint32_t get_current_back_buffer_index() const final;
+		uint32_t get_back_buffer_count() const final { return 1; }
+		uint32_t get_current_back_buffer_index() const final { return 0; }
+
+		api::rect get_eye_rect(vr::EVREye eye) const;
+		api::subresource_box get_eye_subresource_box(vr::EVREye eye) const;
 
 		bool on_init();
 		void on_reset();
@@ -38,29 +44,9 @@ namespace reshade::openvr
 		void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 #endif
 
-	protected:
-		IUnknown *_direct3d_device = nullptr;
-
 	private:
-		void *_app_state = nullptr;
 		api::resource _side_by_side_texture = {};
-	};
-
-	class swapchain_d3d10_impl : public swapchain_impl
-	{
-	public:
-		swapchain_d3d10_impl(D3D10Device *device, vr::IVRCompositor *compositor);
-	};
-
-	class swapchain_d3d11_impl : public swapchain_impl
-	{
-	public:
-		swapchain_d3d11_impl(D3D11Device *device, vr::IVRCompositor *compositor);
-	};
-
-	class swapchain_d3d12_impl : public swapchain_impl
-	{
-	public:
-		swapchain_d3d12_impl(D3D12CommandQueue *queue, vr::IVRCompositor *compositor);
+		void *_app_state = nullptr;
+		IUnknown *_direct3d_device = nullptr;
 	};
 }

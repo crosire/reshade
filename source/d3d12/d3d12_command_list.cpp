@@ -775,22 +775,26 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 	temp_mem<reshade::api::resource, D3D12_SO_BUFFER_SLOT_COUNT> buffers(NumViews);
 	temp_mem<uint64_t, D3D12_SO_BUFFER_SLOT_COUNT> offsets(NumViews);
 	temp_mem<uint64_t, D3D12_SO_BUFFER_SLOT_COUNT> max_sizes(NumViews);
+	temp_mem<reshade::api::resource, D3D12_SO_BUFFER_SLOT_COUNT> counter_buffers(NumViews);
+	temp_mem<uint64_t, D3D12_SO_BUFFER_SLOT_COUNT> counter_offsets(NumViews);
 	for (UINT i = 0; i < NumViews; ++i)
 	{
-		if (pViews != nullptr)
+		if (pViews != nullptr && pViews[i].SizeInBytes != 0)
 		{
 			if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
 				return;
-			max_sizes[i] = (pViews[i].SizeInBytes != 0) ? pViews[i].SizeInBytes : UINT64_MAX;
+			max_sizes[i] = pViews[i].SizeInBytes;
+			if (!_device_impl->resolve_gpu_address(pViews[i].BufferFilledSizeLocation, &counter_buffers[i], &counter_offsets[i]))
+				return;
 		}
 		else
 		{
-			buffers[i] = { 0 };
-			offsets[i] = max_sizes[i] = 0;
+			buffers[i] = counter_buffers[i] = { 0 };
+			offsets[i] = counter_offsets[i] = max_sizes[i] = 0;
 		}
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, StartSlot, NumViews, buffers.p, offsets.p, max_sizes.p);
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, StartSlot, NumViews, buffers.p, offsets.p, max_sizes.p, counter_buffers.p, counter_offsets.p);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRenderTargetDescriptors, const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors, BOOL RTsSingleHandleToDescriptorRange, D3D12_CPU_DESCRIPTOR_HANDLE const *pDepthStencilDescriptor)

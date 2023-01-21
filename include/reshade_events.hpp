@@ -132,13 +132,13 @@ namespace reshade
 		/// <item><description>IDXGIFactory2::CreateSwapChain(...)</description></item>
 		/// <item><description>IDXGISwapChain::ResizeBuffers</description></item>
 		/// <item><description>IDXGISwapChain3::ResizeBuffers1</description></item>
+		/// <item><description>wglSetPixelFormat</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::swapchain_desc &amp;desc, void *hwnd)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the swap chain description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// Is not called in OpenGL (since it is not possible to influence swap chain creation there).
 		/// </remarks>
 		create_swapchain,
 
@@ -545,7 +545,7 @@ namespace reshade
 		/// <item><description>glCompressedTextureSubData2D</description></item>
 		/// <item><description>glCompressedTextureSubData3D</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &amp;data, api::resource resource, uint32_t subresource, const api::subresource_box *box)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -927,7 +927,7 @@ namespace reshade
 		/// <item><description>glUniform(...)</description></item>
 		/// <item><description>vkCmdPushConstants</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const uint32_t *values)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)</c></para>
 		/// </summary>
 		push_constants,
 
@@ -1042,7 +1042,7 @@ namespace reshade
 		/// <item><description>glBindBuffersRange</description></item>
 		/// <item><description>vkCmdBindTransformFeedbackBuffersEXT</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets)</c></para>
 		/// </summary>
 		bind_stream_output_buffers,
 
@@ -1599,12 +1599,12 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_pipeline_states, void, api::command_list *cmd_list, uint32_t count, const api::dynamic_state *states, const uint32_t *values);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_viewports, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::viewport *viewports);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_scissor_rects, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::rect *rects);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::push_constants, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const uint32_t *values);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::push_constants, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::push_descriptors, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_descriptor_sets, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_index_buffer, void, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_vertex_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_stream_output_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_stream_output_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw, bool, api::command_list *cmd_list, uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_indexed, bool, api::command_list *cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);

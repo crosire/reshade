@@ -14,6 +14,7 @@ struct on_scope_exit
 	template <typename F>
 	explicit on_scope_exit(F lambda) : leave(lambda) { }
 	~on_scope_exit() { leave(); }
+
 	std::function<void()> leave;
 };
 
@@ -23,6 +24,7 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 	// Set backend for subsequent code-generation
 	_codegen = backend;
+	assert(backend != nullptr);
 
 	consume();
 
@@ -38,6 +40,7 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 	return parse_success;
 }
+
 void reshadefx::parser::parse_top(bool &parse_success)
 {
 	if (accept(tokenid::namespace_))
@@ -208,7 +211,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 		const auto location = _token_next.location;
 
-		#pragma region If
 		if (accept(tokenid::if_))
 		{
 			codegen::id true_block = _codegen->create_block(); // Block which contains the statements executed when the condition is true
@@ -251,9 +253,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region Switch
 		if (accept(tokenid::switch_))
 		{
 			const codegen::id merge_block = _codegen->create_block(); // Block that is executed after the switch re-merged with the current control flow
@@ -373,9 +373,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect('}') && parse_success;
 		}
-		#pragma endregion
 
-		#pragma region For
 		if (accept(tokenid::for_))
 		{
 			if (!expect('('))
@@ -395,10 +393,15 @@ bool reshadefx::parser::parse_statement(bool scoped)
 						return false;
 				} while (!peek(';'));
 			}
-			else // Initializer can also contain an expression if not a variable declaration list
+			else
 			{
-				expression expression;
-				parse_expression(expression); // It is valid for there to be no initializer expression, so ignore result
+				// Initializer can also contain an expression if not a variable declaration list and not empty
+				if (!peek(';'))
+				{
+					expression expression;
+					if (!parse_expression(expression))
+						return false;
+				}
 			}
 
 			if (!expect(';'))
@@ -423,8 +426,12 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{ // Parse condition block
 				_codegen->enter_block(condition_block);
 
-				if (expression condition; parse_expression(condition))
+				if (!peek(';'))
 				{
+					expression condition;
+					if (!parse_expression(condition))
+						return false;
+
 					if (!condition.type.is_scalar())
 						return error(condition.location, 3019, "scalar value expected"), false;
 
@@ -447,8 +454,12 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{ // Parse loop continue block into separate block so it can be appended to the end down the line
 				_codegen->enter_block(continue_label);
 
-				expression continue_exp;
-				parse_expression(continue_exp); // It is valid for there to be no continue expression, so ignore result
+				if (!peek(')'))
+				{
+					expression continue_exp;
+					if (!parse_expression(continue_exp))
+						return false;
+				}
 
 				if (!expect(')'))
 					return false;
@@ -482,9 +493,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region While
 		if (accept(tokenid::while_))
 		{
 			enter_scope();
@@ -554,9 +563,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region DoWhile
 		if (accept(tokenid::do_))
 		{
 			const codegen::id merge_block = _codegen->create_block();
@@ -616,9 +623,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region Break
 		if (accept(tokenid::break_))
 		{
 			if (_loop_break_target_stack.empty())
@@ -629,9 +634,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Continue
 		if (accept(tokenid::continue_))
 		{
 			if (_loop_continue_target_stack.empty())
@@ -642,9 +645,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Return
 		if (accept(tokenid::return_))
 		{
 			const type &ret_type = _current_function->return_type;
@@ -691,9 +692,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Discard
 		if (accept(tokenid::discard_))
 		{
 			// Leave the current function block
@@ -701,10 +700,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 	}
 
-	#pragma region Declaration
 	// Handle variable declarations
 	if (type type; parse_type(type))
 	{
@@ -719,7 +716,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 		return expect(';');
 	}
-	#pragma endregion
 
 	// Handle expression statements
 	if (expression expression; parse_expression(expression))
@@ -949,6 +945,12 @@ bool reshadefx::parser::parse_struct()
 						warning(member.location, 4568, '\'' + member.name + "': integer fields have the 'nointerpolation' qualifier by default");
 					}
 				}
+				else
+				{
+					// Remove optional trailing zero from system value semantics, so that e.g. SV_POSITION and SV_POSITION0 mean the same thing
+					if (member.semantic.back() == '0' && (member.semantic[member.semantic.size() - 2] < '0' || member.semantic[member.semantic.size() - 2] > '9'))
+						member.semantic.pop_back();
+				}
 			}
 
 			// Save member name and type for book keeping
@@ -1097,6 +1099,12 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 					param.type.qualifiers |= type::q_nointerpolation; // Integer parameters do not interpolate, so make this explicit (to avoid issues with GLSL)
 					warning(param.location, 4568, '\'' + param.name + "': integer parameters have the 'nointerpolation' qualifier by default");
 				}
+			}
+			else
+			{
+				// Remove optional trailing zero from system value semantics, so that e.g. SV_POSITION and SV_POSITION0 mean the same thing
+				if (param.semantic.back() == '0' && (param.semantic[param.semantic.size() - 2] < '0' || param.semantic[param.semantic.size() - 2] > '9'))
+					param.semantic.pop_back();
 			}
 		}
 

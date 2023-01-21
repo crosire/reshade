@@ -661,7 +661,9 @@ namespace reshade::api
 		/// <param name="buffers">Pointer to an array of buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
 		/// <param name="offsets">Pointer to an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the buffer to the first element to write to.</param>
 		/// <param name="max_sizes">Optional pointer to an array of size values, one for each buffer. Can be <see langword="nullptr"/> or have elements set to UINT64_MAX to use the entire buffer.</param>
-		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes) = 0;
+		/// <param name="counter_buffers">Pointer to an array of counter buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
+		/// <param name="counter_offsets">Pointer to an array of counter offset values, one for each counter buffer. Each offset is the number of bytes from the start of the counter buffer to the first element to write to.</param>
+		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets) = 0;
 
 		/// <summary>
 		/// Draws non-indexed primitives.
@@ -961,20 +963,27 @@ namespace reshade::api
 	/// <summary>
 	/// Describes a swap chain and its back buffer resources.
 	/// </summary>
-	struct swapchain_desc : resource_desc
+	struct swapchain_desc
 	{
+		/// <summary>
+		/// Description of the back buffer resources.
+		/// </summary>
+		resource_desc back_buffer;
+
 		/// <summary>
 		/// Number of back buffer resources in the swap chain.
 		/// </summary>
-		uint32_t buffer_count = 0;
+		uint32_t back_buffer_count = 0;
 
 		/// <summary>
 		/// Defines how the back buffers should be swapped when a present occurs.
+		/// <para>Depending on the render API this can be a 'D3DSWAPEFFECT', 'DXGI_SWAP_EFFECT', 'WGL_SWAP_METHOD_ARB' or 'VkPresentModeKHR' value.</para>
 		/// </summary>
 		uint32_t present_mode = 0;
 
 		/// <summary>
 		/// Swap chain creation flags.
+		/// <para>Depending on the render API this can be a 'D3DPRESENT', 'DXGI_PRESENT', 'PFD_*' or 'VkSwapchainCreateFlagsKHR' value.</para>
 		/// </summary>
 		uint32_t present_flags = 0;
 	};
@@ -988,7 +997,7 @@ namespace reshade::api
 		/// <summary>
 		/// Gets the window handle of the window this swap chain was created with, or <see langword="nullptr"/> if this is an offscreen swap chain.
 		/// </summary>
-		virtual   void * get_hwnd() const = 0;
+		virtual void *get_hwnd() const = 0;
 
 		/// <summary>
 		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.

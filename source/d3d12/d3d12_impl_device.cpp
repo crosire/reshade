@@ -265,6 +265,8 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	convert_resource_desc(desc, internal_desc, heap_props, heap_flags);
 
+	D3D12_SUBRESOURCE_FOOTPRINT footprint = {};
+
 	if (desc.type == api::resource_type::buffer)
 	{
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
@@ -272,6 +274,28 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		// Constant buffer views need to be aligned to 256 bytes, so make buffer large enough to ensure that is possible
 		if ((desc.usage & (api::resource_usage::constant_buffer)) != 0)
 			internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
+	}
+	else if ((desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only) && desc.texture.levels == 1)
+	{
+		// Textures in the upload or readback heap are created as buffers, so that they can be mapped
+		internal_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+
+		auto row_pitch = api::format_row_pitch(desc.texture.format, desc.texture.width);
+		row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+		const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, desc.texture.height);
+
+		footprint.Format = internal_desc.Format;
+		footprint.Width = static_cast<UINT>(internal_desc.Width);
+		footprint.Height = internal_desc.Height;
+		footprint.Depth = internal_desc.DepthOrArraySize;
+		footprint.RowPitch = row_pitch;
+
+		internal_desc.Width = static_cast<UINT64>(slice_pitch) * desc.texture.depth_or_layers;
+		internal_desc.Height = 1;
+		internal_desc.DepthOrArraySize = 1;
+		internal_desc.Format = DXGI_FORMAT_UNKNOWN;
+		internal_desc.SampleDesc = { 1, 0 };
+		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	}
 
 	// Use a default clear value of transparent black (all zeroes)
@@ -291,6 +315,9 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	{
 		if (is_shared && FAILED(_orig->CreateSharedHandle(object.get(), nullptr, GENERIC_ALL, nullptr, shared_handle)))
 			return false;
+
+		if (footprint.Format != DXGI_FORMAT_UNKNOWN)
+			object->SetPrivateData(extra_data_guid, sizeof(footprint), &footprint);
 
 		register_resource(object.get());
 
@@ -373,7 +400,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			D3D12_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);
@@ -388,7 +415,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			D3D12_RENDER_TARGET_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			_orig->CreateRenderTargetView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+			_orig->CreateRenderTargetView(reinterpret_cast<ID3D12Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);
@@ -404,7 +431,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			internal_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 			convert_resource_view_desc(desc, internal_desc);
 
-			_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+			_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);
@@ -419,7 +446,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &internal_desc, descriptor_handle);
+			_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);
@@ -513,8 +540,24 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 	const D3D12_RANGE no_read = { 0, 0 };
 
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
+
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-	_orig->GetCopyableFootprints(&desc, subresource, 1, 0, &layout, &out_data->slice_pitch, nullptr, nullptr);
+	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		if (subresource != 0)
+			return false;
+
+		UINT extra_data_size = sizeof(layout.Footprint);
+		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &layout.Footprint)))
+			return false;
+
+		out_data->slice_pitch = layout.Footprint.Height;
+	}
+	else
+	{
+		_orig->GetCopyableFootprints(&desc, subresource, 1, 0, &layout, &out_data->slice_pitch, nullptr, nullptr);
+	}
+
 	out_data->row_pitch = layout.Footprint.RowPitch;
 	out_data->slice_pitch *= layout.Footprint.RowPitch;
 
@@ -575,6 +618,14 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	assert(resource.handle != 0);
 
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
+	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		if (subresource != 0 || box != nullptr)
+			return;
+
+		update_buffer_region(data.data, resource, 0, data.slice_pitch);
+		return;
+	}
 
 	UINT width = static_cast<UINT>(desc.Width);
 	UINT num_rows = desc.Height;
@@ -929,11 +980,11 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	{
 		pipeline_layout_extra_data extra_data;
 		extra_data.ranges = set_ranges;
+		UINT extra_data_size = sizeof(extra_data);
 
 		// D3D12 runtime returns the same root signature object for identical input blobs, just with the reference count increased
 		// Do not overwrite the existing attached extra data in this case
-		if (UINT extra_data_size = sizeof(extra_data);
-			signature.ref_count() == 1 || FAILED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+		if (signature.ref_count() == 1 || FAILED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			signature->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
 		}
@@ -968,10 +1019,9 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 	const com_ptr<ID3D12RootSignature> signature(reinterpret_cast<ID3D12RootSignature *>(handle.handle), true);
 
 	pipeline_layout_extra_data extra_data;
-
+	UINT extra_data_size = sizeof(extra_data);
 	// Only destroy attached extra data when this is the last reference to the root signature object
-	if (UINT extra_data_size = sizeof(extra_data);
-		signature.ref_count() == 1 && SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	if (signature.ref_count() == 1 && SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		delete[] extra_data.ranges;
 	}
@@ -987,9 +1037,8 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, api::
 	if (signature != nullptr)
 	{
 		pipeline_layout_extra_data extra_data;
-
-		if (UINT extra_data_size = sizeof(extra_data);
-			SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+		UINT extra_data_size = sizeof(extra_data);
+		if (SUCCEEDED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			heap_type = extra_data.ranges[layout_param].first;
 			total_count = extra_data.ranges[layout_param].second;
@@ -1209,8 +1258,8 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(pool.handle);
 
 	com_ptr<ID3D12Resource> readback_resource;
-	UINT private_size = sizeof(ID3D12Resource *);
-	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &private_size, &readback_resource)))
+	UINT extra_data_size = sizeof(ID3D12Resource *);
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &readback_resource)))
 	{
 		const D3D12_RANGE read_range = { static_cast<SIZE_T>(first) * sizeof(uint64_t), (static_cast<SIZE_T>(first) + static_cast<SIZE_T>(count)) * sizeof(uint64_t) };
 		const D3D12_RANGE write_range = { 0, 0 };
@@ -1219,9 +1268,7 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 		if (SUCCEEDED(ID3D12Resource_Map(readback_resource.get(), 0, &read_range, &mapped_data)))
 		{
 			for (size_t i = 0; i < count; ++i)
-			{
 				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[first + i];
-			}
 
 			ID3D12Resource_Unmap(readback_resource.get(), 0, &write_range);
 
@@ -1268,8 +1315,9 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 	{
 		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
-		const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(), [resource](const auto &buffer_info) { return buffer_info.first == resource; });
-		if (it != _buffer_gpu_addresses.end())
+		if (const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(),
+				[resource](const auto &buffer_info) { return buffer_info.first == resource; });
+			it != _buffer_gpu_addresses.end())
 			_buffer_gpu_addresses.erase(it);
 	}
 #endif

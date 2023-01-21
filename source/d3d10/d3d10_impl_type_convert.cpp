@@ -295,6 +295,7 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_BU
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.ByteWidth;
+	desc.buffer.stride = 0;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);

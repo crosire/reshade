@@ -26,7 +26,8 @@ namespace reshade::d3d9
 	struct descriptor_set_impl
 	{
 		api::descriptor_type type;
-		UINT count;
+		uint32_t count;
+		uint32_t base_binding;
 		std::vector<uint64_t> descriptors;
 	};
 
@@ -43,8 +44,8 @@ namespace reshade::d3d9
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
-	auto convert_format(api::format format, bool lockable = false) -> D3DFORMAT;
-	auto convert_format(D3DFORMAT d3d_format) -> api::format;
+	auto convert_format(api::format format, BOOL lockable = FALSE) -> D3DFORMAT;
+	auto convert_format(D3DFORMAT d3d_format, BOOL *lockable = nullptr) -> api::format;
 
 	void convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPOOL &d3d_pool);
 	void convert_d3d_pool_to_memory_heap(D3DPOOL d3d_pool, api::memory_heap &heap);
@@ -56,11 +57,11 @@ namespace reshade::d3d9
 	api::map_access convert_access_flags(DWORD lock_flags);
 
 	void convert_resource_desc(const api::resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps);
-	void convert_resource_desc(const api::resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps);
+	void convert_resource_desc(const api::resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels, BOOL *lockable, const D3DCAPS9 &caps);
 	void convert_resource_desc(const api::resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc);
 	void convert_resource_desc(const api::resource_desc &desc, D3DVERTEXBUFFER_DESC &internal_desc);
 	api::resource_desc convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels = 1, bool shared_handle = false);
-	api::resource_desc convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps, bool shared_handle = false);
+	api::resource_desc convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, BOOL lockable, const D3DCAPS9 &caps, bool shared_handle = false);
 	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc, bool shared_handle = false);
 	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc, bool shared_handle = false);
 

@@ -166,7 +166,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
-		[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.end())
+			[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.end())
 	{
 		LOG(WARN) << "Skipping device because it is not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.";
 
@@ -187,7 +187,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		// Make sure the driver actually supports the requested extensions
 		const auto add_extension = [&extensions, &enabled_extensions, &graphics_queue_family_index](const char *name, bool required) {
 			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
-				[name](const auto &props) { return std::strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
+					[name](const auto &props) { return std::strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
 				it != extensions.end())
 			{
 				enabled_extensions.push_back(name);
@@ -220,9 +220,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
 
-#ifdef VK_KHR_push_descriptor
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
-#endif
 		dynamic_rendering_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
 		// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
 		if (dynamic_rendering_ext && instance_dispatch.api_version < VK_API_VERSION_1_3)
@@ -230,18 +228,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
 			add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
 		}
-#ifdef VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
-#endif
-#ifdef VK_EXT_extended_dynamic_state
 		extended_dynamic_state_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
-#endif
-#ifdef VK_EXT_conservative_rasterization
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
-#endif
-#ifdef VK_KHR_external_memory_win32
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
-#endif
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -296,7 +286,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		}
 	}
 
-#ifdef VK_EXT_custom_border_color
 	// Optionally enable custom border color feature
 	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
 	if (const auto existing_custom_border_features = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
@@ -312,9 +301,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &custom_border_feature;
 	}
-#endif
 
-#ifdef VK_EXT_extended_dynamic_state
 	// Optionally enable extended dynamic state feature
 	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
 	if (const auto existing_extended_dynamic_state_features = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
@@ -329,7 +316,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &extended_dynamic_state_feature;
 	}
-#endif
 
 	// Continue calling down the chain
 	g_in_dxgi_runtime = true;
@@ -561,7 +547,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
 
 	// VK_EXT_extended_dynamic_state
-#ifdef VK_EXT_extended_dynamic_state
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetCullMode, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetFrontFace, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetPrimitiveTopology, EXT);
@@ -574,7 +559,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthBoundsTestEnable, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilTestEnable, EXT);
 	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilOp, EXT);
-#endif
 
 	// VK_EXT_private_data (try the EXT version if the core version does not exist)
 	INIT_DISPATCH_PTR_EXTENSION(CreatePrivateDataSlot, EXT);
@@ -616,6 +600,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			dispatch_table.GetDeviceQueue(device, queue_create_info.queueFamilyIndex, queue_index, &queue);
 			assert(VK_NULL_HANDLE != queue);
 
+			// Subsequent layers (like the validation layer or the Steam overlay) expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
+			// This applies to 'vkGetDeviceQueue', 'vkGetDeviceQueue2' and 'vkAllocateCommandBuffers' (functions that return dispatchable objects)
+			*reinterpret_cast<void **>(queue) = *reinterpret_cast<void **>(device);
+
 			const auto queue_impl = new reshade::vulkan::command_queue_impl(
 				device_impl,
 				queue_create_info.queueFamilyIndex,
@@ -627,7 +615,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan device " << device << '.';
+	LOG(DEBUG) << "Returning Vulkan device " << device << '.';
 #endif
 	return result;
 }
@@ -782,30 +770,30 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 #if RESHADE_ADDON
 	reshade::api::swapchain_desc desc = {};
-	desc.type = reshade::api::resource_type::texture_2d;
-	desc.texture.width = create_info.imageExtent.width;
-	desc.texture.height = create_info.imageExtent.height;
+	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
+	desc.back_buffer.texture.width = create_info.imageExtent.width;
+	desc.back_buffer.texture.height = create_info.imageExtent.height;
 	assert(create_info.imageArrayLayers <= std::numeric_limits<uint16_t>::max());
-	desc.texture.depth_or_layers = static_cast<uint16_t>(create_info.imageArrayLayers);
-	desc.texture.levels = 1;
-	desc.texture.format = reshade::vulkan::convert_format(create_info.imageFormat);
-	desc.texture.samples = 1;
-	desc.heap = reshade::api::memory_heap::gpu_only;
-	reshade::vulkan::convert_image_usage_flags_to_usage(create_info.imageUsage, desc.usage);
+	desc.back_buffer.texture.depth_or_layers = static_cast<uint16_t>(create_info.imageArrayLayers);
+	desc.back_buffer.texture.levels = 1;
+	desc.back_buffer.texture.format = reshade::vulkan::convert_format(create_info.imageFormat);
+	desc.back_buffer.texture.samples = 1;
+	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	reshade::vulkan::convert_image_usage_flags_to_usage(create_info.imageUsage, desc.back_buffer.usage);
 
-	desc.buffer_count = create_info.minImageCount;
+	desc.back_buffer_count = create_info.minImageCount;
 	desc.present_mode = static_cast<uint32_t>(create_info.presentMode);
 	desc.present_flags = create_info.flags;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
 	{
-		create_info.imageFormat = reshade::vulkan::convert_format(desc.texture.format);
-		create_info.imageExtent.width = desc.texture.width;
-		create_info.imageExtent.height = desc.texture.height;
-		create_info.imageArrayLayers = desc.texture.depth_or_layers;
-		reshade::vulkan::convert_usage_to_image_usage_flags(desc.usage, create_info.imageUsage);
+		create_info.imageFormat = reshade::vulkan::convert_format(desc.back_buffer.texture.format);
+		create_info.imageExtent.width = desc.back_buffer.texture.width;
+		create_info.imageExtent.height = desc.back_buffer.texture.height;
+		create_info.imageArrayLayers = desc.back_buffer.texture.depth_or_layers;
+		reshade::vulkan::convert_usage_to_image_usage_flags(desc.back_buffer.usage, create_info.imageUsage);
 
-		create_info.minImageCount = desc.buffer_count;
+		create_info.minImageCount = desc.back_buffer_count;
 		create_info.presentMode = static_cast<VkPresentModeKHR>(desc.present_mode);
 		create_info.flags = static_cast<uint32_t>(desc.present_flags);
 	}
@@ -867,7 +855,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan swap chain " << *pSwapchain << '.';
+	LOG(DEBUG) << "Returning Vulkan swap chain " << *pSwapchain << '.';
 #endif
 	return result;
 }
@@ -1696,6 +1684,8 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
+			assert(create_info.pNext == nullptr); // 'device_impl::create_pipeline' does not support extension structures apart from dynamic rendering
+
 			result = device_impl->create_pipeline(
 				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
@@ -2128,15 +2118,6 @@ VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
 
 	assert(pDescriptorSets != nullptr);
 
-	const VkResult result = trampoline(device, descriptorPool, descriptorSetCount, pDescriptorSets);
-	if (result < VK_SUCCESS)
-	{
-#if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkFreeDescriptorSets" << " failed with error code " << result << '.';
-#endif
-		return result;
-	}
-
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	for (uint32_t i = 0; i < descriptorSetCount; ++i)
 	{
@@ -2147,7 +2128,7 @@ VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
 	}
 #endif
 
-	return result;
+	return trampoline(device, descriptorPool, descriptorSetCount, pDescriptorSets);
 }
 
 void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet *pDescriptorCopies)
@@ -2414,6 +2395,8 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(FreeCommandBuffers, device_impl);
+
+	assert(pCommandBuffers != nullptr);
 
 #if RESHADE_ADDON
 	for (uint32_t i = 0; i < commandBufferCount; ++i)

@@ -31,7 +31,6 @@ namespace reshadefx
 		/// <summary>
 		/// Gets the list of error messages.
 		/// </summary>
-		std::string &errors() { return _errors; }
 		const std::string &errors() const { return _errors; }
 
 	private:
@@ -77,9 +76,11 @@ namespace reshadefx
 
 		codegen *_codegen = nullptr;
 		std::string _errors;
+
 		token _token, _token_next, _token_backup;
 		std::unique_ptr<class lexer> _lexer;
 		size_t _lexer_backup_offset = 0;
+
 		std::vector<uint32_t> _loop_break_target_stack;
 		std::vector<uint32_t> _loop_continue_target_stack;
 		reshadefx::function_info *_current_function = nullptr;

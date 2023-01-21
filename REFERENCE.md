@@ -3,7 +3,8 @@ ReShade API
 
 The ReShade API lets you interact with the resources and rendering commands of applications ReShade was loaded into. It [abstracts](#abstraction) away differences between the various graphics API ReShade supports (Direct3D 9/10/11/12, OpenGL and Vulkan), to make it possible to write add-ons that work across a wide range of applications, regardless of the graphics API they use.
 
-A ReShade add-on is a DLL that uses the header-only ReShade API to register callbacks for events and do work in those callbacks after they were invoked by ReShade. There are no further requirements, no functions need to be exported and no libraries need to be linked against. Simply add the [include directory from the ReShade repository](https://github.com/crosire/reshade/tree/main/include) to your DLL project and include the `reshade.hpp` header to get started.
+A ReShade add-on is a DLL that uses the header-only ReShade API to register callbacks for events and do work in those callbacks after they were invoked by ReShade. There are no further requirements, no functions need to be exported and no libraries need to be linked against. Simply add the [include directory from the ReShade repository](https://github.com/crosire/reshade/tree/main/include) to your DLL project and include the `reshade.hpp` header to get started.\
+Optionally an add-on may export an `AddonInit` function (with the function signature `extern "C" bool AddonInit(HMODULE reshade_module, HMODULE addon_module)`) if more complicated one-time initialization than possible in `DllMain` is required, which will be called by ReShade right after loading the add-on. Similarily it may also export an `AddonUninit` function (with the function signature `extern "C" void AddonUninit(HMODULE reshade_module, HMODULE addon_module)`) that will be called right before unloading.
 
 Here is a very basic code example of an add-on that registers a callback that gets executed every time a new frame is presented to the screen:
 
@@ -47,7 +48,7 @@ For more complex examples, see the [examples directory in the repository](https:
 ## Overlays
 
 It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.
-Overlays are created with the use of [Dear ImGui version 1.86](https://github.com/ocornut/imgui/tree/v1.86). Including `reshade.hpp` after [`imgui.h`](https://github.com/ocornut/imgui/blob/v1.86/imgui.h) will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
+Overlays are created with the use of the docking branch of [Dear ImGui version 1.86](https://github.com/ocornut/imgui/tree/15b4a064f9244c430e65214f7249b615fb394321). Including `reshade.hpp` after [`imgui.h`](https://github.com/ocornut/imgui/blob/15b4a064f9244c430e65214f7249b615fb394321/imgui.h) will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
 
 ```cpp
 #define IMGUI_DISABLE_INCLUDE_IMCONFIG_H
@@ -173,11 +174,11 @@ Showing results on the screen is done through a `reshade::api::swapchain` object
 static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *hwnd)
 {
     // Change resolution to 1920x1080 if the application is trying to create a swap chain at 800x600.
-    if (desc.texture.width == 800 &&
-        desc.texture.height == 600)
+    if (desc.back_buffer.texture.width == 800 &&
+        desc.back_buffer.texture.height == 600)
     {
-        desc.texture.width = 1920;
-        desc.texture.height = 1080;
+        desc.back_buffer.texture.width = 1920;
+        desc.back_buffer.texture.height = 1080;
     }
 
     // Return 'true' for ReShade to overwrite the swap chain description of the application with the values set in this callback.

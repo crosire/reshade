@@ -1190,12 +1190,18 @@ In that event here are some steps you can try to resolve this:
 				config.RenameValue("GENERAL", "PresetTransitionDelay", "GENERAL", "PresetTransitionDuration");
 			}
 
+			if (!config.HasValue("ADDON", "AddonPath") && config.HasValue("INSTALL", "AddonPath"))
+			{
+				config.RenameValue("INSTALL", "AddonPath", "ADDON", "AddonPath");
+			}
+
 			// Always add app section if this is the global config
 			if (Path.GetDirectoryName(configPath) == Path.GetDirectoryName(targetPath) && !config.HasValue("APP"))
 			{
 				config.SetValue("APP", "ForceVsync", "0");
 				config.SetValue("APP", "ForceWindowed", "0");
 				config.SetValue("APP", "ForceFullscreen", "0");
+				config.SetValue("APP", "ForceDefaultRefreshRate", "0");
 			}
 
 			// Always add input section

@@ -130,49 +130,6 @@ void reshade::d3d12::swapchain_impl::on_present()
 	runtime::on_present();
 }
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE && RESHADE_FX
-void reshade::d3d12::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	const auto cmd_list_impl = static_cast<command_list_impl *>(cmd_list);
-
-	IUnknown *const prev_pipeline_state = cmd_list_impl->_current_pipeline_state;
-
-	runtime::render_effects(cmd_list, rtv, rtv_srgb);
-
-	if (!_is_in_present_call)
-	{
-		com_ptr<ID3D12PipelineState> pipeline_state;
-		if (prev_pipeline_state != nullptr &&
-			prev_pipeline_state != cmd_list_impl->_current_pipeline_state &&
-			SUCCEEDED(prev_pipeline_state->QueryInterface(&pipeline_state)))
-		{
-			cmd_list_impl->_current_pipeline_state = prev_pipeline_state;
-			cmd_list_impl->_orig->SetPipelineState(pipeline_state.get());
-		}
-	}
-}
-void reshade::d3d12::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	const auto cmd_list_impl = static_cast<command_list_impl *>(cmd_list);
-
-	IUnknown *const prev_pipeline_state = cmd_list_impl->_current_pipeline_state;
-
-	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
-
-	if (!_is_in_present_call)
-	{
-		com_ptr<ID3D12PipelineState> pipeline_state;
-		if (prev_pipeline_state != nullptr &&
-			prev_pipeline_state != cmd_list_impl->_current_pipeline_state &&
-			SUCCEEDED(prev_pipeline_state->QueryInterface(&pipeline_state)))
-		{
-			cmd_list_impl->_current_pipeline_state = prev_pipeline_state;
-			cmd_list_impl->_orig->SetPipelineState(pipeline_state.get());
-		}
-	}
-}
-#endif
-
 reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, command_queue_impl *queue) : swapchain_impl(device, queue, nullptr)
 {
 }

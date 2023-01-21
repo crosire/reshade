@@ -369,9 +369,8 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 
 #ifndef NDEBUG
 	pipeline_layout_extra_data extra_data;
-
-	if (UINT extra_data_size = sizeof(extra_data);
-		SUCCEEDED(root_signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	UINT extra_data_size = sizeof(extra_data);
+	if (SUCCEEDED(root_signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		assert(heap_type == extra_data.ranges[layout_param].first);
 		assert(update.binding + update.count <= extra_data.ranges[layout_param].second);
@@ -489,15 +488,16 @@ void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
+		const auto offset = (offsets != nullptr ? offsets[i] : 0);
 
-		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offsets[i];
-		views[i].SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offsets[i]);
+		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
+		views[i].SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offset);
 		views[i].StrideInBytes = strides[i];
 	}
 
 	_orig->IASetVertexBuffers(first, count, views.p);
 }
-void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes)
+void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets)
 {
 	assert(count <= D3D12_SO_BUFFER_SLOT_COUNT);
 
@@ -505,10 +505,13 @@ void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t firs
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
+		const auto offset = (offsets != nullptr ? offsets[i] : 0);
+		const auto counter_buffer_resource = reinterpret_cast<ID3D12Resource *>(counter_buffers[i].handle);
+		const auto counter_offset = (counter_offsets != nullptr ? counter_offsets[i] : 0);
 
-		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offsets[i];
+		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
 		views[i].SizeInBytes = max_sizes != nullptr && max_sizes[i] != UINT64_MAX ? max_sizes[0] : 0;
-		views[i].BufferFilledSizeLocation = NULL; // TODO: Not currently implemented
+		views[i].BufferFilledSizeLocation = counter_buffer_resource->GetGPUVirtualAddress() + counter_offset;
 	}
 
 	_orig->SOSetTargets(first, count, views.p);
@@ -551,8 +554,8 @@ void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, ui
 
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (size == UINT64_MAX)
-		size  = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc().Width;
+	if (UINT64_MAX == size)
+		size = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc().Width;
 
 	_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(src.handle), src_offset, size);
 }
@@ -605,15 +608,50 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 	// Blit between different region dimensions is not supported
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
+	D3D12_RESOURCE_DESC src_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
+	D3D12_RESOURCE_DESC dst_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
+
 	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
 	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
-	src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-	src_copy_location.SubresourceIndex = src_subresource;
+	if (src_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src_copy_location.PlacedFootprint.Offset = 0;
+
+		UINT extra_data_size = sizeof(src_copy_location.PlacedFootprint.Footprint);
+		if (FAILED(src_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &src_copy_location.PlacedFootprint.Footprint)))
+		{
+			assert(dst_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
+
+			_device_impl->_orig->GetCopyableFootprints(&dst_desc, dst_subresource, 1, 0, &src_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
+		}
+	}
+	else
+	{
+		src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		src_copy_location.SubresourceIndex = src_subresource;
+	}
 
 	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
 	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
-	dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-	dst_copy_location.SubresourceIndex = dst_subresource;
+	if (dst_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		dst_copy_location.PlacedFootprint.Offset = 0;
+
+		UINT extra_data_size = sizeof(dst_copy_location.PlacedFootprint.Footprint);
+		if (FAILED(dst_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &dst_copy_location.PlacedFootprint.Footprint)))
+		{
+			assert(src_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
+
+			_device_impl->_orig->GetCopyableFootprints(&src_desc, src_subresource, 1, 0, &dst_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
+		}
+	}
+	else
+	{
+		dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst_copy_location.SubresourceIndex = dst_subresource;
+	}
 
 	_orig->CopyTextureRegion(
 		&dst_copy_location, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
@@ -896,8 +934,8 @@ void reshade::d3d12::command_list_impl::end_query(api::query_pool pool, api::que
 	_orig->EndQuery(heap_object, d3d_query_type, index);
 
 	com_ptr<ID3D12Resource> readback_resource;
-	UINT private_size = sizeof(ID3D12Resource *);
-	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &private_size, &readback_resource)))
+	UINT extra_data_size = sizeof(ID3D12Resource *);
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &readback_resource)))
 	{
 		_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(pool.handle), convert_query_type(type), index, 1, readback_resource.get(), index * sizeof(uint64_t));
 	}

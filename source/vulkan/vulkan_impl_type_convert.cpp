@@ -13,14 +13,12 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	switch (format)
 	{
 	default:
+		assert(false);
+		[[fallthrough]];
 	case api::format::unknown:
 		break;
 	case api::format::r1_unorm:
 		break; // Unsupported
-	case api::format::r8_uint:
-		return VK_FORMAT_R8_UINT;
-	case api::format::r8_sint:
-		return VK_FORMAT_R8_SINT;
 	case api::format::l8_unorm:
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE };
@@ -29,19 +27,23 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_R };
 		return VK_FORMAT_R8_UNORM;
+	case api::format::r8_uint:
+		return VK_FORMAT_R8_UINT;
+	case api::format::r8_sint:
+		return VK_FORMAT_R8_SINT;
 	case api::format::r8_typeless:
 	case api::format::r8_unorm:
 		return VK_FORMAT_R8_UNORM;
 	case api::format::r8_snorm:
 		return VK_FORMAT_R8_SNORM;
+	case api::format::l8a8_unorm:
+		if (components != nullptr)
+			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
+		return VK_FORMAT_R8G8_UNORM;
 	case api::format::r8g8_uint:
 		return VK_FORMAT_R8G8_UINT;
 	case api::format::r8g8_sint:
 		return VK_FORMAT_R8G8_SINT;
-	case api::format::l8a8_unorm:
-		if (components != nullptr)
-			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
-		[[fallthrough]];
 	case api::format::r8g8_typeless:
 	case api::format::r8g8_unorm:
 		return VK_FORMAT_R8G8_UNORM;
@@ -51,7 +53,6 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_R8G8B8A8_UINT;
 	case api::format::r8g8b8a8_sint:
 		return VK_FORMAT_R8G8B8A8_SINT;
-	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE };
@@ -93,47 +94,47 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::b10g10r10a2_typeless:
 	case api::format::b10g10r10a2_unorm:
 		return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-	case api::format::r16_sint:
-		return VK_FORMAT_R16_SINT;
-	case api::format::r16_uint:
-		return VK_FORMAT_R16_UINT;
-	case api::format::r16_typeless:
-	case api::format::r16_float:
-		return VK_FORMAT_R16_SFLOAT;
 	case api::format::l16_unorm:
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE };
-		[[fallthrough]];
+		return VK_FORMAT_R16_UNORM;
+	case api::format::r16_uint:
+		return VK_FORMAT_R16_UINT;
+	case api::format::r16_sint:
+		return VK_FORMAT_R16_SINT;
 	case api::format::r16_unorm:
 		return VK_FORMAT_R16_UNORM;
 	case api::format::r16_snorm:
 		return VK_FORMAT_R16_SNORM;
+	case api::format::r16_typeless:
+	case api::format::r16_float:
+		return VK_FORMAT_R16_SFLOAT;
+	case api::format::l16a16_unorm:
+		if (components != nullptr)
+			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
+		return VK_FORMAT_R16G16_UNORM;
 	case api::format::r16g16_uint:
 		return VK_FORMAT_R16G16_UINT;
 	case api::format::r16g16_sint:
 		return VK_FORMAT_R16G16_SINT;
-	case api::format::r16g16_typeless:
-	case api::format::r16g16_float:
-		return VK_FORMAT_R16G16_SFLOAT;
-	case api::format::l16a16_unorm:
-		if (components != nullptr)
-			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
-		[[fallthrough]];
 	case api::format::r16g16_unorm:
 		return VK_FORMAT_R16G16_UNORM;
 	case api::format::r16g16_snorm:
 		return VK_FORMAT_R16G16_SNORM;
+	case api::format::r16g16_typeless:
+	case api::format::r16g16_float:
+		return VK_FORMAT_R16G16_SFLOAT;
 	case api::format::r16g16b16a16_uint:
 		return VK_FORMAT_R16G16B16A16_UINT;
 	case api::format::r16g16b16a16_sint:
 		return VK_FORMAT_R16G16B16A16_SINT;
-	case api::format::r16g16b16a16_typeless:
-	case api::format::r16g16b16a16_float:
-		return VK_FORMAT_R16G16B16A16_SFLOAT;
 	case api::format::r16g16b16a16_unorm:
 		return VK_FORMAT_R16G16B16A16_UNORM;
 	case api::format::r16g16b16a16_snorm:
 		return VK_FORMAT_R16G16B16A16_SNORM;
+	case api::format::r16g16b16a16_typeless:
+	case api::format::r16g16b16a16_float:
+		return VK_FORMAT_R16G16B16A16_SFLOAT;
 	case api::format::r32_uint:
 		return VK_FORMAT_R32_UINT;
 	case api::format::r32_sint:
@@ -246,18 +247,10 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 	default:
 	case VK_FORMAT_UNDEFINED:
 		return api::format::unknown;
-	case VK_FORMAT_A4R4G4B4_UNORM_PACK16:
-		return api::format::b4g4r4a4_unorm;
-	case VK_FORMAT_R5G6B5_UNORM_PACK16:
-		return api::format::b5g6r5_unorm;
-	case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
-		if (components != nullptr &&
-			components->r == VK_COMPONENT_SWIZZLE_R &&
-			components->g == VK_COMPONENT_SWIZZLE_G &&
-			components->b == VK_COMPONENT_SWIZZLE_B &&
-			components->a == VK_COMPONENT_SWIZZLE_ONE)
-			return api::format::b5g5r5x1_unorm;
-		return api::format::b5g5r5a1_unorm;
+	case VK_FORMAT_R8_UINT:
+		return api::format::r8_uint;
+	case VK_FORMAT_R8_SINT:
+		return api::format::r8_sint;
 	case VK_FORMAT_R8_UNORM:
 		if (components != nullptr &&
 			components->r == VK_COMPONENT_SWIZZLE_R &&
@@ -274,10 +267,10 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r8_unorm;
 	case VK_FORMAT_R8_SNORM:
 		return api::format::r8_snorm;
-	case VK_FORMAT_R8_UINT:
-		return api::format::r8_uint;
-	case VK_FORMAT_R8_SINT:
-		return api::format::r8_sint;
+	case VK_FORMAT_R8G8_UINT:
+		return api::format::r8g8_uint;
+	case VK_FORMAT_R8G8_SINT:
+		return api::format::r8g8_sint;
 	case VK_FORMAT_R8G8_UNORM:
 		if (components != nullptr &&
 			components->r == VK_COMPONENT_SWIZZLE_R &&
@@ -288,11 +281,14 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r8g8_unorm;
 	case VK_FORMAT_R8G8_SNORM:
 		return api::format::r8g8_snorm;
-	case VK_FORMAT_R8G8_UINT:
-		return api::format::r8g8_uint;
-	case VK_FORMAT_R8G8_SINT:
-		return api::format::r8g8_sint;
+	case VK_FORMAT_R8G8B8A8_UINT:
+	case VK_FORMAT_A8B8G8R8_UINT_PACK32:
+		return api::format::r8g8b8a8_uint;
+	case VK_FORMAT_R8G8B8A8_SINT:
+	case VK_FORMAT_A8B8G8R8_SINT_PACK32:
+		return api::format::r8g8b8a8_sint;
 	case VK_FORMAT_R8G8B8A8_UNORM:
+	case VK_FORMAT_A8B8G8R8_UNORM_PACK32:
 		if (components != nullptr &&
 			components->r == VK_COMPONENT_SWIZZLE_R &&
 			components->g == VK_COMPONENT_SWIZZLE_G &&
@@ -300,13 +296,8 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 			components->a == VK_COMPONENT_SWIZZLE_ONE)
 			return api::format::r8g8b8x8_unorm;
 		return api::format::r8g8b8a8_unorm;
-	case VK_FORMAT_R8G8B8A8_SNORM:
-		return api::format::r8g8b8a8_snorm;
-	case VK_FORMAT_R8G8B8A8_UINT:
-		return api::format::r8g8b8a8_uint;
-	case VK_FORMAT_R8G8B8A8_SINT:
-		return api::format::r8g8b8a8_sint;
 	case VK_FORMAT_R8G8B8A8_SRGB:
+	case VK_FORMAT_A8B8G8R8_SRGB_PACK32:
 		if (components != nullptr &&
 			components->r == VK_COMPONENT_SWIZZLE_R &&
 			components->g == VK_COMPONENT_SWIZZLE_G &&
@@ -314,6 +305,9 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 			components->a == VK_COMPONENT_SWIZZLE_ONE)
 			return api::format::r8g8b8x8_unorm_srgb;
 		return api::format::r8g8b8a8_unorm_srgb;
+	case VK_FORMAT_R8G8B8A8_SNORM:
+	case VK_FORMAT_A8B8G8R8_SNORM_PACK32:
+		return api::format::r8g8b8a8_snorm;
 	case VK_FORMAT_B8G8R8A8_UNORM:
 		if (components != nullptr &&
 			components->r == VK_COMPONENT_SWIZZLE_R &&
@@ -330,14 +324,18 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 			components->a == VK_COMPONENT_SWIZZLE_ONE)
 			return api::format::b8g8r8x8_unorm_srgb;
 		return api::format::b8g8r8a8_unorm_srgb;
-	case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
-		return api::format::r10g10b10a2_unorm;
 	case VK_FORMAT_A2B10G10R10_UINT_PACK32:
 		return api::format::r10g10b10a2_uint;
-	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
-		return api::format::b10g10r10a2_unorm;
+	case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
+		return api::format::r10g10b10a2_unorm;
 	case VK_FORMAT_A2R10G10B10_UINT_PACK32:
 		return api::format::b10g10r10a2_uint;
+	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+		return api::format::b10g10r10a2_unorm;
+	case VK_FORMAT_R16_UINT:
+		return api::format::r16_uint;
+	case VK_FORMAT_R16_SINT:
+		return api::format::r16_sint;
 	case VK_FORMAT_R16_UNORM:
 		if (components != nullptr &&
 			components->r == VK_COMPONENT_SWIZZLE_R &&
@@ -348,12 +346,12 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r16_unorm;
 	case VK_FORMAT_R16_SNORM:
 		return api::format::r16_snorm;
-	case VK_FORMAT_R16_UINT:
-		return api::format::r16_uint;
-	case VK_FORMAT_R16_SINT:
-		return api::format::r16_sint;
 	case VK_FORMAT_R16_SFLOAT:
 		return api::format::r16_float;
+	case VK_FORMAT_R16G16_UINT:
+		return api::format::r16g16_uint;
+	case VK_FORMAT_R16G16_SINT:
+		return api::format::r16g16_sint;
 	case VK_FORMAT_R16G16_UNORM:
 		if (components != nullptr &&
 			components->r == VK_COMPONENT_SWIZZLE_R &&
@@ -364,20 +362,16 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r16g16_unorm;
 	case VK_FORMAT_R16G16_SNORM:
 		return api::format::r16g16_snorm;
-	case VK_FORMAT_R16G16_UINT:
-		return api::format::r16g16_uint;
-	case VK_FORMAT_R16G16_SINT:
-		return api::format::r16g16_sint;
 	case VK_FORMAT_R16G16_SFLOAT:
 		return api::format::r16g16_float;
-	case VK_FORMAT_R16G16B16A16_UNORM:
-		return api::format::r16g16b16a16_unorm;
-	case VK_FORMAT_R16G16B16A16_SNORM:
-		return api::format::r16g16b16a16_snorm;
 	case VK_FORMAT_R16G16B16A16_UINT:
 		return api::format::r16g16b16a16_uint;
 	case VK_FORMAT_R16G16B16A16_SINT:
 		return api::format::r16g16b16a16_sint;
+	case VK_FORMAT_R16G16B16A16_UNORM:
+		return api::format::r16g16b16a16_unorm;
+	case VK_FORMAT_R16G16B16A16_SNORM:
+		return api::format::r16g16b16a16_snorm;
 	case VK_FORMAT_R16G16B16A16_SFLOAT:
 		return api::format::r16g16b16a16_float;
 	case VK_FORMAT_R32_UINT:
@@ -404,22 +398,34 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r32g32b32a32_sint;
 	case VK_FORMAT_R32G32B32A32_SFLOAT:
 		return api::format::r32g32b32a32_float;
-	case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
-		return api::format::r11g11b10_float;
 	case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
 		return api::format::r9g9b9e5;
+	case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+		return api::format::r11g11b10_float;
+	case VK_FORMAT_R5G6B5_UNORM_PACK16:
+		return api::format::b5g6r5_unorm;
+	case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
+		if (components != nullptr &&
+			components->r == VK_COMPONENT_SWIZZLE_R &&
+			components->g == VK_COMPONENT_SWIZZLE_G &&
+			components->b == VK_COMPONENT_SWIZZLE_B &&
+			components->a == VK_COMPONENT_SWIZZLE_ONE)
+			return api::format::b5g5r5x1_unorm;
+		return api::format::b5g5r5a1_unorm;
+	case VK_FORMAT_A4R4G4B4_UNORM_PACK16:
+		return api::format::b4g4r4a4_unorm;
 	case VK_FORMAT_D16_UNORM:
 		return api::format::d16_unorm;
 	case VK_FORMAT_X8_D24_UNORM_PACK32:
 		return api::format::d24_unorm_x8_uint;
-	case VK_FORMAT_D32_SFLOAT:
-		return api::format::d32_float;
 	case VK_FORMAT_S8_UINT:
 		return api::format::s8_uint;
 	case VK_FORMAT_D16_UNORM_S8_UINT:
 		return api::format::d16_unorm_s8_uint;
 	case VK_FORMAT_D24_UNORM_S8_UINT:
 		return api::format::d24_unorm_s8_uint;
+	case VK_FORMAT_D32_SFLOAT:
+		return api::format::d32_float;
 	case VK_FORMAT_D32_SFLOAT_S8_UINT:
 		return api::format::d32_float_s8_uint;
 	case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
@@ -461,6 +467,8 @@ auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::c
 {
 	switch (color_space)
 	{
+	default:
+		return api::color_space::unknown;
 	case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
 		return api::color_space::srgb_nonlinear;
 	case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
@@ -469,11 +477,7 @@ auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::c
 		return api::color_space::hdr10_st2084;
 	case VK_COLOR_SPACE_HDR10_HLG_EXT:
 		return api::color_space::hdr10_hlg;
-	default:
-		break;
 	}
-
-	return api::color_space::unknown;
 }
 
 auto reshade::vulkan::convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage
@@ -516,10 +520,9 @@ auto reshade::vulkan::convert_access_to_usage(VkAccessFlags flags) -> api::resou
 		result |= api::resource_usage::copy_source;
 	if ((flags & VK_ACCESS_TRANSFER_WRITE_BIT) != 0)
 		result |= api::resource_usage::copy_dest;
-#ifdef VK_EXT_transform_feedback
 	if ((flags & VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT) != 0)
 		result |= api::resource_usage::stream_output;
-#endif
+
 	return result;
 }
 auto reshade::vulkan::convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage
@@ -571,10 +574,8 @@ auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAc
 		result |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
 	if ((state & api::resource_usage::constant_buffer) != 0)
 		result |= VK_ACCESS_UNIFORM_READ_BIT;
-#ifdef VK_EXT_transform_feedback
 	if ((state & api::resource_usage::stream_output) != 0)
 		result |= VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT;
-#endif
 	if ((state & api::resource_usage::indirect_argument) != 0)
 		result |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 	if ((state & api::resource_usage::depth_stencil_read) != 0)
@@ -637,10 +638,8 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 	VkPipelineStageFlags result = 0;
 	if ((state & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-#ifdef VK_EXT_transform_feedback
 	if ((state & api::resource_usage::stream_output) != 0)
 		result |= VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT;
-#endif
 	if ((state & api::resource_usage::indirect_argument) != 0)
 		result |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
 	if ((state & api::resource_usage::depth_stencil_read) != 0)
@@ -728,12 +727,10 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-#ifdef VK_EXT_transform_feedback
 	if ((usage & api::resource_usage::stream_output) != 0)
-		buffer_flags |= VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
+		buffer_flags |= VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT | VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT;
 	else
-		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
-#endif
+		buffer_flags &= ~(VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT | VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT);
 
 	if ((usage & api::resource_usage::indirect_argument) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
@@ -782,10 +779,8 @@ void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFla
 		usage |= api::resource_usage::vertex_buffer;
 	if ((buffer_flags & VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::indirect_argument;
-#ifdef VK_EXT_transform_feedback
-	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT) != 0)
+	if ((buffer_flags & (VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT | VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT)) != 0)
 		usage |= api::resource_usage::stream_output;
-#endif
 }
 
 void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamplerCreateInfo &create_info)
@@ -1181,6 +1176,7 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBuffe
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = create_info.size;
+	desc.buffer.stride = 0;
 	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 
 	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryBufferCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO))
@@ -1305,42 +1301,57 @@ void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_
 	{
 		switch (states[i])
 		{
+		case api::dynamic_state::depth_bias:
+		case api::dynamic_state::depth_bias_clamp:
+		case api::dynamic_state::depth_bias_slope_scaled:
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_BIAS);
+			break;
 		case api::dynamic_state::blend_constant:
 			internal_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-			continue;
+			break;
 		case api::dynamic_state::stencil_read_mask:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
-			continue;
+			break;
 		case api::dynamic_state::stencil_write_mask:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
-			continue;
+			break;
 		case api::dynamic_state::stencil_reference_value:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
-			continue;
+			break;
 		case api::dynamic_state::cull_mode:
 			internal_states.push_back(VK_DYNAMIC_STATE_CULL_MODE);
-			continue;
+			break;
 		case api::dynamic_state::front_counter_clockwise:
 			internal_states.push_back(VK_DYNAMIC_STATE_FRONT_FACE);
-			continue;
+			break;
 		case api::dynamic_state::primitive_topology:
 			internal_states.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
-			continue;
+			break;
 		case api::dynamic_state::depth_enable:
 			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
-			continue;
+			break;
 		case api::dynamic_state::depth_write_mask:
 			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE);
-			continue;
+			break;
 		case api::dynamic_state::depth_func:
 			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_COMPARE_OP);
-			continue;
+			break;
 		case api::dynamic_state::stencil_enable:
 			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE);
-			continue;
+			break;
+		case api::dynamic_state::back_stencil_func:
+		case api::dynamic_state::front_stencil_func:
+			internal_states.push_back(VK_DYNAMIC_STATE_STENCIL_OP);
+			break;
+		case api::dynamic_state::logic_op:
+			internal_states.push_back(VK_DYNAMIC_STATE_LOGIC_OP_EXT);
+			break;
+		case api::dynamic_state::render_target_write_mask:
+			internal_states.push_back(VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT);
+			break;
 		default:
 			assert(false);
-			continue;
+			break;
 		}
 	}
 }
@@ -1391,9 +1402,6 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 		case VK_DYNAMIC_STATE_DEPTH_COMPARE_OP:
 			states.push_back(api::dynamic_state::depth_func);
 			break;
-		case VK_DYNAMIC_STATE_DEPTH_BOUNDS_TEST_ENABLE:
-			states.push_back(api::dynamic_state::depth_clip_enable);
-			break;
 		case VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE:
 			states.push_back(api::dynamic_state::stencil_enable);
 			break;
@@ -1401,14 +1409,10 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 			states.push_back(api::dynamic_state::back_stencil_func);
 			states.push_back(api::dynamic_state::front_stencil_func);
 			break;
-		case VK_DYNAMIC_STATE_RASTERIZER_DISCARD_ENABLE:
-			break;
 		case VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE:
 			states.push_back(api::dynamic_state::depth_bias);
 			states.push_back(api::dynamic_state::depth_bias_clamp);
 			states.push_back(api::dynamic_state::depth_bias_slope_scaled);
-			break;
-		case VK_DYNAMIC_STATE_PRIMITIVE_RESTART_ENABLE:
 			break;
 		case VK_DYNAMIC_STATE_LOGIC_OP_EXT:
 			states.push_back(api::dynamic_state::logic_op);
@@ -1440,7 +1444,7 @@ void reshade::vulkan::convert_input_layout_desc(uint32_t count, const api::input
 		const VkVertexInputRate input_rate = element.instance_step_rate > 0 ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
 
 		if (const auto it = std::find_if(vertex_bindings.begin(), vertex_bindings.end(),
-			[&element](const VkVertexInputBindingDescription &input_binding) { return input_binding.binding == element.buffer_binding; });
+				[&element](const VkVertexInputBindingDescription &input_binding) { return input_binding.binding == element.buffer_binding; });
 			it != vertex_bindings.end())
 		{
 			assert(it->inputRate == input_rate && it->stride == element.stride);
@@ -1489,12 +1493,10 @@ std::vector<reshade::api::input_element> reshade::vulkan::convert_input_layout_d
 
 void reshade::vulkan::convert_stream_output_desc(const api::stream_output_desc &desc, VkPipelineRasterizationStateCreateInfo &create_info)
 {
-#ifdef VK_EXT_transform_feedback
 	if (const auto stream_info = const_cast<VkPipelineRasterizationStateStreamCreateInfoEXT *>(find_in_structure_chain<VkPipelineRasterizationStateStreamCreateInfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT)))
 	{
 		stream_info->rasterizationStream = desc.rasterized_stream;
 	}
-#endif
 }
 reshade::api::stream_output_desc reshade::vulkan::convert_stream_output_desc(const VkPipelineRasterizationStateCreateInfo *create_info)
 {
@@ -1502,12 +1504,10 @@ reshade::api::stream_output_desc reshade::vulkan::convert_stream_output_desc(con
 
 	if (create_info != nullptr)
 	{
-#ifdef VK_EXT_transform_feedback
 		if (const auto stream_info = find_in_structure_chain<VkPipelineRasterizationStateStreamCreateInfoEXT>(create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT))
 		{
 			desc.rasterized_stream = stream_info->rasterizationStream;
 		}
-#endif
 	}
 
 	return desc;
@@ -1577,12 +1577,10 @@ void reshade::vulkan::convert_rasterizer_desc(const api::rasterizer_desc &desc, 
 	create_info.depthBiasClamp = desc.depth_bias_clamp;
 	create_info.depthBiasSlopeFactor = desc.slope_scaled_depth_bias;
 
-#ifdef VK_EXT_conservative_rasterization
 	if (const auto conservative_rasterization_info = const_cast<VkPipelineRasterizationConservativeStateCreateInfoEXT *>(find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT)))
 	{
 		conservative_rasterization_info->conservativeRasterizationMode = static_cast<VkConservativeRasterizationModeEXT>(desc.conservative_rasterization);
 	}
-#endif
 }
 reshade::api::rasterizer_desc reshade::vulkan::convert_rasterizer_desc(const VkPipelineRasterizationStateCreateInfo *create_info, const VkPipelineMultisampleStateCreateInfo *multisample_create_info)
 {
@@ -1599,12 +1597,10 @@ reshade::api::rasterizer_desc reshade::vulkan::convert_rasterizer_desc(const VkP
 		desc.depth_clip_enable = !create_info->depthClampEnable;
 		desc.scissor_enable = true;
 
-#ifdef VK_EXT_conservative_rasterization
 		if (const auto conservative_rasterization_info = find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT))
 		{
 			desc.conservative_rasterization = static_cast<uint32_t>(conservative_rasterization_info->conservativeRasterizationMode);
 		}
-#endif
 	}
 
 	if (multisample_create_info != nullptr)
@@ -1656,6 +1652,11 @@ reshade::api::depth_stencil_desc reshade::vulkan::convert_depth_stencil_desc(con
 		desc.front_stencil_pass_op = convert_stencil_op(create_info->front.passOp);
 		desc.front_stencil_depth_fail_op = convert_stencil_op(create_info->front.depthFailOp);
 		desc.front_stencil_func = convert_compare_op(create_info->front.compareOp);
+	}
+	else
+	{
+		desc.depth_enable = false;
+		desc.depth_write_mask = false;
 	}
 
 	return desc;
@@ -1848,13 +1849,11 @@ auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
 		return VK_QUERY_TYPE_TIMESTAMP;
 	case api::query_type::pipeline_statistics:
 		return VK_QUERY_TYPE_PIPELINE_STATISTICS;
-#ifdef VK_EXT_transform_feedback
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
 	case api::query_type::stream_output_statistics_3:
 		return VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT;
-#endif
 	default:
 		assert(false);
 		return VK_QUERY_TYPE_MAX_ENUM;
@@ -1873,11 +1872,9 @@ auto reshade::vulkan::convert_query_type(VkQueryType type, uint32_t index) -> ap
 	case VK_QUERY_TYPE_PIPELINE_STATISTICS:
 		assert(index == 0);
 		return api::query_type::pipeline_statistics;
-#ifdef VK_EXT_transform_feedback
 	case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
-		assert(index < 4);
+		assert(index <= 3);
 		return static_cast<api::query_type>(static_cast<uint32_t>(api::query_type::stream_output_statistics_0) + index);
-#endif
 	default:
 		assert(false);
 		return static_cast<api::query_type>(UINT32_MAX);
