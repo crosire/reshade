@@ -307,19 +307,17 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 }
 void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.set.handle == 0);
+	assert(update.set.handle == 0 && update.array_offset == 0);
 
-	uint32_t first = 0;
+	uint32_t first = update.binding;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
 
-		first = range.dx_register_index;
+		assert(update.binding >= range.binding);
+		first -= range.binding;
+		first += range.dx_register_index;
 		stages &= range.visibility;
-	}
-	else
-	{
-		assert(update.binding == 0);
 	}
 
 	switch (update.type)
