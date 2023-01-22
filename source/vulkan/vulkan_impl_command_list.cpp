@@ -380,12 +380,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		{
 		case api::dynamic_state::blend_constant:
 		{
-			float blend_constant[4];
-			blend_constant[0] = ((values[i]      ) & 0xFF) / 255.0f;
-			blend_constant[1] = ((values[i] >>  4) & 0xFF) / 255.0f;
-			blend_constant[2] = ((values[i] >>  8) & 0xFF) / 255.0f;
-			blend_constant[3] = ((values[i] >> 12) & 0xFF) / 255.0f;
-
+			const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
 			vk.CmdSetBlendConstants(_orig, blend_constant);
 			continue;
 		}
