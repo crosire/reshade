@@ -1139,8 +1139,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_elements;
 	auto elements = reshade::d3d10::convert_input_layout_desc(NumElements, pInputElementDescs);
 
+	reshade::api::shader_desc signature_desc = {};
+	signature_desc.code = pShaderBytecodeWithInputSignature;
+	signature_desc.code_size = BytecodeLength;
+
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(elements.size()), elements.data() }
+		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(elements.size()), elements.data() },
+		{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &signature_desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
@@ -1148,6 +1153,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 		reshade::d3d10::convert_input_layout_desc(static_cast<uint32_t>(elements.size()), elements.data(), internal_elements);
 		pInputElementDescs = internal_elements.data();
 		NumElements = static_cast<UINT>(internal_elements.size());
+		pShaderBytecodeWithInputSignature = signature_desc.code;
+		BytecodeLength = signature_desc.code_size;
 	}
 #endif
 

@@ -1746,9 +1746,6 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	api::primitive_topology topology = api::primitive_topology::triangle_list;
 	uint32_t sample_mask = UINT32_MAX;
 
-	GLint status = GL_FALSE;
-	const auto impl = new pipeline_impl();
-
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
 		if (subobjects[i].count == 0)
@@ -1843,6 +1840,8 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		}
 	}
 
+	pipeline_impl *const impl = new pipeline_impl();
+
 	impl->program = gl.CreateProgram();
 
 	for (const GLuint shader : shaders)
@@ -1860,6 +1859,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 
 	shaders.clear();
 
+	GLint status = GL_FALSE;
 	gl.GetProgramiv(impl->program, GL_LINK_STATUS, &status);
 
 	if (GL_FALSE == status)
@@ -1948,11 +1948,8 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 
 exit_failure:
 	for (const GLuint shader : shaders)
-	{
 		gl.DeleteShader(shader);
-	}
 
-	delete impl;
 	*out_handle = { 0 };
 	return false;
 }

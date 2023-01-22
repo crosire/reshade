@@ -1181,24 +1181,6 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 
 bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	if (subobject_count == 1)
-	{
-		switch (subobjects->type)
-		{
-		case api::pipeline_subobject_type::vertex_shader:
-			assert(subobjects->count == 1);
-			return create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
-		case api::pipeline_subobject_type::pixel_shader:
-			assert(subobjects->count == 1);
-			return create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
-		case api::pipeline_subobject_type::input_layout:
-			return create_input_layout(subobjects->count, static_cast<const api::input_element *>(subobjects->data), out_handle);
-		default:
-			*out_handle = { 0 };
-			return false;
-		}
-	}
-
 	com_ptr<IDirect3DVertexShader9> vertex_shader;
 	com_ptr<IDirect3DPixelShader9> pixel_shader;
 	com_ptr<IDirect3DVertexDeclaration9> input_layout;
@@ -1209,97 +1191,122 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 	uint32_t sample_mask = UINT32_MAX;
 	uint32_t max_vertices = 3;
 
-	for (uint32_t i = 0; i < subobject_count; ++i)
+	if (subobject_count == 1)
 	{
-		if (subobjects[i].count == 0)
-			continue;
-
-		api::pipeline temp;
-
-		switch (subobjects[i].type)
+		if (subobjects->count != 0)
 		{
-		case api::pipeline_subobject_type::vertex_shader:
-			assert(subobjects[i].count == 1);
-			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+			switch (subobjects->type)
+			{
+			case api::pipeline_subobject_type::vertex_shader:
+				assert(subobjects->count == 1);
+				return create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::pixel_shader:
+				assert(subobjects->count == 1);
+				return create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::input_layout:
+				return create_input_layout(subobjects->count, static_cast<const api::input_element *>(subobjects->data), out_handle);
+			default:
+				assert(false);
 				break;
-			if (!create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
-				goto exit_failure;
-			vertex_shader = com_ptr<IDirect3DVertexShader9>(reinterpret_cast<IDirect3DVertexShader9 *>(temp.handle), true);
-			break;
-		case api::pipeline_subobject_type::hull_shader:
-		case api::pipeline_subobject_type::domain_shader:
-		case api::pipeline_subobject_type::geometry_shader:
-			assert(subobjects[i].count == 1);
-			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+			}
+		}
+
+		goto exit_failure;
+	}
+	else
+	{
+		for (uint32_t i = 0; i < subobject_count; ++i)
+		{
+			if (subobjects[i].count == 0)
+				continue;
+
+			api::pipeline temp;
+
+			switch (subobjects[i].type)
+			{
+			case api::pipeline_subobject_type::vertex_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				if (!create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				vertex_shader = com_ptr<IDirect3DVertexShader9>(reinterpret_cast<IDirect3DVertexShader9 *>(temp.handle), true);
 				break;
-			goto exit_failure; // Not supported
-		case api::pipeline_subobject_type::pixel_shader:
-			assert(subobjects[i].count == 1);
-			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+			case api::pipeline_subobject_type::hull_shader:
+			case api::pipeline_subobject_type::domain_shader:
+			case api::pipeline_subobject_type::geometry_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				goto exit_failure; // Not supported
+			case api::pipeline_subobject_type::pixel_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				if (!create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				pixel_shader = com_ptr<IDirect3DPixelShader9>(reinterpret_cast<IDirect3DPixelShader9 *>(temp.handle), true);
 				break;
-			if (!create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
-				goto exit_failure;
-			pixel_shader = com_ptr<IDirect3DPixelShader9>(reinterpret_cast<IDirect3DPixelShader9 *>(temp.handle), true);
-			break;
-		case api::pipeline_subobject_type::compute_shader:
-			assert(subobjects[i].count == 1);
-			if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+			case api::pipeline_subobject_type::compute_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				goto exit_failure; // Not supported
+			case api::pipeline_subobject_type::input_layout:
+				assert(subobjects[i].count <= MAXD3DDECLLENGTH);
+				if (!create_input_layout(subobjects[i].count, static_cast<const api::input_element *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				input_layout = com_ptr<IDirect3DVertexDeclaration9>(reinterpret_cast<IDirect3DVertexDeclaration9 *>(temp.handle), true);
 				break;
-			goto exit_failure; // Not supported
-		case api::pipeline_subobject_type::input_layout:
-			assert(subobjects[i].count <= MAXD3DDECLLENGTH);
-			if (!create_input_layout(subobjects[i].count, static_cast<const api::input_element *>(subobjects[i].data), &temp))
+			case api::pipeline_subobject_type::stream_output_state:
+				assert(subobjects[i].count == 1);
+				goto exit_failure; // Not implemented
+			case api::pipeline_subobject_type::blend_state:
+				assert(subobjects[i].count == 1);
+				blend_state = *static_cast<const api::blend_desc *>(subobjects[i].data);
+				if (blend_state.alpha_to_coverage_enable || blend_state.logic_op_enable[0])
+					goto exit_failure;
+				break;
+			case api::pipeline_subobject_type::rasterizer_state:
+				assert(subobjects[i].count == 1);
+				rasterizer_state = *static_cast<const api::rasterizer_desc *>(subobjects[i].data);
+				if (rasterizer_state.conservative_rasterization)
+					goto exit_failure;
+				break;
+			case api::pipeline_subobject_type::depth_stencil_state:
+				assert(subobjects[i].count == 1);
+				depth_stencil_state = *static_cast<const api::depth_stencil_desc *>(subobjects[i].data);
+				break;
+			case api::pipeline_subobject_type::primitive_topology:
+				assert(subobjects[i].count == 1);
+				topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
+				if (topology > api::primitive_topology::triangle_fan)
+					goto exit_failure;
+				break;
+			case api::pipeline_subobject_type::depth_stencil_format:
+			case api::pipeline_subobject_type::render_target_formats:
+				break; // Ignored
+			case api::pipeline_subobject_type::sample_mask:
+				assert(subobjects[i].count == 1);
+				sample_mask = *static_cast<const uint32_t *>(subobjects[i].data);
+				break;
+			case api::pipeline_subobject_type::sample_count:
+				assert(subobjects[i].count == 1);
+				break; // Ignored
+			case api::pipeline_subobject_type::viewport_count:
+				assert(subobjects[i].count == 1);
+				if (*static_cast<const uint32_t *>(subobjects[i].data) > 1)
+					goto exit_failure;
+				break;
+			case api::pipeline_subobject_type::dynamic_pipeline_states:
+				break; // Ignored
+			case api::pipeline_subobject_type::max_vertex_count:
+				max_vertices = *static_cast<const uint32_t *>(subobjects[i].data);
+				break;
+			default:
+				assert(false);
 				goto exit_failure;
-			input_layout = com_ptr<IDirect3DVertexDeclaration9>(reinterpret_cast<IDirect3DVertexDeclaration9 *>(temp.handle), true);
-			break;
-		case api::pipeline_subobject_type::stream_output_state:
-			assert(subobjects[i].count == 1);
-			goto exit_failure; // Not implemented
-		case api::pipeline_subobject_type::blend_state:
-			assert(subobjects[i].count == 1);
-			blend_state = *static_cast<const api::blend_desc *>(subobjects[i].data);
-			if (blend_state.alpha_to_coverage_enable || blend_state.logic_op_enable[0])
-				goto exit_failure;
-			break;
-		case api::pipeline_subobject_type::rasterizer_state:
-			assert(subobjects[i].count == 1);
-			rasterizer_state = *static_cast<const api::rasterizer_desc *>(subobjects[i].data);
-			if (rasterizer_state.conservative_rasterization)
-				goto exit_failure;
-			break;
-		case api::pipeline_subobject_type::depth_stencil_state:
-			assert(subobjects[i].count == 1);
-			depth_stencil_state = *static_cast<const api::depth_stencil_desc *>(subobjects[i].data);
-			break;
-		case api::pipeline_subobject_type::primitive_topology:
-			assert(subobjects[i].count == 1);
-			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
-			if (topology > api::primitive_topology::triangle_fan)
-				goto exit_failure;
-			break;
-		case api::pipeline_subobject_type::depth_stencil_format:
-		case api::pipeline_subobject_type::render_target_formats:
-			break; // Ignored
-		case api::pipeline_subobject_type::sample_mask:
-			assert(subobjects[i].count == 1);
-			sample_mask = *static_cast<const uint32_t *>(subobjects[i].data);
-			break;
-		case api::pipeline_subobject_type::sample_count:
-			assert(subobjects[i].count == 1);
-			break; // Ignored
-		case api::pipeline_subobject_type::viewport_count:
-			assert(subobjects[i].count == 1);
-			if (*static_cast<const uint32_t *>(subobjects[i].data) > 1)
-				goto exit_failure;
-			break;
-		case api::pipeline_subobject_type::dynamic_pipeline_states:
-			break; // Ignored
-		case api::pipeline_subobject_type::max_vertex_count:
-			max_vertices = *static_cast<const uint32_t *>(subobjects[i].data);
-			break;
-		default:
-			assert(false);
-			goto exit_failure;
+			}
 		}
 	}
 
