@@ -551,11 +551,15 @@ bool reshade::d3d11::device_impl::map_buffer_region(api::resource resource, uint
 
 	assert(resource.handle != 0);
 
+	D3D11_BUFFER_DESC internal_desc = {};
+	reinterpret_cast<ID3D11Buffer *>(resource.handle)->GetDesc(&internal_desc);
+	const bool is_vertex_or_index_buffer = (internal_desc.BindFlags & (D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_INDEX_BUFFER)) != 0 && (internal_desc.BindFlags & D3D11_BIND_CONSTANT_BUFFER) == 0;
+
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
 	if (D3D11_MAPPED_SUBRESOURCE mapped;
-		SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access), 0, &mapped)))
+		SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access, is_vertex_or_index_buffer), 0, &mapped)))
 	{
 		*out_data = static_cast<uint8_t *>(mapped.pData) + offset;
 		return true;
@@ -593,7 +597,7 @@ bool reshade::d3d11::device_impl::map_texture_region(api::resource resource, uin
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
-	return SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D11_MAPPED_SUBRESOURCE *>(out_data)));
+	return SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, convert_access_flags(access, false), 0, reinterpret_cast<D3D11_MAPPED_SUBRESOURCE *>(out_data)));
 }
 void reshade::d3d11::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
 {
