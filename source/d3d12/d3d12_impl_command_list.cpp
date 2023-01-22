@@ -209,7 +209,6 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
-	assert(pipeline.handle != 0);
 	// Cannot bind state to individual pipeline stages
 	assert(stages == api::pipeline_stage::all || stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics);
 
@@ -223,6 +222,7 @@ void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages
 	pipeline_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
 	if (stages == api::pipeline_stage::all_graphics &&
+		pipeline_object != nullptr &&
 		SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		_orig->IASetPrimitiveTopology(extra_data.topology);

@@ -101,8 +101,6 @@ void reshade::d3d10::device_impl::bind_render_targets_and_depth_stencil(uint32_t
 
 void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
-	assert(pipeline.handle != 0);
-
 	if (pipeline.handle & 1)
 	{
 		// This is a pipeline handle created with 'device_impl::create_pipeline', which can only contain graphics stages
@@ -427,7 +425,7 @@ void reshade::d3d10::device_impl::copy_buffer_region(api::resource src, uint64_t
 	{
 		D3D10_BUFFER_DESC desc;
 		reinterpret_cast<ID3D10Buffer *>(src.handle)->GetDesc(&desc);
-		size  = desc.ByteWidth;
+		size = desc.ByteWidth;
 	}
 
 	assert(src_offset <= std::numeric_limits<UINT>::max() && dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());

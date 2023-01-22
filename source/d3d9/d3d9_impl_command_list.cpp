@@ -116,8 +116,6 @@ void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t 
 
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
-	assert(pipeline.handle != 0);
-
 	if (pipeline.handle & 1)
 	{
 		// This is a pipeline handle created with 'device_impl::create_pipeline', which does not support partial binding of its state
