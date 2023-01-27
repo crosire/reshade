@@ -188,8 +188,17 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMOD
 
 	assert(fullscreen_desc.Size == sizeof(D3DDISPLAYMODEEX));
 
-	// Update fullscreen display mode in case it was not provided by the application
-	if (!pp.Windowed && fullscreen_desc.RefreshRate == 0)
+	ini_file &config = reshade::global_config();
+
+	unsigned int force_resolution[2] = {};
+
+	const bool update_fullscreen = config.get("APP", "ForceFullscreen") ||
+								   config.get("APP", "ForceDefaultRefreshRate") ||
+								  (config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0) ||
+								   config.get("APP", "Force10BitFormat");
+
+	// Update fullscreen display mode if modified, or was not provided by application
+	if (!pp.Windowed && (update_fullscreen || fullscreen_desc.RefreshRate == 0))
 	{
 		fullscreen_desc.Width = pp.BackBufferWidth;
 		fullscreen_desc.Height = pp.BackBufferHeight;
