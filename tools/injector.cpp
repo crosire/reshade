@@ -56,29 +56,30 @@ static void update_acl_for_uwp(LPWSTR path)
 	// Get the existing DACL for the file
 	if (GetNamedSecurityInfo(path, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr, nullptr, &old_acl, nullptr, &sd) != ERROR_SUCCESS)
 		return;
-	LocalFree(sd);
 
 	// Get the SID for 'ALL_APPLICATION_PACKAGES'
 	PSID sid = nullptr;
-	if (!ConvertStringSidToSid(TEXT("S-1-15-2-1"), &sid))
-		return;
-
-	EXPLICIT_ACCESS access = {};
-	access.grfAccessPermissions = GENERIC_READ | GENERIC_EXECUTE;
-	access.grfAccessMode = SET_ACCESS;
-	access.grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
-	access.Trustee.TrusteeForm = TRUSTEE_IS_SID;
-	access.Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
-	access.Trustee.ptstrName = reinterpret_cast<LPTCH>(sid);
-
-	// Update the DACL with the new entry
-	if (SetEntriesInAcl(1, &access, old_acl, &new_acl) == ERROR_SUCCESS)
+	if (ConvertStringSidToSid(TEXT("S-1-15-2-1"), &sid))
 	{
-		SetNamedSecurityInfo(path, SE_FILE_OBJECT, siInfo, NULL, NULL, new_acl, NULL);
-		LocalFree(new_acl);
+		EXPLICIT_ACCESS access = {};
+		access.grfAccessPermissions = GENERIC_READ | GENERIC_EXECUTE;
+		access.grfAccessMode = SET_ACCESS;
+		access.grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+		access.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+		access.Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+		access.Trustee.ptstrName = reinterpret_cast<LPTCH>(sid);
+
+		// Update the DACL with the new entry
+		if (SetEntriesInAcl(1, &access, old_acl, &new_acl) == ERROR_SUCCESS)
+		{
+			SetNamedSecurityInfo(path, SE_FILE_OBJECT, siInfo, NULL, NULL, new_acl, NULL);
+			LocalFree(new_acl);
+		}
+
+		LocalFree(sid);
 	}
 
-	LocalFree(sid);
+	LocalFree(sd);
 }
 
 #if RESHADE_LOADING_THREAD_FUNC
@@ -211,6 +212,7 @@ int wmain(int argc, wchar_t *argv[])
 #endif
 	{
 		wprintf(L"Succeeded!\n");
+		return 0;
 	}
 	else
 	{
@@ -222,6 +224,4 @@ int wmain(int argc, wchar_t *argv[])
 		return ERROR_MOD_NOT_FOUND;
 #endif
 	}
-
-	return 0;
 }
