@@ -574,6 +574,7 @@ void reshade::d3d12::device_impl::unmap_texture_region(api::resource resource, u
 void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource.handle != 0);
+	assert(data != nullptr);
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
@@ -616,6 +617,7 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource.handle != 0);
+	assert(data.data != nullptr);
 
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)

@@ -819,6 +819,7 @@ void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, 
 void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource.handle != 0);
+	assert(data != nullptr);
 
 	if (const auto immediate_command_list = get_first_immediate_command_list())
 	{
@@ -831,6 +832,9 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 }
 void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
+	assert(resource.handle != 0);
+	assert(data.data != nullptr);
+
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
 	VkExtent3D extent = resource_data->create_info.extent;
