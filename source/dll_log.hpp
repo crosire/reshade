@@ -100,6 +100,8 @@ namespace reshade::log
 				return *this << "DXGI_ERROR_DEVICE_HUNG";
 			case DXGI_ERROR_DEVICE_RESET:
 				return *this << "DXGI_ERROR_DEVICE_RESET";
+			case DXGI_ERROR_DRIVER_INTERNAL_ERROR:
+				return *this << "DXGI_ERROR_DRIVER_INTERNAL_ERROR";
 			default:
 				return *this << std::hex << static_cast<unsigned long>(hresult) << std::dec;
 			}
