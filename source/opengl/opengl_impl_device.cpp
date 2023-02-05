@@ -1038,7 +1038,7 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 	const GLuint object = view.handle & 0xFFFFFFFF;
 
 	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
-		return make_resource_handle(GL_TEXTURE_2D, object);
+		return make_resource_handle(GL_TEXTURE_CUBE_MAP, object);
 
 	if (target != GL_TEXTURE_BUFFER)
 	{
