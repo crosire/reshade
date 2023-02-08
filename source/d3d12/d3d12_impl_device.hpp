@@ -85,12 +85,9 @@ namespace reshade::d3d12
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
 
-		static  __forceinline api::descriptor_set convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data = 0)
+		static  __forceinline api::descriptor_set convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
-#ifdef _WIN64
-			assert((handle.ptr >> 56) == 0);
-#endif
-			return { handle.ptr | (static_cast<uint64_t>(extra_data) << 56) };
+			return { handle.ptr };
 		}
 		__forceinline D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 		{
@@ -98,7 +95,7 @@ namespace reshade::d3d12
 			return convert_to_original_cpu_descriptor_handle(convert_to_descriptor_set(handle), actual_type);
 		}
 #endif
-		api::descriptor_set convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle, uint8_t extra_data = 0) const;
+		api::descriptor_set convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle) const;
 		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_set set) const;
 		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_set set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const;
 
