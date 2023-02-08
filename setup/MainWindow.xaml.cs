@@ -475,9 +475,16 @@ namespace ReShade.Setup
 						compatibilityIni = new IniFile(compatibilityStream);
 					}
 				}
-				catch
+				catch (Exception ex)
 				{
 					// Ignore if these lists fail to download, since setup can still proceed without them
+					if (!isHeadless)
+					{
+						Dispatcher.Invoke(() =>
+						{
+							MessageBox.Show("Failed to download list of available effect packages:\n" + ex.Message + "\n\nProceeding without effect installation ...", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+						});
+					}
 				}
 			}
 		}
@@ -979,7 +986,8 @@ namespace ReShade.Setup
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ":\n" + ex.Message);
+					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ":\n" + ex.Message +
+							(isUpdate ? "\n\nMake sure the target application is not still running!" : string.Empty));
 					return;
 				}
 
@@ -1538,7 +1546,8 @@ In that event here are some steps you can try to resolve this:
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Failed to delete some ReShade files:\n" + ex.Message);
+				UpdateStatusAndFinish(false, "Failed to delete some ReShade files:\n" + ex.Message +
+					(isUninstall ? "\n\nMake sure the target application is not still running!" : string.Empty));
 				return;
 			}
 
