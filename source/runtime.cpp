@@ -1443,16 +1443,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				{
 					if (pragma.second == "skipoptimization" || pragma.second == "nooptimization")
 						skip_optimization = true;
-#if RESHADE_GUI
-					else if (pragma.second == "showfps")
-						_show_fps = true;
-					else if (pragma.second == "showclock")
-						_show_clock = true;
-#endif
 					continue;
 				}
 
-				hlsl_preamble += "#pragma " + pragma.first + ' ' + pragma.second + '\n';
+				const std::string pragma_directive = "#pragma " + pragma.first + ' ' + pragma.second + '\n';
+
+				hlsl_preamble += pragma_directive;
+				source = "// " + pragma_directive + source;
 			}
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
@@ -1467,18 +1464,49 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					continue;
 
 				effect.definitions.emplace_back(definition.first, trim(definition.second));
+
+				// Write used preprocessor definitions to the cached source
+				source = "// " + definition.first + '=' + definition.second + '\n' + source;
 			}
 
 			std::sort(effect.definitions.begin(), effect.definitions.end());
 
-			// Do not cache if any pragma directives were used, to ensure they are read again next time
-			if (hlsl_preamble.empty() && !skip_optimization)
+			// Do not cache if any special pragma directives were used, to ensure they are read again next time
+			if (!skip_optimization)
 				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 		}
 
 		// Keep track of included files
 		effect.included_files = pp.included_files();
 		std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
+	}
+	else
+	{
+		if (!source.empty())
+		{
+			// Read used preprocessor definitions and pragmas from the cached source
+			for (size_t offset = 0, next; source.compare(offset, 3, "// ") == 0; offset = next + 1)
+			{
+				offset += 3;
+				next = source.find('\n', offset);
+				if (next == std::string::npos)
+					break;
+
+				if (source.compare(offset, 7, "#pragma") == 0)
+				{
+					hlsl_preamble += source.substr(offset, (next + 1) - offset);
+				}
+				else if (const size_t equals_index = source.find('=', offset);
+					equals_index != std::string::npos)
+				{
+					effect.definitions.emplace_back(
+						source.substr(offset, equals_index - offset),
+						source.substr(equals_index + 1, next - (equals_index + 1)));
+				}
+			}
+
+			std::sort(effect.definitions.begin(), effect.definitions.end());
+		}
 	}
 
 	if (!effect.compiled && !source.empty())

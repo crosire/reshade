@@ -2822,7 +2822,7 @@ void reshade::runtime::draw_variable_editor()
 
 		// Hide variables that are not currently used in any of the active effects
 		// Also skip showing this effect in the variable list if it doesn't have any uniform variables to show
-		if (!effect.rendering || (effect.uniforms.empty() && effect.definitions.empty() && effect.preprocessed))
+		if (!effect.rendering || (effect.uniforms.empty() && effect.definitions.empty()))
 			continue;
 		assert(effect.compiled);
 
@@ -3113,22 +3113,15 @@ void reshade::runtime::draw_variable_editor()
 			set_uniform_value(effect.uniforms[hovered_variable_index], static_cast<uint32_t>(hovered_variable));
 
 		// Draw preprocessor definition list after all uniforms of an effect file
-		if (!effect.definitions.empty() || !effect.preprocessed)
+		if (!effect.definitions.empty())
 		{
 			std::string category_label = "Preprocessor definitions";
 			if (!_variable_editor_tabs)
 				for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.c_str()).x - 45) / 2; x < width; x += space_x)
 					category_label.insert(0, " ");
 
-			ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
-			if (effect.preprocessed) // Do not open tree by default is not yet pre-processed, since that would case an immediate recompile
-				tree_flags |= ImGuiTreeNodeFlags_DefaultOpen;
-
-			if (ImGui::TreeNodeEx(category_label.c_str(), tree_flags))
+			if (ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				if (!effect.preprocessed)
-					force_reload_effect = true;
-
 				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 				{
 					char value[128] = "";
