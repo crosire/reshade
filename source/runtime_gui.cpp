@@ -2677,100 +2677,73 @@ void reshade::runtime::draw_variable_editor()
 
 		if (ImGui::BeginTabBar("##definition_types", ImGuiTabBarFlags_NoTooltip))
 		{
-			if (ImGui::BeginTabItem("Global"))
+			const float content_region_width = ImGui::GetContentRegionAvail().x;
+
+			struct
 			{
-				const float content_region_width = ImGui::GetContentRegionAvail().x;
+				const char *name;
+				std::vector<std::string> &preprocessor_definitions;
+			} definition_types[] = {
+				{ "Global", _global_preprocessor_definitions },
+				{ "Current Present", _preset_preprocessor_definitions },
+			};
 
-				for (size_t i = 0; i < _global_preprocessor_definitions.size(); ++i)
-				{
-					char name[128] = "";
-					char value[128] = "";
-
-					const size_t equals_index = _global_preprocessor_definitions[i].find('=');
-					_global_preprocessor_definitions[i].copy(name, std::min(equals_index, sizeof(name) - 1));
-					if (equals_index != std::string::npos)
-						_global_preprocessor_definitions[i].copy(value, sizeof(value) - 1, equals_index + 1);
-
-					ImGui::PushID(static_cast<int>(i));
-
-					ImGui::SetNextItemWidth(content_region_width * 0.66666666f - (button_spacing));
-					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
-						[](ImGuiInputTextCallbackData *data) -> int { return data->EventChar == '=' || (data->EventChar != '_' && !isalnum(data->EventChar)); }); // Filter out invalid characters
-
-					ImGui::SameLine(0, button_spacing);
-
-					ImGui::SetNextItemWidth(content_region_width * 0.33333333f - (button_spacing + button_size) + 1);
-					modified |= ImGui::InputText("##value", value, sizeof(value));
-
-					ImGui::SameLine(0, button_spacing);
-
-					if (ImGui::Button(ICON_FK_MINUS, ImVec2(button_size, 0)))
-					{
-						modified = true;
-						_global_preprocessor_definitions.erase(_global_preprocessor_definitions.begin() + i--);
-					}
-					else if (modified)
-					{
-						_global_preprocessor_definitions[i] = std::string(name) + '=' + std::string(value);
-					}
-
-					ImGui::PopID();
-				}
-
-				ImGui::Dummy(ImVec2());
-				ImGui::SameLine(0, content_region_width - button_size);
-				if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
-					_global_preprocessor_definitions.emplace_back();
-
-				ImGui::EndTabItem();
-			}
-
-			if (ImGui::BeginTabItem("Current Preset"))
+			for (const auto &type : definition_types)
 			{
-				const float content_region_width = ImGui::GetContentRegionAvail().x;
-
-				for (size_t i = 0; i < _preset_preprocessor_definitions.size(); ++i)
+				if (ImGui::BeginTabItem(type.name))
 				{
-					char name[128] = "";
-					char value[128] = "";
-
-					const size_t equals_index = _preset_preprocessor_definitions[i].find('=');
-					_preset_preprocessor_definitions[i].copy(name, std::min(equals_index, sizeof(name) - 1));
-					if (equals_index != std::string::npos)
-						_preset_preprocessor_definitions[i].copy(value, sizeof(value) - 1, equals_index + 1);
-
-					ImGui::PushID(static_cast<int>(i));
-
-					ImGui::SetNextItemWidth(content_region_width * 0.66666666f - (button_spacing));
-					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
-						[](ImGuiInputTextCallbackData *data) -> int { return data->EventChar == '=' || (data->EventChar != '_' && !isalnum(data->EventChar)); }); // Filter out invalid characters
-
-					ImGui::SameLine(0, button_spacing);
-
-					ImGui::SetNextItemWidth(content_region_width * 0.33333333f - (button_spacing + button_size) + 1);
-					modified |= ImGui::InputText("##value", value, sizeof(value), ImGuiInputTextFlags_AutoSelectAll);
-
-					ImGui::SameLine(0, button_spacing);
-
-					if (ImGui::Button(ICON_FK_MINUS, ImVec2(button_size, 0)))
+					for (size_t i = 0; i < type.preprocessor_definitions.size(); ++i)
 					{
-						modified = true;
-						_preset_preprocessor_definitions.erase(_preset_preprocessor_definitions.begin() + i--);
-					}
-					else if (modified)
-					{
-						_preset_preprocessor_definitions[i] = std::string(name) + '=' + std::string(value);
+						char name[128] = "";
+						char value[128] = "";
+
+						const size_t equals_index = type.preprocessor_definitions[i].find('=');
+						type.preprocessor_definitions[i].copy(name, std::min(equals_index, sizeof(name) - 1));
+						if (equals_index != std::string::npos)
+							type.preprocessor_definitions[i].copy(value, sizeof(value) - 1, equals_index + 1);
+
+						ImGui::PushID(static_cast<int>(i));
+
+						ImGui::SetNextItemWidth(content_region_width * 0.66666666f - (button_spacing));
+						modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
+							[](ImGuiInputTextCallbackData *data) -> int { return data->EventChar == '=' || (data->EventChar != '_' && !isalnum(data->EventChar)); }); // Filter out invalid characters
+
+						ImGui::SameLine(0, button_spacing);
+
+						ImGui::SetNextItemWidth(content_region_width * 0.33333333f - (button_spacing + button_size) + 1);
+						modified |= ImGui::InputText("##value", value, sizeof(value));
+
+						ImGui::SameLine(0, button_spacing);
+
+						if (imgui::popup_button(ICON_FK_MINUS, button_size))
+						{
+							ImGui::Text("Do you really want to remove the preprocessor definition '%s'?", name);
+
+							if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+							{
+								modified = true;
+								type.preprocessor_definitions.erase(type.preprocessor_definitions.begin() + i--);
+
+								ImGui::CloseCurrentPopup();
+							}
+
+							ImGui::EndPopup();
+						}
+						else if (modified)
+						{
+							type.preprocessor_definitions[i] = std::string(name) + '=' + std::string(value);
+						}
+
+						ImGui::PopID();
 					}
 
-					ImGui::PopID();
+					ImGui::Dummy(ImVec2());
+					ImGui::SameLine(0, content_region_width - button_size);
+					if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
+						type.preprocessor_definitions.emplace_back();
+
+					ImGui::EndTabItem();
 				}
-
-				ImGui::Dummy(ImVec2());
-				ImGui::SameLine(0, content_region_width - button_size);
-				if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
-					_preset_preprocessor_definitions.emplace_back();
-
-				ImGui::EndTabItem();
 			}
 
 			ImGui::EndTabBar();
@@ -2932,17 +2905,24 @@ void reshade::runtime::draw_variable_editor()
 						std::string reset_button_label(category.data(), category.size());
 						reset_button_label = ICON_FK_UNDO " Reset all in '" + reset_button_label + "' to default";
 
-						if (ImGui::Button(reset_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+						if (imgui::popup_button(reset_button_label.c_str(), ImGui::GetContentRegionAvail().x))
 						{
-							for (uniform &variable_it : effect.uniforms)
-								if (variable_it.special == special_uniform::none &&
-									variable_it.annotation_as_string("ui_category") == category)
-									reset_uniform_value(variable_it);
+							ImGui::TextUnformatted("Do you really want to reset all values in the category to their defaults?");
 
-							if (_save_present_on_modification)
-								save_current_preset();
+							if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+							{
+								for (uniform &variable_it : effect.uniforms)
+									if (variable_it.special == special_uniform::none &&
+										variable_it.annotation_as_string("ui_category") == category)
+										reset_uniform_value(variable_it);
 
-							ImGui::CloseCurrentPopup();
+								if (_save_present_on_modification)
+									save_current_preset();
+
+								ImGui::CloseCurrentPopup();
+							}
+
+							ImGui::EndPopup();
 						}
 
 						ImGui::EndPopup();
