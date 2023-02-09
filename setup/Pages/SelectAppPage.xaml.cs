@@ -299,6 +299,7 @@ namespace ReShade.Setup.Pages
 
 							// Exclude common installer, support and launcher executables
 							if (path.ContainsIgnoreCase("activation") ||
+								path.ContainsIgnoreCase("apputil") ||
 								path.ContainsIgnoreCase("benchmark") ||
 								path.ContainsIgnoreCase("cefprocess") ||
 								path.ContainsIgnoreCase("compile") ||
@@ -310,6 +311,7 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("diagnostics") ||
 								path.ContainsIgnoreCase("download") ||
 								path.ContainsIgnoreCase("helper") ||
+								path.ContainsIgnoreCase("inject") ||
 								path.ContainsIgnoreCase("install") ||
 								path.ContainsIgnoreCase("launch") ||
 								path.ContainsIgnoreCase("openvr") ||
@@ -327,6 +329,7 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("tool") ||
 								path.ContainsIgnoreCase("unins") ||
 								path.ContainsIgnoreCase("update") ||
+								path.ContainsIgnoreCase("validate") ||
 								path.ContainsIgnoreCase("webview") ||
 								path.Contains("7za") ||
 								path.Contains("fossilize") ||

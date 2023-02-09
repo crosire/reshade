@@ -205,7 +205,7 @@ namespace ReShade.Setup
 
 				if (!signed)
 				{
-					MessageBox.Show("This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+					MessageBox.Show(this, "This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
 				}
 			}
 		}
@@ -794,14 +794,16 @@ namespace ReShade.Setup
 			try
 			{
 				// Extract archive attached to this executable
-				var output = new FileStream(Path.GetTempFileName(), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose);
+				MemoryStream output;
 
 				using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
 				{
+					output = new MemoryStream((int)input.Length);
+
 					byte[] block = new byte[512];
 					byte[] signature = { 0x50, 0x4B, 0x03, 0x04 }; // PK..
 
-					// Look for archive at the end of this executable and copy it to a file
+					// Look for archive at the end of this executable and copy it to a memory stream
 					while (input.Read(block, 0, block.Length) >= signature.Length)
 					{
 						if (block.Take(signature.Length).SequenceEqual(signature) && block.Skip(signature.Length).Take(26).Max() != 0)
