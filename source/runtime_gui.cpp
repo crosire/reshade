@@ -1713,7 +1713,7 @@ void reshade::runtime::draw_gui_settings()
 #endif
 		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshot_save_gui);
 
-		modified |= imgui::file_input_box("Post-save command", _screenshot_post_save_command, _screenshot_post_save_command, { L".exe" });
+		modified |= imgui::file_input_box("Post-save command", "command.exe", _screenshot_post_save_command, _file_selection_path, { L".exe" });
 
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Executable that is called after saving a screenshot.\nThis can be used to perform additional processing on the image (e.g. compressing it with an image optimizer).");

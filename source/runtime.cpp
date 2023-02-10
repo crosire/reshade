@@ -4530,20 +4530,12 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 }
 bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path)
 {
-	std::error_code ec;
-
-	if (_screenshot_post_save_command.empty())
+	if (_screenshot_post_save_command.empty() || _screenshot_post_save_command.extension() != L".exe")
 		return false;
-
-	if (_screenshot_post_save_command.extension() != L".exe" || !std::filesystem::is_regular_file(g_reshade_base_path / _screenshot_post_save_command, ec))
-	{
-		LOG(ERROR) << "Failed to execute screenshot post-save command, since path is not a valid executable!";
-		return false;
-	}
 
 	std::string command_line;
 	command_line += '\"';
-	command_line += (g_reshade_base_path / _screenshot_post_save_command).u8string();
+	command_line += _screenshot_post_save_command.u8string();
 	command_line += '\"';
 
 	if (!_screenshot_post_save_command_arguments.empty())

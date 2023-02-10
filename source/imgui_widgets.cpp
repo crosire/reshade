@@ -93,6 +93,8 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		return false;
 
 	std::error_code ec;
+	if (path.empty())
+		path = L".\\";
 	if (path.is_relative())
 		path = std::filesystem::absolute(path, ec);
 	std::filesystem::path parent_path = path.parent_path();
@@ -264,7 +266,7 @@ bool reshade::imgui::font_input_box(const char *name, std::filesystem::path &pat
 	ImGui::PushID(name);
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 80);
-	if (file_input_box("##font", path, dialog_path, { L".ttf" }))
+	if (file_input_box("##font", nullptr, path, dialog_path, { L".ttf" }))
 		res = true;
 
 	// Reset to the default font name if path is empty
@@ -306,10 +308,6 @@ bool reshade::imgui::search_input_box(char *filter, int filter_size, float width
 	return res;
 }
 
-bool reshade::imgui::file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
-{
-	return file_input_box(name, nullptr, path, dialog_path, exts);
-}
 bool reshade::imgui::file_input_box(const char *name, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
 {
 	bool res = false;
