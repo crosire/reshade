@@ -2715,19 +2715,10 @@ void reshade::runtime::draw_variable_editor()
 
 						ImGui::SameLine(0, button_spacing);
 
-						if (imgui::popup_button(ICON_FK_MINUS, button_size))
+						if (imgui::confirm_button(ICON_FK_MINUS, button_size, "Do you really want to remove the preprocessor definition '%s'?", name))
 						{
-							ImGui::Text("Do you really want to remove the preprocessor definition '%s'?", name);
-
-							if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
-							{
-								modified = true;
-								type.preprocessor_definitions.erase(type.preprocessor_definitions.begin() + i--);
-
-								ImGui::CloseCurrentPopup();
-							}
-
-							ImGui::EndPopup();
+							modified = true;
+							type.preprocessor_definitions.erase(type.preprocessor_definitions.begin() + i--);
 						}
 						else if (modified)
 						{
@@ -2831,31 +2822,22 @@ void reshade::runtime::draw_variable_editor()
 		}
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
-		if (imgui::popup_button(ICON_FK_UNDO " Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth()))
+		if (imgui::confirm_button(ICON_FK_UNDO " Reset all to default", _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth(), "Do you really want to reset all values in '%s' to their defaults?", effect_name.c_str()))
 		{
-			ImGui::Text("Do you really want to reset all values in '%s' to their defaults?", effect_name.c_str());
+			// Reset all uniform variables
+			for (uniform &variable_it : effect.uniforms)
+				if (variable_it.special == special_uniform::none)
+					reset_uniform_value(variable_it);
 
-			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
-			{
-				// Reset all uniform variables
-				for (uniform &variable_it : effect.uniforms)
-					if (variable_it.special == special_uniform::none)
-						reset_uniform_value(variable_it);
+			// Reset all preprocessor definitions
+			for (const std::pair<std::string, std::string> &definition : effect.definitions)
+				if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
+					preset_it != _preset_preprocessor_definitions.end())
+					force_reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
+					_preset_preprocessor_definitions.erase(preset_it);
 
-				// Reset all preprocessor definitions
-				for (const std::pair<std::string, std::string> &definition : effect.definitions)
-					if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
-						preset_it != _preset_preprocessor_definitions.end())
-						force_reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
-						_preset_preprocessor_definitions.erase(preset_it);
-
-				if (_save_present_on_modification)
-					save_current_preset();
-
-				ImGui::CloseCurrentPopup();
-			}
-
-			ImGui::EndPopup();
+			if (_save_present_on_modification)
+				save_current_preset();
 		}
 		ImGui::PopStyleVar();
 
@@ -2887,9 +2869,9 @@ void reshade::runtime::draw_variable_editor()
 			{
 				current_category = category;
 
-				if (!category.empty())
+				if (!current_category.empty())
 				{
-					std::string category_label(category.data(), category.size());
+					std::string category_label = current_category;
 					if (!_variable_editor_tabs)
 						for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
 							category_label.insert(0, " ");
@@ -2902,27 +2884,17 @@ void reshade::runtime::draw_variable_editor()
 
 					if (ImGui::BeginPopupContextItem(category_label.c_str()))
 					{
-						std::string reset_button_label(category.data(), category.size());
-						reset_button_label = ICON_FK_UNDO " Reset all in '" + reset_button_label + "' to default";
+						const std::string reset_button_label = ICON_FK_UNDO " Reset all in '" + current_category + "' to default";
 
-						if (imgui::popup_button(reset_button_label.c_str(), ImGui::GetContentRegionAvail().x))
+						if (imgui::confirm_button(reset_button_label.c_str(), ImGui::GetContentRegionAvail().x, "Do you really want to reset all values in '%s' to their defaults?", current_category.c_str()))
 						{
-							ImGui::TextUnformatted("Do you really want to reset all values in the category to their defaults?");
+							for (uniform &variable_it : effect.uniforms)
+								if (variable_it.special == special_uniform::none &&
+									variable_it.annotation_as_string("ui_category") == category)
+									reset_uniform_value(variable_it);
 
-							if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
-							{
-								for (uniform &variable_it : effect.uniforms)
-									if (variable_it.special == special_uniform::none &&
-										variable_it.annotation_as_string("ui_category") == category)
-										reset_uniform_value(variable_it);
-
-								if (_save_present_on_modification)
-									save_current_preset();
-
-								ImGui::CloseCurrentPopup();
-							}
-
-							ImGui::EndPopup();
+							if (_save_present_on_modification)
+								save_current_preset();
 						}
 
 						ImGui::EndPopup();

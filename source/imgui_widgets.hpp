@@ -81,6 +81,11 @@ namespace reshade::imgui
 	bool toggle_button(const char *label, bool &v, float width = 0.0f, ImGuiButtonFlags flags = 0);
 
 	/// <summary>
+	/// Adds a button that asks for confirmation when pressed. Only returns <see langword="true"/> once that is acknowledged.
+	/// </summary>
+	bool confirm_button(const char *label, float width, const char *message, ...);
+
+	/// <summary>
 	/// Adds an ImGui drag widget but with additional "&lt;" and "&gt;" buttons to decrease/increase the value.
 	/// </summary>
 	bool drag_with_buttons(const char *label, ImGuiDataType data_type, void *v, int components, const void *v_speed, const void *v_min, const void *v_max, const char *format = nullptr);

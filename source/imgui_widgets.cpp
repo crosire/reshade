@@ -439,6 +439,36 @@ bool reshade::imgui::toggle_button(const char *label, bool &v, float width, ImGu
 	return modified;
 }
 
+bool reshade::imgui::confirm_button(const char *label, float width, const char *message, ...)
+{
+	bool modified = false;
+
+	if (popup_button(label, width))
+	{
+		va_list args;
+		va_start(args, message);
+		ImGui::TextV(message, args);
+		va_end(args);
+
+		const float button_width = (ImGui::GetContentRegionAvail().x / 2) - ImGui::GetStyle().ItemInnerSpacing.x;
+
+		if (ImGui::Button("Yes", ImVec2(button_width, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+			modified = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("No", ImVec2(button_width, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+
+		ImGui::EndPopup();
+	}
+
+	return modified;
+}
+
 bool reshade::imgui::list_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
 	bool modified = false;
