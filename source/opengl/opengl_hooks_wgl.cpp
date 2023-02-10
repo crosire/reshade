@@ -1385,6 +1385,8 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glFramebufferRenderbuffer);
 		HOOK_PROC(glRenderbufferStorage);
 		HOOK_PROC(glRenderbufferStorageMultisample);
+		HOOK_PROC(glClearBufferiv);
+		HOOK_PROC(glClearBufferuiv);
 		HOOK_PROC(glClearBufferfv);
 		HOOK_PROC(glClearBufferfi);
 		HOOK_PROC(glBlitFramebuffer);
@@ -1484,6 +1486,8 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glCopyNamedBufferSubData);
 		HOOK_PROC(glNamedRenderbufferStorage);
 		HOOK_PROC(glNamedRenderbufferStorageMultisample);
+		HOOK_PROC(glClearNamedFramebufferiv);
+		HOOK_PROC(glClearNamedFramebufferuiv);
 		HOOK_PROC(glClearNamedFramebufferfv);
 		HOOK_PROC(glClearNamedFramebufferfi);
 		HOOK_PROC(glBlitNamedFramebuffer);

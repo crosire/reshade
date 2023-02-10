@@ -59,10 +59,18 @@ extern "C" void APIENTRY glBufferStorage(GLenum target, GLsizeiptr size, const v
 extern "C" void APIENTRY glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void* data);
 #undef glClear
 extern "C" void APIENTRY glClear(GLbitfield mask);
+#undef glClearBufferiv
+extern "C" void APIENTRY glClearBufferiv(GLenum buffer, GLint drawbuffer, const GLint *value);
+#undef glClearBufferuiv
+extern "C" void APIENTRY glClearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint *value);
 #undef glClearBufferfv
 extern "C" void APIENTRY glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *value);
 #undef glClearBufferfi
 extern "C" void APIENTRY glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
+#undef glClearNamedFramebufferiv
+extern "C" void APIENTRY glClearNamedFramebufferiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLint *value);
+#undef glClearNamedFramebufferuiv
+extern "C" void APIENTRY glClearNamedFramebufferuiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLuint *value);
 #undef glClearNamedFramebufferfv
 extern "C" void APIENTRY glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat *value);
 #undef glClearNamedFramebufferfi

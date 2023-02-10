@@ -1148,13 +1148,10 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 		if (index == 0)
 		{
 			if (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT)
-			{
 				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-			}
+
 			if (_device_impl->_default_depth_format != api::format::unknown)
-			{
 				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-			}
 		}
 
 		return { 0 };
@@ -1247,11 +1244,14 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 			gl.BindFramebuffer(GL_READ_FRAMEBUFFER, prev_binding);
 	}
 
-	if (target == GL_NONE)
+	if (target != GL_NONE)
+		// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
+		return make_resource_view_handle(target, object);
+	else if (type == GL_DEPTH_STENCIL || type == (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT))
+		// Try and check the stencil attachment if there is no depth attachment
+		return get_framebuffer_attachment(fbo, GL_STENCIL, index);
+	else
 		return { 0 };
-
-	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
-	return make_resource_view_handle(target, object);
 }
 
 bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data)
