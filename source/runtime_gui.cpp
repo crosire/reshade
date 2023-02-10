@@ -3186,6 +3186,16 @@ void reshade::runtime::draw_variable_editor()
 }
 void reshade::runtime::draw_technique_editor()
 {
+	if (_effects.empty())
+	{
+		ImGui::TextColored(COLOR_YELLOW, "No effect files found in the effect search paths%c", _effect_search_paths.empty() ? '.' : ':');
+		for (const std::filesystem::path &search_path : _effect_search_paths)
+			ImGui::TextColored(COLOR_YELLOW, "  %s", search_path.u8string().c_str());
+		ImGui::Spacing();
+		ImGui::TextColored(COLOR_YELLOW, "Please verify they are set up correctly in the settings!");
+		return;
+	}
+
 	if (!_last_reload_successfull)
 	{
 		// Add fake items at the top for effects that failed to compile
