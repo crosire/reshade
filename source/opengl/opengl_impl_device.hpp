@@ -37,6 +37,7 @@ namespace reshade::opengl
 		void destroy_resource_view(api::resource_view handle) override;
 
 		api::format get_resource_format(GLenum target, GLenum object) const;
+
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
 

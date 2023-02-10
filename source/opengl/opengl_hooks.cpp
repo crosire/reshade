@@ -414,17 +414,22 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 	if (framebuffer == 0)
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&framebuffer));
 
-	g_current_context->update_current_window_height(framebuffer);
+	const reshade::api::resource_view default_attachment = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, 0);
+	g_current_context->update_current_window_height(default_attachment);
 
 	if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 	{
 		uint32_t count = 0;
 		reshade::api::resource_view rtvs[8], dsv;
-		for (; count < 8; ++count)
+		if (default_attachment.handle != 0)
 		{
-			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-			if (rtvs[count].handle == 0)
-				break;
+			rtvs[0] = default_attachment;
+			for (count = 1; count < 8; ++count)
+			{
+				rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+				if (rtvs[count].handle == 0)
+					break;
+			}
 		}
 
 		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
