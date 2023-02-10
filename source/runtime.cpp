@@ -1456,11 +1456,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			effect.definitions.clear();
 			for (const std::pair<std::string, std::string> &definition : pp.used_macro_definitions())
 			{
-				if (definition.first.size() <= 10 ||
+				if (definition.first.size() < 8 ||
 					definition.first[0] == '_' ||
-					definition.first.compare(0,  7, "BUFFER_") == 0 ||
-					definition.first.compare(0,  8, "RESHADE_") == 0 ||
-					definition.first.compare(0, 14, "INCLUDE_GUARD_") == 0)
+					definition.first.compare(0, 7, "BUFFER_" ) == 0 ||
+					definition.first.compare(0, 8, "RESHADE_") == 0 ||
+					definition.first.find("INCLUDE_") != std::string::npos)
 					continue;
 
 				effect.definitions.emplace_back(definition.first, trim(definition.second));

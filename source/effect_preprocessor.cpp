@@ -511,7 +511,8 @@ void reshadefx::preprocessor::parse_ifdef()
 	level.skipping = parent_skipping || !level.value;
 
 	_if_stack.push_back(std::move(level));
-	if (!parent_skipping) // Only add if this #ifdef is active
+	// Only add to used macro list if this #ifdef is active and the macro was not defined before
+	if (!parent_skipping && _macros.find(_token.literal_as_string) == _macros.end())
 		_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_ifndef()
@@ -529,7 +530,8 @@ void reshadefx::preprocessor::parse_ifndef()
 	level.skipping = parent_skipping || !level.value;
 
 	_if_stack.push_back(std::move(level));
-	if (!parent_skipping) // Only add if this #ifndef is active
+	// Only add to used macro list if this #ifndef is active and the macro was not defined before
+	if (!parent_skipping && _macros.find(_token.literal_as_string) == _macros.end())
 		_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_elif()
