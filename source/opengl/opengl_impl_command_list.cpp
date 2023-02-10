@@ -1182,19 +1182,19 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 		const GLuint level = dst_subresource % dst_desc.texture.levels;
 		      GLuint layer = dst_subresource / dst_desc.texture.levels;
 
-		GLenum level_target = dst_target;
-		if (dst_target == GL_TEXTURE_CUBE_MAP || dst_target == GL_TEXTURE_CUBE_MAP_ARRAY)
-		{
-			const GLuint face = layer % 6;
-			layer /= 6;
-			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-		}
-
 		if (dst_box == nullptr)
 		{
 			width  = std::max(1u, width >> level);
 			height = std::max(1u, height >> level);
 			depth  = (dst_desc.type == api::resource_type::texture_3d ? std::max(1u, depth >> level) : 1u);
+		}
+
+		GLenum level_target = dst_target;
+		if (depth == 1 && (dst_target == GL_TEXTURE_CUBE_MAP || dst_target == GL_TEXTURE_CUBE_MAP_ARRAY))
+		{
+			const GLuint face = layer % 6;
+			layer /= 6;
+			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 		}
 
 		const auto row_pitch = api::format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : width);
@@ -1227,6 +1227,8 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 				gl.CompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 			break;
 		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_CUBE_MAP:
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
 			zoffset += layer;
 			[[fallthrough]];
 		case GL_TEXTURE_3D:
@@ -1458,19 +1460,19 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 		const GLuint level = src_subresource % src_desc.texture.levels;
 		      GLuint layer = src_subresource / src_desc.texture.levels;
 
-		GLenum level_target = src_target;
-		if (src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY)
-		{
-			const GLuint face = layer % 6;
-			layer /= 6;
-			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-		}
-
 		if (src_box == nullptr)
 		{
 			width  = std::max(1u, width >> level);
 			height = std::max(1u, height >> level);
 			depth  = (src_desc.type == api::resource_type::texture_3d ? std::max(1u, depth >> level) : 1u);
+		}
+
+		GLenum level_target = src_target;
+		if (depth == 1 && (src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY))
+		{
+			const GLuint face = layer % 6;
+			layer /= 6;
+			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 		}
 
 		const auto row_pitch = api::format_row_pitch(src_desc.texture.format, row_length != 0 ? row_length : width);
@@ -1483,7 +1485,7 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 		{
 			assert(layer == 0);
 
-			gl.GetTexImage(src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY ? level_target : src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			gl.GetTexImage(level_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
 		else if (_device_impl->_supports_dsa)
 		{
@@ -1492,9 +1494,9 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 			case GL_TEXTURE_1D_ARRAY:
 				yoffset += layer;
 				break;
+			case GL_TEXTURE_2D_ARRAY:
 			case GL_TEXTURE_CUBE_MAP:
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
-			case GL_TEXTURE_2D_ARRAY:
 				zoffset += layer;
 				break;
 			}

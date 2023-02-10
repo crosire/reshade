@@ -303,7 +303,8 @@ public:
 	}
 	init_resource_view(GLenum target, GLuint orig_texture, GLenum internal_format, GLuint min_level, GLuint num_levels, GLuint min_layer, GLuint num_layers) : target(target)
 	{
-		GLenum orig_target = GL_TEXTURE;
+		// Default parent target to the same target as the new texture view
+		GLenum orig_target = target;
 		// 'glTextureView' is available since OpenGL 4.3, so no guarantee that 'glGetTextureParameteriv' exists, since it was introduced in OpenGL 4.5
 		if (gl.GetTextureParameteriv != nullptr)
 			gl.GetTextureParameteriv(orig_texture, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&orig_target));
@@ -561,7 +562,8 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	const reshade::api::resource_desc dst_desc = device->get_resource_desc(dst);
 
 	GLuint subresource = level;
-	if (base_target == GL_TEXTURE_CUBE_MAP)
+	// Both texture target and base target may be 'GL_TEXTURE_CUBE_MAP' when updating the entire cubemap with a 3D update instead of just a single face
+	if (target != GL_TEXTURE_CUBE_MAP && base_target == GL_TEXTURE_CUBE_MAP)
 	{
 		assert(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * dst_desc.texture.levels;

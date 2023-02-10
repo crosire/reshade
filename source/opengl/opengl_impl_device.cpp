@@ -1225,9 +1225,12 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 		{
 			gl.GetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
 
-			if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
+			if (target == GL_TEXTURE)
 			{
-				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+				if (gl.GetTextureParameteriv != nullptr)
+					gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+				else
+					target = GL_TEXTURE_2D; // Assume this is a 2D texture attachment if it cannot be queried
 
 				GLint layered = GL_FALSE;
 				gl.GetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_LAYERED, &layered);
@@ -1436,7 +1439,7 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 		gl.BindTexture(target, object);
 
 	GLenum level_target = target;
-	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+	if (depth == 1 && (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY))
 	{
 		const GLuint face = layer % 6;
 		layer /= 6;
@@ -1460,9 +1463,9 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 		case GL_TEXTURE_1D_ARRAY:
 			yoffset += layer;
 			break;
+		case GL_TEXTURE_2D_ARRAY:
 		case GL_TEXTURE_CUBE_MAP:
 		case GL_TEXTURE_CUBE_MAP_ARRAY:
-		case GL_TEXTURE_2D_ARRAY:
 			zoffset += layer;
 			break;
 		}
@@ -1591,14 +1594,6 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	const GLuint level = subresource % desc.texture.levels;
 	      GLuint layer = subresource / desc.texture.levels;
 
-	GLenum level_target = target;
-	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
-	{
-		const GLuint face = layer % 6;
-		layer /= 6;
-		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-	}
-
 	GLuint xoffset, yoffset, zoffset, width, height, depth;
 	if (box != nullptr)
 	{
@@ -1615,6 +1610,14 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		width   = std::max(1u, desc.texture.width >> level);
 		height  = std::max(1u, desc.texture.height >> level);
 		depth   = (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> level) : 1u);
+	}
+
+	GLenum level_target = target;
+	if (depth == 1 && (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY))
+	{
+		const GLuint face = layer % 6;
+		layer /= 6;
+		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 	}
 
 	GLenum type, format = convert_upload_format(desc.texture.format, type);
@@ -1665,6 +1668,8 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 			gl.CompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), pixels);
 		break;
 	case GL_TEXTURE_2D_ARRAY:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
 		zoffset += layer;
 		[[fallthrough]];
 	case GL_TEXTURE_3D:
