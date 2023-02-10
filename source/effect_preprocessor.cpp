@@ -684,7 +684,7 @@ void reshadefx::preprocessor::parse_include()
 	else
 	{
 		if (!read_file(file_path, input))
-			return error(keyword_location, "could not open included file '" + file_path_string + '\'');
+			return error(keyword_location, "could not open included file '" + file_name.u8string() + '\'');
 
 		_file_cache.emplace(file_path_string, input);
 	}
