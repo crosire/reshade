@@ -1205,8 +1205,8 @@ void reshade::runtime::draw_gui_home()
 		{
 			tutorial_text =
 				"This is the preset selection. All changes will be saved to the selected preset file.\n\n"
-				"Click on the '+' button to name and add a new one.\n\n"
-				"Make sure you always have a preset selected here before starting to tweak any values later, or else your changes won't be saved!";
+				"Click on the '+' button to add a new one.\n"
+				"Use the right mouse button and click on the preset button to open a context menu with additional options.";
 
 			ImGui::PushStyleColor(ImGuiCol_FrameBg, COLOR_RED);
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
@@ -1504,8 +1504,8 @@ void reshade::runtime::draw_gui_home()
 			tutorial_text =
 				"This is the list of effects. It contains all techniques exposed by effect files (.fx) found in the effect search paths specified in the settings.\n\n"
 				"Enter text in the \"Search\" box at the top to filter it and search for specific techniques.\n\n"
-				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.\n"
-				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n";
+				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied (from top to bottom).\n"
+				"Use the right mouse button and click on an item to open a context menu with additional options.";
 
 			ImGui::PushStyleColor(ImGuiCol_Border, COLOR_RED);
 		}
@@ -1566,9 +1566,8 @@ void reshade::runtime::draw_gui_home()
 		{
 			tutorial_text =
 				"This is the list of variables. It contains all tweakable options the active effects expose. Values here apply in real-time.\n\n"
-				"Enter text in the box at the top to filter it and search for specific variables.\n\n"
 				"Press 'Ctrl' and click on a widget to manually edit the value (can also hold 'Ctrl' while adjusting the value in a widget to have it ignore any minimum or maximum values).\n"
-				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n"
+				"Use the right mouse button and click on an item to open a context menu with additional options.\n\n"
 				"Once you have finished tweaking your preset, be sure to enable the 'Performance Mode' check box. "
 				"This will reload all effects into a more optimal representation that can give a performance boost, but disables variable tweaking and this list.";
 
@@ -1622,7 +1621,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (_tutorial_index == 0)
 		{
-			if (ImGui::Button("Continue", ImVec2(max_button_width * 0.66666666f, 0)))
+			if (ImGui::Button("Continue###tutorial_button", ImVec2(max_button_width * 0.66666666f, 0)))
 			{
 				_tutorial_index++;
 
@@ -1641,7 +1640,7 @@ void reshade::runtime::draw_gui_home()
 		}
 		else
 		{
-			if (ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(max_button_width, 0)))
+			if (ImGui::Button(_tutorial_index == 3 ? "Finish###tutorial_button" : "Continue###tutorial_button", ImVec2(max_button_width, 0)))
 			{
 				_tutorial_index++;
 
@@ -1694,7 +1693,7 @@ void reshade::runtime::draw_gui_settings()
 #if RESHADE_FX
 		modified |= imgui::file_input_box("Start-up preset", nullptr, _startup_preset_path, _file_selection_path, { L".ini", L".txt" });
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("When not empty, reset the current preset to this file during reloads");
+			ImGui::SetTooltip("When not empty, reset the current preset to this file during reloads.");
 
 		ImGui::Spacing();
 
@@ -1717,7 +1716,7 @@ void reshade::runtime::draw_gui_settings()
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
 			clear_effect_cache();
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Clear effect cache located in \"%s\"", _effect_cache_path.u8string().c_str());
+			ImGui::SetTooltip("Clear effect cache located in \"%s\".", _effect_cache_path.u8string().c_str());
 #endif
 	}
 
@@ -1778,7 +1777,7 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= imgui::file_input_box("Screenshot sound", "sound.wav", _screenshot_sound_path, _file_selection_path, { L".wav" });
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("When not empty, audio file that is played when taking a screenshot");
+			ImGui::SetTooltip("Audio file that is played when taking a screenshot.");
 
 		modified |= imgui::file_input_box("Post-save command", "command.exe", _screenshot_post_save_command, _file_selection_path, { L".exe" });
 		if (ImGui::IsItemHovered())
@@ -2004,7 +2003,7 @@ void reshade::runtime::draw_gui_settings()
 			modified |= imgui::checkbox_tristate("Show frame time", &_show_frametime);
 			ImGui::EndGroup();
 			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Check to always show, fill out to only show while overlay is open");
+				ImGui::SetTooltip("Check to always show, fill out to only show while overlay is open.");
 
 			if (_show_clock)
 				modified |= ImGui::Combo("Clock format", reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0");

@@ -451,13 +451,13 @@ bool reshade::imgui::confirm_button(const char *label, float width, const char *
 
 		const float button_width = (ImGui::GetContentRegionAvail().x / 2) - ImGui::GetStyle().ItemInnerSpacing.x;
 
-		if (ImGui::Button("Yes", ImVec2(button_width, 0)))
+		if (ImGui::Button(ICON_FK_OK " Yes", ImVec2(button_width, 0)))
 		{
 			ImGui::CloseCurrentPopup();
 			modified = true;
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("No", ImVec2(button_width, 0)))
+		if (ImGui::Button(ICON_FK_CANCEL " No", ImVec2(button_width, 0)))
 		{
 			ImGui::CloseCurrentPopup();
 		}
