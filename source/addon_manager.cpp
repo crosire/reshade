@@ -134,8 +134,8 @@ void reshade::load_addons()
 #endif
 
 	addon_all_loaded = true;
-	internal::get_reshade_module_handle() = g_module_handle;
-	internal::get_current_module_handle() = g_module_handle;
+	internal::get_reshade_module_handle(g_module_handle);
+	internal::get_current_module_handle(g_module_handle);
 
 	std::vector<std::string> disabled_addons;
 	config.get("ADDON", "DisabledAddons", disabled_addons);
@@ -211,8 +211,8 @@ void reshade::load_addons()
 		}
 
 		// Call optional loading entry point (for add-ons wanting to do more complicated one-time initialization than possible in 'DllMain')
-		const auto init_func = reinterpret_cast<bool(*)(HMODULE reshade_module, HMODULE addon_module)>(GetProcAddress(module, "AddonInit"));
-		if (init_func != nullptr && !init_func(g_module_handle, module))
+		const auto init_func = reinterpret_cast<bool(*)(HMODULE addon_module, HMODULE reshade_module)>(GetProcAddress(module, "AddonInit"));
+		if (init_func != nullptr && !init_func(module, g_module_handle))
 		{
 			if (!addon_loaded_info.empty() && path.filename().u8string() == addon_loaded_info.back().file)
 			{
@@ -262,9 +262,9 @@ void reshade::unload_addons()
 		const auto module = static_cast<HMODULE>(info.handle);
 
 		// Call optional unloading entry point
-		const auto uninit_func = reinterpret_cast<void(*)(HMODULE reshade_module, HMODULE addon_module)>(GetProcAddress(module, "AddonUninit"));
+		const auto uninit_func = reinterpret_cast<void(*)(HMODULE addon_module, HMODULE reshade_module)>(GetProcAddress(module, "AddonUninit"));
 		if (uninit_func != nullptr)
-			uninit_func(g_module_handle, module);
+			uninit_func(module, g_module_handle);
 
 		if (!FreeLibrary(module))
 			LOG(WARN) << "Failed to unload " << std::filesystem::u8path(info.file) << " with error code " << GetLastError() << '!';
