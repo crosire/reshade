@@ -7,7 +7,6 @@
 
 #include "reshade_events.hpp"
 #include "reshade_overlay.hpp"
-#include <cstdarg>
 #include <charconv>
 #include <Windows.h>
 
@@ -69,20 +68,13 @@ namespace reshade
 	/// <summary>
 	/// Writes a message to ReShade's log.
 	/// </summary>
-	/// <param name="level">Severity level (1 = error, 2 = warning, 3 = info, 4 = debug).</param>
+	/// <param name="level">Severity level.</param>
 	/// <param name="message">A null-terminated message string.</param>
-	inline void log_message(log_level level, const char *message, ...)
+	inline void log_message(log_level level, const char *message)
 	{
 		static const auto func = reinterpret_cast<void(*)(HMODULE, int, const char *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeLogMessage"));
-
-		char message_formatted[512] = "";
-		std::va_list args;
-		va_start(args, message);
-		vsprintf_s(message_formatted, message, args);
-		va_end(args);
-
-		func(internal::get_current_module_handle(), static_cast<int>(level), message_formatted);
+		func(internal::get_current_module_handle(), static_cast<int>(level), message);
 	}
 
 	/// <summary>
