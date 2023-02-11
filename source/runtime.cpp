@@ -4462,7 +4462,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 		const bool include_preset = false;
 #endif
 		// Play screenshot sound
-		std::filesystem::path screenshot_sound_path = (g_reshade_base_path / _screenshot_sound_path).lexically_normal();
+		const std::filesystem::path screenshot_sound_path = (g_reshade_base_path / _screenshot_sound_path).lexically_normal();
 		if (!_screenshot_sound_path.empty() && screenshot_sound_path.native().length() <= 255)
 			PlaySound(screenshot_sound_path.c_str(), nullptr, SND_ASYNC | SND_NOSTOP | SND_FILENAME);
 

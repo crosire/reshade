@@ -3265,11 +3265,11 @@ void reshade::runtime::draw_technique_editor()
 {
 	if (_effects.empty())
 	{
-		ImGui::TextColored(COLOR_YELLOW, "No effect files found in the effect search paths%c", _effect_search_paths.empty() ? '.' : ':');
+		ImGui::TextColored(COLOR_YELLOW, "No effect files (.fx) found in the effect search paths%c", _effect_search_paths.empty() ? '.' : ':');
 		for (const std::filesystem::path &search_path : _effect_search_paths)
-			ImGui::TextColored(COLOR_YELLOW, "  %s", search_path.u8string().c_str());
+			ImGui::TextColored(COLOR_YELLOW, "  %s", (g_reshade_base_path / search_path).lexically_normal().u8string().c_str());
 		ImGui::Spacing();
-		ImGui::TextColored(COLOR_YELLOW, "Please verify they are set up correctly in the settings!");
+		ImGui::TextColored(COLOR_YELLOW, "Please verify they are set up correctly in the settings and hit 'Reload'!");
 		return;
 	}
 
