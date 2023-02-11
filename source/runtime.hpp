@@ -455,7 +455,7 @@ namespace reshade
 		bool _variable_editor_tabs = false;
 		bool _auto_save_preset = true;
 		bool _preset_is_modified = false;
-		bool _duplicate_current_preset = false;
+		bool _inherit_current_preset = false;
 		std::filesystem::path _template_preset_path;
 		bool _was_preprocessor_popup_edited = false;
 		size_t _focused_effect = std::numeric_limits<size_t>::max();

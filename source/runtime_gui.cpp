@@ -1303,7 +1303,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (!was_auto_save_preset)
 		{
-			if (ImGui::ButtonEx(ICON_FK_UNDO, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+			if (imgui::confirm_button(ICON_FK_UNDO, button_size, "Do you really want to reset all techniques and values?"))
 			{
 				_preset_is_modified = false;
 
@@ -1333,7 +1333,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::SameLine(0, button_spacing);
 		if (ImGui::ButtonEx(ICON_FK_PLUS, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | ImGuiButtonFlags_PressedOnClick))
 		{
-			_duplicate_current_preset = false;
+			_inherit_current_preset = false;
 			_template_preset_path.clear();
 			_file_selection_path = _current_preset_path.parent_path();
 			ImGui::OpenPopup("##create");
@@ -1366,9 +1366,9 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::BeginPopup("##create"))
 		{
-			ImGui::Checkbox("Duplicate current preset", &_duplicate_current_preset);
+			ImGui::Checkbox("Inherit current preset", &_inherit_current_preset);
 
-			if (!_duplicate_current_preset)
+			if (!_inherit_current_preset)
 				imgui::file_input_box("Template", nullptr, _template_preset_path, _file_selection_path, { L".ini", L".txt" });
 
 			if (ImGui::IsWindowAppearing())
@@ -1389,11 +1389,18 @@ void reshade::runtime::draw_gui_home()
 						file_type == std::filesystem::file_type::not_found ||
 						ini_file::load_cache(new_preset_path).has({}, "Techniques");
 
-					if (_duplicate_current_preset)
-						_template_preset_path = _current_preset_path;
-					if (!_template_preset_path.empty() && file_type == std::filesystem::file_type::not_found)
-						if (!std::filesystem::copy_file(_template_preset_path, new_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
-							LOG(ERROR) << "Failed to duplicate preset " << _template_preset_path << " to " << new_preset_path << " with error code " << ec.value() << '!';
+					if (file_type == std::filesystem::file_type::not_found)
+					{
+						if (_inherit_current_preset)
+						{
+							_current_preset_path = new_preset_path;
+							save_current_preset();
+						}
+						else if (!_template_preset_path.empty() && !std::filesystem::copy_file(_template_preset_path, new_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
+						{
+							LOG(ERROR) << "Failed to copy preset template " << _template_preset_path << " to " << new_preset_path << " with error code " << ec.value() << '!';
+						}
+					}
 				}
 
 				if (reload_preset)
