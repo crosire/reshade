@@ -185,20 +185,21 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	ImGui::EndChild();
 
 	std::filesystem::path path_name = path.has_filename() || !exts.empty() ? path.filename() : path.parent_path().filename();
+	const float button_size = 6.0f * ImGui::GetFontSize();
 
 	{	char buf[4096];
 		const size_t buf_len = path_name.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0';
 
-		ImGui::SetNextItemWidth(width - (2 * (80 + ImGui::GetStyle().ItemSpacing.x)));
+		ImGui::SetNextItemWidth(std::max(0.0f, width - (2 * (button_size + ImGui::GetStyle().ItemSpacing.x))));
 		if (ImGui::InputText("##name", buf, sizeof(buf)))
 			path = path.parent_path() / buf;
 	}
 
 	ImGui::SameLine();
-	const bool select = ImGui::Button(ICON_FK_OK " Select", ImVec2(80, 0));
+	const bool select = ImGui::Button(ICON_FK_OK " Select", ImVec2(button_size, 0));
 	ImGui::SameLine();
-	const bool cancel = ImGui::Button(ICON_FK_CANCEL " Cancel", ImVec2(80, 0));
+	const bool cancel = ImGui::Button(ICON_FK_CANCEL " Cancel", ImVec2(button_size, 0));
 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
