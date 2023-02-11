@@ -329,9 +329,12 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("tool") ||
 								path.ContainsIgnoreCase("unins") ||
 								path.ContainsIgnoreCase("update") ||
+								path.ContainsIgnoreCase("util") ||
 								path.ContainsIgnoreCase("validate") ||
+								path.ContainsIgnoreCase("webengine") ||
 								path.ContainsIgnoreCase("webview") ||
 								path.Contains("7za") ||
+								path.Contains("createdump") ||
 								path.Contains("fossilize") ||
 								path.Contains("Rpt") || // CrashRpt, SndRpt
 								path.Contains("svc") ||

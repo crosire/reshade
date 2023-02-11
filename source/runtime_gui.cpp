@@ -1224,10 +1224,16 @@ void reshade::runtime::draw_gui_home()
 		if (ImGui::ArrowButtonEx("<", ImGuiDir_Left, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), true))
 				reload_preset = true;
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Previous preset");
+
 		ImGui::SameLine(0, button_spacing);
+
 		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), false))
 				reload_preset = true;
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Next preset");
 
 		ImGui::SameLine(0, button_spacing);
 		const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
@@ -1622,7 +1628,7 @@ void reshade::runtime::draw_gui_settings()
 
 			modified |= ImGui::SliderInt("Preset transition duration", reinterpret_cast<int *>(&_preset_transition_duration), 0, 10 * 1000);
 			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
+				ImGui::SetTooltip("Make a smooth transition when switching presets, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
 #endif
 
 			modified |= ImGui::Combo("Input processing", reinterpret_cast<int *>(&_input_processing_mode),
@@ -1654,7 +1660,7 @@ void reshade::runtime::draw_gui_settings()
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
 			clear_effect_cache();
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Clear effect cache located in \"%s\".", _effect_cache_path.u8string().c_str());
+			ImGui::SetTooltip("Clear effect cache located in \"%s\"", _effect_cache_path.u8string().c_str());
 #endif
 	}
 
