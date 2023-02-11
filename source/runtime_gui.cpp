@@ -1672,6 +1672,9 @@ void reshade::runtime::draw_gui_settings()
 		}
 
 		modified |= imgui::directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
+		modified |= imgui::directory_input_box("Screenshot sound", _screenshot_playsound_path, _file_selection_path);
+		modified |= ImGui::Checkbox("Play default sound if not exists", &_screenshot_playsound_force);
+		modified |= ImGui::Checkbox("Play sound as system notification", &_screenshot_playsound_as_system_notification);
 
 		char name[260] = "";
 		_screenshot_name.copy(name, sizeof(name) - 1);

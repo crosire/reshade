@@ -30,6 +30,7 @@
 #include <malloc.h>
 #include <dwmapi.h>
 #include <d3dcompiler.h>
+#include <mmsystem.h>
 
 #if RESHADE_FX
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
@@ -859,6 +860,9 @@ void reshade::runtime::load_config()
 #endif
 
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
+	config.get("SCREENSHOT", "SoundPath", _screenshot_playsound_path);
+	config.get("SCREENSHOT", "PlayDefaultIfNotExist", _screenshot_playsound_force);
+	config.get("SCREENSHOT", "PlaySoundAsSystemNotification", _screenshot_playsound_as_system_notification);
 	config.get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.get("SCREENSHOT", "FileNaming", _screenshot_name);
@@ -931,6 +935,9 @@ void reshade::runtime::save_config() const
 #endif
 
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
+	config.set("SCREENSHOT", "SoundPath", _screenshot_playsound_path);
+	config.set("SCREENSHOT", "PlayDefaultIfNotExist", _screenshot_playsound_force);
+	config.set("SCREENSHOT", "PlaySoundAsSystemNotification", _screenshot_playsound_as_system_notification);
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.set("SCREENSHOT", "FileNaming", _screenshot_name);
@@ -4442,6 +4449,15 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 #else
 		const bool include_preset = false;
 #endif
+		if (!_screenshot_playsound_path.empty())
+		{
+			std::filesystem::path screenshot_playsound_path = (g_reshade_base_path / _screenshot_playsound_path).lexically_normal();
+			if (screenshot_playsound_path.native().length() < 256)
+			{
+				if (std::error_code ec; _screenshot_playsound_force || screenshot_playsound_path.extension() == L".wav" && std::filesystem::exists(screenshot_playsound_path, ec))
+					PlaySound(screenshot_playsound_path.c_str(), nullptr, SND_ASYNC | (_screenshot_playsound_force ? 0 : SND_NODEFAULT) | SND_NOSTOP | SND_FILENAME | (_screenshot_playsound_as_system_notification ? SND_SYSTEM : 0));
+			}
+		}
 
 		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
