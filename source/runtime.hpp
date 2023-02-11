@@ -343,6 +343,7 @@ namespace reshade
 		unsigned int _screenshot_format = 1;
 		unsigned int _screenshot_jpeg_quality = 90;
 		unsigned int _screenshot_key_data[4] = {};
+		std::filesystem::path _screenshot_sound_path;
 		std::filesystem::path _screenshot_path;
 		std::string _screenshot_name;
 		std::filesystem::path _screenshot_post_save_command;

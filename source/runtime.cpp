@@ -30,6 +30,7 @@
 #include <malloc.h>
 #include <dwmapi.h>
 #include <d3dcompiler.h>
+#include <mmsystem.h>
 
 #if RESHADE_FX
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
@@ -863,6 +864,7 @@ void reshade::runtime::load_config()
 #endif
 
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
+	config.get("SCREENSHOT", "SoundPath", _screenshot_sound_path);
 	config.get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.get("SCREENSHOT", "FileNaming", _screenshot_name);
@@ -946,6 +948,7 @@ void reshade::runtime::save_config() const
 #endif
 
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
+	config.set("SCREENSHOT", "SoundPath", _screenshot_sound_path);
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.set("SCREENSHOT", "FileNaming", _screenshot_name);
@@ -4457,6 +4460,10 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 #else
 		const bool include_preset = false;
 #endif
+		// Play screenshot sound
+		std::filesystem::path screenshot_sound_path = (g_reshade_base_path / _screenshot_sound_path).lexically_normal();
+		if (!_screenshot_sound_path.empty() && screenshot_sound_path.native().length() <= 255)
+			PlaySound(screenshot_sound_path.c_str(), nullptr, SND_ASYNC | SND_NOSTOP | SND_FILENAME);
 
 		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
