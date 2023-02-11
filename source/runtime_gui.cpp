@@ -1241,15 +1241,22 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::SameLine();
 
+		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+
 		const auto browse_popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
 		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (_imgui_context->Style.ItemSpacing.x + 11.0f * _font_size);
 
-		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-		if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(browse_button_width, 0), ImGuiButtonFlags_NoNavFocus))
+		const std::string browse_button_label = _current_preset_path.stem().u8string() + "###browse_button";
+
+		if (ImGui::ButtonEx(browse_button_label.c_str(), ImVec2(browse_button_width, 0), ImGuiButtonFlags_NoNavFocus))
 		{
 			_file_selection_path = _current_preset_path;
 			ImGui::OpenPopup("##browse");
 		}
+
+		if (_preset_is_modified)
+			ImGui::RenderBullet(ImGui::GetWindowDrawList(), browse_popup_pos + ImVec2(browse_button_width, -ImGui::GetFontSize()), ImGui::GetColorU32(ImGuiCol_Text));
+
 		ImGui::PopStyleVar();
 
 		if (_input != nullptr &&
@@ -1278,9 +1285,13 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::SameLine();
 
-		const bool prev_auto_save_preset = _auto_save_preset;
-		if (imgui::toggle_button("Auto Save", _auto_save_preset, (11.0f * _font_size) - (button_spacing + button_size) * (prev_auto_save_preset ? 2 : 3)))
+		const bool was_auto_save_preset = _auto_save_preset;
+		if (imgui::toggle_button("Auto Save", _auto_save_preset, (11.0f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
+		{
+			_preset_is_modified = false;
+
 			save_config();
+		}
 
 		ImGui::SameLine(0, button_spacing);
 
@@ -1290,10 +1301,14 @@ void reshade::runtime::draw_gui_home()
 		// Cannot save in performance mode, since there are no variables to retrieve values from then
 		ImGui::BeginDisabled(_performance_mode || _is_in_between_presets_transition);
 
-		if (!prev_auto_save_preset)
+		if (!was_auto_save_preset)
 		{
 			if (ImGui::ButtonEx(ICON_FK_UNDO, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+			{
+				_preset_is_modified = false;
+
 				load_current_preset();
+			}
 
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Reset all techniques and values to those of the current preset");
@@ -1306,6 +1321,8 @@ void reshade::runtime::draw_gui_home()
 			ini_file::load_cache(_current_preset_path).clear();
 			save_current_preset();
 			ini_file::flush_cache(_current_preset_path);
+
+			_preset_is_modified = false;
 		}
 
 		if (ImGui::IsItemHovered())
@@ -1405,6 +1422,7 @@ void reshade::runtime::draw_gui_home()
 		if (reload_preset)
 		{
 			_show_splash = true;
+			_preset_is_modified = false;
 
 			save_config();
 			load_current_preset();
@@ -1462,6 +1480,8 @@ void reshade::runtime::draw_gui_home()
 
 			if (_auto_save_preset)
 				save_current_preset();
+			else
+				_preset_is_modified = true;
 		}
 
 		if (!_variable_editor_tabs)
@@ -1498,7 +1518,7 @@ void reshade::runtime::draw_gui_home()
 				if (skipped_effects > 0)
 				{
 					char buf[60];
-					ImFormatString(buf, sizeof(buf), "Force load all effects (%zu remaining)", skipped_effects);
+					ImFormatString(buf, sizeof(buf), "Force load all effects (%zu remaining)###force_reload_button", skipped_effects);
 					if (ImGui::ButtonEx(buf, ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 					{
 						_load_option_disable_skipping = true;
@@ -1564,6 +1584,8 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button(ICON_FK_REFRESH " Reload", ImVec2(-11.5f * _font_size, 0)))
 		{
+			_preset_is_modified = false;
+
 			load_config(); // Reload configuration too
 
 			if (!_no_effect_cache && (_imgui_context->IO.KeyCtrl || _imgui_context->IO.KeyShift))
@@ -2785,6 +2807,8 @@ void reshade::runtime::draw_variable_editor()
 			save_config();
 			if (_auto_save_preset)
 				save_current_preset();
+			else
+				_preset_is_modified = true;
 			_was_preprocessor_popup_edited = true;
 		}
 
@@ -2876,6 +2900,8 @@ void reshade::runtime::draw_variable_editor()
 
 			if (_auto_save_preset)
 				save_current_preset();
+			else
+				_preset_is_modified = true;
 		}
 		ImGui::PopStyleVar();
 
@@ -2933,6 +2959,8 @@ void reshade::runtime::draw_variable_editor()
 
 							if (_auto_save_preset)
 								save_current_preset();
+							else
+								_preset_is_modified = true;
 						}
 
 						ImGui::EndPopup();
@@ -3093,8 +3121,13 @@ void reshade::runtime::draw_variable_editor()
 			ImGui::PopID();
 
 			// A value has changed, so save the current preset
-			if (modified && _auto_save_preset)
-				save_current_preset();
+			if (modified)
+			{
+				if (_auto_save_preset)
+					save_current_preset();
+				else
+					_preset_is_modified = true;
+			}
 		}
 
 		if (active_variable_index < effect.uniforms.size())
@@ -3408,6 +3441,8 @@ void reshade::runtime::draw_technique_editor()
 
 			if (_auto_save_preset)
 				save_current_preset();
+			else
+				_preset_is_modified = true;
 		}
 
 		ImGui::PopStyleColor();
@@ -3449,10 +3484,13 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 			ImGui::SetNextItemWidth(230.0f);
-			if (_input != nullptr && !force_enabled)
+			if (_input != nullptr && !force_enabled &&
+				imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input))
 			{
-				if (imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input) && _auto_save_preset)
+				if (_auto_save_preset)
 					save_current_preset();
+				else
+					_preset_is_modified = true;
 			}
 
 			const bool is_not_top = index > 0;
@@ -3464,6 +3502,8 @@ void reshade::runtime::draw_technique_editor()
 				_techniques.erase(_techniques.begin() + 1 + index);
 				if (_auto_save_preset)
 					save_current_preset();
+				else
+					_preset_is_modified = true;
 				ImGui::CloseCurrentPopup();
 			}
 			if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(230.0f, 0)))
@@ -3472,6 +3512,8 @@ void reshade::runtime::draw_technique_editor()
 				_techniques.erase(_techniques.begin() + index);
 				if (_auto_save_preset)
 					save_current_preset();
+				else
+					_preset_is_modified = true;
 				ImGui::CloseCurrentPopup();
 			}
 
@@ -3598,6 +3640,8 @@ void reshade::runtime::draw_technique_editor()
 
 			if (_auto_save_preset)
 				save_current_preset();
+			else
+				_preset_is_modified = true;
 			return;
 		}
 	}
