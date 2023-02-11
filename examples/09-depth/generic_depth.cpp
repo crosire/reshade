@@ -230,7 +230,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
 			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
 		else
-			reshade::log_message(1, "Failed to create backup depth-stencil texture!");
+			reshade::log_message(reshade::log_level::error, "Failed to create backup depth-stencil texture!");
 
 		return &backup;
 	}
@@ -518,7 +518,7 @@ static void on_destroy_resource(device *device, resource resource)
 		{
 			lock.unlock();
 
-			reshade::log_message(2, "A depth-stencil resource was destroyed while still in use.");
+			reshade::log_message(reshade::log_level::warning, "A depth-stencil resource was destroyed while still in use.");
 
 			// This is bad ... the resource may still be in use by an effect on the GPU and destroying it would crash it
 			// Try to mitigate that somehow by delaying this thread a little to hopefully give the GPU enough time to catch up before the resource memory is deallocated
