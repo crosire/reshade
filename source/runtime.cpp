@@ -842,7 +842,7 @@ void reshade::runtime::load_config()
 	}
 
 	// Use startup preset instead of last selection
-	if (std::error_code ec; !_startup_preset_path.empty() && resolve_preset_path(_startup_preset_path, ec))
+	if (!_startup_preset_path.empty() && resolve_preset_path(_startup_preset_path, ec))
 		_current_preset_path = _startup_preset_path;
 
 	// Use default if the preset file does not exist yet
@@ -921,7 +921,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "StartupPresetPath", startup_preset_path);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
-	std::filesystem::path current_preset_path = (g_reshade_base_path / _current_preset_path).lexically_proximate(g_reshade_base_path);
+	std::filesystem::path current_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
 
 	if (current_preset_path.native().rfind(L"..", 0) != std::wstring::npos)
 		current_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
