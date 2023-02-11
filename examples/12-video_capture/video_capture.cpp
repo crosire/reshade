@@ -324,20 +324,18 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 extern "C" __declspec(dllexport) const char *NAME = "Video Capture";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that captures the screen after effects were rendered and uses FFmpeg to create a video file from that.";
 
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
+extern "C" __declspec(dllexport) bool AddonInit(HMODULE addon_module, HMODULE reshade_module)
 {
-	switch (fdwReason)
-	{
-	case DLL_PROCESS_ATTACH:
-		if (!reshade::register_addon(hinstDLL))
-			return FALSE;
-		reshade::register_event<reshade::addon_event::init_swapchain>(on_init);
-		reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy);
-		reshade::register_event<reshade::addon_event::reshade_finish_effects>(on_reshade_finish_effects);
-		break;
-	case DLL_PROCESS_DETACH:
-		reshade::unregister_addon(hinstDLL);
-		break;
-	}
-	return TRUE;
+	if (!reshade::register_addon(addon_module, reshade_module))
+		return false;
+
+	reshade::register_event<reshade::addon_event::init_swapchain>(on_init);
+	reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy);
+	reshade::register_event<reshade::addon_event::reshade_finish_effects>(on_reshade_finish_effects);
+
+	return true;
+}
+extern "C" __declspec(dllexport) void AddonUninit(HMODULE addon_module, HMODULE reshade_module)
+{
+	reshade::unregister_addon(addon_module, reshade_module);
 }
