@@ -295,7 +295,7 @@ bool reshade::imgui::search_input_box(char *filter, int filter_size, float width
 	const bool show_clear_button = filter[0] != '\0';
 
 	if (ImGui::InputTextEx("##filter", "Search " ICON_FK_SEARCH, filter, filter_size,
-		ImVec2(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f), 0), ImGuiInputTextFlags_AutoSelectAll))
+			ImVec2(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f), 0), ImGuiInputTextFlags_AutoSelectAll))
 		res = true;
 
 	if (show_clear_button)

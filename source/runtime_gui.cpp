@@ -28,6 +28,11 @@ static bool filter_text(const std::string_view &text, const std::string_view &fi
 				return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2);
 			}) != text.end();
 }
+static auto filter_name(ImGuiInputTextCallbackData *data) -> int
+{
+	// A file name cannot contain any of the following characters
+	return data->EventChar == L'\"' || data->EventChar == L'*' || data->EventChar == L'/' || data->EventChar == L':' || data->EventChar == L'<' || data->EventChar == L'>' || data->EventChar == L'?' || data->EventChar == L'\\' || data->EventChar == L'|';
+}
 
 template <typename F>
 static void parse_errors(const std::string_view &errors, F &&callback)
@@ -1344,8 +1349,11 @@ void reshade::runtime::draw_gui_home()
 		{
 			ImGui::Checkbox("Duplicate current preset", &_duplicate_current_preset);
 
+			if (ImGui::IsWindowAppearing())
+				ImGui::SetKeyboardFocusHere();
+
 			char preset_name[260] = "";
-			if (ImGui::InputText("Name", preset_name, sizeof(preset_name), ImGuiInputTextFlags_EnterReturnsTrue) && preset_name[0] != '\0')
+			if (ImGui::InputText("Preset name", preset_name, sizeof(preset_name), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCharFilter, filter_name) && preset_name[0] != '\0')
 			{
 				std::filesystem::path new_preset_path = _file_selection_path / std::filesystem::u8path(preset_name);
 				if (new_preset_path.extension() != L".ini" && new_preset_path.extension() != L".txt")
@@ -1374,9 +1382,6 @@ void reshade::runtime::draw_gui_home()
 					ImGui::SetKeyboardFocusHere();
 				}
 			}
-
-			if (ImGui::IsWindowAppearing())
-				ImGui::SetKeyboardFocusHere();
 
 			if (preset_name[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
 				ImGui::CloseCurrentPopup();
@@ -1463,7 +1468,7 @@ void reshade::runtime::draw_gui_home()
 		if (_tutorial_index == 2)
 		{
 			tutorial_text =
-				"This is the list of effects. It contains all techniques exposed by effect files (*.fx) found in the effect search paths specified in the settings.\n\n"
+				"This is the list of effects. It contains all techniques exposed by effect files (.fx) found in the effect search paths specified in the settings.\n\n"
 				"Enter text in the \"Search\" box at the top to filter it and search for specific techniques.\n\n"
 				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.\n"
 				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n";
@@ -1659,7 +1664,7 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("List of directory paths to be searched for effect files (*.fx).\nPaths that end in \"\\**\" are searched recursively.");
+			ImGui::SetTooltip("List of directory paths to be searched for effect files (.fx).\nPaths that end in \"\\**\" are searched recursively.");
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("List of directory paths to be searched for texture image files.\nPaths that end in \"\\**\" are searched recursively.");
@@ -1691,7 +1696,7 @@ void reshade::runtime::draw_gui_settings()
 
 		char name[260] = "";
 		_screenshot_name.copy(name, sizeof(name) - 1);
-		if (ImGui::InputText("Screenshot name", name, sizeof(name)))
+		if (ImGui::InputText("Screenshot name", name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, filter_name))
 		{
 			modified = true;
 			_screenshot_name = name;
@@ -3108,7 +3113,7 @@ void reshade::runtime::draw_variable_editor()
 						definition.second.copy(value, sizeof(value) - 1); // Fill with default value
 
 					if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
-						global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+							global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
 					{
 						if (value[0] == '\0') // An empty value removes the definition
 						{
