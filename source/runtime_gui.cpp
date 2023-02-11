@@ -1651,6 +1651,7 @@ void reshade::runtime::draw_gui_settings()
 		}
 
 #if RESHADE_FX
+		modified |= imgui::directory_input_box("Startup preset path", _startup_preset_path, _file_selection_path);
 		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("List of directory paths to be searched for effect files (*.fx).\nPaths that end in \"\\**\" are searched recursively.");

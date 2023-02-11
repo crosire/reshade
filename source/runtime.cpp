@@ -826,6 +826,8 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "IntermediateCachePath", _effect_cache_path);
 
+	config.get("GENERAL", "StartupPresetPath", _startup_preset_path);
+
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 
@@ -839,8 +841,12 @@ void reshade::runtime::load_config()
 			LOG(ERROR) << "Failed to create effect cache directory " << _effect_cache_path << " with error code " << ec.value() << '!';
 	}
 
+	// Use startup preset instead of last selection
+	if (!_startup_preset_path.empty() && resolve_preset_path(_startup_preset_path, ec))
+		_current_preset_path = _startup_preset_path;
+
 	// Use default if the preset file does not exist yet
-	if (!resolve_preset_path(_current_preset_path, ec))
+	else if (!resolve_preset_path(_current_preset_path, ec))
 		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
 
 	std::vector<unsigned int> preset_key_data;
@@ -905,12 +911,24 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "IntermediateCachePath", _effect_cache_path);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
-	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
-	if (relative_preset_path.native().rfind(L"..", 0) != std::wstring::npos)
-		relative_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
-	if (relative_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
-		relative_preset_path = L"." / relative_preset_path;
-	config.set("GENERAL", "PresetPath", relative_preset_path);
+	std::filesystem::path startup_preset_path = (g_reshade_base_path / _startup_preset_path).lexically_proximate(g_reshade_base_path);
+
+	if (startup_preset_path.native().rfind(L"..", 0) != std::wstring::npos)
+		startup_preset_path = _startup_preset_path; // Do not use relative path if preset is in a parent directory
+	if (startup_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
+		startup_preset_path = L"." / startup_preset_path;
+
+	config.set("GENERAL", "StartupPresetPath", startup_preset_path);
+
+	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
+	std::filesystem::path current_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
+
+	if (current_preset_path.native().rfind(L"..", 0) != std::wstring::npos)
+		current_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
+	if (current_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
+		current_preset_path = L"." / current_preset_path;
+
+	config.set("GENERAL", "PresetPath", current_preset_path);
 	config.set("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 
 	std::vector<unsigned int> preset_key_data;
