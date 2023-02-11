@@ -205,7 +205,7 @@ void reshade::load_addons()
 			else
 			{
 				addon_all_loaded = false;
-				LOG(WARN) << "Failed to load add-on from " << path << " with error code " << error_code << '.';
+				LOG(ERROR) << "Failed to load add-on from " << path << " with error code " << error_code << '!';
 			}
 			continue;
 		}
@@ -223,7 +223,7 @@ void reshade::load_addons()
 			else
 			{
 				addon_all_loaded = false;
-				LOG(WARN) << "Failed to load add-on from " << path << " because initialization was not successfull.";
+				LOG(ERROR) << "Failed to load add-on from " << path << " because initialization was not successfull!";
 			}
 
 			FreeLibrary(module);
