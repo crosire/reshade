@@ -3170,6 +3170,7 @@ void reshade::runtime::reload_effects()
 	destroy_effects();
 
 #if RESHADE_GUI
+	_preset_is_modified = false;
 	_show_splash = true; // Always show splash bar when reloading everything
 	_reload_count++;
 #endif

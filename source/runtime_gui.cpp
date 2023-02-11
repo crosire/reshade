@@ -1298,11 +1298,10 @@ void reshade::runtime::draw_gui_home()
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Save current preset automatically on every modification");
 
-		// Cannot save in performance mode, since there are no variables to retrieve values from then
-		ImGui::BeginDisabled(_performance_mode || _is_in_between_presets_transition);
-
 		if (!was_auto_save_preset)
 		{
+			ImGui::BeginDisabled(!_preset_is_modified);
+
 			if (imgui::confirm_button(ICON_FK_UNDO, button_size, "Do you really want to reset all techniques and values?"))
 			{
 				_preset_is_modified = false;
@@ -1313,8 +1312,13 @@ void reshade::runtime::draw_gui_home()
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Reset all techniques and values to those of the current preset");
 
+			ImGui::EndDisabled();
+
 			ImGui::SameLine(0, button_spacing);
 		}
+
+		// Cannot save in performance mode, since there are no variables to retrieve values from then
+		ImGui::BeginDisabled(_performance_mode || _is_in_between_presets_transition);
 
 		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 		{
@@ -1590,8 +1594,6 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button(ICON_FK_REFRESH " Reload", ImVec2(-11.5f * _font_size, 0)))
 		{
-			_preset_is_modified = false;
-
 			load_config(); // Reload configuration too
 
 			if (!_no_effect_cache && (_imgui_context->IO.KeyCtrl || _imgui_context->IO.KeyShift))
