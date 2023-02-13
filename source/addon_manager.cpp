@@ -167,10 +167,15 @@ void reshade::load_addons()
 	std::error_code ec;
 	for (std::filesystem::path path : std::filesystem::directory_iterator(addon_search_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
-		if (path.extension() != L".addon")
+		if (path.extension() != L".addon" &&
+#ifndef _WIN64
+			path.extension() != L".addon32")
+#else
+			path.extension() != L".addon64")
+#endif
 			continue;
 
-		// Avoid loading library alltogether when it is found in the disabled add-on list
+		// Avoid loading library altogether when it is found in the disabled add-on list
 		if (addon_info info;
 			std::find_if(disabled_addons.begin(), disabled_addons.end(),
 				[file_name = path.filename().u8string(), &info](const std::string_view &addon_name) {
