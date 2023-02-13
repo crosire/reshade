@@ -248,6 +248,9 @@ namespace ReShade.Setup
 		{
 			try
 			{
+				// Ensure the file exists
+				File.Open(targetPath, FileMode.OpenOrCreate).Dispose();
+
 				var user = WindowsIdentity.GetCurrent().User;
 				var access = File.GetAccessControl(targetPath);
 				access.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.Modify, AccessControlType.Allow));
