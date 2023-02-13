@@ -1165,9 +1165,7 @@ void reshade::runtime::save_current_preset() const
 			preset.remove_key({}, "Key" + unique_name);
 	}
 
-	if (std::equal(technique_list.begin(), technique_list.end(), sorted_technique_list.begin()))
-		preset.remove_key({}, "TechniqueSorting");
-	else
+	if (preset.has({}, "TechniqueSorting") || !std::equal(technique_list.begin(), technique_list.end(), sorted_technique_list.begin()))
 		preset.set({}, "TechniqueSorting", std::move(sorted_technique_list));
 
 	preset.set({}, "Techniques", std::move(technique_list));
