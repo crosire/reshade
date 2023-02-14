@@ -284,7 +284,18 @@ namespace ReShade.Setup
 
 		void AddSearchPath(List<string> searchPaths, string newPath)
 		{
-			if (searchPaths.Any(searchPath => Path.GetFullPath(searchPath) == Path.GetFullPath(newPath)))
+			try
+			{
+				// Filter out search paths with wildcards
+				var validSearchPaths = searchPaths.Where(searchPath => searchPath.IndexOfAny(Path.GetInvalidPathChars()) < 0);
+
+				// Avoid adding duplicate search paths (relative or absolute)
+				if (validSearchPaths.Any(searchPath => Path.GetFullPath(searchPath) == Path.GetFullPath(newPath)))
+				{
+					return;
+				}
+			}
+			catch
 			{
 				return;
 			}
