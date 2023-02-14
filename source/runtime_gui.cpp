@@ -218,7 +218,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "TutorialProgress", _tutorial_index);
 	config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
-	config.get("OVERLAY", "SavePresetOnModification", _auto_save_preset);
+	config.get("OVERLAY", "AutoSavePreset", _auto_save_preset);
 #endif
 
 	ImGuiStyle &imgui_style = _imgui_context->Style;
@@ -311,7 +311,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("OVERLAY", "TutorialProgress", _tutorial_index);
 	config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
-	config.set("OVERLAY", "SavePresetOnModification", _auto_save_preset);
+	config.set("OVERLAY", "AutoSavePreset", _auto_save_preset);
 #endif
 
 	const ImGuiStyle &imgui_style = _imgui_context->Style;
