@@ -1047,6 +1047,11 @@ void reshade::runtime::get_current_preset_path([[maybe_unused]] char *path, size
 void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path)
 {
 #if RESHADE_FX
+#if RESHADE_ADDON
+	const bool was_is_in_api_call = _is_in_api_call;
+	_is_in_api_call = true;
+#endif
+
 	// First save current preset, before switching to a new one
 	save_current_preset();
 
@@ -1054,5 +1059,9 @@ void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path
 
 	save_config();
 	load_current_preset();
+
+#if RESHADE_ADDON
+	_is_in_api_call = was_is_in_api_call;
+#endif
 #endif
 }

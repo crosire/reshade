@@ -56,15 +56,6 @@ static void on_destroy(reshade::api::effect_runtime *runtime)
 	runtime->destroy_private_data<history_context>();
 }
 
-static void on_reloaded_effects(reshade::api::effect_runtime *runtime)
-{
-	history_context &ctx = runtime->get_private_data<history_context>();
-
-	ctx.histories.clear();
-	ctx.history_pos = 0;
-	ctx.was_updated = false;
-}
-
 static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade::api::effect_uniform_variable variable, const void *value, size_t size)
 {
 	history_context &ctx = runtime->get_private_data<history_context>();
@@ -154,6 +145,15 @@ static bool on_set_technique_state(reshade::api::effect_runtime *runtime, reshad
 	}
 
 	return false;
+}
+
+static void on_set_current_preset_path(reshade::api::effect_runtime *runtime, const char *)
+{
+	history_context &ctx = runtime->get_private_data<history_context>();
+
+	ctx.histories.clear();
+	ctx.history_pos = 0;
+	ctx.was_updated = false;
 }
 
 static void draw_history_window(reshade::api::effect_runtime *runtime)
@@ -362,7 +362,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			return FALSE;
 		reshade::register_event<reshade::addon_event::init_effect_runtime>(on_init);
 		reshade::register_event<reshade::addon_event::destroy_effect_runtime>(on_destroy);
-		reshade::register_event<reshade::addon_event::reshade_reloaded_effects>(on_reloaded_effects);
+		reshade::register_event<reshade::addon_event::reshade_set_current_preset_path>(on_set_current_preset_path);
 		reshade::register_event<reshade::addon_event::reshade_set_uniform_value>(on_set_uniform_value);
 		reshade::register_event<reshade::addon_event::reshade_set_technique_state>(on_set_technique_state);
 		reshade::register_overlay("History", draw_history_window);
