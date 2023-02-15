@@ -3167,6 +3167,11 @@ void reshade::runtime::reload_effects()
 	// Clear out any previous effects
 	destroy_effects();
 
+#if RESHADE_ADDON
+	// Call event after destroying previous effects, so add-ons get a chance to release any handles they hold to variables and techniques
+	invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+#endif
+
 #if RESHADE_GUI
 	_preset_is_modified = false;
 	_show_splash = true; // Always show splash bar when reloading everything
@@ -3391,17 +3396,13 @@ void reshade::runtime::update_effects()
 			}
 		}
 #endif
+		return;
+	}
 
-#if RESHADE_ADDON
-		if (_reload_create_queue.empty())
-			invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
-#endif
-	}
-	else if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
-	{
-		return; // Cannot render while effects are still being loaded
-	}
-	else if (!_reload_create_queue.empty())
+	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+		return;
+
+	if (!_reload_create_queue.empty())
 	{
 		// Pop an effect from the queue
 		const size_t effect_index = _reload_create_queue.back();
@@ -3440,14 +3441,13 @@ void reshade::runtime::update_effects()
 				open_code_editor(instance);
 		}
 #endif
-
-#if RESHADE_ADDON
-		if (_reload_create_queue.empty())
-			invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
-#endif
 	}
 	else if (!_textures_loaded)
 	{
+#if RESHADE_ADDON
+		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+#endif
+
 		// Now that all effects were compiled, load all textures
 		load_textures();
 	}

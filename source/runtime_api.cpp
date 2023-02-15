@@ -656,19 +656,15 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 		srv = srv_srgb = _empty_srv;
 	}
 
-	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
-	if (_is_initialized)
-		_graphics_queue->wait_idle();
-
 	// Update texture bindings
 	size_t num_bindings = 0;
-	for (effect &effect_data : _effects)
+	for (const effect &effect_data : _effects)
 		num_bindings += effect_data.texture_semantic_to_binding.size();
 
 	std::vector<api::descriptor_set_update> descriptor_writes;
 	std::vector<api::sampler_with_resource_view> sampler_descriptors(num_bindings);
 
-	for (effect &effect_data : _effects)
+	for (const effect &effect_data : _effects)
 	{
 		for (const effect::binding_data &binding : effect_data.texture_semantic_to_binding)
 		{
@@ -695,6 +691,13 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 			sampler_descriptors[num_bindings].view = binding.srgb ? srv_srgb : srv;
 		}
 	}
+
+	if (descriptor_writes.empty())
+		return; // Avoid waiting on graphics queue when nothing changes
+
+	// Make sure all previous frames have finished before updating descriptors (since they may be in use otherwise)
+	if (_is_initialized)
+		_graphics_queue->wait_idle();
 
 	_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
 #endif
