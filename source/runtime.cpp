@@ -120,6 +120,10 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 			else
 				resolved_search_paths.push_back(std::make_pair(std::move(search_path), recursive_search));
 		}
+		else
+		{
+			LOG(WARN) << "Failed to resolve search path " << search_path << " with error code " << ec.value() << '.';
+		}
 	}
 
 	// Then iterate through all files in those search paths and add those with a matching extension
