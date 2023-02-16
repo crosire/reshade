@@ -1,6 +1,7 @@
 /*
+ * Copyright (C) 2018 seri14
  * Copyright (C) 2022 Patrick Mours
- * SPDX-License-Identifier: BSD-3-Clause OR MIT
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <imgui.h>
@@ -100,6 +101,12 @@ static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade:
 		{
 			ctx.histories.pop_front();
 			--ctx.history_pos;
+		}
+
+		if (auto front = ctx.histories.begin(); front != ctx.histories.end() && front->variable_handle.handle == variable.handle)
+		{
+			std::memcpy(&history.before, &front->before, sizeof(history.before));
+			ctx.histories.pop_front();
 		}
 
 		if (ctx.histories.size() < HISTORY_LIMIT)
