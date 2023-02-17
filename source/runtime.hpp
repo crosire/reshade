@@ -300,6 +300,7 @@ namespace reshade
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
+		std::vector<size_t> _sorted_techniques;
 #endif
 		std::vector<std::thread> _worker_threads;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
