@@ -1157,8 +1157,12 @@ void reshade::runtime::draw_gui()
 
 	if (_input != nullptr)
 	{
-		_input->block_mouse_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
-		_input->block_keyboard_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
+		// Also block input in case there are any windows open that were created in a 'reshade_overlay' event callback
+		const bool any_overlay_visible = imgui_io.MetricsRenderWindows > ((show_splash ? 1 : 0) + (show_stats_window ? 1 : 0));
+		assert(any_overlay_visible || !_show_overlay);
+
+		_input->block_mouse_input(_input_processing_mode != 0 && any_overlay_visible && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
+		_input->block_keyboard_input(_input_processing_mode != 0 && any_overlay_visible && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
 	}
 
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
