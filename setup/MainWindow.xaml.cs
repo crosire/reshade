@@ -464,14 +464,40 @@ namespace ReShade.Setup
 			}
 		}
 
-		void DownloadPackagesAndCompatibilityIni()
+		void DownloadCompatibilityIni()
 		{
-			if (packagesIni != null || compatibilityIni != null)
+			if (compatibilityIni != null)
 			{
 				return;
 			}
 
-			// Attempt to download effect package and compatibility list
+			// Attempt to download compatibility list
+			using (var client = new WebClient())
+			{
+				// Ensure files are downloaded again if they changed
+				client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
+
+				try
+				{
+					using (var compatibilityStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Compatibility.ini"))
+					{
+						compatibilityIni = new IniFile(compatibilityStream);
+					}
+				}
+				catch
+				{
+					// Ignore if this list failed to download, since setup can still proceed without them
+				}
+			}
+		}
+		void DownloadEffectPackagesIni()
+		{
+			if (packagesIni != null)
+			{
+				return;
+			}
+
+			// Attempt to download effect package list
 			using (var client = new WebClient())
 			{
 				// Ensure files are downloaded again if they changed
@@ -483,15 +509,10 @@ namespace ReShade.Setup
 					{
 						packagesIni = new IniFile(packagesStream);
 					}
-
-					using (var compatibilityStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Compatibility.ini"))
-					{
-						compatibilityIni = new IniFile(compatibilityStream);
-					}
 				}
 				catch (Exception ex)
 				{
-					// Ignore if these lists fail to download, since setup can still proceed without them
+					// Ignore if this list failed to download, since setup can still proceed without them
 					if (!isHeadless)
 					{
 						Dispatcher.Invoke(() =>
@@ -545,6 +566,8 @@ namespace ReShade.Setup
 			bool isApiVulkan = false;
 
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
+			DownloadCompatibilityIni();
+
 			var executableName = Path.GetFileName(targetPath);
 			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "RenderApi"))
 			{
@@ -636,10 +659,10 @@ namespace ReShade.Setup
 		{
 			UpdateStatus("Checking installation status ...");
 
-			DownloadPackagesAndCompatibilityIni();
-
 			var basePath = Path.GetDirectoryName(targetPath);
 			var executableName = Path.GetFileName(targetPath);
+
+			DownloadCompatibilityIni();
 
 			if (targetApi != Api.Vulkan && compatibilityIni != null)
 			{
@@ -800,8 +823,6 @@ namespace ReShade.Setup
 		void InstallStep3()
 		{
 			UpdateStatus("Installing ReShade ...");
-
-			DownloadPackagesAndCompatibilityIni();
 
 			ZipArchive zip;
 
@@ -1040,6 +1061,8 @@ In that event here are some steps you can try to resolve this:
 				}
 			}
 
+			DownloadCompatibilityIni();
+
 			// Add default configuration
 			var config = new IniFile(configPath);
 			if (compatibilityIni != null && !config.HasValue("GENERAL", "PreprocessorDefinitions"))
@@ -1247,19 +1270,24 @@ In that event here are some steps you can try to resolve this:
 			MakeWritable(Path.Combine(basePath, "ReShade.log"));
 			MakeWritable(Path.Combine(basePath, "ReShadePreset.ini"));
 
-			// Only show the selection dialog if there are actually packages to choose
-			if (!isHeadless && packagesIni != null && packagesIni.GetSections().Length != 0)
+			if (!isHeadless)
 			{
-				presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
+				// Only show the selection dialog if there are actually packages to choose
+				DownloadEffectPackagesIni();
 
-				Dispatcher.Invoke(() =>
+				if (packagesIni != null && packagesIni.GetSections().Length != 0)
 				{
-					var page = new SelectPresetPage();
-					page.FileName = presetPath;
+					presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
 
-					CurrentPage.Navigate(page);
-				});
-				return;
+					Dispatcher.Invoke(() =>
+					{
+						var page = new SelectPresetPage();
+						page.FileName = presetPath;
+
+						CurrentPage.Navigate(page);
+					});
+					return;
+				}
 			}
 
 			// Add default search paths if no config exists
@@ -1308,7 +1336,7 @@ In that event here are some steps you can try to resolve this:
 				}
 			}
 
-			DownloadPackagesAndCompatibilityIni();
+			DownloadEffectPackagesIni();
 
 			Dispatcher.Invoke(() =>
 			{
