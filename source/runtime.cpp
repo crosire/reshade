@@ -2451,6 +2451,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
 
+				assert(pass_info.srgb_write_enable < 2);
+
 				api::format render_target_formats[8] = {};
 
 				if (pass_info.render_target_names[0].empty())
@@ -2684,6 +2686,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					}
 					else
 					{
+						assert(info.srgb < 2);
+
 						srv = sampler_texture->srv[info.srgb];
 					}
 
@@ -3960,8 +3964,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 					semantic_index++;
 
-					if (const auto it = _texture_semantic_bindings.find(tex.semantic);
-						it != _texture_semantic_bindings.end())
+					if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
 					{
 						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
 

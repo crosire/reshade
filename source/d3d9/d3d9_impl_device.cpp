@@ -1648,15 +1648,16 @@ void reshade::d3d9::device_impl::copy_descriptor_sets(uint32_t count, const api:
 	{
 		const api::descriptor_set_copy &copy = copies[i];
 
-		assert(copy.dest_array_offset == 0 && copy.source_array_offset == 0);
-
 		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copy.source_set.handle);
 		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copy.dest_set.handle);
-
 		assert(src_set_impl != nullptr && dst_set_impl != nullptr && src_set_impl->type == dst_set_impl->type);
 
 		const uint32_t dst_binding = copy.dest_binding - dst_set_impl->base_binding;
+		assert(dst_binding < dst_set_impl->count && copy.count <= (dst_set_impl->count - dst_binding));
 		const uint32_t src_binding = copy.source_binding - src_set_impl->base_binding;
+		assert(src_binding < src_set_impl->count && copy.count <= (src_set_impl->count - src_binding));
+
+		assert(copy.dest_array_offset == 0 && copy.source_array_offset == 0);
 
 		switch (src_set_impl->type)
 		{
@@ -1679,13 +1680,13 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t count, const ap
 	{
 		const api::descriptor_set_update &update = updates[i];
 
-		assert(update.array_offset == 0);
-
 		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(update.set.handle);
-
 		assert(set_impl != nullptr && set_impl->type == update.type);
 
 		const uint32_t update_binding = update.binding - set_impl->base_binding;
+		assert(update_binding < set_impl->count && update.count <= (set_impl->count - update_binding));
+
+		assert(update.array_offset == 0);
 
 		switch (update.type)
 		{

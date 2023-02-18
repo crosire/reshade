@@ -662,6 +662,7 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 		num_bindings += effect_data.texture_semantic_to_binding.size();
 
 	std::vector<api::descriptor_set_update> descriptor_writes;
+	descriptor_writes.reserve(num_bindings);
 	std::vector<api::sampler_with_resource_view> sampler_descriptors(num_bindings);
 
 	for (const effect &effect_data : _effects)
@@ -680,6 +681,8 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 			{
 				write.type = api::descriptor_type::sampler_with_resource_view;
 				write.descriptors = &sampler_descriptors[--num_bindings];
+
+				sampler_descriptors[num_bindings].sampler = binding.sampler;
 			}
 			else
 			{
@@ -687,7 +690,6 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 				write.descriptors = &sampler_descriptors[--num_bindings].view;
 			}
 
-			sampler_descriptors[num_bindings].sampler = binding.sampler;
 			sampler_descriptors[num_bindings].view = binding.srgb ? srv_srgb : srv;
 		}
 	}
