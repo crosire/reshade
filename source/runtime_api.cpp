@@ -709,8 +709,10 @@ void reshade::runtime::enumerate_techniques([[maybe_unused]] const char *effect_
 	if (is_loading())
 		return;
 
-	for (const technique &technique : _techniques)
+	for (size_t technique_index : _sorted_techniques)
 	{
+		technique &technique = _techniques[technique_index];
+
 		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
 			continue;
 
