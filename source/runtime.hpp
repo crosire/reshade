@@ -158,6 +158,8 @@ namespace reshade
 		void get_current_preset_path(char *path, size_t *length) const final;
 		void set_current_preset_path(const char *path) final;
 
+		void sort_techniques(api::effect_technique *techniques, size_t count) final;
+
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
@@ -206,6 +208,8 @@ namespace reshade
 
 		void enable_technique(technique &technique);
 		void disable_technique(technique &technique);
+
+		void sort_techniques(std::vector<size_t> &&sorting_techniques);
 
 		void load_effects();
 		bool reload_effect(size_t effect_index);

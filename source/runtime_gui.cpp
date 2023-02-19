@@ -1485,7 +1485,8 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button("Active to top", ImVec2(11.0f * _font_size, 0)))
 		{
-			for (auto technique_index = _sorted_techniques.begin(), target_it = technique_index; technique_index != _sorted_techniques.end(); ++technique_index)
+			std::vector<size_t> sorting_techniques = _sorted_techniques;
+			for (auto technique_index = sorting_techniques.begin(), target_it = technique_index; technique_index != sorting_techniques.end(); ++technique_index)
 			{
 				assert(*technique_index < _techniques.size());
 				technique &technique = _techniques[*technique_index];
@@ -1496,10 +1497,7 @@ void reshade::runtime::draw_gui_home()
 				}
 			}
 
-			if (_auto_save_preset)
-				save_current_preset();
-			else
-				_preset_is_modified = true;
+			sort_techniques(std::move(sorting_techniques));
 		}
 
 		if (!_variable_editor_tabs)
@@ -3514,22 +3512,20 @@ void reshade::runtime::draw_technique_editor()
 
 			if (is_not_top && ImGui::Button("Move to top", ImVec2(230.0f, 0)))
 			{
-				_sorted_techniques.insert(_sorted_techniques.begin(), _sorted_techniques[index]);
-				_sorted_techniques.erase(_sorted_techniques.begin() + 1 + index);
-				if (_auto_save_preset)
-					save_current_preset();
-				else
-					_preset_is_modified = true;
+				std::vector<size_t> sorting_techniques = _sorted_techniques;
+				sorting_techniques.insert(sorting_techniques.begin(), sorting_techniques[index]);
+				sorting_techniques.erase(sorting_techniques.begin() + 1 + index);
+
+				sort_techniques(std::move(sorting_techniques));
 				ImGui::CloseCurrentPopup();
 			}
 			if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(230.0f, 0)))
 			{
-				_sorted_techniques.push_back(_sorted_techniques[index]);
-				_sorted_techniques.erase(_sorted_techniques.begin() + index);
-				if (_auto_save_preset)
-					save_current_preset();
-				else
-					_preset_is_modified = true;
+				std::vector<size_t> sorting_techniques = _sorted_techniques;
+				sorting_techniques.push_back(sorting_techniques[index]);
+				sorting_techniques.erase(sorting_techniques.begin() + index);
+
+				sort_techniques(std::move(sorting_techniques));
 				ImGui::CloseCurrentPopup();
 			}
 
@@ -3618,13 +3614,15 @@ void reshade::runtime::draw_technique_editor()
 	{
 		if (hovered_technique_index < _sorted_techniques.size() && hovered_technique_index != _selected_technique)
 		{
-			const auto move_technique = [this](size_t from_index, size_t to_index) {
+			std::vector<size_t> sorting_techniques = _sorted_techniques;
+
+			const auto move_technique = [this, &sorting_techniques](size_t from_index, size_t to_index) {
 				if (to_index < from_index) // Up
 					for (size_t i = from_index; to_index < i; --i)
-						std::swap(_sorted_techniques[i - 1], _sorted_techniques[i]);
+						std::swap(sorting_techniques[i - 1], sorting_techniques[i]);
 				else // Down
 					for (size_t i = from_index; i < to_index; ++i)
-						std::swap(_sorted_techniques[i], _sorted_techniques[i + 1]);
+						std::swap(sorting_techniques[i], sorting_techniques[i + 1]);
 			};
 
 			move_technique(_selected_technique, hovered_technique_index);
@@ -3654,12 +3652,9 @@ void reshade::runtime::draw_technique_editor()
 				}
 			}
 
+			sort_techniques(std::move(sorting_techniques));
 			_selected_technique = hovered_technique_index;
 
-			if (_auto_save_preset)
-				save_current_preset();
-			else
-				_preset_is_modified = true;
 			return;
 		}
 	}

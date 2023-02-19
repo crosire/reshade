@@ -601,5 +601,12 @@ namespace reshade::api
 		/// </summary>
 		/// <param name="path">File path to the preset to switch to.</param>
 		virtual void set_current_preset_path(const char *path) = 0;
+
+		/// <summary>
+		/// *TODO*
+		/// </summary>
+		/// <param name="techniques">*TODO*</param>
+		/// <param name="count">*TODO*</param>
+		virtual void sort_techniques(effect_technique *techniques, size_t count) = 0;
 	};
 }
