@@ -608,5 +608,11 @@ namespace reshade::api
 		/// <param name="techniques">*TODO*</param>
 		/// <param name="count">*TODO*</param>
 		virtual void sort_techniques(effect_technique *techniques, size_t count) = 0;
+
+		/// <summary>
+		/// Makes ReShade block any keyboard and mouse input from reaching the game for the duration of the next frame.
+		/// Call this every frame for as long as input should be blocked. This can be used to ensure input is only applied to overlays created in a <see cref="addon_event::reshade_overlay"/> callback.
+		/// </summary>
+		virtual void block_input_next_frame();
 	};
 }

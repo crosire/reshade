@@ -47,6 +47,11 @@ void reshade::runtime::get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_
 		*out_wheel_delta = (_input != nullptr) ? _input->mouse_wheel_delta() : 0;
 }
 
+void reshade::runtime::block_input_next_frame()
+{
+	_block_input_next_frame = true;
+}
+
 void reshade::runtime::enumerate_uniform_variables([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), [[maybe_unused]] void *user_data)
 {
 #if RESHADE_FX

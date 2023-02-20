@@ -160,6 +160,8 @@ namespace reshade
 
 		void sort_techniques(api::effect_technique *techniques, size_t count) final;
 
+		void block_input_next_frame() final;
+
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
@@ -263,6 +265,7 @@ namespace reshade
 
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;
+		bool _block_input_next_frame = false;
 		std::shared_ptr<class input> _input;
 		std::shared_ptr<class input_gamepad> _input_gamepad;
 
