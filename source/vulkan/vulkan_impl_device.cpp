@@ -235,10 +235,12 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 	VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	create_info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
 
-	VkSamplerCustomBorderColorCreateInfoEXT border_color_info { VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT };
+	VkSamplerCustomBorderColorCreateInfoEXT border_color_info;
 	if (_custom_border_color_ext && (
 		desc.border_color[0] != 0.0f || desc.border_color[1] != 0.0f || desc.border_color[2] != 0.0f || desc.border_color[3] != 0.0f))
 	{
+		border_color_info = { VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT };
+
 		create_info.pNext = &border_color_info;
 		create_info.borderColor = VK_BORDER_COLOR_FLOAT_CUSTOM_EXT;
 	}
@@ -430,6 +432,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			{
 				external_memory_info = { VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO };
 				external_memory_info.handleTypes = handle_type;
+
 				create_info.pNext = &external_memory_info;
 			}
 
@@ -1142,13 +1145,15 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineRasterizationStateCreateInfo rasterization_state_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 		create_info.pRasterizationState = &rasterization_state_info;
 
-		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
+		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info;
 		if (rasterizer_desc.conservative_rasterization != 0)
 		{
 			if (!_conservative_rasterization_ext)
 				goto exit_failure;
 
+			conservative_rasterization_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
 			conservative_rasterization_info.pNext = rasterization_state_info.pNext;
+
 			rasterization_state_info.pNext = &conservative_rasterization_info;
 		}
 
@@ -1156,10 +1161,14 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
 		rasterization_state_info.lineWidth = 1.0f;
 
-		VkPipelineRasterizationStateStreamCreateInfoEXT stream_rasterization_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT };
+		VkPipelineRasterizationStateStreamCreateInfoEXT stream_rasterization_info;
 		if (stream_output_desc.rasterized_stream != 0)
 		{
+			stream_rasterization_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT };
+			stream_rasterization_info.pNext = rasterization_state_info.pNext;
+
 			rasterization_state_info.pNext = &stream_rasterization_info;
+
 			convert_stream_output_desc(stream_output_desc, rasterization_state_info);
 		}
 
@@ -1193,9 +1202,10 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			assert(attachment_formats[i] != VK_FORMAT_UNDEFINED);
 		}
 
-		VkPipelineRenderingCreateInfo dynamic_rendering_info { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+		VkPipelineRenderingCreateInfo dynamic_rendering_info;
 		if (_dynamic_rendering_ext)
 		{
+			dynamic_rendering_info = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 			dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
 			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats.p;
 
