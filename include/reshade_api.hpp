@@ -603,11 +603,11 @@ namespace reshade::api
 		virtual void set_current_preset_path(const char *path) = 0;
 
 		/// <summary>
-		/// *TODO*
+		/// Changes the rendering order of loaded techniques to that of the specified technique list.
 		/// </summary>
-		/// <param name="techniques">*TODO*</param>
-		/// <param name="count">*TODO*</param>
-		virtual void sort_techniques(effect_technique *techniques, size_t count) = 0;
+		/// <param name="count">Number of handles in the technique list.</param>
+		/// <param name="techniques">Array of techniques in the order they should be rendered in.</param>
+		virtual void reorder_techniques(size_t count, const effect_technique *techniques) = 0;
 
 		/// <summary>
 		/// Makes ReShade block any keyboard and mouse input from reaching the game for the duration of the next frame.

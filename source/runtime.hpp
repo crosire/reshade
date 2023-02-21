@@ -158,7 +158,7 @@ namespace reshade
 		void get_current_preset_path(char *path, size_t *length) const final;
 		void set_current_preset_path(const char *path) final;
 
-		void sort_techniques(api::effect_technique *techniques, size_t count) final;
+		void reorder_techniques(size_t count, const api::effect_technique *techniques) final;
 
 		void block_input_next_frame() final;
 
@@ -211,7 +211,7 @@ namespace reshade
 		void enable_technique(technique &technique);
 		void disable_technique(technique &technique);
 
-		void sort_techniques(std::vector<size_t> &&sorting_techniques);
+		void reorder_techniques(std::vector<size_t> &&technique_indices);
 
 		void load_effects();
 		bool reload_effect(size_t effect_index);
@@ -307,7 +307,7 @@ namespace reshade
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
-		std::vector<size_t> _sorted_techniques;
+		std::vector<size_t> _technique_sorting;
 #endif
 		std::vector<std::thread> _worker_threads;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;

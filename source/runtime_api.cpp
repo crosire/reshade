@@ -716,7 +716,7 @@ void reshade::runtime::enumerate_techniques([[maybe_unused]] const char *effect_
 	if (is_loading())
 		return;
 
-	for (size_t technique_index : _sorted_techniques)
+	for (size_t technique_index : _technique_sorting)
 	{
 		technique &technique = _techniques[technique_index];
 
@@ -1075,23 +1075,20 @@ void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path
 #endif
 }
 
-void reshade::runtime::sort_techniques(reshade::api::effect_technique *techniques, size_t count)
+void reshade::runtime::reorder_techniques(size_t count, const api::effect_technique *techniques)
 {
 #if RESHADE_FX
 	if (count != _techniques.size())
 		return;
 
-	std::vector<size_t> sorted_techniques(count);
+	std::vector<size_t> technique_indices(count);
 	for (size_t i = 0; i < count; i++)
 	{
-		auto it = std::find_if(_techniques.cbegin(), _techniques.cend(),
-			[handle = reinterpret_cast<technique *>(techniques[i].handle)](const technique &tech) { return &tech == handle; });
-
-		if (it == _techniques.cend())
+		const auto tech = reinterpret_cast<technique *>(techniques[i].handle);
+		if (tech == nullptr)
 			return;
 
-		size_t technique_index = std::distance(_techniques.cbegin(), it);
-		sorted_techniques[i] = technique_index;
+		technique_indices[i] = tech - _techniques.data();
 	}
 
 #if RESHADE_ADDON
@@ -1099,7 +1096,7 @@ void reshade::runtime::sort_techniques(reshade::api::effect_technique *technique
 	_is_in_api_call = true;
 #endif
 
-	sort_techniques(std::move(sorted_techniques));
+	reorder_techniques(std::move(technique_indices));
 
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;

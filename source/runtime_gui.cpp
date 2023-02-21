@@ -1483,19 +1483,24 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button("Active to top", ImVec2(11.0f * _font_size, 0)))
 		{
-			std::vector<size_t> sorting_techniques = _sorted_techniques;
-			for (auto technique_index = sorting_techniques.begin(), target_it = technique_index; technique_index != sorting_techniques.end(); ++technique_index)
+			std::vector<size_t> technique_indices = _technique_sorting;
+
+			for (auto it = technique_indices.begin(), target_it = it; it != technique_indices.end(); ++it)
 			{
-				assert(*technique_index < _techniques.size());
-				technique &technique = _techniques[*technique_index];
+				const technique &technique = _techniques[*it];
 
 				if (technique.enabled || technique.toggle_key_data[0] != 0)
 				{
-					target_it = std::rotate(target_it, technique_index, std::next(technique_index));
+					target_it = std::rotate(target_it, it, std::next(it));
 				}
 			}
 
-			sort_techniques(std::move(sorting_techniques));
+			reorder_techniques(std::move(technique_indices));
+
+			if (_auto_save_preset)
+				save_current_preset();
+			else
+				_preset_is_modified = true;
 		}
 
 		if (!_variable_editor_tabs)
@@ -3286,7 +3291,7 @@ void reshade::runtime::draw_technique_editor()
 			if (effect.compiled || effect.skipped)
 				continue;
 
-			ImGui::PushID(static_cast<int>(_sorted_techniques.size() + effect_index));
+			ImGui::PushID(static_cast<int>(_technique_sorting.size() + effect_index));
 
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
@@ -3412,9 +3417,9 @@ void reshade::runtime::draw_technique_editor()
 	size_t force_reload_effect = std::numeric_limits<size_t>::max();
 	size_t hovered_technique_index = std::numeric_limits<size_t>::max();
 
-	for (size_t index = 0; index < _sorted_techniques.size(); ++index)
+	for (size_t index = 0; index < _technique_sorting.size(); ++index)
 	{
-		size_t technique_index = _sorted_techniques[index];
+		size_t technique_index = _technique_sorting[index];
 		reshade::technique &tech = _techniques[technique_index];
 
 		// Skip hidden techniques
@@ -3506,24 +3511,34 @@ void reshade::runtime::draw_technique_editor()
 			}
 
 			const bool is_not_top = index > 0;
-			const bool is_not_bottom = index < _sorted_techniques.size() - 1;
+			const bool is_not_bottom = index < _technique_sorting.size() - 1;
 
 			if (is_not_top && ImGui::Button("Move to top", ImVec2(230.0f, 0)))
 			{
-				std::vector<size_t> sorting_techniques = _sorted_techniques;
-				sorting_techniques.insert(sorting_techniques.begin(), sorting_techniques[index]);
-				sorting_techniques.erase(sorting_techniques.begin() + 1 + index);
+				std::vector<size_t> technique_indices = _technique_sorting;
+				technique_indices.insert(technique_indices.begin(), technique_indices[index]);
+				technique_indices.erase(technique_indices.begin() + 1 + index);
+				reorder_techniques(std::move(technique_indices));
 
-				sort_techniques(std::move(sorting_techniques));
+				if (_auto_save_preset)
+					save_current_preset();
+				else
+					_preset_is_modified = true;
+
 				ImGui::CloseCurrentPopup();
 			}
 			if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(230.0f, 0)))
 			{
-				std::vector<size_t> sorting_techniques = _sorted_techniques;
-				sorting_techniques.push_back(sorting_techniques[index]);
-				sorting_techniques.erase(sorting_techniques.begin() + index);
+				std::vector<size_t> technique_indices = _technique_sorting;
+				technique_indices.push_back(technique_indices[index]);
+				technique_indices.erase(technique_indices.begin() + index);
+				reorder_techniques(std::move(technique_indices));
 
-				sort_techniques(std::move(sorting_techniques));
+				if (_auto_save_preset)
+					save_current_preset();
+				else
+					_preset_is_modified = true;
+
 				ImGui::CloseCurrentPopup();
 			}
 
@@ -3608,19 +3623,19 @@ void reshade::runtime::draw_technique_editor()
 	}
 
 	// Move the selected technique to the position of the mouse in the list
-	if (_selected_technique < _sorted_techniques.size() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+	if (_selected_technique < _technique_sorting.size() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 	{
-		if (hovered_technique_index < _sorted_techniques.size() && hovered_technique_index != _selected_technique)
+		if (hovered_technique_index < _technique_sorting.size() && hovered_technique_index != _selected_technique)
 		{
-			std::vector<size_t> sorting_techniques = _sorted_techniques;
+			std::vector<size_t> technique_indices = _technique_sorting;
 
-			const auto move_technique = [this, &sorting_techniques](size_t from_index, size_t to_index) {
+			const auto move_technique = [this, &technique_indices](size_t from_index, size_t to_index) {
 				if (to_index < from_index) // Up
 					for (size_t i = from_index; to_index < i; --i)
-						std::swap(sorting_techniques[i - 1], sorting_techniques[i]);
+						std::swap(technique_indices[i - 1], technique_indices[i]);
 				else // Down
 					for (size_t i = from_index; i < to_index; ++i)
-						std::swap(sorting_techniques[i], sorting_techniques[i + 1]);
+						std::swap(technique_indices[i], technique_indices[i + 1]);
 			};
 
 			move_technique(_selected_technique, hovered_technique_index);
@@ -3628,10 +3643,9 @@ void reshade::runtime::draw_technique_editor()
 			// Pressing shift moves all techniques from the same effect file to the new location as well
 			if (_imgui_context->IO.KeyShift)
 			{
-				for (size_t i = hovered_technique_index + 1, offset = 1; i < _sorted_techniques.size(); ++i)
+				for (size_t i = hovered_technique_index + 1, offset = 1; i < technique_indices.size(); ++i)
 				{
-					size_t technique_index = _sorted_techniques[i];
-					if (_techniques[technique_index].effect_index == _focused_effect)
+					if (_techniques[technique_indices[i]].effect_index == _focused_effect)
 					{
 						if ((i - hovered_technique_index) > offset)
 							move_technique(i, hovered_technique_index + offset);
@@ -3640,8 +3654,7 @@ void reshade::runtime::draw_technique_editor()
 				}
 				for (size_t i = hovered_technique_index - 1, offset = 0; i >= 0 && i != std::numeric_limits<size_t>::max(); --i)
 				{
-					size_t technique_index = _sorted_techniques[i];
-					if (_techniques[technique_index].effect_index == _focused_effect)
+					if (_techniques[technique_indices[i]].effect_index == _focused_effect)
 					{
 						offset++;
 						if ((hovered_technique_index - i) > offset)
@@ -3650,9 +3663,13 @@ void reshade::runtime::draw_technique_editor()
 				}
 			}
 
-			sort_techniques(std::move(sorting_techniques));
+			reorder_techniques(std::move(technique_indices));
 			_selected_technique = hovered_technique_index;
 
+			if (_auto_save_preset)
+				save_current_preset();
+			else
+				_preset_is_modified = true;
 			return;
 		}
 	}

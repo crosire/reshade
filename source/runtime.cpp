@@ -235,7 +235,7 @@ reshade::runtime::~runtime()
 {
 	assert(_worker_threads.empty());
 #if RESHADE_FX
-	assert(!_is_initialized && _techniques.empty() && _sorted_techniques.empty());
+	assert(!_is_initialized && _techniques.empty() && _technique_sorting.empty());
 #endif
 
 #if RESHADE_GUI
@@ -1023,9 +1023,11 @@ void reshade::runtime::load_current_preset()
 		sorted_technique_list = technique_list;
 
 	// Reorder techniques
-	std::stable_sort(_sorted_techniques.begin(), _sorted_techniques.end(),
-		[this, &sorted_technique_list](size_t left_technique_index, size_t right_technique_index) {
-			const technique &lhs = _techniques[left_technique_index], &rhs = _techniques[right_technique_index];
+	std::stable_sort(_technique_sorting.begin(), _technique_sorting.end(),
+		[this, &sorted_technique_list](size_t lhs_technique_index, size_t rhs_technique_index) {
+			const technique &lhs = _techniques[lhs_technique_index];
+			const technique &rhs = _techniques[rhs_technique_index];
+
 			const std::string lhs_unique = lhs.name + '@' + _effects[lhs.effect_index].source_file.filename().u8string();
 			auto lhs_it = std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs_unique);
 			lhs_it = (lhs_it == sorted_technique_list.end()) ? std::find(sorted_technique_list.begin(), sorted_technique_list.end(), lhs.name) : lhs_it;
@@ -1154,12 +1156,12 @@ void reshade::runtime::save_current_preset() const
 	std::vector<std::string> technique_list;
 	technique_list.reserve(_techniques.size());
 	std::vector<std::string> sorted_technique_list;
-	sorted_technique_list.reserve(_sorted_techniques.size());
+	sorted_technique_list.reserve(_technique_sorting.size());
 
-	for (size_t technique_index : _sorted_techniques)
+	for (size_t technique_index : _technique_sorting)
 	{
-		assert(technique_index < _techniques.size());
 		const technique &tech = _techniques[technique_index];
+
 		const std::string unique_name = tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
 
 		if (tech.enabled)
@@ -2107,7 +2109,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				enable_technique(new_technique);
 
 			_techniques.push_back(std::move(new_technique));
-			_sorted_techniques.push_back(_techniques.size() - 1);
+			_technique_sorting.push_back(_techniques.size() - 1);
 		}
 	}
 
@@ -2826,22 +2828,22 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 	// Clean up techniques belonging to this effect
 	for (auto it = _techniques.begin(); it != _techniques.end();)
 	{
-		if (it->effect_index != effect_index)
+		if (it->effect_index == effect_index)
 		{
-			it++;
-			continue;
+			const size_t technique_index = std::distance(_techniques.begin(), it);
+			it = _techniques.erase(it);
+
+			_technique_sorting.erase(std::remove(_technique_sorting.begin(), _technique_sorting.end(), technique_index), _technique_sorting.end());
+			std::for_each(_technique_sorting.begin(), _technique_sorting.end(),
+				[technique_index](size_t &current_technique_index) {
+					if (current_technique_index > technique_index)
+						current_technique_index--;
+				});
 		}
-		size_t tech_remove_index = std::distance(_techniques.begin(), it);
-		_sorted_techniques.erase(std::remove_if(_sorted_techniques.begin(), _sorted_techniques.end(),
-			[tech_remove_index](size_t technique_index) { 
-				return technique_index == tech_remove_index;
-			}));
-		std::for_each(_sorted_techniques.begin(), _sorted_techniques.end(),
-			[tech_remove_index](size_t &technique_index) {
-				if (technique_index > tech_remove_index)
-					technique_index--;
-			});
-		it = _techniques.erase(it);
+		else
+		{
+			++it;
+		}
 	}
 
 	// Do not clear effect here, since it is common to be re-used immediately
@@ -3138,45 +3140,40 @@ void reshade::runtime::disable_technique(technique &tech)
 	if (status_changed) // Decrease rendering reference count
 		_effects[tech.effect_index].rendering--;
 }
-void reshade::runtime::sort_techniques(std::vector<size_t> &&sorting_techniques)
+
+void reshade::runtime::reorder_techniques(std::vector<size_t> &&technique_indices)
 {
-	assert(sorting_techniques.size() == _sorted_techniques.size() &&
-		std::accumulate(sorting_techniques.cbegin(), sorting_techniques.cend(), 0UL) == std::accumulate(_sorted_techniques.cbegin(), _sorted_techniques.cend(), 0UL) &&
-		std::all_of(sorting_techniques.cbegin(), sorting_techniques.cend(), [this](size_t technique_index1) {
-			return _sorted_techniques.cend() != std::find_if(_sorted_techniques.cbegin(), _sorted_techniques.cend(),
-			[technique_index1](size_t technique_index2) { return technique_index1 == technique_index2; }); }));
+	assert(technique_indices.size() == _techniques.size() && technique_indices.size() == _technique_sorting.size() &&
+		std::all_of(technique_indices.cbegin(), technique_indices.cend(),
+			[this](size_t technique_index) {
+				return std::find(_technique_sorting.cbegin(), _technique_sorting.cend(), technique_index) != _technique_sorting.cend();
+			}));
+
 #if RESHADE_ADDON
 	if (!_is_in_api_call)
 	{
-		std::vector<api::effect_technique> techniques(sorting_techniques.size());
-		std::transform(sorting_techniques.cbegin(), sorting_techniques.cend(), techniques.begin(),
-			[this](size_t technique_index) { return api::effect_technique{ reinterpret_cast<uint64_t>(&_techniques[technique_index]) }; });
+		std::vector<api::effect_technique> techniques(technique_indices.size());
+		std::transform(technique_indices.cbegin(), technique_indices.cend(), techniques.begin(),
+			[this](size_t technique_index) { return api::effect_technique { reinterpret_cast<uint64_t>(&_techniques[technique_index]) }; });
 
 		_is_in_api_call = true;
-		const bool skip = invoke_addon_event<addon_event::reshade_sort_techniques>(this, techniques.data(), techniques.size());
+		const bool skip = invoke_addon_event<addon_event::reshade_reorder_techniques>(this, techniques.size(), techniques.data());
 		_is_in_api_call = false;
 		if (skip)
 			return;
 
 		for (size_t i = 0; i < techniques.size(); i++)
 		{
-			auto it = std::find_if(_techniques.cbegin(), _techniques.cend(),
-				[handle = reinterpret_cast<technique *>(techniques[i].handle)](const technique &tech) { return &tech == handle; });
-
-			if (it == _techniques.cend())
+			const auto tech = reinterpret_cast<technique *>(techniques[i].handle);
+			if (tech == nullptr)
 				return;
 
-			size_t technique_index = std::distance(_techniques.cbegin(), it);
-			sorting_techniques[i] = technique_index;
+			technique_indices[i] = tech - _techniques.data();
 		}
 	}
 #endif
-	_sorted_techniques = std::move(sorting_techniques);
 
-	if (_auto_save_preset)
-		save_current_preset();
-	else
-		_preset_is_modified = true;
+	_technique_sorting = std::move(technique_indices);
 }
 
 void reshade::runtime::load_effects()
@@ -3282,8 +3279,7 @@ void reshade::runtime::destroy_effects()
 
 	// Textures and techniques should have been cleaned up by the calls to 'destroy_effect' above
 	assert(_textures.empty());
-	assert(_techniques.empty());
-	assert(_sorted_techniques.empty());
+	assert(_techniques.empty() && _technique_sorting.empty());
 
 	_textures_loaded = false;
 }
@@ -3535,7 +3531,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	_effects_rendered_this_frame = true;
 
 	// Nothing to do here if effects are disabled globally
-	if (!_effects_enabled || _techniques.empty() || _techniques.size() != _sorted_techniques.size())
+	if (!_effects_enabled || _techniques.empty())
 		return;
 
 #ifdef NDEBUG
@@ -3787,9 +3783,8 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 #endif
 
 	// Render all enabled techniques
-	for (size_t technique_index : _sorted_techniques)
+	for (size_t technique_index : _technique_sorting)
 	{
-		assert(technique_index < _techniques.size());
 		technique &tech = _techniques[technique_index];
 
 		if (!_ignore_shortcuts && _input != nullptr && _input->is_key_pressed(tech.toggle_key_data, _force_shortcut_modifiers))
