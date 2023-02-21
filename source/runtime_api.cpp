@@ -1069,3 +1069,35 @@ void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path
 #endif
 #endif
 }
+
+void reshade::runtime::sort_techniques(reshade::api::effect_technique *techniques, size_t count)
+{
+#if RESHADE_FX
+	if (count != _techniques.size())
+		return;
+
+	std::vector<size_t> sorted_techniques(count);
+	for (size_t i = 0; i < count; i++)
+	{
+		auto it = std::find_if(_techniques.cbegin(), _techniques.cend(),
+			[handle = reinterpret_cast<technique *>(techniques[i].handle)](const technique &tech) { return &tech == handle; });
+
+		if (it == _techniques.cend())
+			return;
+
+		size_t technique_index = std::distance(_techniques.cbegin(), it);
+		sorted_techniques[i] = technique_index;
+	}
+
+#if RESHADE_ADDON
+	const bool was_is_in_api_call = _is_in_api_call;
+	_is_in_api_call = true;
+#endif
+
+	sort_techniques(std::move(sorted_techniques));
+
+#if RESHADE_ADDON
+	_is_in_api_call = was_is_in_api_call;
+#endif
+#endif
+}

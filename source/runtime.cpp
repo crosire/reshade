@@ -22,6 +22,7 @@
 #include <cstring>
 #include <fstream>
 #include <algorithm>
+#include <numeric>
 #include <fpng.h>
 #include <stb_image.h>
 #include <stb_image_dds.h>
@@ -3136,6 +3137,46 @@ void reshade::runtime::disable_technique(technique &tech)
 
 	if (status_changed) // Decrease rendering reference count
 		_effects[tech.effect_index].rendering--;
+}
+void reshade::runtime::sort_techniques(std::vector<size_t> &&sorting_techniques)
+{
+	assert(sorting_techniques.size() == _sorted_techniques.size() &&
+		std::accumulate(sorting_techniques.cbegin(), sorting_techniques.cend(), 0UL) == std::accumulate(_sorted_techniques.cbegin(), _sorted_techniques.cend(), 0UL) &&
+		std::all_of(sorting_techniques.cbegin(), sorting_techniques.cend(), [this](size_t technique_index1) {
+			return _sorted_techniques.cend() != std::find_if(_sorted_techniques.cbegin(), _sorted_techniques.cend(),
+			[technique_index1](size_t technique_index2) { return technique_index1 == technique_index2; }); }));
+#if RESHADE_ADDON
+	if (!_is_in_api_call)
+	{
+		std::vector<api::effect_technique> techniques(sorting_techniques.size());
+		std::transform(sorting_techniques.cbegin(), sorting_techniques.cend(), techniques.begin(),
+			[this](size_t technique_index) { return api::effect_technique{ reinterpret_cast<uint64_t>(&_techniques[technique_index]) }; });
+
+		_is_in_api_call = true;
+		const bool skip = invoke_addon_event<addon_event::reshade_sort_techniques>(this, techniques.data(), techniques.size());
+		_is_in_api_call = false;
+		if (skip)
+			return;
+
+		for (size_t i = 0; i < techniques.size(); i++)
+		{
+			auto it = std::find_if(_techniques.cbegin(), _techniques.cend(),
+				[handle = reinterpret_cast<technique *>(techniques[i].handle)](const technique &tech) { return &tech == handle; });
+
+			if (it == _techniques.cend())
+				return;
+
+			size_t technique_index = std::distance(_techniques.cbegin(), it);
+			sorting_techniques[i] = technique_index;
+		}
+	}
+#endif
+	_sorted_techniques = std::move(sorting_techniques);
+
+	if (_auto_save_preset)
+		save_current_preset();
+	else
+		_preset_is_modified = true;
 }
 
 void reshade::runtime::load_effects()
