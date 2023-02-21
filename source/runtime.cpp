@@ -283,14 +283,20 @@ bool reshade::runtime::on_init(input::window_handle window)
 		}
 #endif
 
+		const bool need_copy_pipeline =
+			_device->get_api() == api::device_api::d3d10 ||
+			_device->get_api() == api::device_api::d3d11 ||
+			_device->get_api() == api::device_api::d3d12;
+
+		api::resource_usage usage = api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest;
+		if (need_copy_pipeline)
+			usage |= api::resource_usage::shader_resource;
+		else
+			usage |= api::resource_usage::copy_source;
+
 		if (!_device->create_resource(
-				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource | api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest),
+				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, usage),
 				nullptr, back_buffer_desc.texture.samples == 1 ? api::resource_usage::copy_dest : api::resource_usage::resolve_dest, &_back_buffer_resolved) ||
-			!_device->create_resource_view(
-				_back_buffer_resolved,
-				api::resource_usage::shader_resource,
-				api::resource_view_desc(_back_buffer_format),
-				&_back_buffer_resolved_srv) ||
 			!_device->create_resource_view(
 				_back_buffer_resolved,
 				api::resource_usage::render_target,
@@ -302,14 +308,22 @@ bool reshade::runtime::on_init(input::window_handle window)
 				api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)),
 				&_back_buffer_targets.emplace_back()))
 		{
-			LOG(ERROR) << "Failed to create resolve texture!";
+			LOG(ERROR) << "Failed to create resolve texture resource!";
 			goto exit_failure;
 		}
 
-		if (_device->get_api() == api::device_api::d3d10 ||
-			_device->get_api() == api::device_api::d3d11 ||
-			_device->get_api() == api::device_api::d3d12)
+		if (need_copy_pipeline)
 		{
+			if (!_device->create_resource_view(
+					_back_buffer_resolved,
+					api::resource_usage::shader_resource,
+					api::resource_view_desc(_back_buffer_format),
+					&_back_buffer_resolved_srv))
+			{
+				LOG(ERROR) << "Failed to create resolve shader resource view!";
+				goto exit_failure;
+			}
+
 			api::sampler_desc sampler_desc = {};
 			sampler_desc.filter = api::filter_mode::min_mag_mip_point;
 			sampler_desc.address_u = api::texture_address_mode::clamp;
@@ -357,7 +371,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 		if (!_device->create_resource_view(_empty_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r16_float), &_empty_srv))
 		{
-			LOG(ERROR) << "Failed to create empty texture resource view!";
+			LOG(ERROR) << "Failed to create empty texture shader resource view!";
 			goto exit_failure;
 		}
 	}
