@@ -253,7 +253,7 @@ namespace reshade
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
 
-		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path);
+		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count);
 
 		#pragma region Status
 		bool _needs_update = false;
@@ -340,6 +340,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Screenshot
+		unsigned int _screenshot_count = 0;
 #if RESHADE_FX
 		bool _screenshot_save_before = false;
 		bool _screenshot_include_preset = false;
