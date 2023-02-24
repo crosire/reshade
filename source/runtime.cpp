@@ -4515,7 +4515,6 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 		{ "AppName", g_target_executable_path.stem().u8string() },
 #if RESHADE_FX
 		{ "PresetName",  _current_preset_path.stem().u8string() },
-		{ "Rotate", std::to_string((screenshot_count - 1) % 1000) },
 		{ "Count", std::to_string(screenshot_count) }
 #endif
 	});
@@ -4651,7 +4650,6 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 			{ "TargetFileName", screenshot_path.filename().u8string() },
 			{ "TargetExt", screenshot_path.extension().u8string() },
 			{ "TargetName", screenshot_path.stem().u8string() },
-			{ "Rotate", std::to_string((screenshot_count - 1) % 1000) },
 			{ "Count", std::to_string(screenshot_count) }
 		});
 	}

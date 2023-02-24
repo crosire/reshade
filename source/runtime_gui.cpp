@@ -1764,7 +1764,6 @@ void reshade::runtime::draw_gui_settings()
 				"  %%TimeMinute%%      Minute component of current time\n"
 				"  %%TimeSecond%%      Second component of current time\n"
 				"  %%TimeMS%%          Milliseconds fraction of current time\n"
-				"  %%Rotate%%          *TODO*\n"
 				"  %%Count%%           *TODO*",
 				g_target_executable_path.stem().string().c_str(),
 #if RESHADE_FX
@@ -1827,7 +1826,6 @@ void reshade::runtime::draw_gui_settings()
 				"  %%TargetFileName%%  File name of the screenshot file (%s)\n"
 				"  %%TargetExt%%       File extension of the screenshot file (%s)\n"
 				"  %%TargetName%%      File name without extension of the screenshot file (%s)\n"
-				"  %%Rotate%%          *TODO*\n"
 				"  %%Count%%           *TODO*",
 				g_target_executable_path.stem().string().c_str(),
 #if RESHADE_FX
