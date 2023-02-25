@@ -146,6 +146,7 @@ struct depth_stencil_backup
 
 	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
 	uint32_t force_clear_index = 0;
+	uint32_t current_clear_index = 0;
 
 	// Index of the frame after which the backup resource may be destroyed (used to delay destruction until resource is no longer in use)
 	uint64_t destroy_after_frame = std::numeric_limits<uint64_t>::max();
@@ -287,7 +288,8 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	depth_stencil_frame_stats &counters = state.counters_per_used_depth_stencil[depth_stencil];
 
 	// Ignore clears when there was no meaningful workload (e.g. at the start of a frame)
-	if (counters.current_stats.drawcalls == 0)
+	// Don't do this in Vulkan, to handle common case of DXVK flushing its immediate command buffer and thus resetting its stats during the frame
+	if (counters.current_stats.drawcalls == 0 && (device->get_api() != device_api::vulkan))
 		return;
 
 	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in some games)
@@ -324,7 +326,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 			else
 			{
 				// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
-				do_copy = counters.clears.size() == (depth_stencil_backup->force_clear_index - 1);
+				do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->force_clear_index - 1);
 			}
 
 			counters.clears.push_back({ counters.current_stats, op, do_copy });
@@ -747,6 +749,10 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 			continue;
 		}
 
+		// Reset current clear index
+		assert(it->depth_stencil_resource == 0 || it->current_clear_index == 0 || it->current_clear_index == static_cast<uint32_t>(device_data.depth_stencil_resources[it->depth_stencil_resource].last_counters.clears.size()));
+		it->current_clear_index = 0;
+
 		++it;
 	}
 }
@@ -1116,16 +1122,16 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			if (depth_stencil_backup == nullptr || depth_stencil_backup->backup_texture == 0)
 				continue;
 
-			for (size_t clear_index = 1; clear_index <= item.snapshot.clears.size(); ++clear_index)
+			for (uint32_t clear_index = 1; clear_index <= static_cast<uint32_t>(item.snapshot.clears.size()); ++clear_index)
 			{
 				const clear_stats &clear_stats = item.snapshot.clears[clear_index - 1];
 
-				sprintf_s(label, "%c   CLEAR %2zu", clear_stats.copied_during_frame ? '>' : ' ', clear_index);
+				sprintf_s(label, "%c   CLEAR %2u", clear_stats.copied_during_frame ? '>' : ' ', clear_index);
 
-				if (bool value = (depth_stencil_backup->force_clear_index == static_cast<uint32_t>(clear_index));
+				if (bool value = (depth_stencil_backup->force_clear_index == clear_index);
 					ImGui::Checkbox(label, &value))
 				{
-					depth_stencil_backup->force_clear_index = value ? static_cast<uint32_t>(clear_index) : 0;
+					depth_stencil_backup->force_clear_index = value ? clear_index : 0;
 					reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				}
 
