@@ -527,7 +527,7 @@ static void on_destroy_resource(device *device, resource resource)
 
 			// This is bad ... the resource may still be in use by an effect on the GPU and destroying it would crash it
 			// Try to mitigate that somehow by delaying this thread a little to hopefully give the GPU enough time to catch up before the resource memory is deallocated
-			Sleep(250);
+			Sleep(500);
 		}
 	}
 }
@@ -882,7 +882,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			const resource backup_texture = depth_stencil_backup->backup_texture;
 
 			// Copy to backup texture unless already copied during the current frame
-			if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0)
+			if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0 && (s_preserve_depth_buffers != 2 || !(api == device_api::d3d12 || api == device_api::vulkan)))
 			{
 				bool do_copy = true;
 				// Ensure barriers are not created with 'D3D12_RESOURCE_STATE_[...]_SHADER_RESOURCE' when resource has 'D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE' flag set
