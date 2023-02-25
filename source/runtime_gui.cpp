@@ -686,6 +686,7 @@ void reshade::runtime::draw_gui()
 		show_splash = true;
 
 	_ignore_shortcuts = false;
+	_block_input_next_frame = false;
 #if RESHADE_FX
 	_gather_gpu_statistics = false;
 	_effects_expanded_state &= 2;
