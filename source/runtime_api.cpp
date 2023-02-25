@@ -47,11 +47,6 @@ void reshade::runtime::get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_
 		*out_wheel_delta = (_input != nullptr) ? _input->mouse_wheel_delta() : 0;
 }
 
-void reshade::runtime::block_input_next_frame()
-{
-	_block_input_next_frame = true;
-}
-
 void reshade::runtime::enumerate_uniform_variables([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), [[maybe_unused]] void *user_data)
 {
 #if RESHADE_FX
@@ -1078,17 +1073,24 @@ void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path
 void reshade::runtime::reorder_techniques(size_t count, const api::effect_technique *techniques)
 {
 #if RESHADE_FX
-	if (count != _techniques.size())
+	if (count > _techniques.size())
 		return;
 
-	std::vector<size_t> technique_indices(count);
-	for (size_t i = 0; i < count; i++)
+	std::vector<size_t> technique_indices(_techniques.size());
+	for (size_t i = 0; i < count; ++i)
 	{
 		const auto tech = reinterpret_cast<technique *>(techniques[i].handle);
 		if (tech == nullptr)
 			return;
 
 		technique_indices[i] = tech - _techniques.data();
+	}
+	for (size_t i = count, k = 0; i < technique_indices.size(); ++i, ++k)
+	{
+		for (auto beg = technique_indices.begin(), end = technique_indices.begin() + i; std::find(beg, end, _technique_sorting[k]) != end; ++k)
+			continue;
+
+		technique_indices[i] = _technique_sorting[k];
 	}
 
 #if RESHADE_ADDON
@@ -1102,4 +1104,9 @@ void reshade::runtime::reorder_techniques(size_t count, const api::effect_techni
 	_is_in_api_call = was_is_in_api_call;
 #endif
 #endif
+}
+
+void reshade::runtime::block_input_next_frame()
+{
+	_block_input_next_frame = true;
 }
