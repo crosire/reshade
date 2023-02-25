@@ -599,9 +599,6 @@ void reshade::runtime::on_present()
 		}
 	}
 
-	if (_should_save_screenshot)
-		_screenshot_count++;
-
 #if RESHADE_FX
 	update_effects();
 
@@ -663,7 +660,10 @@ void reshade::runtime::on_present()
 #endif
 
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
+		{
+			_screenshot_count++;
 			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
+		}
 
 #if RESHADE_FX
 		// Do not allow the following shortcuts while effects are being loaded or initialized (since they affect that state)
@@ -4541,8 +4541,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 		if (!_screenshot_sound_path.empty() && screenshot_sound_path.native().length() <= 255)
 			PlaySound(screenshot_sound_path.c_str(), nullptr, SND_ASYNC | SND_NOSTOP | SND_FILENAME);
 
-		_worker_threads.emplace_back(
-			[this, screenshot_count, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
+		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
 			int comp = 4;
 			if (_screenshot_clear_alpha)

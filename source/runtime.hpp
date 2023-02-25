@@ -340,7 +340,6 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Screenshot
-		unsigned int _screenshot_count = 0;
 #if RESHADE_FX
 		bool _screenshot_save_before = false;
 		bool _screenshot_include_preset = false;
@@ -349,6 +348,7 @@ namespace reshade
 		bool _screenshot_save_gui = false;
 #endif
 		bool _screenshot_clear_alpha = true;
+		unsigned int _screenshot_count = 0;
 		unsigned int _screenshot_format = 1;
 		unsigned int _screenshot_jpeg_quality = 90;
 		unsigned int _screenshot_key_data[4] = {};
