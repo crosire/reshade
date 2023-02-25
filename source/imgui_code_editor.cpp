@@ -9,7 +9,6 @@
 #include "effect_lexer.hpp"
 #include "imgui_code_editor.hpp"
 #include <imgui.h>
-#include <imgui_internal.h> // GetCurrentWindowRead
 #include <algorithm>
 
 static inline int get_parenthesis_type(char c)
@@ -113,7 +112,12 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 
 	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
 	ImGui::PushAllowKeyboardFocus(true);
-	const char *const editor_window_name = ImGui::GetCurrentWindowRead()->Name;
+
+	if (_search_window_focus < 0)
+	{
+		_search_window_focus = 0;
+		ImGui::SetWindowFocus();
+	}
 
 	char buf[128] = "", *buf_end = buf;
 
@@ -137,60 +141,60 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		io.WantTextInput = true;
 		io.WantCaptureKeyboard = true;
 
-		if (ImGui::IsKeyPressedMap(ImGuiKey_Escape))
+		if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
 			ImGui::SetWindowFocus(nullptr); // Reset window focus
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_Z))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z)))
 			undo();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_Y))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Y)))
 			redo();
-		else if (!ctrl && ImGui::IsKeyPressedMap(ImGuiKey_UpArrow))
+		else if (!ctrl && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
 			if (alt && !shift) // Alt + Up moves the current line one up
 				move_lines_up();
 			else
 				move_up(1, shift);
-		else if (!ctrl && ImGui::IsKeyPressedMap(ImGuiKey_DownArrow))
+		else if (!ctrl && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)))
 			if (alt && !shift) // Alt + Down moves the current line one down
 				move_lines_down();
 			else
 				move_down(1, shift);
-		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_LeftArrow))
+		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_LeftArrow)))
 			move_left(1, shift, ctrl);
-		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_RightArrow))
+		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightArrow)))
 			move_right(1, shift, ctrl);
-		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_PageUp))
+		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageUp)))
 			move_up(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4.0f), shift);
-		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_PageDown))
+		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageDown)))
 			move_down(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4.0f), shift);
-		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_Home))
+		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Home)))
 			if (ctrl)
 				move_top(shift);
 			else
 				move_home(shift);
-		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_End))
+		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_End)))
 			if (ctrl)
 				move_bottom(shift);
 			else
 				move_end(shift);
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_Delete))
+		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete)))
 			delete_next();
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
+		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
 			delete_previous();
-		else if (!alt && ImGui::IsKeyPressedMap(ImGuiKey_Insert))
+		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
 			if (ctrl)
 				clipboard_copy();
 			else if (shift)
 				clipboard_paste();
 			else
 				_overwrite ^= true;
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_C))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C)))
 			clipboard_copy();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_V))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V)))
 			clipboard_paste();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_X))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_X)))
 			clipboard_cut();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_A))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_A)))
 			select_all();
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)))
 			insert_character('\n', true);
 		else
 			for (ImWchar c : io.InputQueueCharacters)
@@ -568,20 +572,21 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		ImGui::Dummy(ImVec2(0, ImGui::GetStyle().ItemSpacing.y));
 		ImGui::BeginChild("##search", ImVec2(0, 0));
 
+		if (_search_window_focus > 0)
+		{
+			_search_window_focus -= 1;
+			ImGui::SetKeyboardFocusHere();
+		}
+
 		const float input_width = ImGui::GetContentRegionAvail().x - (4 * button_spacing) - (4 * button_size) - 5;
 		ImGui::PushItemWidth(input_width);
 		if (ImGui::InputText("##search", _search_text, sizeof(_search_text), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AllowTabInput))
 		{
-			_search_window_focus = 1; // Focus text box again after entering a value
+			ImGui::SetKeyboardFocusHere(-1); // Focus text box again after entering a value
+
 			find_and_scroll_to_text(_search_text);
 		}
 		ImGui::PopItemWidth();
-
-		if (_search_window_focus != 0 && _search_window_focus < 3)
-		{
-			_search_window_focus -= 1;
-			ImGui::SetKeyboardFocusHere(-1);
-		}
 
 		ImGui::SameLine(0.0f, button_spacing);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[_search_case_sensitive ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
@@ -604,11 +609,11 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			ImGui::SetTooltip("Find next (F3)");
 
 		ImGui::SameLine(0.0f, button_spacing);
-		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressedMap(ImGuiKey_Escape))
+		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
 		{
-			_search_window_open = _search_window_focus = 0;
+			_search_window_open = 0;
 			// Move focus back to text editor again next frame
-			ImGui::SetWindowFocus(editor_window_name);
+			_search_window_focus = -1;
 		}
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Close (Escape)");
@@ -618,17 +623,12 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			ImGui::PushItemWidth(input_width);
 			if (ImGui::InputText("##replace", _replace_text, sizeof(_replace_text), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AllowTabInput))
 			{
-				_search_window_focus = 3; // Focus replace text box again after entering a value
+				ImGui::SetKeyboardFocusHere(-1); // Focus replace text box again after entering a value
+
 				if (find_and_scroll_to_text(_search_text, false, true))
 					insert_text(_replace_text);
 			}
 			ImGui::PopItemWidth();
-
-			if (_search_window_focus == 3)
-			{
-				_search_window_focus  = 0;
-				ImGui::SetKeyboardFocusHere(-1);
-			}
 
 			ImGui::SameLine(0.0f, button_spacing * 2 + button_size + 5);
 			if (ImGui::Button("Repl", ImVec2(2 * button_size + button_spacing, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed('R')))
@@ -979,7 +979,7 @@ void reshade::imgui::code_editor::undo(unsigned int steps)
 	_select_beg = _select_end = _cursor_pos;
 	_interactive_beg = _interactive_end = _cursor_pos;
 
-	_in_undo_operation = true;
+	_undo_operation_active = true;
 
 	while (can_undo() && steps-- > 0)
 	{
@@ -999,7 +999,7 @@ void reshade::imgui::code_editor::undo(unsigned int steps)
 	}
 
 	_scroll_to_cursor = true;
-	_in_undo_operation = false;
+	_undo_operation_active = false;
 }
 void reshade::imgui::code_editor::redo(unsigned int steps)
 {
@@ -1010,7 +1010,7 @@ void reshade::imgui::code_editor::redo(unsigned int steps)
 	_select_beg = _select_end = _cursor_pos;
 	_interactive_beg = _interactive_end = _cursor_pos;
 
-	_in_undo_operation = true;
+	_undo_operation_active = true;
 
 	while (can_redo() && steps-- > 0)
 	{
@@ -1030,12 +1030,12 @@ void reshade::imgui::code_editor::redo(unsigned int steps)
 	}
 
 	_scroll_to_cursor = true;
-	_in_undo_operation = false;
+	_undo_operation_active = false;
 }
 
 void reshade::imgui::code_editor::record_undo(undo_record &&record)
 {
-	if (_in_undo_operation)
+	if (_undo_operation_active)
 		return;
 
 	_undo.resize(_undo_index); // Remove all undo records after the current one
@@ -1258,7 +1258,7 @@ void reshade::imgui::code_editor::clipboard_paste()
 
 	undo_record u;
 
-	_in_undo_operation = true;
+	_undo_operation_active = true;
 
 	bool reset_cursor_pos = false;
 	const size_t cursor_column = _cursor_pos.column;
@@ -1284,7 +1284,7 @@ void reshade::imgui::code_editor::clipboard_paste()
 
 	u.added_end = _cursor_pos;
 
-	_in_undo_operation = false;
+	_undo_operation_active = false;
 
 	record_undo(std::move(u));
 

@@ -1416,7 +1416,7 @@ void reshade::runtime::draw_gui_home()
 				}
 				else
 				{
-					ImGui::SetKeyboardFocusHere();
+					ImGui::SetKeyboardFocusHere(-1);
 				}
 			}
 

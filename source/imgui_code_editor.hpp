@@ -260,7 +260,7 @@ namespace reshade::imgui
 		std::string _last_copy_string;
 		bool _last_copy_from_empty_selection = false;
 
-		bool _in_undo_operation = false;
+		bool _undo_operation_active = false;
 		size_t _undo_index = 0;
 		size_t _undo_base_index = 0;
 		std::vector<undo_record> _undo;
@@ -269,10 +269,9 @@ namespace reshade::imgui
 
 		char _search_text[256] = "";
 		char _replace_text[256] = "";
-		bool _show_search_popup = false;
 		bool _search_case_sensitive = false;
-		unsigned int _search_window_open = 0;
-		unsigned int _search_window_focus = 0;
+		signed int _search_window_open = 0;
+		signed int _search_window_focus = 0;
 
 		size_t _colorize_line_beg = 0;
 		size_t _colorize_line_end = 0;

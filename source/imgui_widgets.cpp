@@ -205,7 +205,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
 		path += std::filesystem::path::preferred_separator;
 
-	const bool result = (select || ImGui::IsKeyPressedMap(ImGuiKey_Enter) || has_double_clicked_file) && (exts.empty() || std::find(exts.begin(), exts.end(), path.extension()) != exts.end());
+	const bool result = (select || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || has_double_clicked_file) && (exts.empty() || std::find(exts.begin(), exts.end(), path.extension()) != exts.end());
 	if (result || cancel)
 		ImGui::CloseCurrentPopup();
 
@@ -482,7 +482,9 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-	const ImVec2 hover_pos = ImGui::GetCursorScreenPos() + ImVec2(0, button_size);
+
+	ImVec2 hover_pos = ImGui::GetCursorScreenPos();
+	hover_pos.y += button_size;
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 	if (ImGui::BeginCombo("##v", items.size() > static_cast<size_t>(v) && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
