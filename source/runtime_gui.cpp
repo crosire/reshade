@@ -1763,7 +1763,8 @@ void reshade::runtime::draw_gui_settings()
 				"  %%TimeHour%%        Hour component of current time\n"
 				"  %%TimeMinute%%      Minute component of current time\n"
 				"  %%TimeSecond%%      Second component of current time\n"
-				"  %%TimeMS%%          Milliseconds fraction of current time",
+				"  %%TimeMS%%          Milliseconds fraction of current time\n"
+				"  %%Count%%           Number of screenshots taken this session\n",
 				g_target_executable_path.stem().string().c_str(),
 #if RESHADE_FX
 				_current_preset_path.stem().string().c_str(),
@@ -1824,7 +1825,8 @@ void reshade::runtime::draw_gui_settings()
 				"  %%TargetDir%%       Full path to the screenshot directory (%s)\n"
 				"  %%TargetFileName%%  File name of the screenshot file (%s)\n"
 				"  %%TargetExt%%       File extension of the screenshot file (%s)\n"
-				"  %%TargetName%%      File name without extension of the screenshot file (%s)",
+				"  %%TargetName%%      File name without extension of the screenshot file (%s)\n"
+				"  %%Count%%           Number of screenshots taken this session\n",
 				g_target_executable_path.stem().string().c_str(),
 #if RESHADE_FX
 				_current_preset_path.stem().string().c_str(),

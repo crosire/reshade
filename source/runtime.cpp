@@ -674,7 +674,10 @@ void reshade::runtime::on_present()
 #endif
 
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
+		{
+			_screenshot_count++;
 			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
+		}
 
 #if RESHADE_FX
 		// Do not allow the following shortcuts while effects are being loaded or initialized (since they affect that state)
@@ -4520,10 +4523,13 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 
 void reshade::runtime::save_screenshot(const std::string &postfix)
 {
+	const unsigned int screenshot_count = _screenshot_count;
+
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
 #if RESHADE_FX
 		{ "PresetName",  _current_preset_path.stem().u8string() },
+		{ "Count", std::to_string(screenshot_count) }
 #endif
 	});
 
@@ -4549,7 +4555,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 		if (!_screenshot_sound_path.empty() && screenshot_sound_path.native().length() <= 255)
 			PlaySound(screenshot_sound_path.c_str(), nullptr, SND_ASYNC | SND_NOSTOP | SND_FILENAME);
 
-		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
+		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
 			int comp = 4;
 			if (_screenshot_clear_alpha)
@@ -4602,7 +4608,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 
 			if (save_success)
 			{
-				execute_screenshot_post_save_command(screenshot_path);
+				execute_screenshot_post_save_command(screenshot_path, screenshot_count);
 
 #if RESHADE_FX
 				if (include_preset)
@@ -4634,7 +4640,7 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 		});
 	}
 }
-bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path)
+bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count)
 {
 	if (_screenshot_post_save_command.empty() || _screenshot_post_save_command.extension() != L".exe")
 		return false;
@@ -4657,6 +4663,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 			{ "TargetFileName", screenshot_path.filename().u8string() },
 			{ "TargetExt", screenshot_path.extension().u8string() },
 			{ "TargetName", screenshot_path.stem().u8string() },
+			{ "Count", std::to_string(screenshot_count) }
 		});
 	}
 
