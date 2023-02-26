@@ -512,8 +512,9 @@ void reshadefx::preprocessor::parse_ifdef()
 
 	_if_stack.push_back(std::move(level));
 	// Only add to used macro list if this #ifdef is active and the macro was not defined before
-	if (!parent_skipping && _macros.find(_token.literal_as_string) == _macros.end())
-		_used_macros.emplace(_token.literal_as_string);
+	if (!parent_skipping)
+		if (const auto it = _macros.find(_token.literal_as_string); it == _macros.end() || it->second.is_predefined)
+			_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
@@ -531,8 +532,9 @@ void reshadefx::preprocessor::parse_ifndef()
 
 	_if_stack.push_back(std::move(level));
 	// Only add to used macro list if this #ifndef is active and the macro was not defined before
-	if (!parent_skipping && _macros.find(_token.literal_as_string) == _macros.end())
-		_used_macros.emplace(_token.literal_as_string);
+	if (!parent_skipping)
+		if (const auto it = _macros.find(_token.literal_as_string); it == _macros.end() || it->second.is_predefined)
+			_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_elif()
 {
