@@ -176,7 +176,7 @@
   <PropertyGroup>
     <PostBuildEvent Condition="('$(Configuration)'=='Release' Or '$(Configuration)'=='Release Signed') and Exists('$(SolutionDir)\res\sign.pfx')">echo Signing executable ...
 set PATH=%PATH%;$(WindowsSDK_ExecutablePath)
-signtool.exe sign /f "$(SolutionDir)\res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</PostBuildEvent>
+signtool.exe sign /f "$(SolutionDir)\res\sign.pfx" /fd sha1 /t http://timestamp.digicert.com "$(TargetPath)"</PostBuildEvent>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
 </Project>
