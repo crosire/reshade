@@ -265,7 +265,6 @@ namespace reshade
 
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;
-		bool _block_input_next_frame = false;
 		std::shared_ptr<class input> _input;
 		std::shared_ptr<class input_gamepad> _input_gamepad;
 
@@ -291,8 +290,8 @@ namespace reshade
 		bool _load_option_disable_skipping = false;
 		unsigned int _reload_key_data[4] = {};
 		unsigned int _performance_mode_key_data[4] = {};
-		std::vector<std::string> _global_preprocessor_definitions;
-		std::vector<std::string> _preset_preprocessor_definitions;
+		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
+		std::vector<std::pair<std::string, std::string>> _preset_preprocessor_definitions;
 		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
@@ -437,6 +436,7 @@ namespace reshade
 #  endif
 
 		bool _no_font_scaling = false;
+		bool _block_input_next_frame = false;
 		unsigned int _overlay_key_data[4];
 		unsigned int _fps_pos = 1;
 		unsigned int _clock_format = 0;

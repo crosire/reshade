@@ -18,4 +18,15 @@ namespace reshade::utils
 	/// Executes the specified command as a new process, with basic (not elevated) user privileges.
 	/// </summary>
 	bool execute_command(const std::string &command_line, const std::filesystem::path &working_directory = L".", bool no_window = false);
+
+	/// <summary>
+	/// Plays the specified audio file asynchronously.
+	/// </summary>
+	void play_sound_async(const std::filesystem::path &audio_file);
+
+	/// <summary>
+	/// Changes the window background to be transparent or opaque.
+	/// Alpha values in the swap chain are only respected when the window is transparent.
+	/// </summary>
+	void set_window_transparency(void *window, bool enabled);
 }

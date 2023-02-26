@@ -98,6 +98,27 @@ public:
 			values[i] = convert<T>(it2->second, i);
 		return true;
 	}
+	template <>
+	bool get(const std::string &section, const std::string &key, std::vector<std::pair<std::string, std::string>> &values) const
+	{
+		const auto it1 = _sections.find(section);
+		if (it1 == _sections.end())
+			return false;
+		const auto it2 = it1->second.find(key);
+		if (it2 == it1->second.end())
+			return false;
+		values.resize(it2->second.size());
+		for (size_t i = 0; i < it2->second.size(); ++i)
+		{
+			std::string value = convert<std::string>(it2->second, i);
+			if (const size_t equals_sign = value.find('=');
+				equals_sign != std::string::npos)
+				values[i] = { value.substr(0, equals_sign), value.substr(equals_sign + 1) };
+			else
+				values[i].first = std::move(value);
+		}
+		return true;
+	}
 
 	/// <summary>
 	/// Returns <see langword="true"/> only if the specified <paramref name="section"/> and <paramref name="key"/> exists and is not zero.
@@ -176,6 +197,21 @@ public:
 	{
 		auto &v = _sections[section][key];
 		v = std::forward<std::vector<std::string>>(values);
+		_modified = true;
+		_modified_at = std::filesystem::file_time_type::clock::now();
+	}
+	template <>
+	void set(const std::string &section, const std::string &key, const std::vector<std::pair<std::string, std::string>> &values)
+	{
+		auto &v = _sections[section][key];
+		v.resize(values.size());
+		for (size_t i = 0; i < values.size(); ++i)
+		{
+			const std::pair<std::string, std::string> &value = values[i];
+			v[i] = value.first;
+			if (!value.second.empty())
+				v[i] += '=' + value.second;
+		}
 		_modified = true;
 		_modified_at = std::filesystem::file_time_type::clock::now();
 	}

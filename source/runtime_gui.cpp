@@ -15,7 +15,7 @@
 #include "input.hpp"
 #include "input_gamepad.hpp"
 #include "imgui_widgets.hpp"
-#include "process_utils.hpp"
+#include "platform_utils.hpp"
 #include "fonts/forkawesome.inl"
 #include <fstream>
 #include <algorithm>
@@ -2761,7 +2761,7 @@ void reshade::runtime::draw_variable_editor()
 			struct
 			{
 				const char *name;
-				std::vector<std::string> &preprocessor_definitions;
+				std::vector<std::pair<std::string, std::string>> &preprocessor_definitions;
 			} definition_types[] = {
 				{ "Global", _global_preprocessor_definitions },
 				{ "Current Present", _preset_preprocessor_definitions },
@@ -2776,10 +2776,8 @@ void reshade::runtime::draw_variable_editor()
 						char name[128] = "";
 						char value[128] = "";
 
-						const size_t equals_index = type.preprocessor_definitions[i].find('=');
-						type.preprocessor_definitions[i].copy(name, std::min(equals_index, sizeof(name) - 1));
-						if (equals_index != std::string::npos)
-							type.preprocessor_definitions[i].copy(value, sizeof(value) - 1, equals_index + 1);
+						type.preprocessor_definitions[i].first.copy(name, sizeof(name) - 1);
+						type.preprocessor_definitions[i].second.copy(value, sizeof(value) - 1);
 
 						ImGui::PushID(static_cast<int>(i));
 
@@ -2801,7 +2799,7 @@ void reshade::runtime::draw_variable_editor()
 						}
 						else if (modified)
 						{
-							type.preprocessor_definitions[i] = std::string(name) + '=' + std::string(value);
+							type.preprocessor_definitions[i] = { name, value };
 						}
 
 						ImGui::PopID();
@@ -2839,17 +2837,16 @@ void reshade::runtime::draw_variable_editor()
 		_was_preprocessor_popup_edited = false;
 	}
 
-	const auto find_definition_value = [](auto &list, const auto &name, char value[128] = nullptr) {
+	const auto find_definition_value = [](std::vector<std::pair<std::string, std::string>> &list, const std::string &name, char value[128] = nullptr) {
 		for (auto it = list.begin(); it != list.end(); ++it)
 		{
 			char current_name[128] = "";
-			const size_t equals_index = it->find('=');
-			it->copy(current_name, std::min(equals_index, sizeof(current_name) - 1));
+			it->first.copy(current_name, sizeof(current_name) - 1);
 
 			if (name == current_name)
 			{
-				if (equals_index != std::string::npos && value != nullptr)
-					value[it->copy(value, 127, equals_index + 1)] = '\0';
+				if (value != nullptr)
+					value[it->second.copy(value, 128 - 1)] = '\0';
 				return it;
 			}
 		}
@@ -3191,12 +3188,12 @@ void reshade::runtime::draw_variable_editor()
 
 							if (preset_it != _preset_preprocessor_definitions.end())
 							{
-								*preset_it = definition.first + '=' + value;
+								*preset_it = { definition.first, value };
 								modified_definition = preset_it;
 							}
 							else
 							{
-								_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
+								_preset_preprocessor_definitions.emplace_back(definition.first, value);
 								modified_definition = _preset_preprocessor_definitions.end() - 1;
 							}
 						}

@@ -16,7 +16,7 @@
 #include "input.hpp"
 #include "input_gamepad.hpp"
 #include "com_ptr.hpp"
-#include "process_utils.hpp"
+#include "platform_utils.hpp"
 #include <set>
 #include <thread>
 #include <cstring>
@@ -29,9 +29,7 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 #include <malloc.h>
-#include <dwmapi.h>
 #include <d3dcompiler.h>
-#include <mmsystem.h>
 
 #if RESHADE_FX
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
@@ -153,6 +151,7 @@ static inline int format_color_bit_depth(reshade::api::format value)
 	switch (value)
 	{
 	default:
+		assert(false);
 		return 0;
 	case reshade::api::format::b5g6r5_unorm:
 	case reshade::api::format::b5g5r5a1_unorm:
@@ -448,12 +447,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 	// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
 	if (window != nullptr)
-	{
-		DWM_BLURBEHIND blur_behind = {};
-		blur_behind.dwFlags = DWM_BB_ENABLE;
-		blur_behind.fEnable = global_config().get("APP", "EnableTransparency");
-		DwmEnableBlurBehindWindow(GetAncestor(static_cast<HWND>(window), GA_ROOT), &blur_behind);
-	}
+		utils::set_window_transparency(window, global_config().get("APP", "EnableTransparency"));
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_frame_count = 0;
@@ -1004,7 +998,7 @@ void reshade::runtime::load_current_preset()
 	preset.get({}, "Techniques", technique_list);
 	std::vector<std::string> sorted_technique_list;
 	preset.get({}, "TechniqueSorting", sorted_technique_list);
-	std::vector<std::string> preset_preprocessor_definitions;
+	std::vector<std::pair<std::string, std::string>> preset_preprocessor_definitions;
 	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
 
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
@@ -1343,11 +1337,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
 	attributes += "device=" + std::to_string(_device_id) + ';';
 
-	std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
+	std::vector<std::pair<std::string, std::string>> preprocessor_definitions = _global_preprocessor_definitions;
 	// Insert preset preprocessor definitions before global ones, so that if there are duplicates, the preset ones are used (since 'add_macro_definition' succeeds only for the first occurance)
 	preprocessor_definitions.insert(preprocessor_definitions.begin(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
-	for (const std::string &definition : preprocessor_definitions)
-		attributes += definition + ';';
+	for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
+		attributes += definition.first + '=' + definition.second + ';';
 
 	std::error_code ec;
 	std::set<std::filesystem::path> include_paths;
@@ -1447,18 +1441,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_back_buffer_color_space)));
 		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_back_buffer_format)));
 
-		for (const std::string &definition : preprocessor_definitions)
+		for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
 		{
-			if (definition.empty() || definition == "=")
+			if (definition.first.empty())
 				continue; // Skip invalid definitions
 
-			const size_t equals_index = definition.find('=');
-			if (equals_index != std::string::npos)
-				pp.add_macro_definition(
-					definition.substr(0, equals_index),
-					definition.substr(equals_index + 1));
-			else
-				pp.add_macro_definition(definition);
+			pp.add_macro_definition(definition.first, definition.second.empty() ? "1" : definition.second);
 		}
 
 		for (const std::filesystem::path &include_path : include_paths)
@@ -3171,7 +3159,9 @@ void reshade::runtime::reorder_techniques(std::vector<size_t> &&technique_indice
 	{
 		std::vector<api::effect_technique> techniques(technique_indices.size());
 		std::transform(technique_indices.cbegin(), technique_indices.cend(), techniques.begin(),
-			[this](size_t technique_index) { return api::effect_technique { reinterpret_cast<uint64_t>(&_techniques[technique_index]) }; });
+			[this](size_t technique_index) {
+				return api::effect_technique { reinterpret_cast<uint64_t>(&_techniques[technique_index]) };
+			});
 
 		_is_in_api_call = true;
 		const bool skip = invoke_addon_event<addon_event::reshade_reorder_techniques>(this, techniques.size(), techniques.data());
@@ -4551,9 +4541,8 @@ void reshade::runtime::save_screenshot(const std::string &postfix)
 		const bool include_preset = false;
 #endif
 		// Play screenshot sound
-		const std::filesystem::path screenshot_sound_path = (g_reshade_base_path / _screenshot_sound_path).lexically_normal();
-		if (!_screenshot_sound_path.empty() && screenshot_sound_path.native().length() <= 255)
-			PlaySound(screenshot_sound_path.c_str(), nullptr, SND_ASYNC | SND_NOSTOP | SND_FILENAME);
+		if (!_screenshot_sound_path.empty())
+			utils::play_sound_async(g_reshade_base_path / _screenshot_sound_path);
 
 		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel

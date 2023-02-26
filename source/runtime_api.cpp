@@ -9,7 +9,10 @@
 
 reshade::input::window_handle reshade::runtime::get_hwnd() const
 {
-	return _input != nullptr ? _input->get_window_handle() : nullptr;
+	if (_input == nullptr)
+		return nullptr;
+
+	return _input->get_window_handle();
 }
 
 bool reshade::runtime::is_key_down(uint32_t keycode) const
@@ -95,8 +98,7 @@ reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable([[
 void reshade::runtime::get_uniform_variable_type([[maybe_unused]] api::effect_uniform_variable handle, api::format *out_base_type, uint32_t *out_rows, uint32_t *out_columns, uint32_t *out_array_length) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		if (out_base_type != nullptr)
 		{
@@ -155,8 +157,7 @@ void reshade::runtime::get_uniform_variable_name([[maybe_unused]] api::effect_un
 		return;
 
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		if (value != nullptr && *length != 0)
 			value[variable->name.copy(value, *length - 1)] = '\0';
@@ -171,8 +172,7 @@ void reshade::runtime::get_uniform_variable_name([[maybe_unused]] api::effect_un
 bool reshade::runtime::get_annotation_bool_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -192,8 +192,7 @@ bool reshade::runtime::get_annotation_bool_from_uniform_variable([[maybe_unused]
 bool reshade::runtime::get_annotation_float_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, float *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -213,8 +212,7 @@ bool reshade::runtime::get_annotation_float_from_uniform_variable([[maybe_unused
 bool reshade::runtime::get_annotation_int_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -234,8 +232,7 @@ bool reshade::runtime::get_annotation_int_from_uniform_variable([[maybe_unused]]
 bool reshade::runtime::get_annotation_uint_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -281,8 +278,7 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 void reshade::runtime::get_uniform_value_bool([[maybe_unused]] api::effect_uniform_variable handle, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		get_uniform_value(*variable, values, count, array_index);
 		return;
@@ -295,8 +291,7 @@ void reshade::runtime::get_uniform_value_bool([[maybe_unused]] api::effect_unifo
 void reshade::runtime::get_uniform_value_float([[maybe_unused]] api::effect_uniform_variable handle, float *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		get_uniform_value(*variable, values, count, array_index);
 		return;
@@ -309,8 +304,7 @@ void reshade::runtime::get_uniform_value_float([[maybe_unused]] api::effect_unif
 void reshade::runtime::get_uniform_value_int([[maybe_unused]] api::effect_uniform_variable handle, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		get_uniform_value(*variable, values, count, array_index);
 		return;
@@ -323,8 +317,7 @@ void reshade::runtime::get_uniform_value_int([[maybe_unused]] api::effect_unifor
 void reshade::runtime::get_uniform_value_uint([[maybe_unused]] api::effect_uniform_variable handle, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
 		get_uniform_value(*variable, values, count, array_index);
 		return;
@@ -473,8 +466,7 @@ void reshade::runtime::get_texture_variable_name([[maybe_unused]] api::effect_te
 		return;
 
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
 	{
 		if (value != nullptr && *length != 0)
 			value[variable->name.copy(value, *length - 1)] = '\0';
@@ -489,8 +481,7 @@ void reshade::runtime::get_texture_variable_name([[maybe_unused]] api::effect_te
 bool reshade::runtime::get_annotation_bool_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -510,8 +501,7 @@ bool reshade::runtime::get_annotation_bool_from_texture_variable([[maybe_unused]
 bool reshade::runtime::get_annotation_float_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, float *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -531,8 +521,7 @@ bool reshade::runtime::get_annotation_float_from_texture_variable([[maybe_unused
 bool reshade::runtime::get_annotation_int_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -552,8 +541,7 @@ bool reshade::runtime::get_annotation_int_from_texture_variable([[maybe_unused]]
 bool reshade::runtime::get_annotation_uint_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
 	{
 		if (const auto it = std::find_if(variable->annotations.begin(), variable->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -610,8 +598,7 @@ void reshade::runtime::update_texture([[maybe_unused]] api::effect_texture_varia
 void reshade::runtime::get_texture_binding([[maybe_unused]] api::effect_texture_variable handle, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable != nullptr)
+	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
 	{
 		if (variable->semantic.empty())
 		{
@@ -713,7 +700,7 @@ void reshade::runtime::enumerate_techniques([[maybe_unused]] const char *effect_
 
 	for (size_t technique_index : _technique_sorting)
 	{
-		technique &technique = _techniques[technique_index];
+		const technique &technique = _techniques[technique_index];
 
 		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
 			continue;
@@ -748,8 +735,7 @@ void reshade::runtime::get_technique_name([[maybe_unused]] api::effect_technique
 		return;
 
 #if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech != nullptr)
+	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
 	{
 		if (value != nullptr && *length != 0)
 			value[tech->name.copy(value, *length - 1)] = '\0';
@@ -764,8 +750,7 @@ void reshade::runtime::get_technique_name([[maybe_unused]] api::effect_technique
 bool reshade::runtime::get_annotation_bool_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech != nullptr)
+	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -785,8 +770,7 @@ bool reshade::runtime::get_annotation_bool_from_technique([[maybe_unused]] api::
 bool reshade::runtime::get_annotation_float_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, float *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech != nullptr)
+	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -806,8 +790,7 @@ bool reshade::runtime::get_annotation_float_from_technique([[maybe_unused]] api:
 bool reshade::runtime::get_annotation_int_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech != nullptr)
+	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -827,8 +810,7 @@ bool reshade::runtime::get_annotation_int_from_technique([[maybe_unused]] api::e
 bool reshade::runtime::get_annotation_uint_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech != nullptr)
+	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
 	{
 		if (const auto it = std::find_if(tech->annotations.begin(), tech->annotations.end(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -912,31 +894,19 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 	if (name == nullptr)
 		return;
 
-	auto preset_it = _preset_preprocessor_definitions.begin();
-	for (; preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
-	{
-		const size_t equals_index = preset_it->find('=');
-		if (equals_index != std::string::npos && name == preset_it->substr(0, equals_index))
-			break;
-	}
+	const auto preset_it = std::find_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(), [name](const auto &it) { return it.first == name; });
 
 	if (value == nullptr || value[0] == '\0') // An empty value removes the definition
 	{
 		if (preset_it != _preset_preprocessor_definitions.end())
-		{
 			_preset_preprocessor_definitions.erase(preset_it);
-		}
 	}
 	else
 	{
 		if (preset_it != _preset_preprocessor_definitions.end())
-		{
-			*preset_it = std::string(name) + '=' + value;
-		}
+			preset_it->second = value;
 		else
-		{
-			_preset_preprocessor_definitions.push_back(std::string(name) + '=' + value);
-		}
+			_preset_preprocessor_definitions.emplace_back(name, value);
 	}
 
 	// Save preset first, as preprocessor definitions are reset to those in the current preset during reloading
@@ -952,25 +922,23 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unu
 #if RESHADE_FX
 	for (auto preset_it = _preset_preprocessor_definitions.begin(); preset_it != _preset_preprocessor_definitions.end(); ++preset_it)
 	{
-		const size_t equals_index = preset_it->find('=');
-		if (equals_index != std::string::npos && name == preset_it->substr(0, equals_index))
+		if (name == preset_it->first)
 		{
 			if (value != nullptr && *length != 0)
-				value[preset_it->copy(value, *length - 1, equals_index + 1)] = '\0';
+				value[preset_it->second.copy(value, *length - 1)] = '\0';
 
-			*length = preset_it->size() - (equals_index + 1);
+			*length = preset_it->second.size();
 			return true;
 		}
 	}
 	for (auto global_it = _global_preprocessor_definitions.begin(); global_it != _global_preprocessor_definitions.end(); ++global_it)
 	{
-		const size_t equals_index = global_it->find('=');
-		if (equals_index != std::string::npos && name == global_it->substr(0, equals_index))
+		if (name == global_it->first)
 		{
 			if (value != nullptr && *length != 0)
-				value[global_it->copy(value, *length - 1, equals_index + 1)] = '\0';
+				value[global_it->second.copy(value, *length - 1)] = '\0';
 
-			*length = global_it->size() - (equals_index + 1);
+			*length = global_it->second.size();
 			return true;
 		}
 	}
@@ -1108,5 +1076,7 @@ void reshade::runtime::reorder_techniques(size_t count, const api::effect_techni
 
 void reshade::runtime::block_input_next_frame()
 {
+#if RESHADE_GUI
 	_block_input_next_frame = true;
+#endif
 }

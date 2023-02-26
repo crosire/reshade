@@ -134,6 +134,9 @@ struct depth_stencil_backup
 	// The number of effect runtimes referencing this backup
 	uint32_t references = 1;
 
+	// Index of the frame after which the backup resource may be destroyed (used to delay destruction until resource is no longer in use)
+	uint64_t destroy_after_frame = std::numeric_limits<uint64_t>::max();
+
 	// A resource used as target for a backup copy of this depth-stencil
 	resource backup_texture = { 0 };
 
@@ -147,9 +150,6 @@ struct depth_stencil_backup
 	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
 	uint32_t force_clear_index = 0;
 	uint32_t current_clear_index = 0;
-
-	// Index of the frame after which the backup resource may be destroyed (used to delay destruction until resource is no longer in use)
-	uint64_t destroy_after_frame = std::numeric_limits<uint64_t>::max();
 };
 
 struct depth_stencil_resource
@@ -325,7 +325,6 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 			}
 			else
 			{
-				// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
 				do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->force_clear_index - 1);
 			}
 
@@ -750,7 +749,6 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 		}
 
 		// Reset current clear index
-		assert(it->depth_stencil_resource == 0 || it->current_clear_index == 0 || it->current_clear_index == static_cast<uint32_t>(device_data.depth_stencil_resources[it->depth_stencil_resource].last_counters.clears.size()));
 		it->current_clear_index = 0;
 
 		++it;
