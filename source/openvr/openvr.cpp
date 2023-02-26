@@ -477,7 +477,7 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 	// Only install hooks once, for the first compositor interface version encountered to avoid duplicated hooks
 	// This is necessary because vrclient.dll may create an internal compositor instance with a different version than the application to translate older versions, which with hooks installed for both would cause an infinite loop
 	if (static unsigned int compositor_version = 0;
-		compositor_version == 0 && std::sscanf(pchNameAndVersion, "IVRCompositor_%u", &compositor_version))
+		compositor_version == 0 && interface_instance != nullptr && std::sscanf(pchNameAndVersion, "IVRCompositor_%u", &compositor_version))
 	{
 		// The 'IVRCompositor::Submit' function definition has been stable and has had the same virtual function table index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
 		if (compositor_version >= 12)
@@ -497,12 +497,14 @@ vr::IVRClientCore *g_client_core = nullptr;
 
 extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
 {
+	assert(pInterfaceName != nullptr);
+
 	LOG(INFO) << "Redirecting " << "VRClientCoreFactory" << '(' << "pInterfaceName = " << pInterfaceName << ')' << " ...";
 
 	void *const interface_instance = reshade::hooks::call(VRClientCoreFactory)(pInterfaceName, pReturnCode);
 
 	if (static unsigned int client_core_version = 0;
-		client_core_version == 0 && std::sscanf(pInterfaceName, "IVRClientCore_%u", &client_core_version))
+		client_core_version == 0 && interface_instance != nullptr && std::sscanf(pInterfaceName, "IVRClientCore_%u", &client_core_version))
 	{
 		g_client_core = static_cast<vr::IVRClientCore *>(interface_instance);
 
