@@ -2745,7 +2745,7 @@ void reshade::runtime::draw_variable_editor()
 	{
 		ImGui::SetWindowPos(popup_pos);
 
-		bool modified = false;
+		bool global_modified = false, preset_modified = false;
 		float popup_height = (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions.size()) + 2) * ImGui::GetFrameHeightWithSpacing();
 		popup_height = std::min(popup_height, ImGui::GetWindowViewport()->Size.y - popup_pos.y - 20.0f);
 		popup_height = std::max(popup_height, 42.0f); // Ensure window always has a minimum height
@@ -2762,9 +2762,10 @@ void reshade::runtime::draw_variable_editor()
 			{
 				const char *name;
 				std::vector<std::pair<std::string, std::string>> &preprocessor_definitions;
+				bool &modified;
 			} definition_types[] = {
-				{ "Global", _global_preprocessor_definitions },
-				{ "Current Present", _preset_preprocessor_definitions },
+				{ "Global", _global_preprocessor_definitions, global_modified },
+				{ "Current Present", _preset_preprocessor_definitions, preset_modified },
 			};
 
 			for (const auto &type : definition_types)
@@ -2782,22 +2783,22 @@ void reshade::runtime::draw_variable_editor()
 						ImGui::PushID(static_cast<int>(i));
 
 						ImGui::SetNextItemWidth(content_region_width * 0.66666666f - (button_spacing));
-						modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
+						type.modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
 							[](ImGuiInputTextCallbackData *data) -> int { return data->EventChar == '=' || (data->EventChar != '_' && !isalnum(data->EventChar)); }); // Filter out invalid characters
 
 						ImGui::SameLine(0, button_spacing);
 
 						ImGui::SetNextItemWidth(content_region_width * 0.33333333f - (button_spacing + button_size) + 1);
-						modified |= ImGui::InputText("##value", value, sizeof(value));
+						type.modified |= ImGui::InputText("##value", value, sizeof(value));
 
 						ImGui::SameLine(0, button_spacing);
 
 						if (imgui::confirm_button(ICON_FK_MINUS, button_size, "Do you really want to remove the preprocessor definition '%s'?", name))
 						{
-							modified = true;
+							type.modified = true;
 							type.preprocessor_definitions.erase(type.preprocessor_definitions.begin() + i--);
 						}
-						else if (modified)
+						else if (type.modified)
 						{
 							type.preprocessor_definitions[i] = { name, value };
 						}
@@ -2819,15 +2820,12 @@ void reshade::runtime::draw_variable_editor()
 
 		ImGui::EndChild();
 
-		if (modified)
-		{
+		if (global_modified)
 			save_config();
-			if (_auto_save_preset)
-				save_current_preset();
-			else
-				_preset_is_modified = true;
+		if (preset_modified)
+			save_current_preset();
+		if (global_modified || preset_modified)
 			_was_preprocessor_popup_edited = true;
-		}
 
 		ImGui::EndPopup();
 	}
