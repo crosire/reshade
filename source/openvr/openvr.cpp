@@ -515,3 +515,19 @@ extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int
 
 	return interface_instance;
 }
+
+void check_and_init_openvr_hooks()
+{
+	if (g_client_core != nullptr ||
+#ifndef _WIN64
+		GetModuleHandleW(L"vrclient.dll") == nullptr)
+#else
+		GetModuleHandleW(L"vrclient_x64.dll") == nullptr)
+#endif
+		return;
+
+	vr::EVRInitError error_code = vr::VRInitError_None;
+	VRClientCoreFactory(vr::IVRClientCore_Version, reinterpret_cast<int *>(&error_code));
+	if (g_client_core != nullptr)
+		g_client_core->GetGenericInterface(vr::IVRCompositor_Version, &error_code);
+}

@@ -179,6 +179,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else
 	{
+		// No Man's Sky initializes OpenVR before loading Vulkan (and therefore before loading ReShade), so need to manually install OpenVR hooks now when used
+		extern void check_and_init_openvr_hooks();
+		check_and_init_openvr_hooks();
+
 		uint32_t num_extensions = 0;
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, nullptr);
 		std::vector<VkExtensionProperties> extensions(num_extensions);
