@@ -270,8 +270,8 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 		{
 			// See https://docs.microsoft.com/windows/win32/direct3d9/vertex-textures-in-vs-3-0
 			first += D3DVERTEXTEXTURESAMPLER0;
-			if ((first + count) > D3DVERTEXTEXTURESAMPLER3) // The vertex engine only contains four texture sampler stages
-				count = D3DVERTEXTEXTURESAMPLER3 - first;
+			if ((first + count) > (D3DVERTEXTEXTURESAMPLER3 + 1)) // The vertex engine only contains four texture sampler stages
+				count = (D3DVERTEXTEXTURESAMPLER3 + 1) - first;
 		}
 
 		switch (update.type)
