@@ -317,7 +317,7 @@ void reshade::d3d11::device_context_impl::bind_unordered_access_views(api::shade
 #endif
 
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
-		_orig->OMSetRenderTargetsAndUnorderedAccessViews(0, nullptr, nullptr, first, count, view_ptrs, nullptr);
+		_orig->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, first, count, view_ptrs, nullptr);
 	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
 		_orig->CSSetUnorderedAccessViews(first, count, view_ptrs, nullptr);
 }
