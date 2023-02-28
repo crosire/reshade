@@ -9,6 +9,8 @@
 
 using namespace reshade::api;
 
+static bool s_filter_width_and_height = true;
+
 struct __declspec(uuid("7251932A-ADAF-4DFC-B5CB-9A4E8CD5D6EB")) device_data
 {
 	effect_runtime *main_runtime = nullptr;
@@ -65,13 +67,17 @@ static void on_end_render_pass(command_list *cmd_list)
 	device *const device = cmd_list->get_device();
 	const auto &dev_data = device->get_private_data<device_data>();
 
-	uint32_t width, height;
-	dev_data.main_runtime->get_screenshot_width_and_height(&width, &height);
+	// Optionally ignore render targets that do not match the effect runtime back buffer dimensions
+	if (s_filter_width_and_height)
+	{
+		uint32_t width, height;
+		dev_data.main_runtime->get_screenshot_width_and_height(&width, &height);
 
-	const resource_desc render_target_desc = device->get_resource_desc(device->get_resource_from_view(data.current_main_rtv));
+		const resource_desc render_target_desc = device->get_resource_desc(device->get_resource_from_view(data.current_main_rtv));
 
-	if (render_target_desc.texture.width != width || render_target_desc.texture.height != height)
-		return; // Ignore render targets that do not match the effect runtime back buffer dimensions
+		if (render_target_desc.texture.width != width || render_target_desc.texture.height != height)
+			return;
+	}
 
 	// Render post-processing effects when a specific render pass is found (instead of at the end of the frame)
 	// This is not perfect, since there may be multiple command lists, so a global index is not conclusive and this may cause effects to be rendered multiple times ...
@@ -148,6 +154,8 @@ static void on_draw_settings(effect_runtime *runtime)
 		ImGui::TextUnformatted("This is not the main effect runtime.");
 		return;
 	}
+
+	ImGui::Checkbox("Filter out render passes with different dimensions", &s_filter_width_and_height);
 
 	ImGui::Text("Current render pass count: %u", dev_data.last_render_pass_count);
 	ImGui::Text("Offset from end of frame to render effects at: %u", dev_data.offset_from_last_pass);

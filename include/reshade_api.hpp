@@ -48,7 +48,6 @@ namespace reshade::api
 		/// This can be used to force ReShade to render effects at a certain point during the frame to e.g. avoid effects being applied to user interface elements of the application.
 		/// </summary>
 		/// <remarks>
-		/// The width and height of the specified render target have to match those reported by <see cref="effect_runtime::get_screenshot_width_and_height"/>!
 		/// The resource the render target views point to has to be in the <see cref="resource_usage::render_target"/> state.
 		/// This call may modify current state on the command list (pipeline, render targets, descriptor sets, ...), so it may be necessary for an add-on to backup and restore state around it if the application does not bind all state again afterwards already.
 		/// </remarks>
@@ -64,8 +63,7 @@ namespace reshade::api
 		virtual bool capture_screenshot(uint8_t *pixels) = 0;
 
 		/// <summary>
-		/// Gets the current buffer dimensions of the swap chain as used with effect rendering.
-		/// The returned values are equivalent to <c>BUFFER_WIDTH</c> and <c>BUFFER_HEIGHT</c> in ReShade FX.
+		/// Gets the current buffer dimensions of the swap chain.
 		/// </summary>
 		virtual void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const = 0;
 
@@ -565,7 +563,7 @@ namespace reshade::api
 		/// Applies a <paramref name="technique"/> to the specified render targets (regardless of the state of this technique).
 		/// </summary>
 		/// <remarks>
-		/// The width and height of the specified render target have to match those reported by <see cref="effect_runtime::get_screenshot_width_and_height"/>!
+		/// The width and height of the specified render target should match those used to render all other effects!
 		/// The resource the render target views point to has to be in the <see cref="resource_usage::render_target"/> state.
 		/// This call may modify current state on the command list (pipeline, render targets, descriptor sets, ...), so it may be necessary for an add-on to backup and restore state around it if the application does not bind all state again afterwards already.
 		/// </remarks>

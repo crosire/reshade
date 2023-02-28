@@ -968,11 +968,16 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 
 	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
 
-	// Ensure format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
-	if (!update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
+#if RESHADE_ADDON
+	const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
+	if (back_buffer_desc.texture.samples > 1)
+		return; // Multisampled render targets are not supported
+
+	// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
+	// Changing dimensions or format can cause effects to be reloaded, in which case need to wait for that to finish before rendering
+	if (!update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, back_buffer_desc.texture.format, _effect_stencil_format) || is_loading())
 		return;
 
-#if RESHADE_ADDON
 	const bool was_is_in_api_call = _is_in_api_call;
 	_is_in_api_call = true;
 #endif

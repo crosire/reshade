@@ -375,15 +375,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 		}
 	}
 
-	// Create effect color resource
-	if (_effect_color_tex == 0)
-	{
-		if (!update_effect_color_tex(_back_buffer_format))
-			goto exit_failure;
-	}
-
-	// Create effect stencil resource
-	if (_effect_stencil_tex == 0)
+	// Create effect color and stencil resource
+	if (_effect_stencil_format == api::format::unknown)
 	{
 		// Find a supported stencil format with the smallest footprint (since the depth component is not used)
 		constexpr api::format possible_stencil_formats[] = {
@@ -401,10 +394,10 @@ bool reshade::runtime::on_init(input::window_handle window)
 				break;
 			}
 		}
-
-		if (!update_effect_stencil_tex(_effect_stencil_format))
-			goto exit_failure;
 	}
+
+	if (!update_effect_color_and_stencil_tex(_width, _height, _back_buffer_format, _effect_stencil_format))
+		goto exit_failure;
 #endif
 
 	// Create render targets for the back buffer resources
@@ -1328,10 +1321,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	// Generate a unique string identifying this effect
 	std::string attributes;
 	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';
-	attributes += "width=" + std::to_string(_width) + ';';
-	attributes += "height=" + std::to_string(_height) + ';';
+	attributes += "width=" + std::to_string(_effect_width) + ';';
+	attributes += "height=" + std::to_string(_effect_height) + ';';
 	attributes += "color_space=" + std::to_string(static_cast<uint32_t>(_back_buffer_color_space)) + ';';
-	attributes += "color_bit_depth=" + std::to_string(format_color_bit_depth(_back_buffer_format)) + ';';
+	attributes += "color_bit_depth=" + std::to_string(format_color_bit_depth(_effect_color_format)) + ';';
 	attributes += "version=" + std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION) + ';';
 	attributes += "performance_mode=" + std::string(_performance_mode ? "1" : "0") + ';';
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
@@ -1434,12 +1427,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
 		pp.add_macro_definition("__APPLICATION__", std::to_string( // Truncate hash to 32-bit, since lexer currently only supports 32-bit numbers anyway
 			std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
-		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
-		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
+		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_effect_width));
+		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_effect_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
 		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_back_buffer_color_space)));
-		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_back_buffer_format)));
+		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
 
 		for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
 		{
@@ -1712,7 +1705,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				if (_renderer_id == 0x9000)
 				{
 					// Create SEMANTIC_PIXEL_SIZE constants
-					hlsl += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + '\n';
+					hlsl += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_effect_width) + ", 1.0 / " + std::to_string(_effect_height) + '\n';
 
 					uint32_t semantic_index = 0;
 					for (const reshadefx::texture_info &tex : effect.module.textures)
@@ -2465,24 +2458,15 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				if (pass_info.render_target_names[0].empty())
 				{
-					pass_info.viewport_width = _width;
-					pass_info.viewport_height = _height;
+					pass_info.viewport_width = _effect_width;
+					pass_info.viewport_height = _effect_height;
 
 					render_target_formats[0] = api::format_to_default_typed(_back_buffer_format, pass_info.srgb_write_enable);
 
-					subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_format, 1, &_effect_stencil_format });
 					subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, 1, &render_target_formats[0] });
 				}
 				else
 				{
-					// Only need to attach stencil if stencil is actually used in this pass
-					if (pass_info.stencil_enable &&
-						pass_info.viewport_width == _width &&
-						pass_info.viewport_height == _height)
-					{
-						subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_format, 1, &_effect_stencil_format });
-					}
-
 					int render_target_count = 0;
 					for (; render_target_count < 8 && !pass_info.render_target_names[render_target_count].empty(); ++render_target_count)
 					{
@@ -2509,6 +2493,14 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					}
 
 					subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, static_cast<uint32_t>(render_target_count), render_target_formats });
+				}
+
+				// Only need to attach stencil if stencil is actually used in this pass
+				if (pass_info.stencil_enable &&
+					pass_info.viewport_width == _effect_width &&
+					pass_info.viewport_height == _effect_height)
+				{
+					subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_format, 1, &_effect_stencil_format });
 				}
 
 				subobjects.push_back({ api::pipeline_subobject_type::max_vertex_count, 1, &pass_info.num_vertices });
@@ -3349,13 +3341,14 @@ void reshade::runtime::clear_effect_cache()
 		LOG(ERROR) << "Failed to clear effect cache directory with error code " << ec.value() << '!';
 }
 
-bool reshade::runtime::update_effect_color_tex(api::format format)
+bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format)
 {
-	assert(format != api::format::unknown);
+	assert(width != 0 && height != 0);
+	assert(color_format != api::format::unknown && stencil_format != api::format::unknown);
 
 	if (_effect_color_tex != 0)
 	{
-		if (_effect_color_format == format)
+		if (_effect_width == width && _effect_height == height && _effect_color_format == color_format && _effect_stencil_format == stencil_format)
 			return true;
 
 		_graphics_queue->wait_idle();
@@ -3366,41 +3359,6 @@ bool reshade::runtime::update_effect_color_tex(api::format format)
 		_effect_color_srv[0] = {};
 		_device->destroy_resource_view(_effect_color_srv[1]);
 		_effect_color_srv[1] = {};
-	}
-
-	if (!_device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
-			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
-	{
-		LOG(ERROR) << "Failed to create effect color resource!";
-		return false;
-	}
-
-	_effect_color_format = format;
-
-	_device->set_resource_name(_effect_color_tex, "ReShade back buffer");
-
-	if (!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(format, 0)), &_effect_color_srv[0]) ||
-		!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(format, 1)), &_effect_color_srv[1]))
-	{
-		LOG(ERROR) << "Failed to create effect color resource view!";
-		return false;
-	}
-
-	update_texture_bindings("COLOR", _effect_color_srv[0], _effect_color_srv[1]);
-
-	return true;
-}
-bool reshade::runtime::update_effect_stencil_tex(api::format format)
-{
-	assert(format != api::format::unknown);
-
-	if (_effect_stencil_tex != 0)
-	{
-		if (_effect_stencil_format == format)
-			return true;
-
-		_graphics_queue->wait_idle();
 
 		_device->destroy_resource(_effect_stencil_tex);
 		_effect_stencil_tex = {};
@@ -3409,18 +3367,47 @@ bool reshade::runtime::update_effect_stencil_tex(api::format format)
 	}
 
 	if (!_device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
+			api::resource_desc(width, height, 1, 1, api::format_to_typeless(color_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
+	{
+		LOG(ERROR) << "Failed to create effect color resource!";
+		return false;
+	}
+
+	// Reload effects to update 'BUFFER_WIDTH', 'BUFFER_HEIGHT' and 'BUFFER_COLOR_BIT_DEPTH' definitions (unless this is the 'update_effect_color_and_stencil_tex' call in 'on_init')
+	const bool force_reload = _is_initialized && (width != _effect_width || height != _effect_height || format_color_bit_depth(color_format) != format_color_bit_depth(_effect_color_format));
+
+	_effect_width = width;
+	_effect_height = height;
+	_effect_color_format = color_format;
+
+	_device->set_resource_name(_effect_color_tex, "ReShade back buffer");
+
+	if (!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(color_format, 0)), &_effect_color_srv[0]) ||
+		!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(color_format, 1)), &_effect_color_srv[1]))
+	{
+		LOG(ERROR) << "Failed to create effect color resource view!";
+		return false;
+	}
+
+	update_texture_bindings("COLOR", _effect_color_srv[0], _effect_color_srv[1]);
+
+	if (force_reload)
+		reload_effects();
+
+	if (!_device->create_resource(
+			api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
 			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
 	{
 		LOG(ERROR) << "Failed to create effect stencil resource!";
 		return false;
 	}
 
-	_effect_stencil_format = format;
+	_effect_stencil_format = stencil_format;
 
 	_device->set_resource_name(_effect_stencil_tex, "ReShade effect stencil");
 
-	if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(format), &_effect_stencil_dsv))
+	if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(stencil_format), &_effect_stencil_dsv))
 	{
 		LOG(ERROR) << "Failed to create effect stencil resource view!";
 		return false;
@@ -3531,14 +3518,13 @@ void reshade::runtime::update_effects()
 }
 void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
-	// Cannot render effects twice in a frame or while they are still loading
-	if (is_loading() || _effects_rendered_this_frame)
+	// Do not render effects twice in a frame
+	if (_effects_rendered_this_frame)
 		return;
-
 	_effects_rendered_this_frame = true;
 
-	// Nothing to do here if effects are disabled globally
-	if (!_effects_enabled || _techniques.empty())
+	// Nothing to do here if effects are still loading or disabled globally
+	if (is_loading() || !_effects_enabled || _techniques.empty())
 		return;
 
 #ifdef NDEBUG
@@ -3777,10 +3763,17 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
 
 #if RESHADE_ADDON
-	// Ensure format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
-	// TODO: Technically would need to recompile effects as well to update 'BUFFER_COLOR_BIT_DEPTH' etc.
-	if (!_is_in_present_call && !update_effect_color_tex(_device->get_resource_desc(back_buffer_resource).texture.format))
-		return;
+	if (!_is_in_present_call || (_effect_width != _width || _effect_height != _height))
+	{
+		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
+		if (back_buffer_desc.texture.samples > 1)
+			return; // Multisampled render targets are not supported
+
+		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
+		// Changing dimensions or format can cause effects to be reloaded, in which case need to wait for that to finish before rendering
+		if (!update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, back_buffer_desc.texture.format, _effect_stencil_format) || is_loading())
+			return;
+	}
 
 	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
@@ -3927,25 +3920,10 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 			api::render_pass_depth_stencil_desc depth_stencil = {};
 			api::render_pass_render_target_desc render_target[8] = {};
 
-			if (pass_info.clear_render_targets)
-			{
-				for (int i = 0; i < 8; ++i)
-					render_target[i].load_op = api::render_pass_load_op::clear;
-			}
-
-			// First pass to use the stencil buffer should clear it
-			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
-			{
-				is_effect_stencil_cleared = true;
-
-				depth_stencil.stencil_load_op = api::render_pass_load_op::clear;
-			}
-
 			if (pass_info.render_target_names[0].empty())
 			{
 				needs_implicit_back_buffer_copy = true;
 
-				depth_stencil.view = _effect_stencil_dsv;
 				render_target[0].view = pass_info.srgb_write_enable ? back_buffer_rtv_srgb : back_buffer_rtv;
 				render_target_count = 1;
 			}
@@ -3953,13 +3931,25 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 			{
 				needs_implicit_back_buffer_copy = false;
 
-				if (pass_info.stencil_enable &&
-					pass_info.viewport_width == _width &&
-					pass_info.viewport_height == _height)
-					depth_stencil.view = _effect_stencil_dsv;
-
 				for (int i = 0; i < 8 && pass_data.render_target_views[i] != 0; ++i, ++render_target_count)
 					render_target[i].view = pass_data.render_target_views[i];
+			}
+
+			if (pass_info.clear_render_targets)
+			{
+				for (int i = 0; i < 8; ++i)
+					render_target[i].load_op = api::render_pass_load_op::clear;
+			}
+
+			if (pass_info.stencil_enable &&
+				pass_info.viewport_width == _effect_width &&
+				pass_info.viewport_height == _effect_height)
+			{
+				depth_stencil.view = _effect_stencil_dsv;
+
+				// First pass to use the stencil buffer should clear it
+				if (!is_effect_stencil_cleared)
+					depth_stencil.stencil_load_op = api::render_pass_load_op::clear, is_effect_stencil_cleared = true;
 			}
 
 			cmd_list->begin_render_pass(render_target_count, render_target, depth_stencil.view != 0 ? &depth_stencil : nullptr);
@@ -4118,7 +4108,7 @@ void reshade::runtime::save_texture(const texture &tex)
 		});
 	}
 }
-void reshade::runtime::update_texture(texture &tex, const uint32_t width, const uint32_t height, const uint8_t *pixels)
+void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t height, const uint8_t *pixels)
 {
 	std::vector<uint8_t> resized(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
 	// Need to potentially resize image data to the texture dimensions
