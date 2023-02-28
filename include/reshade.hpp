@@ -152,7 +152,7 @@ namespace reshade
 		// Check that the ReShade module supports the used API
 		const auto func = reinterpret_cast<bool(*)(HMODULE, uint32_t)>(
 			GetProcAddress(reshade_module, "ReShadeRegisterAddon"));
-		if (!func(addon_module, RESHADE_API_VERSION))
+		if (func == nullptr || !func(addon_module, RESHADE_API_VERSION))
 			return false;
 
 #if defined(IMGUI_VERSION_NUM)
@@ -179,7 +179,8 @@ namespace reshade
 
 		const auto func = reinterpret_cast<bool(*)(HMODULE)>(
 			GetProcAddress(reshade_module, "ReShadeUnregisterAddon"));
-		func(addon_module);
+		if (func != nullptr)
+			func(addon_module);
 	}
 
 	/// <summary>
@@ -192,7 +193,8 @@ namespace reshade
 	{
 		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeRegisterEvent"));
-		func(ev, static_cast<void *>(callback));
+		if (func != nullptr)
+			func(ev, static_cast<void *>(callback));
 	}
 	/// <summary>
 	/// Unregisters a callback for the specified event (via template) that was previously registered via <see cref="register_event"/>.
@@ -203,7 +205,8 @@ namespace reshade
 	{
 		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUnregisterEvent"));
-		func(ev, static_cast<void *>(callback));
+		if (func != nullptr)
+			func(ev, static_cast<void *>(callback));
 	}
 
 	/// <summary>
