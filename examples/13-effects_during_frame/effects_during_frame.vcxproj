@@ -50,7 +50,12 @@
     <OutDir>..\..\bin\$(Platform)\$(Configuration) Examples\</OutDir>
     <IntDir>..\..\intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>effects_during_frame</TargetName>
-    <TargetExt>.addon</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='Win32'">
+    <TargetExt>.addon32</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='x64'">
+    <TargetExt>.addon64</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

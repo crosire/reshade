@@ -90,7 +90,7 @@ static void on_begin_render_pass(command_list *cmd_list, uint32_t count, const r
 {
 	auto &data = cmd_list->get_private_data<command_list_data>();
 	data.has_multiple_rtvs = count > 1;
-	data.current_main_rtv = (count != 0) ? rts[0].view : resource_view{ 0 };
+	data.current_main_rtv = (count != 0) ? rts[0].view : resource_view { 0 };
 }
 static void on_bind_render_targets_and_depth_stencil(command_list *cmd_list, uint32_t count, const resource_view *rtvs, resource_view)
 {
