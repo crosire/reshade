@@ -331,6 +331,7 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("update") ||
 								path.ContainsIgnoreCase("util") ||
 								path.ContainsIgnoreCase("validate") ||
+								path.ContainsIgnoreCase("wallpaper") ||
 								path.ContainsIgnoreCase("webengine") ||
 								path.ContainsIgnoreCase("webview") ||
 								path.Contains("7za") ||
