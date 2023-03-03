@@ -6,6 +6,7 @@
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
+#include "addon_manager.hpp"
 
 reshade::input::window_handle reshade::runtime::get_hwnd() const
 {
@@ -978,6 +979,8 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 	if (!update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, back_buffer_desc.texture.format, _effect_stencil_format) || is_loading())
 		return;
 
+	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
+
 	const bool was_is_in_api_call = _is_in_api_call;
 	_is_in_api_call = true;
 #endif
@@ -986,6 +989,8 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
+
+	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 }
 #endif
