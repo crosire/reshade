@@ -1413,7 +1413,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	bool skip_optimization = false;
-	std::string hlsl_preamble;
+	std::string code_preamble;
 
 	bool source_cached = false;
 	std::string source;
@@ -1477,7 +1477,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				const std::string pragma_directive = "#pragma " + pragma.first + ' ' + pragma.second + '\n';
 
-				hlsl_preamble += pragma_directive;
+				code_preamble += pragma_directive;
 				source = "// " + pragma_directive + source;
 			}
 
@@ -1523,7 +1523,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				if (source.compare(offset, 7, "#pragma") == 0)
 				{
-					hlsl_preamble += source.substr(offset, (next + 1) - offset);
+					code_preamble += source.substr(offset, (next + 1) - offset);
 				}
 				else if (const size_t equals_index = source.find('=', offset);
 					equals_index != std::string::npos)
@@ -1647,34 +1647,34 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					if (constant.type.is_scalar() && constant.offset != 0)
 						constant.initializer_value.as_uint[0] = constant.initializer_value.as_uint[constant.offset];
 
-					if (effect.module.hlsl.empty())
+					if (_renderer_id >= 0x20000)
 						continue;
 
-					hlsl_preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
+					code_preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
 
 					for (unsigned int i = 0; i < constant.type.components(); ++i)
 					{
 						switch (constant.type.base)
 						{
 						case reshadefx::type::t_bool:
-							hlsl_preamble += constant.initializer_value.as_uint[i] ? "true" : "false";
+							code_preamble += constant.initializer_value.as_uint[i] ? "true" : "false";
 							break;
 						case reshadefx::type::t_int:
-							hlsl_preamble += std::to_string(constant.initializer_value.as_int[i]);
+							code_preamble += std::to_string(constant.initializer_value.as_int[i]);
 							break;
 						case reshadefx::type::t_uint:
-							hlsl_preamble += std::to_string(constant.initializer_value.as_uint[i]);
+							code_preamble += std::to_string(constant.initializer_value.as_uint[i]);
 							break;
 						case reshadefx::type::t_float:
-							hlsl_preamble += std::to_string(constant.initializer_value.as_float[i]);
+							code_preamble += std::to_string(constant.initializer_value.as_float[i]);
 							break;
 						}
 
 						if (i + 1 < constant.type.components())
-							hlsl_preamble += ", ";
+							code_preamble += ", ";
 					}
 
-					hlsl_preamble += '\n';
+					code_preamble += '\n';
 				}
 			}
 		}
@@ -1700,7 +1700,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				assert(_d3d_compiler_module != nullptr);
 
 				// Copy string, since this has to be repeated for every entry point
-				std::string hlsl = hlsl_preamble;
+				std::string hlsl = code_preamble;
 
 				if (_renderer_id == 0x9000)
 				{
@@ -1723,7 +1723,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				}
 
 				hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
-				hlsl += effect.module.hlsl;
+				hlsl.append(effect.module.code.data(), effect.module.code.size());
 
 				// Overwrite position semantic in pixel shaders
 				const D3D_SHADER_MACRO ps_defines[] = {
@@ -1867,7 +1867,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					save_effect_cache(cache_id, "asm", cso_text);
 				}
 			}
-			else if (effect.module.spirv.empty())
+			else if (_renderer_id < 0x20000)
 			{
 				std::string glsl = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
 
@@ -1898,9 +1898,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					glsl += "#define groupMemoryBarrier()\n";
 				}
 
-				glsl += hlsl_preamble;
+				glsl += code_preamble;
 				glsl += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
-				glsl += effect.module.hlsl;
+				glsl.append(effect.module.code.data(), effect.module.code.size());
 
 				cso_text = cso = std::move(glsl);
 			}
@@ -1912,7 +1912,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				// On AMD for instance creating a graphics pipeline just fails with a generic 'VK_ERROR_OUT_OF_HOST_MEMORY'. On NVIDIA artifacts occur on some driver versions.
 				// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to remove all but a single entry point (and associated functions/variables).
 				uint32_t current_function = 0, current_function_offset = 0;
-				std::vector<uint32_t> spirv = effect.module.spirv; // Copy SPIR-V, so that all but the current entry point are only removed from that copy
+				// Copy SPIR-V, so that all but the current entry point are only removed from that copy
+				std::vector<uint32_t> spirv(reinterpret_cast<const uint32_t *>(effect.module.code.data()), reinterpret_cast<const uint32_t *>(effect.module.code.data() + effect.module.code.size()));
 				std::vector<uint32_t> functions_to_remove, variables_to_remove;
 
 				for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)

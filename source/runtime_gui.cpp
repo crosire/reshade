@@ -3389,7 +3389,7 @@ void reshade::runtime::draw_technique_editor()
 					}
 				}
 
-				if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
+				if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
 					imgui::popup_button("Show compiled results", 230.0f))
 				{
 					std::string entry_point_name;
@@ -3582,7 +3582,7 @@ void reshade::runtime::draw_technique_editor()
 				}
 			}
 
-			if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
+			if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
 				imgui::popup_button("Show compiled results", 230.0f))
 			{
 				std::string entry_point_name;

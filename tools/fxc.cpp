@@ -182,12 +182,11 @@ int main(int argc, char *argv[])
 
 	if (print_glsl || print_hlsl)
 	{
-		std::cout << module.hlsl << std::endl;
+		std::cout.write(module.code.data(), module.code.size()).flush();
 	}
 	else if (objectfile != nullptr)
 	{
-		std::ofstream(objectfile, std::ios::binary).write(
-			reinterpret_cast<const char *>(module.spirv.data()), module.spirv.size() * sizeof(uint32_t));
+		std::ofstream(objectfile, std::ios::binary).write(module.code.data(), module.code.size());
 	}
 
 	return 0;

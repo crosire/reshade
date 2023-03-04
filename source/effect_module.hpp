@@ -318,8 +318,7 @@ namespace reshadefx
 	/// </summary>
 	struct module
 	{
-		std::string hlsl;
-		std::vector<uint32_t> spirv;
+		std::vector<char> code;
 
 		std::vector<entry_point> entry_points;
 		std::vector<texture_info> textures;
