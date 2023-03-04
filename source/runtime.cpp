@@ -3501,8 +3501,7 @@ void reshade::runtime::update_effects()
 
 			assert(instance.effect_index == effect_index);
 
-			if (const auto assembly_it = effect.assembly.find(instance.entry_point_name);
-				assembly_it != effect.assembly.end())
+			if (effect.assembly_text.find(instance.entry_point_name) != effect.assembly_text.end())
 				open_code_editor(instance);
 		}
 #endif
