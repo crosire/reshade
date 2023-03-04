@@ -78,7 +78,7 @@ namespace reshade
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
-		void save_screenshot(const std::string &postfix = std::string());
+		void save_screenshot(const std::string_view &postfix = std::string_view());
 		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels); }
 
 		void get_screenshot_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
@@ -517,13 +517,14 @@ namespace reshade
 			size_t effect_index;
 			std::filesystem::path file_path;
 			std::string entry_point_name;
-			imgui::code_editor editor;
 			bool selected = false;
+			bool generated = false;
+			imgui::code_editor editor;
 		};
 
 		void open_code_editor(size_t effect_index, const std::string &entry_point);
 		void open_code_editor(size_t effect_index, const std::filesystem::path &path);
-		void open_code_editor(editor_instance &instance);
+		void open_code_editor(editor_instance &instance) const;
 		void draw_code_editor(editor_instance &instance);
 
 		std::vector<editor_instance> _editors;

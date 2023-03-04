@@ -7,6 +7,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include <unordered_map>
 
@@ -109,12 +110,12 @@ namespace reshade::imgui
 		/// <param name="backwards">Set to <see langword="true"/> to search in reverse direction, otherwise searches forwards.</param>
 		/// <param name="with_selection">Set to <see langword="true"/> to start search at selection boundaries, rather than the cursor position.</param>
 		/// <returns><see langword="true"/> when the search <paramref name="text"/> was found, <see langword="false"/> otherwise.</returns>
-		bool find_and_scroll_to_text(const std::string &text, bool backwards = false, bool with_selection = false);
+		bool find_and_scroll_to_text(const std::string_view &text, bool backwards = false, bool with_selection = false);
 
 		/// <summary>
 		/// Replaces the text of this text editor with the specified string.
 		/// </summary>
-		void set_text(const std::string &text);
+		void set_text(const std::string_view &text);
 		/// <summary>
 		/// Clears the text of this text editor to an empty string.
 		/// </summary>
@@ -122,7 +123,7 @@ namespace reshade::imgui
 		/// <summary>
 		/// Inserts the specified <paramref name="text"/> at the cursor position.
 		/// </summary>
-		void insert_text(const std::string &text);
+		void insert_text(const std::string_view &text);
 		/// <summary>
 		/// Returns the entire text of this text editor as a string.
 		/// </summary>

@@ -160,7 +160,7 @@ std::vector<std::pair<std::string, std::string>> reshadefx::preprocessor::used_m
 		if (const auto it = _macros.find(name);
 			// Do not include function-like macros, since they are more likely to contain a complex replacement list
 			it != _macros.end() && !it->second.is_function_like)
-			defines.push_back({ name, it->second.replacement_list });
+			defines.emplace_back(name, it->second.replacement_list);
 	return defines;
 }
 

@@ -165,8 +165,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	bool conservative_rasterization_ext = false;
 
 	// Check if the device is used for presenting
-	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
-			[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.end())
+	if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
+			[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.cend())
 	{
 		LOG(WARN) << "Skipping device because it is not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.";
 
@@ -190,9 +190,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		// Make sure the driver actually supports the requested extensions
 		const auto add_extension = [&extensions, &enabled_extensions, &graphics_queue_family_index](const char *name, bool required) {
-			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
+			if (const auto it = std::find_if(extensions.cbegin(), extensions.cend(),
 					[name](const auto &props) { return std::strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
-				it != extensions.end())
+				it != extensions.cend())
 			{
 				enabled_extensions.push_back(name);
 				return true;

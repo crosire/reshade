@@ -1812,7 +1812,7 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 		}
 
 		reshade::api::shader_desc desc = {};
-		desc.code = combined_source.c_str();
+		desc.code = combined_source.data();
 		desc.code_size = combined_source.size();
 		desc.entry_point = "main";
 

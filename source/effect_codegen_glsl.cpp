@@ -352,13 +352,13 @@ private:
 		while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
 			digit_index--;
 		digit_index++;
+
 		const uint32_t base_index = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
 		const std::string base_semantic = semantic.substr(0, digit_index);
 
 		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
 		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
-		max_array_length += base_index;
-		for (uint32_t a = 0; a < max_array_length; ++a)
+		for (uint32_t a = 0; a < max_array_length + base_index; ++a)
 			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
 
 		return location + base_index;
@@ -424,6 +424,7 @@ private:
 			return "gl_LocalInvocationID";
 		if (semantic == "SV_DISPATCHTHREADID")
 			return "gl_GlobalInvocationID";
+
 		return escape_name(std::move(name));
 	}
 

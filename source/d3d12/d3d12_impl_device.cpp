@@ -1316,9 +1316,13 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 		if (const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(),
-				[resource](const auto &buffer_info) { return buffer_info.first == resource; });
+				[resource](const std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE> &buffer_info) {
+					return buffer_info.first == resource;
+				});
 			it != _buffer_gpu_addresses.end())
+		{
 			_buffer_gpu_addresses.erase(it);
+		}
 	}
 #endif
 

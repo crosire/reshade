@@ -23,10 +23,10 @@
 static bool filter_text(const std::string_view &text, const std::string_view &filter)
 {
 	return filter.empty() ||
-		std::search(text.begin(), text.end(), filter.begin(), filter.end(),
+		std::search(text.cbegin(), text.cend(), filter.cbegin(), filter.cend(),
 			[](const char c1, const char c2) { // Search case-insensitive
 				return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2);
-			}) != text.end();
+			}) != text.cend();
 }
 static auto filter_name(ImGuiInputTextCallbackData *data) -> int
 {
@@ -37,16 +37,16 @@ static auto filter_name(ImGuiInputTextCallbackData *data) -> int
 template <typename F>
 static void parse_errors(const std::string_view &errors, F &&callback)
 {
-	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
+	for (size_t offset = 0, next; offset != std::string_view::npos; offset = next)
 	{
 		const size_t pos_error = errors.find(": ", offset);
 		const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
-		if (pos_error == std::string::npos || pos_error_line == std::string::npos)
+		if (pos_error == std::string_view::npos || pos_error_line == std::string_view::npos)
 			break;
 
 		const size_t pos_linefeed = errors.find('\n', pos_error);
 
-		next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
+		next = pos_linefeed != std::string_view::npos ? pos_linefeed + 1 : std::string_view::npos;
 
 		const std::string error_file(errors.data() + offset, pos_error_line - offset);
 		int error_line = std::strtol(errors.data() + pos_error_line + 1, nullptr, 10);
@@ -1532,7 +1532,7 @@ void reshade::runtime::draw_gui_home()
 		{
 			if (_effect_load_skipping && _show_force_load_effects_button)
 			{
-				const size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
+				const size_t skipped_effects = std::count_if(_effects.cbegin(), _effects.cend(),
 					[](const effect &effect) { return effect.skipped; });
 
 				if (skipped_effects > 0)
@@ -2218,7 +2218,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		for (const texture &tex : _textures)
 		{
-			if (tex.resource == 0 || !tex.semantic.empty() || !std::any_of(tex.shared.begin(), tex.shared.end(), [this](size_t effect_index) { return _effects[effect_index].rendering; }))
+			if (tex.resource == 0 || !tex.semantic.empty() || !std::any_of(tex.shared.cbegin(), tex.shared.cend(), [this](size_t effect_index) { return _effects[effect_index].rendering; }))
 				continue;
 
 			ImGui::PushID(texture_index);
@@ -2254,7 +2254,7 @@ void reshade::runtime::draw_gui_statistics()
 			std::vector<std::pair<size_t, std::vector<std::string>>> references;
 			for (const technique &tech : _techniques)
 			{
-				if (std::find(tex.shared.begin(), tex.shared.end(), tech.effect_index) == tex.shared.end())
+				if (std::find(tex.shared.cbegin(), tex.shared.cend(), tech.effect_index) == tex.shared.cend())
 					continue;
 
 				std::pair<size_t, std::vector<std::string>> &reference = references.emplace_back();
@@ -2653,7 +2653,7 @@ void reshade::runtime::draw_gui_addons()
 		const auto disabled_it = std::find_if(disabled_addons.begin(), disabled_addons.end(),
 			[&info](const std::string_view &addon_name) {
 				const size_t at_pos = addon_name.find('@');
-				if (at_pos == std::string::npos)
+				if (at_pos == std::string_view::npos)
 					return addon_name == info.name;
 				return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
 			});
@@ -3392,15 +3392,13 @@ void reshade::runtime::draw_technique_editor()
 				if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
 					imgui::popup_button("Show compiled results", 230.0f))
 				{
-					std::string entry_point_name;
-					if (ImGui::MenuItem("Generated code"))
-						entry_point_name = "Generated code";
+					const bool open_generated_code = ImGui::MenuItem("Generated code");
 
 					ImGui::EndPopup();
 
-					if (!entry_point_name.empty())
+					if (open_generated_code)
 					{
-						open_code_editor(effect_index, entry_point_name);
+						open_code_editor(effect_index, std::string());
 						ImGui::CloseCurrentPopup();
 					}
 				}
@@ -3585,12 +3583,11 @@ void reshade::runtime::draw_technique_editor()
 			if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
 				imgui::popup_button("Show compiled results", 230.0f))
 			{
-				std::string entry_point_name;
-				if (ImGui::MenuItem("Generated code"))
-					entry_point_name = "Generated code";
+				const bool open_generated_code = ImGui::MenuItem("Generated code");
 
 				ImGui::Separator();
 
+				std::string entry_point_name;
 				for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 					if (const auto assembly_it = effect.assembly_text.find(entry_point.name);
 						assembly_it != effect.assembly_text.end() && ImGui::MenuItem(entry_point.name.c_str()))
@@ -3598,7 +3595,7 @@ void reshade::runtime::draw_technique_editor()
 
 				ImGui::EndPopup();
 
-				if (!entry_point_name.empty())
+				if (open_generated_code || !entry_point_name.empty())
 				{
 					open_code_editor(tech.effect_index, entry_point_name);
 					ImGui::CloseCurrentPopup();
@@ -3692,46 +3689,52 @@ void reshade::runtime::open_code_editor(size_t effect_index, const std::string &
 
 	const std::filesystem::path &path = _effects[effect_index].source_file;
 
-	auto it = std::find_if(_editors.begin(), _editors.end(),
-		[effect_index, &path, &entry_point](const editor_instance &instance) {
-			return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name == entry_point;
-		});
-	if (it == _editors.end())
+	if (const auto it = std::find_if(_editors.begin(), _editors.end(),
+			[effect_index, &path, &entry_point](const editor_instance &instance) {
+				return instance.effect_index == effect_index && instance.file_path == path && instance.generated && instance.entry_point_name == entry_point;
+			});
+		it != _editors.end())
 	{
-		_editors.push_back({ effect_index, path, entry_point });
-		it = std::prev(_editors.end());
+		it->selected = true;
+		open_code_editor(*it);
 	}
-
-	it->selected = true;
-
-	open_code_editor(*it);
+	else
+	{
+		editor_instance instance { effect_index, path, entry_point, true, true };
+		open_code_editor(instance);
+		_editors.push_back(std::move(instance));
+	}
 }
 void reshade::runtime::open_code_editor(size_t effect_index, const std::filesystem::path &path)
 {
 	assert(effect_index < _effects.size());
 
-	auto it = std::find_if(_editors.begin(), _editors.end(),
-		[effect_index, &path](const editor_instance &instance) {
-			return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name.empty();
-		});
-	if (it == _editors.end())
+	if (const auto it = std::find_if(_editors.begin(), _editors.end(),
+			[effect_index, &path](const editor_instance &instance) {
+				return instance.effect_index == effect_index && instance.file_path == path && !instance.generated;
+			});
+		it != _editors.end())
 	{
-		_editors.push_back({ effect_index, path });
-		it = std::prev(_editors.end());
+		it->selected = true;
+		open_code_editor(*it);
 	}
-
-	it->selected = true;
-
-	open_code_editor(*it);
+	else
+	{
+		editor_instance instance { effect_index, path, std::string(), true, false };
+		open_code_editor(instance);
+		_editors.push_back(std::move(instance));
+	}
 }
-void reshade::runtime::open_code_editor(editor_instance &instance)
+void reshade::runtime::open_code_editor(editor_instance &instance) const
 {
 	const effect &effect = _effects[instance.effect_index];
 
-	if (!instance.entry_point_name.empty())
+	if (instance.generated)
 	{
-		instance.editor.set_text(instance.entry_point_name == "Generated code" ?
-			effect.module.hlsl : effect.assembly_text.at(instance.entry_point_name));
+		if (instance.entry_point_name.empty())
+			instance.editor.set_text(std::string_view(effect.module.code.data(), effect.module.code.size()));
+		else
+			instance.editor.set_text(effect.assembly_text.at(instance.entry_point_name));
 		instance.editor.set_readonly(true);
 		return; // Errors only apply to the effect source, not generated code
 	}

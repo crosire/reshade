@@ -5,6 +5,7 @@
 
 #include "effect_lexer.hpp"
 #include <cassert>
+#include <string_view>
 #include <unordered_map> // Used for static lookup tables
 
 using namespace reshadefx;
@@ -34,7 +35,7 @@ static const unsigned type_lookup[256] = {
 };
 
 // Lookup tables which translate a given string literal to a token and backwards
-static const std::unordered_map<tokenid, std::string> token_lookup = {
+static const std::unordered_map<tokenid, std::string_view> token_lookup = {
 	{ tokenid::end_of_file, "end of file" },
 	{ tokenid::exclaim, "!" },
 	{ tokenid::hash, "#" },
@@ -198,7 +199,7 @@ static const std::unordered_map<tokenid, std::string> token_lookup = {
 	{ tokenid::sampler, "sampler" },
 	{ tokenid::storage, "storage" },
 };
-static const std::unordered_map<std::string, tokenid> keyword_lookup = {
+static const std::unordered_map<std::string_view, tokenid> keyword_lookup = {
 	{ "asm", tokenid::reserved },
 	{ "asm_fragment", tokenid::reserved },
 	{ "auto", tokenid::reserved },
@@ -432,7 +433,7 @@ static const std::unordered_map<std::string, tokenid> keyword_lookup = {
 	{ "volatile", tokenid::volatile_ },
 	{ "while", tokenid::while_ }
 };
-static const std::unordered_map<std::string, tokenid> pp_directive_lookup = {
+static const std::unordered_map<std::string_view, tokenid> pp_directive_lookup = {
 	{ "define", tokenid::hash_def },
 	{ "undef", tokenid::hash_undef },
 	{ "if", tokenid::hash_if },
@@ -499,7 +500,7 @@ std::string reshadefx::token::id_to_name(tokenid id)
 {
 	const auto it = token_lookup.find(id);
 	if (it != token_lookup.end())
-		return it->second;
+		return std::string(it->second);
 	return "unknown";
 }
 

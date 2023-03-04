@@ -213,8 +213,8 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			res.line = std::min<size_t>(res.line, _lines.size() - 1);
 
 			float column_width = 0.0f;
-			std::string cumulated_string = "";
 			float cumulated_string_width[2] = { 0.0f, 0.0f }; // [0] is the latest, [1] is the previous. I use that trick to check where cursor is exactly (important for tabs).
+			std::string cumulated_string;
 
 			const std::vector<glyph> &line = _lines[res.line];
 
@@ -456,7 +456,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			if (ImGui::IsMouseHoveringRect(beg, end))
 			{
 				ImGui::BeginTooltip();
-				ImGui::Text("%s", it->second.first.c_str());
+				ImGui::TextUnformatted(it->second.first.c_str());
 				ImGui::EndTooltip();
 			}
 		}
@@ -695,8 +695,10 @@ void reshade::imgui::code_editor::select(const text_pos &beg, const text_pos &en
 	text_pos highlight_beg = _select_beg;
 	text_pos highlight_end = _select_end;
 	select_word(highlight_beg, highlight_end);
-	_highlighted = _lines[highlight_beg.line].size() > highlight_beg.column && _lines[highlight_beg.line][highlight_beg.column].col == color_identifier ?
-		get_text(highlight_beg, highlight_end) : std::string();
+	if (_lines[highlight_beg.line].size() > highlight_beg.column && _lines[highlight_beg.line][highlight_beg.column].col == color_identifier)
+		_highlighted = get_text(highlight_beg, highlight_end);
+	else
+		_highlighted.clear();
 
 	switch (mode)
 	{
@@ -724,7 +726,7 @@ void reshade::imgui::code_editor::select_all()
 	select(_interactive_beg, _interactive_end);
 }
 
-void reshade::imgui::code_editor::set_text(const std::string &text)
+void reshade::imgui::code_editor::set_text(const std::string_view &text)
 {
 	_lines.clear();
 	_lines.emplace_back();
@@ -754,9 +756,9 @@ void reshade::imgui::code_editor::set_text(const std::string &text)
 }
 void reshade::imgui::code_editor::clear_text()
 {
-	set_text(std::string());
+	set_text(std::string_view());
 }
-void reshade::imgui::code_editor::insert_text(const std::string &text)
+void reshade::imgui::code_editor::insert_text(const std::string_view &text)
 {
 	// Insert all characters of the text
 	for (const char c : text)
@@ -885,7 +887,7 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 		std::unordered_map<size_t, std::pair<std::string, bool>> errors;
 		errors.reserve(_errors.size());
 		for (std::pair<const size_t, std::pair<std::string, bool>> &i : _errors)
-			errors.insert({ i.first >= _cursor_pos.line + 1 ? i.first + 1 : i.first, i.second });
+			errors.insert({ i.first >= _cursor_pos.line + 1 ? i.first + 1 : i.first, std::move(i.second) });
 		_errors = std::move(errors);
 
 		std::vector<glyph> &new_line = *_lines.emplace(_lines.begin() + _cursor_pos.line + 1);
@@ -1208,7 +1210,7 @@ void reshade::imgui::code_editor::delete_lines(size_t first_line, size_t last_li
 	errors.reserve(_errors.size());
 	for (std::pair<const size_t, std::pair<std::string, bool>> &i : _errors)
 		if (i.first < first_line && i.first > last_line)
-			errors.insert({ i.first > last_line ? i.first - (last_line - first_line) : i.first, i.second });
+			errors.insert({ i.first > last_line ? i.first - (last_line - first_line) : i.first, std::move(i.second) });
 	_errors = std::move(errors);
 
 	_lines.erase(_lines.begin() + first_line, _lines.begin() + last_line + 1);
@@ -1226,16 +1228,16 @@ void reshade::imgui::code_editor::clipboard_copy()
 	else if (!_lines.empty()) // Copy current line if there is no selection
 	{
 		std::string line_text;
-		line_text.reserve(_lines[_cursor_pos.line].size());
+		line_text.reserve(_lines[_cursor_pos.line].size() + 1);
 		for (const glyph &glyph : _lines[_cursor_pos.line])
 			line_text.push_back(glyph.c);
 		// Include new line character
 		line_text += '\n';
 
-		_last_copy_string = line_text;
-		_last_copy_from_empty_selection = true;
-
 		ImGui::SetClipboardText(line_text.c_str());
+
+		_last_copy_string = std::move(line_text);
+		_last_copy_from_empty_selection = true;
 	}
 }
 void reshade::imgui::code_editor::clipboard_cut()
@@ -1601,13 +1603,13 @@ void reshade::imgui::code_editor::move_lines_down()
 	_cursor_pos.line++;
 }
 
-bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string &text, bool backwards, bool with_selection)
+bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view &text, bool backwards, bool with_selection)
 {
 	if (text.empty())
 		return false; // Cannot search for empty text
 
 	const auto compare_c = [this](char clhs, char crhs) {
-		return _search_case_sensitive ? clhs == crhs : tolower(clhs) == tolower(crhs);
+		return _search_case_sensitive ? clhs == crhs : std::tolower(clhs) == std::tolower(crhs);
 	};
 
 	// Start search at the cursor position

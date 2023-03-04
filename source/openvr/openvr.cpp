@@ -270,9 +270,9 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	if (device == nullptr)
 		goto normal_submit;
 
-	if (const auto queue_it = std::find_if(device->_queues.begin(), device->_queues.end(),
+	if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),
 			[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
-		queue_it != device->_queues.end())
+		queue_it != device->_queues.cend())
 		queue = *queue_it;
 	else
 		goto normal_submit;
