@@ -177,18 +177,18 @@ namespace ReShade.Setup
 			{
 				if (isFinished)
 				{
-					InstallStep8();
+					InstallStep_Finish();
 				}
 				else if (targetApi != Api.Unknown)
 				{
 					var peInfo = new PEInfo(targetPath);
 					is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
-					RunTaskWithExceptionHandling(InstallStep2);
+					RunTaskWithExceptionHandling(InstallStep_CheckExistingInstallation);
 				}
 				else
 				{
-					RunTaskWithExceptionHandling(InstallStep1);
+					RunTaskWithExceptionHandling(InstallStep_AnalyzeExecutable);
 				}
 			}
 			else if (isHeadless)
@@ -524,7 +524,7 @@ namespace ReShade.Setup
 			}
 		}
 
-		void InstallStep0()
+		void InstallStep_CheckPrivileges()
 		{
 			if (!isElevated && !IsWritable(Path.GetDirectoryName(targetPath)))
 			{
@@ -532,10 +532,10 @@ namespace ReShade.Setup
 			}
 			else
 			{
-				RunTaskWithExceptionHandling(InstallStep1);
+				RunTaskWithExceptionHandling(InstallStep_AnalyzeExecutable);
 			}
 		}
-		void InstallStep1()
+		void InstallStep_AnalyzeExecutable()
 		{
 			UpdateStatus("Analyzing executable ...");
 
@@ -640,7 +640,7 @@ namespace ReShade.Setup
 					targetApi = Api.Vulkan;
 				}
 
-				InstallStep2();
+				InstallStep_CheckExistingInstallation();
 				return;
 			}
 
@@ -655,7 +655,7 @@ namespace ReShade.Setup
 				CurrentPage.Navigate(page);
 			});
 		}
-		void InstallStep2()
+		void InstallStep_CheckExistingInstallation()
 		{
 			UpdateStatus("Checking installation status ...");
 
@@ -706,7 +706,7 @@ namespace ReShade.Setup
 
 			if (isUninstall)
 			{
-				UninstallStep0();
+				UninstallStep_UninstallReShadeModule();
 				return;
 			}
 
@@ -818,9 +818,9 @@ namespace ReShade.Setup
 				}
 			}
 
-			InstallStep3();
+			InstallStep_InstallReShadeModule();
 		}
-		void InstallStep3()
+		void InstallStep_InstallReShadeModule()
 		{
 			UpdateStatus("Installing ReShade ...");
 
@@ -1296,9 +1296,9 @@ In that event here are some steps you can try to resolve this:
 				WriteSearchPaths(".\\", ".\\");
 			}
 
-			InstallStep8();
+			InstallStep_Finish();
 		}
-		void InstallStep4()
+		void InstallStep_CheckPreset()
 		{
 			var effectFiles = new List<string>();
 
@@ -1345,7 +1345,7 @@ In that event here are some steps you can try to resolve this:
 				CurrentPage.Navigate(page);
 			});
 		}
-		void InstallStep5()
+		void InstallStep_DownloadEffectPackage()
 		{
 			package = packages.Dequeue();
 			downloadPath = Path.GetTempFileName();
@@ -1362,7 +1362,7 @@ In that event here are some steps you can try to resolve this:
 				}
 				else
 				{
-					InstallStep6();
+					InstallStep_ExtractEffectPackage();
 				}
 			};
 
@@ -1384,7 +1384,7 @@ In that event here are some steps you can try to resolve this:
 				UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ":\n" + ex.Message);
 			}
 		}
-		void InstallStep6()
+		void InstallStep_ExtractEffectPackage()
 		{
 			UpdateStatus("Extracting " + package.PackageName + " ...");
 
@@ -1461,9 +1461,9 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
-			InstallStep7();
+			InstallStep_InstallEffectPackage();
 		}
-		void InstallStep7()
+		void InstallStep_InstallEffectPackage()
 		{
 			try
 			{
@@ -1482,7 +1482,7 @@ In that event here are some steps you can try to resolve this:
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Failed to extract " + package.PackageName + ":\n" + ex.Message);
+				UpdateStatusAndFinish(false, "Failed to install " + package.PackageName + ":\n" + ex.Message);
 				return;
 			}
 
@@ -1490,19 +1490,19 @@ In that event here are some steps you can try to resolve this:
 
 			if (packages.Count != 0)
 			{
-				InstallStep5();
+				InstallStep_DownloadEffectPackage();
 			}
 			else
 			{
-				InstallStep8();
+				InstallStep_Finish();
 			}
 		}
-		void InstallStep8()
+		void InstallStep_Finish()
 		{
 			UpdateStatusAndFinish(true, "Successfully installed ReShade." + (isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool."));
 		}
 
-		void UninstallStep0()
+		void UninstallStep_UninstallReShadeModule()
 		{
 			if (targetApi == Api.Vulkan)
 			{
@@ -1600,9 +1600,9 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
-			UninstallStep1();
+			UninstallStep_Finish();
 		}
-		void UninstallStep1()
+		void UninstallStep_Finish()
 		{
 			UpdateStatusAndFinish(true, "Successfully uninstalled ReShade." + (isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool."));
 		}
@@ -1627,7 +1627,7 @@ In that event here are some steps you can try to resolve this:
 
 				targetPath = appPage.FileName;
 
-				InstallStep0();
+				InstallStep_CheckPrivileges();
 				return;
 			}
 
@@ -1650,7 +1650,7 @@ In that event here are some steps you can try to resolve this:
 					targetApi = Api.Vulkan;
 				}
 
-				RunTaskWithExceptionHandling(InstallStep2);
+				RunTaskWithExceptionHandling(InstallStep_CheckExistingInstallation);
 				return;
 			}
 
@@ -1660,13 +1660,13 @@ In that event here are some steps you can try to resolve this:
 				{
 					isUpdate = true;
 
-					RunTaskWithExceptionHandling(InstallStep3);
+					RunTaskWithExceptionHandling(InstallStep_InstallReShadeModule);
 				}
 				else
 				{
 					isUninstall = true;
 
-					RunTaskWithExceptionHandling(UninstallStep0);
+					RunTaskWithExceptionHandling(UninstallStep_UninstallReShadeModule);
 				}
 				return;
 			}
@@ -1675,7 +1675,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				presetPath = presetPage.FileName;
 
-				RunTaskWithExceptionHandling(InstallStep4);
+				RunTaskWithExceptionHandling(InstallStep_CheckPreset);
 				return;
 			}
 
@@ -1685,11 +1685,11 @@ In that event here are some steps you can try to resolve this:
 
 				if (packages.Count != 0)
 				{
-					RunTaskWithExceptionHandling(InstallStep5);
+					RunTaskWithExceptionHandling(InstallStep_DownloadEffectPackage);
 				}
 				else
 				{
-					RunTaskWithExceptionHandling(InstallStep8);
+					RunTaskWithExceptionHandling(InstallStep_Finish);
 				}
 				return;
 			}
@@ -1704,7 +1704,7 @@ In that event here are some steps you can try to resolve this:
 						File.Delete(tempPathEffects + filePath.Remove(0, targetPathEffects.Length));
 					}
 
-					InstallStep7();
+					InstallStep_InstallEffectPackage();
 				});
 				return;
 			}
@@ -1721,19 +1721,19 @@ In that event here are some steps you can try to resolve this:
 			{
 				presetPath = null;
 
-				RunTaskWithExceptionHandling(InstallStep4);
+				RunTaskWithExceptionHandling(InstallStep_CheckPreset);
 				return;
 			}
 
 			if (CurrentPage.Content is SelectPackagesPage)
 			{
-				RunTaskWithExceptionHandling(InstallStep8);
+				RunTaskWithExceptionHandling(InstallStep_Finish);
 				return;
 			}
 
 			if (CurrentPage.Content is SelectEffectsPage)
 			{
-				RunTaskWithExceptionHandling(InstallStep7);
+				RunTaskWithExceptionHandling(InstallStep_InstallEffectPackage);
 				return;
 			}
 
