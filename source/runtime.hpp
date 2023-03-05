@@ -481,8 +481,8 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Settings
-		int _font_size = 13;
-		int _editor_font_size = 13;
+		int _font_size = 0;
+		int _editor_font_size = 0;
 		int _style_index = 2;
 		int _editor_style_index = 0;
 		std::filesystem::path _font;

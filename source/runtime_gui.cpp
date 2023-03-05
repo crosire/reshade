@@ -3802,6 +3802,10 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 
 bool reshade::runtime::init_imgui_resources()
 {
+	// Adjust default font size based on the vertical resolution
+	if (_font_size == 0)
+		_editor_font_size = _font_size = _height >= 2160 ? 26 : _height >= 1440 ? 20 : 13;
+
 	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	if (_imgui_sampler_state == 0)
