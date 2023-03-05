@@ -284,11 +284,26 @@ namespace ReShade.Setup
 
 		void AddSearchPath(List<string> searchPaths, string newPath)
 		{
+			const string wildcard = "**";
+
+			// Use a wildcard search path by default
+			if (searchPaths.Count == 0)
+			{
+				searchPaths.Add(newPath + Path.DirectorySeparatorChar + wildcard);
+				return;
+			}
+
+			// Avoid adding search paths already covered by an existing wildcard search path
+			if (searchPaths.Any(searchPath => searchPath.EndsWith(wildcard) && newPath.StartsWith(searchPath.Remove(searchPath.Length - wildcard.Length))))
+			{
+				return;
+			}
+
+			// Filter out invalid search paths (and those with remaining wildcards that were not handled above)
+			var validSearchPaths = searchPaths.Where(searchPath => searchPath.IndexOfAny(Path.GetInvalidPathChars()) < 0);
+
 			try
 			{
-				// Filter out search paths with wildcards
-				var validSearchPaths = searchPaths.Where(searchPath => searchPath.IndexOfAny(Path.GetInvalidPathChars()) < 0);
-
 				// Avoid adding duplicate search paths (relative or absolute)
 				if (validSearchPaths.Any(searchPath => Path.GetFullPath(searchPath) == Path.GetFullPath(newPath)))
 				{
@@ -1293,7 +1308,7 @@ In that event here are some steps you can try to resolve this:
 			// Add default search paths if no config exists
 			if (!config.HasValue("GENERAL", "EffectSearchPaths") && !config.HasValue("GENERAL", "TextureSearchPaths"))
 			{
-				WriteSearchPaths(".\\", ".\\");
+				WriteSearchPaths(".\\reshade-shaders\\Shaders", ".\\reshade-shaders\\Textures");
 			}
 
 			InstallStep_Finish();
@@ -1404,12 +1419,13 @@ In that event here are some steps you can try to resolve this:
 
 				ZipFile.ExtractToDirectory(downloadPath, tempPath);
 
+				effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
+
 				// First check for a standard directory name
 				tempPathEffects = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
 				tempPathTextures = Directory.GetDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
 
 				// If that does not exist, look for the first directory that contains shaders/textures
-				effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
 				if (tempPathEffects == null)
 				{
 					tempPathEffects = effects.Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
@@ -1440,24 +1456,24 @@ In that event here are some steps you can try to resolve this:
 
 					effects = effects.Except(denyEffectFiles).ToArray();
 				}
-
-				// Show file selection dialog
-				if (!isHeadless && package.Enabled == null)
-				{
-					effects = effects.Select(x => targetPathEffects + x.Remove(0, tempPathEffects.Length)).ToArray();
-
-					Dispatcher.Invoke(() =>
-					{
-						var page = new SelectEffectsPage(package.PackageName, effects);
-
-						CurrentPage.Navigate(page);
-					});
-					return;
-				}
 			}
 			catch (Exception ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to extract " + package.PackageName + ":\n" + ex.Message);
+				return;
+			}
+
+			// Show file selection dialog
+			if (!isHeadless && package.Enabled == null)
+			{
+				effects = effects.Select(x => targetPathEffects + x.Remove(0, tempPathEffects.Length)).ToArray();
+
+				Dispatcher.Invoke(() =>
+				{
+					var page = new SelectEffectsPage(package.PackageName, effects);
+
+					CurrentPage.Navigate(page);
+				});
 				return;
 			}
 
