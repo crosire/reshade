@@ -1106,7 +1106,7 @@ void reshade::runtime::draw_gui()
 		{
 			for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
 			{
-				if (!show_splash && (widget.title == "OSD" ? show_addons_osd : _show_overlay))
+				if (widget.title == "OSD" ? (!show_splash) && show_addons_osd : _show_overlay)
 				{
 					if (ImGui::Begin(widget.title.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
 						widget.callback(this);
