@@ -19,6 +19,7 @@
 #include "platform_utils.hpp"
 #include <set>
 #include <thread>
+#include <cctype>
 #include <cstring>
 #include <fstream>
 #include <algorithm>

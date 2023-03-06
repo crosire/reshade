@@ -4,6 +4,7 @@
  */
 
 #include "ini_file.hpp"
+#include <cctype>
 #include <cassert>
 #include <fstream>
 #include <sstream>

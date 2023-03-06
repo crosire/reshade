@@ -8,6 +8,7 @@
 
 #include "effect_lexer.hpp"
 #include "imgui_code_editor.hpp"
+#include <cctype>
 #include <imgui.h>
 #include <algorithm>
 

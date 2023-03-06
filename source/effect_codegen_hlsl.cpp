@@ -5,8 +5,9 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <cmath> // signbit, isinf, isnan
-#include <cstdio> // snprintf
+#include <cmath> // std::signbit, std::isinf, std::isnan
+#include <cctype> // std::tolower
+#include <cstdio> // std::snprintf
 #include <cassert>
 #include <cstring> // stricmp
 #include <algorithm> // std::find_if, std::max
