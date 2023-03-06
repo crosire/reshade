@@ -607,6 +607,10 @@ void reshade::runtime::on_present()
 		}
 	}
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_available_back_buffer>(this);
+#endif
+
 #if RESHADE_FX
 	update_effects();
 

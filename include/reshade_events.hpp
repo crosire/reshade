@@ -1537,6 +1537,11 @@ namespace reshade
 		/// </remarks>
 		reshade_reorder_techniques,
 
+		/// <summary>
+		/// *TODO*
+		/// </summary>
+		reshade_available_back_buffer,
+
 #ifdef RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
 #endif
@@ -1668,4 +1673,5 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_current_preset_path, void, api::effect_runtime *runtime, const char *path);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reorder_techniques, bool, api::effect_runtime *runtime, size_t count, api::effect_technique *techniques);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_available_back_buffer, void, api::effect_runtime *runtime);
 }

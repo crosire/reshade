@@ -65,6 +65,18 @@ namespace reshade
 		debug = 4
 	};
 
+	inline bool get_reshade_base_path(char *path, size_t *length)
+	{
+		static const auto func = reinterpret_cast<bool(*)(HMODULE, char *, size_t *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetBasePath"));
+		return func(internal::get_current_module_handle(), path, length);
+	}
+	template <size_t SIZE>
+	inline  void get_reshade_base_path(char(&path)[SIZE]) {
+		size_t length = SIZE;
+		get_reshade_base_path(path, &length);
+	}
+
 	/// <summary>
 	/// Writes a message to ReShade's log.
 	/// </summary>

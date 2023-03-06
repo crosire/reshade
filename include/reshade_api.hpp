@@ -614,5 +614,16 @@ namespace reshade::api
 		/// Call this every frame for as long as input should be blocked. This can be used to ensure input is only applied to overlays created in a <see cref="addon_event::reshade_overlay"/> callback.
 		/// </summary>
 		virtual void block_input_next_frame();
+
+		/// <summary>
+		/// *TODO*
+		/// </summary>
+		/// <returns>*TODO*</returns>
+		virtual unsigned int last_key_pressed() const = 0;
+		/// <summary>
+		/// *TODO*
+		/// </summary>
+		/// <returns>*TODO*</returns>
+		virtual unsigned int last_key_released() const = 0;
 	};
 }

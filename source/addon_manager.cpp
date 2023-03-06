@@ -162,7 +162,11 @@ void reshade::load_addons()
 	if (config.get("ADDON", "AddonPath", addon_search_path))
 		addon_search_path = g_reshade_base_path / addon_search_path;
 
-	LOG(INFO) << "Searching for add-ons (*.addon) in " << addon_search_path << " ...";
+#ifndef _WIN64
+	LOG(INFO) << "Searching for add-ons (*.addon, *.addon32) in " << addon_search_path << " ...";
+#else
+	LOG(INFO) << "Searching for add-ons (*.addon, *.addon64) in " << addon_search_path << " ...";
+#endif
 
 	std::error_code ec;
 	for (std::filesystem::path path : std::filesystem::directory_iterator(addon_search_path, std::filesystem::directory_options::skip_permission_denied, ec))

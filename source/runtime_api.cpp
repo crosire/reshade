@@ -1080,3 +1080,12 @@ void reshade::runtime::block_input_next_frame()
 	_block_input_next_frame = true;
 #endif
 }
+
+unsigned int reshade::runtime::last_key_pressed() const
+{
+	return _input != nullptr ? _input->last_key_pressed() : 0;
+}
+unsigned int reshade::runtime::last_key_released() const
+{
+	return _input != nullptr ? _input->last_key_released() : 0;
+}

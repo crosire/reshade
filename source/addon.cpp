@@ -10,6 +10,20 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
+extern "C" __declspec(dllexport) bool ReShadeGetBasePath(void *, char *path, size_t *length)
+{
+	if (path == nullptr || length == nullptr || *length == 0)
+		return false;
+
+	std::string value = g_reshade_base_path.u8string();
+
+	if (path != nullptr && *length != 0)
+		path[value.copy(path, *length - 1)] = '\0';
+
+	*length = value.size();
+	return true;
+}
+
 extern "C" __declspec(dllexport) void ReShadeLogMessage(void *module, int level, const char *message)
 {
 	std::string prefix;
