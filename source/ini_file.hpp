@@ -119,6 +119,24 @@ public:
 		}
 		return true;
 	}
+	bool bulk_get(const std::string &section, std::vector<std::pair<std::string, std::string>> &table) const
+	{
+		const auto it1 = _sections.find(section);
+		if (it1 == _sections.end())
+			return false;
+		table.clear();
+		table.reserve(it1->second.size());
+		for (const std::pair<std::string, value_type> &pair : it1->second)
+		{
+			std::string values;
+			for (const std::string &value : pair.second)
+				values += value + ',';
+			if (!values.empty())
+				values.resize(values.size() - 1);
+			table.emplace_back(pair.first, values);
+		}
+		return true;
+	}
 
 	/// <summary>
 	/// Returns <see langword="true"/> only if the specified <paramref name="section"/> and <paramref name="key"/> exists and is not zero.
@@ -222,6 +240,16 @@ public:
 		v.resize(values.size());
 		for (size_t i = 0; i < values.size(); ++i)
 			v[i] = values[i].u8string();
+		_modified = true;
+		_modified_at = std::filesystem::file_time_type::clock::now();
+	}
+	void bulk_set(const std::string &section, const std::vector<std::pair<std::string, std::string>> &table)
+	{
+		auto &s = _sections[section];
+		s.clear();
+		s.reserve(table.size());
+		for (const auto &pair : table)
+			s[pair.first].push_back(pair.second);
 		_modified = true;
 		_modified_at = std::filesystem::file_time_type::clock::now();
 	}

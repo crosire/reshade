@@ -2774,11 +2774,11 @@ void reshade::runtime::draw_variable_editor()
 				{
 					for (size_t i = 0; i < type.preprocessor_definitions.size(); ++i)
 					{
-						char name[128] = "";
-						char value[128] = "";
+						char name[128];
+						char value[128];
 
-						type.preprocessor_definitions[i].first.copy(name, sizeof(name) - 1);
-						type.preprocessor_definitions[i].second.copy(value, sizeof(value) - 1);
+						name[type.preprocessor_definitions[i].first.copy(name, sizeof(name) - 1)] = '\0';
+						value[type.preprocessor_definitions[i].second.copy(value, sizeof(value) - 1)] = '\0';
 
 						ImGui::PushID(static_cast<int>(i));
 
@@ -2835,23 +2835,6 @@ void reshade::runtime::draw_variable_editor()
 		_was_preprocessor_popup_edited = false;
 	}
 
-	const auto find_definition_value = [](std::vector<std::pair<std::string, std::string>> &list, const std::string &name, char value[128] = nullptr) {
-		for (auto it = list.begin(); it != list.end(); ++it)
-		{
-			char current_name[128] = "";
-			it->first.copy(current_name, sizeof(current_name) - 1);
-
-			if (name == current_name)
-			{
-				if (value != nullptr)
-					value[it->second.copy(value, 128 - 1)] = '\0';
-				return it;
-			}
-		}
-
-		return list.end();
-	};
-
 	ImGui::BeginChild("##variables", ImVec2(0, 0), false, ImGuiWindowFlags_NavFlattened);
 	if (_variable_editor_tabs)
 		ImGui::BeginTabBar("##variables");
@@ -2907,7 +2890,8 @@ void reshade::runtime::draw_variable_editor()
 
 			// Reset all preprocessor definitions
 			for (const std::pair<std::string, std::string> &definition : effect.definitions)
-				if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
+				if (const auto preset_it = std::find_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(),
+					[&key = definition.first](const auto &definition) { return definition.first == key; });
 					preset_it != _preset_preprocessor_definitions.end())
 					force_reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
 					_preset_preprocessor_definitions.erase(preset_it);
@@ -3162,8 +3146,10 @@ void reshade::runtime::draw_variable_editor()
 				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 				{
 					char value[128] = "";
-					const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
-					const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first, value);
+					const auto global_it = std::find_if(_global_preprocessor_definitions.begin(), _global_preprocessor_definitions.end(),
+						[&key = definition.first](const auto &definition) { return definition.first == key; });
+					const auto preset_it = std::find_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(),
+						[&key = definition.first](const auto &definition) { return definition.first == key; });
 
 					if (global_it == _global_preprocessor_definitions.end() &&
 						preset_it == _preset_preprocessor_definitions.end())
@@ -3247,7 +3233,9 @@ void reshade::runtime::draw_variable_editor()
 
 					// Update preset again now, so that the removed preprocessor definition does not reappear on a reload
 					// The preset is actually loaded again next frame to update the technique status (see 'update_and_render_effects'), so cannot use 'save_current_preset' here
-					ini_file::load_cache(_current_preset_path).set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
+					ini_file &preset = ini_file::load_cache(_current_preset_path);
+					preset.bulk_set("CONSTANTS", _preset_preprocessor_definitions);
+					preset.remove_key({}, "PreprocessorDefinitions");
 				}
 			}
 
