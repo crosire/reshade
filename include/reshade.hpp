@@ -78,6 +78,23 @@ namespace reshade
 	}
 
 	/// <summary>
+	/// Gets the file path ReShade uses to resolve relative paths.
+	/// </summary>
+	/// <param name="name">Pointer to a string buffer that is filled with the file path to the preset.</param>
+	/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+	inline void get_reshade_base_path(char *path, size_t *length)
+	{
+		static const auto func = reinterpret_cast<bool(*)(HMODULE, char *, size_t *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetBasePath"));
+		func(internal::get_current_module_handle(), path, length);
+	}
+	template <size_t SIZE>
+	inline  void get_reshade_base_path(char(&path)[SIZE]) {
+		size_t length = SIZE;
+		get_reshade_base_path(path, &length);
+	}
+
+	/// <summary>
 	/// Gets a value from one of ReShade's config files.
 	/// </summary>
 	/// <param name="runtime">Optional effect runtime to use the config file from, or <see langword="nullptr"/> to use the global config file.</param>

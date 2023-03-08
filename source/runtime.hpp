@@ -162,6 +162,9 @@ namespace reshade
 
 		void block_input_next_frame() final;
 
+		uint32_t last_key_pressed() const final;
+		uint32_t last_key_released() const final;
+
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
