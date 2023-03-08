@@ -917,7 +917,7 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unused]] char *value, size_t *length) const
 {
-	if (name == nullptr || length == nullptr || *length == 0)
+	if (name == nullptr || length == nullptr)
 		return false;
 
 #if RESHADE_FX
@@ -925,14 +925,20 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unu
 		[name = static_cast<std::string_view>(name)](const auto &definition) { return definition.first == name; });
 		preset_it != _preset_preprocessor_definitions.cend())
 	{
-		value[*length = preset_it->second.copy(value, *length - 1)] = '\0';
+		if (*length != 0)
+			value[*length = preset_it->second.copy(value, *length - 1)] = '\0';
+		else
+			*length = preset_it->second.length();
 		return true;
 	}
 	if (const auto global_it = std::find_if(_global_preprocessor_definitions.cbegin(), _global_preprocessor_definitions.cend(),
 		[name = static_cast<std::string_view>(name)](const auto &definition) { return definition.first == name; });
 		global_it != _global_preprocessor_definitions.cend())
 	{
-		value[*length = global_it->second.copy(value, *length - 1)] = '\0';
+		if (*length != 0)
+			value[*length = global_it->second.copy(value, *length - 1)] = '\0';
+		else
+			*length = global_it->second.length();
 		return true;
 	}
 #endif
