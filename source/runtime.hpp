@@ -162,8 +162,8 @@ namespace reshade
 
 		void block_input_next_frame() final;
 
-		virtual unsigned int last_key_pressed() const final;
-		virtual unsigned int last_key_released() const final;
+		uint32_t last_key_pressed() const final;
+		uint32_t last_key_released() const final;
 
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
@@ -432,9 +432,6 @@ namespace reshade
 		unsigned int _show_fps = 2;
 		unsigned int _show_clock = false;
 		unsigned int _show_frametime = false;
-#  if RESHADE_ADDON
-		unsigned int _show_addons_osd = 1;
-#  endif
 		bool _show_screenshot_message = true;
 		bool _rebuild_font_atlas = true;
 #  if RESHADE_FX

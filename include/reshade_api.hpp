@@ -616,14 +616,12 @@ namespace reshade::api
 		virtual void block_input_next_frame();
 
 		/// <summary>
-		/// *TODO*
+		/// Gets the virtual key code of the last key that was pressed.
 		/// </summary>
-		/// <returns>*TODO*</returns>
-		virtual unsigned int last_key_pressed() const = 0;
+		virtual uint32_t last_key_pressed() const = 0;
 		/// <summary>
-		/// *TODO*
+		/// Gets the virtual key code of the last key that was released.
 		/// </summary>
-		/// <returns>*TODO*</returns>
-		virtual unsigned int last_key_released() const = 0;
+		virtual uint32_t last_key_released() const = 0;
 	};
 }

@@ -10,20 +10,6 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
-extern "C" __declspec(dllexport) bool ReShadeGetBasePath(void *, char *path, size_t *length)
-{
-	if (path == nullptr || length == nullptr || *length == 0)
-		return false;
-
-	std::string value = g_reshade_base_path.u8string();
-
-	if (path != nullptr && *length != 0)
-		path[value.copy(path, *length - 1)] = '\0';
-
-	*length = value.size();
-	return true;
-}
-
 extern "C" __declspec(dllexport) void ReShadeLogMessage(void *module, int level, const char *message)
 {
 	std::string prefix;
@@ -35,6 +21,19 @@ extern "C" __declspec(dllexport) void ReShadeLogMessage(void *module, int level,
 	}
 
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
+}
+
+extern "C" __declspec(dllexport) void ReShadeGetBasePath(void *, char *path, size_t *length)
+{
+	if (length == nullptr)
+		return;
+
+	const std::string path_string = g_reshade_base_path.u8string();
+
+	if (path != nullptr && *length != 0)
+		path[path_string.copy(path, *length - 1)] = '\0';
+
+	*length = path_string.size();
 }
 
 extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)

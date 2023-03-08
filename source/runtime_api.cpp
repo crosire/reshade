@@ -1081,11 +1081,11 @@ void reshade::runtime::block_input_next_frame()
 #endif
 }
 
-unsigned int reshade::runtime::last_key_pressed() const
+uint32_t reshade::runtime::last_key_pressed() const
 {
-	return _input != nullptr ? _input->last_key_pressed() : 0;
+	return _input != nullptr ? _input->last_key_pressed() : 0u;
 }
-unsigned int reshade::runtime::last_key_released() const
+uint32_t reshade::runtime::last_key_released() const
 {
-	return _input != nullptr ? _input->last_key_released() : 0;
+	return _input != nullptr ? _input->last_key_released() : 0u;
 }

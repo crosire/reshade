@@ -65,18 +65,6 @@ namespace reshade
 		debug = 4
 	};
 
-	inline bool get_reshade_base_path(char *path, size_t *length)
-	{
-		static const auto func = reinterpret_cast<bool(*)(HMODULE, char *, size_t *)>(
-			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetBasePath"));
-		return func(internal::get_current_module_handle(), path, length);
-	}
-	template <size_t SIZE>
-	inline  void get_reshade_base_path(char(&path)[SIZE]) {
-		size_t length = SIZE;
-		get_reshade_base_path(path, &length);
-	}
-
 	/// <summary>
 	/// Writes a message to ReShade's log.
 	/// </summary>
@@ -87,6 +75,23 @@ namespace reshade
 		static const auto func = reinterpret_cast<void(*)(HMODULE, int, const char *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeLogMessage"));
 		func(internal::get_current_module_handle(), static_cast<int>(level), message);
+	}
+
+	/// <summary>
+	/// Gets the file path ReShade uses to resolve relative paths.
+	/// </summary>
+	/// <param name="name">Pointer to a string buffer that is filled with the file path to the preset.</param>
+	/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+	inline void get_reshade_base_path(char *path, size_t *length)
+	{
+		static const auto func = reinterpret_cast<bool(*)(HMODULE, char *, size_t *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetBasePath"));
+		func(internal::get_current_module_handle(), path, length);
+	}
+	template <size_t SIZE>
+	inline  void get_reshade_base_path(char(&path)[SIZE]) {
+		size_t length = SIZE;
+		get_reshade_base_path(path, &length);
 	}
 
 	/// <summary>
