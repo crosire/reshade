@@ -925,7 +925,7 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unu
 		[name = static_cast<std::string_view>(name)](const auto &definition) { return definition.first == name; });
 		preset_it != _preset_preprocessor_definitions.cend())
 	{
-		if (*length != 0)
+		if (value != nullptr && *length != 0)
 			value[*length = preset_it->second.copy(value, *length - 1)] = '\0';
 		else
 			*length = preset_it->second.length();
@@ -935,7 +935,7 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unu
 		[name = static_cast<std::string_view>(name)](const auto &definition) { return definition.first == name; });
 		global_it != _global_preprocessor_definitions.cend())
 	{
-		if (*length != 0)
+		if (value != nullptr && *length != 0)
 			value[*length = global_it->second.copy(value, *length - 1)] = '\0';
 		else
 			*length = global_it->second.length();
