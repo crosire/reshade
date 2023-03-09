@@ -1320,11 +1320,7 @@ void reshade::runtime::draw_gui_home()
 			ImGui::BeginDisabled(!_preset_is_modified);
 
 			if (imgui::confirm_button(ICON_FK_UNDO, button_size, "Do you really want to reset all techniques and values?"))
-			{
-				_preset_is_modified = false;
-
-				load_current_preset();
-			}
+				reload_preset = true;
 
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Reset all techniques and values to those of the current preset");
@@ -1454,6 +1450,11 @@ void reshade::runtime::draw_gui_home()
 
 			save_config();
 			load_current_preset();
+
+#if RESHADE_ADDON
+			if (!is_loading()) // Will be called by 'update_effects' when 'load_current_preset' forced a reload
+				invoke_addon_event<addon_event::reshade_set_current_preset_path>(this, _current_preset_path.u8string().c_str());
+#endif
 		}
 
 		if (_tutorial_index == 1)

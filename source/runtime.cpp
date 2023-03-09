@@ -1153,11 +1153,6 @@ void reshade::runtime::load_current_preset()
 
 	// Reverse queue so that effects are enabled in the order they are defined in the preset (since the queue is worked from back to front)
 	std::reverse(_reload_create_queue.begin(), _reload_create_queue.end());
-
-#if RESHADE_ADDON
-	if (!_is_in_api_call)
-		invoke_addon_event<addon_event::reshade_set_current_preset_path>(this, _current_preset_path.u8string().c_str());
-#endif
 }
 void reshade::runtime::save_current_preset() const
 {
@@ -3441,6 +3436,10 @@ void reshade::runtime::update_effects()
 
 		// Finished loading effects, so apply preset to figure out which ones need compiling
 		load_current_preset();
+
+#if RESHADE_ADDON
+		invoke_addon_event<addon_event::reshade_set_current_preset_path>(this, _current_preset_path.u8string().c_str());
+#endif
 
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
