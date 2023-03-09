@@ -621,5 +621,44 @@ namespace reshade::api
 		/// Gets the virtual key code of the last key that was released.
 		/// </summary>
 		virtual uint32_t last_key_released() const = 0;
+
+		/// <summary>
+		/// Gets the effect file name of a uniform <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		/// <param name="effect_name">Pointer to a string buffer that is filled with the effect file name of the uniform variable.</param>
+		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+		virtual void get_uniform_variable_effect_name(effect_uniform_variable variable, char *effect_name, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  void get_uniform_variable_effect_name(effect_uniform_variable variable, char(&effect_name)[SIZE]) const {
+			size_t length = SIZE;
+			get_uniform_variable_effect_name(variable, effect_name, &length);
+		}
+
+		/// <summary>
+		/// Gets the effect file name of a texture <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the texture variable.</param>
+		/// <param name="effect_name">Pointer to a string buffer that is filled with the effect file name of the texture variable.</param>
+		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+		virtual void get_texture_variable_effect_name(effect_texture_variable variable, char *effect_name, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  void get_texture_variable_effect_name(effect_texture_variable variable, char(&effect_name)[SIZE]) const {
+			size_t length = SIZE;
+			get_texture_variable_effect_name(variable, effect_name, &length);
+		}
+
+		/// <summary>
+		/// Gets the effect file name of a <paramref name="technique"/>.
+		/// </summary>
+		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <param name="effect_name">Pointer to a string buffer that is filled with the effect file name of the technique.</param>
+		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+		virtual void get_technique_effect_name(effect_technique technique, char *effect_name, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  void get_technique_effect_name(effect_technique technique, char(&effect_name)[SIZE]) const {
+			size_t length = SIZE;
+			get_technique_effect_name(technique, effect_name, &length);
+		}
 	};
 }

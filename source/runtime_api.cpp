@@ -1060,7 +1060,7 @@ void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path
 #endif
 }
 
-void reshade::runtime::reorder_techniques(size_t count, const api::effect_technique *techniques)
+void reshade::runtime::reorder_techniques([[maybe_unused]] size_t count, [[maybe_unused]] const api::effect_technique *techniques)
 {
 #if RESHADE_FX
 	if (count > _techniques.size())
@@ -1110,4 +1110,64 @@ uint32_t reshade::runtime::last_key_pressed() const
 uint32_t reshade::runtime::last_key_released() const
 {
 	return _input != nullptr ? _input->last_key_released() : 0u;
+}
+
+void reshade::runtime::get_uniform_variable_effect_name([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] char *value, size_t *length) const
+{
+	if (length == nullptr)
+		return;
+
+#if RESHADE_FX
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
+	{
+		const std::string effect_name = _effects[variable->effect_index].source_file.filename().u8string();
+
+		if (value != nullptr && *length != 0)
+			value[effect_name.copy(value, *length - 1)] = '\0';
+
+		*length = effect_name.size();
+	}
+	else
+#endif
+		*length = 0;
+}
+
+void reshade::runtime::get_texture_variable_effect_name([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] char *value, size_t *length) const
+{
+	if (length == nullptr)
+		return;
+
+#if RESHADE_FX
+	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
+	{
+		const std::string effect_name = _effects[variable->effect_index].source_file.filename().u8string();
+
+		if (value != nullptr && *length != 0)
+			value[effect_name.copy(value, *length - 1)] = '\0';
+
+		*length = effect_name.size();
+	}
+	else
+#endif
+		*length = 0;
+}
+
+void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] char *value, size_t *length) const
+{
+	if (length == nullptr)
+		return;
+
+#if RESHADE_FX
+	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
+	{
+		const std::string effect_name = _effects[tech->effect_index].source_file.filename().u8string();
+
+		if (value != nullptr && *length != 0)
+			value[effect_name.copy(value, *length - 1)] = '\0';
+
+		*length = effect_name.size();
+	}
+	else
+#endif
+		*length = 0;
 }

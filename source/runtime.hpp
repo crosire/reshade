@@ -165,6 +165,10 @@ namespace reshade
 		uint32_t last_key_pressed() const final;
 		uint32_t last_key_released() const final;
 
+		void get_uniform_variable_effect_name(api::effect_uniform_variable variable, char *effect_name, size_t *length) const final;
+		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *length) const final;
+		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
+
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
