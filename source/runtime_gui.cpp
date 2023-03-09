@@ -1496,6 +1496,8 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::SameLine();
 
+		ImGui::BeginDisabled(_is_in_between_presets_transition);
+
 		if (ImGui::Button("Active to top", ImVec2(3.0f + 11.0f * _font_size, 0)))
 		{
 			std::vector<size_t> technique_indices = _technique_sorting;
@@ -1517,6 +1519,8 @@ void reshade::runtime::draw_gui_home()
 			else
 				_preset_is_modified = true;
 		}
+
+		ImGui::EndDisabled();
 
 		if (!_variable_editor_tabs)
 		{
@@ -1564,7 +1568,9 @@ void reshade::runtime::draw_gui_home()
 				}
 			}
 
+			ImGui::BeginDisabled(_is_in_between_presets_transition);
 			draw_technique_editor();
+			ImGui::EndDisabled();
 		}
 		ImGui::EndChild();
 
@@ -1604,7 +1610,11 @@ void reshade::runtime::draw_gui_home()
 		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 175 : 0);
 
 		if (ImGui::BeginChild("##variables", ImVec2(0, -bottom_height), true))
+		{
+			ImGui::BeginDisabled(_is_in_between_presets_transition);
 			draw_variable_editor();
+			ImGui::EndDisabled();
+		}
 		ImGui::EndChild();
 
 		if (_tutorial_index == 3)
@@ -3118,8 +3128,12 @@ void reshade::runtime::draw_variable_editor()
 
 			// Display tooltip
 			if (const std::string_view tooltip = variable.annotation_as_string("ui_tooltip");
-				!tooltip.empty() && ImGui::IsItemHovered())
-				ImGui::SetTooltip("%s", tooltip.data());
+				(!tooltip.empty()) && ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted(tooltip.data());
+				ImGui::EndTooltip();
+			}
 
 			// Create context menu
 			if (ImGui::BeginPopupContextItem("##context"))
@@ -3448,7 +3462,6 @@ void reshade::runtime::draw_technique_editor()
 
 		// Prevent user from disabling the technique when it is set to always be enabled via annotation
 		const bool force_enabled = tech.annotation_as_int("enabled");
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, force_enabled);
 
 		// Gray out disabled techniques
 		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
@@ -3459,7 +3472,7 @@ void reshade::runtime::draw_technique_editor()
 		label += " [" + effect.source_file.filename().u8string() + ']';
 
 		if (bool status = tech.enabled;
-			ImGui::Checkbox(label.c_str(), &status))
+			ImGui::Checkbox(label.c_str(), &status) && !force_enabled)
 		{
 			if (status)
 				enable_technique(tech);
@@ -3473,18 +3486,17 @@ void reshade::runtime::draw_technique_editor()
 		}
 
 		ImGui::PopStyleColor();
-		ImGui::PopItemFlag();
 
 		if (ImGui::IsItemActive())
 			_selected_technique = index;
 		if (ImGui::IsItemClicked())
 			_focused_effect = tech.effect_index;
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
 			hovered_technique_index = index;
 
 		// Display tooltip
 		if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
-			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && (!tooltip.empty() || !effect.errors.empty()))
+			(!tooltip.empty() || !effect.errors.empty()) && ImGui::IsItemHovered())
 		{
 			ImGui::BeginTooltip();
 			if (!tooltip.empty())
@@ -3502,10 +3514,7 @@ void reshade::runtime::draw_technique_editor()
 		}
 
 		// Create context menu
-		if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenDisabled))
-			ImGui::OpenPopup("##context", ImGuiPopupFlags_MouseButtonRight);
-
-		if (ImGui::BeginPopup("##context"))
+		if (ImGui::BeginPopupContextItem("##context"))
 		{
 			ImGui::TextUnformatted(tech.name.c_str());
 			ImGui::Separator();
