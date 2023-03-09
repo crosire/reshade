@@ -8,6 +8,8 @@
 #include "input.hpp"
 #include "addon_manager.hpp"
 
+extern bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec);
+
 reshade::input::window_handle reshade::runtime::get_hwnd() const
 {
 	if (_input == nullptr)
@@ -1034,13 +1036,23 @@ void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path
 	_is_in_api_call = true;
 #endif
 
-	// First save current preset, before switching to a new one
-	save_current_preset();
+	std::error_code ec;
+	std::filesystem::path preset_path = std::filesystem::u8path(path);
 
-	_current_preset_path = std::filesystem::u8path(path);
+	// Only change preset when this is a valid preset path
+	if (resolve_preset_path(preset_path, ec) && preset_path != _current_preset_path)
+	{
+		// Stop any preset transition that may still be happening
+		_is_in_between_presets_transition = false;
 
-	save_config();
-	load_current_preset();
+		// First save current preset, before switching to a new one
+		save_current_preset();
+
+		_current_preset_path = std::move(preset_path);
+
+		save_config();
+		load_current_preset();
+	}
 
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;

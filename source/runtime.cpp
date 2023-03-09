@@ -985,7 +985,6 @@ void reshade::runtime::load_current_preset()
 {
 	_preset_save_successfull = true;
 
-	const ini_file &config = ini_file::load_cache(_config_path);
 	const ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;
@@ -1023,7 +1022,7 @@ void reshade::runtime::load_current_preset()
 	}
 
 	if (sorted_technique_list.empty())
-		config.get("GENERAL", "TechniqueSorting", sorted_technique_list);
+		ini_file::load_cache(_config_path).get("GENERAL", "TechniqueSorting", sorted_technique_list);
 	if (sorted_technique_list.empty())
 		sorted_technique_list = technique_list;
 
