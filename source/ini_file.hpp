@@ -54,23 +54,17 @@ public:
 		return true;
 	}
 
+	/// <summary>
+	/// *TODO*
+	/// </summary>
+	/// <param name="sections">*TODO*</param>
+	/// <returns>*TODO*</returns>
 	bool get(std::vector<std::string> &sections) const
 	{
 		sections.clear();
 		sections.reserve(_sections.size());
 		for (const auto &section : _sections)
 			sections.push_back(section.first);
-		return true;
-	}
-	bool get(const std::string &section, std::vector<std::string> &keys) const
-	{
-		const auto it1 = _sections.find(section);
-		if (it1 == _sections.end())
-			return false;
-		keys.clear();
-		keys.reserve(it1->second.size());
-		for (const auto &it2 : it1->second)
-			keys.push_back(it2.first);
 		return true;
 	}
 
