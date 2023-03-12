@@ -447,7 +447,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_frame_count = 0;
 
 	_is_initialized = true;
-	_last_reload_time = std::chrono::high_resolution_clock::now();
+	_last_reload_time = std::chrono::high_resolution_clock::time_point::max();
 
 	_preset_save_successfull = true;
 	_last_screenshot_save_successfull = true;
@@ -832,7 +832,6 @@ void reshade::runtime::load_config()
 
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
-	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.get("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "IntermediateCachePath", _effect_cache_path);
@@ -840,6 +839,14 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "StartupPresetPath", _startup_preset_path);
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
+
+	_preprocessor_definitions.erase(std::remove_if(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
+		[](const definition &definition) { return definition.scope == definition::scope_global; }), _preprocessor_definitions.end());
+
+	std::vector<std::pair<std::string, std::string>> global_preprocessor_definitions;
+	config.get("GENERAL", "PreprocessorDefinitions", global_preprocessor_definitions);
+	for (std::pair<std::string, std::string> &value : global_preprocessor_definitions)
+		_preprocessor_definitions.push_back(definition{ definition::scope_global, "", std::move(value.first), std::move(value.second) });
 
 	// Fall back to temp directory if cache path does not exist
 	std::error_code ec;
@@ -915,10 +922,15 @@ void reshade::runtime::save_config() const
 
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
-	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.set("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "IntermediateCachePath", _effect_cache_path);
+
+	std::vector<std::pair<std::string, std::string>> preprocessor_definitions;
+	for (const definition &definition : _preprocessor_definitions)
+		if (definition.scope == definition::scope_global)
+			preprocessor_definitions.emplace_back(definition.first, definition.second);
+	config.set("GENERAL", "PreprocessorDefinitions", preprocessor_definitions);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
 	std::filesystem::path startup_preset_path = _startup_preset_path.lexically_proximate(g_reshade_base_path);
@@ -991,15 +1003,36 @@ void reshade::runtime::load_current_preset()
 	preset.get({}, "Techniques", technique_list);
 	std::vector<std::string> sorted_technique_list;
 	preset.get({}, "TechniqueSorting", sorted_technique_list);
-	std::vector<std::pair<std::string, std::string>> preset_preprocessor_definitions;
-	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
+
+	std::vector<definition> preprocessor_definitions = _preprocessor_definitions;
+
+	preprocessor_definitions.erase(std::remove_if(preprocessor_definitions.begin(), preprocessor_definitions.end(),
+		[](const definition &definition) { return definition.scope == definition::scope_preset || definition.scope == definition.scope_effect; }), preprocessor_definitions.end());
+
+	if (std::vector<std::pair<std::string, std::string >> preset_preprocessor_definitions;
+		preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions))
+		for (std::pair<std::string, std::string> &value : preset_preprocessor_definitions)
+			preprocessor_definitions.push_back(definition{ definition::scope_preset, "", std::move(value.first), std::move(value.second) });
+
+	if (std::vector<std::string> effect_names; preset.get(effect_names))
+		for (std::string &effect_name : effect_names)
+			if (effect_name.rfind(".fx") != std::string::npos)
+				if (std::vector<std::pair<std::string, std::string >> effect_preprocessor_definitions;
+					preset.get(effect_name, "PreprocessorDefinitions", effect_preprocessor_definitions))
+					for (std::pair<std::string, std::string> &value : effect_preprocessor_definitions)
+						preprocessor_definitions.push_back(definition{ definition::scope_effect, effect_name, std::move(value.first), std::move(value.second) });
+
+	std::stable_sort(preprocessor_definitions.begin(), preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.first < b.first; });
+	std::stable_sort(preprocessor_definitions.begin(), preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.name < b.name; });
+	std::stable_sort(preprocessor_definitions.rbegin(), preprocessor_definitions.rend(), [](const definition &a, const definition &b) { return a.scope < b.scope; });
 
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
 	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_effects'
 	{
-		if (_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions)
+		if (_performance_mode || !std::equal(preprocessor_definitions.cbegin(), preprocessor_definitions.cend(), _preprocessor_definitions.cbegin(), _preprocessor_definitions.cend(),
+			[](const definition &a, const definition &b) { return a.scope == b.scope && a.name == b.name && a.first == b.first && a.second == b.second; }))
 		{
-			_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
+			_preprocessor_definitions = std::move(preprocessor_definitions);
 			reload_effects();
 			return; // Preset values are loaded in 'update_effects' during effect loading
 		}
@@ -1191,7 +1224,15 @@ void reshade::runtime::save_current_preset() const
 		preset.set({}, "TechniqueSorting", std::move(sorted_technique_list));
 
 	preset.set({}, "Techniques", std::move(technique_list));
-	preset.set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
+
+	std::vector<std::pair<std::string, std::string>> preset_preprocessor_definitions;
+	for (const definition &definition : _preprocessor_definitions)
+		if (definition.scope == definition::scope_preset)
+			preset_preprocessor_definitions.emplace_back(definition.first, definition.second);
+	if (preset_preprocessor_definitions.empty())
+		preset.remove_key({}, "PreprocessorDefinitions");
+	else
+		preset.set({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
 
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
 	for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
@@ -1200,21 +1241,20 @@ void reshade::runtime::save_current_preset() const
 			continue;
 
 		const effect &effect = _effects[effect_index];
+		const std::string effect_name = effect.source_file.filename().u8string();
 
 		for (const uniform &variable : effect.uniforms)
 		{
 			if (variable.special != special_uniform::none)
 				continue;
 
-			const std::string section = effect.source_file.filename().u8string();
-
 			if (variable.supports_toggle_key())
 			{
 				// Save the shortcut key into the preset files
 				if (variable.toggle_key_data[0] != 0)
-					preset.set(section, "Key" + variable.name, variable.toggle_key_data);
+					preset.set(effect_name, "Key" + variable.name, variable.toggle_key_data);
 				else
-					preset.remove_key(section, "Key" + variable.name);
+					preset.remove_key(effect_name, "Key" + variable.name);
 			}
 
 			const unsigned int components = variable.type.components();
@@ -1224,19 +1264,28 @@ void reshade::runtime::save_current_preset() const
 			{
 			case reshadefx::type::t_int:
 				get_uniform_value(variable, values.as_int, components);
-				preset.set(section, variable.name, values.as_int, components);
+				preset.set(effect_name, variable.name, values.as_int, components);
 				break;
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
 				get_uniform_value(variable, values.as_uint, components);
-				preset.set(section, variable.name, values.as_uint, components);
+				preset.set(effect_name, variable.name, values.as_uint, components);
 				break;
 			case reshadefx::type::t_float:
 				get_uniform_value(variable, values.as_float, components);
-				preset.set(section, variable.name, values.as_float, components);
+				preset.set(effect_name, variable.name, values.as_float, components);
 				break;
 			}
 		}
+
+		std::vector<std::pair<std::string, std::string>> effect_preprocessor_definitions;
+		for (const definition &definition : _preprocessor_definitions)
+			if (definition.scope == definition::scope_effect && definition.name == effect_name)
+				effect_preprocessor_definitions.emplace_back(definition.first, definition.second);
+		if (effect_preprocessor_definitions.empty())
+			preset.remove_key(effect_name, "PreprocessorDefinitions");
+		else
+			preset.set(effect_name, "PreprocessorDefinitions", effect_preprocessor_definitions);
 	}
 }
 
@@ -1317,7 +1366,7 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	return true;
 }
 
-bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required)
+bool reshade::runtime::load_effect(std::filesystem::path source_file, const ini_file &preset, size_t effect_index, bool preprocess_required)
 {
 	const std::chrono::high_resolution_clock::time_point time_load_started = std::chrono::high_resolution_clock::now();
 
@@ -1333,10 +1382,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
 	attributes += "device=" + std::to_string(_device_id) + ';';
 
-	std::vector<std::pair<std::string, std::string>> preprocessor_definitions = _global_preprocessor_definitions;
-	// Insert preset preprocessor definitions before global ones, so that if there are duplicates, the preset ones are used (since 'add_macro_definition' succeeds only for the first occurance)
-	preprocessor_definitions.insert(preprocessor_definitions.begin(), _preset_preprocessor_definitions.cbegin(), _preset_preprocessor_definitions.cend());
-	for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
+	const std::string effect_name = source_file.filename().u8string();
+
+	std::vector<definition> preprocessor_definitions = _preprocessor_definitions;
+	preprocessor_definitions.erase(std::remove_if(preprocessor_definitions.begin(), preprocessor_definitions.end(),
+		[&effect_name](const definition &definition) { return definition.scope == definition::scope_effect && definition.name != effect_name; }), preprocessor_definitions.end());
+
+	for (const definition &definition : preprocessor_definitions)
 		attributes += definition.first + '=' + definition.second + ';';
 
 	std::error_code ec;
@@ -1362,7 +1414,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	attributes += source_file.filename().u8string();
+	attributes += effect_name;
 	attributes += '?';
 	attributes += std::to_string(std::filesystem::last_write_time(source_file, ec).time_since_epoch().count());
 	attributes += ';';
@@ -1392,8 +1444,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
 	}
-
-	const std::string effect_name = source_file.filename().u8string();
 
 	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty()) // Only skip during 'load_effects'
 	{
@@ -1437,13 +1487,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_back_buffer_color_space)));
 		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
 
-		for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
-		{
-			if (definition.first.empty())
-				continue; // Skip invalid definitions
-
-			pp.add_macro_definition(definition.first, definition.second.empty() ? "1" : definition.second);
-		}
+		for (const definition &definition : preprocessor_definitions)
+			if (!definition.first.empty())
+				pp.add_macro_definition(definition.first, definition.second.empty() ? "1" : definition.second);
 
 		for (const std::filesystem::path &include_path : include_paths)
 			pp.add_include_path(include_path);
@@ -3182,9 +3228,27 @@ void reshade::runtime::reorder_techniques(std::vector<size_t> &&technique_indice
 void reshade::runtime::load_effects()
 {
 	// Reload preprocessor definitions from current preset before compiling
-	_preset_preprocessor_definitions.clear();
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
-	preset.get({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
+
+	_preprocessor_definitions.erase(std::remove_if(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
+		[](const definition &definition) { return definition.scope == definition::scope_preset || definition.scope == definition::scope_effect; }), _preprocessor_definitions.end());
+
+	if (std::vector<std::pair<std::string, std::string >> preset_preprocessor_definitions;
+		preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions))
+		for (std::pair<std::string, std::string> &value : preset_preprocessor_definitions)
+			_preprocessor_definitions.push_back(definition{ definition::scope_preset, "", std::move(value.first), std::move(value.second) });
+
+	if (std::vector<std::string> effect_names; preset.get(effect_names))
+		for (std::string &effect_name : effect_names)
+			if (effect_name.rfind(".fx") != std::string::npos)
+				if (std::vector<std::pair<std::string, std::string >> effect_preprocessor_definitions;
+					preset.get(effect_name, "PreprocessorDefinitions", effect_preprocessor_definitions))
+					for (std::pair<std::string, std::string> &value : effect_preprocessor_definitions)
+						_preprocessor_definitions.push_back(definition{ definition::scope_effect, effect_name, std::move(value.first), std::move(value.second) });
+
+	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.first < b.first; });
+	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.name < b.name; });
+	std::stable_sort(_preprocessor_definitions.rbegin(), _preprocessor_definitions.rend(), [](const definition &a, const definition &b) { return a.scope < b.scope; });
 
 	// Build a list of effect files by walking through the effect search paths
 	const std::vector<std::filesystem::path> effect_files =

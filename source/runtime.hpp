@@ -23,6 +23,7 @@ class ini_file;
 namespace reshade
 {
 	// Forward declarations to avoid excessive #include
+	struct definition;
 	struct effect;
 	struct uniform;
 	struct texture;
@@ -151,6 +152,7 @@ namespace reshade
 
 		bool get_preprocessor_definition(const char *name, char *value, size_t *length) const final;
 		void set_preprocessor_definition(const char *name, const char *value) final;
+		void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) final;
 
 		bool get_effects_state() const final;
 		void set_effects_state(bool enabled) final;
@@ -168,6 +170,8 @@ namespace reshade
 		void get_uniform_variable_effect_name(api::effect_uniform_variable variable, char *effect_name, size_t *length) const final;
 		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *length) const final;
 		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
+
+		bool has_effects_loaded() const final;
 
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
@@ -206,7 +210,7 @@ namespace reshade
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
-		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
+		bool load_effect(std::filesystem::path source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
 		bool create_effect(size_t effect_index);
 		bool create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
@@ -296,8 +300,7 @@ namespace reshade
 		bool _load_option_disable_skipping = false;
 		unsigned int _reload_key_data[4] = {};
 		unsigned int _performance_mode_key_data[4] = {};
-		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
-		std::vector<std::pair<std::string, std::string>> _preset_preprocessor_definitions;
+		std::vector<definition> _preprocessor_definitions;
 		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;

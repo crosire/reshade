@@ -282,5 +282,17 @@ namespace reshade
 		};
 		std::vector<binding_data> texture_semantic_to_binding;
 	};
+
+	struct definition
+	{
+		unsigned int scope = 0;
+		std::string name;
+		std::string first;
+		std::string second;
+
+		static constexpr unsigned int scope_global = 0;
+		static constexpr unsigned int scope_preset = 1;
+		static constexpr unsigned int scope_effect = 2;
+	};
 #endif
 }

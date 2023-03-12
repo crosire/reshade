@@ -893,28 +893,63 @@ void reshade::runtime::set_technique_state([[maybe_unused]] api::effect_techniqu
 
 void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
 {
+	set_preprocessor_definition(nullptr, name, value);
+}
+void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
+{
 #if RESHADE_FX
 	if (name == nullptr)
 		return;
 
-	const auto preset_it = std::find_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(), [name](const auto &it) { return it.first == name; });
+	auto exist = _preprocessor_definitions.end();
+	for (auto it = _preprocessor_definitions.begin(); it != _preprocessor_definitions.end(); it++)
+		if (it->first == name && (exist == _preprocessor_definitions.end() || it->scope > exist->scope))
+			exist = it;
 
-	if (value == nullptr || value[0] == '\0') // An empty value removes the definition
+	if (*value == '\0')
 	{
-		if (preset_it != _preset_preprocessor_definitions.end())
-			_preset_preprocessor_definitions.erase(preset_it);
+		if (exist != _preprocessor_definitions.end())
+		{
+			_preprocessor_definitions.erase(exist);
+		}
 	}
 	else
 	{
-		if (preset_it != _preset_preprocessor_definitions.end())
-			preset_it->second = value;
+		if (const unsigned int scope = effect_name == nullptr ? definition::scope_preset : definition::scope_effect;
+			exist != _preprocessor_definitions.end() && exist->scope == scope)
+		{
+			assert(exist->name == effect_name);
+			exist->second = value;
+		}
 		else
-			_preset_preprocessor_definitions.emplace_back(name, value);
+		{
+			definition &definition = _preprocessor_definitions.emplace_back();
+			definition.scope = scope;
+			if (effect_name != nullptr)
+				definition.name = effect_name;
+			definition.first = name;
+			definition.second = value;
+		}
 	}
+
+	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.first < b.first; });
+	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.name < b.name; });
+	std::stable_sort(_preprocessor_definitions.rbegin(), _preprocessor_definitions.rend(), [](const definition &a, const definition &b) { return a.scope < b.scope; });
 
 	// Save preset first, as preprocessor definitions are reset to those in the current preset during reloading
 	save_current_preset();
-	reload_effects();
+
+	if (effect_name != nullptr)
+	{
+		if (auto it = std::find_if(_effects.cbegin(), _effects.cend(),
+			[effect_name](const effect &effect) { return effect_name == effect.source_file.filename().u8string(); });
+			it != _effects.cend())
+			reload_effect(static_cast<size_t>(std::distance(_effects.cbegin(), it)));
+	}
+	else
+	{
+		reload_effects();
+	}
 #endif
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unused]] char *value, size_t *length) const
@@ -923,27 +958,15 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unu
 		return false;
 
 #if RESHADE_FX
-	for (auto preset_it = _preset_preprocessor_definitions.cbegin(); preset_it != _preset_preprocessor_definitions.cend(); ++preset_it)
+	if (auto it = std::find_if(_preprocessor_definitions.cbegin(), _preprocessor_definitions.cend(),
+		[name](const definition &definition) { return definition.first == name; });
+		it != _preprocessor_definitions.cend())
 	{
-		if (name == preset_it->first)
-		{
-			if (value != nullptr && *length != 0)
-				value[preset_it->second.copy(value, *length - 1)] = '\0';
+		if (value != nullptr && *length != 0)
+			value[it->second.copy(value, *length - 1)] = '\0';
 
-			*length = preset_it->second.size();
-			return true;
-		}
-	}
-	for (auto global_it = _global_preprocessor_definitions.cbegin(); global_it != _global_preprocessor_definitions.cend(); ++global_it)
-	{
-		if (name == global_it->first)
-		{
-			if (value != nullptr && *length != 0)
-				value[global_it->second.copy(value, *length - 1)] = '\0';
-
-			*length = global_it->second.size();
-			return true;
-		}
+		*length = it->second.size();
+		return true;
 	}
 #endif
 
@@ -1170,4 +1193,10 @@ void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_te
 	else
 #endif
 		*length = 0;
+}
+
+bool reshade::runtime::has_effects_loaded() const
+{
+	return _reload_remaining_effects == std::numeric_limits<size_t>().max()
+		&& _last_reload_time != std::chrono::high_resolution_clock::time_point::max();
 }
