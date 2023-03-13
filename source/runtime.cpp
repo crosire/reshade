@@ -1585,9 +1585,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				variable.effect_index = effect_index;
 
-				// Copy initial data into uniform storage area
-				reset_uniform_value(variable);
-
 				const std::string_view special = variable.annotation_as_string("source");
 				if (special.empty()) /* Ignore if annotation is missing */
 					variable.special = special_uniform::none;
@@ -1623,6 +1620,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					variable.special = special_uniform::screenshot;
 				else
 					variable.special = special_uniform::unknown;
+
+				// Copy initial data into uniform storage area
+				reset_uniform_value(variable);
 
 				effect.uniforms.push_back(std::move(variable));
 			}
@@ -4163,16 +4163,18 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 
 void reshade::runtime::reset_uniform_value(uniform &variable)
 {
-	if (!variable.has_initializer_value)
+	if (variable.special != reshade::special_uniform::none)
 	{
 		std::memset(_effects[variable.effect_index].uniform_data_storage.data() + variable.offset, 0, variable.size);
 		return;
 	}
 
+	static const reshadefx::constant zero = {};
+
 	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
 	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1); i < array_length; ++i)
 	{
-		const reshadefx::constant &value = variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value;
+		const reshadefx::constant &value = variable.has_initializer_value ? variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value : zero;
 
 		switch (variable.type.base)
 		{
