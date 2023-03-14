@@ -210,7 +210,7 @@ namespace reshade
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
-		bool load_effect(std::filesystem::path source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
+		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
 		bool create_effect(size_t effect_index);
 		bool create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
