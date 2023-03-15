@@ -3227,6 +3227,10 @@ void reshade::runtime::reorder_techniques(std::vector<size_t> &&technique_indice
 
 void reshade::runtime::load_effects()
 {
+	// Build a list of effect files by walking through the effect search paths
+	const std::vector<std::filesystem::path> effect_files =
+		find_files(_effect_search_paths, { L".fx" });
+
 	// Reload preprocessor definitions from current preset before compiling
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
 
@@ -3238,21 +3242,15 @@ void reshade::runtime::load_effects()
 		for (std::pair<std::string, std::string> &value : preset_preprocessor_definitions)
 			_preprocessor_definitions.push_back(definition{ definition::scope_preset, "", std::move(value.first), std::move(value.second) });
 
-	if (std::vector<std::string> effect_names; preset.get(effect_names))
-		for (std::string &effect_name : effect_names)
-			if (effect_name.rfind(".fx") != std::string::npos)
-				if (std::vector<std::pair<std::string, std::string >> effect_preprocessor_definitions;
-					preset.get(effect_name, "PreprocessorDefinitions", effect_preprocessor_definitions))
-					for (std::pair<std::string, std::string> &value : effect_preprocessor_definitions)
-						_preprocessor_definitions.push_back(definition{ definition::scope_effect, effect_name, std::move(value.first), std::move(value.second) });
+	for (const std::filesystem::path &effect_file : effect_files)
+		if (std::vector<std::pair<std::string, std::string >> effect_preprocessor_definitions;
+			preset.get(effect_file.filename().u8string(), "PreprocessorDefinitions", effect_preprocessor_definitions))
+			for (std::pair<std::string, std::string> &value : effect_preprocessor_definitions)
+				_preprocessor_definitions.push_back(definition{ definition::scope_effect, effect_file.filename().u8string(), std::move(value.first), std::move(value.second) });
 
 	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.first < b.first; });
 	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.name < b.name; });
 	std::stable_sort(_preprocessor_definitions.rbegin(), _preprocessor_definitions.rend(), [](const definition &a, const definition &b) { return a.scope < b.scope; });
-
-	// Build a list of effect files by walking through the effect search paths
-	const std::vector<std::filesystem::path> effect_files =
-		find_files(_effect_search_paths, { L".fx" });
 
 	if (effect_files.empty())
 		return; // No effect files found, so nothing more to do
