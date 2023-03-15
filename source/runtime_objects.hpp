@@ -285,14 +285,16 @@ namespace reshade
 
 	struct definition
 	{
-		unsigned int scope = 0;
+		enum
+		{
+			scope_global,
+			scope_preset,
+			scope_effect
+		} scope;
+
 		std::string name;
 		std::string first;
 		std::string second;
-
-		static constexpr unsigned int scope_global = 0;
-		static constexpr unsigned int scope_preset = 1;
-		static constexpr unsigned int scope_effect = 2;
 
 		constexpr bool operator==(const definition &obj) const { return obj.scope == scope && obj.name == name && obj.first == first && obj.second == second; }
 	};

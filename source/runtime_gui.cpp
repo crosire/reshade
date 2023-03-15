@@ -2788,7 +2788,7 @@ void reshade::runtime::draw_variable_editor()
 			struct
 			{
 				const char *name;
-				unsigned int scope;
+				decltype(definition::scope) scope;
 				bool &modified;
 			} definition_types[] = {
 				{ "Global", definition::scope_global, global_modified },
@@ -2842,7 +2842,7 @@ void reshade::runtime::draw_variable_editor()
 					ImGui::Dummy(ImVec2());
 					ImGui::SameLine(0, content_region_width - button_size);
 					if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
-						_preprocessor_definitions.push_back(definition{ type.scope });
+						_preprocessor_definitions.push_back(definition{ static_cast<decltype(definition::scope)>(type.scope) });
 
 					ImGui::EndTabItem();
 				}

@@ -915,7 +915,7 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 	}
 	else
 	{
-		if (const unsigned int scope = effect_name == nullptr ? definition::scope_preset : definition::scope_effect;
+		if (const auto scope = effect_name == nullptr ? definition::scope_preset : definition::scope_effect;
 			exist != _preprocessor_definitions.end() && exist->scope == scope)
 		{
 			assert(exist->name == effect_name);
@@ -924,7 +924,7 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 		else
 		{
 			definition &definition = _preprocessor_definitions.emplace_back();
-			definition.scope = scope;
+			definition.scope = static_cast<decltype(definition::scope)>(scope);
 			if (effect_name != nullptr)
 				definition.name = effect_name;
 			definition.first = name;
