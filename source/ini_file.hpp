@@ -55,20 +55,6 @@ public:
 	}
 
 	/// <summary>
-	/// *TODO*
-	/// </summary>
-	/// <param name="sections">*TODO*</param>
-	/// <returns>*TODO*</returns>
-	bool get(std::vector<std::string> &sections) const
-	{
-		sections.clear();
-		sections.reserve(_sections.size());
-		for (const auto &section : _sections)
-			sections.push_back(section.first);
-		return true;
-	}
-
-	/// <summary>
 	/// Gets the value of the specified <paramref name="section"/> and <paramref name="key"/> from the INI.
 	/// </summary>
 	/// <param name="value">Reference filled with the data of this INI entry.</param>
