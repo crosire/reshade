@@ -1027,8 +1027,7 @@ void reshade::runtime::load_current_preset()
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
 	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_effects'
 	{
-		if (_performance_mode || !std::equal(preprocessor_definitions.cbegin(), preprocessor_definitions.cend(), _preprocessor_definitions.cbegin(), _preprocessor_definitions.cend(),
-			[](const definition &a, const definition &b) { return a.scope == b.scope && a.name == b.name && a.first == b.first && a.second == b.second; }))
+		if (_performance_mode || preprocessor_definitions != _preprocessor_definitions)
 		{
 			_preprocessor_definitions = std::move(preprocessor_definitions);
 			reload_effects();

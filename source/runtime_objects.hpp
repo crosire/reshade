@@ -293,6 +293,8 @@ namespace reshade
 		static constexpr unsigned int scope_global = 0;
 		static constexpr unsigned int scope_preset = 1;
 		static constexpr unsigned int scope_effect = 2;
+
+		constexpr bool operator==(const definition &obj) const { return obj.scope == scope && obj.name == name && obj.first == first && obj.second == second; }
 	};
 #endif
 }
