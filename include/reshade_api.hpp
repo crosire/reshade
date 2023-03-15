@@ -558,13 +558,6 @@ namespace reshade::api
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Value of the definition.</param>
 		virtual void set_preprocessor_definition(const char *name, const char *value) = 0;
-		/// <summary>
-		/// *TODO*
-		/// </summary>
-		/// <param name="effect_name">*TODO*</param>
-		/// <param name="name">Name of the definition.</param>
-		/// <param name="value">Value of the definition.</param>
-		virtual void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) = 0;
 
 		/// <summary>
 		/// Applies a <paramref name="technique"/> to the specified render targets (regardless of the state of this technique).
@@ -667,6 +660,14 @@ namespace reshade::api
 			size_t length = SIZE;
 			get_technique_effect_name(technique, effect_name, &length);
 		}
+
+		/// <summary>
+		/// *TODO*
+		/// </summary>
+		/// <param name="effect_name">*TODO*</param>
+		/// <param name="name">Name of the definition.</param>
+		/// <param name="value">Value of the definition.</param>
+		virtual void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) = 0;
 
 		/// <summary>
 		/// *TODO*
