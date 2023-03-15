@@ -1020,9 +1020,8 @@ void reshade::runtime::load_current_preset()
 			for (std::pair<std::string, std::string> &value : effect_preprocessor_definitions)
 				preprocessor_definitions.push_back(definition{ definition::scope_effect, effect.source_file.filename().u8string(), std::move(value.first), std::move(value.second) });
 
-	std::stable_sort(preprocessor_definitions.begin(), preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.first < b.first; });
-	std::stable_sort(preprocessor_definitions.begin(), preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.name < b.name; });
-	std::stable_sort(preprocessor_definitions.rbegin(), preprocessor_definitions.rend(), [](const definition &a, const definition &b) { return a.scope < b.scope; });
+	std::stable_sort(preprocessor_definitions.begin(), preprocessor_definitions.end(),
+		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.name == b.name ? a.first < b.first : a.name < b.name : a.scope > b.scope; });
 
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
 	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_effects'
@@ -3245,9 +3244,8 @@ void reshade::runtime::load_effects()
 			for (std::pair<std::string, std::string> &value : effect_preprocessor_definitions)
 				_preprocessor_definitions.push_back(definition{ definition::scope_effect, effect_file.filename().u8string(), std::move(value.first), std::move(value.second) });
 
-	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.first < b.first; });
-	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.name < b.name; });
-	std::stable_sort(_preprocessor_definitions.rbegin(), _preprocessor_definitions.rend(), [](const definition &a, const definition &b) { return a.scope < b.scope; });
+	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
+		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.name == b.name ? a.first < b.first : a.name < b.name : a.scope > b.scope; });
 
 	if (effect_files.empty())
 		return; // No effect files found, so nothing more to do
