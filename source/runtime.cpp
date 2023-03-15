@@ -1014,13 +1014,11 @@ void reshade::runtime::load_current_preset()
 		for (std::pair<std::string, std::string> &value : preset_preprocessor_definitions)
 			preprocessor_definitions.push_back(definition{ definition::scope_preset, "", std::move(value.first), std::move(value.second) });
 
-	if (std::vector<std::string> effect_names; preset.get(effect_names))
-		for (std::string &effect_name : effect_names)
-			if (effect_name.rfind(".fx") != std::string::npos)
-				if (std::vector<std::pair<std::string, std::string >> effect_preprocessor_definitions;
-					preset.get(effect_name, "PreprocessorDefinitions", effect_preprocessor_definitions))
-					for (std::pair<std::string, std::string> &value : effect_preprocessor_definitions)
-						preprocessor_definitions.push_back(definition{ definition::scope_effect, effect_name, std::move(value.first), std::move(value.second) });
+	for (const reshade::effect &effect : _effects)
+		if (std::vector<std::pair<std::string, std::string >> effect_preprocessor_definitions;
+			preset.get(effect.source_file.filename().u8string(), "PreprocessorDefinitions", effect_preprocessor_definitions))
+			for (std::pair<std::string, std::string> &value : effect_preprocessor_definitions)
+				preprocessor_definitions.push_back(definition{ definition::scope_effect, effect.source_file.filename().u8string(), std::move(value.first), std::move(value.second) });
 
 	std::stable_sort(preprocessor_definitions.begin(), preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.first < b.first; });
 	std::stable_sort(preprocessor_definitions.begin(), preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.name < b.name; });
