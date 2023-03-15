@@ -932,9 +932,8 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 		}
 	}
 
-	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.first < b.first; });
-	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [](const definition &a, const definition &b) { return a.name < b.name; });
-	std::stable_sort(_preprocessor_definitions.rbegin(), _preprocessor_definitions.rend(), [](const definition &a, const definition &b) { return a.scope < b.scope; });
+	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
+		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.name == b.name ? a.first < b.first : a.name < b.name : a.scope > b.scope; });
 
 	// Save preset first, as preprocessor definitions are reset to those in the current preset during reloading
 	save_current_preset();
