@@ -3210,7 +3210,7 @@ void reshade::runtime::draw_variable_editor()
 							}
 							else
 							{
-								modified_definition = _preprocessor_definitions.emplace_back(definition{ definition::scope_preset, "", value.first, text });
+								modified_definition = _preprocessor_definitions.emplace_back(definition{ definition::scope_effect, "", value.first, text });
 							}
 						}
 					}
