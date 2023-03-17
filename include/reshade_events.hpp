@@ -1479,6 +1479,7 @@ namespace reshade
 		/// Called right after all ReShade effects were reloaded.
 		/// This occurs during effect runtime initialization or because the user pressed the "Reload" button in the overlay.
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime)</c></para>
+		///	<remarks>This is called after every preset has been reloaded. This means that if the user has e.g. 3 presets loaded into ReShade, this event is called three times. </remarks>
 		/// </summary>
 		reshade_reloaded_effects,
 
