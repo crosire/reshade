@@ -542,7 +542,7 @@ namespace reshade
 		#pragma endregion
 #endif
 
-#if RESHADE_ADDON
+#if RESHADE_FX
 		bool _save_preset_on_api_uniform_change = true;
 #endif
 	};
