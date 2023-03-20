@@ -345,7 +345,7 @@ void reshade::runtime::set_uniform_value_bool([[maybe_unused]] api::effect_unifo
 
 	set_uniform_value(*variable, values, count, array_index);
 
-	if (variable->special == special_uniform::none)
+	if (variable->special == special_uniform::none && _save_preset_on_api_uniform_change)
 		save_current_preset();
 
 #if RESHADE_ADDON
@@ -367,7 +367,7 @@ void reshade::runtime::set_uniform_value_float([[maybe_unused]] api::effect_unif
 
 	set_uniform_value(*variable, values, count, array_index);
 
-	if (variable->special == special_uniform::none)
+	if (variable->special == special_uniform::none && _save_preset_on_api_uniform_change)
 		save_current_preset();
 
 #if RESHADE_ADDON
@@ -389,7 +389,7 @@ void reshade::runtime::set_uniform_value_int([[maybe_unused]] api::effect_unifor
 
 	set_uniform_value(*variable, values, count, array_index);
 
-	if (variable->special == special_uniform::none)
+	if (variable->special == special_uniform::none && _save_preset_on_api_uniform_change)
 		save_current_preset();
 
 #if RESHADE_ADDON
@@ -411,7 +411,7 @@ void reshade::runtime::set_uniform_value_uint([[maybe_unused]] api::effect_unifo
 
 	set_uniform_value(*variable, values, count, array_index);
 
-	if (variable->special == special_uniform::none)
+	if (variable->special == special_uniform::none && _save_preset_on_api_uniform_change)
 		save_current_preset();
 
 #if RESHADE_ADDON
@@ -419,6 +419,7 @@ void reshade::runtime::set_uniform_value_uint([[maybe_unused]] api::effect_unifo
 #endif
 #endif
 }
+
 
 void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), [[maybe_unused]] void *user_data)
 {
@@ -891,6 +892,7 @@ void reshade::runtime::set_technique_state([[maybe_unused]] api::effect_techniqu
 #endif
 }
 
+
 void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
 {
 #if RESHADE_FX
@@ -1170,4 +1172,14 @@ void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_te
 	else
 #endif
 		*length = 0;
+}
+
+
+void reshade::runtime::set_save_preset_on_api_uniform_change_state([[maybe_unused]] bool save_preset)
+{
+#if RESHADE_FX
+#if RESHADE_ADDON
+	_save_preset_on_api_uniform_change = save_preset;
+#endif
+#endif
 }

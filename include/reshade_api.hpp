@@ -660,5 +660,12 @@ namespace reshade::api
 			size_t length = SIZE;
 			get_technique_effect_name(technique, effect_name, &length);
 		}
+
+		/// <summary>
+		/// Enables or disables the flag whether the current preset file is saved after a uniform variable was changed through the api using one of the set_uniform_variable_* methods. 
+		/// </summary>
+		/// <param name="save_preset">Set to <see langword="true"/> to enable preset file saving after a uniform variable has been changed through the api or <see langword="false"/> to disable it.</param>
+		///	<remarks>By default the flag is set to true. It's recommended to set this flag to <see langword="false"/> if you set uniform variables in a loop, or multiple times in a handler to the reshade_present event</remarks>
+		virtual void set_save_preset_on_api_uniform_change_state(bool save_preset) = 0;
 	};
 }

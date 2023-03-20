@@ -169,6 +169,8 @@ namespace reshade
 		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *length) const final;
 		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
 
+		void set_save_preset_on_api_uniform_change_state(bool save_preset) final;
+
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
@@ -538,6 +540,10 @@ namespace reshade
 #  endif
 		uint32_t _editor_palette[imgui::code_editor::color_palette_max];
 		#pragma endregion
+#endif
+
+#if RESHADE_ADDON
+		bool _save_preset_on_api_uniform_change = true;
 #endif
 	};
 
