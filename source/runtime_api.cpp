@@ -1178,8 +1178,6 @@ void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_te
 void reshade::runtime::set_save_preset_on_api_uniform_change_state([[maybe_unused]] bool save_preset)
 {
 #if RESHADE_FX
-#if RESHADE_ADDON
 	_save_preset_on_api_uniform_change = save_preset;
-#endif
 #endif
 }
