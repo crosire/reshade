@@ -170,7 +170,7 @@ namespace reshade
 		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
 
 #if RESHADE_FX
-		void save_current_preset() const override;
+		void save_current_preset() const final;
 #endif
 
 	protected:
