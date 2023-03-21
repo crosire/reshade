@@ -887,19 +887,19 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 	if (name == nullptr)
 		return;
 
-	const auto preset_it = std::find_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(), [name](const auto &it) { return it.first == name; });
+	const auto preset_it = std::find_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(),
+		[name = static_cast<std::string_view>(name)](const auto &definition) { return definition.first == name; });
 
-	if (value == nullptr || value[0] == '\0') // An empty value removes the definition
+	if (preset_it != _preset_preprocessor_definitions.end())
 	{
-		if (preset_it != _preset_preprocessor_definitions.end())
-			_preset_preprocessor_definitions.erase(preset_it);
+		if (value == nullptr || value[0] == '\0') // An empty value removes the definition
+			_preset_preprocessor_definitions.erase(preset_it); 
+		else
+			preset_it->second = value;
 	}
 	else
 	{
-		if (preset_it != _preset_preprocessor_definitions.end())
-			preset_it->second = value;
-		else
-			_preset_preprocessor_definitions.emplace_back(name, value);
+		_preset_preprocessor_definitions.emplace_back(name, value);
 	}
 
 	// Save preset first, as preprocessor definitions are reset to those in the current preset during reloading
@@ -913,27 +913,25 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unu
 		return false;
 
 #if RESHADE_FX
-	for (auto preset_it = _preset_preprocessor_definitions.cbegin(); preset_it != _preset_preprocessor_definitions.cend(); ++preset_it)
+	if (const auto preset_it = std::find_if(_preset_preprocessor_definitions.cbegin(), _preset_preprocessor_definitions.cend(),
+		[name = static_cast<std::string_view>(name)](const auto &definition) { return definition.first == name; });
+		preset_it != _preset_preprocessor_definitions.cend())
 	{
-		if (name == preset_it->first)
-		{
-			if (value != nullptr && *length != 0)
-				value[preset_it->second.copy(value, *length - 1)] = '\0';
-
-			*length = preset_it->second.size();
-			return true;
-		}
+		if (value != nullptr && *length != 0)
+			value[*length = preset_it->second.copy(value, *length - 1)] = '\0';
+		else
+			*length = preset_it->second.length();
+		return true;
 	}
-	for (auto global_it = _global_preprocessor_definitions.cbegin(); global_it != _global_preprocessor_definitions.cend(); ++global_it)
+	if (const auto global_it = std::find_if(_global_preprocessor_definitions.cbegin(), _global_preprocessor_definitions.cend(),
+		[name = static_cast<std::string_view>(name)](const auto &definition) { return definition.first == name; });
+		global_it != _global_preprocessor_definitions.cend())
 	{
-		if (name == global_it->first)
-		{
-			if (value != nullptr && *length != 0)
-				value[global_it->second.copy(value, *length - 1)] = '\0';
-
-			*length = global_it->second.size();
-			return true;
-		}
+		if (value != nullptr && *length != 0)
+			value[*length = global_it->second.copy(value, *length - 1)] = '\0';
+		else
+			*length = global_it->second.length();
+		return true;
 	}
 #endif
 

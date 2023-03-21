@@ -831,7 +831,6 @@ void reshade::runtime::load_config()
 
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
-	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.get("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "IntermediateCachePath", _effect_cache_path);
@@ -840,6 +839,18 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 
+	config.bulk_get("CONSTANTS", _global_preprocessor_definitions);
+	std::vector<std::pair<std::string, std::string>> global_preprocessor_definitions;
+	config.get("GENERAL", "PreprocessorDefinitions", global_preprocessor_definitions);
+	_global_preprocessor_definitions.reserve(_global_preprocessor_definitions.size() + global_preprocessor_definitions.size());
+	for (const auto &pair : global_preprocessor_definitions)
+	{
+		if (const auto it = std::find_if(_global_preprocessor_definitions.cbegin(), _global_preprocessor_definitions.cend(),
+			[&a = pair](const auto &b) { return a.first == b.first; });
+			it == _global_preprocessor_definitions.cend())
+			_global_preprocessor_definitions.push_back(pair);
+	}
+	
 	// Fall back to temp directory if cache path does not exist
 	std::error_code ec;
 	if (_effect_cache_path.empty() || !resolve_path(_effect_cache_path, ec))
@@ -914,10 +925,12 @@ void reshade::runtime::save_config() const
 
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
-	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 	config.set("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "IntermediateCachePath", _effect_cache_path);
+
+	config.bulk_set("CONSTANTS", _global_preprocessor_definitions);
+	config.remove_key("GENERAL", "PreprocessorDefinitions");
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
 	std::filesystem::path startup_preset_path = _startup_preset_path.lexically_proximate(g_reshade_base_path);
@@ -991,8 +1004,20 @@ void reshade::runtime::load_current_preset()
 	std::vector<std::string> sorted_technique_list;
 	preset.get({}, "TechniqueSorting", sorted_technique_list);
 	std::vector<std::pair<std::string, std::string>> preset_preprocessor_definitions;
-	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
-
+	preset.bulk_get("CONSTANTS", preset_preprocessor_definitions);
+	
+	// Load preprocessor definitions
+	std::vector<std::pair<std::string, std::string>> preset_preprocessor_definitions_old;
+	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions_old);
+	preset_preprocessor_definitions.reserve(preset_preprocessor_definitions.size() + preset_preprocessor_definitions_old.size());
+	for (const auto &pair : preset_preprocessor_definitions_old)
+	{
+		if (const auto it = std::find_if(preset_preprocessor_definitions.cbegin(), preset_preprocessor_definitions.cend(),
+			[&a = pair](const auto &b) { return a.first == b.first; });
+			it == preset_preprocessor_definitions.cend())
+			preset_preprocessor_definitions.push_back(pair);
+	}
+	
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
 	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_effects'
 	{
@@ -1190,7 +1215,8 @@ void reshade::runtime::save_current_preset() const
 		preset.set({}, "TechniqueSorting", std::move(sorted_technique_list));
 
 	preset.set({}, "Techniques", std::move(technique_list));
-	preset.set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
+	preset.bulk_set("CONSTANTS", _preset_preprocessor_definitions);
+	preset.remove_key({}, "PreprocessorDefinitions");
 
 	// TODO: Do we want to save spec constants here too? The preset will be rather empty in performance mode otherwise.
 	for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
@@ -1332,9 +1358,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
 	attributes += "device=" + std::to_string(_device_id) + ';';
 
-	std::vector<std::pair<std::string, std::string>> preprocessor_definitions = _global_preprocessor_definitions;
-	// Insert preset preprocessor definitions before global ones, so that if there are duplicates, the preset ones are used (since 'add_macro_definition' succeeds only for the first occurance)
-	preprocessor_definitions.insert(preprocessor_definitions.begin(), _preset_preprocessor_definitions.cbegin(), _preset_preprocessor_definitions.cend());
+	// 'add_macro_definition' succeeds only for the first occurance
+	std::vector<std::pair<std::string, std::string>> preprocessor_definitions;
+	preprocessor_definitions.reserve(_preset_preprocessor_definitions.size() + _global_preprocessor_definitions.size());
+	std::copy(_preset_preprocessor_definitions.cbegin(), _preset_preprocessor_definitions.cend(), std::back_inserter(preprocessor_definitions));
+	std::copy(_global_preprocessor_definitions.cbegin(), _global_preprocessor_definitions.cend(), std::back_inserter(preprocessor_definitions));
+
 	for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
 		attributes += definition.first + '=' + definition.second + ';';
 
@@ -3183,7 +3212,18 @@ void reshade::runtime::load_effects()
 	// Reload preprocessor definitions from current preset before compiling
 	_preset_preprocessor_definitions.clear();
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
-	preset.get({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
+	
+	preset.bulk_get("CONSTANTS", _preset_preprocessor_definitions);
+	std::vector<std::pair<std::string, std::string>> preset_preprocessor_definitions;
+	preset.get({}, "PreprocessorDefinitions", preset_preprocessor_definitions);
+	_preset_preprocessor_definitions.reserve(_preset_preprocessor_definitions.size() + preset_preprocessor_definitions.size());
+	for (const auto &pair : preset_preprocessor_definitions)
+	{
+		if (const auto it = std::find_if(_preset_preprocessor_definitions.cbegin(), _preset_preprocessor_definitions.cend(),
+			[&a = pair](const auto &b) { return a.first == b.first; });
+			it == _preset_preprocessor_definitions.cend())
+			_preset_preprocessor_definitions.push_back(pair);
+	}
 
 	// Build a list of effect files by walking through the effect search paths
 	const std::vector<std::filesystem::path> effect_files =
