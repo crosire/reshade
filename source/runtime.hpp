@@ -171,6 +171,10 @@ namespace reshade
 		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *length) const final;
 		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
 
+#if RESHADE_FX
+		void save_current_preset() const final;
+#endif
+
 		bool has_effects_loaded() const final;
 
 	protected:
@@ -206,7 +210,6 @@ namespace reshade
 
 #if RESHADE_FX
 		void load_current_preset();
-		void save_current_preset() const;
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 

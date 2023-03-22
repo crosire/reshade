@@ -345,9 +345,6 @@ void reshade::runtime::set_uniform_value_bool([[maybe_unused]] api::effect_unifo
 
 	set_uniform_value(*variable, values, count, array_index);
 
-	if (variable->special == special_uniform::none)
-		save_current_preset();
-
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
 #endif
@@ -366,9 +363,6 @@ void reshade::runtime::set_uniform_value_float([[maybe_unused]] api::effect_unif
 #endif
 
 	set_uniform_value(*variable, values, count, array_index);
-
-	if (variable->special == special_uniform::none)
-		save_current_preset();
 
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
@@ -389,9 +383,6 @@ void reshade::runtime::set_uniform_value_int([[maybe_unused]] api::effect_unifor
 
 	set_uniform_value(*variable, values, count, array_index);
 
-	if (variable->special == special_uniform::none)
-		save_current_preset();
-
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
 #endif
@@ -410,9 +401,6 @@ void reshade::runtime::set_uniform_value_uint([[maybe_unused]] api::effect_unifo
 #endif
 
 	set_uniform_value(*variable, values, count, array_index);
-
-	if (variable->special == special_uniform::none)
-		save_current_preset();
 
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
