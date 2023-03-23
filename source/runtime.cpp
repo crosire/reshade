@@ -928,7 +928,7 @@ void reshade::runtime::save_config() const
 	std::vector<std::pair<std::string, std::string>> preprocessor_definitions;
 	for (const definition &definition : _preprocessor_definitions)
 		if (definition.scope == definition::scope_global)
-			preprocessor_definitions.emplace_back(definition.first, definition.second);
+			preprocessor_definitions.emplace_back(definition.name, definition.value);
 	config.set("GENERAL", "PreprocessorDefinitions", preprocessor_definitions);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
@@ -1020,7 +1020,7 @@ void reshade::runtime::load_current_preset()
 				preprocessor_definitions.push_back(definition{ definition::scope_effect, effect.source_file.filename().u8string(), std::move(value.first), std::move(value.second) });
 
 	std::stable_sort(preprocessor_definitions.begin(), preprocessor_definitions.end(),
-		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.name == b.name ? a.first < b.first : a.name < b.name : a.scope > b.scope; });
+		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.effect_name == b.effect_name ? a.name < b.name : a.effect_name < b.effect_name : a.scope > b.scope; });
 
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
 	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_effects'
@@ -1223,7 +1223,7 @@ void reshade::runtime::save_current_preset() const
 	std::vector<std::pair<std::string, std::string>> preset_preprocessor_definitions;
 	for (const definition &definition : _preprocessor_definitions)
 		if (definition.scope == definition::scope_preset)
-			preset_preprocessor_definitions.emplace_back(definition.first, definition.second);
+			preset_preprocessor_definitions.emplace_back(definition.name, definition.value);
 	if (preset_preprocessor_definitions.empty())
 		preset.remove_key({}, "PreprocessorDefinitions");
 	else
@@ -1275,8 +1275,8 @@ void reshade::runtime::save_current_preset() const
 
 		std::vector<std::pair<std::string, std::string>> effect_preprocessor_definitions;
 		for (const definition &definition : _preprocessor_definitions)
-			if (definition.scope == definition::scope_effect && definition.name == effect_name)
-				effect_preprocessor_definitions.emplace_back(definition.first, definition.second);
+			if (definition.scope == definition::scope_effect && definition.effect_name == effect_name)
+				effect_preprocessor_definitions.emplace_back(definition.name, definition.value);
 		if (effect_preprocessor_definitions.empty())
 			preset.remove_key(effect_name, "PreprocessorDefinitions");
 		else
@@ -1381,10 +1381,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 	std::vector<definition> preprocessor_definitions = _preprocessor_definitions;
 	preprocessor_definitions.erase(std::remove_if(preprocessor_definitions.begin(), preprocessor_definitions.end(),
-		[&effect_name](const definition &definition) { return definition.scope == definition::scope_effect && definition.name != effect_name; }), preprocessor_definitions.end());
+		[&effect_name](const definition &definition) { return definition.scope == definition::scope_effect && definition.effect_name != effect_name; }), preprocessor_definitions.end());
 
 	for (const definition &definition : preprocessor_definitions)
-		attributes += definition.first + '=' + definition.second + ';';
+		attributes += definition.name + '=' + definition.value + ';';
 
 	std::error_code ec;
 	std::set<std::filesystem::path> include_paths;
@@ -1483,7 +1483,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
 
 		for (const definition &definition : preprocessor_definitions)
-			pp.add_macro_definition(definition.first, definition.second.empty() ? "1" : definition.second);
+			pp.add_macro_definition(definition.name, definition.value.empty() ? "1" : definition.value);
 
 		for (const std::filesystem::path &include_path : include_paths)
 			pp.add_include_path(include_path);
@@ -3243,7 +3243,7 @@ void reshade::runtime::load_effects()
 				_preprocessor_definitions.push_back(definition{ definition::scope_effect, effect_file.filename().u8string(), std::move(value.first), std::move(value.second) });
 
 	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
-		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.name == b.name ? a.first < b.first : a.name < b.name : a.scope > b.scope; });
+		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.effect_name == b.effect_name ? a.name < b.name : a.effect_name < b.effect_name : a.scope > b.scope; });
 
 	if (effect_files.empty())
 		return; // No effect files found, so nothing more to do

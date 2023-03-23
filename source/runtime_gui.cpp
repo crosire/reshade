@@ -2809,8 +2809,8 @@ void reshade::runtime::draw_variable_editor()
 						char name[128];
 						char value[256];
 
-						name[definition.first.copy(name, sizeof(name) - 1)] = '\0';
-						value[definition.second.copy(value, sizeof(value) - 1)] = '\0';
+						name[definition.name.copy(name, sizeof(name) - 1)] = '\0';
+						value[definition.value.copy(value, sizeof(value) - 1)] = '\0';
 
 						ImGui::PushID(static_cast<int>(i));
 
@@ -2832,8 +2832,8 @@ void reshade::runtime::draw_variable_editor()
 						}
 						else if (type.modified)
 						{
-							definition.first = name;
-							definition.second = value;
+							definition.name = name;
+							definition.value = value;
 						}
 
 						ImGui::PopID();
@@ -2923,7 +2923,7 @@ void reshade::runtime::draw_variable_editor()
 
 			// Reset all preprocessor definitions
 			for (std::pair<std::string, std::string> &value : effect.definitions)
-				if (auto it = std::remove_if(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [&value](definition &definition) { return definition.first == value.first; });
+				if (auto it = std::remove_if(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [&value](definition &definition) { return definition.name == value.first; });
 					it != _preprocessor_definitions.end())
 					_preprocessor_definitions.erase(it), force_reload_effect = true; // Need to reload after changing preprocessor defines so to get accurate defaults again
 
@@ -3182,12 +3182,12 @@ void reshade::runtime::draw_variable_editor()
 				{
 					auto exist = _preprocessor_definitions.end();
 					for (auto it = _preprocessor_definitions.begin(); it != _preprocessor_definitions.end(); it++)
-						if (it->first == value.first && (exist == _preprocessor_definitions.end() || it->scope > exist->scope))
+						if (it->name == value.first && (exist == _preprocessor_definitions.end() || it->scope > exist->scope))
 							exist = it;
 
 					char text[256] = "";
 					if (exist != _preprocessor_definitions.end())
-						text[exist->second.copy(text, sizeof(text) - 1)] = '\0';
+						text[exist->value.copy(text, sizeof(text) - 1)] = '\0';
 					if (ImGui::InputTextWithHint(value.first.c_str(), value.second.c_str(), text, sizeof(text), (exist != _preprocessor_definitions.end() && exist->scope == definition::scope_global) ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
 					{
 						if (text[0] == '\0') // An empty value removes the definition
@@ -3204,8 +3204,8 @@ void reshade::runtime::draw_variable_editor()
 
 							if (exist != _preprocessor_definitions.end())
 							{
-								assert(exist->first == value.first);
-								exist->second = text;
+								assert(exist->name == value.first);
+								exist->value = text;
 								modified_definition = *exist;
 							}
 							else
@@ -3252,13 +3252,13 @@ void reshade::runtime::draw_variable_editor()
 			const bool reload_successful_before = _last_reload_successfull;
 
 			// Reload current effect file
-			if (!reload_effect(effect_index) && !modified_definition.first.empty())
+			if (!reload_effect(effect_index) && !modified_definition.name.empty())
 			{
 				assert(modified_definition.scope == definition::scope_preset || modified_definition.scope == definition::scope_effect);
 
 				// The preprocessor definition that was just modified caused the effect to not compile, so reset to default and try again
 				_preprocessor_definitions.erase(std::remove_if(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
-					[&modified_definition](definition &definition) { return definition.scope == modified_definition.scope && definition.name == modified_definition.name && definition.first == modified_definition.first; }),
+					[&modified_definition](definition &definition) { return definition.scope == modified_definition.scope && definition.effect_name == modified_definition.effect_name && definition.name == modified_definition.name; }),
 					_preprocessor_definitions.end());
 
 				if (reload_effect(effect_index))
@@ -3271,11 +3271,11 @@ void reshade::runtime::draw_variable_editor()
 					ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 					if (std::vector<std::pair<std::string, std::string>> preprocessor_definitions;
-						preset.get(modified_definition.name, "PreprocessorDefinitions", preprocessor_definitions))
+						preset.get(modified_definition.effect_name, "PreprocessorDefinitions", preprocessor_definitions))
 					{
 						preprocessor_definitions.erase(std::remove_if(preprocessor_definitions.begin(), preprocessor_definitions.end(),
-							[&modified_definition](std::pair<std::string, std::string> &value) { return value.first == modified_definition.first; }), preprocessor_definitions.end());
-						preset.set(modified_definition.name, "PreprocessorDefinitions", preprocessor_definitions);
+							[&modified_definition](std::pair<std::string, std::string> &value) { return value.first == modified_definition.name; }), preprocessor_definitions.end());
+						preset.set(modified_definition.effect_name, "PreprocessorDefinitions", preprocessor_definitions);
 					}
 				}
 			}

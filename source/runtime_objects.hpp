@@ -292,11 +292,11 @@ namespace reshade
 			scope_effect
 		} scope;
 
+		std::string effect_name;
 		std::string name;
-		std::string first;
-		std::string second;
+		std::string value;
 
-		constexpr bool operator==(const definition &obj) const { return obj.scope == scope && obj.name == name && obj.first == first && obj.second == second; }
+		constexpr bool operator==(const definition &obj) const { return obj.scope == scope && obj.effect_name == effect_name && obj.name == name && obj.value == value; }
 	};
 #endif
 }

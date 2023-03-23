@@ -892,7 +892,7 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 
 	auto exist = _preprocessor_definitions.end();
 	for (auto it = _preprocessor_definitions.begin(); it != _preprocessor_definitions.end(); it++)
-		if (it->first == name && (exist == _preprocessor_definitions.end() || it->scope > exist->scope))
+		if (it->name == name && (exist == _preprocessor_definitions.end() || it->scope > exist->scope))
 			exist = it;
 
 	if (*value == '\0')
@@ -907,22 +907,22 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 		if (const auto scope = effect_name == nullptr ? definition::scope_preset : definition::scope_effect;
 			exist != _preprocessor_definitions.end() && exist->scope == scope)
 		{
-			assert(exist->name == effect_name);
-			exist->second = value;
+			assert(exist->effect_name == effect_name);
+			exist->value = value;
 		}
 		else
 		{
 			definition &definition = _preprocessor_definitions.emplace_back();
 			definition.scope = static_cast<decltype(definition::scope)>(scope);
 			if (effect_name != nullptr)
-				definition.name = effect_name;
-			definition.first = name;
-			definition.second = value;
+				definition.effect_name = effect_name;
+			definition.name = name;
+			definition.value = value;
 		}
 	}
 
 	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
-		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.name == b.name ? a.first < b.first : a.name < b.name : a.scope > b.scope; });
+		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.effect_name == b.effect_name ? a.name < b.name : a.effect_name < b.effect_name : a.scope > b.scope; });
 
 #if RESHADE_ADDON
 	const size_t effect_index = effect_name != nullptr ? std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
@@ -940,13 +940,13 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unu
 
 #if RESHADE_FX
 	if (auto it = std::find_if(_preprocessor_definitions.cbegin(), _preprocessor_definitions.cend(),
-		[name](const definition &definition) { return definition.first == name; });
+		[name = std::string_view(name)](const definition &definition) { return definition.name == name; });
 		it != _preprocessor_definitions.cend())
 	{
 		if (value != nullptr && length != nullptr && *length != 0)
-			value[it->second.copy(value, *length - 1)] = '\0';
+			value[it->value.copy(value, *length - 1)] = '\0';
 		if (length != nullptr)
-			*length = it->second.size();
+			*length = it->value.size();
 
 		return true;
 	}
