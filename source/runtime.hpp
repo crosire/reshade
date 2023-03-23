@@ -23,6 +23,7 @@ class ini_file;
 namespace reshade
 {
 	// Forward declarations to avoid excessive #include
+	struct definition;
 	struct effect;
 	struct uniform;
 	struct texture;
@@ -151,6 +152,7 @@ namespace reshade
 
 		bool get_preprocessor_definition(const char *name, char *value, size_t *length) const final;
 		void set_preprocessor_definition(const char *name, const char *value) final;
+		void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) final;
 
 		bool get_effects_state() const final;
 		void set_effects_state(bool enabled) final;
@@ -299,8 +301,10 @@ namespace reshade
 		bool _load_option_disable_skipping = false;
 		unsigned int _reload_key_data[4] = {};
 		unsigned int _performance_mode_key_data[4] = {};
-		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
-		std::vector<std::pair<std::string, std::string>> _preset_preprocessor_definitions;
+		std::vector<definition> _preprocessor_definitions;
+#if RESHADE_ADDON
+		size_t _should_save_preprocessor_definitions = std::numeric_limits<size_t>::max();
+#endif
 		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;

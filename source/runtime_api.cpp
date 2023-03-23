@@ -256,7 +256,7 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 {
 #if RESHADE_FX
 	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr && length != nullptr)
+	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -264,10 +264,11 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 		{
 			const std::string_view annotation = variable->annotation_as_string(name);
 
-			if (value != nullptr && *length != 0)
+			if (value != nullptr && length != nullptr && *length != 0)
 				value[annotation.copy(value, *length - 1)] = '\0';
+			if (length != nullptr)
+				*length = annotation.size();
 
-			*length = annotation.size();
 			return true;
 		}
 	}
@@ -407,7 +408,6 @@ void reshade::runtime::set_uniform_value_uint([[maybe_unused]] api::effect_unifo
 #endif
 #endif
 }
-
 
 void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), [[maybe_unused]] void *user_data)
 {
@@ -880,64 +880,80 @@ void reshade::runtime::set_technique_state([[maybe_unused]] api::effect_techniqu
 #endif
 }
 
-
 void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
+{
+	set_preprocessor_definition(nullptr, name, value);
+}
+void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
 {
 #if RESHADE_FX
 	if (name == nullptr)
 		return;
 
-	const auto preset_it = std::find_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(), [name](const auto &it) { return it.first == name; });
+	auto exist = _preprocessor_definitions.end();
+	for (auto it = _preprocessor_definitions.begin(); it != _preprocessor_definitions.end(); it++)
+		if (it->name == name && (exist == _preprocessor_definitions.end() || it->scope > exist->scope))
+			exist = it;
 
-	if (value == nullptr || value[0] == '\0') // An empty value removes the definition
+	if (*value == '\0')
 	{
-		if (preset_it != _preset_preprocessor_definitions.end())
-			_preset_preprocessor_definitions.erase(preset_it);
+		if (exist != _preprocessor_definitions.end())
+		{
+			_preprocessor_definitions.erase(exist);
+		}
 	}
 	else
 	{
-		if (preset_it != _preset_preprocessor_definitions.end())
-			preset_it->second = value;
+		if (const auto scope = effect_name == nullptr ? definition::scope_preset : definition::scope_effect;
+			exist != _preprocessor_definitions.end() && exist->scope == scope)
+		{
+			assert(exist->effect_name == effect_name);
+			exist->value = value;
+		}
 		else
-			_preset_preprocessor_definitions.emplace_back(name, value);
+		{
+			definition &definition = _preprocessor_definitions.emplace_back();
+			definition.scope = static_cast<decltype(definition::scope)>(scope);
+			if (effect_name != nullptr)
+				definition.effect_name = effect_name;
+			definition.name = name;
+			definition.value = value;
+		}
 	}
 
-	// Save preset first, as preprocessor definitions are reset to those in the current preset during reloading
-	save_current_preset();
-	reload_effects();
+	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
+		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.effect_name == b.effect_name ? a.name < b.name : a.effect_name < b.effect_name : a.scope > b.scope; });
+
+#if RESHADE_ADDON
+	const size_t effect_index = effect_name != nullptr ? std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
+		[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect_name == effect.source_file.filename(); })) : _effects.size();
+
+	if (_should_save_preprocessor_definitions != effect_index)
+		_should_save_preprocessor_definitions = _should_save_preprocessor_definitions < _effects.size() ? _effects.size() : effect_index;
+#endif
 #endif
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unused]] char *value, size_t *length) const
 {
-	if (name == nullptr || length == nullptr)
+	if (name == nullptr)
 		return false;
 
 #if RESHADE_FX
-	for (auto preset_it = _preset_preprocessor_definitions.cbegin(); preset_it != _preset_preprocessor_definitions.cend(); ++preset_it)
+	if (auto it = std::find_if(_preprocessor_definitions.cbegin(), _preprocessor_definitions.cend(),
+		[name = std::string_view(name)](const definition &definition) { return definition.name == name; });
+		it != _preprocessor_definitions.cend())
 	{
-		if (name == preset_it->first)
-		{
-			if (value != nullptr && *length != 0)
-				value[preset_it->second.copy(value, *length - 1)] = '\0';
+		if (value != nullptr && length != nullptr && *length != 0)
+			value[it->value.copy(value, *length - 1)] = '\0';
+		if (length != nullptr)
+			*length = it->value.size();
 
-			*length = preset_it->second.size();
-			return true;
-		}
-	}
-	for (auto global_it = _global_preprocessor_definitions.cbegin(); global_it != _global_preprocessor_definitions.cend(); ++global_it)
-	{
-		if (name == global_it->first)
-		{
-			if (value != nullptr && *length != 0)
-				value[global_it->second.copy(value, *length - 1)] = '\0';
-
-			*length = global_it->second.size();
-			return true;
-		}
+		return true;
 	}
 #endif
 
-	*length = 0;
+	if (length != nullptr)
+		*length = 0;
 	return false;
 }
 

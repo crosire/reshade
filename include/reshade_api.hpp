@@ -569,7 +569,7 @@ namespace reshade::api
 			return get_preprocessor_definition(name, value, &length);
 		}
 		/// <summary>
-		/// Defines a global preprocessor definition to the specified <paramref name="value"/>.
+		/// Defines a preprocessor definition to the specified <paramref name="value"/>.
 		/// </summary>
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Value of the definition.</param>
@@ -681,5 +681,13 @@ namespace reshade::api
 		/// Saves the current preset with the current state of the loaded techniques and uniform variables.
 		/// </summary>
 		virtual void save_current_preset() const = 0;
+
+		/// <summary>
+		/// *TODO*
+		/// </summary>
+		/// <param name="effect_name">*TODO*</param>
+		/// <param name="name">Name of the definition.</param>
+		/// <param name="value">Value of the definition.</param>
+		virtual void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) = 0;
 	};
 }
