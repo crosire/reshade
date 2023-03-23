@@ -923,20 +923,13 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
 		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.name == b.name ? a.first < b.first : a.name < b.name : a.scope > b.scope; });
 
-	// Save preset first, as preprocessor definitions are reset to those in the current preset during reloading
-	save_current_preset();
+#if RESHADE_ADDON
+	const size_t effect_index = effect_name != nullptr ? std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
+		[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect_name == effect.source_file.filename(); })) : _effects.size();
 
-	if (effect_name != nullptr)
-	{
-		if (auto it = std::find_if(_effects.cbegin(), _effects.cend(),
-			[effect_name](const effect &effect) { return effect_name == effect.source_file.filename().u8string(); });
-			it != _effects.cend())
-			reload_effect(static_cast<size_t>(std::distance(_effects.cbegin(), it)));
-	}
-	else
-	{
-		reload_effects();
-	}
+	if (_should_save_preprocessor_definitions != effect_index)
+		_should_save_preprocessor_definitions = _should_save_preprocessor_definitions < _effects.size() ? _effects.size() : effect_index;
+#endif
 #endif
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unused]] char *value, size_t *length) const
@@ -1180,10 +1173,4 @@ void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_te
 	else
 #endif
 		*length = 0;
-}
-
-bool reshade::runtime::has_effects_loaded() const
-{
-	return _reload_remaining_effects == std::numeric_limits<size_t>().max()
-		&& _last_reload_time != std::chrono::high_resolution_clock::time_point::max();
 }

@@ -689,11 +689,5 @@ namespace reshade::api
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Value of the definition.</param>
 		virtual void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) = 0;
-
-		/// <summary>
-		/// *TODO*
-		/// </summary>
-		/// <returns>*TODO*</returns>
-		virtual bool has_effects_loaded() const = 0;
 	};
 }

@@ -1483,7 +1483,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
 
 		for (const definition &definition : preprocessor_definitions)
-			if (!definition.first.empty())
 				pp.add_macro_definition(definition.first, definition.second.empty() ? "1" : definition.second);
 
 		for (const std::filesystem::path &include_path : include_paths)
@@ -3481,6 +3480,23 @@ void reshade::runtime::update_effects()
 	// Delay first load to the first render call to avoid loading while the application is still initializing
 	if (_frame_count == 0 && !_no_reload_on_init && !(_no_reload_for_non_vr && !_is_vr))
 		reload_effects();
+
+#if RESHADE_ADDON
+	if (_reload_remaining_effects == std::numeric_limits<size_t>::max())
+	{
+		if (const size_t effect_index = _should_save_preprocessor_definitions;
+			effect_index != std::numeric_limits<size_t>::max())
+		{
+			save_current_preset();
+			_should_save_preprocessor_definitions = std::numeric_limits<size_t>::max();
+
+			if (effect_index < _effects.size())
+				reload_effect(effect_index);
+			else
+				reload_effects();
+		}
+	}
+#endif
 
 	if (_reload_remaining_effects == 0)
 	{

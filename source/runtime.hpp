@@ -175,8 +175,6 @@ namespace reshade
 		void save_current_preset() const final;
 #endif
 
-		bool has_effects_loaded() const final;
-
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
@@ -304,6 +302,9 @@ namespace reshade
 		unsigned int _reload_key_data[4] = {};
 		unsigned int _performance_mode_key_data[4] = {};
 		std::vector<definition> _preprocessor_definitions;
+#if RESHADE_ADDON
+		size_t _should_save_preprocessor_definitions = std::numeric_limits<size_t>::max();
+#endif
 		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
