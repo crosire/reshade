@@ -1483,7 +1483,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
 
 		for (const definition &definition : preprocessor_definitions)
-				pp.add_macro_definition(definition.first, definition.second.empty() ? "1" : definition.second);
+			pp.add_macro_definition(definition.first, definition.second.empty() ? "1" : definition.second);
 
 		for (const std::filesystem::path &include_path : include_paths)
 			pp.add_include_path(include_path);
@@ -3288,7 +3288,17 @@ bool reshade::runtime::reload_effect(size_t effect_index)
 
 	const std::filesystem::path source_file = _effects[effect_index].source_file;
 	destroy_effect(effect_index);
-	return load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true);
+
+	// If you change the runtime::is_loading(), you should check that condition is true here
+	_reload_remaining_effects = 1;
+
+	const ini_file &preset = ini_file::load_cache(_current_preset_path);
+	const bool compiled = load_effect(source_file, preset, effect_index, true);
+
+	// All preset data are reset when loading an effect. So we should to reload the preset
+	assert(_reload_remaining_effects == 0);
+
+	return compiled;
 }
 void reshade::runtime::reload_effects()
 {
