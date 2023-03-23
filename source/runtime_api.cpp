@@ -256,7 +256,7 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 {
 #if RESHADE_FX
 	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr && length != nullptr)
+	if (variable != nullptr)
 	{
 		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
 				[name](const reshadefx::annotation &annotation) { return annotation.name == name; });
@@ -264,10 +264,11 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 		{
 			const std::string_view annotation = variable->annotation_as_string(name);
 
-			if (value != nullptr && *length != 0)
+			if (value != nullptr && length != nullptr && *length != 0)
 				value[annotation.copy(value, *length - 1)] = '\0';
+			if (length != nullptr)
+				*length = annotation.size();
 
-			*length = annotation.size();
 			return true;
 		}
 	}
@@ -934,7 +935,7 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unused]] char *value, size_t *length) const
 {
-	if (name == nullptr || length == nullptr)
+	if (name == nullptr)
 		return false;
 
 #if RESHADE_FX
@@ -942,15 +943,17 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, [[maybe_unu
 		[name](const definition &definition) { return definition.first == name; });
 		it != _preprocessor_definitions.cend())
 	{
-		if (value != nullptr && *length != 0)
+		if (value != nullptr && length != nullptr && *length != 0)
 			value[it->second.copy(value, *length - 1)] = '\0';
+		if (length != nullptr)
+			*length = it->second.size();
 
-		*length = it->second.size();
 		return true;
 	}
 #endif
 
-	*length = 0;
+	if (length != nullptr)
+		*length = 0;
 	return false;
 }
 
