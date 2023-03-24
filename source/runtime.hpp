@@ -151,6 +151,7 @@ namespace reshade
 		void set_technique_state(api::effect_technique technique, bool enabled) final;
 
 		bool get_preprocessor_definition(const char *name, char *value, size_t *length) const final;
+		bool get_preprocessor_definition(const char *effect_name, const char *name, char *value, size_t *length) const final;
 		void set_preprocessor_definition(const char *name, const char *value) final;
 		void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) final;
 

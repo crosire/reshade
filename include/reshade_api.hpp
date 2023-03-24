@@ -557,7 +557,7 @@ namespace reshade::api
 		virtual void set_technique_state(effect_technique technique, bool enabled) = 0;
 
 		/// <summary>
-		/// Gets the value of global preprocessor definition.
+		/// Gets the value of a preprocessor definition.
 		/// </summary>
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the definition.</param>
@@ -683,9 +683,22 @@ namespace reshade::api
 		virtual void save_current_preset() const = 0;
 
 		/// <summary>
-		/// *TODO*
+		/// Gets the value of a preprocessor definition for the specified effect.
 		/// </summary>
-		/// <param name="effect_name">*TODO*</param>
+		/// <param name="effect_name">File name of the effect file the preprocessor definition is defined for.</param>
+		/// <param name="name">Name of the definition.</param>
+		/// <param name="value">Pointer to a string buffer that is filled with the value of the definition.</param>
+		/// <param name="length">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string.</param>
+		virtual bool get_preprocessor_definition(const char *effect_name, const char *name, char *value, size_t *length) const = 0;
+		template <size_t SIZE>
+		inline  bool get_preprocessor_definition(const char *effect_name, const char *name, char(&value)[SIZE]) const {
+			size_t length = SIZE;
+			return get_preprocessor_definition(effect_name, name, value, &length);
+		}
+		/// <summary>
+		/// Defines a preprocessor definition for the specified effect to the specified <paramref name="value"/>.
+		/// </summary>
+		/// <param name="effect_name">File name of the effect file the preprocessor definition should be defined for.</param>
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Value of the definition.</param>
 		virtual void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) = 0;
