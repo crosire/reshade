@@ -3327,16 +3327,19 @@ void reshade::runtime::destroy_effects()
 			thread.join();
 	_worker_threads.clear();
 
+	// Reset the effect creation queue
+	_reload_create_queue.clear();
+
 	for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
 		destroy_effect(effect_index);
+
+	// Reset the effect list after all resources have been destroyed
+	_effects.clear();
 
 	// Clean up sampler objects
 	for (const auto &[hash, sampler] : _effect_sampler_states)
 		_device->destroy_sampler(sampler);
 	_effect_sampler_states.clear();
-
-	// Reset the effect list after all resources have been destroyed
-	_effects.clear();
 
 	// Unload HLSL compiler which was previously loaded in 'load_effects' above
 	if (_d3d_compiler_module)
