@@ -1123,7 +1123,7 @@ void reshade::runtime::draw_gui()
 #endif
 
 #if RESHADE_FX
-	if (_preview_texture != 0 && _effects_enabled)
+	if (_preview_texture != 0)
 	{
 		if (!_show_overlay)
 		{
