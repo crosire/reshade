@@ -1033,15 +1033,15 @@ void reshade::runtime::load_current_preset()
 		}
 
 		if (std::find_if(technique_list.cbegin(), technique_list.cend(),
-				[this](const std::string_view &technique_name) {
+				[this](const std::string &technique_name) {
 					const size_t at_pos = technique_name.find('@');
-					if (at_pos == std::string_view::npos)
+					if (at_pos == std::string::npos)
 						return true;
 					const auto it = std::find_if(_effects.cbegin(), _effects.cend(),
-						[effect_name = technique_name.substr(at_pos + 1)](const effect &effect) {
-							return effect_name == effect.source_file.filename().u8string();
+						[effect_name = std::filesystem::u8path(technique_name.substr(at_pos + 1))](const effect &effect) {
+							return effect_name == effect.source_file.filename();
 						});
-					return it == _effects.cend() || it->skipped;
+					return it != _effects.cend() && it->skipped;
 				}) != technique_list.cend())
 		{
 			reload_effects();
