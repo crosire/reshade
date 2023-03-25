@@ -282,21 +282,5 @@ namespace reshade
 		};
 		std::vector<binding_data> texture_semantic_to_binding;
 	};
-
-	struct definition
-	{
-		enum
-		{
-			scope_global,
-			scope_preset,
-			scope_effect
-		} scope;
-
-		std::string effect_name;
-		std::string name;
-		std::string value;
-
-		constexpr bool operator==(const definition &obj) const { return obj.scope == scope && obj.effect_name == effect_name && obj.name == name && obj.value == value; }
-	};
 #endif
 }

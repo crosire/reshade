@@ -23,7 +23,6 @@ class ini_file;
 namespace reshade
 {
 	// Forward declarations to avoid excessive #include
-	struct definition;
 	struct effect;
 	struct uniform;
 	struct texture;
@@ -172,10 +171,6 @@ namespace reshade
 		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *length) const final;
 		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
 
-#if RESHADE_FX
-		void save_current_preset() const final;
-#endif
-
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
@@ -209,6 +204,7 @@ namespace reshade
 
 #if RESHADE_FX
 		void load_current_preset();
+		void save_current_preset() const final;
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
@@ -261,6 +257,8 @@ namespace reshade
 			const T values[4] = { x, y, z, w };
 			set_uniform_value(variable, values, 4, 0);
 		}
+
+		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
 #endif
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
@@ -302,10 +300,13 @@ namespace reshade
 		bool _load_option_disable_skipping = false;
 		unsigned int _reload_key_data[4] = {};
 		unsigned int _performance_mode_key_data[4] = {};
-		std::vector<definition> _preprocessor_definitions;
+
+		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
+		std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> _preset_preprocessor_definitions;
 #if RESHADE_ADDON
 		size_t _should_save_preprocessor_definitions = std::numeric_limits<size_t>::max();
 #endif
+
 		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;

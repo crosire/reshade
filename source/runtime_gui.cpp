@@ -2770,10 +2770,8 @@ void reshade::runtime::draw_variable_editor()
 	{
 		ImGui::SetWindowPos(popup_pos);
 
-		const size_t count_global = std::count_if(_preprocessor_definitions.cbegin(), _preprocessor_definitions.cend(), [](const definition &definition) { return definition.scope == definition::scope_global; });
-		const size_t count_preset = std::count_if(_preprocessor_definitions.cbegin(), _preprocessor_definitions.cend(), [](const definition &definition) { return definition.scope == definition::scope_preset; });
 		bool global_modified = false, preset_modified = false;
-		float popup_height = (std::max(count_global, count_preset) + 2) * ImGui::GetFrameHeightWithSpacing();
+		float popup_height = (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions[{}].size()) + 2) * ImGui::GetFrameHeightWithSpacing();
 		popup_height = std::min(popup_height, ImGui::GetWindowViewport()->Size.y - popup_pos.y - 20.0f);
 		popup_height = std::max(popup_height, 42.0f); // Ensure window always has a minimum height
 		const float button_size = ImGui::GetFrameHeight();
@@ -2788,31 +2786,25 @@ void reshade::runtime::draw_variable_editor()
 			struct
 			{
 				const char *name;
-				decltype(definition::scope) scope;
+				std::vector<std::pair<std::string, std::string>> &definitions;
 				bool &modified;
 			} definition_types[] = {
-				{ "Global", definition::scope_global, global_modified },
-				{ "Current Present", definition::scope_preset, preset_modified },
+				{ "Global", _global_preprocessor_definitions, global_modified },
+				{ "Current Present", _preset_preprocessor_definitions[{}], preset_modified },
 			};
 
 			for (const auto &type : definition_types)
 			{
 				if (ImGui::BeginTabItem(type.name))
 				{
-					for (size_t i = 0; i < _preprocessor_definitions.size(); ++i)
+					for (auto it = type.definitions.begin(); it != type.definitions.end();)
 					{
-						definition &definition = _preprocessor_definitions[i];
+						char name[128] = "";
+						it->first.copy(name, sizeof(name) - 1);
+						char value[256] = "";
+						it->second.copy(value, sizeof(value) - 1);
 
-						if (definition.scope != type.scope)
-							continue;
-
-						char name[128];
-						char value[256];
-
-						name[definition.name.copy(name, sizeof(name) - 1)] = '\0';
-						value[definition.value.copy(value, sizeof(value) - 1)] = '\0';
-
-						ImGui::PushID(static_cast<int>(i));
+						ImGui::PushID(static_cast<int>(std::distance(type.definitions.begin(), it)));
 
 						ImGui::SetNextItemWidth(content_region_width * 0.66666666f - (button_spacing));
 						type.modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
@@ -2828,12 +2820,17 @@ void reshade::runtime::draw_variable_editor()
 						if (imgui::confirm_button(ICON_FK_MINUS, button_size, "Do you really want to remove the preprocessor definition '%s'?", name))
 						{
 							type.modified = true;
-							_preprocessor_definitions.erase(_preprocessor_definitions.begin() + i--);
+							it = type.definitions.erase(it);
 						}
-						else if (type.modified)
+						else
 						{
-							definition.name = name;
-							definition.value = value;
+							if (type.modified)
+							{
+								it->first = name;
+								it->second = value;
+							}
+
+							++it;
 						}
 
 						ImGui::PopID();
@@ -2842,7 +2839,7 @@ void reshade::runtime::draw_variable_editor()
 					ImGui::Dummy(ImVec2());
 					ImGui::SameLine(0, content_region_width - button_size);
 					if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
-						_preprocessor_definitions.push_back(definition{ static_cast<decltype(definition::scope)>(type.scope) });
+						type.definitions.emplace_back();
 
 					ImGui::EndTabItem();
 				}
@@ -2922,10 +2919,27 @@ void reshade::runtime::draw_variable_editor()
 					reset_uniform_value(variable_it);
 
 			// Reset all preprocessor definitions
-			for (std::pair<std::string, std::string> &value : effect.definitions)
-				if (auto it = std::remove_if(_preprocessor_definitions.begin(), _preprocessor_definitions.end(), [&value](definition &definition) { return definition.name == value.first; });
-					it != _preprocessor_definitions.end())
-					_preprocessor_definitions.erase(it), force_reload_effect = true; // Need to reload after changing preprocessor defines so to get accurate defaults again
+			if (const auto preset_it = _preset_preprocessor_definitions.find({});
+				preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
+			{
+				for (const std::pair<std::string, std::string> &definition : effect.definitions)
+				{
+					if (const auto it = std::remove_if(preset_it->second.begin(), preset_it->second.end(),
+							[&definition](const std::pair<std::string, std::string> &preset_definition) { return preset_definition.first == definition.first; });
+						it != preset_it->second.end())
+					{
+						preset_it->second.erase(it, preset_it->second.end());
+						force_reload_effect = true; // Need to reload after changing preprocessor defines so to get accurate defaults again
+					}
+				}
+			}
+
+			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name);
+				preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
+			{
+				_preset_preprocessor_definitions.erase(preset_it);
+				force_reload_effect = true;
+			}
 
 			if (_auto_save_preset)
 				save_current_preset();
@@ -2936,7 +2950,6 @@ void reshade::runtime::draw_variable_editor()
 
 		bool category_closed = false;
 		std::string current_category;
-		definition modified_definition = {};
 
 		size_t active_variable = 0;
 		size_t active_variable_index = std::numeric_limits<size_t>::max();
@@ -3169,6 +3182,9 @@ void reshade::runtime::draw_variable_editor()
 			set_uniform_value(effect.uniforms[hovered_variable_index], static_cast<uint32_t>(hovered_variable));
 
 		// Draw preprocessor definition list after all uniforms of an effect file
+		std::vector<std::pair<std::string, std::string>> &effect_definitions = _preset_preprocessor_definitions[effect_name];
+		std::vector<std::pair<std::string, std::string>>::iterator modified_definition;
+
 		if (!effect.definitions.empty())
 		{
 			std::string category_label = "Preprocessor definitions";
@@ -3178,39 +3194,38 @@ void reshade::runtime::draw_variable_editor()
 
 			if (ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				for (const std::pair<std::string, std::string> &value : effect.definitions)
+				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 				{
-					auto exist = _preprocessor_definitions.end();
-					for (auto it = _preprocessor_definitions.begin(); it != _preprocessor_definitions.end(); it++)
-						if (it->name == value.first && (exist == _preprocessor_definitions.end() || it->scope > exist->scope))
-							exist = it;
+					std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
+					std::vector<std::pair<std::string, std::string>>::iterator definition_it;
 
-					char text[256] = "";
-					if (exist != _preprocessor_definitions.end())
-						text[exist->value.copy(text, sizeof(text) - 1)] = '\0';
-					if (ImGui::InputTextWithHint(value.first.c_str(), value.second.c_str(), text, sizeof(text), (exist != _preprocessor_definitions.end() && exist->scope == definition::scope_global) ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+					char value[256] = "";
+					if (get_preprocessor_definition(effect_name, definition.first, definition_scope, definition_it))
+						definition_it->second.copy(value, sizeof(value) - 1);
+
+					if (ImGui::InputTextWithHint(definition.first.c_str(), definition.second.c_str(), value, sizeof(value), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
 					{
-						if (text[0] == '\0') // An empty value removes the definition
+						if (value[0] == '\0') // An empty value removes the definition
 						{
-							if (exist != _preprocessor_definitions.end())
+							if (definition_scope == &effect_definitions)
 							{
 								force_reload_effect = true;
-								_preprocessor_definitions.erase(exist);
+								definition_scope->erase(definition_it);
 							}
 						}
 						else
 						{
 							force_reload_effect = true;
 
-							if (exist != _preprocessor_definitions.end())
+							if (definition_scope == &effect_definitions)
 							{
-								assert(exist->name == value.first);
-								exist->value = text;
-								modified_definition = *exist;
+								definition_it->second = value;
+								modified_definition = definition_it;
 							}
 							else
 							{
-								modified_definition = _preprocessor_definitions.emplace_back(definition{ definition::scope_effect, "", value.first, text });
+								effect_definitions.emplace_back(definition.first, value);
+								modified_definition = effect_definitions.end() - 1;
 							}
 						}
 					}
@@ -3220,10 +3235,10 @@ void reshade::runtime::draw_variable_editor()
 					{
 						if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(230.0f, 0)))
 						{
-							if (exist != _preprocessor_definitions.end())
+							if (definition_scope != nullptr)
 							{
 								force_reload_effect = true;
-								_preprocessor_definitions.erase(exist);
+								definition_scope->erase(definition_it);
 							}
 
 							ImGui::CloseCurrentPopup();
@@ -3252,14 +3267,10 @@ void reshade::runtime::draw_variable_editor()
 			const bool reload_successful_before = _last_reload_successfull;
 
 			// Reload current effect file
-			if (!reload_effect(effect_index) && !modified_definition.name.empty())
+			if (!reload_effect(effect_index) && modified_definition != std::vector<std::pair<std::string, std::string>>::iterator())
 			{
-				assert(modified_definition.scope == definition::scope_preset || modified_definition.scope == definition::scope_effect);
-
 				// The preprocessor definition that was just modified caused the effect to not compile, so reset to default and try again
-				_preprocessor_definitions.erase(std::remove_if(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
-					[&modified_definition](definition &definition) { return definition.scope == modified_definition.scope && definition.effect_name == modified_definition.effect_name && definition.name == modified_definition.name; }),
-					_preprocessor_definitions.end());
+				effect_definitions.erase(modified_definition);
 
 				if (reload_effect(effect_index))
 				{
@@ -3267,16 +3278,8 @@ void reshade::runtime::draw_variable_editor()
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
 
 					// Update preset again now, so that the removed preprocessor definition does not reappear on a reload
-					// The preset is actually loaded again next frame to update the technique status (see 'update_and_render_effects'), so cannot use 'save_current_preset' here
-					ini_file &preset = ini_file::load_cache(_current_preset_path);
-
-					if (std::vector<std::pair<std::string, std::string>> preprocessor_definitions;
-						preset.get(modified_definition.effect_name, "PreprocessorDefinitions", preprocessor_definitions))
-					{
-						preprocessor_definitions.erase(std::remove_if(preprocessor_definitions.begin(), preprocessor_definitions.end(),
-							[&modified_definition](std::pair<std::string, std::string> &value) { return value.first == modified_definition.name; }), preprocessor_definitions.end());
-						preset.set(modified_definition.effect_name, "PreprocessorDefinitions", preprocessor_definitions);
-					}
+					// The preset is actually loaded again next frame to update the technique status (see 'update_effects'), so cannot use 'save_current_preset' here
+					ini_file::load_cache(_current_preset_path).set(effect_name, "PreprocessorDefinitions", effect_definitions);
 				}
 			}
 

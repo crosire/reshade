@@ -901,46 +901,63 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 	if (name == nullptr)
 		return;
 
-	auto existing_definition = _preprocessor_definitions.end();
-	for (auto it = _preprocessor_definitions.begin(); it != _preprocessor_definitions.end(); it++)
-		if (it->name == name && (existing_definition == _preprocessor_definitions.end() || it->scope > existing_definition->scope))
-			existing_definition = it;
+	const std::string effect_name_string = effect_name != nullptr ? effect_name : std::string();
 
-	if (*value == '\0')
+	if (value == nullptr || *value == '\0')
 	{
-		if (existing_definition != _preprocessor_definitions.end())
+		if (const auto it = std::remove_if(_global_preprocessor_definitions.begin(), _global_preprocessor_definitions.end(),
+			[name](const std::pair<std::string, std::string> &preset_definition) { return preset_definition.first == name; });
+			it != _global_preprocessor_definitions.end())
 		{
-			_preprocessor_definitions.erase(existing_definition);
+			_global_preprocessor_definitions.erase(it, _global_preprocessor_definitions.end());
+		}
+
+		if (const auto preset_it = _preset_preprocessor_definitions.find({});
+			preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
+		{
+			if (const auto it = std::remove_if(preset_it->second.begin(), preset_it->second.end(),
+					[name](const std::pair<std::string, std::string> &preset_definition) { return preset_definition.first == name; });
+				it != preset_it->second.end())
+			{
+				preset_it->second.erase(it, preset_it->second.end());
+			}
+		}
+
+		if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name_string);
+			preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
+		{
+			if (const auto it = std::remove_if(preset_it->second.begin(), preset_it->second.end(),
+					[name](const std::pair<std::string, std::string> &preset_definition) { return preset_definition.first == name; });
+				it != preset_it->second.end())
+			{
+				preset_it->second.erase(it, preset_it->second.end());
+			}
 		}
 	}
 	else
 	{
-		if (const auto scope = effect_name == nullptr ? definition::scope_preset : definition::scope_effect;
-			existing_definition != _preprocessor_definitions.end() && existing_definition->scope == scope)
-		{
-			assert(existing_definition->effect_name == effect_name);
-			existing_definition->value = value;
-		}
+		std::vector<std::pair<std::string, std::string>> *definition_scope;
+		std::vector<std::pair<std::string, std::string>>::iterator definition_it;
+
+		if (get_preprocessor_definition(effect_name_string, name, definition_scope, definition_it) &&
+			definition_scope != &_global_preprocessor_definitions && (effect_name_string.empty() || definition_scope != &_preset_preprocessor_definitions[{}]))
+			definition_it->second = value;
 		else
-		{
-			definition &definition = _preprocessor_definitions.emplace_back();
-			definition.scope = static_cast<decltype(definition::scope)>(scope);
-			if (effect_name != nullptr)
-				definition.effect_name = effect_name;
-			definition.name = name;
-			definition.value = value;
-		}
+			_preset_preprocessor_definitions[effect_name_string].emplace_back(name, value);
 	}
 
-	std::stable_sort(_preprocessor_definitions.begin(), _preprocessor_definitions.end(),
-		[](const definition &a, const definition &b) { return a.scope == b.scope ? a.effect_name == b.effect_name ? a.name < b.name : a.effect_name < b.effect_name : a.scope > b.scope; });
-
 #if RESHADE_ADDON
-	const size_t effect_index = effect_name != nullptr ? std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
-		[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect_name == effect.source_file.filename(); })) : _effects.size();
+	if (effect_name_string.empty())
+	{
+		_should_save_preprocessor_definitions = _effects.size();
+	}
+	else
+	{
+		const size_t effect_index = std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
+			[effect_name = std::filesystem::u8path(effect_name_string)](const effect &effect) { return effect_name == effect.source_file.filename(); }));
 
-	if (_should_save_preprocessor_definitions != effect_index)
-		_should_save_preprocessor_definitions = _should_save_preprocessor_definitions < _effects.size() ? _effects.size() : effect_index;
+		_should_save_preprocessor_definitions = _should_save_preprocessor_definitions < _effects.size() && _should_save_preprocessor_definitions != effect_index ? _effects.size() : effect_index;
+	}
 #endif
 #endif
 }
@@ -950,20 +967,21 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, char *value
 }
 bool reshade::runtime::get_preprocessor_definition([[maybe_unused]] const char *effect_name, const char *name, [[maybe_unused]] char *value, size_t *length) const
 {
-	if (name == nullptr)
-		return false;
-
 #if RESHADE_FX
-	if (auto it = std::find_if(_preprocessor_definitions.cbegin(), _preprocessor_definitions.cend(),
-			[effect_name, name](const definition &definition) { return definition.name == name && (effect_name == nullptr || definition.scope < definition::scope_effect || definition.effect_name == effect_name); });
-		it != _preprocessor_definitions.cend())
+	const std::string effect_name_string = effect_name != nullptr ? effect_name : std::string();
+
+	std::vector<std::pair<std::string, std::string>> *definition_scope;
+	std::vector<std::pair<std::string, std::string>>::iterator definition_it;
+
+	if (name != nullptr &&
+		get_preprocessor_definition(effect_name_string, name, definition_scope, definition_it))
 	{
 		if (length != nullptr)
 		{
 			if (value != nullptr && *length != 0)
-				value[it->value.copy(value, *length - 1)] = '\0';
+				value[definition_it->second.copy(value, *length - 1)] = '\0';
 
-			*length = it->value.size();
+			*length = definition_it->second.size();
 		}
 
 		return true;
@@ -976,6 +994,40 @@ bool reshade::runtime::get_preprocessor_definition([[maybe_unused]] const char *
 }
 
 #if RESHADE_FX
+bool reshade::runtime::get_preprocessor_definition(const std::string &effect_name, const std::string &name, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const
+{
+	const auto find_preprocessor_definition = [&name, &scope, &value](std::vector<std::pair<std::string, std::string>> &definitions)
+	{
+		if (const auto it = std::find_if(definitions.begin(), definitions.end(),
+				[&name](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
+			it != definitions.end())
+		{
+			scope = &definitions;
+			value = it;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	};
+
+	if (const auto it = _preset_preprocessor_definitions.find(effect_name);
+		it != _preset_preprocessor_definitions.end() &&
+		find_preprocessor_definition(const_cast<std::vector<std::pair<std::string, std::string>> &>(it->second)))
+		return true;
+
+	if (const auto it = _preset_preprocessor_definitions.find({});
+		it != _preset_preprocessor_definitions.end() &&
+		find_preprocessor_definition(const_cast<std::vector<std::pair<std::string, std::string>> &>(it->second)))
+		return true;
+
+	if (find_preprocessor_definition(const_cast<std::vector<std::pair<std::string, std::string>> &>(_global_preprocessor_definitions)))
+		return true;
+
+	return false;
+}
+
 void reshade::runtime::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
 	const auto tech = reinterpret_cast<technique *>(handle.handle);
