@@ -43,6 +43,15 @@ bool reshade::runtime::is_mouse_button_released(uint32_t button) const
 	return _input != nullptr && _input->is_mouse_button_released(button);
 }
 
+uint32_t reshade::runtime::last_key_pressed() const
+{
+	return _input != nullptr ? _input->last_key_pressed() : 0u;
+}
+uint32_t reshade::runtime::last_key_released() const
+{
+	return _input != nullptr ? _input->last_key_released() : 0u;
+}
+
 void reshade::runtime::get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const
 {
 	if (out_x != nullptr)
@@ -51,6 +60,13 @@ void reshade::runtime::get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_
 		*out_y = (_input != nullptr) ? _input->mouse_position_y() : 0;
 	if (out_wheel_delta != nullptr)
 		*out_wheel_delta = (_input != nullptr) ? _input->mouse_wheel_delta() : 0;
+}
+
+void reshade::runtime::block_input_next_frame()
+{
+#if RESHADE_GUI
+	_block_input_next_frame = true;
+#endif
 }
 
 void reshade::runtime::enumerate_uniform_variables([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), [[maybe_unused]] void *user_data)
@@ -162,10 +178,29 @@ void reshade::runtime::get_uniform_variable_name([[maybe_unused]] api::effect_un
 #if RESHADE_FX
 	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
 	{
-		if (value != nullptr && *length != 0)
-			value[variable->name.copy(value, *length - 1)] = '\0';
+		if (value != nullptr)
+			*length = variable->name.copy(value, *length);
+		else
+			*length = variable->name.size();
+	}
+	else
+#endif
+		*length = 0;
+}
+void reshade::runtime::get_uniform_variable_effect_name([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] char *value, size_t *length) const
+{
+	if (length == nullptr)
+		return;
 
-		*length = variable->name.size();
+#if RESHADE_FX
+	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
+	{
+		const std::string effect_name = _effects[variable->effect_index].source_file.filename().u8string();
+
+		if (value != nullptr)
+			*length = effect_name.copy(value, *length);
+		else
+			*length = effect_name.size();
 	}
 	else
 #endif
@@ -266,10 +301,10 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 
 			if (length != nullptr)
 			{
-				if (value != nullptr && *length != 0)
-					value[annotation.copy(value, *length - 1)] = '\0';
-
-				*length = annotation.size();
+				if (value != nullptr)
+					*length = annotation.copy(value, *length);
+				else
+					*length = annotation.size();
 			}
 
 			return true;
@@ -463,10 +498,29 @@ void reshade::runtime::get_texture_variable_name([[maybe_unused]] api::effect_te
 #if RESHADE_FX
 	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
 	{
-		if (value != nullptr && *length != 0)
-			value[variable->name.copy(value, *length - 1)] = '\0';
+		if (value != nullptr)
+			*length = variable->name.copy(value, *length);
+		else
+			*length = variable->name.size();
+	}
+	else
+#endif
+		*length = 0;
+}
+void reshade::runtime::get_texture_variable_effect_name([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] char *value, size_t *length) const
+{
+	if (length == nullptr)
+		return;
 
-		*length = variable->name.size();
+#if RESHADE_FX
+	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
+	{
+		const std::string effect_name = _effects[variable->effect_index].source_file.filename().u8string();
+
+		if (value != nullptr)
+			*length = effect_name.copy(value, *length);
+		else
+			*length = effect_name.size();
 	}
 	else
 #endif
@@ -567,10 +621,10 @@ bool reshade::runtime::get_annotation_string_from_texture_variable([[maybe_unuse
 
 			if (length != nullptr)
 			{
-				if (value != nullptr && *length != 0)
-					value[annotation.copy(value, *length - 1)] = '\0';
-
-				*length = annotation.size();
+				if (value != nullptr)
+					*length = annotation.copy(value, *length);
+				else
+					*length = annotation.size();
 			}
 
 			return true;
@@ -736,10 +790,29 @@ void reshade::runtime::get_technique_name([[maybe_unused]] api::effect_technique
 #if RESHADE_FX
 	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
 	{
-		if (value != nullptr && *length != 0)
-			value[tech->name.copy(value, *length - 1)] = '\0';
+		if (value != nullptr)
+			*length = tech->name.copy(value, *length);
+		else
+			*length = tech->name.size();
+	}
+	else
+#endif
+		*length = 0;
+}
+void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] char *value, size_t *length) const
+{
+	if (length == nullptr)
+		return;
 
-		*length = tech->name.size();
+#if RESHADE_FX
+	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
+	{
+		const std::string effect_name = _effects[tech->effect_index].source_file.filename().u8string();
+
+		if (value != nullptr)
+			*length = effect_name.copy(value, *length);
+		else
+			*length = effect_name.size();
 	}
 	else
 #endif
@@ -840,10 +913,10 @@ bool reshade::runtime::get_annotation_string_from_technique([[maybe_unused]] api
 
 			if (length != nullptr)
 			{
-				if (value != nullptr && *length != 0)
-					value[annotation.copy(value, *length - 1)] = '\0';
-
-				*length = annotation.size();
+				if (value != nullptr)
+					*length = annotation.copy(value, *length);
+				else
+					*length = annotation.size();
 			}
 
 			return true;
@@ -978,10 +1051,10 @@ bool reshade::runtime::get_preprocessor_definition([[maybe_unused]] const char *
 	{
 		if (length != nullptr)
 		{
-			if (value != nullptr && *length != 0)
-				value[definition_it->second.copy(value, *length - 1)] = '\0';
-
-			*length = definition_it->second.size();
+			if (value != nullptr)
+				*length = definition_it->second.copy(value, *length);
+			else
+				*length = definition_it->second.size();
 		}
 
 		return true;
@@ -1096,10 +1169,10 @@ void reshade::runtime::get_current_preset_path([[maybe_unused]] char *path, size
 #if RESHADE_FX
 	const std::string path_string = _current_preset_path.u8string();
 
-	if (path != nullptr && *length != 0)
-		path[path_string.copy(path, *length - 1)] = '\0';
-
-	*length = path_string.size();
+	if (path != nullptr)
+		*length = path_string.copy(path, *length);
+	else
+		*length = path_string.size();
 #else
 	*length = 0;
 #endif
@@ -1172,78 +1245,3 @@ void reshade::runtime::reorder_techniques([[maybe_unused]] size_t count, [[maybe
 #endif
 }
 
-void reshade::runtime::block_input_next_frame()
-{
-#if RESHADE_GUI
-	_block_input_next_frame = true;
-#endif
-}
-
-uint32_t reshade::runtime::last_key_pressed() const
-{
-	return _input != nullptr ? _input->last_key_pressed() : 0u;
-}
-uint32_t reshade::runtime::last_key_released() const
-{
-	return _input != nullptr ? _input->last_key_released() : 0u;
-}
-
-void reshade::runtime::get_uniform_variable_effect_name([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] char *value, size_t *length) const
-{
-	if (length == nullptr)
-		return;
-
-#if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
-	{
-		const std::string effect_name = _effects[variable->effect_index].source_file.filename().u8string();
-
-		if (value != nullptr && *length != 0)
-			value[effect_name.copy(value, *length - 1)] = '\0';
-
-		*length = effect_name.size();
-	}
-	else
-#endif
-		*length = 0;
-}
-
-void reshade::runtime::get_texture_variable_effect_name([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] char *value, size_t *length) const
-{
-	if (length == nullptr)
-		return;
-
-#if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
-	{
-		const std::string effect_name = _effects[variable->effect_index].source_file.filename().u8string();
-
-		if (value != nullptr && *length != 0)
-			value[effect_name.copy(value, *length - 1)] = '\0';
-
-		*length = effect_name.size();
-	}
-	else
-#endif
-		*length = 0;
-}
-
-void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] char *value, size_t *length) const
-{
-	if (length == nullptr)
-		return;
-
-#if RESHADE_FX
-	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
-	{
-		const std::string effect_name = _effects[tech->effect_index].source_file.filename().u8string();
-
-		if (value != nullptr && *length != 0)
-			value[effect_name.copy(value, *length - 1)] = '\0';
-
-		*length = effect_name.size();
-	}
-	else
-#endif
-		*length = 0;
-}

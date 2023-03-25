@@ -57,6 +57,9 @@ namespace reshade
 		}
 	}
 
+	/// <summary>
+	/// Available log severity levels.
+	/// </summary>
 	enum class log_level
 	{
 		error = 1,
@@ -90,8 +93,9 @@ namespace reshade
 	}
 	template <size_t SIZE>
 	inline  void get_reshade_base_path(char(&path)[SIZE]) {
-		size_t length = SIZE;
+		size_t length = SIZE - 1;
 		get_reshade_base_path(path, &length);
+		path[length] = '\0';
 	}
 
 	/// <summary>
@@ -112,7 +116,7 @@ namespace reshade
 	template <typename T>
 	inline bool config_get_value(api::effect_runtime *runtime, const char *section, const char *key, T &value)
 	{
-		char value_string[32] = ""; size_t value_length = sizeof(value_string) - 1;
+		char value_string[32]; size_t value_length = sizeof(value_string) - 1;
 		if (!config_get_value(runtime, section, key, value_string, &value_length))
 			return false;
 		return std::from_chars(value_string, value_string + value_length, value).ec == std::errc {};

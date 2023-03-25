@@ -90,7 +90,12 @@ namespace reshade
 		bool is_mouse_button_pressed(uint32_t button) const final;
 		bool is_mouse_button_released(uint32_t button) const final;
 
+		uint32_t last_key_pressed() const final;
+		uint32_t last_key_released() const final;
+
 		void get_mouse_cursor_position(uint32_t *out_x, uint32_t *out_y, int16_t *out_wheel_delta) const final;
+
+		void block_input_next_frame() final;
 
 		void enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data) final;
 
@@ -99,6 +104,7 @@ namespace reshade
 		void get_uniform_variable_type(api::effect_uniform_variable variable, api::format *out_base_type, uint32_t *out_rows, uint32_t *out_columns, uint32_t *out_array_length) const final;
 
 		void get_uniform_variable_name(api::effect_uniform_variable variable, char *name, size_t *length) const final;
+		void get_uniform_variable_effect_name(api::effect_uniform_variable variable, char *effect_name, size_t *length) const final;
 
 		bool get_annotation_bool_from_uniform_variable(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_uniform_variable(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
@@ -121,6 +127,7 @@ namespace reshade
 		api::effect_texture_variable find_texture_variable(const char *effect_name, const char *variable_name) const final;
 
 		void get_texture_variable_name(api::effect_texture_variable variable, char *name, size_t *length) const final;
+		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *length) const final;
 
 		bool get_annotation_bool_from_texture_variable(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_texture_variable(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
@@ -139,6 +146,7 @@ namespace reshade
 		api::effect_technique find_technique(const char *effect_name, const char *technique_name) final;
 
 		void get_technique_name(api::effect_technique technique, char *name, size_t *length) const final;
+		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
 
 		bool get_annotation_bool_from_technique(api::effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_technique(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const final;
@@ -161,15 +169,6 @@ namespace reshade
 		void set_current_preset_path(const char *path) final;
 
 		void reorder_techniques(size_t count, const api::effect_technique *techniques) final;
-
-		void block_input_next_frame() final;
-
-		uint32_t last_key_pressed() const final;
-		uint32_t last_key_released() const final;
-
-		void get_uniform_variable_effect_name(api::effect_uniform_variable variable, char *effect_name, size_t *length) const final;
-		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *length) const final;
-		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
 
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);

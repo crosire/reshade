@@ -156,8 +156,9 @@ namespace reshade::api
 		virtual void get_uniform_variable_name(effect_uniform_variable variable, char *name, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  void get_uniform_variable_name(effect_uniform_variable variable, char(&name)[SIZE]) const {
-			size_t length = SIZE;
+			size_t length = SIZE - 1;
 			get_uniform_variable_name(variable, name, &length);
+			name[length] = '\0';
 		}
 
 		/// <summary>
@@ -206,8 +207,11 @@ namespace reshade::api
 		virtual bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char *value, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char(&value)[SIZE]) const {
-			size_t length = SIZE;
-			return get_annotation_string_from_uniform_variable(variable, name, value, &length);
+			size_t length = SIZE - 1;
+			if (get_annotation_string_from_uniform_variable(variable, name, value, &length))
+				return value[length] = '\0', true;
+			else
+				return false;
 		}
 
 		/// <summary>
@@ -374,8 +378,9 @@ namespace reshade::api
 		virtual void get_texture_variable_name(effect_texture_variable variable, char *name, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  void get_texture_variable_name(effect_texture_variable variable, char(&name)[SIZE]) const {
-			size_t length = SIZE;
+			size_t length = SIZE - 1;
 			get_texture_variable_name(variable, name, &length);
+			name[length] = '\0';
 		}
 
 		/// <summary>
@@ -424,8 +429,11 @@ namespace reshade::api
 		virtual bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char *value, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char(&value)[SIZE]) const {
-			size_t length = SIZE;
-			return get_annotation_string_from_texture_variable(variable, name, value, &length);
+			size_t length = SIZE - 1;
+			if (get_annotation_string_from_texture_variable(variable, name, value, &length))
+				return value[length] = '\0', true;
+			else
+				return false;
 		}
 
 		/// <summary>
@@ -490,8 +498,9 @@ namespace reshade::api
 		virtual void get_technique_name(effect_technique technique, char *name, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  void get_technique_name(effect_technique technique, char(&name)[SIZE]) const {
-			size_t length = SIZE;
+			size_t length = SIZE - 1;
 			get_technique_name(technique, name, &length);
+			name[length] = '\0';
 		}
 
 		/// <summary>
@@ -540,8 +549,11 @@ namespace reshade::api
 		virtual bool get_annotation_string_from_technique(effect_technique technique, const char *name, char *value, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  bool get_annotation_string_from_technique(effect_technique technique, const char *name, char(&value)[SIZE]) const {
-			size_t length = SIZE;
-			return get_annotation_string_from_technique(technique, name, value, &length);
+			size_t length = SIZE - 1;
+			if (get_annotation_string_from_technique(technique, name, value, &length))
+				return value[length] = '\0', true;
+			else
+				return false;
 		}
 
 		/// <summary>
@@ -565,8 +577,11 @@ namespace reshade::api
 		virtual bool get_preprocessor_definition(const char *name, char *value, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  bool get_preprocessor_definition(const char *name, char(&value)[SIZE]) const {
-			size_t length = SIZE;
-			return get_preprocessor_definition(name, value, &length);
+			size_t length = SIZE - 1;
+			if (get_preprocessor_definition(name, value, &length))
+				return value[length] = '\0', true;
+			else
+				return false;
 		}
 		/// <summary>
 		/// Defines a preprocessor definition to the specified <paramref name="value"/>.
@@ -607,8 +622,9 @@ namespace reshade::api
 		virtual void get_current_preset_path(char *path, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  void get_current_preset_path(char(&path)[SIZE]) const {
-			size_t length = SIZE;
+			size_t length = SIZE - 1;
 			get_current_preset_path(path, &length);
+			path[length] = '\0';
 		}
 		/// <summary>
 		/// Saves the currently active preset and then switches to the specified new preset.
@@ -647,8 +663,9 @@ namespace reshade::api
 		virtual void get_uniform_variable_effect_name(effect_uniform_variable variable, char *effect_name, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  void get_uniform_variable_effect_name(effect_uniform_variable variable, char(&effect_name)[SIZE]) const {
-			size_t length = SIZE;
+			size_t length = SIZE - 1;
 			get_uniform_variable_effect_name(variable, effect_name, &length);
+			effect_name[length] = '\0';
 		}
 
 		/// <summary>
@@ -660,8 +677,9 @@ namespace reshade::api
 		virtual void get_texture_variable_effect_name(effect_texture_variable variable, char *effect_name, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  void get_texture_variable_effect_name(effect_texture_variable variable, char(&effect_name)[SIZE]) const {
-			size_t length = SIZE;
+			size_t length = SIZE - 1;
 			get_texture_variable_effect_name(variable, effect_name, &length);
+			effect_name[length] = '\0';
 		}
 
 		/// <summary>
@@ -673,8 +691,9 @@ namespace reshade::api
 		virtual void get_technique_effect_name(effect_technique technique, char *effect_name, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  void get_technique_effect_name(effect_technique technique, char(&effect_name)[SIZE]) const {
-			size_t length = SIZE;
+			size_t length = SIZE - 1;
 			get_technique_effect_name(technique, effect_name, &length);
+			effect_name[length] = '\0';
 		}
 
 		/// <summary>
@@ -692,8 +711,11 @@ namespace reshade::api
 		virtual bool get_preprocessor_definition(const char *effect_name, const char *name, char *value, size_t *length) const = 0;
 		template <size_t SIZE>
 		inline  bool get_preprocessor_definition(const char *effect_name, const char *name, char(&value)[SIZE]) const {
-			size_t length = SIZE;
-			return get_preprocessor_definition(effect_name, name, value, &length);
+			size_t length = SIZE - 1;
+			if (get_preprocessor_definition(effect_name, name, value, &length))
+				return value[length] = '\0', true;
+			else
+				return false;
 		}
 		/// <summary>
 		/// Defines a preprocessor definition for the specified effect to the specified <paramref name="value"/>.

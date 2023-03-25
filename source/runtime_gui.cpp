@@ -1765,8 +1765,8 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= imgui::directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
-		char name[260] = "";
-		_screenshot_name.copy(name, sizeof(name) - 1);
+		char name[260];
+		name[_screenshot_name.copy(name, sizeof(name) - 1)] = '\0';
 		if (ImGui::InputText("Screenshot name", name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, filter_name))
 		{
 			modified = true;
@@ -1820,8 +1820,8 @@ void reshade::runtime::draw_gui_settings()
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Executable that is called after saving a screenshot.\nThis can be used to perform additional processing on the image (e.g. compressing it with an image optimizer).");
 
-		char arguments[260] = "";
-		_screenshot_post_save_command_arguments.copy(arguments, sizeof(arguments) - 1);
+		char arguments[260];
+		arguments[_screenshot_post_save_command_arguments.copy(arguments, sizeof(arguments) - 1)] = '\0';
 		if (ImGui::InputText("Post-save command arguments", arguments, sizeof(arguments)))
 		{
 			modified = true;
@@ -2799,10 +2799,10 @@ void reshade::runtime::draw_variable_editor()
 				{
 					for (auto it = type.definitions.begin(); it != type.definitions.end();)
 					{
-						char name[128] = "";
-						it->first.copy(name, sizeof(name) - 1);
-						char value[256] = "";
-						it->second.copy(value, sizeof(value) - 1);
+						char name[128];
+						name[it->first.copy(name, sizeof(name) - 1)] = '\0';
+						char value[256];
+						value[it->second.copy(value, sizeof(value) - 1)] = '\0';
 
 						ImGui::PushID(static_cast<int>(std::distance(type.definitions.begin(), it)));
 
@@ -3199,9 +3199,11 @@ void reshade::runtime::draw_variable_editor()
 					std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
 					std::vector<std::pair<std::string, std::string>>::iterator definition_it;
 
-					char value[256] = "";
+					char value[256];
 					if (get_preprocessor_definition(effect_name, definition.first, definition_scope, definition_it))
-						definition_it->second.copy(value, sizeof(value) - 1);
+						value[definition_it->second.copy(value, sizeof(value) - 1)] = '\0';
+					else
+						value[0] = '\0';
 
 					if (ImGui::InputTextWithHint(definition.first.c_str(), definition.second.c_str(), value, sizeof(value), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
 					{

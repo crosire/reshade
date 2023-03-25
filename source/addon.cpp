@@ -30,34 +30,45 @@ extern "C" __declspec(dllexport) void ReShadeGetBasePath(void *, char *path, siz
 
 	const std::string path_string = g_reshade_base_path.u8string();
 
-	if (path != nullptr && *length != 0)
-		path[path_string.copy(path, *length - 1)] = '\0';
-
-	*length = path_string.size();
+	if (path != nullptr)
+		*length = path_string.copy(path, *length);
+	else
+		*length = path_string.size();
 }
 
 extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)
 {
-	if (key == nullptr || length == nullptr)
+	if (length == nullptr)
 		return false;
 
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
+	const std::string section_string = section != nullptr ? section : std::string();
+	const std::string key_string = key != nullptr ? key : std::string();
 	std::string value_string;
-	if (!config.get(section, key, value_string))
+
+	if (!config.get(section_string, key_string, value_string))
+	{
+		*length = 0;
 		return false;
+	}
 
-	if (value != nullptr && *length != 0)
-		value[value_string.copy(value, *length - 1)] = '\0';
+	if (value != nullptr)
+		*length = value_string.copy(value, *length);
+	else
+		*length = value_string.size();
 
-	*length = value_string.size();
 	return true;
 }
 extern "C" __declspec(dllexport) void ReShadeSetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
-	config.set(section, key != nullptr ? key : std::string(), value != nullptr ? value : std::string());
+	const std::string section_string = section != nullptr ? section : std::string();
+	const std::string key_string = key != nullptr ? key : std::string();
+	const std::string value_string = value != nullptr ? value : std::string();
+
+	config.set(section_string, key_string, value_string);
 }
 
 #if RESHADE_GUI
