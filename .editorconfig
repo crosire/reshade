@@ -1,5 +1,8 @@
 root = true
 
+[*]
+spelling_languages = en-us
+
 [*.{c,cpp,h,hpp,inl,cs,glsl,hlsl}]
 indent_size = 4
 indent_style = tab
@@ -49,7 +52,7 @@ cpp_space_after_cast_close_parenthesis = false
 cpp_space_within_expression_parentheses = false
 cpp_space_before_block_open_brace = true
 cpp_space_between_empty_braces = false
-cpp_space_before_initializer_list_open_brace = false
+cpp_space_before_initializer_list_open_brace = true
 cpp_space_within_initializer_list_braces = true
 cpp_space_preserve_in_initializer_list = true
 cpp_space_before_open_square_bracket = false

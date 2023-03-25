@@ -1510,7 +1510,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				if (definition.first.size() < 8 ||
 					definition.first[0] == '_' ||
-					definition.first.compare(0, 7, "BUFFER_" ) == 0 ||
+					definition.first.compare(0, 7, "BUFFER_") == 0 ||
 					definition.first.compare(0, 8, "RESHADE_") == 0 ||
 					definition.first.find("INCLUDE_") != std::string::npos)
 					continue;

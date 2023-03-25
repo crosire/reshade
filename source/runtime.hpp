@@ -22,7 +22,6 @@ class ini_file;
 
 namespace reshade
 {
-	// Forward declarations to avoid excessive #include
 	struct effect;
 	struct uniform;
 	struct texture;
@@ -35,7 +34,7 @@ namespace reshade
 	{
 	public:
 		/// <summary>
-		/// Gets the handle of the window this swap chain was created with.
+		/// Gets the handle of the window the swap chain associated with this effect runtime was created with.
 		/// </summary>
 		void *get_hwnd() const override;
 
@@ -81,7 +80,7 @@ namespace reshade
 		void save_screenshot(const std::string_view &postfix = std::string_view());
 		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels); }
 
-		void get_screenshot_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
+		void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const final { *out_width = _width; *out_height = _height; }
 
 		bool is_key_down(uint32_t keycode) const final;
 		bool is_key_pressed(uint32_t keycode) const final;
