@@ -25,7 +25,7 @@ A quick overview of what some of the source code files contain:
 |[dll_main.cpp](source/dll_main.cpp)                                   |Main entry point (and optional test application)                       |
 |[dll_resources.cpp](source/dll_resources.cpp)                         |Access to DLL resource data (e.g. built-in shaders)                    |
 |[effect_lexer.cpp](source/effect_lexer.cpp)                           |Lexical analyzer for C-like languages                                  |
-|[effect_parser.cpp](source/effect_parser.cpp)                         |Parser for the ReShade FX shader language                              |
+|[effect_parser_stmt.cpp](source/effect_parser_stmt.cpp)               |Parser for the ReShade FX shader language                              |
 |[effect_preprocessor.cpp](source/effect_preprocessor.cpp)             |C-like preprocessor implementation                                     |
 |[hook.cpp](source/hook.cpp)                                           |Wrapper around MinHook which tracks associated function pointers       |
 |[hook_manager.cpp](source/hook_manager.cpp)                           |Automatic hook installation based on DLL exports                       |
