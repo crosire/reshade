@@ -27,20 +27,18 @@ namespace ReShade.Setup
 {
 	public partial class MainWindow
 	{
-		bool isHeadless = false;
-		bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
-		bool isFinished = false;
+		readonly bool isHeadless = false;
+		readonly bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
 
 		IniFile packagesIni;
 		IniFile compatibilityIni;
 
-		StatusPage status = new StatusPage();
-		SelectAppPage appPage = new SelectAppPage();
+		readonly StatusPage status = new StatusPage();
+		readonly SelectAppPage appPage = new SelectAppPage();
 
 		Api targetApi = Api.Unknown;
+		InstallOperation operation = InstallOperation.Default;
 		bool is64Bit;
-		bool isUpdate;
-		bool isUninstall;
 		string targetPath;
 		string targetName;
 		string configPath;
@@ -106,6 +104,7 @@ namespace ReShade.Setup
 					if (args[i] == "--api")
 					{
 						string api = args[++i];
+
 						if (api == "d3d9")
 						{
 							targetApi = Api.D3D9;
@@ -151,17 +150,22 @@ namespace ReShade.Setup
 					if (args[i] == "--state")
 					{
 						string state = args[++i];
+
 						if (state == "finished")
 						{
-							isFinished = true;
+							operation = InstallOperation.Finished;
 						}
 						else if (state == "update")
 						{
-							isUpdate = true;
+							operation = InstallOperation.Update;
+						}
+						else if (state == "updateall")
+						{
+							operation = InstallOperation.UpdateEffects;
 						}
 						else if (state == "uninstall")
 						{
-							isUninstall = true;
+							operation = InstallOperation.Uninstall;
 						}
 					}
 				}
@@ -175,7 +179,7 @@ namespace ReShade.Setup
 
 			if (targetPath != null)
 			{
-				if (isFinished)
+				if (operation == InstallOperation.Finished)
 				{
 					InstallStep_Finish();
 				}
@@ -359,9 +363,7 @@ namespace ReShade.Setup
 
 		void ResetStatus()
 		{
-			isFinished = false;
-			isUpdate = false;
-			isUninstall = false;
+			operation = InstallOperation.Default;
 
 			targetApi = Api.Unknown;
 			targetPath = targetName = configPath = modulePath = presetPath = tempPath = tempPathEffects = tempPathTextures = targetPathEffects = targetPathTextures = downloadPath = null;
@@ -399,7 +401,7 @@ namespace ReShade.Setup
 		}
 		void UpdateStatusAndFinish(bool success, string message)
 		{
-			isFinished = true;
+			operation = InstallOperation.Finished;
 
 			Dispatcher.Invoke(() =>
 			{
@@ -454,17 +456,20 @@ namespace ReShade.Setup
 					break;
 			}
 
-			if (isFinished)
+			switch (operation)
 			{
-				startInfo.Arguments += " --state finished";
-			}
-			else if (isUpdate)
-			{
-				startInfo.Arguments += " --state update";
-			}
-			else if (isUninstall)
-			{
-				startInfo.Arguments += " --state uninstall";
+				case InstallOperation.Finished:
+					startInfo.Arguments += " --state finished";
+					break;
+				case InstallOperation.Update:
+					startInfo.Arguments += " --state update";
+					break;
+				case InstallOperation.UpdateEffects:
+					startInfo.Arguments += " --state updateall";
+					break;
+				case InstallOperation.Uninstall:
+					startInfo.Arguments += " --state uninstall";
+					break;
 			}
 
 			try
@@ -719,7 +724,7 @@ namespace ReShade.Setup
 
 			configPath = Path.Combine(basePath, "ReShade.ini");
 
-			if (isUninstall)
+			if (operation == InstallOperation.Uninstall)
 			{
 				UninstallStep_UninstallReShadeModule();
 				return;
@@ -732,7 +737,7 @@ namespace ReShade.Setup
 				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
 				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
-				if (!isUpdate && File.Exists(configPath))
+				if (operation != InstallOperation.Update && operation != InstallOperation.UpdateEffects && File.Exists(configPath))
 				{
 					if (isHeadless)
 					{
@@ -785,7 +790,7 @@ namespace ReShade.Setup
 					configPath = configPathAlt;
 				}
 
-				if (!isUpdate && ModuleExists(modulePath, out isReShade))
+				if (operation != InstallOperation.Update && operation != InstallOperation.UpdateEffects && ModuleExists(modulePath, out isReShade))
 				{
 					if (isReShade)
 					{
@@ -814,7 +819,7 @@ namespace ReShade.Setup
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				if (!isUpdate && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
+				if (operation != InstallOperation.Update && operation != InstallOperation.UpdateEffects && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
 				{
 					if (isHeadless)
 					{
@@ -1039,7 +1044,7 @@ namespace ReShade.Setup
 				catch (Exception ex)
 				{
 					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ":\n" + ex.Message +
-							(isUpdate ? "\n\nMake sure the target application is not still running!" : string.Empty));
+							(operation != InstallOperation.Default ? "\n\nMake sure the target application is not still running!" : string.Empty));
 					return;
 				}
 
@@ -1285,7 +1290,7 @@ In that event here are some steps you can try to resolve this:
 			MakeWritable(Path.Combine(basePath, "ReShade.log"));
 			MakeWritable(Path.Combine(basePath, "ReShadePreset.ini"));
 
-			if (!isHeadless)
+			if (!isHeadless && operation != InstallOperation.Update)
 			{
 				// Only show the selection dialog if there are actually packages to choose
 				DownloadEffectPackagesIni();
@@ -1612,7 +1617,7 @@ In that event here are some steps you can try to resolve this:
 			catch (Exception ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to delete some ReShade files:\n" + ex.Message +
-					(isUninstall ? "\n\nMake sure the target application is not still running!" : string.Empty));
+					(operation != InstallOperation.Default ? "\n\nMake sure the target application is not still running!" : string.Empty));
 				return;
 			}
 
@@ -1631,7 +1636,7 @@ In that event here are some steps you can try to resolve this:
 
 		void OnNextButtonClick(object sender, RoutedEventArgs e)
 		{
-			if (isFinished)
+			if (operation == InstallOperation.Finished)
 			{
 				Close();
 				return;
@@ -1672,17 +1677,25 @@ In that event here are some steps you can try to resolve this:
 
 			if (CurrentPage.Content is SelectUninstallPage uninstallPage)
 			{
-				if (uninstallPage.UpdateButton.IsChecked == true)
+				if (uninstallPage.UninstallButton.IsChecked == true)
 				{
-					isUpdate = true;
+					operation = InstallOperation.Uninstall;
 
-					RunTaskWithExceptionHandling(InstallStep_InstallReShadeModule);
+					RunTaskWithExceptionHandling(UninstallStep_UninstallReShadeModule);
 				}
 				else
 				{
-					isUninstall = true;
+					if (uninstallPage.UpdateButton.IsChecked == true)
+					{
+						operation = InstallOperation.Update;
 
-					RunTaskWithExceptionHandling(UninstallStep_UninstallReShadeModule);
+					}
+					if (uninstallPage.UpdateEffectsButton.IsChecked == true)
+					{
+						operation = InstallOperation.UpdateEffects;
+					}
+
+					RunTaskWithExceptionHandling(InstallStep_InstallReShadeModule);
 				}
 				return;
 			}
@@ -1753,7 +1766,7 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
-			if (isFinished)
+			if (operation == InstallOperation.Finished)
 			{
 				ResetStatus();
 				return;
@@ -1764,6 +1777,8 @@ In that event here are some steps you can try to resolve this:
 
 		void OnCurrentPageNavigated(object sender, NavigationEventArgs e)
 		{
+			bool isFinished = operation == InstallOperation.Finished;
+
 			NextButton.Content = isFinished ? "_Finish" : "_Next";
 			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPresetPage || e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : (e.Content is SelectAppPage) ? "_Close" : "_Cancel";
 

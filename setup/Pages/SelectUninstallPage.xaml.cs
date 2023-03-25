@@ -7,6 +7,15 @@ using System.Windows.Controls;
 
 namespace ReShade.Setup.Pages
 {
+	public enum InstallOperation
+	{
+		Default,
+		Update,
+		UpdateEffects,
+		Uninstall,
+		Finished
+	}
+
 	public partial class SelectUninstallPage : Page
 	{
 		public SelectUninstallPage()
