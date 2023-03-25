@@ -78,8 +78,11 @@ namespace ReShade.Setup
 				}
 			}
 
-			// Add support for TLS 1.2, so that HTTPS connection to GitHub succeeds
-			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+			// Add support for TLS 1.2 and 1.3, so that HTTPS connection to GitHub succeeds
+			if (ServicePointManager.SecurityProtocol != 0 /* Default */)
+			{
+				ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12 | (SecurityProtocolType)0x3000 /* Tls13 */;
+			}
 
 			var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
