@@ -23,22 +23,27 @@ extern "C" __declspec(dllexport) void ReShadeLogMessage(void *module, int level,
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
 }
 
-extern "C" __declspec(dllexport) void ReShadeGetBasePath(void *, char *path, size_t *length)
+extern "C" __declspec(dllexport) void ReShadeGetBasePath(void *, char *path, size_t *size)
 {
-	if (length == nullptr)
+	if (size == nullptr)
 		return;
 
 	const std::string path_string = g_reshade_base_path.u8string();
 
-	if (path != nullptr)
-		*length = path_string.copy(path, *length);
-	else
-		*length = path_string.size();
+	if (path == nullptr)
+	{
+		*size = path_string.size() + 1;
+	}
+	else if (*size != 0)
+	{
+		*size = path_string.copy(path, *size - 1);
+		path[*size++] = '\0';
+	}
 }
 
-extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)
+extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
 {
-	if (length == nullptr)
+	if (size == nullptr)
 		return false;
 
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
@@ -49,14 +54,19 @@ extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api
 
 	if (!config.get(section_string, key_string, value_string))
 	{
-		*length = 0;
+		*size = 0;
 		return false;
 	}
 
-	if (value != nullptr)
-		*length = value_string.copy(value, *length);
-	else
-		*length = value_string.size();
+	if (value == nullptr)
+	{
+		*size = value_string.size() + 1;
+	}
+	else if (*size != 0)
+	{
+		*size = value_string.copy(value, *size - 1);
+		value[*size++] = '\0';
+	}
 
 	return true;
 }

@@ -102,14 +102,14 @@ namespace reshade
 
 		void get_uniform_variable_type(api::effect_uniform_variable variable, api::format *out_base_type, uint32_t *out_rows, uint32_t *out_columns, uint32_t *out_array_length) const final;
 
-		void get_uniform_variable_name(api::effect_uniform_variable variable, char *name, size_t *length) const final;
-		void get_uniform_variable_effect_name(api::effect_uniform_variable variable, char *effect_name, size_t *length) const final;
+		void get_uniform_variable_name(api::effect_uniform_variable variable, char *name, size_t *name_size) const final;
+		void get_uniform_variable_effect_name(api::effect_uniform_variable variable, char *effect_name, size_t *effect_name_size) const final;
 
 		bool get_annotation_bool_from_uniform_variable(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_uniform_variable(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_int_from_uniform_variable(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_uint_from_uniform_variable(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		bool get_annotation_string_from_uniform_variable(api::effect_uniform_variable variable, const char *name, char *value, size_t *length) const final;
+		bool get_annotation_string_from_uniform_variable(api::effect_uniform_variable variable, const char *name, char *value, size_t *value_size) const final;
 
 		void get_uniform_value_bool(api::effect_uniform_variable variable, bool *values, size_t count, size_t array_index) const final;
 		void get_uniform_value_float(api::effect_uniform_variable variable, float *values, size_t count, size_t array_index) const final;
@@ -125,14 +125,14 @@ namespace reshade
 
 		api::effect_texture_variable find_texture_variable(const char *effect_name, const char *variable_name) const final;
 
-		void get_texture_variable_name(api::effect_texture_variable variable, char *name, size_t *length) const final;
-		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *length) const final;
+		void get_texture_variable_name(api::effect_texture_variable variable, char *name, size_t *name_size) const final;
+		void get_texture_variable_effect_name(api::effect_texture_variable variable, char *effect_name, size_t *effect_name_size) const final;
 
 		bool get_annotation_bool_from_texture_variable(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_texture_variable(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_int_from_texture_variable(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_uint_from_texture_variable(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		bool get_annotation_string_from_texture_variable(api::effect_texture_variable variable, const char *name, char *value, size_t *length) const final;
+		bool get_annotation_string_from_texture_variable(api::effect_texture_variable variable, const char *name, char *value, size_t *value_size) const final;
 
 		void update_texture(api::effect_texture_variable variable, const uint32_t width, const uint32_t height, const uint8_t *pixels) final;
 
@@ -144,27 +144,27 @@ namespace reshade
 
 		api::effect_technique find_technique(const char *effect_name, const char *technique_name) final;
 
-		void get_technique_name(api::effect_technique technique, char *name, size_t *length) const final;
-		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *length) const final;
+		void get_technique_name(api::effect_technique technique, char *name, size_t *name_size) const final;
+		void get_technique_effect_name(api::effect_technique technique, char *effect_name, size_t *effect_name_size) const final;
 
 		bool get_annotation_bool_from_technique(api::effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_float_from_technique(api::effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_int_from_technique(api::effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_uint_from_technique(api::effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
-		bool get_annotation_string_from_technique(api::effect_technique technique, const char *name, char *value, size_t *length) const final;
+		bool get_annotation_string_from_technique(api::effect_technique technique, const char *name, char *value, size_t *value_size) const final;
 
 		bool get_technique_state(api::effect_technique technique) const final;
 		void set_technique_state(api::effect_technique technique, bool enabled) final;
 
-		bool get_preprocessor_definition(const char *name, char *value, size_t *length) const final;
-		bool get_preprocessor_definition(const char *effect_name, const char *name, char *value, size_t *length) const final;
+		bool get_preprocessor_definition(const char *name, char *value, size_t *value_size) const final;
+		bool get_preprocessor_definition(const char *effect_name, const char *name, char *value, size_t *value_size) const final;
 		void set_preprocessor_definition(const char *name, const char *value) final;
 		void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) final;
 
 		bool get_effects_state() const final;
 		void set_effects_state(bool enabled) final;
 
-		void get_current_preset_path(char *path, size_t *length) const final;
+		void get_current_preset_path(char *path, size_t *path_size) const final;
 		void set_current_preset_path(const char *path) final;
 
 		void reorder_techniques(size_t count, const api::effect_technique *techniques) final;
