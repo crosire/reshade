@@ -1038,7 +1038,7 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 	const GLuint object = view.handle & 0xFFFFFFFF;
 
 	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
-		return make_resource_handle(GL_TEXTURE_2D, object);
+		return make_resource_handle(GL_TEXTURE_CUBE_MAP, object);
 
 	if (target != GL_TEXTURE_BUFFER)
 	{
@@ -1148,13 +1148,10 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 		if (index == 0)
 		{
 			if (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT)
-			{
 				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-			}
+
 			if (_device_impl->_default_depth_format != api::format::unknown)
-			{
 				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-			}
 		}
 
 		return { 0 };
@@ -1225,9 +1222,12 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 		{
 			gl.GetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
 
-			if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
+			if (target == GL_TEXTURE)
 			{
-				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+				if (gl.GetTextureParameteriv != nullptr)
+					gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+				else
+					target = GL_TEXTURE_2D; // Assume this is a 2D texture attachment if it cannot be queried
 
 				GLint layered = GL_FALSE;
 				gl.GetFramebufferAttachmentParameteriv(GL_READ_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_LAYERED, &layered);
@@ -1244,11 +1244,14 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 			gl.BindFramebuffer(GL_READ_FRAMEBUFFER, prev_binding);
 	}
 
-	if (target == GL_NONE)
+	if (target != GL_NONE)
+		// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
+		return make_resource_view_handle(target, object);
+	else if (type == GL_DEPTH_STENCIL || type == (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT))
+		// Try and check the stencil attachment if there is no depth attachment
+		return get_framebuffer_attachment(fbo, GL_STENCIL, index);
+	else
 		return { 0 };
-
-	// TODO: Create view based on 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL' and 'GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER'
-	return make_resource_view_handle(target, object);
 }
 
 bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data)
@@ -1436,7 +1439,7 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 		gl.BindTexture(target, object);
 
 	GLenum level_target = target;
-	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+	if (depth == 1 && (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY))
 	{
 		const GLuint face = layer % 6;
 		layer /= 6;
@@ -1460,9 +1463,9 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 		case GL_TEXTURE_1D_ARRAY:
 			yoffset += layer;
 			break;
+		case GL_TEXTURE_2D_ARRAY:
 		case GL_TEXTURE_CUBE_MAP:
 		case GL_TEXTURE_CUBE_MAP_ARRAY:
-		case GL_TEXTURE_2D_ARRAY:
 			zoffset += layer;
 			break;
 		}
@@ -1515,6 +1518,7 @@ void reshade::opengl::device_impl::unmap_texture_region(api::resource resource, 
 void reshade::opengl::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource.handle != 0 && (resource.handle >> 40) == GL_BUFFER);
+	assert(data != nullptr);
 	assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 
 	const GLuint object = resource.handle & 0xFFFFFFFF;
@@ -1538,6 +1542,7 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource.handle != 0);
+	assert(data.data != nullptr);
 
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
@@ -1589,14 +1594,6 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	const GLuint level = subresource % desc.texture.levels;
 	      GLuint layer = subresource / desc.texture.levels;
 
-	GLenum level_target = target;
-	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
-	{
-		const GLuint face = layer % 6;
-		layer /= 6;
-		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-	}
-
 	GLuint xoffset, yoffset, zoffset, width, height, depth;
 	if (box != nullptr)
 	{
@@ -1613,6 +1610,14 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		width   = std::max(1u, desc.texture.width >> level);
 		height  = std::max(1u, desc.texture.height >> level);
 		depth   = (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> level) : 1u);
+	}
+
+	GLenum level_target = target;
+	if (depth == 1 && (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY))
+	{
+		const GLuint face = layer % 6;
+		layer /= 6;
+		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 	}
 
 	GLenum type, format = convert_upload_format(desc.texture.format, type);
@@ -1663,6 +1668,8 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 			gl.CompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), pixels);
 		break;
 	case GL_TEXTURE_2D_ARRAY:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
 		zoffset += layer;
 		[[fallthrough]];
 	case GL_TEXTURE_3D:
@@ -1745,9 +1752,6 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	api::depth_stencil_desc depth_stencil_desc = {};
 	api::primitive_topology topology = api::primitive_topology::triangle_list;
 	uint32_t sample_mask = UINT32_MAX;
-
-	GLint status = GL_FALSE;
-	const auto impl = new pipeline_impl();
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -1843,6 +1847,8 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		}
 	}
 
+	pipeline_impl *const impl = new pipeline_impl();
+
 	impl->program = gl.CreateProgram();
 
 	for (const GLuint shader : shaders)
@@ -1860,6 +1866,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 
 	shaders.clear();
 
+	GLint status = GL_FALSE;
 	gl.GetProgramiv(impl->program, GL_LINK_STATUS, &status);
 
 	if (GL_FALSE == status)
@@ -1948,11 +1955,8 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 
 exit_failure:
 	for (const GLuint shader : shaders)
-	{
 		gl.DeleteShader(shader);
-	}
 
-	delete impl;
 	*out_handle = { 0 };
 	return false;
 }
@@ -2107,15 +2111,16 @@ void reshade::opengl::device_impl::copy_descriptor_sets(uint32_t count, const ap
 	{
 		const api::descriptor_set_copy &copy = copies[i];
 
-		assert(copy.dest_array_offset == 0 && copy.source_array_offset == 0);
-
 		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copy.source_set.handle);
 		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copy.dest_set.handle);
-
 		assert(src_set_impl != nullptr && dst_set_impl != nullptr && src_set_impl->type == dst_set_impl->type);
 
 		const uint32_t dst_binding = copy.dest_binding - dst_set_impl->base_binding;
+		assert(dst_binding < dst_set_impl->count && copy.count <= (dst_set_impl->count - dst_binding));
 		const uint32_t src_binding = copy.source_binding - src_set_impl->base_binding;
+		assert(src_binding < src_set_impl->count && copy.count <= (src_set_impl->count - src_binding));
+
+		assert(copy.dest_array_offset == 0 && copy.source_array_offset == 0);
 
 		switch (src_set_impl->type)
 		{
@@ -2143,10 +2148,10 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const 
 		const api::descriptor_set_update &update = updates[i];
 
 		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(update.set.handle);
-
 		assert(set_impl != nullptr && set_impl->type == update.type);
 
 		const uint32_t update_binding = update.binding - set_impl->base_binding;
+		assert(update_binding < set_impl->count && update.count <= (set_impl->count - update_binding));
 
 		// In GLSL targeting OpenGL, if the binding qualifier is used with an array, the first element of the array takes the specified block binding and each subsequent element takes the next consecutive binding point
 		// See https://www.khronos.org/registry/OpenGL/specs/gl/GLSLangSpec.4.60.html#layout-qualifiers (chapter 4.4.6)

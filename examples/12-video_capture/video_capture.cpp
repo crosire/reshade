@@ -49,7 +49,7 @@ bool video_capture::init_codec_ctx(const reshade::api::resource_desc &buffer_des
 
 	if (codec == nullptr)
 	{
-		reshade::log_message(1, "Failed to find a H.264 encoder that passes requirements!");
+		reshade::log_message(reshade::log_level::error, "Failed to find a H.264 encoder that passes requirements!");
 		return false;
 	}
 
@@ -79,7 +79,7 @@ bool video_capture::init_codec_ctx(const reshade::api::resource_desc &buffer_des
 		break;
 	default:
 		destroy_codec_ctx();
-		reshade::log_message(1, "Unsupported texture format!");
+		reshade::log_message(reshade::log_level::error, "Unsupported texture format!");
 		return false;
 	}
 
@@ -89,7 +89,7 @@ bool video_capture::init_codec_ctx(const reshade::api::resource_desc &buffer_des
 
 		char errbuf[32 + AV_ERROR_MAX_STRING_SIZE] = "Failed to initialize encoder: ";
 		av_make_error_string(errbuf + strlen(errbuf), sizeof(errbuf) - strlen(errbuf), err);
-		reshade::log_message(1, errbuf);
+		reshade::log_message(reshade::log_level::error, errbuf);
 		return false;
 	}
 
@@ -112,7 +112,7 @@ bool video_capture::init_codec_ctx(const reshade::api::resource_desc &buffer_des
 
 		char errbuf[32 + AV_ERROR_MAX_STRING_SIZE] = "Failed to get frame buffer: ";
 		av_make_error_string(errbuf + strlen(errbuf), sizeof(errbuf) - strlen(errbuf), err);
-		reshade::log_message(1, errbuf);
+		reshade::log_message(reshade::log_level::error, errbuf);
 		return false;
 	}
 
@@ -139,7 +139,7 @@ bool video_capture::init_format_ctx(const char *filename)
 	{
 		char errbuf[32 + AV_ERROR_MAX_STRING_SIZE] = "Failed to initialize ffmpeg output context: ";
 		av_make_error_string(errbuf + strlen(errbuf), sizeof(errbuf) - strlen(errbuf), err);
-		reshade::log_message(1, errbuf);
+		reshade::log_message(reshade::log_level::error, errbuf);
 		return false;
 	}
 
@@ -148,7 +148,7 @@ bool video_capture::init_format_ctx(const char *filename)
 		avformat_free_context(output_ctx);
 		output_ctx = nullptr;
 
-		reshade::log_message(1, "Failed to open output file!");
+		reshade::log_message(reshade::log_level::error, "Failed to open output file!");
 		return false;
 	}
 
@@ -180,7 +180,7 @@ static void encode_frame(AVCodecContext *enc, AVFormatContext *s, AVFrame *frame
 	{
 		char errbuf[32 + AV_ERROR_MAX_STRING_SIZE] = "Failed to send frame for encoding: ";
 		av_make_error_string(errbuf + strlen(errbuf), sizeof(errbuf) - strlen(errbuf), err);
-		reshade::log_message(1, errbuf);
+		reshade::log_message(reshade::log_level::error, errbuf);
 		return;
 	}
 
@@ -227,7 +227,7 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 	{
 		if (data.output_ctx != nullptr)
 		{
-			reshade::log_message(3, "Stopping video recording ...");
+			reshade::log_message(reshade::log_level::info, "Stopping video recording ...");
 
 			runtime->get_command_queue()->wait_idle();
 
@@ -255,13 +255,13 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 
 			if (device->create_resource(desc, nullptr, reshade::api::resource_usage::copy_dest, &data.host_resource))
 			{
-				reshade::log_message(3, "Starting video recording ...");
+				reshade::log_message(reshade::log_level::info, "Starting video recording ...");
 
 				data.start_time = data.last_time = std::chrono::system_clock::now();
 			}
 			else
 			{
-				reshade::log_message(1, "Failed to create host resource!");
+				reshade::log_message(reshade::log_level::error, "Failed to create host resource!");
 
 				data.destroy_format_ctx(); data.destroy_codec_ctx();
 				return;
@@ -324,20 +324,18 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 extern "C" __declspec(dllexport) const char *NAME = "Video Capture";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that captures the screen after effects were rendered and uses FFmpeg to create a video file from that.";
 
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
+extern "C" __declspec(dllexport) bool AddonInit(HMODULE addon_module, HMODULE reshade_module)
 {
-	switch (fdwReason)
-	{
-	case DLL_PROCESS_ATTACH:
-		if (!reshade::register_addon(hinstDLL))
-			return FALSE;
-		reshade::register_event<reshade::addon_event::init_swapchain>(on_init);
-		reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy);
-		reshade::register_event<reshade::addon_event::reshade_finish_effects>(on_reshade_finish_effects);
-		break;
-	case DLL_PROCESS_DETACH:
-		reshade::unregister_addon(hinstDLL);
-		break;
-	}
-	return TRUE;
+	if (!reshade::register_addon(addon_module, reshade_module))
+		return false;
+
+	reshade::register_event<reshade::addon_event::init_swapchain>(on_init);
+	reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy);
+	reshade::register_event<reshade::addon_event::reshade_finish_effects>(on_reshade_finish_effects);
+
+	return true;
+}
+extern "C" __declspec(dllexport) void AddonUninit(HMODULE addon_module, HMODULE reshade_module)
+{
+	reshade::unregister_addon(addon_module, reshade_module);
 }

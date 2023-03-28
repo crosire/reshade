@@ -86,7 +86,7 @@ static bool freepie_io_read(uint32_t index, freepie_io_data *output)
 static void update_uniform_variables(reshade::api::effect_runtime *runtime, reshade::api::command_list *, reshade::api::resource_view, reshade::api::resource_view)
 {
 	runtime->enumerate_uniform_variables(nullptr, [](reshade::api::effect_runtime *runtime, reshade::api::effect_uniform_variable variable) {
-		char source[32] = "";
+		char source[32];
 		if (runtime->get_annotation_string_from_uniform_variable(variable, "source", source) &&
 			std::strcmp(source, "freepie") == 0)
 		{

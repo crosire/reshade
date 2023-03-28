@@ -144,8 +144,6 @@ void reshade::d3d11::device_context_impl::bind_render_targets_and_depth_stencil(
 
 void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
-	assert(pipeline.handle != 0);
-
 	if (pipeline.handle & 1)
 	{
 		// This is a pipeline handle created with 'device_impl::create_pipeline', which can only contain graphics stages
@@ -201,6 +199,31 @@ void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, c
 		case api::dynamic_state::primitive_topology:
 			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
+		case api::dynamic_state::blend_constant:
+		{
+			com_ptr<ID3D11BlendState> state;
+			const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
+			UINT sample_mask = D3D11_DEFAULT_SAMPLE_MASK;
+			_orig->OMGetBlendState(&state, nullptr, &sample_mask);
+			_orig->OMSetBlendState(state.get(), blend_constant, sample_mask);
+			break;
+		}
+		case api::dynamic_state::sample_mask:
+		{
+			com_ptr<ID3D11BlendState> state;
+			float blend_constant[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+			const UINT sample_mask = values[i];
+			_orig->OMGetBlendState(&state, blend_constant, nullptr);
+			_orig->OMSetBlendState(state.get(), blend_constant, sample_mask);
+			break;
+		}
+		case api::dynamic_state::stencil_reference_value:
+		{
+			com_ptr<ID3D11DepthStencilState> state;
+			_orig->OMGetDepthStencilState(&state, nullptr);
+			_orig->OMSetDepthStencilState(state.get(), values[i]);
+			break;
+		}
 		default:
 			assert(false);
 			break;
@@ -294,7 +317,7 @@ void reshade::d3d11::device_context_impl::bind_unordered_access_views(api::shade
 #endif
 
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
-		_orig->OMSetRenderTargetsAndUnorderedAccessViews(0, nullptr, nullptr, first, count, view_ptrs, nullptr);
+		_orig->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, first, count, view_ptrs, nullptr);
 	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
 		_orig->CSSetUnorderedAccessViews(first, count, view_ptrs, nullptr);
 }
@@ -433,19 +456,17 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 }
 void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.set.handle == 0);
+	assert(update.set.handle == 0 && update.array_offset == 0);
 
-	uint32_t first = 0;
+	uint32_t first = update.binding;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
 
-		first = range.dx_register_index;
+		assert(update.binding >= range.binding);
+		first -= range.binding;
+		first += range.dx_register_index;
 		stages &= range.visibility;
-	}
-	else
-	{
-		assert(update.binding == 0);
 	}
 
 	switch (update.type)
@@ -574,7 +595,7 @@ void reshade::d3d11::device_context_impl::copy_buffer_region(api::resource src, 
 	{
 		D3D11_BUFFER_DESC desc;
 		reinterpret_cast<ID3D11Buffer *>(src.handle)->GetDesc(&desc);
-		size  = desc.ByteWidth;
+		size = desc.ByteWidth;
 	}
 
 	assert(src_offset <= std::numeric_limits<UINT>::max() && dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());

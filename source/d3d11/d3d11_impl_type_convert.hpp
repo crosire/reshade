@@ -60,7 +60,7 @@ namespace reshade::d3d11
 
 	auto convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::color_space;
 
-	auto convert_access_flags(api::map_access access) -> D3D11_MAP;
+	auto convert_access_flags(api::map_access access, bool is_vertex_or_index_buffer) -> D3D11_MAP;
 	api::map_access convert_access_flags(D3D11_MAP map_type);
 
 	void convert_sampler_desc(const api::sampler_desc &desc, D3D11_SAMPLER_DESC &internal_desc);

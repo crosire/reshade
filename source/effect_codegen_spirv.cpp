@@ -257,65 +257,67 @@ private:
 
 		module = std::move(_module);
 
+		std::vector<spv::Id> spirv;
+
 		// Write SPIRV header info
-		module.spirv.push_back(spv::MagicNumber);
-		module.spirv.push_back(0x10300); // Force SPIR-V 1.3
-		module.spirv.push_back(0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
-		module.spirv.push_back(_next_id); // Maximum ID
-		module.spirv.push_back(0u); // Reserved for instruction schema
+		spirv.push_back(spv::MagicNumber);
+		spirv.push_back(0x10300); // Force SPIR-V 1.3
+		spirv.push_back(0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
+		spirv.push_back(_next_id); // Maximum ID
+		spirv.push_back(0u); // Reserved for instruction schema
 
 		// All capabilities
 		spirv_instruction(spv::OpCapability)
 			.add(spv::CapabilityShader) // Implicitly declares the Matrix capability too
-			.write(module.spirv);
+			.write(spirv);
 
 		for (spv::Capability capability : _capabilities)
 			spirv_instruction(spv::OpCapability)
 				.add(capability)
-				.write(module.spirv);
+				.write(spirv);
 
 		// Optional extension instructions
 		spirv_instruction(spv::OpExtInstImport, _glsl_ext)
 			.add_string("GLSL.std.450") // Import GLSL extension
-			.write(module.spirv);
+			.write(spirv);
 
 		// Single required memory model instruction
 		spirv_instruction(spv::OpMemoryModel)
 			.add(spv::AddressingModelLogical)
 			.add(spv::MemoryModelGLSL450)
-			.write(module.spirv);
+			.write(spirv);
 
 		// All entry point declarations
 		for (const auto &node : _entries.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 
 		// All execution mode declarations
 		for (const auto &node : _execution_modes.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 
 		spirv_instruction(spv::OpSource)
 			.add(spv::SourceLanguageUnknown) // ReShade FX is not a reserved token at the moment
 			.add(0) // Language version, TODO: Maybe fill in ReShade version here?
-			.write(module.spirv);
+			.write(spirv);
 
 		if (_debug_info)
 		{
 			// All debug instructions
 			for (const auto &node : _debug_a.instructions)
-				node.write(module.spirv);
+				node.write(spirv);
 			for (const auto &node : _debug_b.instructions)
-				node.write(module.spirv);
+				node.write(spirv);
 		}
 
 		// All annotation instructions
 		for (const auto &node : _annotations.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 
 		// All type declarations
 		for (const auto &node : _types_and_constants.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 		for (const auto &node : _variables.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 
 		// All function definitions
 		for (const auto &function : _functions_blocks)
@@ -324,17 +326,19 @@ private:
 				continue;
 
 			for (const auto &node : function.declaration.instructions)
-				node.write(module.spirv);
+				node.write(spirv);
 
 			// Grab first label and move it in front of variable declarations
-			function.definition.instructions.front().write(module.spirv);
+			function.definition.instructions.front().write(spirv);
 			assert(function.definition.instructions.front().op == spv::OpLabel);
 
 			for (const auto &node : function.variables.instructions)
-				node.write(module.spirv);
+				node.write(spirv);
 			for (auto it = function.definition.instructions.begin() + 1; it != function.definition.instructions.end(); ++it)
-				it->write(module.spirv);
+				it->write(spirv);
 		}
+
+		module.code.assign(reinterpret_cast<const char *>(spirv.data()), reinterpret_cast<const char *>(spirv.data() + spirv.size()));
 	}
 
 	spv::Id convert_type(type info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, spv::ImageFormat format = spv::ImageFormatUnknown, uint32_t array_stride = 0)
@@ -548,13 +552,13 @@ private:
 		while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
 			digit_index--;
 		digit_index++;
+
 		const uint32_t base_index = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
 		const std::string base_semantic = semantic.substr(0, digit_index);
 
 		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
 		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
-		max_array_length += base_index;
-		for (uint32_t a = 0; a < max_array_length; ++a)
+		for (uint32_t a = 0; a < max_array_length + base_index; ++a)
 			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
 
 		return location + base_index;

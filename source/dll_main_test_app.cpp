@@ -128,6 +128,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	if (strstr(lpCmdLine, "-vulkan"))
 		api = reshade::api::device_api::vulkan;
 
+	const bool multisample = strstr(lpCmdLine, "-multisample") != nullptr;
+
 	switch (api)
 	{
 	#pragma region D3D9 Implementation
@@ -141,6 +143,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 		pp.hDeviceWindow = window_handle;
 		pp.Windowed = true;
+		pp.MultiSampleType = multisample ? D3DMULTISAMPLE_4_SAMPLES : D3DMULTISAMPLE_NONE;
 		pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
 		// Initialize Direct3D 9
@@ -190,7 +193,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		{   DXGI_SWAP_CHAIN_DESC desc = {};
 			desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			desc.SampleDesc = { 1, 0 };
+			desc.SampleDesc = { multisample ? 4u : 1u, 0u };
 			desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 			desc.BufferCount = 1;
 			desc.OutputWindow = window_handle;
@@ -426,7 +429,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		reshade::hooks::register_module(L"opengl32.dll");
 
 		// Initialize OpenGL
-		const HDC hdc = GetDC(window_handle);
+		const HWND temp_window_handle = CreateWindow(TEXT("STATIC"), nullptr, WS_POPUP, 0, 0, 0, 0, window_handle, nullptr, hInstance, nullptr);
+		if (temp_window_handle == nullptr)
+			return 0;
+
+		const HDC hdc1 = GetDC(temp_window_handle);
+		const HDC hdc2 = GetDC(window_handle);
 
 		PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
 		pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
@@ -434,13 +442,35 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		pfd.cColorBits = 24;
 		pfd.cAlphaBits = 8;
 
-		SetPixelFormat(hdc, ChoosePixelFormat(hdc, &pfd), &pfd);
+		int pix_format = ChoosePixelFormat(hdc1, &pfd);
+		SetPixelFormat(hdc1, pix_format, &pfd);
 
-		const HGLRC hglrc1 = wglCreateContext(hdc);
+		const HGLRC hglrc1 = wglCreateContext(hdc1);
 		if (hglrc1 == nullptr)
 			return 0;
 
-		wglMakeCurrent(hdc, hglrc1);
+		wglMakeCurrent(hdc1, hglrc1);
+
+		const auto wglChoosePixelFormatARB = reinterpret_cast<BOOL(WINAPI *)(HDC, const int *, const FLOAT *, UINT, int *, UINT *)>(wglGetProcAddress("wglChoosePixelFormatARB"));
+		const auto wglCreateContextAttribsARB = reinterpret_cast<HGLRC(WINAPI *)(HDC, HGLRC, const int *)>(wglGetProcAddress("wglCreateContextAttribsARB"));
+
+		const int pix_attribs[] = {
+			0x2011 /* WGL_DOUBLE_BUFFER_ARB */, 1,
+			0x2001 /* WGL_DRAW_TO_WINDOW_ARB */, 1,
+			0x2010 /* WGL_SUPPORT_OPENGL_ARB */, 1,
+			0x2013 /* WGL_PIXEL_TYPE_ARB */, 0x202B /* WGL_TYPE_RGBA_ARB */,
+			0x2014 /* WGL_COLOR_BITS_ARB */, pfd.cColorBits,
+			0x201B /* WGL_ALPHA_BITS_ARB */, pfd.cAlphaBits,
+			0x2041 /* WGL_SAMPLE_BUFFERS_ARB */, multisample ? GL_TRUE : GL_FALSE,
+			0x2042 /* WGL_SAMPLES_ARB */, multisample ? 4 : 1,
+			0 // Terminate list
+		};
+
+		UINT num_formats = 0;
+		if (!wglChoosePixelFormatARB(hdc2, pix_attribs, nullptr, 1, &pix_format, &num_formats))
+			return 0;
+
+		SetPixelFormat(hdc2, pix_format, &pfd);
 
 		// Create an OpenGL 4.3 context
 		const int attribs[] = {
@@ -449,14 +479,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			0 // Terminate list
 		};
 
-		const HGLRC hglrc2 = reinterpret_cast<HGLRC(WINAPI*)(HDC, HGLRC, const int *)>(
-			wglGetProcAddress("wglCreateContextAttribsARB"))(hdc, nullptr, attribs);
+		const HGLRC hglrc2 = wglCreateContextAttribsARB(hdc2, nullptr, attribs);
 		if (hglrc2 == nullptr)
 			return 0;
 
 		wglMakeCurrent(nullptr, nullptr);
 		wglDeleteContext(hglrc1);
-		wglMakeCurrent(hdc, hglrc2);
+		DestroyWindow(temp_window_handle);
+
+		wglMakeCurrent(hdc2, hglrc2);
 
 		while (true)
 		{
@@ -476,9 +507,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			glClear(GL_COLOR_BUFFER_BIT);
 
 #if 1
-			wglSwapLayerBuffers(hdc, WGL_SWAP_MAIN_PLANE); // Call directly for RenderDoc compatibility
+			wglSwapLayerBuffers(hdc2, WGL_SWAP_MAIN_PLANE); // Call directly for RenderDoc compatibility
 #else
-			SwapBuffers(hdc);
+			SwapBuffers(hdc2);
 #endif
 		}
 

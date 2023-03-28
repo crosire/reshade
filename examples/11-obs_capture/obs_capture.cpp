@@ -232,24 +232,26 @@ static void on_destroy_swapchain(reshade::api::swapchain *swapchain)
 extern "C" __declspec(dllexport) const char *NAME = "OBS Capture";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "An OBS capture driver which overrides the one OBS ships with to be able to give more control over where in the frame to send images to OBS.";
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
+extern "C" __declspec(dllexport) bool AddonInit(HMODULE addon_module, HMODULE reshade_module)
 {
-	switch (fdwReason)
+	if (!reshade::register_addon(addon_module, reshade_module))
+		return false;
+
+	if (!hook_init())
 	{
-	case DLL_PROCESS_ATTACH:
-		if (!hook_init())
-			return FALSE;
-		if (!reshade::register_addon(hModule))
-			return FALSE;
-		// Change this event to e.g. 'reshade_begin_effects' to send images to OBS before ReShade effects are applied, or 'reshade_render_technique' to send after a specific technique.
-		reshade::register_event<reshade::addon_event::reshade_present>(on_present);
-		reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy_swapchain);
-		break;
-	case DLL_PROCESS_DETACH:
-		reshade::unregister_addon(hModule);
-		hook_free();
-		break;
+		reshade::unregister_addon(addon_module, reshade_module);
+		return false;
 	}
 
-	return TRUE;
+	// Change this event to e.g. 'reshade_begin_effects' to send images to OBS before ReShade effects are applied, or 'reshade_render_technique' to send after a specific technique.
+	reshade::register_event<reshade::addon_event::reshade_present>(on_present);
+	reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy_swapchain);
+
+	return true;
+}
+extern "C" __declspec(dllexport) void AddonUninit(HMODULE addon_module, HMODULE reshade_module)
+{
+	hook_free();
+
+	reshade::unregister_addon(addon_module, reshade_module);
 }

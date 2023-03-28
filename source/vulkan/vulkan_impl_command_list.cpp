@@ -75,28 +75,28 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 		const auto data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resources[i].handle);
 		if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 		{
-			VkImageMemoryBarrier &transition = image_barriers[num_image_barriers++];
-			transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
-			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
-			transition.oldLayout = convert_usage_to_image_layout(old_states[i]);
-			transition.newLayout = convert_usage_to_image_layout(new_states[i]);
-			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.image = (VkImage)resources[i].handle;
-			transition.subresourceRange = { aspect_flags_from_format(data->create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+			VkImageMemoryBarrier &barrier = image_barriers[num_image_barriers++];
+			barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcAccessMask = convert_usage_to_access(old_states[i]);
+			barrier.dstAccessMask = convert_usage_to_access(new_states[i]);
+			barrier.oldLayout = convert_usage_to_image_layout(old_states[i]);
+			barrier.newLayout = convert_usage_to_image_layout(new_states[i]);
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.image = (VkImage)resources[i].handle;
+			barrier.subresourceRange = { aspect_flags_from_format(data->create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 		}
 		else
 		{
-			VkBufferMemoryBarrier &transition = buffer_barriers[num_buffer_barriers++];
-			transition = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
-			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
-			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.buffer = (VkBuffer)resources[i].handle;
-			transition.offset = 0;
-			transition.size = VK_WHOLE_SIZE;
+			VkBufferMemoryBarrier &barrier = buffer_barriers[num_buffer_barriers++];
+			barrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+			barrier.srcAccessMask = convert_usage_to_access(old_states[i]);
+			barrier.dstAccessMask = convert_usage_to_access(new_states[i]);
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.buffer = (VkBuffer)resources[i].handle;
+			barrier.offset = 0;
+			barrier.size = VK_WHOLE_SIZE;
 		}
 
 		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features);
@@ -380,12 +380,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		{
 		case api::dynamic_state::blend_constant:
 		{
-			float blend_constant[4];
-			blend_constant[0] = ((values[i]      ) & 0xFF) / 255.0f;
-			blend_constant[1] = ((values[i] >>  4) & 0xFF) / 255.0f;
-			blend_constant[2] = ((values[i] >>  8) & 0xFF) / 255.0f;
-			blend_constant[3] = ((values[i] >> 12) & 0xFF) / 255.0f;
-
+			const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
 			vk.CmdSetBlendConstants(_orig, blend_constant);
 			continue;
 		}
@@ -926,20 +921,20 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_
 		clear_value.stencil = *stencil;
 
 	// Transition state to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (since it will be in 'resource_usage::depth_stencil_write' at this point)
-	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	transition.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	transition.image = dsv_data->create_info.image;
-	transition.subresourceRange = dsv_data->create_info.subresourceRange;
-	transition.subresourceRange.aspectMask &= clear_flags;
-	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	VkImageMemoryBarrier barrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = dsv_data->create_info.image;
+	barrier.subresourceRange = dsv_data->create_info.subresourceRange;
+	barrier.subresourceRange.aspectMask &= clear_flags;
+	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-	vk.CmdClearDepthStencilImage(_orig, dsv_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
+	vk.CmdClearDepthStencilImage(_orig, dsv_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &barrier.subresourceRange);
 
-	std::swap(transition.oldLayout, transition.newLayout);
-	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	std::swap(barrier.oldLayout, barrier.newLayout);
+	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {
@@ -950,22 +945,22 @@ void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_
 	const auto rtv_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)rtv.handle);
 
 	// Transition state to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (since it will be in 'resource_usage::render_target' at this point)
-	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	transition.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	transition.image = rtv_data->create_info.image;
-	transition.subresourceRange = rtv_data->create_info.subresourceRange;
-	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	VkImageMemoryBarrier barrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = rtv_data->create_info.image;
+	barrier.subresourceRange = rtv_data->create_info.subresourceRange;
+	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
 	VkClearColorValue clear_value;
 	std::memcpy(clear_value.float32, color, 4 * sizeof(float));
 
-	vk.CmdClearColorImage(_orig, rtv_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
+	vk.CmdClearColorImage(_orig, rtv_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &barrier.subresourceRange);
 
-	std::swap(transition.oldLayout, transition.newLayout);
-	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	std::swap(barrier.oldLayout, barrier.newLayout);
+	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const api::rect *)
 {

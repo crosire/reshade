@@ -303,7 +303,8 @@ public:
 	}
 	init_resource_view(GLenum target, GLuint orig_texture, GLenum internal_format, GLuint min_level, GLuint num_levels, GLuint min_layer, GLuint num_layers) : target(target)
 	{
-		GLenum orig_target = GL_TEXTURE;
+		// Default parent target to the same target as the new texture view
+		GLenum orig_target = target;
 		// 'glTextureView' is available since OpenGL 4.3, so no guarantee that 'glGetTextureParameteriv' exists, since it was introduced in OpenGL 4.5
 		if (gl.GetTextureParameteriv != nullptr)
 			gl.GetTextureParameteriv(orig_texture, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&orig_target));
@@ -413,22 +414,25 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 	if (framebuffer == 0)
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&framebuffer));
 
-	g_current_context->update_current_window_height(framebuffer);
+	const reshade::api::resource_view default_attachment = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, 0);
+	g_current_context->update_current_window_height(default_attachment);
 
 	if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 	{
 		uint32_t count = 0;
 		reshade::api::resource_view rtvs[8], dsv;
-		for (; count < 8; ++count)
+		if (default_attachment.handle != 0)
 		{
-			rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-			if (rtvs[count].handle == 0)
-				break;
+			rtvs[0] = default_attachment;
+			for (count = 1; count < 8; ++count)
+			{
+				rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+				if (rtvs[count].handle == 0)
+					break;
+			}
 		}
 
-		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, 0);
-		if (dsv.handle == 0)
-			dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, 0);
+		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH_STENCIL, 0);
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 	}
@@ -561,7 +565,8 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	const reshade::api::resource_desc dst_desc = device->get_resource_desc(dst);
 
 	GLuint subresource = level;
-	if (base_target == GL_TEXTURE_CUBE_MAP)
+	// Both texture target and base target may be 'GL_TEXTURE_CUBE_MAP' when updating the entire cubemap with a 3D update instead of just a single face
+	if (target != GL_TEXTURE_CUBE_MAP && base_target == GL_TEXTURE_CUBE_MAP)
 	{
 		assert(target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * dst_desc.texture.levels;
@@ -1034,22 +1039,6 @@ extern "C" void APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask)
 	}
 #endif
 }
-extern "C" void APIENTRY glStencilMask(GLuint mask)
-{
-	static const auto trampoline = reshade::hooks::call(glStencilMask);
-	trampoline(mask);
-
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
-	{
-		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_write_mask };
-		const uint32_t values[1] = { mask };
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
-	}
-#endif
-}
 extern "C" void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 {
 	static const auto trampoline = reshade::hooks::call(glStencilOp);
@@ -1063,6 +1052,22 @@ extern "C" void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		const uint32_t values[6] = { static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 6, states, values);
+	}
+#endif
+}
+extern "C" void APIENTRY glStencilMask(GLuint mask)
+{
+	static const auto trampoline = reshade::hooks::call(glStencilMask);
+	trampoline(mask);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_write_mask };
+		const uint32_t values[1] = { mask };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
 	}
 #endif
 }
@@ -1442,6 +1447,59 @@ void APIENTRY glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffse
 #endif
 
 #ifdef GL_VERSION_1_4
+void APIENTRY glBlendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha)
+{
+	static const auto trampoline = reshade::hooks::call(glBlendFuncSeparate);
+	trampoline(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[4] = { reshade::api::dynamic_state::source_color_blend_factor, reshade::api::dynamic_state::dest_color_blend_factor, reshade::api::dynamic_state::source_alpha_blend_factor, reshade::api::dynamic_state::dest_alpha_blend_factor };
+		const uint32_t values[4] = { static_cast<uint32_t>(reshade::opengl::convert_blend_factor(sfactorRGB)), static_cast<uint32_t>(reshade::opengl::convert_blend_factor(dfactorRGB)), static_cast<uint32_t>(reshade::opengl::convert_blend_factor(sfactorAlpha)), static_cast<uint32_t>(reshade::opengl::convert_blend_factor(dfactorAlpha)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 4, states, values);
+	}
+#endif
+}
+void APIENTRY glBlendColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
+{
+	static const auto trampoline = reshade::hooks::call(glBlendColor);
+	trampoline(red, green, blue, alpha);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::blend_constant };
+		const uint32_t values[1] = {
+			((static_cast<uint32_t>(red   * 255.f) & 0xFF)) |
+			((static_cast<uint32_t>(green * 255.f) & 0xFF) << 8) |
+			((static_cast<uint32_t>(blue  * 255.f) & 0xFF) << 16) |
+			((static_cast<uint32_t>(alpha * 255.f) & 0xFF) << 24) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
+	}
+#endif
+}
+void APIENTRY glBlendEquation(GLenum mode)
+{
+	static const auto trampoline = reshade::hooks::call(glBlendEquation);
+	trampoline(mode);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::color_blend_op, reshade::api::dynamic_state::alpha_blend_op };
+		const uint32_t values[2] = { static_cast<uint32_t>(reshade::opengl::convert_blend_op(mode)), static_cast<uint32_t>(reshade::opengl::convert_blend_op(mode)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);
+	}
+#endif
+}
+
 void APIENTRY glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
 {
 #if RESHADE_ADDON
@@ -1754,7 +1812,7 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 		}
 
 		reshade::api::shader_desc desc = {};
-		desc.code = combined_source.c_str();
+		desc.code = combined_source.data();
 		desc.code_size = combined_source.size();
 		desc.entry_point = "main";
 
@@ -1786,6 +1844,82 @@ void APIENTRY glUseProgram(GLuint program)
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::all_shader_stages, program != 0 ? reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program } : reshade::api::pipeline {});
+	}
+#endif
+}
+
+void APIENTRY glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha)
+{
+	static const auto trampoline = reshade::hooks::call(glBlendEquationSeparate);
+	trampoline(modeRGB, modeAlpha);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::color_blend_op, reshade::api::dynamic_state::alpha_blend_op };
+		const uint32_t values[2] = { static_cast<uint32_t>(reshade::opengl::convert_blend_op(modeRGB)), static_cast<uint32_t>(reshade::opengl::convert_blend_op(modeAlpha)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);
+	}
+#endif
+}
+
+void APIENTRY glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask)
+{
+	static const auto trampoline = reshade::hooks::call(glStencilFuncSeparate);
+	trampoline(face, func, ref, mask);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const auto front_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_func : reshade::api::dynamic_state::back_stencil_func;
+		const auto back_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_func : reshade::api::dynamic_state::front_stencil_func;
+
+		const reshade::api::dynamic_state states[4] = { front_state, back_state, reshade::api::dynamic_state::stencil_reference_value, reshade::api::dynamic_state::stencil_read_mask };
+		const uint32_t values[4] = { static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(ref), mask };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 4, states, values);
+	}
+#endif
+}
+void APIENTRY glStencilOpSeparate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass)
+{
+	static const auto trampoline = reshade::hooks::call(glStencilOpSeparate);
+	trampoline(face, fail, zfail, zpass);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const auto front_fail_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_fail_op : reshade::api::dynamic_state::back_stencil_fail_op;
+		const auto back_fail_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_fail_op : reshade::api::dynamic_state::front_stencil_fail_op;
+		const auto front_depth_fail_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_depth_fail_op : reshade::api::dynamic_state::back_stencil_depth_fail_op;
+		const auto back_depth_fail_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_depth_fail_op : reshade::api::dynamic_state::front_stencil_depth_fail_op;
+		const auto front_pass_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_pass_op : reshade::api::dynamic_state::back_stencil_pass_op;
+		const auto back_passs_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_pass_op : reshade::api::dynamic_state::front_stencil_pass_op;
+
+		const reshade::api::dynamic_state states[6] = { front_fail_state, back_fail_state, front_depth_fail_state, back_depth_fail_state, front_pass_state, back_passs_state };
+		const uint32_t values[6] = { static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 6, states, values);
+	}
+#endif
+}
+void APIENTRY glStencilMaskSeparate(GLenum face, GLuint mask)
+{
+	static const auto trampoline = reshade::hooks::call(glStencilMaskSeparate);
+	trampoline(face, mask);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	{
+		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_write_mask };
+		const uint32_t values[1] = { mask };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
 	}
 #endif
 }
@@ -2133,6 +2267,58 @@ void APIENTRY glRenderbufferStorageMultisample(GLenum target, GLsizei samples, G
 		trampoline(target, samples, internalformat, width, height);
 }
 
+void APIENTRY glClearBufferiv(GLenum buffer, GLint drawbuffer, const GLint *value)
+{
+#if RESHADE_ADDON
+	if (g_current_context && (
+		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
+		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>()))
+	{
+		assert(buffer == GL_COLOR || (buffer == GL_STENCIL && drawbuffer == 0));
+
+		GLint fbo = 0;
+		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
+
+		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
+		if (view.handle != 0)
+		{
+			if (buffer != GL_COLOR ?
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, nullptr, reinterpret_cast<const uint8_t *>(value), 0, nullptr) :
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, reinterpret_cast<const float *>(value), 0, nullptr))
+				return;
+		}
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glClearBufferiv);
+	trampoline(buffer, drawbuffer, value);
+}
+void APIENTRY glClearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint *value)
+{
+#if RESHADE_ADDON
+	if (g_current_context && (
+		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
+		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>()))
+	{
+		assert(buffer == GL_COLOR || (buffer == GL_STENCIL && drawbuffer == 0));
+
+		GLint fbo = 0;
+		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
+
+		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
+		if (view.handle != 0)
+		{
+			if (buffer != GL_COLOR ?
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, nullptr, reinterpret_cast<const uint8_t *>(value), 0, nullptr) :
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, reinterpret_cast<const float *>(value), 0, nullptr))
+				return;
+		}
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glClearBufferuiv);
+	trampoline(buffer, drawbuffer, value);
+}
 void APIENTRY glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *value)
 {
 #if RESHADE_ADDON
@@ -2140,18 +2326,17 @@ void APIENTRY glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *va
 		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
 		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>()))
 	{
-		assert(buffer == GL_COLOR || drawbuffer == 0);
+		assert(buffer == GL_COLOR || (buffer == GL_DEPTH && drawbuffer == 0));
 
 		GLint fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
 		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
-
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
-				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, value, nullptr, 0, nullptr) :
-				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, value, 0, nullptr))
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, value, nullptr, 0, nullptr) :
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, value, 0, nullptr))
 				return;
 		}
 	}
@@ -2171,21 +2356,10 @@ void APIENTRY glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GL
 		GLint fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		const reshade::api::resource_view depth_view = g_current_context->get_framebuffer_attachment(fbo, GL_DEPTH, drawbuffer);
-		const reshade::api::resource_view stencil_view = g_current_context->get_framebuffer_attachment(fbo, GL_STENCIL, drawbuffer);
-
-		if (depth_view.handle != 0 && depth_view.handle == stencil_view.handle)
-		{
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
-				return;
-		}
-		else
-		{
-			if (depth_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, &depth, nullptr, 0, nullptr))
-				return;
-			if (stencil_view.handle != 0 &&	reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, stencil_view, nullptr, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
-				return;
-		}
+		const reshade::api::resource_view dsv = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
+		if (dsv.handle != 0 &&
+			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, dsv, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
+			return;
 	}
 #endif
 
@@ -3861,6 +4035,52 @@ void APIENTRY glNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei
 		trampoline(renderbuffer, samples, internalformat, width, height);
 }
 
+void APIENTRY glClearNamedFramebufferiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLint *value)
+{
+#if RESHADE_ADDON
+	if (g_current_context && (
+		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
+		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>()))
+	{
+		assert(buffer == GL_COLOR || (buffer == GL_STENCIL && drawbuffer == 0));
+
+		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
+		if (view.handle != 0)
+		{
+			if (buffer != GL_COLOR ?
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, nullptr, reinterpret_cast<const uint8_t *>(value), 0, nullptr) :
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, reinterpret_cast<const float *>(value), 0, nullptr))
+				return;
+		}
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glClearNamedFramebufferiv);
+	trampoline(framebuffer, buffer, drawbuffer, value);
+}
+void APIENTRY glClearNamedFramebufferuiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLuint *value)
+{
+#if RESHADE_ADDON
+	if (g_current_context && (
+		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
+		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>()))
+	{
+		assert(buffer == GL_COLOR || (buffer == GL_STENCIL && drawbuffer == 0));
+
+		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
+		if (view.handle != 0)
+		{
+			if (buffer != GL_COLOR ?
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, nullptr, reinterpret_cast<const uint8_t *>(value), 0, nullptr) :
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, reinterpret_cast<const float *>(value), 0, nullptr))
+				return;
+		}
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glClearNamedFramebufferuiv);
+	trampoline(framebuffer, buffer, drawbuffer, value);
+}
 void APIENTRY glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat *value)
 {
 #if RESHADE_ADDON
@@ -3868,15 +4088,14 @@ void APIENTRY glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint
 		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
 		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>()))
 	{
-		assert(buffer == GL_COLOR || drawbuffer == 0);
+		assert(buffer == GL_COLOR || (buffer == GL_DEPTH && drawbuffer == 0));
 
 		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
-
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
-				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, value, nullptr, 0, nullptr) :
-				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, value, 0, nullptr))
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, value, nullptr, 0, nullptr) :
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, value, 0, nullptr))
 				return;
 		}
 	}
@@ -3893,21 +4112,10 @@ void APIENTRY glClearNamedFramebufferfi(GLuint framebuffer, GLenum buffer, GLint
 	{
 		assert(buffer == GL_DEPTH_STENCIL && drawbuffer == 0);
 
-		const reshade::api::resource_view depth_view = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH, drawbuffer);
-		const reshade::api::resource_view stencil_view = g_current_context->get_framebuffer_attachment(framebuffer, GL_STENCIL, drawbuffer);
-
-		if (depth_view.handle != 0 && depth_view.handle == stencil_view.handle)
-		{
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
-				return;
-		}
-		else
-		{
-			if (depth_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, depth_view, &depth, nullptr, 0, nullptr))
-				return;
-			if (stencil_view.handle != 0 && reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, stencil_view, nullptr, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
-				return;
-		}
+		const reshade::api::resource_view dsv = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
+		if (dsv.handle != 0 &&
+			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, dsv, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
+			return;
 	}
 #endif
 

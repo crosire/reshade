@@ -862,51 +862,6 @@ std::vector<reshade::api::input_element> reshade::d3d9::convert_input_layout_des
 
 		switch (internal_element.Type)
 		{
-		default:
-			assert(false);
-			[[fallthrough]];
-		case D3DDECLTYPE_UNUSED:
-			element.format = api::format::unknown;
-			break;
-		case D3DDECLTYPE_UBYTE4:
-			element.format = api::format::r8g8b8a8_uint;
-			break;
-		case D3DDECLTYPE_UBYTE4N:
-			element.format = api::format::r8g8b8a8_unorm;
-			break;
-		case D3DDECLTYPE_D3DCOLOR:
-			element.format = api::format::b8g8r8a8_unorm;
-			break;
-		case D3DDECLTYPE_UDEC3:
-			element.format = api::format::r10g10b10a2_uint;
-			break;
-		case D3DDECLTYPE_DEC3N:
-			element.format = api::format::r10g10b10a2_unorm;
-			break;
-		case D3DDECLTYPE_SHORT2:
-			element.format = api::format::r16g16_sint;
-			break;
-		case D3DDECLTYPE_FLOAT16_2:
-			element.format = api::format::r16g16_float;
-			break;
-		case D3DDECLTYPE_USHORT2N:
-			element.format = api::format::r16g16_unorm;
-			break;
-		case D3DDECLTYPE_SHORT2N:
-			element.format = api::format::r16g16_snorm;
-			break;
-		case D3DDECLTYPE_SHORT4:
-			element.format = api::format::r16g16b16a16_sint;
-			break;
-		case D3DDECLTYPE_FLOAT16_4:
-			element.format = api::format::r16g16b16a16_float;
-			break;
-		case D3DDECLTYPE_USHORT4N:
-			element.format = api::format::r16g16b16a16_unorm;
-			break;
-		case D3DDECLTYPE_SHORT4N:
-			element.format = api::format::r16g16b16a16_snorm;
-			break;
 		case D3DDECLTYPE_FLOAT1:
 			element.format = api::format::r32_float;
 			break;
@@ -918,6 +873,51 @@ std::vector<reshade::api::input_element> reshade::d3d9::convert_input_layout_des
 			break;
 		case D3DDECLTYPE_FLOAT4:
 			element.format = api::format::r32g32b32a32_float;
+			break;
+		case D3DDECLTYPE_D3DCOLOR:
+			element.format = api::format::b8g8r8a8_unorm;
+			break;
+		case D3DDECLTYPE_UBYTE4:
+			element.format = api::format::r8g8b8a8_uint;
+			break;
+		case D3DDECLTYPE_SHORT2:
+			element.format = api::format::r16g16_sint;
+			break;
+		case D3DDECLTYPE_SHORT4:
+			element.format = api::format::r16g16b16a16_sint;
+			break;
+		case D3DDECLTYPE_UBYTE4N:
+			element.format = api::format::r8g8b8a8_unorm;
+			break;
+		case D3DDECLTYPE_SHORT2N:
+			element.format = api::format::r16g16_snorm;
+			break;
+		case D3DDECLTYPE_SHORT4N:
+			element.format = api::format::r16g16b16a16_snorm;
+			break;
+		case D3DDECLTYPE_USHORT2N:
+			element.format = api::format::r16g16_unorm;
+			break;
+		case D3DDECLTYPE_USHORT4N:
+			element.format = api::format::r16g16b16a16_unorm;
+			break;
+		case D3DDECLTYPE_UDEC3:
+			element.format = api::format::r10g10b10a2_uint;
+			break;
+		case D3DDECLTYPE_DEC3N:
+			element.format = api::format::r10g10b10a2_unorm;
+			break;
+		case D3DDECLTYPE_FLOAT16_2:
+			element.format = api::format::r16g16_float;
+			break;
+		case D3DDECLTYPE_FLOAT16_4:
+			element.format = api::format::r16g16b16a16_float;
+			break;
+		default:
+			assert(false);
+			[[fallthrough]];
+		case D3DDECLTYPE_UNUSED:
+			element.format = api::format::unknown;
 			break;
 		}
 
@@ -938,6 +938,9 @@ std::vector<reshade::api::input_element> reshade::d3d9::convert_input_layout_des
 		case D3DDECLUSAGE_PSIZE:
 			element.semantic = "PSIZE";
 			break;
+		case D3DDECLUSAGE_TEXCOORD:
+			element.semantic = "TEXCOORD";
+			break;
 		case D3DDECLUSAGE_TANGENT:
 			element.semantic = "TANGENT";
 			break;
@@ -946,6 +949,9 @@ std::vector<reshade::api::input_element> reshade::d3d9::convert_input_layout_des
 			break;
 		case D3DDECLUSAGE_TESSFACTOR:
 			element.semantic = "TESSFACTOR";
+			break;
+		case D3DDECLUSAGE_POSITIONT:
+			element.semantic = "POSITIONT";
 			break;
 		case D3DDECLUSAGE_COLOR:
 			element.semantic = "COLOR";
@@ -959,8 +965,8 @@ std::vector<reshade::api::input_element> reshade::d3d9::convert_input_layout_des
 		case D3DDECLUSAGE_SAMPLE:
 			element.semantic = "SAMPLE";
 			break;
-		case D3DDECLUSAGE_TEXCOORD:
-			element.semantic = "TEXCOORD";
+		default:
+			assert(false);
 			break;
 		}
 

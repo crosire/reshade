@@ -99,8 +99,9 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 	if (com_ptr<ID3D10Device> device10;
 		device->QueryInterface(&device10) == S_OK)
 	{
-		// Whoops, this is actually a D3D10 texture, redirect ...
+		// Also check that the device has a proxy 'D3D10Device' interface, otherwise it is likely still a D3D11 device exposing the 'ID3D10Device interface, after 'ID3D11Device::CreateDeviceContextState' was called
 		if (const auto device10_proxy = get_private_pointer_d3dx<D3D10Device>(device10.get()))
+			// Whoops, this is actually a D3D10 texture, redirect ...
 			return on_vr_submit_d3d10(compositor, eye, reinterpret_cast<ID3D10Texture2D *>(texture), bounds, flags, submit, device10_proxy);
 	}
 
@@ -269,9 +270,9 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	if (device == nullptr)
 		goto normal_submit;
 
-	if (const auto queue_it = std::find_if(device->_queues.begin(), device->_queues.end(),
+	if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),
 			[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
-		queue_it != device->_queues.end())
+		queue_it != device->_queues.cend())
 		queue = *queue_it;
 	else
 		goto normal_submit;
@@ -476,7 +477,7 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 	// Only install hooks once, for the first compositor interface version encountered to avoid duplicated hooks
 	// This is necessary because vrclient.dll may create an internal compositor instance with a different version than the application to translate older versions, which with hooks installed for both would cause an infinite loop
 	if (static unsigned int compositor_version = 0;
-		compositor_version == 0 && std::sscanf(pchNameAndVersion, "IVRCompositor_%u", &compositor_version))
+		compositor_version == 0 && interface_instance != nullptr && std::sscanf(pchNameAndVersion, "IVRCompositor_%u", &compositor_version))
 	{
 		// The 'IVRCompositor::Submit' function definition has been stable and has had the same virtual function table index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
 		if (compositor_version >= 12)
@@ -496,12 +497,14 @@ vr::IVRClientCore *g_client_core = nullptr;
 
 extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
 {
+	assert(pInterfaceName != nullptr);
+
 	LOG(INFO) << "Redirecting " << "VRClientCoreFactory" << '(' << "pInterfaceName = " << pInterfaceName << ')' << " ...";
 
 	void *const interface_instance = reshade::hooks::call(VRClientCoreFactory)(pInterfaceName, pReturnCode);
 
 	if (static unsigned int client_core_version = 0;
-		client_core_version == 0 && std::sscanf(pInterfaceName, "IVRClientCore_%u", &client_core_version))
+		client_core_version == 0 && interface_instance != nullptr && std::sscanf(pInterfaceName, "IVRClientCore_%u", &client_core_version))
 	{
 		g_client_core = static_cast<vr::IVRClientCore *>(interface_instance);
 
@@ -511,4 +514,20 @@ extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int
 	}
 
 	return interface_instance;
+}
+
+void check_and_init_openvr_hooks()
+{
+	if (g_client_core != nullptr ||
+#ifndef _WIN64
+		GetModuleHandleW(L"vrclient.dll") == nullptr)
+#else
+		GetModuleHandleW(L"vrclient_x64.dll") == nullptr)
+#endif
+		return;
+
+	vr::EVRInitError error_code = vr::VRInitError_None;
+	VRClientCoreFactory(vr::IVRClientCore_Version, reinterpret_cast<int *>(&error_code));
+	if (g_client_core != nullptr)
+		g_client_core->GetGenericInterface(vr::IVRCompositor_Version, &error_code);
 }

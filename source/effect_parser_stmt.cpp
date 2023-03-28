@@ -6,8 +6,10 @@
 #include "effect_lexer.hpp"
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
+#include <cctype> // std::toupper
 #include <cassert>
 #include <functional>
+#include <string_view>
 
 struct on_scope_exit
 {
@@ -931,7 +933,10 @@ bool reshadefx::parser::parse_struct()
 
 				member.semantic = std::move(_token.literal_as_string);
 				// Make semantic upper case to simplify comparison later on
-				std::transform(member.semantic.begin(), member.semantic.end(), member.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+				std::transform(member.semantic.begin(), member.semantic.end(), member.semantic.begin(),
+					[](std::string::value_type c) {
+						return static_cast<std::string::value_type>(std::toupper(c));
+					});
 
 				if (member.semantic.compare(0, 3, "SV_") != 0)
 				{
@@ -1086,7 +1091,10 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 			param.semantic = std::move(_token.literal_as_string);
 			// Make semantic upper case to simplify comparison later on
-			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(),
+				[](std::string::value_type c) {
+					return static_cast<std::string::value_type>(std::toupper(c));
+				});
 
 			if (param.semantic.compare(0, 3, "SV_") != 0)
 			{
@@ -1124,7 +1132,10 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 		info.return_semantic = std::move(_token.literal_as_string);
 		// Make semantic upper case to simplify comparison later on
-		std::transform(info.return_semantic.begin(), info.return_semantic.end(), info.return_semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+		std::transform(info.return_semantic.begin(), info.return_semantic.end(), info.return_semantic.begin(),
+			[](std::string::value_type c) {
+				return static_cast<std::string::value_type>(std::toupper(c));
+			});
 	}
 
 	// Check if this is a function declaration without a body
@@ -1232,7 +1243,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		semantic = std::move(_token.literal_as_string);
 
 		// Make semantic upper case to simplify comparison later on
-		std::transform(semantic.begin(), semantic.end(), semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+		std::transform(semantic.begin(), semantic.end(), semantic.begin(),
+			[](std::string::value_type c) {
+				return static_cast<std::string::value_type>(std::toupper(c));
+			});
 	}
 	else
 	{
@@ -1302,9 +1316,12 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				if (accept(tokenid::identifier)) // Handle special enumeration names for property values
 				{
 					// Transform identifier to uppercase to do case-insensitive comparison
-					std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+					std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(),
+						[](std::string::value_type c) {
+							return static_cast<std::string::value_type>(std::toupper(c));
+						});
 
-					static const std::unordered_map<std::string, uint32_t> s_values = {
+					static const std::unordered_map<std::string_view, uint32_t> s_values = {
 						{ "NONE", 0 }, { "POINT", 0 },
 						{ "LINEAR", 1 },
 						{ "WRAP", uint32_t(texture_address_mode::wrap) }, { "REPEAT", uint32_t(texture_address_mode::wrap) },
@@ -1695,9 +1712,12 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			if (accept(tokenid::identifier)) // Handle special enumeration names for pass states
 			{
 				// Transform identifier to uppercase to do case-insensitive comparison
-				std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+				std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(),
+					[](std::string::value_type c) {
+						return static_cast<std::string::value_type>(std::toupper(c));
+					});
 
-				static const std::unordered_map<std::string, uint32_t> s_enum_values = {
+				static const std::unordered_map<std::string_view, uint32_t> s_enum_values = {
 					{ "NONE", 0 }, { "ZERO", 0 }, { "ONE", 1 },
 					{ "ADD", uint32_t(pass_blend_op::add) },
 					{ "SUBTRACT", uint32_t(pass_blend_op::subtract) },
@@ -1850,7 +1870,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 		else
 		{
 			// Verify that shader signatures between VS and PS match (both semantics and interpolation qualifiers)
-			std::unordered_map<std::string, type> vs_semantic_mapping;
+			std::unordered_map<std::string_view, type> vs_semantic_mapping;
 			if (vs_info.return_semantic.empty())
 			{
 				if (!vs_info.return_type.is_void() && !vs_info.return_type.is_struct())

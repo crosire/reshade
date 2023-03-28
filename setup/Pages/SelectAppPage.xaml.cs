@@ -147,6 +147,31 @@ namespace ReShade.Setup.Pages
 				}
 				catch { }
 
+				// Add EA Desktop install locations
+				try
+				{
+					string eaDesktopConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Electronic Arts", "EA Desktop");
+					if (Directory.Exists(eaDesktopConfigPath))
+					{
+						foreach (string userConfigPath in Directory.EnumerateFiles(eaDesktopConfigPath, "user_*.ini"))
+						{
+							var userConfig = new Utilities.IniFile(userConfigPath);
+							var searchPath = userConfig.GetString(string.Empty, "user.downloadinplacedir");
+
+							if (!string.IsNullOrEmpty(searchPath) && Directory.Exists(searchPath))
+							{
+								if (searchPath.Last() == Path.DirectorySeparatorChar)
+								{
+									searchPath = searchPath.Remove(searchPath.Length - 1);
+								}
+
+								searchPaths.Add(searchPath);
+							}
+						}
+					}
+				}
+				catch { }
+
 				// Add Epic Games Launcher install location
 				try
 				{
@@ -274,6 +299,7 @@ namespace ReShade.Setup.Pages
 
 							// Exclude common installer, support and launcher executables
 							if (path.ContainsIgnoreCase("activation") ||
+								path.ContainsIgnoreCase("apputil") ||
 								path.ContainsIgnoreCase("benchmark") ||
 								path.ContainsIgnoreCase("cefprocess") ||
 								path.ContainsIgnoreCase("compile") ||
@@ -285,6 +311,7 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("diagnostics") ||
 								path.ContainsIgnoreCase("download") ||
 								path.ContainsIgnoreCase("helper") ||
+								path.ContainsIgnoreCase("inject") ||
 								path.ContainsIgnoreCase("install") ||
 								path.ContainsIgnoreCase("launch") ||
 								path.ContainsIgnoreCase("openvr") ||
@@ -302,8 +329,14 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("tool") ||
 								path.ContainsIgnoreCase("unins") ||
 								path.ContainsIgnoreCase("update") ||
+								path.ContainsIgnoreCase("util") ||
+								path.ContainsIgnoreCase("validate") ||
+								path.ContainsIgnoreCase("wallpaper") ||
+								path.ContainsIgnoreCase("webengine") ||
 								path.ContainsIgnoreCase("webview") ||
 								path.Contains("7za") ||
+								path.Contains("createdump") ||
+								path.Contains("fossilize") ||
 								path.Contains("Rpt") || // CrashRpt, SndRpt
 								path.Contains("svc") ||
 								path.Contains("SystemSoftware") ||

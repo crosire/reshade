@@ -23,6 +23,7 @@ namespace reshadefx
 		{
 			std::string replacement_list;
 			std::vector<std::string> parameters;
+			bool is_predefined = false;
 			bool is_variadic = false;
 			bool is_function_like = false;
 		};
@@ -52,7 +53,7 @@ namespace reshadefx
 		/// <returns></returns>
 		bool add_macro_definition(const std::string &name, std::string value = "1")
 		{
-			return add_macro_definition(name, macro { std::move(value), {} });
+			return add_macro_definition(name, macro { std::move(value), {}, true });
 		}
 
 		/// <summary>

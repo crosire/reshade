@@ -312,7 +312,7 @@ void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(
 	if ((count == 0 || ((count == 1) && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT)) && (dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT))
 	{
 		gl.BindFramebuffer(target, 0);
-		update_current_window_height(0);
+		update_current_window_height(count != 0 ? rtvs[0] : dsv);
 		return;
 	}
 
@@ -325,7 +325,7 @@ void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(
 		it != _fbo_lookup.end())
 	{
 		gl.BindFramebuffer(target, it->second);
-		update_current_window_height(it->second);
+		update_current_window_height(count != 0 ? rtvs[0] : dsv);
 		return;
 	}
 
@@ -389,91 +389,86 @@ void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(
 
 	_fbo_lookup.emplace(hash, fbo);
 
-	update_current_window_height(fbo);
+	update_current_window_height(count != 0 ? rtvs[0] : dsv);
 }
 
-void reshade::opengl::render_context_impl::update_current_window_height(GLuint fbo)
+void reshade::opengl::render_context_impl::update_current_window_height(api::resource_view default_attachment)
 {
-	const api::resource_view default_attachment = get_framebuffer_attachment(fbo, GL_COLOR, 0);
 	if (default_attachment.handle == 0)
 		return;
 
-	const api::resource default_attachment_resource = _device_impl->get_resource_from_view(default_attachment);
+	const GLenum target = default_attachment.handle >> 40;
+	const GLuint object = default_attachment.handle & 0xFFFFFFFF;
 
-	const GLenum default_attachment_target = default_attachment_resource.handle >> 40;
-	const GLuint default_attachment_object = default_attachment_resource.handle & 0xFFFFFFFF;
+	GLint height = 0;
 
-	switch (default_attachment_target)
+	switch (target)
 	{
-		case GL_TEXTURE_BUFFER:
-		case GL_TEXTURE_1D:
-		case GL_TEXTURE_1D_ARRAY:
-		case GL_TEXTURE_2D:
-		case GL_TEXTURE_2D_ARRAY:
-		case GL_TEXTURE_2D_MULTISAMPLE:
-		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		case GL_TEXTURE_3D:
-		case GL_TEXTURE_CUBE_MAP:
-		case GL_TEXTURE_CUBE_MAP_ARRAY:
-		case GL_TEXTURE_RECTANGLE:
+	case GL_TEXTURE_BUFFER:
+	case GL_TEXTURE_1D:
+	case GL_TEXTURE_1D_ARRAY:
+	case GL_TEXTURE_2D:
+	case GL_TEXTURE_2D_ARRAY:
+	case GL_TEXTURE_2D_MULTISAMPLE:
+	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+	case GL_TEXTURE_3D:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+	case GL_TEXTURE_RECTANGLE:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+		if (_device_impl->_supports_dsa)
 		{
-			GLint height = 0;
-
-			if (_device_impl->_supports_dsa)
-			{
-				gl.GetTextureLevelParameteriv(default_attachment_object, 0, GL_TEXTURE_HEIGHT, &height);
-			}
-			else
-			{
-				GLuint prev_binding = 0;
-				gl.GetIntegerv(get_binding_for_target(default_attachment_target), reinterpret_cast<GLint *>(&prev_binding));
-				if (default_attachment_object != prev_binding)
-					gl.BindTexture(default_attachment_target, default_attachment_object);
-
-				gl.GetTexLevelParameteriv(default_attachment_target, 0, GL_TEXTURE_HEIGHT, &height);
-
-				if (default_attachment_object != prev_binding)
-					gl.BindTexture(default_attachment_target, prev_binding);
-			}
-
-			_current_window_height = height;
-			break;
+			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_HEIGHT, &height);
 		}
-		case GL_RENDERBUFFER:
+		else
 		{
-			GLint height = 0;
+			GLuint prev_binding = 0;
+			gl.GetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_binding));
+			if (object != prev_binding)
+				gl.BindTexture(target, object);
 
-			if (_device_impl->_supports_dsa)
-			{
-				gl.GetNamedRenderbufferParameteriv(default_attachment_object, GL_RENDERBUFFER_HEIGHT, &height);
-			}
-			else
-			{
-				GLuint prev_binding = 0;
-				gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
-				if (default_attachment_object != prev_binding)
-					gl.BindRenderbuffer(GL_RENDERBUFFER, default_attachment_object);
+			GLenum level_target = target;
+			if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
 
-				gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
+			gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_HEIGHT, &height);
 
-				if (default_attachment_object != prev_binding)
-					gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
-			}
-
-			_current_window_height = height;
-			break;
+			if (object != prev_binding)
+				gl.BindTexture(target, prev_binding);
 		}
-		case GL_FRAMEBUFFER_DEFAULT:
+		break;
+	case GL_RENDERBUFFER:
+		if (_device_impl->_supports_dsa)
 		{
-			_current_window_height = _device_impl->_default_fbo_desc.texture.height;
-			break;
+			gl.GetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_HEIGHT, &height);
 		}
-		default:
+		else
 		{
-			assert(false);
-			break;
+			GLuint prev_binding = 0;
+			gl.GetIntegerv(GL_RENDERBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
+			if (object != prev_binding)
+				gl.BindRenderbuffer(GL_RENDERBUFFER, object);
+
+			gl.GetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
+
+			if (object != prev_binding)
+				gl.BindRenderbuffer(GL_RENDERBUFFER, prev_binding);
 		}
+		break;
+	case GL_FRAMEBUFFER_DEFAULT:
+		height = _device_impl->_default_fbo_desc.texture.height;
+		break;
+	default:
+		assert(false);
+		return;
 	}
+
+	_current_window_height = height;
 }
 
 void reshade::opengl::render_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
@@ -795,7 +790,7 @@ void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, a
 {
 	assert(update.set.handle == 0 && update.array_offset == 0);
 
-	uint32_t first = update.binding;
+	const uint32_t first = update.binding;
 	assert(layout.handle == 0 || layout == global_pipeline_layout || update.binding >= reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding);
 
 	switch (update.type)
@@ -1182,19 +1177,19 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 		const GLuint level = dst_subresource % dst_desc.texture.levels;
 		      GLuint layer = dst_subresource / dst_desc.texture.levels;
 
-		GLenum level_target = dst_target;
-		if (dst_target == GL_TEXTURE_CUBE_MAP || dst_target == GL_TEXTURE_CUBE_MAP_ARRAY)
-		{
-			const GLuint face = layer % 6;
-			layer /= 6;
-			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-		}
-
 		if (dst_box == nullptr)
 		{
 			width  = std::max(1u, width >> level);
 			height = std::max(1u, height >> level);
 			depth  = (dst_desc.type == api::resource_type::texture_3d ? std::max(1u, depth >> level) : 1u);
+		}
+
+		GLenum level_target = dst_target;
+		if (depth == 1 && (dst_target == GL_TEXTURE_CUBE_MAP || dst_target == GL_TEXTURE_CUBE_MAP_ARRAY))
+		{
+			const GLuint face = layer % 6;
+			layer /= 6;
+			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 		}
 
 		const auto row_pitch = api::format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : width);
@@ -1227,6 +1222,8 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 				gl.CompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 			break;
 		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_CUBE_MAP:
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
 			zoffset += layer;
 			[[fallthrough]];
 		case GL_TEXTURE_3D:
@@ -1458,19 +1455,19 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 		const GLuint level = src_subresource % src_desc.texture.levels;
 		      GLuint layer = src_subresource / src_desc.texture.levels;
 
-		GLenum level_target = src_target;
-		if (src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY)
-		{
-			const GLuint face = layer % 6;
-			layer /= 6;
-			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-		}
-
 		if (src_box == nullptr)
 		{
 			width  = std::max(1u, width >> level);
 			height = std::max(1u, height >> level);
 			depth  = (src_desc.type == api::resource_type::texture_3d ? std::max(1u, depth >> level) : 1u);
+		}
+
+		GLenum level_target = src_target;
+		if (depth == 1 && (src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY))
+		{
+			const GLuint face = layer % 6;
+			layer /= 6;
+			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
 		}
 
 		const auto row_pitch = api::format_row_pitch(src_desc.texture.format, row_length != 0 ? row_length : width);
@@ -1483,7 +1480,7 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 		{
 			assert(layer == 0);
 
-			gl.GetTexImage(src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY ? level_target : src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			gl.GetTexImage(level_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
 		else if (_device_impl->_supports_dsa)
 		{
@@ -1492,9 +1489,9 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 			case GL_TEXTURE_1D_ARRAY:
 				yoffset += layer;
 				break;
+			case GL_TEXTURE_2D_ARRAY:
 			case GL_TEXTURE_CUBE_MAP:
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
-			case GL_TEXTURE_2D_ARRAY:
 				zoffset += layer;
 				break;
 			}

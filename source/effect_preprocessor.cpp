@@ -160,7 +160,7 @@ std::vector<std::pair<std::string, std::string>> reshadefx::preprocessor::used_m
 		if (const auto it = _macros.find(name);
 			// Do not include function-like macros, since they are more likely to contain a complex replacement list
 			it != _macros.end() && !it->second.is_function_like)
-			defines.push_back({ name, it->second.replacement_list });
+			defines.emplace_back(name, it->second.replacement_list);
 	return defines;
 }
 
@@ -511,8 +511,10 @@ void reshadefx::preprocessor::parse_ifdef()
 	level.skipping = parent_skipping || !level.value;
 
 	_if_stack.push_back(std::move(level));
-	if (!parent_skipping) // Only add if this #ifdef is active
-		_used_macros.emplace(_token.literal_as_string);
+	// Only add to used macro list if this #ifdef is active and the macro was not defined before
+	if (!parent_skipping)
+		if (const auto it = _macros.find(_token.literal_as_string); it == _macros.end() || it->second.is_predefined)
+			_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
@@ -529,8 +531,10 @@ void reshadefx::preprocessor::parse_ifndef()
 	level.skipping = parent_skipping || !level.value;
 
 	_if_stack.push_back(std::move(level));
-	if (!parent_skipping) // Only add if this #ifndef is active
-		_used_macros.emplace(_token.literal_as_string);
+	// Only add to used macro list if this #ifndef is active and the macro was not defined before
+	if (!parent_skipping)
+		if (const auto it = _macros.find(_token.literal_as_string); it == _macros.end() || it->second.is_predefined)
+			_used_macros.emplace(_token.literal_as_string);
 }
 void reshadefx::preprocessor::parse_elif()
 {
@@ -684,7 +688,7 @@ void reshadefx::preprocessor::parse_include()
 	else
 	{
 		if (!read_file(file_path, input))
-			return error(keyword_location, "could not open included file '" + file_path_string + '\'');
+			return error(keyword_location, "could not open included file '" + file_name.u8string() + '\'');
 
 		_file_cache.emplace(file_path_string, input);
 	}

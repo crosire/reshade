@@ -116,8 +116,6 @@ void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t 
 
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
-	assert(pipeline.handle != 0);
-
 	if (pipeline.handle & 1)
 	{
 		// This is a pipeline handle created with 'device_impl::create_pipeline', which does not support partial binding of its state
@@ -247,19 +245,17 @@ void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::p
 }
 void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.set.handle == 0);
+	assert(update.set.handle == 0 && update.array_offset == 0);
 
-	uint32_t first = 0, count = update.count;
+	uint32_t first = update.binding;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
 
-		first = range.dx_register_index;
+		assert(update.binding >= range.binding);
+		first -= range.binding;
+		first += range.dx_register_index;
 		stages &= range.visibility;
-	}
-	else
-	{
-		assert(update.binding == 0);
 	}
 
 	// Set for each individual shader stage (pixel stage first, since vertex stage modifies the binding offset)
@@ -269,12 +265,13 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 		if ((stages & stage) == 0)
 			continue;
 
+		uint32_t count = update.count;
 		if (stage == api::shader_stage::vertex)
 		{
 			// See https://docs.microsoft.com/windows/win32/direct3d9/vertex-textures-in-vs-3-0
 			first += D3DVERTEXTEXTURESAMPLER0;
-			if ((first + count) > D3DVERTEXTEXTURESAMPLER3) // The vertex engine only contains four texture sampler stages
-				count = D3DVERTEXTEXTURESAMPLER3 - first;
+			if ((first + count) > (D3DVERTEXTEXTURESAMPLER3 + 1)) // The vertex engine only contains four texture sampler stages
+				count = (D3DVERTEXTEXTURESAMPLER3 + 1) - first;
 		}
 
 		switch (update.type)

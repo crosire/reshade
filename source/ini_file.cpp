@@ -4,6 +4,7 @@
  */
 
 #include "ini_file.hpp"
+#include <cctype>
 #include <cassert>
 #include <fstream>
 #include <sstream>
@@ -131,64 +132,65 @@ bool ini_file::save()
 	// Sort sections to generate consistent files
 	std::sort(section_names.begin(), section_names.end(),
 		[](std::string a, std::string b) {
-			std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-			std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
+			std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(std::toupper(c)); });
+			std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(std::toupper(c)); });
 			return a < b;
 		});
 
 	for (const std::string &section_name : section_names)
 	{
-		const section_type &keys = _sections.at(section_name);
-
-		key_names.clear();
-		key_names.reserve(keys.size());
-		for (const std::pair<const std::string, value_type> &key : keys)
-			key_names.push_back(key.first);
-
-		std::sort(key_names.begin(), key_names.end(),
-			[](std::string a, std::string b) {
-				std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-				std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(toupper(c)); });
-				return a < b;
-			});
-
-		// Empty section should have been sorted to the top, so do not need to append it before keys
-		if (!section_name.empty())
-			data << '[' << section_name << ']' << '\n';
-
-		for (const std::string &key_name : key_names)
+		if (const section_type &keys = _sections.at(section_name); !keys.empty())
 		{
-			data << key_name << '=';
+			key_names.clear();
+			key_names.reserve(keys.size());
+			for (const std::pair<const std::string, value_type> &key : keys)
+				key_names.push_back(key.first);
 
-			if (const ini_file::value_type &elements = keys.at(key_name); !elements.empty())
+			std::sort(key_names.begin(), key_names.end(),
+				[](std::string a, std::string b) {
+					std::transform(a.begin(), a.end(), a.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(std::toupper(c)); });
+					std::transform(b.begin(), b.end(), b.begin(), [](std::string::value_type c) { return static_cast<std::string::value_type>(std::toupper(c)); });
+					return a < b;
+				});
+
+			// Empty section should have been sorted to the top, so do not need to append it before keys
+			if (!section_name.empty())
+				data << '[' << section_name << ']' << '\n';
+
+			for (const std::string &key_name : key_names)
 			{
-				std::string value;
-				for (const std::string &element : elements)
-				{
-					// Empty elements mess with escaped commas, so simply skip them
-					if (element.empty())
-						continue;
+				data << key_name << '=';
 
-					value.reserve(value.size() + element.size() + 1);
-					for (const char c : element)
-						value.append(c == ',' ? 2 : 1, c);
-					value += ','; // Separate multiple values with a comma
+				if (const ini_file::value_type &elements = keys.at(key_name); !elements.empty())
+				{
+					std::string value;
+					for (const std::string &element : elements)
+					{
+						// Empty elements mess with escaped commas, so simply skip them
+						if (element.empty())
+							continue;
+
+						value.reserve(value.size() + element.size() + 1);
+						for (const char c : element)
+							value.append(c == ',' ? 2 : 1, c);
+						value += ','; // Separate multiple values with a comma
+					}
+
+					// Remove the last comma
+					if (!value.empty())
+					{
+						assert(value.back() == ',');
+						value.pop_back();
+					}
+
+					data << value;
 				}
 
-				// Remove the last comma
-				if (!value.empty())
-				{
-					assert(value.back() == ',');
-					value.pop_back();
-				}
-
-				data << value;
+				data << '\n';
 			}
 
 			data << '\n';
 		}
-
-		data << '\n';
 	}
 
 	std::ofstream file(_path);

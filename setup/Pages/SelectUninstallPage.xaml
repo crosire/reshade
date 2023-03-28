@@ -15,10 +15,18 @@
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
       <RadioButton x:Name="UpdateButton" Margin="0,10" IsChecked="True">
         <TextBlock Width="290" TextWrapping="Wrap">
-          <Label Content="_Modify" Padding="0" Foreground="#FF003399" FontSize="16" />
+          <Label Content="Up_date" Padding="0" Foreground="#FF003399" FontSize="16" />
           <LineBreak />
           <LineBreak />
-          Update ReShade to the version from this setup tool and download all used effect files again.
+          Update ReShade to the version from this setup tool, but keep existing preset and effect files unchanged.
+        </TextBlock>
+      </RadioButton>
+      <RadioButton x:Name="UpdateEffectsButton" Margin="0,10" IsChecked="false">
+        <TextBlock Width="290" TextWrapping="Wrap">
+          <Label Content="Update _effects" Padding="0" Foreground="#FF003399" FontSize="16" />
+          <LineBreak />
+          <LineBreak />
+          Update ReShade to the version from this setup tool and in addition download all used effect files again.
         </TextBlock>
       </RadioButton>
       <RadioButton x:Name="UninstallButton" Margin="0,10" VerticalContentAlignment="Top">

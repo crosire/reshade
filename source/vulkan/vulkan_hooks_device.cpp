@@ -165,8 +165,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	bool conservative_rasterization_ext = false;
 
 	// Check if the device is used for presenting
-	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
-			[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.end())
+	if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
+			[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.cend())
 	{
 		LOG(WARN) << "Skipping device because it is not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.";
 
@@ -179,6 +179,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else
 	{
+		// No Man's Sky initializes OpenVR before loading Vulkan (and therefore before loading ReShade), so need to manually install OpenVR hooks now when used
+		extern void check_and_init_openvr_hooks();
+		check_and_init_openvr_hooks();
+
 		uint32_t num_extensions = 0;
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, nullptr);
 		std::vector<VkExtensionProperties> extensions(num_extensions);
@@ -186,9 +190,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		// Make sure the driver actually supports the requested extensions
 		const auto add_extension = [&extensions, &enabled_extensions, &graphics_queue_family_index](const char *name, bool required) {
-			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
+			if (const auto it = std::find_if(extensions.cbegin(), extensions.cend(),
 					[name](const auto &props) { return std::strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
-				it != extensions.end())
+				it != extensions.cend())
 			{
 				enabled_extensions.push_back(name);
 				return true;
@@ -250,8 +254,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	private_data_info.pNext = create_info.pNext;
 	private_data_info.privateDataSlotRequestCount = 1;
 
-	VkPhysicalDevicePrivateDataFeatures private_data_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES };
-	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
+	VkPhysicalDevicePrivateDataFeatures private_data_feature;
+	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature;
 
 	if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
 		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES))
@@ -267,6 +271,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else
 	{
+		private_data_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES };
 		private_data_feature.pNext = &private_data_info;
 		private_data_feature.privateData = VK_TRUE;
 
@@ -279,6 +284,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		}
 		else if (dynamic_rendering_ext)
 		{
+			dynamic_rendering_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
 			dynamic_rendering_feature.pNext = const_cast<void *>(create_info.pNext);
 			dynamic_rendering_feature.dynamicRendering = VK_TRUE;
 
@@ -287,7 +293,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	// Optionally enable custom border color feature
-	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
+	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature;
 	if (const auto existing_custom_border_features = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT))
 	{
@@ -295,6 +301,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else if (custom_border_color_ext)
 	{
+		custom_border_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
 		custom_border_feature.pNext = const_cast<void *>(create_info.pNext);
 		custom_border_feature.customBorderColors = VK_TRUE;
 		custom_border_feature.customBorderColorWithoutFormat = VK_TRUE;
@@ -303,7 +310,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	// Optionally enable extended dynamic state feature
-	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
+	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature;
 	if (const auto existing_extended_dynamic_state_features = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT))
 	{
@@ -311,6 +318,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else if (extended_dynamic_state_ext)
 	{
+		extended_dynamic_state_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
 		extended_dynamic_state_feature.pNext = const_cast<void *>(create_info.pNext);
 		extended_dynamic_state_feature.extendedDynamicState = VK_TRUE;
 
@@ -656,7 +664,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
-	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
+	VkImageFormatListCreateInfoKHR format_list_info;
 	std::vector<VkFormat> format_list; std::vector<uint32_t> queue_family_list;
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
@@ -691,6 +699,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 		else if (format_list[0] != format_list[1])
 		{
+			format_list_info = { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
 			format_list_info.pNext = create_info.pNext;
 			format_list_info.viewFormatCount = static_cast<uint32_t>(format_list.size());
 			format_list_info.pViewFormats = format_list.data();

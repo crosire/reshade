@@ -120,7 +120,7 @@
     <ClCompile Include="source\imgui_widgets.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
-    <ClCompile Include="source\process_utils.cpp">
+    <ClCompile Include="source\platform_utils.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
     <ClCompile Include="source\d2d1\d2d1.cpp">
@@ -443,7 +443,7 @@
     <ClInclude Include="source\lockfree_linear_map.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\process_utils.hpp">
+    <ClInclude Include="source\platform_utils.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">

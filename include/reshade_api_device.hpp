@@ -995,7 +995,7 @@ namespace reshade::api
 	RESHADE_DEFINE_INTERFACE_WITH_BASE(swapchain, device_object)
 	{
 		/// <summary>
-		/// Gets the window handle of the window this swap chain was created with, or <see langword="nullptr"/> if this is an offscreen swap chain.
+		/// Gets the handle of the window this swap chain was created with, or <see langword="nullptr"/> if this is an offscreen swap chain.
 		/// </summary>
 		virtual void *get_hwnd() const = 0;
 

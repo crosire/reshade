@@ -37,8 +37,16 @@ extern "C" void APIENTRY glBindVertexArray(GLuint array);
 extern "C" void APIENTRY glBindVertexBuffer(GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride);
 #undef glBindVertexBuffers
 extern "C" void APIENTRY glBindVertexBuffers(GLuint first, GLsizei count, const GLuint *buffers, const GLintptr *offsets, const GLsizei *strides);
+#undef glBlendColor
+extern "C" void APIENTRY glBlendColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+#undef glBlendEquation
+extern "C" void APIENTRY glBlendEquation(GLenum mode);
+#undef glBlendEquationSeparate
+extern "C" void APIENTRY glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha);
 #undef glBlendFunc
 extern "C" void APIENTRY glBlendFunc(GLenum sfactor, GLenum dfactor);
+#undef glBlendFuncSeparate
+extern "C" void APIENTRY glBlendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha);
 #undef glBlitFramebuffer
 extern "C" void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
 #undef glBlitNamedFramebuffer
@@ -51,10 +59,18 @@ extern "C" void APIENTRY glBufferStorage(GLenum target, GLsizeiptr size, const v
 extern "C" void APIENTRY glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void* data);
 #undef glClear
 extern "C" void APIENTRY glClear(GLbitfield mask);
+#undef glClearBufferiv
+extern "C" void APIENTRY glClearBufferiv(GLenum buffer, GLint drawbuffer, const GLint *value);
+#undef glClearBufferuiv
+extern "C" void APIENTRY glClearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint *value);
 #undef glClearBufferfv
 extern "C" void APIENTRY glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *value);
 #undef glClearBufferfi
 extern "C" void APIENTRY glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
+#undef glClearNamedFramebufferiv
+extern "C" void APIENTRY glClearNamedFramebufferiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLint *value);
+#undef glClearNamedFramebufferuiv
+extern "C" void APIENTRY glClearNamedFramebufferuiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLuint *value);
 #undef glClearNamedFramebufferfv
 extern "C" void APIENTRY glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat *value);
 #undef glClearNamedFramebufferfi
@@ -281,10 +297,16 @@ extern "C" void APIENTRY glScissorIndexedv(GLuint index, const GLint *v);
 extern "C" void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *string, const GLint *length);
 #undef glStencilFunc
 extern "C" void APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask);
-#undef glStencilMask
-extern "C" void APIENTRY glStencilMask(GLuint mask);
+#undef glStencilFuncSeparate
+extern "C" void APIENTRY glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask);
 #undef glStencilOp
 extern "C" void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass);
+#undef glStencilOpSeparate
+extern "C" void APIENTRY glStencilOpSeparate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass);
+#undef glStencilMask
+extern "C" void APIENTRY glStencilMask(GLuint mask);
+#undef glStencilMaskSeparate
+extern "C" void APIENTRY glStencilMaskSeparate(GLenum face, GLuint mask);
 #undef glTexBuffer
 extern "C" void APIENTRY glTexBuffer(GLenum target, GLenum internalformat, GLuint buffer);
 #undef glTextureBuffer

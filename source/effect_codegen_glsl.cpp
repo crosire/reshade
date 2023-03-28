@@ -60,14 +60,16 @@ private:
 	{
 		module = std::move(_module);
 
+		std::string preamble;
+
 		if (_enable_16bit_types)
 			// GL_NV_gpu_shader5, GL_AMD_gpu_shader_half_float or GL_EXT_shader_16bit_storage
-			module.hlsl += "#extension GL_NV_gpu_shader5 : require\n";
+			preamble += "#extension GL_NV_gpu_shader5 : require\n";
 		if (_enable_control_flow_attributes)
-			module.hlsl += "#extension GL_EXT_control_flow_attributes : enable\n";
+			preamble += "#extension GL_EXT_control_flow_attributes : enable\n";
 
 		if (_uses_fmod)
-			module.hlsl += "float fmodHLSL(float x, float y) { return x - y * trunc(x / y); }\n"
+			preamble += "float fmodHLSL(float x, float y) { return x - y * trunc(x / y); }\n"
 				"vec2 fmodHLSL(vec2 x, vec2 y) { return x - y * trunc(x / y); }\n"
 				"vec3 fmodHLSL(vec3 x, vec3 y) { return x - y * trunc(x / y); }\n"
 				"vec4 fmodHLSL(vec4 x, vec4 y) { return x - y * trunc(x / y); }\n"
@@ -75,17 +77,17 @@ private:
 				"mat3 fmodHLSL(mat3 x, mat3 y) { return x - matrixCompMult(y, mat3(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]))); }\n"
 				"mat4 fmodHLSL(mat4 x, mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n";
 		if (_uses_componentwise_or)
-			module.hlsl +=
+			preamble +=
 				"bvec2 compOr(bvec2 a, bvec2 b) { return bvec2(a.x || b.x, a.y || b.y); }\n"
 				"bvec3 compOr(bvec3 a, bvec3 b) { return bvec3(a.x || b.x, a.y || b.y, a.z || b.z); }\n"
 				"bvec4 compOr(bvec4 a, bvec4 b) { return bvec4(a.x || b.x, a.y || b.y, a.z || b.z, a.w || b.w); }\n";
 		if (_uses_componentwise_and)
-			module.hlsl +=
+			preamble +=
 				"bvec2 compAnd(bvec2 a, bvec2 b) { return bvec2(a.x && b.x, a.y && b.y); }\n"
 				"bvec3 compAnd(bvec3 a, bvec3 b) { return bvec3(a.x && b.x, a.y && b.y, a.z && b.z); }\n"
 				"bvec4 compAnd(bvec4 a, bvec4 b) { return bvec4(a.x && b.x, a.y && b.y, a.z && b.z, a.w && b.w); }\n";
 		if (_uses_componentwise_cond)
-			module.hlsl +=
+			preamble +=
 				"vec2 compCond(bvec2 cond, vec2 a, vec2 b) { return vec2(cond.x ? a.x : b.x, cond.y ? a.y : b.y); }\n"
 				"vec3 compCond(bvec3 cond, vec3 a, vec3 b) { return vec3(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z); }\n"
 				"vec4 compCond(bvec4 cond, vec4 a, vec4 b) { return vec4(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z, cond.w ? a.w : b.w); }\n"
@@ -99,9 +101,12 @@ private:
 		if (!_ubo_block.empty())
 			// Read matrices in column major layout, even though they are actually row major, to avoid transposing them on every access (since GLSL uses column matrices)
 			// TODO: This technically only works with square matrices
-			module.hlsl += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
+			preamble += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
 
-		module.hlsl += _blocks.at(0);
+		module.code.assign(preamble.begin(), preamble.end());
+
+		const std::string &main_block = _blocks.at(0);
+		module.code.insert(module.code.end(), main_block.begin(), main_block.end());
 	}
 
 	template <bool is_param = false, bool is_decl = true, bool is_interface = false>
@@ -347,13 +352,13 @@ private:
 		while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
 			digit_index--;
 		digit_index++;
+
 		const uint32_t base_index = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
 		const std::string base_semantic = semantic.substr(0, digit_index);
 
 		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
 		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
-		max_array_length += base_index;
-		for (uint32_t a = 0; a < max_array_length; ++a)
+		for (uint32_t a = 0; a < max_array_length + base_index; ++a)
 			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
 
 		return location + base_index;
@@ -419,6 +424,7 @@ private:
 			return "gl_LocalInvocationID";
 		if (semantic == "SV_DISPATCHTHREADID")
 			return "gl_GlobalInvocationID";
+
 		return escape_name(std::move(name));
 	}
 

@@ -114,7 +114,7 @@ bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 	static std::set<uint32_t> hash_set;
 	if (hash_set.find(hash) != hash_set.end())
 	{
-		reshade::log_message(4, "Skipped texture that was already dumped.");
+		reshade::log_message(reshade::log_level::error, "Skipped texture that was already dumped.");
 		return true;
 	}
 	else

@@ -1511,7 +1511,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called after a screenshot was taken and saved to disk.
-		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, const char *filename)</c></para>
+		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, const char *path)</c></para>
 		/// </summary>
 		reshade_screenshot,
 
@@ -1520,6 +1520,22 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, api::effect_technique technique, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)</c></para>
 		/// </summary>
 		reshade_render_technique,
+
+		/// <summary>
+		/// Called after a preset was loaded and applied.
+		/// This occurs during reloading or when the user chooses a new preset in the overlay.
+		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, const char *path)</c></para>
+		/// </summary>
+		reshade_set_current_preset_path,
+
+		/// <summary>
+		/// Called when the rendering order of loaded techniques is changed.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, size_t count, api::effect_technique *techniques)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent the order from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		reshade_reorder_techniques,
 
 #ifdef RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
@@ -1646,7 +1662,10 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_technique_state, bool, api::effect_runtime *runtime, api::effect_technique technique, bool enabled);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay, void, api::effect_runtime *runtime);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_screenshot, void, api::effect_runtime *runtime, const char *filename);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_screenshot, void, api::effect_runtime *runtime, const char *path);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_render_technique, void, api::effect_runtime *runtime, api::effect_technique technique, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_current_preset_path, void, api::effect_runtime *runtime, const char *path);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reorder_techniques, bool, api::effect_runtime *runtime, size_t count, api::effect_technique *techniques);
 }

@@ -36,7 +36,7 @@ namespace reshade::opengl
 
 		api::resource_view get_framebuffer_attachment(GLuint framebuffer, GLenum type, uint32_t index) const;
 
-		void update_current_window_height(GLuint framebuffer);
+		void update_current_window_height(api::resource_view default_attachment);
 
 		void bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;

@@ -1,6 +1,7 @@
 /*
+ * Copyright (C) 2018 seri14
  * Copyright (C) 2022 Patrick Mours
- * SPDX-License-Identifier: BSD-3-Clause OR MIT
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <imgui.h>
@@ -56,20 +57,11 @@ static void on_destroy(reshade::api::effect_runtime *runtime)
 	runtime->destroy_private_data<history_context>();
 }
 
-static void on_reloaded_effects(reshade::api::effect_runtime *runtime)
-{
-	history_context &ctx = runtime->get_private_data<history_context>();
-
-	ctx.histories.clear();
-	ctx.history_pos = 0;
-	ctx.was_updated = false;
-}
-
 static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade::api::effect_uniform_variable variable, const void *value, size_t size)
 {
 	history_context &ctx = runtime->get_private_data<history_context>();
 
-	char ui_type[16] = "";
+	char ui_type[16];
 	if (!runtime->get_annotation_string_from_uniform_variable(variable, "ui_type", ui_type))
 		return false;
 
@@ -111,6 +103,12 @@ static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade:
 			--ctx.history_pos;
 		}
 
+		if (auto front = ctx.histories.begin(); front != ctx.histories.end() && front->variable_handle.handle == variable.handle)
+		{
+			std::memcpy(&history.before, &front->before, sizeof(history.before));
+			ctx.histories.pop_front();
+		}
+
 		if (ctx.histories.size() < HISTORY_LIMIT)
 			ctx.histories.push_front(std::move(history));
 
@@ -122,6 +120,11 @@ static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade:
 }
 static bool on_set_technique_state(reshade::api::effect_runtime *runtime, reshade::api::effect_technique technique, bool enabled)
 {
+	if (runtime->get_annotation_int_from_technique(technique, "enabled", nullptr, 0) ||
+		runtime->get_annotation_int_from_technique(technique, "enabled_in_screenshot", nullptr, 0) ||
+		runtime->get_annotation_int_from_technique(technique, "timeout", nullptr, 0))
+		return false;
+
 	history_context &ctx = runtime->get_private_data<history_context>();
 
 	char technique_name[128] = "";
@@ -154,6 +157,15 @@ static bool on_set_technique_state(reshade::api::effect_runtime *runtime, reshad
 	}
 
 	return false;
+}
+
+static void on_set_current_preset_path(reshade::api::effect_runtime *runtime, const char *)
+{
+	history_context &ctx = runtime->get_private_data<history_context>();
+
+	ctx.histories.clear();
+	ctx.history_pos = 0;
+	ctx.was_updated = false;
 }
 
 static void draw_history_window(reshade::api::effect_runtime *runtime)
@@ -229,11 +241,11 @@ static void draw_history_window(reshade::api::effect_runtime *runtime)
 					}
 					else if (basetype == reshade::api::format::r32_sint || basetype == reshade::api::format::r32_uint)
 					{
-						char ui_items[512] = ""; size_t ui_items_len = sizeof(ui_items);
-						runtime->get_annotation_string_from_uniform_variable(it->variable_handle, "ui_items", ui_items, &ui_items_len);
-
 						if (strcmp(ui_type, "combo") == 0)
 						{
+							char ui_items[512] = ""; size_t ui_items_len = sizeof(ui_items);
+							runtime->get_annotation_string_from_uniform_variable(it->variable_handle, "ui_items", ui_items, &ui_items_len);
+
 							size_t ui_items_offset = 0;
 							for (uint32_t ui_items_index = 0; ui_items_offset < ui_items_len && ui_items_index != it->after.as_uint[0]; ++ui_items_offset)
 								if (ui_items[ui_items_offset] == '\0')
@@ -362,7 +374,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			return FALSE;
 		reshade::register_event<reshade::addon_event::init_effect_runtime>(on_init);
 		reshade::register_event<reshade::addon_event::destroy_effect_runtime>(on_destroy);
-		reshade::register_event<reshade::addon_event::reshade_reloaded_effects>(on_reloaded_effects);
+		reshade::register_event<reshade::addon_event::reshade_set_current_preset_path>(on_set_current_preset_path);
 		reshade::register_event<reshade::addon_event::reshade_set_uniform_value>(on_set_uniform_value);
 		reshade::register_event<reshade::addon_event::reshade_set_technique_state>(on_set_technique_state);
 		reshade::register_overlay("History", draw_history_window);

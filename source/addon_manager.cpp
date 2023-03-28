@@ -134,8 +134,8 @@ void reshade::load_addons()
 #endif
 
 	addon_all_loaded = true;
-	internal::get_reshade_module_handle() = g_module_handle;
-	internal::get_current_module_handle() = g_module_handle;
+	internal::get_reshade_module_handle(g_module_handle);
+	internal::get_current_module_handle(g_module_handle);
 
 	std::vector<std::string> disabled_addons;
 	config.get("ADDON", "DisabledAddons", disabled_addons);
@@ -147,7 +147,7 @@ void reshade::load_addons()
 		info.file = g_reshade_dll_path.filename().u8string();
 		info.author = "crosire";
 
-		if (std::find(disabled_addons.begin(), disabled_addons.end(), info.name) == disabled_addons.end())
+		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
 		{
 			info.handle = g_module_handle;
 
@@ -162,25 +162,36 @@ void reshade::load_addons()
 	if (config.get("ADDON", "AddonPath", addon_search_path))
 		addon_search_path = g_reshade_base_path / addon_search_path;
 
-	LOG(INFO) << "Searching for add-ons (*.addon) in " << addon_search_path << " ...";
+	LOG(INFO) << "Searching for add-ons (*.addon"
+#ifndef _WIN64
+		", *.addon32"
+#else
+		", *.addon64"
+#endif
+		") in " << addon_search_path << " ...";
 
 	std::error_code ec;
 	for (std::filesystem::path path : std::filesystem::directory_iterator(addon_search_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
-		if (path.extension() != L".addon")
+		if (path.extension() != L".addon" &&
+#ifndef _WIN64
+			path.extension() != L".addon32")
+#else
+			path.extension() != L".addon64")
+#endif
 			continue;
 
-		// Avoid loading library alltogether when it is found in the disabled add-on list
+		// Avoid loading library altogether when it is found in the disabled add-on list
 		if (addon_info info;
-			std::find_if(disabled_addons.begin(), disabled_addons.end(),
+			std::find_if(disabled_addons.cbegin(), disabled_addons.cend(),
 				[file_name = path.filename().u8string(), &info](const std::string_view &addon_name) {
 					const size_t at_pos = addon_name.find('@');
-					if (at_pos == std::string::npos)
+					if (at_pos == std::string_view::npos)
 						return false;
 					info.name = addon_name.substr(0, at_pos);
 					info.file = addon_name.substr(at_pos + 1);
 					return file_name == info.file;
-				}) != disabled_addons.end())
+				}) != disabled_addons.cend())
 		{
 			info.handle = nullptr;
 			addon_loaded_info.push_back(std::move(info));
@@ -205,14 +216,14 @@ void reshade::load_addons()
 			else
 			{
 				addon_all_loaded = false;
-				LOG(WARN) << "Failed to load add-on from " << path << " with error code " << error_code << '.';
+				LOG(ERROR) << "Failed to load add-on from " << path << " with error code " << error_code << '!';
 			}
 			continue;
 		}
 
 		// Call optional loading entry point (for add-ons wanting to do more complicated one-time initialization than possible in 'DllMain')
-		const auto init_func = reinterpret_cast<bool(*)(HMODULE reshade_module, HMODULE addon_module)>(GetProcAddress(module, "AddonInit"));
-		if (init_func != nullptr && !init_func(g_module_handle, module))
+		const auto init_func = reinterpret_cast<bool(*)(HMODULE addon_module, HMODULE reshade_module)>(GetProcAddress(module, "AddonInit"));
+		if (init_func != nullptr && !init_func(module, g_module_handle))
 		{
 			if (!addon_loaded_info.empty() && path.filename().u8string() == addon_loaded_info.back().file)
 			{
@@ -223,7 +234,7 @@ void reshade::load_addons()
 			else
 			{
 				addon_all_loaded = false;
-				LOG(WARN) << "Failed to load add-on from " << path << " because initialization was not successfull.";
+				LOG(ERROR) << "Failed to load add-on from " << path << " because initialization was not successfull!";
 			}
 
 			FreeLibrary(module);
@@ -262,9 +273,9 @@ void reshade::unload_addons()
 		const auto module = static_cast<HMODULE>(info.handle);
 
 		// Call optional unloading entry point
-		const auto uninit_func = reinterpret_cast<void(*)(HMODULE reshade_module, HMODULE addon_module)>(GetProcAddress(module, "AddonUninit"));
+		const auto uninit_func = reinterpret_cast<void(*)(HMODULE addon_module, HMODULE reshade_module)>(GetProcAddress(module, "AddonUninit"));
 		if (uninit_func != nullptr)
-			uninit_func(g_module_handle, module);
+			uninit_func(module, g_module_handle);
 
 		if (!FreeLibrary(module))
 			LOG(WARN) << "Failed to unload " << std::filesystem::u8path(info.file) << " with error code " << GetLastError() << '!';
@@ -291,10 +302,10 @@ void reshade::unload_addons()
 bool reshade::has_loaded_addons()
 {
 	// Ignore disabled and built-in add-ons
-	return s_reference_count != 0 && std::find_if(addon_loaded_info.begin(), addon_loaded_info.end(),
+	return s_reference_count != 0 && std::find_if(addon_loaded_info.cbegin(), addon_loaded_info.cend(),
 		[](const addon_info &info) {
 			return info.handle != nullptr && info.handle != g_module_handle;
-		}) != addon_loaded_info.end();
+		}) != addon_loaded_info.cend();
 }
 
 reshade::addon_info *reshade::find_addon(void *address)
@@ -379,10 +390,10 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		description != nullptr)
 		info.description = *description;
 
-	if (std::find_if(reshade::addon_loaded_info.begin(), reshade::addon_loaded_info.end(),
+	if (std::find_if(reshade::addon_loaded_info.cbegin(), reshade::addon_loaded_info.cend(),
 			[&info](const reshade::addon_info &existing_info) {
 				return existing_info.name == info.name;
-			}) != reshade::addon_loaded_info.end())
+			}) != reshade::addon_loaded_info.cend())
 	{
 		// Prevent registration if another add-on with the same name already exists
 		LOG(ERROR) << "Failed to register add-on, because another one with the same name (\"" << info.name << "\") was already registered!";
@@ -391,13 +402,13 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	if (std::vector<std::string> disabled_addons;
 		reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons) &&
-		std::find_if(disabled_addons.begin(), disabled_addons.end(),
+		std::find_if(disabled_addons.cbegin(), disabled_addons.cend(),
 			[&info](const std::string_view &addon_name) {
 				const size_t at_pos = addon_name.find('@');
-				if (at_pos == std::string::npos)
+				if (at_pos == std::string_view::npos)
 					return addon_name == info.name;
 				return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
-			}) != disabled_addons.end())
+			}) != disabled_addons.cend())
 	{
 		info.handle = nullptr;
 		reshade::addon_loaded_info.push_back(std::move(info));
@@ -536,7 +547,9 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 #endif
 
 	info->overlay_callbacks.erase(std::remove_if(info->overlay_callbacks.begin(), info->overlay_callbacks.end(),
-		[title, callback](const reshade::addon_info::overlay_callback &item) { return item.title == title && item.callback == callback; }), info->overlay_callbacks.end());
+		[title, callback](const reshade::addon_info::overlay_callback &item) {
+			return item.title == title && item.callback == callback;
+		}), info->overlay_callbacks.end());
 }
 
 #endif

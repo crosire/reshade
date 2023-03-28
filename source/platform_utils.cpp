@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "process_utils.hpp"
+#include "platform_utils.hpp"
 #include <utf8/unchecked.h>
 #include <Windows.h>
 #include <Shellapi.h>
+#include <dwmapi.h>
+#include <mmsystem.h>
 
 bool reshade::utils::open_explorer(const std::filesystem::path &path)
 {
@@ -112,4 +114,20 @@ exit_failure:
 	operator delete(new_state);
 
 	return success;
+}
+
+void reshade::utils::play_sound_async(const std::filesystem::path &audio_file)
+{
+	const std::filesystem::path normalized_audio_file_path = audio_file.lexically_normal();
+	if (normalized_audio_file_path.empty() || normalized_audio_file_path.native().length() >= 256)
+		return;
+	PlaySoundW(normalized_audio_file_path.c_str(), nullptr, SND_ASYNC | SND_NOSTOP | SND_FILENAME);
+}
+
+void reshade::utils::set_window_transparency(void *window, bool enabled)
+{
+	DWM_BLURBEHIND blur_behind = {};
+	blur_behind.dwFlags = DWM_BB_ENABLE;
+	blur_behind.fEnable = enabled;
+	DwmEnableBlurBehindWindow(GetAncestor(static_cast<HWND>(window), GA_ROOT), &blur_behind);
 }

@@ -93,6 +93,8 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		return false;
 
 	std::error_code ec;
+	if (path.empty())
+		path = L".\\";
 	if (path.is_relative())
 		path = std::filesystem::absolute(path, ec);
 	std::filesystem::path parent_path = path.parent_path();
@@ -134,6 +136,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		if (entry.is_directory())
 		{
 			const bool is_selected = entry == path;
+
 			const std::string label = ICON_FK_FOLDER " " + entry.path().filename().u8string();
 			if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
 			{
@@ -149,8 +152,8 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			continue;
 		}
 
-		if (std::find(exts.begin(), exts.end(), entry.path().extension()) != exts.end() &&
-			std::find(hidden_paths.begin(), hidden_paths.end(), entry.path()) == hidden_paths.end())
+		if (std::find(exts.cbegin(), exts.cend(), entry.path().extension()) != exts.cend() &&
+			std::find(hidden_paths.cbegin(), hidden_paths.cend(), entry.path()) == hidden_paths.cend())
 			file_entries.push_back(entry);
 	}
 
@@ -158,6 +161,8 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	bool has_double_clicked_file = false;
 	for (std::filesystem::path &file_path : file_entries)
 	{
+		const bool is_selected = file_path == path;
+
 		std::string label = ICON_FK_FILE " ";
 		if (const std::filesystem::path ext = file_path.extension();
 			ext == L".fx" || ext == L".fxh")
@@ -166,7 +171,6 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			label = ICON_FK_FILE_IMAGE " " + label;
 		label += file_path.filename().u8string();
 
-		const bool is_selected = file_path == path;
 		if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
 		{
 			path = std::move(file_path);
@@ -183,26 +187,27 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	ImGui::EndChild();
 
 	std::filesystem::path path_name = path.has_filename() || !exts.empty() ? path.filename() : path.parent_path().filename();
+	const float button_size = 6.0f * ImGui::GetFontSize();
 
 	{	char buf[4096];
 		const size_t buf_len = path_name.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0';
 
-		ImGui::SetNextItemWidth(width - (2 * (80 + ImGui::GetStyle().ItemSpacing.x)));
+		ImGui::SetNextItemWidth(std::max(0.0f, width - (2 * (button_size + ImGui::GetStyle().ItemSpacing.x))));
 		if (ImGui::InputText("##name", buf, sizeof(buf)))
 			path = path.parent_path() / buf;
 	}
 
 	ImGui::SameLine();
-	const bool select = ImGui::Button(ICON_FK_OK " Select", ImVec2(80, 0));
+	const bool select = ImGui::Button(ICON_FK_OK " Select", ImVec2(button_size, 0));
 	ImGui::SameLine();
-	const bool cancel = ImGui::Button(ICON_FK_CANCEL " Cancel", ImVec2(80, 0));
+	const bool cancel = ImGui::Button(ICON_FK_CANCEL " Cancel", ImVec2(button_size, 0));
 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
 		path += std::filesystem::path::preferred_separator;
 
-	const bool result = (select || ImGui::IsKeyPressedMap(ImGuiKey_Enter) || has_double_clicked_file) && (exts.empty() || std::find(exts.begin(), exts.end(), path.extension()) != exts.end());
+	const bool result = (select || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || has_double_clicked_file) && (exts.empty() || std::find(exts.cbegin(), exts.cend(), path.extension()) != exts.cend());
 	if (result || cancel)
 		ImGui::CloseCurrentPopup();
 
@@ -264,7 +269,7 @@ bool reshade::imgui::font_input_box(const char *name, std::filesystem::path &pat
 	ImGui::PushID(name);
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 80);
-	if (file_input_box("##font", path, dialog_path, { L".ttf" }))
+	if (file_input_box("##font", nullptr, path, dialog_path, { L".ttf" }))
 		res = true;
 
 	// Reset to the default font name if path is empty
@@ -292,7 +297,7 @@ bool reshade::imgui::search_input_box(char *filter, int filter_size, float width
 	const bool show_clear_button = filter[0] != '\0';
 
 	if (ImGui::InputTextEx("##filter", "Search " ICON_FK_SEARCH, filter, filter_size,
-		ImVec2(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f), 0), ImGuiInputTextFlags_AutoSelectAll))
+			ImVec2(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f), 0), ImGuiInputTextFlags_AutoSelectAll))
 		res = true;
 
 	if (show_clear_button)
@@ -306,10 +311,6 @@ bool reshade::imgui::search_input_box(char *filter, int filter_size, float width
 	return res;
 }
 
-bool reshade::imgui::file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
-{
-	return file_input_box(name, nullptr, path, dialog_path, exts);
-}
 bool reshade::imgui::file_input_box(const char *name, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
 {
 	bool res = false;
@@ -328,7 +329,7 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	{
 		dialog_path = std::filesystem::u8path(buf);
 		// Succeed only if extension matches
-		if (std::find(exts.begin(), exts.end(), dialog_path.extension()) != exts.end() || dialog_path.empty())
+		if (std::find(exts.cbegin(), exts.cend(), dialog_path.extension()) != exts.cend() || dialog_path.empty())
 			path = dialog_path, res = true;
 	}
 
@@ -407,7 +408,7 @@ bool reshade::imgui::radio_list(const char *label, const std::string_view ui_ite
 	// Group all radio buttons together into a list
 	ImGui::BeginGroup();
 
-	for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1, ++i)
+	for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1, ++i)
 		modified |= ImGui::RadioButton(ui_items.data() + offset, &v, static_cast<int>(i));
 
 	ImGui::EndGroup();
@@ -439,6 +440,36 @@ bool reshade::imgui::toggle_button(const char *label, bool &v, float width, ImGu
 	return modified;
 }
 
+bool reshade::imgui::confirm_button(const char *label, float width, const char *message, ...)
+{
+	bool modified = false;
+
+	if (popup_button(label, width))
+	{
+		va_list args;
+		va_start(args, message);
+		ImGui::TextV(message, args);
+		va_end(args);
+
+		const float button_width = (ImGui::GetContentRegionAvail().x / 2) - ImGui::GetStyle().ItemInnerSpacing.x;
+
+		if (ImGui::Button(ICON_FK_OK " Yes", ImVec2(button_width, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+			modified = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button(ICON_FK_CANCEL " No", ImVec2(button_width, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+
+		ImGui::EndPopup();
+	}
+
+	return modified;
+}
+
 bool reshade::imgui::list_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
 	bool modified = false;
@@ -453,13 +484,15 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-	const ImVec2 hover_pos = ImGui::GetCursorScreenPos() + ImVec2(0, button_size);
+
+	ImVec2 hover_pos = ImGui::GetCursorScreenPos();
+	hover_pos.y += button_size;
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 	if (ImGui::BeginCombo("##v", items.size() > static_cast<size_t>(v) && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
 	{
-		auto it = items.begin();
-		for (size_t i = 0; it != items.end(); ++it, ++i)
+		auto it = items.cbegin();
+		for (size_t i = 0; it != items.cend(); ++it, ++i)
 		{
 			bool selected = v == static_cast<int>(i);
 			if (ImGui::Selectable(it->data(), &selected))
@@ -505,8 +538,8 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 		ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
 		ImGui::PopStyleVar();
 
-		auto it = items.begin();
-		for (size_t i = 0; it != items.end(); ++it, ++i)
+		auto it = items.cbegin();
+		for (size_t i = 0; it != items.cend(); ++it, ++i)
 		{
 			bool selected = v == static_cast<int>(i);
 			ImGui::Selectable(it->data(), &selected);
@@ -532,7 +565,7 @@ bool reshade::imgui::combo_with_buttons(const char *label, const std::string_vie
 	size_t num_items = 0;
 	std::string items;
 	items.reserve(ui_items.size());
-	for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string::npos; offset = next + 1, ++num_items)
+	for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1, ++num_items)
 	{
 		items += ui_items.data() + offset;
 		items += '\0'; // Terminate item in the combo list

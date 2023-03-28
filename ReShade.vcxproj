@@ -431,7 +431,7 @@
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>signtool sign /f "$(SolutionDir)\res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</Command>
+      <Command>signtool sign /f "$(SolutionDir)\res\sign.pfx" /fd sha1 /t http://timestamp.digicert.com "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release Signed|x64'">
@@ -475,7 +475,7 @@
       <Command>powershell -ExecutionPolicy Bypass -File tools\update_version.ps1 res\version.h -config "$(Configuration)" -platform "$(Platform)"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>signtool sign /f "$(SolutionDir)\res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</Command>
+      <Command>signtool sign /f "$(SolutionDir)\res\sign.pfx" /fd sha1 /t http://timestamp.digicert.com "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -597,7 +597,7 @@
     <ClCompile Include="source\opengl\opengl_impl_type_convert.cpp" />
     <ClCompile Include="source\openvr\openvr.cpp" />
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp" />
-    <ClCompile Include="source\process_utils.cpp" />
+    <ClCompile Include="source\platform_utils.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_api.cpp" />
     <ClCompile Include="source\runtime_gui.cpp" />
@@ -696,7 +696,7 @@
     <ClInclude Include="source\opengl\opengl_impl_swapchain.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp" />
     <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp" />
-    <ClInclude Include="source\process_utils.hpp" />
+    <ClInclude Include="source\platform_utils.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp" />

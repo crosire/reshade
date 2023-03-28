@@ -29,7 +29,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_ONE;
 			return GL_R8;
 		}
-		return 0x8040 /* GL_LUMINANCE8 */;
+		return GL_LUMINANCE8_EXT;
 	case api::format::a8_unorm:
 		if (swizzle_mask != nullptr)
 		{
@@ -39,7 +39,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_RED;
 			return GL_R8;
 		}
-		return 0x803C /* GL_ALPHA8 */;
+		return GL_ALPHA8_EXT;
 	case api::format::r8_uint:
 		return GL_R8UI;
 	case api::format::r8_sint:
@@ -58,7 +58,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_GREEN;
 			return GL_RG8;
 		}
-		return 0x8045 /* GL_LUMINANCE8_ALPHA8 */;
+		return GL_LUMINANCE8_ALPHA8_EXT;
 	case api::format::r8g8_uint:
 		return GL_RG8UI;
 	case api::format::r8g8_sint:
@@ -82,6 +82,12 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_SRGB8_ALPHA8;
 	case api::format::r8g8b8a8_snorm:
 		return GL_RGBA8_SNORM;
+#if 0
+	case api::format::r8g8b8x8_uint:
+		return GL_RGB8UI;
+	case api::format::r8g8b8x8_sint:
+		return GL_RGB8I;
+#endif
 	case api::format::r8g8b8x8_unorm:
 	case api::format::b8g8r8x8_typeless:
 	case api::format::b8g8r8x8_unorm:
@@ -89,6 +95,10 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 	case api::format::r8g8b8x8_unorm_srgb:
 	case api::format::b8g8r8x8_unorm_srgb:
 		return GL_SRGB8;
+#if 0
+	case api::format::r8g8b8x8_snorm:
+		return GL_RGB8_SNORM;
+#endif
 	case api::format::r10g10b10a2_uint:
 	case api::format::b10g10r10a2_uint:
 		return GL_RGB10_A2UI;
@@ -109,6 +119,12 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			return GL_R16;
 		}
 		return 0x8042 /* GL_LUMINANCE16 */;
+#if 0
+	case api::format::l16_float:
+		return GL_LUMINANCE16F_EXT;
+	case api::format::a16_float:
+		return GL_ALPHA16F_EXT;
+#endif
 	case api::format::r16_uint:
 		return GL_R16UI;
 	case api::format::r16_sint:
@@ -130,6 +146,10 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			return GL_RG16;
 		}
 		return 0x8048 /* GL_LUMINANCE16_ALPHA16 */;
+#if 0
+	case api::format::l16a16_float:
+		return GL_LUMINANCE_ALPHA16F_EXT;
+#endif
 	case api::format::r16g16_uint:
 		return GL_RG16UI;
 	case api::format::r16g16_sint:
@@ -152,6 +172,12 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 		return GL_RGBA16_SNORM;
 	case api::format::r16g16b16a16_float:
 		return GL_RGBA16F;
+#if 0
+	case api::format::l32_float:
+		return GL_LUMINANCE32F_EXT;
+	case api::format::a32_float:
+		return GL_ALPHA32F_EXT;
+#endif
 	case api::format::r32_uint:
 		return GL_R32UI;
 	case api::format::r32_sint:
@@ -159,6 +185,10 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 	case api::format::r32_typeless:
 	case api::format::r32_float:
 		return GL_R32F;
+#if 0
+	case api::format::l32a32_float:
+		return GL_LUMINANCE_ALPHA32F_EXT;
+#endif
 	case api::format::r32g32_uint:
 		return GL_RG32UI;
 	case api::format::r32g32_sint:
@@ -277,10 +307,10 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	{
 	default:
 		return api::format::unknown;
-	case 0x8040 /* GL_LUMINANCE8 */: // { R, R, R, 1 }
+	case GL_LUMINANCE8_EXT: // { R, R, R, 1 }
 	case 0x804B /* GL_INTENSITY8 */: // { R, R, R, R }
 		return api::format::l8_unorm;
-	case 0x803C /* GL_ALPHA8 */:
+	case GL_ALPHA8_EXT:
 		return api::format::a8_unorm;
 	case GL_R8UI:
 		return api::format::r8_uint;
@@ -301,7 +331,7 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r8_unorm;
 	case GL_R8_SNORM:
 		return api::format::r8_snorm;
-	case 0x8045 /* GL_LUMINANCE8_ALPHA8 */: // { R, R, R, G }
+	case GL_LUMINANCE8_ALPHA8_EXT: // { R, R, R, G }
 		return api::format::l8a8_unorm;
 	case GL_RG8UI:
 		return api::format::r8g8_uint;
@@ -350,6 +380,12 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	case 0x8042 /* GL_LUMINANCE16 */: // { R, R, R, 1 }
 	case 0x804D /* GL_INTENSITY16 */: // { R, R, R, R }
 		return api::format::l16_unorm;
+#if 0
+	case GL_LUMINANCE16F_EXT:
+		return api::format::l16_float;
+	case GL_ALPHA16F_EXT:
+		return api::format::a16_float;
+#endif
 	case GL_R16UI:
 		return api::format::r16_uint;
 	case GL_R16I:
@@ -367,6 +403,10 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16_float;
 	case 0x8048 /* GL_LUMINANCE16_ALPHA16 */: // { R, R, R, G }
 		return api::format::l16a16_unorm;
+#if 0
+	case GL_LUMINANCE_ALPHA16F_EXT:
+		return api::format::l16a16_float;
+#endif
 	case GL_RG16UI:
 		return api::format::r16g16_uint;
 	case GL_RG16I:
@@ -393,12 +433,22 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::r16g16b16a16_snorm;
 	case GL_RGBA16F:
 		return api::format::r16g16b16a16_float;
+#if 0
+	case GL_LUMINANCE32F_EXT:
+		return api::format::l32_float;
+	case GL_ALPHA32F_EXT:
+		return api::format::a32_float;
+#endif
 	case GL_R32UI:
 		return api::format::r32_uint;
 	case GL_R32I:
 		return api::format::r32_sint;
 	case GL_R32F:
 		return api::format::r32_float;
+#if 0
+	case GL_LUMINANCE_ALPHA32F_EXT:
+		return api::format::l32a32_float;
+#endif
 	case GL_RG32UI:
 		return api::format::r32g32_uint;
 	case GL_RG32I:
@@ -912,6 +962,8 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 		{
 		case GL_UNSIGNED_BYTE:
 			return api::format::a8_unorm;
+		case GL_UNSIGNED_SHORT: // Used by Amnesia: A Machine for Pigs (to upload to a GL_ALPHA8 texture)
+			return api::format::unknown;
 		default:
 			assert(false);
 			return api::format::unknown;
@@ -981,6 +1033,8 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 	case GL_RGB_INTEGER:
 		switch (type)
 		{
+		case GL_UNSIGNED_SHORT: // Used by Amnesia: A Machine for Pigs (to upload to a GL_RGB8 texture)
+			return api::format::unknown;
 		case GL_UNSIGNED_INT_10F_11F_11F_REV:
 			return api::format::r11g11b10_float;
 		case GL_FLOAT:
@@ -993,6 +1047,8 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 	case GL_BGR_INTEGER:
 		switch (type)
 		{
+		case GL_UNSIGNED_SHORT: // Used by Amnesia: A Machine for Pigs (to upload to a GL_RGB8 texture)
+			return api::format::unknown;
 		case GL_UNSIGNED_SHORT_5_6_5_REV:
 			return api::format::b5g6r5_unorm;
 		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
@@ -1034,23 +1090,14 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 	case GL_BGRA:
 		switch (type)
 		{
-		case GL_BYTE:
-			assert(false);
-			return api::format::unknown;
 		case GL_UNSIGNED_BYTE:
 			return api::format::b8g8r8a8_unorm;
-		case GL_SHORT:
-		case GL_UNSIGNED_SHORT:
-			// assert(false); // Used by Amnesia: Rebirth
+		case GL_UNSIGNED_SHORT: // Used by Amnesia: Rebirth
 			return api::format::unknown;
 		case GL_UNSIGNED_SHORT_4_4_4_4_REV:
 			return api::format::b4g4r4a4_unorm;
 		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
 			return api::format::b5g5r5a1_unorm;
-		case GL_INT:
-		case GL_UNSIGNED_INT:
-			assert(false);
-			return api::format::unknown;
 		case GL_UNSIGNED_INT_8_8_8_8:
 		case GL_UNSIGNED_INT_8_8_8_8_REV:
 			return api::format::b8g8r8a8_unorm;

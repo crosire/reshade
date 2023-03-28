@@ -54,7 +54,6 @@ namespace reshade::imgui
 	/// <summary>
 	/// Adds a file selection widget which has both a text input box for the path and a button to open a file selection dialog.
 	/// </summary>
-	bool file_input_box(const char *label, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts);
 	bool file_input_box(const char *label, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts);
 	/// <summary>
 	/// Adds a direction selection widget which has both a text input box for the path and a button to open a direction selection dialog.
@@ -79,6 +78,11 @@ namespace reshade::imgui
 	/// Adds a button with a visible toggle state. Clicking it toggles that state.
 	/// </summary>
 	bool toggle_button(const char *label, bool &v, float width = 0.0f, ImGuiButtonFlags flags = 0);
+
+	/// <summary>
+	/// Adds a button that asks for confirmation when pressed. Only returns <see langword="true"/> once that is acknowledged.
+	/// </summary>
+	bool confirm_button(const char *label, float width, const char *message, ...);
 
 	/// <summary>
 	/// Adds an ImGui drag widget but with additional "&lt;" and "&gt;" buttons to decrease/increase the value.

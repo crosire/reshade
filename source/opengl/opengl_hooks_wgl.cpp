@@ -261,7 +261,7 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 	for (UINT i = 0; i < nMaxFormats; ++i)
 	{
 		assert(piFormats[i] != 0);
-		formats += " " + std::to_string(piFormats[i]);
+		formats += ' ' + std::to_string(piFormats[i]);
 	}
 
 	LOG(INFO) << "Returning pixel format(s):" << formats;
@@ -998,9 +998,11 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
 
 		// Find the runtime that is associated with this device context
-		const auto it = std::find_if(s_opengl_devices.begin(), s_opengl_devices.end(),
-			[hdc](const std::pair<HGLRC, reshade::opengl::swapchain_impl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
-		runtime = (it != s_opengl_devices.end()) ? it->second : nullptr;
+		const auto it = std::find_if(s_opengl_devices.cbegin(), s_opengl_devices.cend(),
+			[hdc](const std::pair<HGLRC, reshade::opengl::swapchain_impl *> &it) {
+				return it.second->_hdcs.find(hdc) != it.second->_hdcs.end();
+			});
+		runtime = (it != s_opengl_devices.cend()) ? it->second : nullptr;
 	}
 
 	// The window handle can be invalid if the window was already destroyed
@@ -1335,6 +1337,9 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glCompressedTexSubImage3D);
 #  endif
 #  ifdef GL_VERSION_1_4
+		HOOK_PROC(glBlendFuncSeparate);
+		HOOK_PROC(glBlendColor);
+		HOOK_PROC(glBlendEquation);
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawElements);
 #  endif
@@ -1351,6 +1356,10 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glLinkProgram);
 		HOOK_PROC(glShaderSource);
 		HOOK_PROC(glUseProgram);
+		HOOK_PROC(glBlendEquationSeparate);
+		HOOK_PROC(glStencilFuncSeparate);
+		HOOK_PROC(glStencilOpSeparate);
+		HOOK_PROC(glStencilMaskSeparate);
 		HOOK_PROC(glUniform1f);
 		HOOK_PROC(glUniform2f);
 		HOOK_PROC(glUniform3f);
@@ -1378,6 +1387,8 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glFramebufferRenderbuffer);
 		HOOK_PROC(glRenderbufferStorage);
 		HOOK_PROC(glRenderbufferStorageMultisample);
+		HOOK_PROC(glClearBufferiv);
+		HOOK_PROC(glClearBufferuiv);
 		HOOK_PROC(glClearBufferfv);
 		HOOK_PROC(glClearBufferfi);
 		HOOK_PROC(glBlitFramebuffer);
@@ -1477,6 +1488,8 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glCopyNamedBufferSubData);
 		HOOK_PROC(glNamedRenderbufferStorage);
 		HOOK_PROC(glNamedRenderbufferStorageMultisample);
+		HOOK_PROC(glClearNamedFramebufferiv);
+		HOOK_PROC(glClearNamedFramebufferuiv);
 		HOOK_PROC(glClearNamedFramebufferfv);
 		HOOK_PROC(glClearNamedFramebufferfi);
 		HOOK_PROC(glBlitNamedFramebuffer);

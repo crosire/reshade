@@ -5,8 +5,9 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <cmath> // signbit, isinf, isnan
-#include <cstdio> // snprintf
+#include <cmath> // std::signbit, std::isinf, std::isnan
+#include <cctype> // std::tolower
+#include <cstdio> // std::snprintf
 #include <cassert>
 #include <cstring> // stricmp
 #include <algorithm> // std::find_if, std::max
@@ -50,25 +51,27 @@ private:
 	{
 		module = std::move(_module);
 
+		std::string preamble;
+
 		if (_shader_model >= 40)
 		{
-			module.hlsl += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
+			preamble += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
 
 			if (!_cbuffer_block.empty())
 			{
 				if (_shader_model >= 60)
-					module.hlsl += "[[vk::binding(0, 0)]] "; // Descriptor set 0
+					preamble += "[[vk::binding(0, 0)]] "; // Descriptor set 0
 
-				module.hlsl += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
+				preamble += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
 			}
 		}
 		else
 		{
-			module.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\n";
-			module.hlsl += "uniform float2 __TEXEL_SIZE__ : register(c255);\n";
+			preamble += "struct __sampler2D { sampler2D s; float2 pixelsize; };\n";
+			preamble += "uniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
 			if (_uses_bitwise_cast)
-				module.hlsl +=
+				preamble +=
 					"int __asint(float v) {"
 					"	if (v == 0) return 0;" // Zero (does not handle negative zero)
 					//	if (isinf(v)) return v < 0 ? 4286578688 : 2139095040; // Infinity
@@ -101,13 +104,16 @@ private:
 					"float4 __asfloat(int4 v) { return float4(__asfloat(v.x), __asfloat(v.y), __asfloat(v.z), __asfloat(v.w)); }\n";
 
 			if (!_cbuffer_block.empty())
-				module.hlsl += _cbuffer_block;
+				preamble += _cbuffer_block;
 
 			// Offsets were multiplied in 'define_uniform', so adjust total size here accordingly
 			module.total_uniform_size *= 4;
 		}
 
-		module.hlsl += _blocks.at(0);
+		module.code.assign(preamble.begin(), preamble.end());
+
+		const std::string &main_block = _blocks.at(0);
+		module.code.insert(module.code.end(), main_block.begin(), main_block.end());
 	}
 
 	template <bool is_param = false, bool is_decl = true>
@@ -352,7 +358,7 @@ private:
 #ifdef _WIN32
 			return _stricmp(a.c_str(), b.c_str()) == 0;
 #else
-			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) { return tolower(a) == tolower(b); });
+			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](std::string::value_type a, std::string::value_type b) { return std::tolower(a) == std::tolower(b); });
 #endif
 		};
 

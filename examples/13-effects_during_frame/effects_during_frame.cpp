@@ -9,11 +9,13 @@
 
 using namespace reshade::api;
 
+static bool s_filter_width_and_height = true;
+
 struct __declspec(uuid("7251932A-ADAF-4DFC-B5CB-9A4E8CD5D6EB")) device_data
 {
 	effect_runtime *main_runtime = nullptr;
 	uint32_t offset_from_last_pass = 0;
-	uint32_t last_render_pass_count = 1;
+	uint32_t last_render_pass_count = std::numeric_limits<uint32_t>::max();
 	uint32_t current_render_pass_count = 0;
 };
 struct __declspec(uuid("036CD16B-E823-4D6C-A137-5C335D6FD3E6")) command_list_data
@@ -65,23 +67,27 @@ static void on_end_render_pass(command_list *cmd_list)
 	device *const device = cmd_list->get_device();
 	const auto &dev_data = device->get_private_data<device_data>();
 
-	uint32_t width, height;
-	dev_data.main_runtime->get_screenshot_width_and_height(&width, &height);
+	// Optionally ignore render targets that do not match the effect runtime back buffer dimensions
+	if (s_filter_width_and_height)
+	{
+		uint32_t width, height;
+		dev_data.main_runtime->get_screenshot_width_and_height(&width, &height);
 
-	const resource_desc render_target_desc = device->get_resource_desc(device->get_resource_from_view(data.current_main_rtv));
+		const resource_desc render_target_desc = device->get_resource_desc(device->get_resource_from_view(data.current_main_rtv));
 
-	if (render_target_desc.texture.width != width || render_target_desc.texture.height != height)
-		return; // Ignore render targets that do not match the effect runtime back buffer dimensions
+		if (render_target_desc.texture.width != width || render_target_desc.texture.height != height)
+			return;
+	}
 
 	// Render post-processing effects when a specific render pass is found (instead of at the end of the frame)
-	// This is not perfect, since there may be multiple command lists and this will try and render effects in every single one ...
+	// This is not perfect, since there may be multiple command lists, so a global index is not conclusive and this may cause effects to be rendered multiple times ...
 	if (data.current_render_pass_index++ == (dev_data.last_render_pass_count - dev_data.offset_from_last_pass))
 	{
 		const auto &current_state = cmd_list->get_private_data<state_block>();
 
 		dev_data.main_runtime->render_effects(cmd_list, data.current_main_rtv);
 
-		// Re-apply state to the command-list, as it may have been modified by the call to 'render_effects'
+		// Re-apply state to the command list, as it may have been modified by the call to 'render_effects'
 		current_state.apply(cmd_list);
 	}
 }
@@ -90,7 +96,7 @@ static void on_begin_render_pass(command_list *cmd_list, uint32_t count, const r
 {
 	auto &data = cmd_list->get_private_data<command_list_data>();
 	data.has_multiple_rtvs = count > 1;
-	data.current_main_rtv = (count != 0) ? rts[0].view : resource_view{ 0 };
+	data.current_main_rtv = (count != 0) ? rts[0].view : resource_view { 0 };
 }
 static void on_bind_render_targets_and_depth_stencil(command_list *cmd_list, uint32_t count, const resource_view *rtvs, resource_view)
 {
@@ -131,7 +137,7 @@ static void on_present(effect_runtime *runtime)
 		on_reset_command_list(runtime->get_command_queue()->get_immediate_command_list());
 
 	// Keep track of the total render pass count of this frame
-	dev_data.last_render_pass_count = dev_data.current_render_pass_count > 0 ? dev_data.current_render_pass_count : 1;
+	dev_data.last_render_pass_count = dev_data.current_render_pass_count > 0 ? dev_data.current_render_pass_count : std::numeric_limits<uint32_t>::max();
 	dev_data.current_render_pass_count = 0;
 
 	if (dev_data.offset_from_last_pass > dev_data.last_render_pass_count)
@@ -148,6 +154,8 @@ static void on_draw_settings(effect_runtime *runtime)
 		ImGui::TextUnformatted("This is not the main effect runtime.");
 		return;
 	}
+
+	ImGui::Checkbox("Filter out render passes with different dimensions", &s_filter_width_and_height);
 
 	ImGui::Text("Current render pass count: %u", dev_data.last_render_pass_count);
 	ImGui::Text("Offset from end of frame to render effects at: %u", dev_data.offset_from_last_pass);
@@ -175,6 +183,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		if (!reshade::register_addon(hModule))
 			return FALSE;
 
+		// Need to register events for state tracking before the rest, so that the state block of a command list is up-to-date by the time any of the below callback functions are called
+		register_state_tracking();
+
 		reshade::register_event<reshade::addon_event::init_device>(on_init_device);
 		reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
 		reshade::register_event<reshade::addon_event::init_command_list>(on_init_command_list);
@@ -190,8 +201,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::reshade_present>(on_present);
 
 		reshade::register_overlay(nullptr, on_draw_settings);
-
-		register_state_tracking();
 		break;
 	case DLL_PROCESS_DETACH:
 		unregister_state_tracking();

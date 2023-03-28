@@ -23,28 +23,62 @@ extern "C" __declspec(dllexport) void ReShadeLogMessage(void *module, int level,
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
 }
 
-extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *length)
+extern "C" __declspec(dllexport) void ReShadeGetBasePath(void *, char *path, size_t *size)
 {
-	if (key == nullptr || length == nullptr)
+	if (size == nullptr)
+		return;
+
+	const std::string path_string = g_reshade_base_path.u8string();
+
+	if (path == nullptr)
+	{
+		*size = path_string.size() + 1;
+	}
+	else if (*size != 0)
+	{
+		*size = path_string.copy(path, *size - 1);
+		path[*size++] = '\0';
+	}
+}
+
+extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
+{
+	if (size == nullptr)
 		return false;
 
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
+	const std::string section_string = section != nullptr ? section : std::string();
+	const std::string key_string = key != nullptr ? key : std::string();
 	std::string value_string;
-	if (!config.get(section, key, value_string))
+
+	if (!config.get(section_string, key_string, value_string))
+	{
+		*size = 0;
 		return false;
+	}
 
-	if (value != nullptr && *length != 0)
-		value[value_string.copy(value, *length - 1)] = '\0';
+	if (value == nullptr)
+	{
+		*size = value_string.size() + 1;
+	}
+	else if (*size != 0)
+	{
+		*size = value_string.copy(value, *size - 1);
+		value[*size++] = '\0';
+	}
 
-	*length = value_string.size();
 	return true;
 }
 extern "C" __declspec(dllexport) void ReShadeSetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
-	config.set(section, key != nullptr ? key : std::string(), value != nullptr ? value : std::string());
+	const std::string section_string = section != nullptr ? section : std::string();
+	const std::string key_string = key != nullptr ? key : std::string();
+	const std::string value_string = value != nullptr ? value : std::string();
+
+	config.set(section_string, key_string, value_string);
 }
 
 #if RESHADE_GUI
