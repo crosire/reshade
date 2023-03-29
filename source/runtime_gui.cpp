@@ -40,8 +40,8 @@ static void parse_errors(const std::string_view &errors, F &&callback)
 	for (size_t offset = 0, next; offset != std::string_view::npos; offset = next)
 	{
 		const size_t pos_error = errors.find(": ", offset);
-		const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
-		if (pos_error == std::string_view::npos || pos_error_line == std::string_view::npos)
+		const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from the error location to find the line info
+		if (pos_error == std::string_view::npos || pos_error_line == std::string_view::npos || pos_error_line < offset)
 			break;
 
 		const size_t pos_linefeed = errors.find('\n', pos_error);
