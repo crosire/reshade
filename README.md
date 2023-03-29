@@ -4,7 +4,6 @@ Nano's ReShade
 This is Nano's fork of ReShade. Main changes are removal of Network Detection and adding Github Actions.
 Go [HERE](https://github.com/Zayveeo5e/reshade/actions) to download latest build.
 
-<<<<<<< HEAD
 =======
 ReShade can optionally load **add-ons**, DLLs that make use of the ReShade API to extend functionality of both ReShade and/or the application ReShade is being applied to. To get started on how to write your own add-on, check out the [API reference](REFERENCE.md).
 
@@ -43,7 +42,6 @@ Any contributions to the project are welcomed, it's recommended to use GitHub [p
 ## Feedback and Support
 
 See the [ReShade Forum](https://reshade.me/forum) and [Discord](https://discord.gg/PrwndfH) server for feedback and support.
->>>>>>> 595bb38a93c072a0eb225d59ab2986b4705f8765
 
 ## License
 
