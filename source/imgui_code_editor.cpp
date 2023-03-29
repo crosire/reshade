@@ -750,7 +750,8 @@ void reshade::imgui::code_editor::set_text(const std::string_view &text)
 	// Restrict cursor position to new text bounds
 	_select_beg = _select_end = text_pos();
 	_interactive_beg = _interactive_end = text_pos();
-	_cursor_pos = std::min(_cursor_pos, text_pos(_lines.size() - 1, _lines.back().size()));
+	_cursor_pos.line = std::min(_cursor_pos.line, _lines.size() - 1);
+	_cursor_pos.column = std::min(_cursor_pos.column, _lines[_cursor_pos.line].size());
 
 	_colorize_line_beg = 0;
 	_colorize_line_end = _lines.size();
