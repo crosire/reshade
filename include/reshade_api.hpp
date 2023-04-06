@@ -707,12 +707,12 @@ namespace reshade::api
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the definition, or <see langword="nullptr"/> to query the necessary size.</param>
 		/// <param name="value_size">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string, including the null-terminator.</param>
-		virtual bool get_preprocessor_definition(const char *effect_name, const char *name, char *value, size_t *value_size) const = 0;
+		virtual bool get_preprocessor_definition_for_effect(const char *effect_name, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
-		inline  bool get_preprocessor_definition(const char *effect_name, const char *name, char(&value)[SIZE]) const
+		inline  bool get_preprocessor_definition_for_effect(const char *effect_name, const char *name, char(&value)[SIZE]) const
 		{
 			size_t value_size = SIZE;
-			return get_preprocessor_definition(effect_name, name, value, &value_size);
+			return get_preprocessor_definition_for_effect(effect_name, name, value, &value_size);
 		}
 		/// <summary>
 		/// Defines a preprocessor definition for the specified effect to the specified <paramref name="value"/>.
@@ -720,6 +720,6 @@ namespace reshade::api
 		/// <param name="effect_name">File name of the effect file the preprocessor definition should be defined for.</param>
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Value of the definition.</param>
-		virtual void set_preprocessor_definition(const char *effect_name, const char *name, const char *value) = 0;
+		virtual void set_preprocessor_definition_for_effect(const char *effect_name, const char *name, const char *value) = 0;
 	};
 }

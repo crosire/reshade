@@ -1011,9 +1011,9 @@ void reshade::runtime::set_technique_state([[maybe_unused]] api::effect_techniqu
 
 void reshade::runtime::set_preprocessor_definition(const char *name, const char *value)
 {
-	set_preprocessor_definition(nullptr, name, value);
+	set_preprocessor_definition_for_effect(nullptr, name, value);
 }
-void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
+void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
 {
 #if RESHADE_FX
 	if (name == nullptr)
@@ -1081,9 +1081,9 @@ void reshade::runtime::set_preprocessor_definition([[maybe_unused]] const char *
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, char *value, size_t *size) const
 {
-	return get_preprocessor_definition(nullptr, name, value, size);
+	return get_preprocessor_definition_for_effect(nullptr, name, value, size);
 }
-bool reshade::runtime::get_preprocessor_definition([[maybe_unused]] const char *effect_name, const char *name, [[maybe_unused]] char *value, size_t *size) const
+bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name, const char *name, [[maybe_unused]] char *value, size_t *size) const
 {
 #if RESHADE_FX
 	const std::string effect_name_string = effect_name != nullptr ? effect_name : std::string();
