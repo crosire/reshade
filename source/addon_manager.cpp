@@ -415,7 +415,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		return false; // Disable this add-on
 	}
 
-	LOG(INFO) << "Registered add-on \"" << info.name << "\" v" << (info.version.empty() ? "1.0.0.0" : info.version) << '.';
+	LOG(INFO) << "Registered add-on \"" << info.name << "\" v" << (info.version.empty() ? "1.0.0.0" : info.version) << " using ReShade API version " << api_version << '.';
 
 	reshade::addon_loaded_info.push_back(std::move(info));
 
