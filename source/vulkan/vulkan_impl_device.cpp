@@ -773,19 +773,28 @@ bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, ui
 	out_data->slice_pitch = 0;
 
 	// Mapping a subset of a texture is not supported
-	if (subresource != 0 || box != nullptr)
+	if (box != nullptr)
 		return false;
 
 	assert(resource.handle != 0);
 
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+
+	VkImageSubresource subresource_info;
+	subresource_info.aspectMask = aspect_flags_from_format(data->create_info.format);
+	subresource_info.mipLevel = subresource % data->create_info.mipLevels;
+	subresource_info.arrayLayer = subresource / data->create_info.mipLevels;
+
+	VkSubresourceLayout subresource_layout = {};
+	vk.GetImageSubresourceLayout(_orig, (VkImage)resource.handle, &subresource_info, &subresource_layout);
+
 	if (data->allocation != VMA_NULL)
 	{
 		if (vmaMapMemory(_alloc, data->allocation, &out_data->data) == VK_SUCCESS)
 		{
-			// Assume that the image was created with 'VK_IMAGE_TILING_LINEAR' here
-			out_data->row_pitch = api::format_row_pitch(convert_format(data->create_info.format), data->create_info.extent.width);
-			out_data->slice_pitch = api::format_slice_pitch(convert_format(data->create_info.format), out_data->row_pitch, data->create_info.extent.height);
+			out_data->data = static_cast<uint8_t *>(out_data->data) + subresource_layout.offset;
+			out_data->row_pitch = static_cast<uint32_t>(subresource_layout.rowPitch);
+			out_data->slice_pitch = static_cast<uint32_t>(std::max(subresource_layout.arrayPitch, subresource_layout.depthPitch));
 			return true;
 		}
 	}
@@ -793,8 +802,9 @@ bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, ui
 	{
 		if (vk.MapMemory(_orig, data->memory, data->memory_offset, VK_WHOLE_SIZE, 0, &out_data->data) == VK_SUCCESS)
 		{
-			out_data->row_pitch = api::format_row_pitch(convert_format(data->create_info.format), data->create_info.extent.width);
-			out_data->slice_pitch = api::format_slice_pitch(convert_format(data->create_info.format), out_data->row_pitch, data->create_info.extent.height);
+			out_data->data = static_cast<uint8_t *>(out_data->data) + subresource_layout.offset;
+			out_data->row_pitch = static_cast<uint32_t>(subresource_layout.rowPitch);
+			out_data->slice_pitch = static_cast<uint32_t>(std::max(subresource_layout.arrayPitch, subresource_layout.depthPitch));
 			return true;
 		}
 	}
@@ -884,9 +894,11 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 		}
 		else
 		{
+			const size_t row_size = data.row_pitch < row_pitch ? data.row_pitch : static_cast<size_t>(row_pitch);
+
 			for (size_t z = 0; z < extent.depth; ++z)
 				for (size_t y = 0; y < extent.height; ++y, mapped_data += row_pitch)
-					std::memcpy(mapped_data, static_cast<const uint8_t *>(data.data) + z * data.slice_pitch + y * data.row_pitch, row_pitch);
+					std::memcpy(mapped_data, static_cast<const uint8_t *>(data.data) + z * data.slice_pitch + y * data.row_pitch, row_size);
 		}
 
 		vmaUnmapMemory(_alloc, intermediate_mem);

@@ -11,12 +11,12 @@
 
 #define vk _device_impl->_dispatch_table
 
-static inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &result)
+static inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &subresource_info)
 {
-	result.aspectMask = reshade::vulkan::aspect_flags_from_format(create_info.format);
-	result.mipLevel = subresource % create_info.mipLevels;
-	result.baseArrayLayer = subresource / create_info.mipLevels;
-	result.layerCount = 1;
+	subresource_info.aspectMask = reshade::vulkan::aspect_flags_from_format(create_info.format);
+	subresource_info.mipLevel = subresource % create_info.mipLevels;
+	subresource_info.baseArrayLayer = subresource / create_info.mipLevels;
+	subresource_info.layerCount = 1;
 }
 
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
