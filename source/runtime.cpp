@@ -3440,7 +3440,9 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 	{
 		if (_effects.size() == _should_reload_effect)
 		{
+#if RESHADE_VERBOSE_LOG
 			LOG(WARN) << "Effects were rendered to different render targets with mismatching format or dimensions. This requires ReShade to recreate resources every frame which is very slow.";
+#endif
 
 			// Avoid reloading effects when effect color resource changes every frame
 			_should_reload_effect = std::numeric_limits<size_t>::max();
