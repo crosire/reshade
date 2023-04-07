@@ -792,6 +792,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// The depth-stencil description argument is optional and may be <see langword="nullptr"/>.
+		/// </remarks>
 		begin_render_pass,
 
 		/// <summary>
@@ -1027,6 +1030,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// The strides argument is optional and may be <see langword="nullptr"/>.
+		/// </remarks>
 		bind_vertex_buffers,
 
 		/// <summary>
@@ -1044,6 +1050,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// The counter arguments are optional and may be <see langword="nullptr"/>.
+		/// </remarks>
 		bind_stream_output_buffers,
 
 		/// <summary>
@@ -1184,6 +1193,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
 		/// </remarks>
 		copy_buffer_to_texture,
 
@@ -1215,6 +1225,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
+		/// The subresource box arguments are optional and may be <see langword="nullptr"/>.
 		/// </remarks>
 		copy_texture_region,
 
@@ -1231,6 +1242,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
 		/// </remarks>
 		copy_texture_to_buffer,
 
@@ -1253,6 +1265,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::resolve_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::resolve_dest"/> state.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
 		/// </remarks>
 		resolve_texture_region,
 
@@ -1277,6 +1290,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Resource will be in the <see cref="api::resource_usage::depth_stencil_write"/> state.
+		/// One of the depth or stencil clear value arguments may be <see langword="nullptr"/> when the respective component is not cleared.
 		/// </remarks>
 		clear_depth_stencil_view,
 
@@ -1455,6 +1469,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// The source and destination rectangle arguments are optional and may be <see langword="nullptr"/>.
+		/// </remarks>
 		present,
 
 		/// <summary>
