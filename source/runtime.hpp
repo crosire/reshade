@@ -301,9 +301,7 @@ namespace reshade
 
 		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
 		std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> _preset_preprocessor_definitions;
-#if RESHADE_ADDON
-		size_t _should_save_preprocessor_definitions = std::numeric_limits<size_t>::max();
-#endif
+		size_t _should_reload_effect = std::numeric_limits<size_t>::max();
 
 		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;

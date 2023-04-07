@@ -147,7 +147,6 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 
 static inline int format_color_bit_depth(reshade::api::format value)
 {
-	// Only need to handle swap chain formats
 	switch (value)
 	{
 	default:
@@ -180,6 +179,11 @@ static inline int format_color_bit_depth(reshade::api::format value)
 	case reshade::api::format::r16g16b16a16_typeless:
 	case reshade::api::format::r16g16b16a16_float:
 		return 16;
+	case reshade::api::format::r32g32b32_typeless:
+	case reshade::api::format::r32g32b32_float:
+	case reshade::api::format::r32g32b32a32_typeless:
+	case reshade::api::format::r32g32b32a32_float:
+		return 32;
 	}
 }
 #endif
@@ -2057,7 +2061,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					effect.errors += ") already created a texture with a different image file\n";
 				}
 
-				if (existing_texture->semantic == "COLOR" && format_color_bit_depth(_back_buffer_format) != 8)
+				if (existing_texture->semantic == "COLOR" && format_color_bit_depth(_effect_color_format) != 8)
 				{
 					for (const reshadefx::sampler_info &sampler_info : effect.module.samplers)
 					{
@@ -2491,7 +2495,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					pass_info.viewport_width = _effect_width;
 					pass_info.viewport_height = _effect_height;
 
-					render_target_formats[0] = api::format_to_default_typed(_back_buffer_format, pass_info.srgb_write_enable);
+					render_target_formats[0] = api::format_to_default_typed(_effect_color_format, pass_info.srgb_write_enable);
 
 					subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, 1, &render_target_formats[0] });
 				}
@@ -3315,6 +3319,7 @@ void reshade::runtime::destroy_effects()
 	assert(_techniques.empty() && _technique_sorting.empty());
 
 	_textures_loaded = false;
+	_should_reload_effect = std::numeric_limits<size_t>::max();
 }
 
 bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &data) const
@@ -3406,12 +3411,14 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 			api::resource_desc(width, height, 1, 1, color_format, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
 			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
 	{
-		LOG(ERROR) << "Failed to create effect color resource!";
+		LOG(ERROR) << "Failed to create effect color resource (width = " << width << ", height = " << height << ", format = " << static_cast<uint32_t>(color_format) << ")!";
 		return false;
 	}
 
+#if RESHADE_ADDON
 	// Reload effects to update 'BUFFER_WIDTH', 'BUFFER_HEIGHT' and 'BUFFER_COLOR_BIT_DEPTH' definitions (unless this is the 'update_effect_color_and_stencil_tex' call in 'on_init')
 	const bool force_reload = _is_initialized && (width != _effect_width || height != _effect_height || format_color_bit_depth(color_format) != format_color_bit_depth(_effect_color_format));
+#endif
 
 	_effect_width = width;
 	_effect_height = height;
@@ -3422,20 +3429,34 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 	if (!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(color_format, 0)), &_effect_color_srv[0]) ||
 		!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(color_format, 1)), &_effect_color_srv[1]))
 	{
-		LOG(ERROR) << "Failed to create effect color resource view!";
+		LOG(ERROR) << "Failed to create effect color resource view (format = " << static_cast<uint32_t>(color_format) << ")!";
 		return false;
 	}
 
 	update_texture_bindings("COLOR", _effect_color_srv[0], _effect_color_srv[1]);
 
+#if RESHADE_ADDON
 	if (force_reload)
-		reload_effects();
+	{
+		if (_effects.size() == _should_reload_effect)
+		{
+			LOG(WARN) << "Effects were rendered to different render targets with mismatching format or dimensions. This requires ReShade to recreate resources every frame which is very slow.";
+
+			// Avoid reloading effects when effect color resource changes every frame
+			_should_reload_effect = std::numeric_limits<size_t>::max();
+		}
+		else
+		{
+			_should_reload_effect = _effects.size();
+		}
+	}
+#endif
 
 	if (!_device->create_resource(
 			api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
 			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
 	{
-		LOG(ERROR) << "Failed to create effect stencil resource!";
+		LOG(ERROR) << "Failed to create effect stencil resource (width = " << width << ", height = " << height << ", format = " << static_cast<uint32_t>(stencil_format) << ")!";
 		return false;
 	}
 
@@ -3445,7 +3466,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 
 	if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(stencil_format), &_effect_stencil_dsv))
 	{
-		LOG(ERROR) << "Failed to create effect stencil resource view!";
+		LOG(ERROR) << "Failed to create effect stencil resource view (format = " << static_cast<uint32_t>(stencil_format) << ")!";
 		return false;
 	}
 
@@ -3458,19 +3479,17 @@ void reshade::runtime::update_effects()
 	if (_frame_count == 0 && !_no_reload_on_init && !(_no_reload_for_non_vr && !_is_vr))
 		reload_effects();
 
-#if RESHADE_ADDON
-	if (!is_loading() && _should_save_preprocessor_definitions != std::numeric_limits<size_t>::max())
+	if (_should_reload_effect != std::numeric_limits<size_t>::max() && !is_loading())
 	{
-		save_current_preset();
+		save_current_preset(); // Save preset preprocessor definitions
 
-		if (_should_save_preprocessor_definitions < _effects.size())
-			reload_effect(_should_save_preprocessor_definitions);
+		if (_should_reload_effect < _effects.size())
+			reload_effect(_should_reload_effect);
 		else
 			reload_effects();
 
-		_should_save_preprocessor_definitions = std::numeric_limits<size_t>::max();
+		_should_reload_effect = std::numeric_limits<size_t>::max();
 	}
-#endif
 
 	if (_reload_remaining_effects == 0)
 	{
@@ -3817,7 +3836,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
 
 #if RESHADE_ADDON
-	if (!_is_in_present_call || (_effect_width != _width || _effect_height != _height))
+	if (!_is_in_present_call || (_effect_width != _width || _effect_height != _height || _effect_color_format != api::format_to_typeless(_back_buffer_format)))
 	{
 		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
 		if (back_buffer_desc.texture.samples > 1)
@@ -3825,7 +3844,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Changing dimensions or format can cause effects to be reloaded, in which case need to wait for that to finish before rendering
-		if (!update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, back_buffer_desc.texture.format, _effect_stencil_format) || is_loading())
+		if (!update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, back_buffer_desc.texture.format, _effect_stencil_format))
 			return;
 	}
 
@@ -4053,11 +4072,9 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 					if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
 					{
-						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
-
 						const float pixel_size[4] = {
-							1.0f / desc.texture.width,
-							1.0f / desc.texture.height
+							1.0f / _effect_width,
+							1.0f / _effect_height
 						};
 
 						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, effect.layout, 0, (255 - semantic_index) * 4, 4, pixel_size);
