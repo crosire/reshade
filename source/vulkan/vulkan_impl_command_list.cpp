@@ -464,14 +464,14 @@ void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint
 	vk.CmdSetScissor(_orig, first, count, rect_data.p);
 }
 
-void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t, uint32_t offset, uint32_t count, const void *values)
+void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t, uint32_t first, uint32_t count, const void *values)
 {
 	assert(count != 0);
 
 	vk.CmdPushConstants(_orig,
 		(VkPipelineLayout)layout.handle,
 		static_cast<VkShaderStageFlags>(stages),
-		offset * 4, count * 4, values);
+		first * 4, count * 4, values);
 }
 void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {

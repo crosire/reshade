@@ -309,10 +309,12 @@ void reshade::opengl::render_context_impl::bind_framebuffer_with_resource(GLenum
 }
 void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
-	if ((count == 0 || ((count == 1) && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT)) && (dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT))
+	if ((count == 1 && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT) || (count == 0 && (dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)))
 	{
+		assert(dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT);
+
 		gl.BindFramebuffer(target, 0);
-		update_current_window_height(count != 0 ? rtvs[0] : dsv);
+		_current_window_height = _device_impl->_default_fbo_desc.texture.height;
 		return;
 	}
 
@@ -763,21 +765,22 @@ void reshade::opengl::render_context_impl::bind_scissor_rects(uint32_t first, ui
 
 void reshade::opengl::render_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
+	const GLuint push_constants_size = (first + count) * sizeof(uint32_t);
 	const GLuint push_constants_binding = (layout.handle != 0 && layout != global_pipeline_layout) ? reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
 
 	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
 	gl.BindBufferBase(GL_UNIFORM_BUFFER, push_constants_binding, _push_constants);
 
 	// Recreate the buffer data store in case it is no longer large enough
-	if (count > _push_constants_size)
+	if (push_constants_size > _push_constants_size)
 	{
-		gl.BufferData(GL_UNIFORM_BUFFER, count * sizeof(uint32_t), first == 0 ? values : nullptr, GL_DYNAMIC_DRAW);
+		gl.BufferData(GL_UNIFORM_BUFFER, push_constants_size, first == 0 ? values : nullptr, GL_DYNAMIC_DRAW);
 		if (first != 0)
 			gl.BufferSubData(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), values);
 
 		_device_impl->set_resource_name(make_resource_handle(GL_BUFFER, _push_constants), "Push constants");
 
-		_push_constants_size = count;
+		_push_constants_size = push_constants_size;
 	}
 	// Otherwise discard the previous range (so driver can return a new memory region to avoid stalls) and update it with the new constants
 	else if (void *const data = gl.MapBufferRange(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT))
@@ -926,7 +929,7 @@ void reshade::opengl::render_context_impl::bind_index_buffer(api::resource buffe
 		_current_index_type = GL_UNSIGNED_INT;
 		break;
 	default:
-		assert(false);
+		assert(buffer.handle == 0);
 		break;
 	}
 }
