@@ -420,9 +420,9 @@ bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned 
 {
 	assert(vtable != nullptr && replacement != nullptr);
 
-	hook hook = find_internal(nullptr, replacement);
+	hook hook = find_internal(&vtable[offset], replacement);
 	// Check if the hook was already installed to this virtual function table
-	if (hook.installed() && hook.target == &vtable[offset])
+	if (hook.installed())
 		// It may happen that some other third party (like NVIDIA Streamline) replaced the virtual function table entry since it was originally installed, just ignore that
 		return vtable[offset] == hook.replacement;
 
