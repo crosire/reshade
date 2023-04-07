@@ -57,7 +57,7 @@ namespace reshade
 		/// <summary>
 		/// Gets a boolean indicating whether effects are being loaded.
 		/// </summary>
-		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max(); }
+		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_create_queue.empty() || (!_textures_loaded && _is_initialized); }
 #else
 		bool is_loading() const { return false; }
 #endif

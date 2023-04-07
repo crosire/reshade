@@ -1098,12 +1098,9 @@ void reshade::runtime::draw_gui()
 	}
 
 #if RESHADE_ADDON
-	// Do not show add-on overlays while loading in case they are still referencing any variable or technique handles
-	if (!is_loading()
-#if RESHADE_ADDON_LITE
-		&& addon_enabled
-#endif
-		)
+#  if RESHADE_ADDON_LITE
+	if (addon_enabled)
+#  endif
 	{
 		for (const addon_info &info : addon_loaded_info)
 		{
@@ -1117,9 +1114,9 @@ void reshade::runtime::draw_gui()
 				ImGui::End();
 			}
 		}
-	}
 
-	invoke_addon_event<addon_event::reshade_overlay>(this);
+		invoke_addon_event<addon_event::reshade_overlay>(this);
+	}
 #endif
 
 #if RESHADE_FX
@@ -1142,7 +1139,7 @@ void reshade::runtime::draw_gui()
 		}
 
 		// The preview texture is unset in 'destroy_effect', so should not be able to reach this while loading
-		assert(!is_loading() && _reload_create_queue.empty());
+		assert(!is_loading());
 
 		// Scale image to fill the entire viewport by default
 		ImVec2 preview_min = ImVec2(0, 0);
@@ -1468,7 +1465,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::Spacing();
 	}
 
-	if (is_loading())
+	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 	{
 		const char *const loading_message = ICON_FK_REFRESH " Loading ... ";
 		ImGui::SetCursorPos((ImGui::GetWindowSize() - ImGui::CalcTextSize(loading_message)) * 0.5f);

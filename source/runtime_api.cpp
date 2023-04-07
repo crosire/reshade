@@ -465,7 +465,7 @@ void reshade::runtime::set_uniform_value_uint([[maybe_unused]] api::effect_unifo
 void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), [[maybe_unused]] void *user_data)
 {
 #if RESHADE_FX
-	if (is_loading() || !_reload_create_queue.empty())
+	if (is_loading())
 		return;
 
 	for (const texture &variable : _textures)
@@ -485,7 +485,7 @@ void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *
 reshade::api::effect_texture_variable reshade::runtime::find_texture_variable([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *variable_name) const
 {
 #if RESHADE_FX
-	if (is_loading() || !_reload_create_queue.empty())
+	if (is_loading())
 		return { 0 };
 
 	for (const texture &variable : _textures)
@@ -1162,9 +1162,8 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 		std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), tech->effect_index) == _reload_create_queue.cend())
 		_reload_create_queue.push_back(tech->effect_index);
 
-	if (is_loading() || tech->passes_data.empty() || rtv == 0)
+	if (rtv == 0 || is_loading())
 		return;
-
 	if (rtv_srgb == 0)
 		rtv_srgb = rtv;
 

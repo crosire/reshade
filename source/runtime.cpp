@@ -668,7 +668,7 @@ void reshade::runtime::on_present()
 
 #if RESHADE_FX
 		// Do not allow the following shortcuts while effects are being loaded or initialized (since they affect that state)
-		if (!is_loading() && _reload_create_queue.empty())
+		if (!is_loading())
 		{
 			if (_input->is_key_pressed(_reload_key_data, _force_shortcut_modifiers))
 				reload_effects();
@@ -3165,7 +3165,7 @@ void reshade::runtime::reorder_techniques(std::vector<size_t> &&technique_indice
 			}));
 
 #if RESHADE_ADDON
-	if (!_is_in_api_call)
+	if (!is_loading() && !_is_in_api_call)
 	{
 		std::vector<api::effect_technique> techniques(technique_indices.size());
 		std::transform(technique_indices.cbegin(), technique_indices.cend(), techniques.begin(),
@@ -3551,14 +3551,15 @@ void reshade::runtime::update_effects()
 		}
 #endif
 	}
-	else if (!_textures_loaded)
+
+	if (!_textures_loaded && _reload_create_queue.empty())
 	{
+		// Now that all effects were created, load all textures
+		load_textures();
+
 #if RESHADE_ADDON
 		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
 #endif
-
-		// Now that all effects were compiled, load all textures
-		load_textures();
 	}
 }
 void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
