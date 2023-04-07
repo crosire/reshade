@@ -162,9 +162,9 @@ namespace ReShade.Setup
 						{
 							operation = InstallOperation.Update;
 						}
-						else if (state == "updateall")
+						else if (state == "modify")
 						{
-							operation = InstallOperation.UpdateEffects;
+							operation = InstallOperation.Modify;
 						}
 						else if (state == "uninstall")
 						{
@@ -467,8 +467,8 @@ namespace ReShade.Setup
 				case InstallOperation.Update:
 					startInfo.Arguments += " --state update";
 					break;
-				case InstallOperation.UpdateEffects:
-					startInfo.Arguments += " --state updateall";
+				case InstallOperation.Modify:
+					startInfo.Arguments += " --state modify";
 					break;
 				case InstallOperation.Uninstall:
 					startInfo.Arguments += " --state uninstall";
@@ -740,7 +740,7 @@ namespace ReShade.Setup
 				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
 				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
-				if (operation != InstallOperation.Update && operation != InstallOperation.UpdateEffects && File.Exists(configPath))
+				if (operation != InstallOperation.Update && operation != InstallOperation.Modify && File.Exists(configPath))
 				{
 					if (isHeadless)
 					{
@@ -793,7 +793,7 @@ namespace ReShade.Setup
 					configPath = configPathAlt;
 				}
 
-				if (operation != InstallOperation.Update && operation != InstallOperation.UpdateEffects && ModuleExists(modulePath, out isReShade))
+				if (operation != InstallOperation.Update && operation != InstallOperation.Modify && ModuleExists(modulePath, out isReShade))
 				{
 					if (isReShade)
 					{
@@ -822,7 +822,7 @@ namespace ReShade.Setup
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				if (operation != InstallOperation.Update && operation != InstallOperation.UpdateEffects && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
+				if (operation != InstallOperation.Update && operation != InstallOperation.Modify && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
 				{
 					if (isHeadless)
 					{
@@ -1293,6 +1293,44 @@ In that event here are some steps you can try to resolve this:
 			MakeWritable(Path.Combine(basePath, "ReShade.log"));
 			MakeWritable(Path.Combine(basePath, "ReShadePreset.ini"));
 
+			// FiveM ...
+			if (Path.GetFileName(targetPath) == "GTA5.exe" || Path.GetFileName(targetPath) == "PlayGTAV.exe")
+			{
+				string fivemConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FiveM", "FiveM.app", "CitizenFX.ini");
+				if (File.Exists(fivemConfigPath))
+				{
+					string fivemConfig = File.ReadAllText(fivemConfigPath);
+					if (!fivemConfig.Contains("ReShade5"))
+					{
+						Func<string, uint> HashString = (string s) =>
+						{
+							uint hash = 0;
+							foreach (char c in s)
+							{
+								hash += (c >= 'A' && c <= 'Z') ? (uint)(c - 'A' + 'a') : c;
+								hash += (hash << 10);
+								hash ^= (hash >> 6);
+							}
+
+							hash += (hash << 3);
+							hash ^= (hash >> 11);
+							hash += (hash << 15);
+							return hash;
+						};
+
+						var computerName = Environment.GetEnvironmentVariable("COMPUTERNAME") ?? "a";
+
+						fivemConfig += string.Format(@"
+[Addons]
+ReShade5=ID:{0:x8} acknowledged that ReShade 5.x has a bug that will lead to game crashes
+; ... no ReShade does not have a bug that will lead to game crashes, so pretend this is acknowledged
+", HashString(computerName));
+
+						File.WriteAllText(fivemConfigPath, fivemConfig);
+					}
+				}
+			}
+
 			if (!isHeadless && operation != InstallOperation.Update)
 			{
 				// Only show the selection dialog if there are actually packages to choose
@@ -1693,9 +1731,9 @@ In that event here are some steps you can try to resolve this:
 						operation = InstallOperation.Update;
 
 					}
-					if (uninstallPage.UpdateEffectsButton.IsChecked == true)
+					if (uninstallPage.ModifyButton.IsChecked == true)
 					{
-						operation = InstallOperation.UpdateEffects;
+						operation = InstallOperation.Modify;
 					}
 
 					RunTaskWithExceptionHandling(InstallStep_InstallReShadeModule);

@@ -16,7 +16,7 @@
       </StackPanel>
     </Label>
     <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
-      The preselected option is a guess based on a quick analysis of the executable.<LineBreak />If you do not know which rendering API the game uses, can search for the game on <Hyperlink NavigateUri="https://www.pcgamingwiki.com/" RequestNavigate="OnHyperlinkNavigate">PCGamingWiki</Hyperlink> and look for a section with the title "API" on its page.
+      The preselected option is a guess based on a quick analysis of the executable.<LineBreak />If you do not know which rendering API the game uses, search for the game on <Hyperlink NavigateUri="https://www.pcgamingwiki.com/" RequestNavigate="OnHyperlinkNavigate">PCGamingWiki</Hyperlink> and look for a section with the title "API" on its page.
     </TextBlock>
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
       <RadioButton x:Name="ApiD3D9" VerticalContentAlignment="Center">

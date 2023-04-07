@@ -11,7 +11,7 @@ namespace ReShade.Setup.Pages
 	{
 		Default,
 		Update,
-		UpdateEffects,
+		Modify,
 		Uninstall,
 		Finished
 	}
