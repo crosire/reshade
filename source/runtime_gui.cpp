@@ -2780,7 +2780,7 @@ void reshade::runtime::draw_variable_editor()
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
-		ImGui::BeginChild("##definitions", ImVec2(400.0f, popup_height), false, ImGuiWindowFlags_NoScrollWithMouse);
+		ImGui::BeginChild("##definitions", ImVec2(400.0f, popup_height));
 
 		if (ImGui::BeginTabBar("##definition_types", ImGuiTabBarFlags_NoTooltip))
 		{
