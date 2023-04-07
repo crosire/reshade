@@ -3019,8 +3019,7 @@ bool reshade::runtime::create_texture(texture &tex)
 
 	if (!_device->create_resource(api::resource_desc(tex.width, tex.height, 1, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
 	{
-		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "'! Make sure the texture dimensions are reasonable.";
-		LOG(DEBUG) << "> Details: Width = " << tex.width << ", Height = " << tex.height << ", Levels = " << tex.levels << ", Format = " << static_cast<uint32_t>(format) << ", Usage = " << std::hex << static_cast<uint32_t>(usage) << std::dec;
+		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "' (width = " << tex.width << ", height = " << tex.height << ", levels = " << tex.levels << ", format = " << static_cast<uint32_t>(format) << ", usage = " << std::hex << static_cast<uint32_t>(usage) << std::dec << ")! Make sure the texture dimensions are reasonable.";
 		return false;
 	}
 
@@ -3030,8 +3029,7 @@ bool reshade::runtime::create_texture(texture &tex)
 	{
 		if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_format, 0, tex.levels, 0, 1), &tex.srv[0]))
 		{
-			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "'!";
-			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format) << ", Levels = " << tex.levels;
+			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format) << ", levels = " << tex.levels << ")!";
 			return false;
 		}
 		if (view_format_srgb == view_format || tex.storage_access) // sRGB formats do not support storage usage
@@ -3040,8 +3038,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		}
 		else if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_format_srgb, 0, tex.levels, 0, 1), &tex.srv[1]))
 		{
-			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "'!";
-			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format_srgb) << ", Levels = " << tex.levels;
+			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format_srgb) << ", levels = " << tex.levels << ")!";
 			return false;
 		}
 	}
@@ -3051,8 +3048,7 @@ bool reshade::runtime::create_texture(texture &tex)
 	{
 		if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format), &tex.rtv[0]))
 		{
-			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "'!";
-			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
+			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format) << ")!";
 			return false;
 		}
 		if (view_format_srgb == view_format || tex.storage_access) // sRGB formats do not support storage usage
@@ -3061,8 +3057,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		}
 		else if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format_srgb), &tex.rtv[1]))
 		{
-			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "'!";
-			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format_srgb);
+			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format_srgb) << ")!";
 			return false;
 		}
 	}
@@ -3075,8 +3070,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		{
 			if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format, level, 1, 0, 1), &tex.uav[level]))
 			{
-				LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "'!";
-				LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format) << ", Level = " << level;
+				LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format) << ", level = " << level << ")!";
 				return false;
 			}
 		}

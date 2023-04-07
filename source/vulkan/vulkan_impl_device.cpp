@@ -877,8 +877,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 
 		if (vmaCreateBuffer(_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr) != VK_SUCCESS)
 		{
-			LOG(ERROR) << "Failed to create upload buffer!";
-			LOG(DEBUG) << "> Details: Width = " << create_info.size;
+			LOG(ERROR) << "Failed to create upload buffer (width = " << create_info.size << ")!";
 			return;
 		}
 	}

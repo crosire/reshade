@@ -1091,8 +1091,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			com_ptr<IDirect3DTexture9> intermediate;
 			if (FAILED(_orig->CreateTexture(width, height, 1, use_systemmem_texture ? 0 : D3DUSAGE_DYNAMIC, desc.Format, use_systemmem_texture ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &intermediate, nullptr)))
 			{
-				LOG(ERROR) << "Failed to create upload buffer!";
-				LOG(DEBUG) << "> Details: Width = " << width << ", Height = " << height << ", Levels = " << "1" << ", Usage = " << (use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC") << ", Format = " << desc.Format;
+				LOG(ERROR) << "Failed to create upload buffer (width = " << width << ", height = " << height << ", levels = " << "1" << ", usage = " << (use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC") << ", format = " << desc.Format << ")!";
 				return;
 			}
 
