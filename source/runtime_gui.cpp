@@ -1213,6 +1213,8 @@ void reshade::runtime::draw_gui_home()
 	if (_performance_mode && _tutorial_index <= 3)
 		_tutorial_index = 4;
 
+	const float auto_save_button_spacing = 2.0f;
+
 	if (_tutorial_index > 0)
 	{
 		if (_tutorial_index == 1)
@@ -1258,7 +1260,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 
 		const auto browse_button_pos = ImGui::GetCursorScreenPos();
-		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (_imgui_context->Style.ItemSpacing.x + 3.0f + 11.0f * _font_size);
+		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (_imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + 11.0f * _font_size);
 
 		const std::string browse_button_label = _current_preset_path.stem().u8string() + "###browse_button";
 
@@ -1300,20 +1302,24 @@ void reshade::runtime::draw_gui_home()
 		ImGui::SameLine();
 
 		const bool was_auto_save_preset = _auto_save_preset;
-		if (imgui::toggle_button(was_auto_save_preset ? "Auto Save on###auto_save" : "Auto Save###auto_save", _auto_save_preset, 3.0f + (11.0f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
+		if (imgui::toggle_button(was_auto_save_preset ? "Auto Save on###auto_save" : "Auto Save###auto_save", _auto_save_preset, (was_auto_save_preset ? 0.0f : auto_save_button_spacing) + (11.0f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
 		{
 			_preset_is_modified = false;
 
 			save_config();
 		}
 
-		ImGui::SameLine(0, button_spacing);
-
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Save current preset automatically on every modification");
 
-		if (!was_auto_save_preset)
+		if (was_auto_save_preset)
 		{
+			ImGui::SameLine(0, button_spacing + auto_save_button_spacing);
+		}
+		else
+		{
+			ImGui::SameLine(0, button_spacing);
+
 			ImGui::BeginDisabled(!_preset_is_modified);
 
 			if (imgui::confirm_button(ICON_FK_UNDO, button_size, "Do you really want to reset all techniques and values?"))
@@ -1478,7 +1484,7 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 1)
 	{
-		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 3.0f + 11.0f * _font_size))))
+		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + 11.0f * _font_size))))
 		{
 			_effects_expanded_state = 3;
 
@@ -1496,7 +1502,7 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::BeginDisabled(_is_in_between_presets_transition);
 
-		if (ImGui::Button("Active to top", ImVec2(3.0f + 11.0f * _font_size, 0)))
+		if (ImGui::Button("Active to top", ImVec2(auto_save_button_spacing + 11.0f * _font_size, 0)))
 		{
 			std::vector<size_t> technique_indices = _technique_sorting;
 
@@ -1524,7 +1530,7 @@ void reshade::runtime::draw_gui_home()
 		{
 			ImGui::SameLine();
 
-			if (ImGui::Button((_effects_expanded_state & 2) ? "Collapse all" : "Expand all", ImVec2(3.0f + 11.0f * _font_size, 0)))
+			if (ImGui::Button((_effects_expanded_state & 2) ? "Collapse all" : "Expand all", ImVec2(auto_save_button_spacing + 11.0f * _font_size, 0)))
 				_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 		}
 
