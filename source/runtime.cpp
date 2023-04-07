@@ -157,21 +157,27 @@ static inline int format_color_bit_depth(reshade::api::format value)
 	case reshade::api::format::b5g5r5a1_unorm:
 	case reshade::api::format::b5g5r5x1_unorm:
 		return 5;
+	case reshade::api::format::r8g8b8a8_typeless:
 	case reshade::api::format::r8g8b8a8_unorm:
 	case reshade::api::format::r8g8b8a8_unorm_srgb:
 	case reshade::api::format::r8g8b8x8_unorm:
 	case reshade::api::format::r8g8b8x8_unorm_srgb:
+	case reshade::api::format::b8g8r8a8_typeless:
 	case reshade::api::format::b8g8r8a8_unorm:
 	case reshade::api::format::b8g8r8a8_unorm_srgb:
+	case reshade::api::format::b8g8r8x8_typeless:
 	case reshade::api::format::b8g8r8x8_unorm:
 	case reshade::api::format::b8g8r8x8_unorm_srgb:
 		return 8;
+	case reshade::api::format::r10g10b10a2_typeless:
 	case reshade::api::format::r10g10b10a2_unorm:
 	case reshade::api::format::r10g10b10a2_xr_bias:
+	case reshade::api::format::b10g10r10a2_typeless:
 	case reshade::api::format::b10g10r10a2_unorm:
 		return 10;
 	case reshade::api::format::r11g11b10_float:
 		return 11;
+	case reshade::api::format::r16g16b16a16_typeless:
 	case reshade::api::format::r16g16b16a16_float:
 		return 16;
 	}
@@ -3374,6 +3380,8 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 	assert(width != 0 && height != 0);
 	assert(color_format != api::format::unknown && stencil_format != api::format::unknown);
 
+	color_format = api::format_to_typeless(color_format);
+
 	if (_effect_color_tex != 0)
 	{
 		if (_effect_width == width && _effect_height == height && _effect_color_format == color_format && _effect_stencil_format == stencil_format)
@@ -3395,7 +3403,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 	}
 
 	if (!_device->create_resource(
-			api::resource_desc(width, height, 1, 1, api::format_to_typeless(color_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+			api::resource_desc(width, height, 1, 1, color_format, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
 			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
 	{
 		LOG(ERROR) << "Failed to create effect color resource!";

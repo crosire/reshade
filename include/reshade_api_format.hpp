@@ -336,11 +336,11 @@ namespace reshade::api
 			return format::b10g10r10a2_unorm;
 		case format::d16_unorm:
 		case format::r16_typeless:
-			return format::r16_unorm;
+			return format::r16_float;
 		case format::r16g16_typeless:
-			return format::r16g16_unorm;
+			return format::r16g16_float;
 		case format::r16g16b16a16_typeless:
-			return format::r16g16b16a16_unorm;
+			return format::r16g16b16a16_float;
 		case format::d32_float:
 		case format::r32_typeless:
 			return format::r32_float;

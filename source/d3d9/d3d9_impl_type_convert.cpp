@@ -91,7 +91,7 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORM
 	case api::format::r16g16b16a16_unorm:
 	case api::format::r16g16b16a16_snorm:
 		return D3DFMT_A16B16G16R16;
-	case api::format::r16g16b16a16_typeless:
+	case api::format::r16g16b16a16_typeless: // Do the same thing as 'format_to_default_typed' and interpret typeless as floating-point
 	case api::format::r16g16b16a16_float:
 		return D3DFMT_A16B16G16R16F;
 	case api::format::r32_uint:
