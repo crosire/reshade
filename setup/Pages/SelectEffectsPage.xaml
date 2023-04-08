@@ -27,10 +27,10 @@
           <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled}" MouseEnter="OnCheckBoxMouseEnter" GotMouseCapture="OnCheckBoxMouseCapture">
             <CheckBox.ToolTip>
               <ToolTip>
-                <TextBlock Text="{Binding FilePath}" />
+                <TextBlock Text="{Binding FilePath, Mode=OneTime}" />
               </ToolTip>
             </CheckBox.ToolTip>
-            <TextBlock Text="{Binding FileName}" />
+            <TextBlock Text="{Binding FileName, Mode=OneTime}" />
           </CheckBox>
         </DataTemplate>
       </ListBox.ItemTemplate>

@@ -19,14 +19,20 @@ namespace ReShade.Setup.Pages
 	public class EffectPackage : INotifyPropertyChanged
 	{
 		public bool? Enabled { get; set; } = false;
-		public bool Modifiable { get; set; } = true;
-		public string PackageName { get; set; }
-		public string PackageDescription { get; set; }
-		public string InstallPath { get; set; }
-		public string TextureInstallPath { get; set; }
-		public string DownloadUrl { get; set; }
-		public string RepositoryUrl { get; set; }
-		public string[] DenyEffectFiles { get; set; }
+		public bool  Modifiable { get; set; } = true;
+
+		public string PackageName { get; internal set; }
+		public string PackageDescription { get; internal set; }
+
+		public string InstallPath { get; internal set; }
+		public string TextureInstallPath { get; internal set; }
+		public string DownloadUrl { get; internal set; }
+		public string RepositoryUrl { get; internal set; }
+
+		public string[] EffectFiles { get; internal set; }
+		public string[] DenyEffectFiles { get; internal set; }
+
+		public string EffectFilesList => EffectFiles != null && EffectFiles.Length != 0 ? string.Join("\n", EffectFiles) : "...";
 
 		public event PropertyChangedEventHandler PropertyChanged;
 
@@ -84,6 +90,7 @@ namespace ReShade.Setup.Pages
 					TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
 					DownloadUrl = packagesIni.GetString(package, "DownloadUrl"),
 					RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl"),
+					EffectFiles = packageEffectFiles,
 					DenyEffectFiles = packageDenyEffectFiles
 				});
 			}

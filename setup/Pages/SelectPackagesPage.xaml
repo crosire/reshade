@@ -31,7 +31,12 @@
           <Grid Margin="0,3">
             <Grid.ToolTip>
               <ToolTip>
-                <TextBlock Text="{Binding DownloadUrl}" />
+                <TextBlock>
+                    <Run Text="{Binding DownloadUrl, Mode=OneTime}" />
+                    <LineBreak />
+                    <LineBreak />
+                    <Run Text="{Binding EffectFilesList, Mode=OneTime}" />
+                </TextBlock>
               </ToolTip>
             </Grid.ToolTip>
             <Grid.RowDefinitions>
@@ -48,19 +53,19 @@
               </local:EffectPackageCheckBox.ToolTip>
             </local:EffectPackageCheckBox>
             <TextBlock Grid.Column="1" VerticalAlignment="Center">
-              <Hyperlink NavigateUri="{Binding RepositoryUrl}" RequestNavigate="OnHyperlinkRequestNavigate">
-                <TextBlock Text="{Binding PackageName}" />
+              <Hyperlink NavigateUri="{Binding RepositoryUrl, Mode=OneTime}" RequestNavigate="OnHyperlinkRequestNavigate">
+                <TextBlock Text="{Binding PackageName, Mode=OneTime}" />
                 <Hyperlink.ToolTip>
-                  <TextBlock Text="{Binding RepositoryUrl}" />
+                  <TextBlock Text="{Binding RepositoryUrl, Mode=OneTime}" />                  
                 </Hyperlink.ToolTip>
               </Hyperlink>
             </TextBlock>
-            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PackageDescription}">
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PackageDescription, Mode=OneTime}">
               <TextBlock.Style>
                 <Style TargetType="TextBlock">
                   <Style.Triggers>
                     <!-- Hide description row if it is empty -->
-                    <DataTrigger Binding="{Binding PackageDescription}" Value="{x:Null}">
+                    <DataTrigger Binding="{Binding PackageDescription, Mode=OneTime}" Value="{x:Null}">
                       <Setter Property="Visibility" Value="Collapsed" />
                     </DataTrigger>
                   </Style.Triggers>

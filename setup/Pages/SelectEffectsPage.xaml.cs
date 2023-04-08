@@ -17,8 +17,9 @@ namespace ReShade.Setup.Pages
 	public class EffectFile : INotifyPropertyChanged
 	{
 		public bool Enabled { get; set; }
-		public string FileName { get; set; }
-		public string FilePath { get; set; }
+
+		public string FileName { get; internal set; }
+		public string FilePath { get; internal set; }
 
 		public event PropertyChangedEventHandler PropertyChanged;
 
