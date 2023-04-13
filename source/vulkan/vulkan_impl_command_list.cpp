@@ -1008,6 +1008,8 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 	int32_t width = image_data->create_info.extent.width >> view_data->create_info.subresourceRange.baseMipLevel;
 	int32_t height = image_data->create_info.extent.height >> view_data->create_info.subresourceRange.baseMipLevel;
 
+	barrier.subresourceRange.layerCount = std::min(barrier.subresourceRange.layerCount, image_data->create_info.arrayLayers - barrier.subresourceRange.baseArrayLayer);
+
 	for (uint32_t level = view_data->create_info.subresourceRange.baseMipLevel + 1; level < image_data->create_info.mipLevels; ++level, width /= 2, height /= 2)
 	{
 		barrier.subresourceRange.baseMipLevel = level;

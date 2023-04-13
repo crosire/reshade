@@ -508,7 +508,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							const api::resource_usage states_upload[2] = { api::resource_usage::undefined, api::resource_usage::copy_dest };
 							immediate_command_list->barrier(1, out_handle, &states_upload[0], &states_upload[1]);
 
-							for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+							for (uint32_t subresource = 0; subresource < (desc.type == api::resource_type::texture_3d ? 1u : static_cast<uint32_t>(desc.texture.depth_or_layers)) * desc.texture.levels; ++subresource)
 								update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
 
 							const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
