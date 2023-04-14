@@ -11,6 +11,7 @@
 #include <vector>
 #include <shared_mutex>
 #include <unordered_map>
+#include <Unknwn.h>
 
 using namespace reshade::api;
 
@@ -182,7 +183,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		return nullptr;
 	}
 
-	depth_stencil_backup *track_depth_stencil_for_backup(device *device, device_api api, resource resource, resource_desc desc)
+	depth_stencil_backup *track_depth_stencil_for_backup(device *device, resource resource, resource_desc desc)
 	{
 		assert(resource != 0);
 		assert(depth_stencil_resources.find(resource) != depth_stencil_resources.end());
@@ -195,6 +196,13 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 			backup.references++;
 
 			return &backup;
+		}
+
+		const device_api api = device->get_api();
+		if (api <= device_api::d3d12)
+		{
+			// Add reference to the resource so that it is not destroyed while it is being copied to the backup texture
+			reinterpret_cast<IUnknown *>(resource.handle)->AddRef();
 		}
 
 		desc.type = resource_type::texture_2d;
@@ -237,11 +245,9 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		return &backup;
 	}
 
-	void untrack_depth_stencil(resource resource)
+	void untrack_depth_stencil(device *device, resource resource)
 	{
 		assert(resource != 0);
-
-		std::unique_lock<std::shared_mutex> lock(s_mutex);
 
 		const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(),
 			[resource](const depth_stencil_backup &existing) { return existing.depth_stencil_resource == resource; });
@@ -254,6 +260,13 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		// Do not destroy backup texture immediately since it may still be referenced by a command list that is in flight or was prerecorded
 		// Instead mark it for delayed destruction in the future
 		backup.destroy_after_frame = frame_index + 50; // Destroy after 50 frames
+
+		const device_api api = device->get_api();
+		if (api <= device_api::d3d12)
+		{
+			// Release the reference that was added above
+			reinterpret_cast<IUnknown *>(resource.handle)->Release();
+		}
 	}
 };
 
@@ -421,7 +434,7 @@ static void on_destroy_effect_runtime(effect_runtime *runtime)
 		device->destroy_resource_view(data.selected_shader_resource);
 
 		auto &device_data = device->get_private_data<generic_depth_device_data>();
-		device_data.untrack_depth_stencil(data.selected_depth_stencil);
+		device_data.untrack_depth_stencil(device, data.selected_depth_stencil);
 	}
 
 	runtime->destroy_private_data<generic_depth_data>();
@@ -812,11 +825,12 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		}
 	}
 
-	const device_api api = device->get_api();
 	const resource_view prev_shader_resource = data.selected_shader_resource;
 
 	if (best_match != 0) do
 	{
+		const device_api api = device->get_api();
+
 		depth_stencil_backup *depth_stencil_backup = device_data.find_depth_stencil_backup(best_match);
 
 		if (best_match != data.selected_depth_stencil || prev_shader_resource == 0 || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))
@@ -824,7 +838,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			// Untrack previous depth-stencil first, so that backup texture can potentially be reused
 			if (data.selected_depth_stencil != 0)
 			{
-				device_data.untrack_depth_stencil(data.selected_depth_stencil);
+				device_data.untrack_depth_stencil(device, data.selected_depth_stencil);
 
 				data.using_backup_texture = false;
 				data.selected_depth_stencil = { 0 };
@@ -837,7 +851,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing
 			if (s_preserve_depth_buffers || (best_match_desc.usage & resource_usage::shader_resource) == 0 || (api == device_api::d3d12 || api == device_api::vulkan))
 			{
-				depth_stencil_backup = device_data.track_depth_stencil_for_backup(device, api, best_match, best_match_desc);
+				depth_stencil_backup = device_data.track_depth_stencil_for_backup(device, best_match, best_match_desc);
 
 				// Abort in case backup texture creation failed
 				if (depth_stencil_backup->backup_texture == 0)
@@ -920,7 +934,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		// Untrack any existing depth-stencil selected in previous frames
 		if (data.selected_depth_stencil != 0)
 		{
-			device_data.untrack_depth_stencil(data.selected_depth_stencil);
+			device_data.untrack_depth_stencil(device, data.selected_depth_stencil);
 
 			data.using_backup_texture = false;
 			data.selected_depth_stencil = { 0 };
@@ -1178,7 +1192,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			queue->wait_idle(); // Ensure resource view is no longer in-use before destroying it
 			device->destroy_resource_view(data.selected_shader_resource);
 
-			device_data.untrack_depth_stencil(data.selected_depth_stencil);
+			device_data.untrack_depth_stencil(device, data.selected_depth_stencil);
 		}
 
 		data.using_backup_texture = false;
