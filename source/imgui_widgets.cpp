@@ -8,6 +8,8 @@
 #include "fonts/forkawesome.h"
 #include <cassert>
 
+extern std::filesystem::path g_reshade_base_path;
+
 bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path)
 {
 	bool res = false;
@@ -96,7 +98,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	if (path.empty())
 		path = L".\\";
 	if (path.is_relative())
-		path = std::filesystem::absolute(path, ec);
+		path = std::filesystem::absolute(g_reshade_base_path / path, ec);
 	std::filesystem::path parent_path = path.parent_path();
 
 	{	char buf[4096];
