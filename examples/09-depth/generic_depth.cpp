@@ -380,9 +380,9 @@ static void on_init_device(device *device)
 {
 	device->create_private_data<generic_depth_device_data>();
 
-	reshade::config_get_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
-	reshade::config_get_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
-	reshade::config_get_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+	reshade::get_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
+	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
+	reshade::get_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
 }
 static void on_init_command_list(command_list *cmd_list)
 {
@@ -861,7 +861,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				depth_stencil_backup->frame_height = frame_height;
 
 				if (s_preserve_depth_buffers)
-					reshade::config_get_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+					reshade::get_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				else
 					depth_stencil_backup->force_clear_index = 0;
 
@@ -1004,7 +1004,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics))
 	{
 		s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics ? 1 : 0;
-		reshade::config_set_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+		reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
 		force_reset = true;
 	}
 
@@ -1014,7 +1014,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			ImGui::Checkbox("Use extended aspect ratio heuristics (for DLSS or resolution scaling)", &use_aspect_ratio_heuristics_ex))
 		{
 			s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics_ex ? 2 : 1;
-			reshade::config_set_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+			reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
 			force_reset = true;
 		}
 	}
@@ -1023,7 +1023,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		ImGui::Checkbox("Copy depth buffer before clear operations", &copy_before_clear_operations))
 	{
 		s_preserve_depth_buffers = copy_before_clear_operations ? 1 : 0;
-		reshade::config_set_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
+		reshade::set_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 		force_reset = true;
 	}
 
@@ -1036,7 +1036,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			ImGui::Checkbox(is_d3d12_or_vulkan ? "Copy depth buffer during frame to prevent artifacts" : "Copy depth buffer before fullscreen draw calls", &copy_before_fullscreen_draws))
 		{
 			s_preserve_depth_buffers = copy_before_fullscreen_draws ? 2 : 1;
-			reshade::config_set_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
+			reshade::set_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 		}
 	}
 
@@ -1144,7 +1144,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					ImGui::Checkbox(label, &value))
 				{
 					depth_stencil_backup->force_clear_index = value ? clear_index : 0;
-					reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+					reshade::set_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				}
 
 				ImGui::SameLine();
@@ -1161,7 +1161,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					ImGui::Checkbox("    Choose last clear operation with high number of draw calls", &value))
 				{
 					depth_stencil_backup->force_clear_index = value ? std::numeric_limits<uint32_t>::max() : 0;
-					reshade::config_set_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+					reshade::set_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				}
 			}
 		}
