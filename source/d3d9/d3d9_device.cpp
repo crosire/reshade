@@ -1705,10 +1705,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, U
 	_current_stream_output_offset = DestIndex;
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, 1, &buffer, &offset_64, nullptr, nullptr, nullptr);
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, to_handle(pVertexDecl)); // TODO: Handle case where this changed the vertex declaration
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, to_handle(pVertexDecl));
 
-	const HRESULT hr = reshade::invoke_addon_event<reshade::addon_event::draw>(this, VertexCount, 1, SrcStartIndex, 0) ? D3D_OK :
-		_orig->ProcessVertices(SrcStartIndex, _current_stream_output_offset, VertexCount, _current_stream_output, pVertexDecl, Flags);
+	com_ptr<IDirect3DVertexDeclaration9> modified_decl;
+	_orig->GetVertexDeclaration(&modified_decl);
+	if (modified_decl != prev_decl) // In case an add-on changed the vertex declaration during the preceding 'bind_pipeline' event
+		pVertexDecl = modified_decl.get();
+
+	HRESULT hr = D3D_OK;
+	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, VertexCount, 1, SrcStartIndex, 0) == false)
+		hr = _orig->ProcessVertices(SrcStartIndex, _current_stream_output_offset, VertexCount, _current_stream_output, pVertexDecl, Flags);
 
 	const reshade::api::resource prev_buffer = { 0 };
 	const uint64_t prev_offset_64 = 0;
