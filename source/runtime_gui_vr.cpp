@@ -101,8 +101,7 @@ void reshade::runtime::draw_gui_vr()
 	if (s_main_handle == vr::k_ulOverlayHandleInvalid || !s_overlay->IsOverlayVisible(s_main_handle))
 		return;
 
-	if (_rebuild_font_atlas)
-		build_font_atlas();
+	build_font_atlas();
 	if (_font_atlas_srv == 0)
 		return; // Cannot render GUI without font atlas
 

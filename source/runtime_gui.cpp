@@ -114,43 +114,75 @@ void reshade::runtime::deinit_gui()
 void reshade::runtime::build_font_atlas()
 {
 	ImFontAtlas *const atlas = _imgui_context->IO.Fonts;
+
+	if (atlas->IsBuilt())
+		return;
+
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
-	for (int i = 0; i < 2; ++i)
+	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+
+	// Add main font
 	{
 		ImFontConfig cfg;
-		cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
-
-		const std::filesystem::path &font_path = (i == 0) ? _font : _editor_font;
+		cfg.SizePixels = static_cast<float>(_font_size);
 
 		std::error_code ec;
-		if (!std::filesystem::is_regular_file(font_path, ec) || !atlas->AddFontFromFileTTF(font_path.u8string().c_str(), cfg.SizePixels))
-			atlas->AddFontDefault(&cfg); // Use default font if custom font failed to load or does not exist
-
-		if (i == 0)
+		std::filesystem::path resolved_font_path = _font_path;
+		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels) == nullptr))
 		{
-			// Merge icons into main font
-			ImFontConfig icon_config;
-			icon_config.MergeMode = true;
-			icon_config.PixelSnapH = true;
-			icon_config.GlyphOffset = ImVec2(0.0f, 0.1f * _font_size);
-			constexpr ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
-
-			atlas->AddFontFromMemoryCompressedBase85TTF(FONT_ICON_BUFFER_NAME_FK, cfg.SizePixels, &icon_config, icon_ranges);
+			LOG(ERROR) << "Failed to load font from " << _font_path << " with error code " << ec.value() << '!';
+			_font_path.clear();
 		}
+
+		// Use default font if custom font failed to load
+		if (_font_path.empty())
+			atlas->AddFontDefault(&cfg);
+
+		// Merge icons into main font
+		ImFontConfig icon_config;
+		icon_config.MergeMode = true;
+		icon_config.PixelSnapH = true;
+		icon_config.GlyphOffset = ImVec2(0.0f, 0.1f * _font_size);
+		constexpr ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
+
+		atlas->AddFontFromMemoryCompressedBase85TTF(FONT_ICON_BUFFER_NAME_FK, cfg.SizePixels, &icon_config, icon_ranges);
 	}
 
-	// If unable to build font atlas due to an invalid font, revert to the default font
-	if (!atlas->Build())
+	// Add editor font
 	{
-		LOG(ERROR) << "Failed to build front atlas!";
+		ImFontConfig cfg;
+		cfg.SizePixels = static_cast<float>(_editor_font_size);
 
-		_font.clear();
-		_editor_font.clear();
+		std::error_code ec;
+		std::filesystem::path resolved_font_path = _editor_font_path;
+		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels) == nullptr))
+		{
+			LOG(ERROR) << "Failed to load editor font from " << _editor_font_path << " with error code " << ec.value() << '!';
+			_editor_font_path.clear();
+		}
+
+		if (_editor_font_path.empty())
+			atlas->AddFontDefault(&cfg);
+	}
+
+	if (atlas->Build())
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Font atlas size: " << atlas->TexWidth << 'x' << atlas->TexHeight;
+#endif
+	}
+	else
+	{
+		LOG(ERROR) << "Failed to build font atlas!";
+
+		_font_path.clear();
+		_editor_font_path.clear();
 
 		atlas->Clear();
 
+		// If unable to build font atlas due to an invalid custom font, revert to the default font
 		for (int i = 0; i < 2; ++i)
 		{
 			ImFontConfig cfg;
@@ -161,10 +193,10 @@ void reshade::runtime::build_font_atlas()
 	}
 
 	_show_splash = true;
-	_rebuild_font_atlas = false;
 
 	int width, height;
 	unsigned char *pixels;
+	// This will also build the font atlas again if that previously failed above
 	atlas->GetTexDataAsRGBA32(&pixels, &width, &height);
 
 	// Make sure font atlas is not currently in use before destroying it
@@ -185,6 +217,10 @@ void reshade::runtime::build_font_atlas()
 		LOG(ERROR) << "Failed to create front atlas resource!";
 		return;
 	}
+
+	// Texture data is now uploaded, so can free the memory
+	atlas->ClearTexData();
+
 	if (!_device->create_resource_view(_font_atlas_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_font_atlas_srv))
 	{
 		LOG(ERROR) << "Failed to create font atlas resource view!";
@@ -225,10 +261,10 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("STYLE", "Alpha", imgui_style.Alpha);
 	config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
 	config.get("STYLE", "ColFPSText", _fps_col);
-	config.get("STYLE", "EditorFont", _editor_font);
+	config.get("STYLE", "EditorFont", _editor_font_path);
 	config.get("STYLE", "EditorFontSize", _editor_font_size);
 	config.get("STYLE", "EditorStyleIndex", _editor_style_index);
-	config.get("STYLE", "Font", _font);
+	config.get("STYLE", "Font", _font_path);
 	config.get("STYLE", "FontSize", _font_size);
 	config.get("STYLE", "FPSScale", _fps_scale);
 	config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
@@ -318,10 +354,10 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("STYLE", "Alpha", imgui_style.Alpha);
 	config.set("STYLE", "ChildRounding", imgui_style.ChildRounding);
 	config.set("STYLE", "ColFPSText", _fps_col);
-	config.set("STYLE", "EditorFont", _editor_font);
+	config.set("STYLE", "EditorFont", _editor_font_path);
 	config.set("STYLE", "EditorFontSize", _editor_font_size);
 	config.set("STYLE", "EditorStyleIndex", _editor_style_index);
-	config.set("STYLE", "Font", _font);
+	config.set("STYLE", "Font", _font_path);
 	config.set("STYLE", "FontSize", _font_size);
 	config.set("STYLE", "FPSScale", _fps_scale);
 	config.set("STYLE", "FrameRounding", imgui_style.FrameRounding);
@@ -723,8 +759,7 @@ void reshade::runtime::draw_gui()
 		return; // Early-out to avoid costly ImGui calls when no GUI elements are on the screen
 	}
 
-	if (_rebuild_font_atlas)
-		build_font_atlas();
+	build_font_atlas();
 	if (_font_atlas_srv == 0)
 		return; // Cannot render GUI without font atlas
 
@@ -983,7 +1018,7 @@ void reshade::runtime::draw_gui()
 		{
 			_font_size = ImClamp(_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
 			_editor_font_size = ImClamp(_editor_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
-			_rebuild_font_atlas = true;
+			imgui_io.Fonts->TexReady = false;
 			save_config();
 		}
 
@@ -2007,16 +2042,16 @@ void reshade::runtime::draw_gui_settings()
 		}
 		#pragma endregion
 
-		if (imgui::font_input_box("Global font", _font, _file_selection_path, _font_size))
+		if (imgui::font_input_box("Global font", _font_path, _file_selection_path, _font_size))
 		{
 			modified = true;
-			_rebuild_font_atlas = true;
+			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (imgui::font_input_box("Text editor font", _editor_font, _file_selection_path, _editor_font_size))
+		if (imgui::font_input_box("Text editor font", _editor_font_path, _file_selection_path, _editor_font_size))
 		{
 			modified = true;
-			_rebuild_font_atlas = true;
+			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
 		if (float &alpha = _imgui_context->Style.Alpha; ImGui::SliderFloat("Global alpha", &alpha, 0.1f, 1.0f, "%.2f"))
@@ -4135,11 +4170,12 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 }
 void reshade::runtime::destroy_imgui_resources()
 {
+	_imgui_context->IO.Fonts->Clear();
+
 	_device->destroy_resource(_font_atlas_tex);
 	_font_atlas_tex = {};
 	_device->destroy_resource_view(_font_atlas_srv);
 	_font_atlas_srv = {};
-	_rebuild_font_atlas = true;
 
 	for (size_t i = 0; i < std::size(_imgui_vertices); ++i)
 	{

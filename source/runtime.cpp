@@ -55,6 +55,20 @@ bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec)
 	return !resolve_path(path, ec) || ini_file::load_cache(path).has({}, "Techniques");
 }
 
+static std::filesystem::path make_relative_path(const std::filesystem::path &path)
+{
+	if (path.empty())
+		return path;
+	// Use ReShade DLL directory as base for relative paths (see 'resolve_path')
+	std::filesystem::path proximate_path = path.lexically_proximate(g_reshade_base_path);
+	if (proximate_path.native().rfind(L"..", 0) != std::wstring::npos)
+		return path; // Do not use relative path if preset is in a parent directory
+	if (proximate_path.is_relative())
+		// Prefix preset path with dot character to better indicate it being a relative path
+		proximate_path = L"." / proximate_path;
+	return proximate_path;
+}
+
 static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
 {
 	std::error_code ec;
@@ -929,23 +943,8 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "IntermediateCachePath", _effect_cache_path);
 
-	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
-	std::filesystem::path startup_preset_path = _startup_preset_path.lexically_proximate(g_reshade_base_path);
-	if (!startup_preset_path.empty())
-	{
-		if (startup_preset_path.native().rfind(L"..", 0) != std::wstring::npos)
-			startup_preset_path = _startup_preset_path;
-		if (startup_preset_path.is_relative())
-			startup_preset_path = L"." / startup_preset_path;
-	}
-	config.set("GENERAL", "StartupPresetPath", startup_preset_path);
-
-	std::filesystem::path current_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
-	if (current_preset_path.native().rfind(L"..", 0) != std::wstring::npos)
-		current_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
-	if (current_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
-		current_preset_path = L"." / current_preset_path;
-	config.set("GENERAL", "PresetPath", current_preset_path);
+	config.set("GENERAL", "StartupPresetPath", make_relative_path(_startup_preset_path));
+	config.set("GENERAL", "PresetPath", make_relative_path(_current_preset_path));
 
 	config.set("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 

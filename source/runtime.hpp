@@ -443,7 +443,6 @@ namespace reshade
 		unsigned int _show_clock = false;
 		unsigned int _show_frametime = false;
 		bool _show_screenshot_message = true;
-		bool _rebuild_font_atlas = true;
 #  if RESHADE_FX
 		unsigned int _reload_count = 0;
 #  endif
@@ -497,8 +496,8 @@ namespace reshade
 		int _editor_font_size = 0;
 		int _style_index = 2;
 		int _editor_style_index = 0;
-		std::filesystem::path _font;
-		std::filesystem::path _editor_font;
+		std::filesystem::path _font_path;
+		std::filesystem::path _editor_font_path;
 		std::filesystem::path _file_selection_path;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
