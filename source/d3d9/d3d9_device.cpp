@@ -1777,8 +1777,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexDeclaration(IDirect3DVertexD
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetFVF(DWORD FVF)
 {
-	// TODO: This should invoke the 'bind_pipeline' event with a special input assembler pipeline handle
-	return _orig->SetFVF(FVF);
+	const HRESULT hr = _orig->SetFVF(FVF);
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	if (SUCCEEDED(hr))
+	{
+		// TODO: This should invoke the 'bind_pipeline' event with a special input assembler pipeline handle
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, reshade::api::pipeline {});
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFVF(DWORD *pFVF)
 {
