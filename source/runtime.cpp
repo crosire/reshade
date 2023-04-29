@@ -2996,6 +2996,12 @@ bool reshade::runtime::create_texture(texture &tex)
 	case reshadefx::texture_format::r16f:
 		format = api::format::r16_float;
 		break;
+	case reshadefx::texture_format::r32i:
+		format = api::format::r32_sint;
+		break;
+	case reshadefx::texture_format::r32u:
+		format = api::format::r32_uint;
+		break;
 	case reshadefx::texture_format::r32f:
 		format = api::format::r32_float;
 		break;

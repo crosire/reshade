@@ -493,7 +493,7 @@ private:
 				[[fallthrough]];
 			case type::t_texture:
 				assert(info.rows == 0 && info.cols == 0);
-				elem_type = convert_type({ type::t_float, 1, 1 });
+				elem_type = convert_type({ format == spv::ImageFormatR32i ? type::t_int : format == spv::ImageFormatR32ui ? type::t_uint : type::t_float, 1, 1 });
 				add_instruction(spv::OpTypeImage, 0, _types_and_constants, type)
 					.add(elem_type) // Sampled Type
 					.add(spv::Dim2D)
@@ -604,6 +604,10 @@ private:
 		case texture_format::r16f:
 			add_capability(spv::CapabilityStorageImageExtendedFormats);
 			return spv::ImageFormatR16f;
+		case texture_format::r32i:
+			return spv::ImageFormatR32i;
+		case texture_format::r32u:
+			return spv::ImageFormatR32ui;
 		case texture_format::r32f:
 			return spv::ImageFormatR32f;
 		case texture_format::rg8:

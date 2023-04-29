@@ -307,6 +307,62 @@ private:
 
 		s += "#line " + std::to_string(loc.line) + '\n';
 	}
+	void write_texture_format(std::string &s, texture_format format, std::string &prefix)
+	{
+		switch (format)
+		{
+		case texture_format::r8:
+			s += "r8";
+			break;
+		case texture_format::r16:
+			s += "r16";
+			break;
+		case texture_format::r16f:
+			s += "r16f";
+			break;
+		case texture_format::r32i:
+			s += "r32i";
+			prefix = 'i';
+			break;
+		case texture_format::r32u:
+			s += "r32u";
+			prefix = 'u';
+			break;
+		case texture_format::r32f:
+			s += "r32f";
+			break;
+		case texture_format::rg8:
+			s += "rg8";
+			break;
+		case texture_format::rg16:
+			s += "rg16";
+			break;
+		case texture_format::rg16f:
+			s += "rg16f";
+			break;
+		case texture_format::rg32f:
+			s += "rg32f";
+			break;
+		case texture_format::rgba8:
+			s += "rgba8";
+			break;
+		case texture_format::rgba16:
+			s += "rgba16";
+			break;
+		case texture_format::rgba16f:
+			s += "rgba16f";
+			break;
+		case texture_format::rgba32f:
+			s += "rgba32f";
+			break;
+		case texture_format::rgb10a2:
+			s += "rgb10_a2";
+			break;
+		default:
+			assert(false);
+			break;
+		}
+	}
 
 	std::string id_to_name(id id) const
 	{
@@ -487,11 +543,24 @@ private:
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		std::string &code = _blocks.at(_current_block);
+		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
+			[&info](const auto &it) {
+			return it.unique_name == info.texture_name;
+		});
+		assert(texture != _module.textures.end());
+
+		std::string &code = _blocks.at(_current_block), prefix;
 
 		write_location(code, loc);
 
-		code += "layout(binding = " + std::to_string(info.binding) + ") uniform sampler2D " + id_to_name(info.id) + ";\n";
+		if (texture->format == texture_format::r32i)
+			prefix = 'i';
+		if (texture->format == texture_format::r32u)
+			prefix = 'u';
+
+		code += "layout(binding = " + std::to_string(info.binding);
+		code += ") uniform ";
+		code += prefix + "sampler2D " + id_to_name(info.id) + "; \n";
 
 		_module.samplers.push_back(info);
 
@@ -504,7 +573,7 @@ private:
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		std::string &code = _blocks.at(_current_block);
+		std::string &code = _blocks.at(_current_block), prefix;
 
 		write_location(code, loc);
 
@@ -513,57 +582,13 @@ private:
 		if (info.format != texture_format::unknown)
 		{
 			code += ", ";
-			switch (info.format)
-			{
-			case texture_format::r8:
-				code += "r8";
-				break;
-			case texture_format::r16:
-				code += "r16";
-				break;
-			case texture_format::r16f:
-				code += "r16f";
-				break;
-			case texture_format::r32f:
-				code += "r32f";
-				break;
-			case texture_format::rg8:
-				code += "rg8";
-				break;
-			case texture_format::rg16:
-				code += "rg16";
-				break;
-			case texture_format::rg16f:
-				code += "rg16f";
-				break;
-			case texture_format::rg32f:
-				code += "rg32f";
-				break;
-			case texture_format::rgba8:
-				code += "rgba8";
-				break;
-			case texture_format::rgba16:
-				code += "rgba16";
-				break;
-			case texture_format::rgba16f:
-				code += "rgba16f";
-				break;
-			case texture_format::rgba32f:
-				code += "rgba32f";
-				break;
-			case texture_format::rgb10a2:
-				code += "rgb10_a2";
-				break;
-			default:
-				assert(false);
-				break;
-			}
+			write_texture_format(code, info.format, prefix);
 		}
 
 		code += ") uniform ";
 		if (info.format == texture_format::unknown)
 			code += "writeonly ";
-		code += "image2D " + id_to_name(info.id) + ";\n";
+		code += prefix + "image2D " + id_to_name(info.id) + ";\n";
 
 		_module.storages.push_back(info);
 

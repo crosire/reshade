@@ -1331,6 +1331,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						{ "R8", uint32_t(texture_format::r8) },
 						{ "R16", uint32_t(texture_format::r16) },
 						{ "R16F", uint32_t(texture_format::r16f) },
+						{ "R32I", uint32_t(texture_format::r32i) },
+						{ "R32U", uint32_t(texture_format::r32u) },
 						{ "R32F", uint32_t(texture_format::r32f) },
 						{ "RG8", uint32_t(texture_format::rg8) }, { "R8G8", uint32_t(texture_format::rg8) },
 						{ "RG16", uint32_t(texture_format::rg16) }, { "R16G16", uint32_t(texture_format::rg16) },

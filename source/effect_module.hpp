@@ -20,6 +20,8 @@ namespace reshadefx
 		r8,
 		r16,
 		r16f,
+		r32i,
+		r32u,
 		r32f,
 		rg8,
 		rg16,

@@ -1816,9 +1816,7 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 1, {
 			id_to_name(args[2].base) + "))";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 2, {
-	if (_shader_model >= 50) {
-		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']';
-	}
+	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
@@ -1868,68 +1866,66 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherR, 2, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 0, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherRed(" + s + ".s, " + id_to_name(args[1].base) + ')';
-	} else if (_shader_model >= 40) { // Emulate texture gather intrinsic by sampling each location separately (SM41 has 'Gather', but that only works on single component texture formats)
+	else if (_shader_model >= 40) // Emulate texture gather intrinsic by sampling each location separately (SM41 has 'Gather', but that only works on single component texture formats)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 1))." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 1))." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 0))." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 0))." + 'r' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(0, 1) * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(1, 1) * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(1, 0) * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(0, 0) * " + s + ".pixelsize, 0, 0))." + 'r' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 1, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherRed(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 1))." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 1))." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 0))." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 0))." + 'r' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 1)) * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(1, 1)) * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(1, 0)) * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 0)) * " + s + ".pixelsize, 0, 0))." + 'r' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 2, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherRed(" + s + ".s, " + id_to_name(args[1].base) + ", " +
 			id_to_name(args[2].base) + " - int2(0, 1), " +
 			id_to_name(args[3].base) + " - int2(1, 1), " +
 			id_to_name(args[4].base) + " - int2(1, 0), " +
 			id_to_name(args[5].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[3].base) + ")." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[4].base) + ")." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[5].base) + ")." + 'r' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + ") * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[3].base) + ") * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[4].base) + ") * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[5].base) + ") * " + s + ".pixelsize, 0, 0))." + 'r' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 0, {
-	const spv::Id component = emit_constant(0u);
+	const spv::Id comp = emit_constant(0u);
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(spv::ImageOperandsMaskNone)
 		.result;
 	})
@@ -1937,11 +1933,12 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 1, {
 	if (!args[2].is_constant)
 		add_capability(spv::CapabilityImageGatherExtended);
 
-	const spv::Id component = emit_constant(0u);
+	const spv::Id comp = emit_constant(0u);
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
 		.result;
@@ -1949,17 +1946,18 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 1, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 2, {
 	add_capability(spv::CapabilityImageGatherExtended);
 
-	const spv::Id component = emit_constant(0u);
+	const spv::Id comp = emit_constant(0u);
 	const spv::Id offsets = add_instruction(spv::OpConstantComposite, convert_type({ reshadefx::type::t_int, 2, 1, 0, 4 }), _types_and_constants)
 		.add(args[2].base)
 		.add(args[3].base)
 		.add(args[4].base)
 		.add(args[5].base)
 		.result;
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(spv::ImageOperandsConstOffsetsMask)
 		.add(offsets)
 		.result;
@@ -1985,68 +1983,66 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherG, 2, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 0, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherGreen(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 1))." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 1))." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 0))." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 0))." + 'g' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(0, 1) * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(1, 1) * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(1, 0) * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(0, 0) * " + s + ".pixelsize, 0, 0))." + 'g' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 1, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherGreen(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 1))." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 1))." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 0))." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 0))." + 'g' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 1)) * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(1, 1)) * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(1, 0)) * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 0)) * " + s + ".pixelsize, 0, 0))." + 'g' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 2, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherGreen(" + s + ".s, " + id_to_name(args[1].base) + ", " +
 			id_to_name(args[2].base) + " - int2(0, 1), " +
 			id_to_name(args[3].base) + " - int2(1, 1), " +
 			id_to_name(args[4].base) + " - int2(1, 0), " +
 			id_to_name(args[5].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[3].base) + ")." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[4].base) + ")." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[5].base) + ")." + 'g' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + ") * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[3].base) + ") * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[4].base) + ") * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[5].base) + ") * " + s + ".pixelsize, 0, 0))." + 'g' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 0, {
-	const spv::Id component = emit_constant(1u);
+	const spv::Id comp = emit_constant(1u);
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(spv::ImageOperandsMaskNone)
 		.result;
 	})
@@ -2054,11 +2050,12 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 1, {
 	if (!args[2].is_constant)
 		add_capability(spv::CapabilityImageGatherExtended);
 
-	const spv::Id component = emit_constant(1u);
+	const spv::Id comp = emit_constant(1u);
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
 		.result;
@@ -2066,17 +2063,18 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 1, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 2, {
 	add_capability(spv::CapabilityImageGatherExtended);
 
-	const spv::Id component = emit_constant(1u);
+	const spv::Id comp = emit_constant(1u);
 	const spv::Id offsets = add_instruction(spv::OpConstantComposite, convert_type({ reshadefx::type::t_int, 2, 1, 0, 4 }), _types_and_constants)
 		.add(args[2].base)
 		.add(args[3].base)
 		.add(args[4].base)
 		.add(args[5].base)
 		.result;
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(spv::ImageOperandsConstOffsetsMask)
 		.add(offsets)
 		.result;
@@ -2102,68 +2100,66 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherB, 2, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 0, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherBlue(" + s + ".s, " + id_to_name(args[1].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 1))." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 1))." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 0))." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 0))." + 'b' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(0, 1) * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(1, 1) * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(1, 0) * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(0, 0) * " + s + ".pixelsize, 0, 0))." + 'b' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 1, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherBlue(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 1))." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 1))." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 0))." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 0))." + 'b' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 1)) * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(1, 1)) * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(1, 0)) * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 0)) * " + s + ".pixelsize, 0, 0))." + 'b' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 2, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherBlue(" + s + ".s, " + id_to_name(args[1].base) + ", " +
 			id_to_name(args[2].base) + " - int2(0, 1), " +
 			id_to_name(args[3].base) + " - int2(1, 1), " +
 			id_to_name(args[4].base) + " - int2(1, 0), " +
 			id_to_name(args[5].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[3].base) + ")." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[4].base) + ")." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[5].base) + ")." + 'b' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + ") * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[3].base) + ") * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[4].base) + ") * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[5].base) + ") * " + s + ".pixelsize, 0, 0))." + 'b' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 0, {
-	const spv::Id component = emit_constant(2u);
+	const spv::Id comp = emit_constant(2u);
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(spv::ImageOperandsMaskNone)
 		.result;
 	})
@@ -2171,11 +2167,12 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 1, {
 	if (!args[2].is_constant)
 		add_capability(spv::CapabilityImageGatherExtended);
 
-	const spv::Id component = emit_constant(2u);
+	const spv::Id comp = emit_constant(2u);
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
 		.result;
@@ -2183,17 +2180,18 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 1, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 2, {
 	add_capability(spv::CapabilityImageGatherExtended);
 
-	const spv::Id component = emit_constant(2u);
+	const spv::Id comp = emit_constant(2u);
 	const spv::Id offsets = add_instruction(spv::OpConstantComposite, convert_type({ reshadefx::type::t_int, 2, 1, 0, 4 }), _types_and_constants)
 		.add(args[2].base)
 		.add(args[3].base)
 		.add(args[4].base)
 		.add(args[5].base)
 		.result;
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(spv::ImageOperandsConstOffsetsMask)
 		.add(offsets)
 		.result;
@@ -2219,68 +2217,66 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherA, 2, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 0, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherAlpha(" + s + ".s, " + id_to_name(args[1].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 1))." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 1))." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 0))." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 0))." + 'a' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(0, 1) * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(1, 1) * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(1, 0) * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + float2(0, 0) * " + s + ".pixelsize, 0, 0))." + 'a' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 1, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherAlpha(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 1))." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 1))." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 0))." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 0))." + 'a' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 1)) * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(1, 1)) * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(1, 0)) * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 0)) * " + s + ".pixelsize, 0, 0))." + 'a' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 2, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += s + ".t.GatherAlpha(" + s + ".s, " + id_to_name(args[1].base) + ", " +
 			id_to_name(args[2].base) + " - int2(0, 1), " +
 			id_to_name(args[3].base) + " - int2(1, 1), " +
 			id_to_name(args[4].base) + " - int2(1, 0), " +
 			id_to_name(args[5].base) + ')';
-	} else if (_shader_model >= 40) {
+	else if (_shader_model >= 40)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[3].base) + ")." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[4].base) + ")." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[5].base) + ")." + 'a' + ')';
-	} else {
+	else
 		code += "float4("
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + ") * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[3].base) + ") * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[4].base) + ") * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[5].base) + ") * " + s + ".pixelsize, 0, 0))." + 'a' + ')';
-	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 0, {
-	const spv::Id component = emit_constant(3u);
+	const spv::Id comp = emit_constant(3u);
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(spv::ImageOperandsMaskNone)
 		.result;
 	})
@@ -2288,11 +2284,12 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 1, {
 	if (!args[2].is_constant)
 		add_capability(spv::CapabilityImageGatherExtended);
 
-	const spv::Id component = emit_constant(3u);
+	const spv::Id comp = emit_constant(3u);
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
 		.result;
@@ -2300,17 +2297,18 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 1, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 2, {
 	add_capability(spv::CapabilityImageGatherExtended);
 
-	const spv::Id component = emit_constant(3u);
+	const spv::Id comp = emit_constant(3u);
 	const spv::Id offsets = add_instruction(spv::OpConstantComposite, convert_type({ reshadefx::type::t_int, 2, 1, 0, 4 }), _types_and_constants)
 		.add(args[2].base)
 		.add(args[3].base)
 		.add(args[4].base)
 		.add(args[5].base)
 		.result;
+
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(component)
+		.add(comp)
 		.add(spv::ImageOperandsConstOffsetsMask)
 		.add(offsets)
 		.result;
@@ -2324,9 +2322,7 @@ IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
 		id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
-	if (_shader_model >= 50) {
-		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
-	}
+	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
 	add_instruction_without_result(spv::OpImageWrite)
@@ -2406,9 +2402,8 @@ IMPLEMENT_INTRINSIC_GLSL(barrier, 0, {
 	code += "barrier()";
 	})
 IMPLEMENT_INTRINSIC_HLSL(barrier, 0, {
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += "GroupMemoryBarrierWithGroupSync()";
-	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(barrier, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeWorkgroup);
@@ -2427,9 +2422,8 @@ IMPLEMENT_INTRINSIC_GLSL(memoryBarrier, 0, {
 	code += "memoryBarrier()";
 	})
 IMPLEMENT_INTRINSIC_HLSL(memoryBarrier, 0, {
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += "AllMemoryBarrier()";
-	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(memoryBarrier, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -2446,9 +2440,8 @@ IMPLEMENT_INTRINSIC_GLSL(groupMemoryBarrier, 0, {
 	code += "groupMemoryBarrier()";
 	})
 IMPLEMENT_INTRINSIC_HLSL(groupMemoryBarrier, 0, {
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += "GroupMemoryBarrier()";
-	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(groupMemoryBarrier, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeWorkgroup);
@@ -2480,6 +2473,33 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 0, {
 		.add(args[1].base)
 		.result;
 	})
+// ret atomicAdd(s, coords, data)
+DEFINE_INTRINSIC(atomicAdd, 1, int, storage, int2, int)
+DEFINE_INTRINSIC(atomicAdd, 1, uint, storage, int2, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicAdd, 1, {
+	code += "imageAtomicAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicAdd, 1, {
+	code += "InterlockedAdd(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 1, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicIAdd, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
+		.result;
+	})
 
 // ret atomicAnd(inout mem, data)
 DEFINE_INTRINSIC(atomicAnd, 0, int, inout_int, int)
@@ -2499,6 +2519,33 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 0, {
 		.add(mem_scope)
 		.add(mem_semantics)
 		.add(args[1].base)
+		.result;
+	})
+// ret atomicAnd(s, coords, data)
+DEFINE_INTRINSIC(atomicAnd, 1, int, storage, int2, int)
+DEFINE_INTRINSIC(atomicAnd, 1, uint, storage, int2, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicAnd, 1, {
+	code += "imageAtomicAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicAnd, 1, {
+	code += "InterlockedAnd(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 1, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicAnd, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
 		.result;
 	})
 
@@ -2522,6 +2569,33 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 0, {
 		.add(args[1].base)
 		.result;
 	})
+// ret atomicOr(s, coords, data)
+DEFINE_INTRINSIC(atomicOr, 1, int, storage, int2, int)
+DEFINE_INTRINSIC(atomicOr, 1, uint, storage, int2, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicOr, 1, {
+	code += "imageAtomicOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicOr, 1, {
+	code += "InterlockedOr(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 1, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicOr, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
+		.result;
+	})
 
 // ret atomicXor(inout mem, data)
 DEFINE_INTRINSIC(atomicXor, 0, int, inout_int, int)
@@ -2541,6 +2615,33 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 0, {
 		.add(mem_scope)
 		.add(mem_semantics)
 		.add(args[1].base)
+		.result;
+	})
+// ret atomicXor(s, coords, data)
+DEFINE_INTRINSIC(atomicXor, 1, int, storage, int2, int)
+DEFINE_INTRINSIC(atomicXor, 1, uint, storage, int2, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicXor, 1, {
+	code += "imageAtomicXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicXor, 1, {
+	code += "InterlockedXor(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 1, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicXor, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
 		.result;
 	})
 
@@ -2581,6 +2682,57 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 1, {
 		.add(args[1].base)
 		.result;
 	})
+// ret atomicMin(s, coords, data)
+DEFINE_INTRINSIC(atomicMin, 2, int, storage, int2, int)
+DEFINE_INTRINSIC(atomicMin, 3, uint, storage, int2, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicMin, 2, {
+	code += "imageAtomicMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_GLSL(atomicMin, 3, {
+	code += "imageAtomicMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMin, 2, {
+	code += "InterlockedMin(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMin, 3, {
+	code += "InterlockedMin(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 2, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicSMin, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 3, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicUMin, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
+		.result;
+	})
 
 // ret atomicMax(inout mem, data)
 DEFINE_INTRINSIC(atomicMax, 0, int, inout_int, int)
@@ -2588,7 +2740,13 @@ DEFINE_INTRINSIC(atomicMax, 1, uint, inout_uint, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicMax, 0, {
 	code += "atomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
+IMPLEMENT_INTRINSIC_GLSL(atomicMax, 1, {
+	code += "atomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMax, 0, {
+	code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMax, 1, {
 	code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 0, {
@@ -2602,12 +2760,6 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 0, {
 		.add(args[1].base)
 		.result;
 	})
-IMPLEMENT_INTRINSIC_GLSL(atomicMax, 1, {
-	code += "atomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
-	})
-IMPLEMENT_INTRINSIC_HLSL(atomicMax, 1, {
-	code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
-	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
@@ -2617,6 +2769,57 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 1, {
 		.add(mem_scope)
 		.add(mem_semantics)
 		.add(args[1].base)
+		.result;
+	})
+// ret atomicMax(s, coords, data)
+DEFINE_INTRINSIC(atomicMax, 2, int, storage, int2, int)
+DEFINE_INTRINSIC(atomicMax, 3, uint, storage, int2, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicMax, 2, {
+	code += "imageAtomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_GLSL(atomicMax, 3, {
+	code += "imageAtomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMax, 2, {
+	code += "InterlockedMax(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicMax, 3, {
+	code += "InterlockedMax(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 2, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicSMax, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
+		.result;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 3, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicUMax, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
 		.result;
 	})
 
@@ -2640,6 +2843,33 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 0, {
 		.add(args[1].base)
 		.result;
 	})
+// ret atomicExchange(s, coords, data)
+DEFINE_INTRINSIC(atomicExchange, 1, int, storage, int2, int)
+DEFINE_INTRINSIC(atomicExchange, 1, uint, storage, int2, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicExchange, 1, {
+	code += "imageAtomicExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicExchange, 1, {
+	code += "InterlockedExchange(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 1, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicExchange, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
+		.result;
+	})
 
 // ret atomicCompareExchange(inout mem, compare, data)
 DEFINE_INTRINSIC(atomicCompareExchange, 0, int, inout_int, int, int)
@@ -2661,6 +2891,33 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 0, {
 		.add(mem_semantics)
 		.add(args[2].base)
 		.add(args[1].base)
+		.result;
+	})
+// ret atomicCompareExchange(s, coords, data)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, int, storage, int2, int)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, storage, int2, uint)
+IMPLEMENT_INTRINSIC_GLSL(atomicCompareExchange, 1, {
+	code += "imageAtomicCompSwap(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(atomicCompareExchange, 1, {
+	code += "InterlockedCompareExchange(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 1, {
+	const spv::Id ms_sample = emit_constant(0u);
+
+	const spv::Id texel = add_instruction(spv::OpImageTexelPointer, convert_type(res_type, true, spv::StorageClassImage))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(ms_sample)
+		.result;
+	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
+	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
+
+	return add_instruction(spv::OpAtomicCompareExchange, convert_type(res_type))
+		.add(texel)
+		.add(mem_scope)
+		.add(mem_semantics)
+		.add(args[2].base)
 		.result;
 	})
 

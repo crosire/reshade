@@ -302,6 +302,39 @@ private:
 
 		s += '\n';
 	}
+	void write_texture_format(std::string &s, texture_format format)
+	{
+		switch (format)
+		{
+		case texture_format::r8:
+		case texture_format::r16:
+		case texture_format::r16f:
+		case texture_format::r32f:
+			s += "float";
+			break;
+		case texture_format::r32i:
+			s += "int";
+			break;
+		case texture_format::r32u:
+			s += "uint";
+			break;
+		default:
+			assert(false);
+			[[fallthrough]];
+		case texture_format::unknown:
+		case texture_format::rg8:
+		case texture_format::rg16:
+		case texture_format::rg16f:
+		case texture_format::rg32f:
+		case texture_format::rgba8:
+		case texture_format::rgba16:
+		case texture_format::rgba16f:
+		case texture_format::rgba32f:
+		case texture_format::rgb10a2:
+			s += "float4";
+			break;
+		}
+	}
 
 	std::string id_to_name(id id) const
 	{
@@ -431,12 +464,16 @@ private:
 			if (_shader_model >= 60)
 				code += "[[vk::binding(" + std::to_string(info.binding + 0) + ", 2)]] "; // Descriptor set 2
 
-			code += "Texture2D __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
+			code += "Texture2D<";
+			write_texture_format(code, info.format);
+			code += "> __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + "); \n";
 
 			if (_shader_model >= 60)
 				code += "[[vk::binding(" + std::to_string(info.binding + 1) + ", 2)]] "; // Descriptor set 2
 
-			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
+			code += "Texture2D<";
+			write_texture_format(code, info.format);
+			code += "> __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + "); \n";
 		}
 
 		_module.textures.push_back(info);
@@ -528,32 +565,7 @@ private:
 				code += "[[vk::binding(" + std::to_string(info.binding) + ", 3)]] "; // Descriptor set 3
 
 			code += "RWTexture2D<";
-
-			switch (info.format)
-			{
-			case texture_format::r8:
-			case texture_format::r16:
-			case texture_format::r16f:
-			case texture_format::r32f:
-				code += "float";
-				break;
-			default:
-				assert(false);
-				[[fallthrough]];
-			case texture_format::unknown:
-			case texture_format::rg8:
-			case texture_format::rg16:
-			case texture_format::rg16f:
-			case texture_format::rg32f:
-			case texture_format::rgba8:
-			case texture_format::rgba16:
-			case texture_format::rgba16f:
-			case texture_format::rgba32f:
-			case texture_format::rgb10a2:
-				code += "float4";
-				break;
-			}
-
+			write_texture_format(code, info.format);
 			code += "> " + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
 		}
 
@@ -1228,9 +1240,14 @@ private:
 
 		if (_shader_model >= 40 && (
 			intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2 ||
-			intrinsic == atomicAdd0 || intrinsic == atomicAnd0 || intrinsic == atomicOr0  || intrinsic == atomicXor0 ||
-			intrinsic == atomicMin0 || intrinsic == atomicMin1 || intrinsic == atomicMax0 || intrinsic == atomicMax1 ||
-			intrinsic == atomicExchange0 || intrinsic == atomicCompareExchange0))
+			intrinsic == atomicAdd0 || intrinsic == atomicAdd1 ||
+			intrinsic == atomicAnd0 || intrinsic == atomicAnd1 ||
+			intrinsic == atomicOr0  || intrinsic == atomicOr1 ||
+			intrinsic == atomicXor0 || intrinsic == atomicXor1 ||
+			intrinsic == atomicMin0 || intrinsic == atomicMin1 || intrinsic == atomicMin2 || intrinsic == atomicMin3 ||
+			intrinsic == atomicMax0 || intrinsic == atomicMax1 || intrinsic == atomicMax2 || intrinsic == atomicMax3 ||
+			intrinsic == atomicExchange0 || intrinsic == atomicExchange1 ||
+			intrinsic == atomicCompareExchange0 || intrinsic == atomicCompareExchange1))
 		{
 			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
 			// Same with the atomic intrinsics, which use the last parameter to return the previous value of the target
