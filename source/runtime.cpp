@@ -3260,6 +3260,11 @@ bool reshade::runtime::reload_effect(size_t effect_index)
 	const std::filesystem::path source_file = _effects[effect_index].source_file;
 	destroy_effect(effect_index);
 
+#if RESHADE_ADDON
+	// Call event after destroying the effect, so add-ons get a chance to release any handles they hold to variables and techniques
+	invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+#endif
+
 	// Make sure 'is_loading' is true while loading the effect
 	_reload_remaining_effects = 1;
 
