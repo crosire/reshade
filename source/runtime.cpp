@@ -600,6 +600,7 @@ void reshade::runtime::on_present()
 
 #if RESHADE_ADDON
 	_is_in_present_call = true;
+	_should_block_effect_reload = false;
 #endif
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
@@ -3442,7 +3443,11 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 #if RESHADE_ADDON
 	if (force_reload)
 	{
-		if (_effects.size() == _should_reload_effect)
+		if (_effects.size() != _should_reload_effect && !_should_block_effect_reload)
+		{
+			_should_reload_effect = _effects.size();
+		}
+		else
 		{
 #if RESHADE_VERBOSE_LOG
 			LOG(WARN) << "Effects were rendered to different render targets with mismatching format or dimensions. This requires ReShade to recreate resources every frame which is very slow.";
@@ -3450,10 +3455,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 
 			// Avoid reloading effects when effect color resource changes every frame
 			_should_reload_effect = std::numeric_limits<size_t>::max();
-		}
-		else
-		{
-			_should_reload_effect = _effects.size();
+			_should_block_effect_reload = true;
 		}
 	}
 #endif
