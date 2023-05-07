@@ -470,7 +470,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_frame_count = 0;
 
 	_is_initialized = true;
-	_last_reload_time = std::chrono::high_resolution_clock::time_point::max();
+	_last_reload_time = std::chrono::high_resolution_clock::now(); // Intentionally set to current time, so that duration to last reload is valid even when there is no reload on init
 
 	_preset_save_successfull = true;
 	_last_screenshot_save_successfull = true;
