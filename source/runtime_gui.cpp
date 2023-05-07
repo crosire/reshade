@@ -3341,7 +3341,7 @@ void reshade::runtime::draw_variable_editor()
 }
 void reshade::runtime::draw_technique_editor()
 {
-	if (_effects.empty())
+	if (_reload_count != 0 && _effects.empty())
 	{
 		ImGui::TextColored(COLOR_YELLOW, "No effect files (.fx) found in the effect search paths%c", _effect_search_paths.empty() ? '.' : ':');
 		for (const std::filesystem::path &search_path : _effect_search_paths)
