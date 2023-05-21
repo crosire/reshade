@@ -1711,6 +1711,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				}
 			}
 		}
+		else if (!effect.preprocessed)
+		{
+			assert(!preprocess_required);
+
+			return load_effect(source_file, preset, effect_index, true);
+		}
 	}
 
 	if ( effect.compiled && (effect.preprocessed || source_cached))
