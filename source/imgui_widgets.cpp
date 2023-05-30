@@ -154,11 +154,19 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			continue;
 		}
 
-		if (std::find(exts.cbegin(), exts.cend(), entry.path().extension()) != exts.cend() &&
+		// Convert entry extension to lowercase before parsing
+		std::wstring entry_ext = entry.path().extension().wstring();
+		std::transform(entry_ext.begin(), entry_ext.end(), entry_ext.begin(), towlower);
+		
+		if (std::find(exts.cbegin(), exts.cend(), entry_ext) != exts.cend() &&
 			std::find(hidden_paths.cbegin(), hidden_paths.cend(), entry.path()) == hidden_paths.cend())
 			file_entries.push_back(entry);
 	}
 
+	// Convert entry extension to lowercase before parsing
+	std::wstring path_ext = path.extension().wstring();
+	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), towlower);
+	
 	// Always show file entries after all directory entries
 	bool has_double_clicked_file = false;
 	for (std::filesystem::path &file_path : file_entries)
@@ -166,10 +174,9 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		const bool is_selected = file_path == path;
 
 		std::string label = ICON_FK_FILE " ";
-		if (const std::filesystem::path ext = file_path.extension();
-			ext == L".fx" || ext == L".fxh")
+		if (path_ext == L".fx" || path_ext == L".fxh")
 			label = ICON_FK_FILE_CODE " " + label;
-		else if (ext == L".bmp" || ext == L".png" || ext == L".jpg" || ext == L".jpeg" || ext == L".dds")
+		else if (path_ext == L".bmp" || path_ext == L".png" || path_ext == L".jpg" || path_ext == L".jpeg" || path_ext == L".dds")
 			label = ICON_FK_FILE_IMAGE " " + label;
 		label += file_path.filename().u8string();
 
@@ -209,7 +216,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
 		path += std::filesystem::path::preferred_separator;
 
-	const bool result = (select || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || has_double_clicked_file) && (exts.empty() || std::find(exts.cbegin(), exts.cend(), path.extension()) != exts.cend());
+	const bool result = (select || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || has_double_clicked_file) && (exts.empty() || std::find(exts.cbegin(), exts.cend(), path_ext) != exts.cend());
 	if (result || cancel)
 		ImGui::CloseCurrentPopup();
 
@@ -326,8 +333,11 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 	{
 		dialog_path = std::filesystem::u8path(buf);
+		// Convert path extension to lowercase before parsing
+		std::wstring dialog_path_ext = dialog_path.extension().wstring();
+		std::transform(dialog_path_ext.begin(), dialog_path_ext.end(), dialog_path_ext.begin(), towlower);
 		// Succeed only if extension matches
-		if (std::find(exts.cbegin(), exts.cend(), dialog_path.extension()) != exts.cend() || dialog_path.empty())
+		if (std::find(exts.cbegin(), exts.cend(), dialog_path_ext) != exts.cend() || dialog_path.empty())
 			path = dialog_path, res = true;
 	}
 
