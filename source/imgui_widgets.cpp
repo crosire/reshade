@@ -163,20 +163,19 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			file_entries.push_back(entry);
 	}
 
-	// Convert entry extension to lowercase before parsing
-	std::wstring path_ext = path.extension().wstring();
-	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), towlower);
-	
 	// Always show file entries after all directory entries
 	bool has_double_clicked_file = false;
 	for (std::filesystem::path &file_path : file_entries)
 	{
 		const bool is_selected = file_path == path;
+		// Convert entry extension to lowercase before parsing
+		std::wstring file_path_ext = file_path.extension().wstring();
+		std::transform(file_path_ext.begin(), file_path_ext.end(), file_path_ext.begin(), towlower);
 
 		std::string label = ICON_FK_FILE " ";
-		if (path_ext == L".fx" || path_ext == L".fxh")
+		if (file_path_ext == L".fx" || file_path_ext == L".fxh")
 			label = ICON_FK_FILE_CODE " " + label;
-		else if (path_ext == L".bmp" || path_ext == L".png" || path_ext == L".jpg" || path_ext == L".jpeg" || path_ext == L".dds")
+		else if (file_path_ext == L".bmp" || file_path_ext == L".png" || file_path_ext == L".jpg" || file_path_ext == L".jpeg" || file_path_ext == L".dds")
 			label = ICON_FK_FILE_IMAGE " " + label;
 		label += file_path.filename().u8string();
 
@@ -215,6 +214,10 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
 		path += std::filesystem::path::preferred_separator;
+	
+	// Convert entry extension to lowercase before parsing
+	std::wstring path_ext = path.extension().wstring();
+	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), towlower);
 
 	const bool result = (select || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || has_double_clicked_file) && (exts.empty() || std::find(exts.cbegin(), exts.cend(), path_ext) != exts.cend());
 	if (result || cancel)
