@@ -123,6 +123,8 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORM
 		return D3DFMT_X1R5G5B5;
 	case api::format::b4g4r4a4_unorm:
 		return D3DFMT_A4R4G4B4;
+	case api::format::a4b4g4r4_unorm:
+		break; // Unsupported
 	case api::format::s8_uint:
 		return lockable ? D3DFMT_S8_LOCKABLE : D3DFMT_UNKNOWN;
 	case api::format::d16_unorm:

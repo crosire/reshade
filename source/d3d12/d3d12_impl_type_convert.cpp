@@ -976,6 +976,34 @@ void reshade::d3d12::convert_rasterizer_desc(const api::rasterizer_desc &desc, D
 	internal_desc.ForcedSampleCount = 0;
 	internal_desc.ConservativeRaster = static_cast<D3D12_CONSERVATIVE_RASTERIZATION_MODE>(desc.conservative_rasterization);
 }
+void reshade::d3d12::convert_rasterizer_desc(const api::rasterizer_desc &desc, D3D12_RASTERIZER_DESC1 &internal_desc)
+{
+	internal_desc.FillMode = convert_fill_mode(desc.fill_mode);
+	internal_desc.CullMode = convert_cull_mode(desc.cull_mode);
+	internal_desc.FrontCounterClockwise = desc.front_counter_clockwise;
+	internal_desc.DepthBias = desc.depth_bias;
+	internal_desc.DepthBiasClamp = desc.depth_bias_clamp;
+	internal_desc.SlopeScaledDepthBias = desc.slope_scaled_depth_bias;
+	internal_desc.DepthClipEnable = desc.depth_clip_enable;
+	internal_desc.MultisampleEnable = desc.multisample_enable;
+	internal_desc.AntialiasedLineEnable = desc.antialiased_line_enable;
+	internal_desc.ForcedSampleCount = 0;
+	internal_desc.ConservativeRaster = static_cast<D3D12_CONSERVATIVE_RASTERIZATION_MODE>(desc.conservative_rasterization);
+}
+void reshade::d3d12::convert_rasterizer_desc(const api::rasterizer_desc &desc, D3D12_RASTERIZER_DESC2 &internal_desc)
+{
+	internal_desc.FillMode = convert_fill_mode(desc.fill_mode);
+	internal_desc.CullMode = convert_cull_mode(desc.cull_mode);
+	internal_desc.FrontCounterClockwise = desc.front_counter_clockwise;
+	internal_desc.DepthBias = desc.depth_bias;
+	internal_desc.DepthBiasClamp = desc.depth_bias_clamp;
+	internal_desc.SlopeScaledDepthBias = desc.slope_scaled_depth_bias;
+	internal_desc.DepthClipEnable = desc.depth_clip_enable;
+	// Note: Multisampling is not supported with this rasterizer description variant, so "desc.multisample_enable" is ignored
+	internal_desc.LineRasterizationMode = static_cast<D3D12_LINE_RASTERIZATION_MODE>(desc.antialiased_line_enable);
+	internal_desc.ForcedSampleCount = 0;
+	internal_desc.ConservativeRaster = static_cast<D3D12_CONSERVATIVE_RASTERIZATION_MODE>(desc.conservative_rasterization);
+}
 reshade::api::rasterizer_desc reshade::d3d12::convert_rasterizer_desc(const D3D12_RASTERIZER_DESC &internal_desc)
 {
 	api::rasterizer_desc desc = {};
@@ -989,6 +1017,38 @@ reshade::api::rasterizer_desc reshade::d3d12::convert_rasterizer_desc(const D3D1
 	desc.scissor_enable = true;
 	desc.multisample_enable = internal_desc.MultisampleEnable;
 	desc.antialiased_line_enable = internal_desc.AntialiasedLineEnable;
+	desc.conservative_rasterization = static_cast<uint32_t>(internal_desc.ConservativeRaster);
+	return desc;
+}
+reshade::api::rasterizer_desc reshade::d3d12::convert_rasterizer_desc(const D3D12_RASTERIZER_DESC1 &internal_desc)
+{
+	api::rasterizer_desc desc = {};
+	desc.fill_mode = convert_fill_mode(internal_desc.FillMode);
+	desc.cull_mode = convert_cull_mode(internal_desc.CullMode);
+	desc.front_counter_clockwise = internal_desc.FrontCounterClockwise;
+	desc.depth_bias = internal_desc.DepthBias;
+	desc.depth_bias_clamp = internal_desc.DepthBiasClamp;
+	desc.slope_scaled_depth_bias = internal_desc.SlopeScaledDepthBias;
+	desc.depth_clip_enable = internal_desc.DepthClipEnable;
+	desc.scissor_enable = true;
+	desc.multisample_enable = internal_desc.MultisampleEnable;
+	desc.antialiased_line_enable = internal_desc.AntialiasedLineEnable;
+	desc.conservative_rasterization = static_cast<uint32_t>(internal_desc.ConservativeRaster);
+	return desc;
+}
+reshade::api::rasterizer_desc reshade::d3d12::convert_rasterizer_desc(const D3D12_RASTERIZER_DESC2 &internal_desc)
+{
+	api::rasterizer_desc desc = {};
+	desc.fill_mode = convert_fill_mode(internal_desc.FillMode);
+	desc.cull_mode = convert_cull_mode(internal_desc.CullMode);
+	desc.front_counter_clockwise = internal_desc.FrontCounterClockwise;
+	desc.depth_bias = internal_desc.DepthBias;
+	desc.depth_bias_clamp = internal_desc.DepthBiasClamp;
+	desc.slope_scaled_depth_bias = internal_desc.SlopeScaledDepthBias;
+	desc.depth_clip_enable = internal_desc.DepthClipEnable;
+	desc.scissor_enable = true;
+	desc.multisample_enable = false;
+	desc.antialiased_line_enable = internal_desc.LineRasterizationMode != D3D12_LINE_RASTERIZATION_MODE_ALIASED;
 	desc.conservative_rasterization = static_cast<uint32_t>(internal_desc.ConservativeRaster);
 	return desc;
 }
@@ -1011,9 +1071,29 @@ void reshade::d3d12::convert_depth_stencil_desc(const api::depth_stencil_desc &d
 }
 void reshade::d3d12::convert_depth_stencil_desc(const api::depth_stencil_desc &desc, D3D12_DEPTH_STENCIL_DESC1 &internal_desc)
 {
-	// D3D12_DEPTH_STENCIL_DESC is a superset of D3D12_DEPTH_STENCIL_DES
+	// D3D12_DEPTH_STENCIL_DESC1 is a superset of D3D12_DEPTH_STENCIL_DESC
 	// Missing fields: DepthBoundsTestEnable
 	convert_depth_stencil_desc(desc, reinterpret_cast<D3D12_DEPTH_STENCIL_DESC &>(internal_desc));
+}
+void reshade::d3d12::convert_depth_stencil_desc(const api::depth_stencil_desc &desc, D3D12_DEPTH_STENCIL_DESC2 &internal_desc)
+{
+	internal_desc.DepthEnable = desc.depth_enable;
+	internal_desc.DepthWriteMask = desc.depth_write_mask ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+	internal_desc.DepthFunc = convert_compare_op(desc.depth_func);
+	internal_desc.StencilEnable = desc.stencil_enable;
+	internal_desc.BackFace.StencilFailOp = convert_stencil_op(desc.back_stencil_fail_op);
+	internal_desc.BackFace.StencilDepthFailOp = convert_stencil_op(desc.back_stencil_depth_fail_op);
+	internal_desc.BackFace.StencilPassOp = convert_stencil_op(desc.back_stencil_pass_op);
+	internal_desc.BackFace.StencilFunc = convert_compare_op(desc.back_stencil_func);
+	internal_desc.BackFace.StencilReadMask = desc.stencil_read_mask;
+	internal_desc.BackFace.StencilWriteMask = desc.stencil_write_mask;
+	internal_desc.FrontFace.StencilFailOp = convert_stencil_op(desc.front_stencil_fail_op);
+	internal_desc.FrontFace.StencilDepthFailOp = convert_stencil_op(desc.front_stencil_depth_fail_op);
+	internal_desc.FrontFace.StencilPassOp = convert_stencil_op(desc.front_stencil_pass_op);
+	internal_desc.FrontFace.StencilFunc = convert_compare_op(desc.front_stencil_func);
+	internal_desc.FrontFace.StencilReadMask = desc.stencil_read_mask;
+	internal_desc.FrontFace.StencilWriteMask = desc.stencil_write_mask;
+	// Missing fields: DepthBoundsTestEnable
 }
 reshade::api::depth_stencil_desc reshade::d3d12::convert_depth_stencil_desc(const D3D12_DEPTH_STENCIL_DESC &internal_desc)
 {
@@ -1036,9 +1116,29 @@ reshade::api::depth_stencil_desc reshade::d3d12::convert_depth_stencil_desc(cons
 }
 reshade::api::depth_stencil_desc reshade::d3d12::convert_depth_stencil_desc(const D3D12_DEPTH_STENCIL_DESC1 &internal_desc)
 {
-	// D3D12_DEPTH_STENCIL_DESC is a superset of D3D12_DEPTH_STENCIL_DES
+	// D3D12_DEPTH_STENCIL_DESC1 is a superset of D3D12_DEPTH_STENCIL_DESC
 	// Missing fields: DepthBoundsTestEnable
 	return convert_depth_stencil_desc(reinterpret_cast<const D3D12_DEPTH_STENCIL_DESC &>(internal_desc));
+}
+reshade::api::depth_stencil_desc reshade::d3d12::convert_depth_stencil_desc(const D3D12_DEPTH_STENCIL_DESC2 &internal_desc)
+{
+	api::depth_stencil_desc desc = {};
+	desc.depth_enable = internal_desc.DepthEnable;
+	desc.depth_write_mask = internal_desc.DepthWriteMask != D3D12_DEPTH_WRITE_MASK_ZERO;
+	desc.depth_func = convert_compare_op(internal_desc.DepthFunc);
+	desc.stencil_enable = internal_desc.StencilEnable;
+	desc.stencil_read_mask = internal_desc.FrontFace.StencilReadMask; // TODO: Separate these
+	desc.stencil_write_mask = internal_desc.FrontFace.StencilWriteMask;
+	desc.back_stencil_fail_op = convert_stencil_op(internal_desc.BackFace.StencilFailOp);
+	desc.back_stencil_depth_fail_op = convert_stencil_op(internal_desc.BackFace.StencilDepthFailOp);
+	desc.back_stencil_pass_op = convert_stencil_op(internal_desc.BackFace.StencilPassOp);
+	desc.back_stencil_func = convert_compare_op(internal_desc.BackFace.StencilFunc);
+	desc.front_stencil_fail_op = convert_stencil_op(internal_desc.FrontFace.StencilFailOp);
+	desc.front_stencil_depth_fail_op = convert_stencil_op(internal_desc.FrontFace.StencilDepthFailOp);
+	desc.front_stencil_pass_op = convert_stencil_op(internal_desc.FrontFace.StencilPassOp);
+	desc.front_stencil_func = convert_compare_op(internal_desc.FrontFace.StencilFunc);
+	// Missing fields: DepthBoundsTestEnable
+	return desc;
 }
 
 auto reshade::d3d12::convert_logic_op(api::logic_op value) -> D3D12_LOGIC_OP

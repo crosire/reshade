@@ -271,6 +271,10 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 		min_filter = GL_LINEAR_MIPMAP_LINEAR;
 		mag_filter = GL_NEAREST;
 		break;
+	case api::filter_mode::min_mag_anisotropic_mip_point:
+	case api::filter_mode::compare_min_mag_anisotropic_mip_point:
+		gl.SamplerParameterf(object, GL_TEXTURE_MAX_ANISOTROPY, desc.max_anisotropy);
+		[[fallthrough]];
 	case api::filter_mode::min_mag_linear_mip_point:
 	case api::filter_mode::compare_min_mag_linear_mip_point:
 		min_filter = GL_LINEAR_MIPMAP_NEAREST;

@@ -97,6 +97,7 @@ namespace reshade::api
 		b5g5r5a1_unorm = 86,
 		b5g5r5x1_unorm = 0x424757B5,
 		b4g4r4a4_unorm = 115,
+		a4b4g4r4_unorm = 191,
 
 		// Depth-stencil formats
 

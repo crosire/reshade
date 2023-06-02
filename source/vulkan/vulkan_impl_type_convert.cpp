@@ -177,6 +177,8 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_A1R5G5B5_UNORM_PACK16;
 	case api::format::b4g4r4a4_unorm:
 		return VK_FORMAT_A4R4G4B4_UNORM_PACK16;
+	case api::format::a4b4g4r4_unorm:
+		return VK_FORMAT_A4B4G4R4_UNORM_PACK16;
 	case api::format::s8_uint:
 		return VK_FORMAT_S8_UINT;
 	case api::format::d16_unorm:
@@ -414,6 +416,8 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::b5g5r5a1_unorm;
 	case VK_FORMAT_A4R4G4B4_UNORM_PACK16:
 		return api::format::b4g4r4a4_unorm;
+	case VK_FORMAT_A4B4G4R4_UNORM_PACK16:
+		return api::format::a4b4g4r4_unorm;
 	case VK_FORMAT_D16_UNORM:
 		return api::format::d16_unorm;
 	case VK_FORMAT_X8_D24_UNORM_PACK32:
@@ -861,6 +865,15 @@ void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamp
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
+	case api::filter_mode::compare_min_mag_anisotropic_mip_point:
+		create_info.compareEnable = VK_TRUE;
+		[[fallthrough]];
+	case api::filter_mode::min_mag_anisotropic_mip_point:
+		create_info.magFilter = VK_FILTER_LINEAR;
+		create_info.minFilter = VK_FILTER_LINEAR;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		create_info.anisotropyEnable = VK_TRUE;
+		break;
 	case api::filter_mode::compare_anisotropic:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
@@ -913,7 +926,15 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 	api::sampler_desc desc = {};
 	if (create_info.anisotropyEnable)
 	{
-		desc.filter = api::filter_mode::anisotropic;
+		switch (create_info.mipmapMode)
+		{
+		case VK_SAMPLER_MIPMAP_MODE_NEAREST:
+			desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_mag_anisotropic_mip_point : api::filter_mode::min_mag_anisotropic_mip_point;
+			break;
+		case VK_SAMPLER_MIPMAP_MODE_LINEAR:
+			desc.filter = create_info.compareEnable ? api::filter_mode::compare_anisotropic : api::filter_mode::anisotropic;
+			break;
+		}
 	}
 	else
 	{

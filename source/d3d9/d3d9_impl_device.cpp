@@ -258,7 +258,7 @@ bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, a
 	impl->state[D3DSAMP_MAXMIPLEVEL] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
 	impl->state[D3DSAMP_MAXANISOTROPY] = static_cast<DWORD>(desc.max_anisotropy);
 
-	if (desc.filter == api::filter_mode::anisotropic)
+	if (desc.filter == api::filter_mode::anisotropic || desc.filter == api::filter_mode::min_mag_anisotropic_mip_point)
 	{
 		impl->state[D3DSAMP_MINFILTER] = D3DTEXF_ANISOTROPIC;
 		impl->state[D3DSAMP_MAGFILTER] = D3DTEXF_ANISOTROPIC;

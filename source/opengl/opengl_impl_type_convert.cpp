@@ -221,6 +221,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 	case api::format::b5g5r5x1_unorm:
 		return GL_RGB5;
 	case api::format::b4g4r4a4_unorm:
+	case api::format::a4b4g4r4_unorm:
 		return GL_RGBA4;
 	case api::format::s8_uint:
 		return GL_STENCIL_INDEX8;
@@ -857,6 +858,9 @@ auto reshade::opengl::convert_upload_format(api::format format, GLenum &type) ->
 	case api::format::b4g4r4a4_unorm:
 		type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
 		return GL_BGRA;
+	case api::format::a4b4g4r4_unorm:
+		type = GL_UNSIGNED_SHORT_4_4_4_4;
+		return GL_RGBA;
 	case api::format::s8_uint:
 		type = GL_UNSIGNED_BYTE;
 		return GL_STENCIL_INDEX;
@@ -1068,6 +1072,8 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 			return api::format::r16g16b16a16_snorm;
 		case GL_UNSIGNED_SHORT:
 			return api::format::r16g16b16a16_unorm;
+		case GL_UNSIGNED_SHORT_4_4_4_4:
+			return api::format::a4b4g4r4_unorm;
 		case GL_HALF_FLOAT:
 			return api::format::r16g16b16a16_float;
 		case GL_INT:
