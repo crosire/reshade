@@ -3070,6 +3070,7 @@ void reshade::runtime::draw_variable_editor()
 			}
 
 			bool modified = false;
+			bool is_default_value = true;
 			std::string_view label = variable.annotation_as_string("ui_label");
 			if (label.empty())
 				label = variable.name;
@@ -3083,6 +3084,8 @@ void reshade::runtime::draw_variable_editor()
 				{
 					bool data;
 					get_uniform_value(variable, &data);
+
+					is_default_value = (data == (variable.initializer_value.as_uint[0] != 0));
 
 					if (ui_type == "combo")
 						modified = imgui::combo_with_buttons(label.data(), data);
@@ -3098,6 +3101,8 @@ void reshade::runtime::draw_variable_editor()
 				{
 					int data[16];
 					get_uniform_value(variable, data, 16);
+
+					is_default_value = std::memcmp(data, variable.initializer_value.as_int, variable.type.components() * sizeof(int)) == 0;
 
 					const int ui_min_val = variable.annotation_as_int("ui_min", 0, ui_type == "slider" ? 0 : std::numeric_limits<int>::lowest());
 					const int ui_max_val = variable.annotation_as_int("ui_max", 0, ui_type == "slider" ? 1 : std::numeric_limits<int>::max());
@@ -3129,6 +3134,8 @@ void reshade::runtime::draw_variable_editor()
 				{
 					float data[16];
 					get_uniform_value(variable, data, 16);
+
+					is_default_value = std::memcmp(data, variable.initializer_value.as_float, variable.type.components() * sizeof(float)) == 0;
 
 					const float ui_min_val = variable.annotation_as_float("ui_min", 0, ui_type == "slider" ? 0.0f : std::numeric_limits<float>::lowest());
 					const float ui_max_val = variable.annotation_as_float("ui_max", 0, ui_type == "slider" ? 1.0f : std::numeric_limits<float>::max());
@@ -3194,6 +3201,16 @@ void reshade::runtime::draw_variable_editor()
 				}
 
 				ImGui::EndPopup();
+			}
+
+			if (!is_default_value)
+			{
+				ImGui::SameLine();
+				if (ImGui::SmallButton(ICON_FK_UNDO))
+				{
+					modified = true;
+					reset_uniform_value(variable);
+				}
 			}
 
 			if (variable.toggle_key_data[0] != 0)
