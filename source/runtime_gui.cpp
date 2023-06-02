@@ -3177,7 +3177,7 @@ void reshade::runtime::draw_variable_editor()
 
 			// Display tooltip
 			if (const std::string_view tooltip = variable.annotation_as_string("ui_tooltip");
-				(!tooltip.empty()) && ImGui::IsItemHovered())
+				!tooltip.empty() && ImGui::IsItemHovered())
 			{
 				ImGui::BeginTooltip();
 				ImGui::TextUnformatted(tooltip.data());
@@ -3504,201 +3504,193 @@ void reshade::runtime::draw_technique_editor()
 
 	for (size_t index = 0; index < _technique_sorting.size(); ++index)
 	{
-		size_t technique_index = _technique_sorting[index];
-		reshade::technique &tech = _techniques[technique_index];
-
-		// Skip hidden techniques
-		if (tech.hidden || !_effects[tech.effect_index].compiled)
-			continue;
-
-		ImGui::PushID(static_cast<int>(index));
-
-		// Look up effect that contains this technique
-		const reshade::effect &effect = _effects[tech.effect_index];
-
-		// Draw border around the item if it is selected
-		const bool draw_border = _selected_technique == index;
-		if (draw_border)
-			ImGui::Separator();
-
-		// Prevent user from disabling the technique when it is set to always be enabled via annotation
-		const bool force_enabled = tech.annotation_as_int("enabled");
-
-		// Gray out disabled techniques
-		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
-
-		std::string label(tech.annotation_as_string("ui_label"));
-		if (label.empty())
-			label = tech.name;
-		label += " [" + effect.source_file.filename().u8string() + ']';
-
-		if (bool status = tech.enabled;
-			ImGui::Checkbox(label.c_str(), &status) && !force_enabled)
+		const size_t technique_index = _technique_sorting[index];
 		{
-			if (status)
-				enable_technique(tech);
-			else
-				disable_technique(tech);
+			reshade::technique &tech = _techniques[technique_index];
 
-			if (_auto_save_preset)
-				save_current_preset();
-			else
-				_preset_is_modified = true;
-		}
+			// Skip hidden techniques
+			if (tech.hidden || !_effects[tech.effect_index].compiled)
+				continue;
 
-		ImGui::PopStyleColor();
+			ImGui::PushID(static_cast<int>(index));
 
-		if (ImGui::IsItemActive())
-			_selected_technique = index;
-		if (ImGui::IsItemClicked())
-			_focused_effect = tech.effect_index;
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
-			hovered_technique_index = index;
+			// Look up effect that contains this technique
+			const reshade::effect &effect = _effects[tech.effect_index];
 
-		// Display tooltip
-		if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
-			(!tooltip.empty() || !effect.errors.empty()) && ImGui::IsItemHovered())
-		{
-			ImGui::BeginTooltip();
-			if (!tooltip.empty())
-			{
-				ImGui::TextUnformatted(tooltip.data());
-				ImGui::Spacing();
-			}
-			if (!effect.errors.empty())
-			{
-				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
-				ImGui::TextUnformatted(effect.errors.c_str());
-				ImGui::PopStyleColor();
-			}
-			ImGui::EndTooltip();
-		}
-
-		// Create context menu
-		if (ImGui::BeginPopupContextItem("##context"))
-		{
-			ImGui::TextUnformatted(tech.name.c_str());
-			ImGui::Separator();
-
-			ImGui::SetNextItemWidth(230.0f);
-			if (_input != nullptr && !force_enabled &&
-				imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input))
-			{
-				if (_auto_save_preset)
-					save_current_preset();
-				else
-					_preset_is_modified = true;
-			}
-
-			const bool is_not_top = index > 0;
-			const bool is_not_bottom = index < _technique_sorting.size() - 1;
-
-			if (is_not_top && ImGui::Button("Move to top", ImVec2(230.0f, 0)))
-			{
-				std::vector<size_t> technique_indices = _technique_sorting;
-				technique_indices.insert(technique_indices.begin(), technique_indices[index]);
-				technique_indices.erase(technique_indices.begin() + 1 + index);
-				reorder_techniques(std::move(technique_indices));
-
-				if (_auto_save_preset)
-					save_current_preset();
-				else
-					_preset_is_modified = true;
-
-				ImGui::CloseCurrentPopup();
-			}
-			if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(230.0f, 0)))
-			{
-				std::vector<size_t> technique_indices = _technique_sorting;
-				technique_indices.push_back(technique_indices[index]);
-				technique_indices.erase(technique_indices.begin() + index);
-				reorder_techniques(std::move(technique_indices));
-
-				if (_auto_save_preset)
-					save_current_preset();
-				else
-					_preset_is_modified = true;
-
-				ImGui::CloseCurrentPopup();
-			}
-
-			if (is_not_top || is_not_bottom || (_input != nullptr && !force_enabled))
+			// Draw border around the item if it is selected
+			const bool draw_border = _selected_technique == index;
+			if (draw_border)
 				ImGui::Separator();
 
-			if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
-				utils::open_explorer(effect.source_file);
+			// Prevent user from disabling the technique when it is set to always be enabled via annotation
+			const bool force_enabled = tech.annotation_as_int("enabled");
 
-			ImGui::Separator();
+			// Gray out disabled techniques
+			ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
 
-			if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
+			std::string label(tech.annotation_as_string("ui_label"));
+			if (label.empty())
+				label = tech.name;
+			label += " [" + effect.source_file.filename().u8string() + ']';
+
+			if (bool status = tech.enabled;
+				ImGui::Checkbox(label.c_str(), &status) && !force_enabled)
 			{
-				std::filesystem::path source_file;
-				if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
-					source_file = effect.source_file;
+				if (status)
+					enable_technique(tech);
+				else
+					disable_technique(tech);
 
-				if (!effect.preprocessed)
+				if (_auto_save_preset)
+					save_current_preset();
+				else
+					_preset_is_modified = true;
+			}
+
+			ImGui::PopStyleColor();
+
+			if (ImGui::IsItemActive())
+				_selected_technique = index;
+			if (ImGui::IsItemClicked())
+				_focused_effect = tech.effect_index;
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
+				hovered_technique_index = index;
+
+			// Display tooltip
+			if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
+				!tooltip.empty() && ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted(tooltip.data());
+				ImGui::EndTooltip();
+			}
+
+			// Create context menu
+			if (ImGui::BeginPopupContextItem("##context"))
+			{
+				ImGui::TextUnformatted(tech.name.c_str());
+				ImGui::Separator();
+
+				ImGui::SetNextItemWidth(230.0f);
+				if (_input != nullptr && !force_enabled &&
+					imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input))
 				{
-					// Force preprocessor to run to update included files
-					force_reload_effect = tech.effect_index;
+					if (_auto_save_preset)
+						save_current_preset();
+					else
+						_preset_is_modified = true;
 				}
-				else if (!effect.included_files.empty())
+
+				const bool is_not_top = index > 0;
+				const bool is_not_bottom = index < _technique_sorting.size() - 1;
+
+				if (is_not_top && ImGui::Button("Move to top", ImVec2(230.0f, 0)))
 				{
+					std::vector<size_t> technique_indices = _technique_sorting;
+					technique_indices.insert(technique_indices.begin(), technique_indices[index]);
+					technique_indices.erase(technique_indices.begin() + 1 + index);
+					reorder_techniques(std::move(technique_indices));
+
+					if (_auto_save_preset)
+						save_current_preset();
+					else
+						_preset_is_modified = true;
+
+					ImGui::CloseCurrentPopup();
+				}
+				if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(230.0f, 0)))
+				{
+					std::vector<size_t> technique_indices = _technique_sorting;
+					technique_indices.push_back(technique_indices[index]);
+					technique_indices.erase(technique_indices.begin() + index);
+					reorder_techniques(std::move(technique_indices));
+
+					if (_auto_save_preset)
+						save_current_preset();
+					else
+						_preset_is_modified = true;
+
+					ImGui::CloseCurrentPopup();
+				}
+
+				if (is_not_top || is_not_bottom || (_input != nullptr && !force_enabled))
 					ImGui::Separator();
 
-					for (const std::filesystem::path &included_file : effect.included_files)
+				if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
+					utils::open_explorer(effect.source_file);
+
+				ImGui::Separator();
+
+				if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
+				{
+					std::filesystem::path source_file;
+					if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
+						source_file = effect.source_file;
+
+					if (!effect.preprocessed)
 					{
-						std::filesystem::path display_path = included_file.lexically_relative(effect.source_file.parent_path());
-						if (display_path.empty())
-							display_path = included_file.filename();
-						if (ImGui::MenuItem(display_path.u8string().c_str()))
-							source_file = included_file;
+						// Force preprocessor to run to update included files
+						force_reload_effect = tech.effect_index;
+					}
+					else if (!effect.included_files.empty())
+					{
+						ImGui::Separator();
+
+						for (const std::filesystem::path &included_file : effect.included_files)
+						{
+							std::filesystem::path display_path = included_file.lexically_relative(effect.source_file.parent_path());
+							if (display_path.empty())
+								display_path = included_file.filename();
+							if (ImGui::MenuItem(display_path.u8string().c_str()))
+								source_file = included_file;
+						}
+					}
+
+					ImGui::EndPopup();
+
+					if (!source_file.empty())
+					{
+						open_code_editor(tech.effect_index, source_file);
+						ImGui::CloseCurrentPopup();
+					}
+				}
+
+				if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
+					imgui::popup_button("Show compiled results", 230.0f))
+				{
+					const bool open_generated_code = ImGui::MenuItem("Generated code");
+
+					ImGui::Separator();
+
+					std::string entry_point_name;
+					for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
+						if (const auto assembly_it = effect.assembly_text.find(entry_point.name);
+							assembly_it != effect.assembly_text.end() && ImGui::MenuItem(entry_point.name.c_str()))
+							entry_point_name = entry_point.name;
+
+					ImGui::EndPopup();
+
+					if (open_generated_code || !entry_point_name.empty())
+					{
+						open_code_editor(tech.effect_index, entry_point_name);
+						ImGui::CloseCurrentPopup();
 					}
 				}
 
 				ImGui::EndPopup();
-
-				if (!source_file.empty())
-				{
-					open_code_editor(tech.effect_index, source_file);
-					ImGui::CloseCurrentPopup();
-				}
 			}
 
-			if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
-				imgui::popup_button("Show compiled results", 230.0f))
+			if (tech.toggle_key_data[0] != 0)
 			{
-				const bool open_generated_code = ImGui::MenuItem("Generated code");
+				ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120);
+				ImGui::TextDisabled("%s", input::key_name(tech.toggle_key_data).c_str());
+			}
 
+			if (draw_border)
 				ImGui::Separator();
 
-				std::string entry_point_name;
-				for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
-					if (const auto assembly_it = effect.assembly_text.find(entry_point.name);
-						assembly_it != effect.assembly_text.end() && ImGui::MenuItem(entry_point.name.c_str()))
-						entry_point_name = entry_point.name;
-
-				ImGui::EndPopup();
-
-				if (open_generated_code || !entry_point_name.empty())
-				{
-					open_code_editor(tech.effect_index, entry_point_name);
-					ImGui::CloseCurrentPopup();
-				}
-			}
-
-			ImGui::EndPopup();
+			ImGui::PopID();
 		}
-
-		if (tech.toggle_key_data[0] != 0)
-		{
-			ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120);
-			ImGui::TextDisabled("%s", input::key_name(tech.toggle_key_data).c_str());
-		}
-
-		if (draw_border)
-			ImGui::Separator();
-
-		ImGui::PopID();
 	}
 
 	// Move the selected technique to the position of the mouse in the list
