@@ -540,7 +540,7 @@ namespace ReShade.Setup
 					{
 						Dispatcher.Invoke(() =>
 						{
-							MessageBox.Show("Failed to download list of available effect packages:\n" + ex.Message + "\n\nProceeding without effect installation ...", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+							MessageBox.Show("Failed to download list of available effect packages:\n" + ex.Message + "\n\nTry using a proxy or VPN and verify that you can access https://raw.githubusercontent.com.\n\nProceeding without effect installation ...", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
 						});
 					}
 				}
