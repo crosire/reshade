@@ -916,9 +916,34 @@ void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamp
 	const auto border_color_info = const_cast<VkSamplerCustomBorderColorCreateInfoEXT *>(find_in_structure_chain<VkSamplerCustomBorderColorCreateInfoEXT>(
 		create_info.pNext, VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT));
 
-	if (border_color_info != nullptr && create_info.borderColor == VK_BORDER_COLOR_FLOAT_CUSTOM_EXT)
+	const bool is_float_border_color =
+		create_info.borderColor != VK_BORDER_COLOR_INT_TRANSPARENT_BLACK &&
+		create_info.borderColor != VK_BORDER_COLOR_INT_OPAQUE_BLACK &&
+		create_info.borderColor != VK_BORDER_COLOR_INT_OPAQUE_WHITE &&
+		create_info.borderColor != VK_BORDER_COLOR_INT_CUSTOM_EXT;
+
+	if (border_color_info == nullptr)
 	{
-		std::copy_n(desc.border_color, 4, border_color_info->customBorderColor.float32);
+		if (desc.border_color[3] == 0.0f)
+			create_info.borderColor = is_float_border_color ? VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK : VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+		else if (desc.border_color[0] == 0.0f && desc.border_color[1] == 0.0f && desc.border_color[2] == 0.0f)
+			create_info.borderColor = is_float_border_color ? VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK : VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		else
+			create_info.borderColor = is_float_border_color ? VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE : VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+	}
+	else
+	{
+		if (is_float_border_color)
+		{
+			create_info.borderColor = VK_BORDER_COLOR_FLOAT_CUSTOM_EXT;
+			std::copy_n(desc.border_color, 4, border_color_info->customBorderColor.float32);
+		}
+		else
+		{
+			create_info.borderColor = VK_BORDER_COLOR_INT_CUSTOM_EXT;
+			for (int i = 0; i < 4; ++i)
+				border_color_info->customBorderColor.int32[i] = static_cast<int>(desc.border_color[i]);
+		}
 	}
 }
 reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &create_info)
@@ -1048,7 +1073,7 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 	case VK_BORDER_COLOR_INT_CUSTOM_EXT:
 		assert(border_color_info != nullptr);
 		for (int i = 0; i < 4; ++i)
-			desc.border_color[i] = border_color_info->customBorderColor.int32[i] / 255.0f;
+			desc.border_color[i] = static_cast<float>(border_color_info->customBorderColor.int32[i]);
 		break;
 	}
 

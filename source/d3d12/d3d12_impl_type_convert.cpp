@@ -232,11 +232,38 @@ void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_S
 }
 void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_SAMPLER_DESC2 &internal_desc)
 {
+	// D3D12_SAMPLER_DESC2 is a superset of D3D12_SAMPLER_DESC
 	convert_sampler_desc(desc, reinterpret_cast<D3D12_SAMPLER_DESC &>(internal_desc));
 
 	if ((internal_desc.Flags & D3D12_SAMPLER_FLAG_UINT_BORDER_COLOR) != 0)
 		for (int i = 0; i < 4; ++i)
 			internal_desc.UintBorderColor[i] = static_cast<UINT>(desc.border_color[i]);
+}
+void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_STATIC_SAMPLER_DESC &internal_desc)
+{
+	internal_desc.Filter = static_cast<D3D12_FILTER>(desc.filter);
+	internal_desc.AddressU = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(desc.address_u);
+	internal_desc.AddressV = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(desc.address_v);
+	internal_desc.AddressW = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(desc.address_w);
+	internal_desc.MipLODBias = desc.mip_lod_bias;
+	internal_desc.MaxAnisotropy = static_cast<UINT>(desc.max_anisotropy);
+	internal_desc.ComparisonFunc = convert_compare_op(desc.compare_op);
+	internal_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	internal_desc.MinLOD = desc.min_lod;
+	internal_desc.MaxLOD = desc.max_lod;
+
+	if (desc.border_color[3] == 0.0f)
+		internal_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	else if (desc.border_color[0] == 0.0f && desc.border_color[1] == 0.0f && desc.border_color[2] == 0.0f)
+		internal_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+	else
+		internal_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+}
+void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_STATIC_SAMPLER_DESC1 &internal_desc)
+{
+	// D3D12_STATIC_SAMPLER_DESC1 is a superset of D3D12_STATIC_SAMPLER_DESC
+	// Missing fields: Flags
+	convert_sampler_desc(reinterpret_cast<D3D12_STATIC_SAMPLER_DESC &>(internal_desc));
 }
 reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc)
 {
@@ -264,6 +291,41 @@ reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMP
 			desc.border_color[i] = static_cast<float>(internal_desc.UintBorderColor[i]);
 
 	return desc;
+}
+reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_STATIC_SAMPLER_DESC &internal_desc)
+{
+	api::sampler_desc desc = {};
+	desc.filter = static_cast<api::filter_mode>(internal_desc.Filter);
+	desc.address_u = static_cast<api::texture_address_mode>(internal_desc.AddressU);
+	desc.address_v = static_cast<api::texture_address_mode>(internal_desc.AddressV);
+	desc.address_w = static_cast<api::texture_address_mode>(internal_desc.AddressW);
+	desc.mip_lod_bias = internal_desc.MipLODBias;
+	desc.max_anisotropy = static_cast<float>(internal_desc.MaxAnisotropy);
+	desc.compare_op = convert_compare_op(internal_desc.ComparisonFunc);
+	desc.min_lod = internal_desc.MinLOD;
+	desc.max_lod = internal_desc.MaxLOD;
+
+	switch (internal_desc.BorderColor)
+	{
+	case D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK:
+		break;
+	case D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK:
+	case D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK_UINT:
+		desc.border_color[3] = 1.0f;
+		break;
+	case D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE:
+	case D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE_UINT:
+		std::fill_n(desc.border_color, 4, 1.0f);
+		break;
+	}
+
+	return desc;
+}
+reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_STATIC_SAMPLER_DESC1 &internal_desc)
+{
+	// D3D12_STATIC_SAMPLER_DESC1 is a superset of D3D12_STATIC_SAMPLER_DESC
+	// Missing fields: Flags
+	return convert_sampler_desc(reinterpret_cast<const D3D12_STATIC_SAMPLER_DESC &>(internal_desc));
 }
 
 void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS &heap_flags)
@@ -352,6 +414,7 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 }
 void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC1 &internal_desc, D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS &heap_flags)
 {
+	// D3D12_RESOURCE_DESC1 is a superset of D3D12_RESOURCE_DESC
 	convert_resource_desc(desc, reinterpret_cast<D3D12_RESOURCE_DESC &>(internal_desc), heap_props, heap_flags);
 }
 reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags)
