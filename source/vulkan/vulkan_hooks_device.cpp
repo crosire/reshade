@@ -326,6 +326,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	// Continue calling down the chain
+	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
 	const VkResult result = trampoline(physicalDevice, &create_info, pAllocator, pDevice);
 	g_in_dxgi_runtime = false;
@@ -824,7 +825,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		device_impl->unregister_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)create_info.oldSwapchain);
 	}
 
+	assert(!g_in_dxgi_runtime);
+	g_in_dxgi_runtime = true;
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
+	g_in_dxgi_runtime = false;
 	if (result < VK_SUCCESS)
 	{
 		LOG(WARN) << "vkCreateSwapchainKHR" << " failed with error code " << result << '.';
@@ -1082,6 +1086,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	}
 
 	GET_DISPATCH_PTR(QueuePresentKHR, queue);
+	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
 	const VkResult result = trampoline(queue, &present_info);
 	g_in_dxgi_runtime = false;
