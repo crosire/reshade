@@ -271,7 +271,7 @@ bool reshade::input::is_key_down(unsigned int keycode) const
 bool reshade::input::is_key_pressed(unsigned int keycode) const
 {
 	assert(keycode < ARRAYSIZE(_keys));
-	return keycode > 0 && keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x88;
+	return keycode > 0 && keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x88 && !is_key_repeated(keycode);
 }
 bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt, bool force_modifiers) const
 {
@@ -288,6 +288,11 @@ bool reshade::input::is_key_released(unsigned int keycode) const
 {
 	assert(keycode < ARRAYSIZE(_keys));
 	return keycode > 0 && keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x08;
+}
+bool reshade::input::is_key_repeated(unsigned int keycode) const
+{
+	assert(keycode < ARRAYSIZE(_keys));
+	return keycode < ARRAYSIZE(_keys) && (_last_keys[keycode] & 0x80) == 0x80 && (_keys[keycode] & 0x80) == 0x80;
 }
 
 bool reshade::input::is_any_key_down() const
@@ -371,6 +376,9 @@ void reshade::input::max_mouse_position(unsigned int position[2]) const
 void reshade::input::next_frame()
 {
 	_frame_count++;
+
+	// Backup key states from the last processed frame so that state transitions can be identified
+	std::copy_n(_keys, 256, _last_keys);
 
 	for (uint8_t &state : _keys)
 		state &= ~0x08;
