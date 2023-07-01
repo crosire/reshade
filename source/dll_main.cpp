@@ -160,7 +160,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
-			if (config.get("INSTALL", "EnableLogging") || !config.has("INSTALL", "EnableLogging"))
+			if (config.get("INSTALL", "EnableLogging") || (!config.has("INSTALL", "EnableLogging") && !GetEnvironmentVariableW(L"RESHADE_DISABLE_LOGGING", nullptr, 0)))
 			{
 				std::error_code ec;
 				std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
