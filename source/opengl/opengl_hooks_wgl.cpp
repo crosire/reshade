@@ -822,7 +822,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			FARPROC address = reshade::hooks::call(wglGetProcAddress)(name);
 			if (address == nullptr)
 				// Load from the Windows OpenGL DLL if that fails
-				address = GetProcAddress(GetModuleHandleW((get_system_path() / "opengl32.dll").c_str()), name);
+				address = GetProcAddress(GetModuleHandleW((get_system_path() / L"opengl32.dll").c_str()), name);
 			// Get trampoline pointers to any hooked functions, so that effect runtime always calls into original OpenGL functions
 			if (address != nullptr && reshade::hooks::is_hooked(address))
 				address = reshade::hooks::call<FARPROC>(nullptr, address);
