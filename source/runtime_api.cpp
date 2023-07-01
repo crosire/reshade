@@ -1298,4 +1298,3 @@ void reshade::runtime::reorder_techniques([[maybe_unused]] size_t count, [[maybe
 #  endif
 #endif
 }
-

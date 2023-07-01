@@ -26,7 +26,7 @@
 
 #include "reshade_api_format.hpp"
 
-namespace reshade::api
+namespace reshade { namespace api
 {
 	/// <summary>
 	/// The available comparison types.
@@ -525,4 +525,4 @@ namespace reshade::api
 		/// </summary>
 		float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	};
-}
+} }

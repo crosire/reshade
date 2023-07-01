@@ -12,7 +12,7 @@
 
 #include "reshade_api_pipeline.hpp"
 
-namespace reshade::api
+namespace reshade { namespace api
 {
 	/// <summary>
 	/// The underlying render API a device is using, as returned by <see cref="device::get_api"/>.
@@ -235,7 +235,7 @@ namespace reshade::api
 	RESHADE_DEFINE_INTERFACE_WITH_BASE(device, api_object)
 	{
 		/// <summary>
-		/// Gets the underlying render API used by this device.
+		/// Gets the underlying graphics API used by this device.
 		/// </summary>
 		virtual device_api get_api() const = 0;
 
@@ -1019,4 +1019,4 @@ namespace reshade::api
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
 	};
-}
+} }

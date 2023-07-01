@@ -43,48 +43,45 @@ RESHADE_API_LIBRARY_DECLSPEC void ReShadeUnregisterOverlay(const char *title, vo
 // Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
 extern "C" BOOL WINAPI K32EnumProcessModules(HANDLE hProcess, HMODULE *lphModule, DWORD cb, LPDWORD lpcbNeeded);
 
-namespace reshade
+namespace reshade { namespace internal
 {
-	namespace internal
+	/// <summary>
+	/// Gets the handle to the ReShade module.
+	/// </summary>
+	inline HMODULE get_reshade_module_handle(HMODULE reshade_module = nullptr)
 	{
-		/// <summary>
-		/// Gets the handle to the ReShade module.
-		/// </summary>
-		inline HMODULE get_reshade_module_handle(HMODULE reshade_module = nullptr)
+		static HMODULE handle = reshade_module;
+		if (handle == nullptr)
 		{
-			static HMODULE handle = reshade_module;
-			if (handle == nullptr)
+			HMODULE modules[1024]; DWORD num = 0;
+			if (K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &num))
 			{
-				HMODULE modules[1024]; DWORD num = 0;
-				if (K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &num))
-				{
-					if (num > sizeof(modules))
-						num = sizeof(modules);
+				if (num > sizeof(modules))
+					num = sizeof(modules);
 
-					for (DWORD i = 0; i < num / sizeof(HMODULE); ++i)
+				for (DWORD i = 0; i < num / sizeof(HMODULE); ++i)
+				{
+					if (GetProcAddress(modules[i], "ReShadeRegisterAddon") &&
+						GetProcAddress(modules[i], "ReShadeUnregisterAddon"))
 					{
-						if (GetProcAddress(modules[i], "ReShadeRegisterAddon") &&
-							GetProcAddress(modules[i], "ReShadeUnregisterAddon"))
-						{
-							handle = modules[i];
-							break;
-						}
+						handle = modules[i];
+						break;
 					}
 				}
 			}
-			return handle;
 		}
-
-		/// <summary>
-		/// Gets the handle to the current add-on module.
-		/// </summary>
-		inline HMODULE get_current_module_handle(HMODULE addon_module = nullptr)
-		{
-			static HMODULE handle = addon_module;
-			return handle;
-		}
+		return handle;
 	}
-}
+
+	/// <summary>
+	/// Gets the handle to the current add-on module.
+	/// </summary>
+	inline HMODULE get_current_module_handle(HMODULE addon_module = nullptr)
+	{
+		static HMODULE handle = addon_module;
+		return handle;
+	}
+} }
 
 #endif
 
@@ -132,12 +129,6 @@ namespace reshade
 		func(internal::get_current_module_handle(), path, path_size);
 #endif
 	}
-	template <size_t SIZE>
-	inline  void get_reshade_base_path(char(&path)[SIZE])
-	{
-		size_t path_size = SIZE;
-		get_reshade_base_path(path, &path_size);
-	}
 
 	/// <summary>
 	/// Gets a value from one of ReShade's config files.
@@ -158,6 +149,7 @@ namespace reshade
 		return func(internal::get_current_module_handle(), runtime, section, key, value, value_size);
 #endif
 	}
+#if _HAS_CXX17
 	template <typename T>
 	inline bool get_config_value(api::effect_runtime *runtime, const char *section, const char *key, T &value)
 	{
@@ -172,9 +164,10 @@ namespace reshade
 		int value_int = 0;
 		if (!get_config_value<int>(runtime, section, key, value_int))
 			return false;
-		value = value_int != 0;
+		value = (value_int != 0);
 		return true;
 	}
+#endif
 
 	/// <summary>
 	/// Sets and saves a value in one of ReShade's config files.
@@ -193,6 +186,7 @@ namespace reshade
 		func(internal::get_current_module_handle(), runtime, section, key, value);
 #endif
 	}
+#if _HAS_CXX17
 	template <typename T>
 	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const T &value)
 	{
@@ -205,6 +199,7 @@ namespace reshade
 	{
 		set_config_value<int>(runtime, section, key, value ? 1 : 0);
 	}
+#endif
 
 #if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
 	/// <summary>

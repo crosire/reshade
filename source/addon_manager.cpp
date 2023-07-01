@@ -107,6 +107,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reshade_overlay);
 		CASE(reshade_screenshot);
 		CASE(reshade_render_technique);
+		CASE(reshade_set_current_preset_path);
+		CASE(reshade_reorder_techniques);
 	}
 #undef  CASE
 	return "unknown";

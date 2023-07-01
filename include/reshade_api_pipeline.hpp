@@ -7,7 +7,7 @@
 
 #include "reshade_api_resource.hpp"
 
-namespace reshade::api
+namespace reshade { namespace api
 {
 	/// <summary>
 	/// A list of flags that represent the available shader stages in the render pipeline.
@@ -981,4 +981,4 @@ namespace reshade::api
 		float min_depth = 0.0f;
 		float max_depth = 1.0f;
 	};
-}
+} }
