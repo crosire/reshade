@@ -48,45 +48,11 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 
 	// Create mipmap generation states
 	{
-		D3D12_DESCRIPTOR_RANGE srv_range = {};
-		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srv_range.NumDescriptors = 1;
-		srv_range.BaseShaderRegister = 0; // t0
-		D3D12_DESCRIPTOR_RANGE uav_range = {};
-		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		uav_range.NumDescriptors = 1;
-		uav_range.BaseShaderRegister = 0; // u0
-		D3D12_DESCRIPTOR_RANGE sampler_range = {};
-		sampler_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-		sampler_range.NumDescriptors = 1;
-		sampler_range.BaseShaderRegister = 0; // s0
-
-		D3D12_ROOT_PARAMETER params[4] = {};
-		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-		params[0].Constants.ShaderRegister = 0; // b0
-		params[0].Constants.Num32BitValues = 2;
-		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[1].DescriptorTable.NumDescriptorRanges = 1;
-		params[1].DescriptorTable.pDescriptorRanges = &srv_range;
-		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[2].DescriptorTable.NumDescriptorRanges = 1;
-		params[2].DescriptorTable.pDescriptorRanges = &uav_range;
-		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[3].DescriptorTable.NumDescriptorRanges = 1;
-		params[3].DescriptorTable.pDescriptorRanges = &sampler_range;
-		params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
 
 		// Creating a root signature with static samplers here cause banding artifacts in Call of Duty: Modern Warfare for some strange reason, so need to use sampler in descriptor table instead
-		D3D12_ROOT_SIGNATURE_DESC desc = {};
-		desc.NumParameters = ARRAYSIZE(params);
-		desc.pParameters = params;
-
 		if (com_ptr<ID3DBlob> signature_blob;
-			FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)) ||
-			FAILED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&_mipmap_signature))))
+			FAILED(_orig->CreateRootSignature(0, cs.data, cs.data_size, IID_PPV_ARGS(&_mipmap_signature))))
 		{
 			LOG(ERROR) << "Failed to create mipmap generation signature!";
 		}
@@ -94,8 +60,6 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		{
 			D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
 			pso_desc.pRootSignature = _mipmap_signature.get();
-
-			const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
 			pso_desc.CS = { cs.data, cs.data_size };
 
 			if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))

@@ -7,6 +7,12 @@ cbuffer cb0 : register(b0)
 	float2 texel; // 1.0 / dimension
 }
 
+[RootSignature(
+	"RootConstants(num32BitConstants=2, b0),"
+	"DescriptorTable(SRV(t0, numDescriptors = 1)),"
+	"DescriptorTable(UAV(u0, numDescriptors = 1)),"
+	"DescriptorTable(Sampler(s0, numDescriptors = 1))")]
+
 [numthreads(8, 8, 1)]
 void main(uint3 tid : SV_DispatchThreadID)
 {
