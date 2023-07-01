@@ -134,8 +134,6 @@ void reshade::load_addons()
 #endif
 
 	addon_all_loaded = true;
-	internal::get_reshade_module_handle(g_module_handle);
-	internal::get_current_module_handle(g_module_handle);
 
 	std::vector<std::string> disabled_addons;
 	config.get("ADDON", "DisabledAddons", disabled_addons);
@@ -322,17 +320,6 @@ reshade::addon_info *reshade::find_addon(void *address)
 			return &(*it);
 	return nullptr;
 }
-
-extern "C" __declspec(dllexport) bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version);
-extern "C" __declspec(dllexport) void ReShadeUnregisterAddon(HMODULE module);
-
-extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback);
-extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback);
-
-#if RESHADE_GUI
-extern "C" __declspec(dllexport) void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
-extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
-#endif
 
 bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 {

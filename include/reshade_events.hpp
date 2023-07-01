@@ -1555,7 +1555,7 @@ namespace reshade
 		/// </remarks>
 		reshade_reorder_techniques,
 
-#ifdef RESHADE_ADDON
+#ifdef RESHADE_API_LIBRARY_EXPORT
 		max // Last value used internally by ReShade to determine number of events in this enum
 #endif
 	};

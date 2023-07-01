@@ -5,12 +5,13 @@
 
 #if RESHADE_ADDON
 
-#include "runtime.hpp"
+#include "reshade.hpp"
 #include "addon_manager.hpp"
+#include "runtime.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
-extern "C" __declspec(dllexport) void ReShadeLogMessage(void *module, int level, const char *message)
+void ReShadeLogMessage(HMODULE module, int level, const char *message)
 {
 	std::string prefix;
 	if (module != nullptr)
@@ -23,7 +24,7 @@ extern "C" __declspec(dllexport) void ReShadeLogMessage(void *module, int level,
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
 }
 
-extern "C" __declspec(dllexport) void ReShadeGetBasePath(void *, char *path, size_t *size)
+void ReShadeGetBasePath(HMODULE, char *path, size_t *size)
 {
 	if (size == nullptr)
 		return;
@@ -41,7 +42,7 @@ extern "C" __declspec(dllexport) void ReShadeGetBasePath(void *, char *path, siz
 	}
 }
 
-extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
+bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
 {
 	if (size == nullptr)
 		return false;
@@ -70,7 +71,7 @@ extern "C" __declspec(dllexport) bool ReShadeGetConfigValue(void *, reshade::api
 
 	return true;
 }
-extern "C" __declspec(dllexport) void ReShadeSetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
+void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 

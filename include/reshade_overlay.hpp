@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#pragma once
-
 #if defined(IMGUI_VERSION_NUM)
 
 // Check that the 'ImTextureID' type has the same size as 'reshade::api::resource_view'
@@ -427,7 +425,7 @@ inline const imgui_function_table *&imgui_function_table_instance()
 	return instance;
 }
 
-#ifndef RESHADE_ADDON
+#ifndef RESHADE_API_LIBRARY_EXPORT
 
 namespace ImGui
 {
