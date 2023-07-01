@@ -653,7 +653,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 
 				if (sampler_count != 0)
 				{
-					const uint32_t k = params.size();
+					const uint32_t k = static_cast<uint32_t>(params.size());
 					params.emplace_back();
 					ranges.emplace_back();
 

@@ -263,7 +263,7 @@ void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_S
 {
 	// D3D12_STATIC_SAMPLER_DESC1 is a superset of D3D12_STATIC_SAMPLER_DESC
 	// Missing fields: Flags
-	convert_sampler_desc(reinterpret_cast<D3D12_STATIC_SAMPLER_DESC &>(internal_desc));
+	convert_sampler_desc(desc, reinterpret_cast<D3D12_STATIC_SAMPLER_DESC &>(internal_desc));
 }
 reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc)
 {
