@@ -2684,7 +2684,13 @@ void reshade::runtime::draw_gui_addons()
 
 	if (!addon_all_loaded)
 	{
+		ImGui::PushTextWrapPos();
+#  if RESHADE_ADDON_LITE
+		ImGui::TextColored(COLOR_YELLOW, "Some add-ons were not loaded because this build of ReShade has only limited add-on functionality.");
+#  else
 		ImGui::TextColored(COLOR_RED, "There were errors loading some add-ons. Check the log for more details.");
+#  endif
+		ImGui::PopTextWrapPos();
 		ImGui::Spacing();
 	}
 
