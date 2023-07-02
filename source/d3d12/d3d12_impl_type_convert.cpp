@@ -248,16 +248,16 @@ void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_S
 	internal_desc.MipLODBias = desc.mip_lod_bias;
 	internal_desc.MaxAnisotropy = static_cast<UINT>(desc.max_anisotropy);
 	internal_desc.ComparisonFunc = convert_compare_op(desc.compare_op);
-	internal_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 	internal_desc.MinLOD = desc.min_lod;
 	internal_desc.MaxLOD = desc.max_lod;
 
+	const bool was_uint = internal_desc.BorderColor == D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK_UINT || D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE_UINT;
 	if (desc.border_color[3] == 0.0f)
 		internal_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 	else if (desc.border_color[0] == 0.0f && desc.border_color[1] == 0.0f && desc.border_color[2] == 0.0f)
-		internal_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+		internal_desc.BorderColor = was_uint ? D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK_UINT : D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
 	else
-		internal_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+		internal_desc.BorderColor = was_uint ? D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE_UINT : D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
 }
 void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_STATIC_SAMPLER_DESC1 &internal_desc)
 {
