@@ -35,7 +35,7 @@ namespace reshade { namespace api
 	/// A ReShade effect runtime, used to control effects.
 	/// <para>A separate runtime is instantiated for every swap chain.</para>
 	/// </summary>
-	RESHADE_DEFINE_INTERFACE_WITH_BASE(effect_runtime, swapchain)
+	struct __declspec(novtable) effect_runtime : public swapchain
 	{
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
@@ -643,7 +643,7 @@ namespace reshade { namespace api
 		/// Makes ReShade block any keyboard and mouse input from reaching the game for the duration of the next frame.
 		/// Call this every frame for as long as input should be blocked. This can be used to ensure input is only applied to overlays created in a <see cref="addon_event::reshade_overlay"/> callback.
 		/// </summary>
-		virtual void block_input_next_frame();
+		virtual void block_input_next_frame() = 0;
 
 		/// <summary>
 		/// Gets the virtual key code of the last key that was pressed.

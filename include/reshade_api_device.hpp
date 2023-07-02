@@ -5,11 +5,6 @@
 
 #pragma once
 
-#define RESHADE_DEFINE_INTERFACE(name) \
-	struct __declspec(novtable) name
-#define RESHADE_DEFINE_INTERFACE_WITH_BASE(name, base) \
-	struct __declspec(novtable) name : public base
-
 #include "reshade_api_pipeline.hpp"
 
 namespace reshade { namespace api
@@ -170,7 +165,7 @@ namespace reshade { namespace api
 	/// The base class for objects provided by the ReShade API.
 	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
-	RESHADE_DEFINE_INTERFACE(api_object)
+	struct __declspec(novtable) api_object
 	{
 		/// <summary>
 		/// Gets the underlying native object for this API object.
@@ -232,7 +227,7 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class is safe to use concurrently from multiple threads in D3D10+ and Vulkan.
 	/// </remarks>
-	RESHADE_DEFINE_INTERFACE_WITH_BASE(device, api_object)
+	struct __declspec(novtable) device : public api_object
 	{
 		/// <summary>
 		/// Gets the underlying graphics API used by this device.
@@ -483,7 +478,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The base class for objects that are children to a logical render <see cref="device"/>.
 	/// </summary>
-	RESHADE_DEFINE_INTERFACE_WITH_BASE(device_object, api_object)
+	struct __declspec(novtable) device_object : public api_object
 	{
 		/// <summary>
 		/// Gets the parent device for this object.
@@ -509,7 +504,7 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	RESHADE_DEFINE_INTERFACE_WITH_BASE(command_list, device_object)
+	struct __declspec(novtable) command_list : public device_object
 	{
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
@@ -917,7 +912,7 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	RESHADE_DEFINE_INTERFACE_WITH_BASE(command_queue, device_object)
+	struct __declspec(novtable) command_queue : public device_object
 	{
 		/// <summary>
 		/// Gets the type of the command queue, which specifies what commands can be executed on it.
@@ -992,7 +987,7 @@ namespace reshade { namespace api
 	/// A swap chain, used to present images to the screen.
 	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
 	/// </summary>
-	RESHADE_DEFINE_INTERFACE_WITH_BASE(swapchain, device_object)
+	struct __declspec(novtable) swapchain : public device_object
 	{
 		/// <summary>
 		/// Gets the handle of the window this swap chain was created with, or <see langword="nullptr"/> if this is an offscreen swap chain.

@@ -446,6 +446,7 @@ namespace reshade { namespace api
 
 		return 0;
 	}
+
 	/// <summary>
 	/// Gets the number of bytes a texture slice of the specified format <paramref name="value"/> occupies.
 	/// </summary>
