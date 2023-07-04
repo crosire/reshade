@@ -180,7 +180,7 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
 		return true;
-	case api::device_caps::copy_query_pool_results:
+	case api::device_caps::copy_query_heap_results:
 		return gl.GetQueryBufferObjectui64v != nullptr; // OpenGL 4.5
 	case api::device_caps::sampler_compare:
 		return true;
@@ -1996,18 +1996,18 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 		switch (params[i].type)
 		{
-		case api::pipeline_layout_param_type::descriptor_set:
+		case api::pipeline_layout_param_type::descriptor_table:
 		case api::pipeline_layout_param_type::push_descriptors_ranges:
-			if (params[i].descriptor_set.count == 0)
+			if (params[i].descriptor_table.count == 0)
 				return false;
 
-			merged_range = params[i].descriptor_set.ranges[0];
+			merged_range = params[i].descriptor_table.ranges[0];
 			if (merged_range.array_size > 1)
 				return false;
 
-			for (uint32_t k = 1; k < params[i].descriptor_set.count; ++i)
+			for (uint32_t k = 1; k < params[i].descriptor_table.count; ++i)
 			{
-				const api::descriptor_range &range = params[i].descriptor_set.ranges[k];
+				const api::descriptor_range &range = params[i].descriptor_table.ranges[k];
 
 				if (range.type != merged_range.type || range.array_size > 1 || range.dx_register_space != merged_range.dx_register_space)
 					return false;
@@ -2052,7 +2052,7 @@ void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-bool reshade::opengl::device_impl::allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
+bool reshade::opengl::device_impl::allocate_descriptor_tables(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_table *out_tables)
 {
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
@@ -2060,31 +2060,31 @@ bool reshade::opengl::device_impl::allocate_descriptor_sets(uint32_t count, api:
 	{
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			const auto set_impl = new descriptor_set_impl();
-			set_impl->type = layout_impl->ranges[layout_param].type;
-			set_impl->count = layout_impl->ranges[layout_param].count;
-			set_impl->base_binding = layout_impl->ranges[layout_param].binding;
+			const auto table_impl = new descriptor_table_impl();
+			table_impl->type = layout_impl->ranges[layout_param].type;
+			table_impl->count = layout_impl->ranges[layout_param].count;
+			table_impl->base_binding = layout_impl->ranges[layout_param].binding;
 
-			switch (set_impl->type)
+			switch (table_impl->type)
 			{
 			case api::descriptor_type::sampler:
 			case api::descriptor_type::shader_resource_view:
 			case api::descriptor_type::unordered_access_view:
-				set_impl->descriptors.resize(set_impl->count * 1);
+				table_impl->descriptors.resize(table_impl->count * 1);
 				break;
 			case api::descriptor_type::sampler_with_resource_view:
-				set_impl->descriptors.resize(set_impl->count * 2);
+				table_impl->descriptors.resize(table_impl->count * 2);
 				break;
 			case api::descriptor_type::constant_buffer:
 			case api::descriptor_type::shader_storage_buffer:
-				set_impl->descriptors.resize(set_impl->count * 3);
+				table_impl->descriptors.resize(table_impl->count * 3);
 				break;
 			default:
 				assert(false);
 				break;
 			}
 
-			out_sets[i] = { reinterpret_cast<uintptr_t>(set_impl) };
+			out_tables[i] = { reinterpret_cast<uintptr_t>(table_impl) };
 		}
 
 		return true;
@@ -2093,55 +2093,55 @@ bool reshade::opengl::device_impl::allocate_descriptor_sets(uint32_t count, api:
 	{
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			out_sets[i] = { 0 };
+			out_tables[i] = { 0 };
 		}
 
 		return false;
 	}
 }
-void reshade::opengl::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+void reshade::opengl::device_impl::free_descriptor_tables(uint32_t count, const api::descriptor_table *tables)
 {
 	for (uint32_t i = 0; i < count; ++i)
-		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+		delete reinterpret_cast<descriptor_table_impl *>(tables[i].handle);
 }
 
-void reshade::opengl::device_impl::get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *pool, uint32_t *offset) const
+void reshade::opengl::device_impl::get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *heap, uint32_t *offset) const
 {
-	assert(set.handle != 0 && array_offset == 0);
+	assert(table.handle != 0 && array_offset == 0);
 
-	*pool = { 0 }; // Not implemented
+	*heap = { 0 }; // Not implemented
 	*offset = binding;
 }
 
-void reshade::opengl::device_impl::copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies)
+void reshade::opengl::device_impl::copy_descriptor_tables(uint32_t count, const api::descriptor_table_copy *copies)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const api::descriptor_set_copy &copy = copies[i];
+		const api::descriptor_table_copy &copy = copies[i];
 
-		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copy.source_set.handle);
-		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copy.dest_set.handle);
-		assert(src_set_impl != nullptr && dst_set_impl != nullptr && src_set_impl->type == dst_set_impl->type);
+		const auto src_table_impl = reinterpret_cast<descriptor_table_impl *>(copy.source_table.handle);
+		const auto dst_table_impl = reinterpret_cast<descriptor_table_impl *>(copy.dest_table.handle);
+		assert(src_table_impl != nullptr && dst_table_impl != nullptr && src_table_impl->type == dst_table_impl->type);
 
-		const uint32_t dst_binding = copy.dest_binding - dst_set_impl->base_binding;
-		assert(dst_binding < dst_set_impl->count && copy.count <= (dst_set_impl->count - dst_binding));
-		const uint32_t src_binding = copy.source_binding - src_set_impl->base_binding;
-		assert(src_binding < src_set_impl->count && copy.count <= (src_set_impl->count - src_binding));
+		const uint32_t dst_binding = copy.dest_binding - dst_table_impl->base_binding;
+		assert(dst_binding < dst_table_impl->count && copy.count <= (dst_table_impl->count - dst_binding));
+		const uint32_t src_binding = copy.source_binding - src_table_impl->base_binding;
+		assert(src_binding < src_table_impl->count && copy.count <= (src_table_impl->count - src_binding));
 
 		assert(copy.dest_array_offset == 0 && copy.source_array_offset == 0);
 
-		switch (src_set_impl->type)
+		switch (src_table_impl->type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			std::memcpy(&dst_set_impl->descriptors[dst_binding * 1], &src_set_impl->descriptors[src_binding * 1], copy.count * sizeof(uint64_t) * 1);
+			std::memcpy(&dst_table_impl->descriptors[dst_binding * 1], &src_table_impl->descriptors[src_binding * 1], copy.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			std::memcpy(&dst_set_impl->descriptors[dst_binding * 2], &src_set_impl->descriptors[src_binding * 2], copy.count * sizeof(uint64_t) * 2);
+			std::memcpy(&dst_table_impl->descriptors[dst_binding * 2], &src_table_impl->descriptors[src_binding * 2], copy.count * sizeof(uint64_t) * 2);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&dst_set_impl->descriptors[dst_binding * 3], &src_set_impl->descriptors[src_binding * 3], copy.count * sizeof(uint64_t) * 3);
+			std::memcpy(&dst_table_impl->descriptors[dst_binding * 3], &src_table_impl->descriptors[src_binding * 3], copy.count * sizeof(uint64_t) * 3);
 			break;
 		default:
 			assert(false);
@@ -2149,17 +2149,17 @@ void reshade::opengl::device_impl::copy_descriptor_sets(uint32_t count, const ap
 		}
 	}
 }
-void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates)
+void reshade::opengl::device_impl::update_descriptor_tables(uint32_t count, const api::descriptor_table_update *updates)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const api::descriptor_set_update &update = updates[i];
+		const api::descriptor_table_update &update = updates[i];
 
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(update.set.handle);
-		assert(set_impl != nullptr && set_impl->type == update.type);
+		const auto table_impl = reinterpret_cast<descriptor_table_impl *>(update.table.handle);
+		assert(table_impl != nullptr && table_impl->type == update.type);
 
-		const uint32_t update_binding = update.binding - set_impl->base_binding;
-		assert(update_binding < set_impl->count && update.count <= (set_impl->count - update_binding));
+		const uint32_t update_binding = update.binding - table_impl->base_binding;
+		assert(update_binding < table_impl->count && update.count <= (table_impl->count - update_binding));
 
 		// In GLSL targeting OpenGL, if the binding qualifier is used with an array, the first element of the array takes the specified block binding and each subsequent element takes the next consecutive binding point
 		// See https://www.khronos.org/registry/OpenGL/specs/gl/GLSLangSpec.4.60.html#layout-qualifiers (chapter 4.4.6)
@@ -2171,13 +2171,13 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const 
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			std::memcpy(&set_impl->descriptors[update_binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
+			std::memcpy(&table_impl->descriptors[update_binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			std::memcpy(&set_impl->descriptors[update_binding * 2], update.descriptors, update.count * sizeof(uint64_t) * 2);
+			std::memcpy(&table_impl->descriptors[update_binding * 2], update.descriptors, update.count * sizeof(uint64_t) * 2);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&set_impl->descriptors[update_binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
+			std::memcpy(&table_impl->descriptors[update_binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
 		default:
 			assert(false);
@@ -2186,14 +2186,14 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const 
 	}
 }
 
-bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
+bool reshade::opengl::device_impl::create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_handle)
 {
 	*out_handle = { 0 };
 
 	if (type == api::query_type::pipeline_statistics)
 		return false;
 
-	const auto impl = new query_pool_impl();
+	const auto impl = new query_heap_impl();
 	impl->queries.resize(size);
 
 	gl.GenQueries(static_cast<GLsizei>(size), impl->queries.data());
@@ -2217,24 +2217,24 @@ bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint3
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
-void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
+void reshade::opengl::device_impl::destroy_query_heap(api::query_heap handle)
 {
 	if (handle.handle == 0)
 		return;
 
-	const auto impl = reinterpret_cast<query_pool_impl *>(handle.handle);
+	const auto impl = reinterpret_cast<query_heap_impl *>(handle.handle);
 
 	gl.DeleteQueries(static_cast<GLsizei>(impl->queries.size()), impl->queries.data());
 
 	delete impl;
 }
 
-bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::opengl::device_impl::get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
-	assert(pool.handle != 0);
+	assert(heap.handle != 0);
 	assert(stride >= sizeof(uint64_t));
 
-	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
+	const auto impl = reinterpret_cast<query_heap_impl *>(heap.handle);
 
 	for (size_t i = 0; i < count; ++i)
 	{

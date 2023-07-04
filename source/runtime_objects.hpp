@@ -234,8 +234,8 @@ namespace reshade
 		{
 			api::resource_view render_target_views[8] = {};
 			api::pipeline pipeline = {};
-			api::descriptor_set texture_set = {};
-			api::descriptor_set storage_set = {};
+			api::descriptor_table texture_table = {};
+			api::descriptor_table storage_table = {};
 			std::vector<api::resource> modified_resources;
 			std::vector<api::resource_view> generate_mipmap_views;
 		};
@@ -265,17 +265,17 @@ namespace reshade
 		std::vector<uniform> uniforms;
 		std::vector<uint8_t> uniform_data_storage;
 
-		api::query_pool query_pool = {};
+		api::query_heap query_heap = {};
 		api::resource cb = {};
 		api::pipeline_layout layout = {};
 
-		api::descriptor_set cb_set = {};
-		api::descriptor_set sampler_set = {};
+		api::descriptor_table cb_table = {};
+		api::descriptor_table sampler_table = {};
 
 		struct binding_data
 		{
 			std::string semantic;
-			api::descriptor_set set;
+			api::descriptor_table table;
 			uint32_t index;
 			api::sampler sampler;
 			bool srgb;

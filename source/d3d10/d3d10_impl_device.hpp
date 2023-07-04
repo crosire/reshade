@@ -59,18 +59,18 @@ namespace reshade::d3d10
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		bool allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+		bool allocate_descriptor_tables(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_table *out_tables) final;
+		void free_descriptor_tables(uint32_t count, const api::descriptor_table *tables) final;
 
-		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *out_pool, uint32_t *offset) const final;
+		void get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *out_heap, uint32_t *offset) const final;
 
-		void copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies) final;
-		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
+		void copy_descriptor_tables(uint32_t count, const api::descriptor_table_copy *copies) final;
+		void update_descriptor_tables(uint32_t count, const api::descriptor_table_update *updates) final;
 
-		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;
-		void destroy_query_pool(api::query_pool handle) final;
+		bool create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_handle) final;
+		void destroy_query_heap(api::query_heap handle) final;
 
-		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+		bool get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
@@ -101,8 +101,8 @@ namespace reshade::d3d10
 		void bind_constant_buffers(api::shader_stage stages, uint32_t first, uint32_t count, const api::buffer_range *buffer_ranges);
 
 		void push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values) final;
-		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update) final;
-		void bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets) final;
+		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update) final;
+		void bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables) final;
 
 		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
 		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
@@ -127,9 +127,9 @@ namespace reshade::d3d10
 
 		void generate_mipmaps(api::resource_view srv) final;
 
-		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
+		void begin_query(api::query_heap heap, api::query_type type, uint32_t index) final;
+		void end_query(api::query_heap heap, api::query_type type, uint32_t index) final;
+		void copy_query_heap_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
 
 		void begin_debug_event(const char *, const float[4]) final {}
 		void end_debug_event() final {}

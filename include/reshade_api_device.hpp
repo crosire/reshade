@@ -131,9 +131,9 @@ namespace reshade { namespace api
 		resolve_region,
 		/// <summary>
 		/// Specifies whether copying query results to a buffer is supported.
-		/// If this feature is not present, <see cref="command_list::copy_query_pool_results"/> must not be used.
+		/// If this feature is not present, <see cref="command_list::copy_query_heap_results"/> must not be used.
 		/// </summary>
-		copy_query_pool_results,
+		copy_query_heap_results,
 		/// <summary>
 		/// Specifies whether comparison sampling is supported.
 		/// If this feature is not present, the <see cref="sampler_desc::compare_op"/> field is ignored and the compare filter types have no effect.
@@ -379,87 +379,87 @@ namespace reshade { namespace api
 		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
 
 		/// <summary>
-		/// Allocates a descriptor set from an internal pool.
+		/// Allocates a descriptor table from an internal heap.
 		/// </summary>
-		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
-		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
-		/// <param name="out_handle">Pointer to a a variable that is set to the handles of the created descriptor set.</param>
-		/// <returns><see langword="true"/> if the descriptor set was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
-		inline  bool allocate_descriptor_set(pipeline_layout layout, uint32_t param, descriptor_set *out_handle) { return allocate_descriptor_sets(1, layout, param, out_handle); }
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
+		/// <param name="out_handle">Pointer to a a variable that is set to the handles of the created descriptor table.</param>
+		/// <returns><see langword="true"/> if the descriptor table was successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
+		inline  bool allocate_descriptor_table(pipeline_layout layout, uint32_t param, descriptor_table *out_handle) { return allocate_descriptor_tables(1, layout, param, out_handle); }
 		/// <summary>
-		/// Allocates one or more descriptor sets from an internal pool.
+		/// Allocates one or more descriptor tables from an internal heap.
 		/// </summary>
-		/// <param name="count">Number of descriptor sets to allocate.</param>
-		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
-		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
-		/// <param name="out_handles">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor sets.</param>
-		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
-		virtual bool allocate_descriptor_sets(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_set *out_handles) = 0;
+		/// <param name="count">Number of descriptor tables to allocate.</param>
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
+		/// <param name="out_handles">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor tables.</param>
+		/// <returns><see langword="true"/> if the descriptor tables were successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
+		virtual bool allocate_descriptor_tables(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_table *out_handles) = 0;
 		/// <summary>
-		/// Frees adescriptor set that was previously allocated via <see cref="create_descriptor_set"/>.
+		/// Frees a descriptor table that was previously allocated via <see cref="create_descriptor_table"/>.
 		/// </summary>
-		inline  void free_descriptor_set(descriptor_set handle) { free_descriptor_sets(1, &handle); }
+		inline  void free_descriptor_table(descriptor_table handle) { free_descriptor_tables(1, &handle); }
 		/// <summary>
-		/// Frees one or more descriptor sets that were previously allocated via <see cref="create_descriptor_sets"/>.
+		/// Frees one or more descriptor tables that were previously allocated via <see cref="create_descriptor_tables"/>.
 		/// </summary>
-		virtual void free_descriptor_sets(uint32_t count, const descriptor_set *handles) = 0;
+		virtual void free_descriptor_tables(uint32_t count, const descriptor_table *handles) = 0;
 
 		/// <summary>
-		/// Gets the offset (in descriptors) of the specified binding in the underlying descriptor pool.
+		/// Gets the offset (in descriptors) of the specified binding in the underlying descriptor heap of a descriptor table.
 		/// </summary>
-		/// <param name="set">Descriptor set to get the offset from.</param>
-		/// <param name="binding">Binding in the descriptor set to get the offset from.</param>
+		/// <param name="table">Descriptor table to get the offset from.</param>
+		/// <param name="binding">Binding in the descriptor table to get the offset from.</param>
 		/// <param name="array_offset">Array index in the specified <paramref name="binding"/>.</param>
-		/// <param name="out_pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
-		/// <param name="out_offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
-		virtual void get_descriptor_pool_offset(descriptor_set set, uint32_t binding, uint32_t array_offset, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
+		/// <param name="out_heap">Pointer to a variable that is set to the handle of the underlying descriptor heap the <paramref name="table"/> was allocated from.</param>
+		/// <param name="out_offset">Pointer to a variable that is set to the offset of the binding in the underlying descriptor heap.</param>
+		virtual void get_descriptor_heap_offset(descriptor_table table, uint32_t binding, uint32_t array_offset, descriptor_heap *out_heap, uint32_t *out_offset) const = 0;
 
 		/// <summary>
-		/// Copies the contents of a descriptor set to another descriptor set.
+		/// Copies the contents of a descriptor table to another descriptor table.
 		/// </summary>
-		/// <param name="copy">Descriptor set copy to process.</param>
-		inline  void copy_descriptors(const descriptor_set_copy &copy) { copy_descriptor_sets(1, &copy); }
+		/// <param name="copy">Descriptor table copy to process.</param>
+		inline  void copy_descriptors(const descriptor_table_copy &copy) { copy_descriptor_tables(1, &copy); }
 		/// <summary>
-		/// Copies the contents between multiple descriptor sets.
+		/// Copies the contents between multiple descriptor tables.
 		/// </summary>
 		/// <param name="count">Number of <paramref name="copies"/> to process.</param>
-		/// <param name="copies">Pointer to an array of descriptor set copies to process.</param>
-		virtual void copy_descriptor_sets(uint32_t count, const descriptor_set_copy *copies) = 0;
+		/// <param name="copies">Pointer to an array of descriptor table copies to process.</param>
+		virtual void copy_descriptor_tables(uint32_t count, const descriptor_table_copy *copies) = 0;
 		/// <summary>
-		/// Updates the contents of a descriptor set with the specified descriptors.
+		/// Updates the contents of a descriptor table with the specified descriptors.
 		/// </summary>
-		/// <param name="update">Descriptor set update to process.</param>
-		inline  void update_descriptors(const descriptor_set_update &update) { update_descriptor_sets(1, &update); }
+		/// <param name="update">Descriptor table update to process.</param>
+		inline  void update_descriptors(const descriptor_table_update &update) { update_descriptor_tables(1, &update); }
 		/// <summary>
-		/// Updates the contents of multiple descriptor sets with the specified descriptors.
+		/// Updates the contents of multiple descriptor tables with the specified descriptors.
 		/// </summary>
 		/// <param name="count">Number of <paramref name="updates"/> to process.</param>
-		/// <param name="updates">Pointer to an array of descriptor set updates to process.</param>
-		virtual void update_descriptor_sets(uint32_t count, const descriptor_set_update *updates) = 0;
+		/// <param name="updates">Pointer to an array of descriptor table updates to process.</param>
+		virtual void update_descriptor_tables(uint32_t count, const descriptor_table_update *updates) = 0;
 
 		/// <summary>
-		/// Creates a new query pool.
+		/// Creates a new query heap.
 		/// </summary>
-		/// <param name="type">Type of queries that will be used with this pool.</param>
-		/// <param name="size">Number of queries to allocate in the pool.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query pool.</param>
-		/// <returns><see langword="true"/> if the query pool was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out_handle) = 0;
+		/// <param name="type">Type of queries that will be used with this query heap.</param>
+		/// <param name="size">Number of queries to allocate in the query heap.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query heap.</param>
+		/// <returns><see langword="true"/> if the query heap was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_query_heap(query_type type, uint32_t size, query_heap *out_handle) = 0;
 		/// <summary>
-		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
+		/// Instantly destroys a query heap that was previously created via <see cref="create_query_heap"/>.
 		/// </summary>
-		virtual void destroy_query_pool(query_pool handle) = 0;
+		virtual void destroy_query_heap(query_heap handle) = 0;
 
 		/// <summary>
-		/// Gets the results of queries in a query pool.
+		/// Gets the results of queries in a query heap.
 		/// </summary>
-		/// <param name="pool">Query pool that contains the queries.</param>
-		/// <param name="first">Index of the first query in the pool to copy the results from.</param>
+		/// <param name="heap">Query heap that contains the queries.</param>
+		/// <param name="first">Index of the first query in the query heap to copy the results from.</param>
 		/// <param name="count">Number of query results to copy.</param>
 		/// <param name="results">Pointer to an array that is filled with the results.</param>
 		/// <param name="stride">Size (in bytes) of each element in the <paramref name="results"/> array.</param>
 		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
-		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
+		virtual bool get_query_heap_results(query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Associates a name with a resource, for easier debugging in external tools.
@@ -597,31 +597,31 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of 32-bit values to set the constants to. These can be floating-point, integer or boolean depending on what the shader is expecting.</param>
 		virtual void push_constants(shader_stage stages, pipeline_layout layout, uint32_t param, uint32_t first, uint32_t count, const void *values) = 0;
 		/// <summary>
-		/// Directly binds a temporary descriptor set for the specfified shader pipeline stage and updates with an array of descriptors.
+		/// Directly binds a temporary descriptor table for the specfified shader pipeline stage and updates with an array of descriptors.
 		/// </summary>
 		/// <seealso cref="device_caps::partial_push_descriptor_updates"/>
 		/// <param name="stages">Shader stages that will use the updated descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="param">Layout parameter index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
-		/// <param name="update">Range of descriptors to update in the temporary set (<see cref="descriptor_set_update::set"/> is ignored).</param>
-		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t param, const descriptor_set_update &update) = 0;
+		/// <param name="param">Layout parameter index of the descriptor table in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="update">Range of descriptors to update in the temporary descriptor table (<see cref="descriptor_table_update::table"/> is ignored).</param>
+		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t param, const descriptor_table_update &update) = 0;
 		/// <summary>
-		/// Binds a single descriptor set.
+		/// Binds a single descriptor table.
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="param">Index of the pipeline <paramref name="layout"/> parameter that describes the descriptor set (root parameter index in D3D12, descriptor set index in Vulkan).</param>
-		/// <param name="set">Descriptor set to bind.</param>
-		inline  void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t param, descriptor_set set) { bind_descriptor_sets(stages, layout, param, 1, &set); }
+		/// <param name="param">Index of the pipeline <paramref name="layout"/> parameter that describes the descriptor table (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="table">Descriptor table to bind.</param>
+		inline  void bind_descriptor_table(shader_stage stages, pipeline_layout layout, uint32_t param, descriptor_table table) { bind_descriptor_tables(stages, layout, param, 1, &table); }
 		/// <summary>
-		/// Binds an array of descriptor sets.
+		/// Binds an array of descriptor tables.
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="first">Index of the first pipeline <paramref name="layout"/> parameter that describes the first descriptor set to bind.</param>
-		/// <param name="count">Number of descriptor sets to bind.</param>
-		/// <param name="sets">Pointer to an array of descriptor sets to bind.</param>
-		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;
+		/// <param name="first">Index of the first pipeline <paramref name="layout"/> parameter that describes the first descriptor table to bind (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="count">Number of descriptor tables to bind.</param>
+		/// <param name="tables">Pointer to an array of descriptor tables to bind.</param>
+		virtual void bind_descriptor_tables(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables) = 0;
 
 		/// <summary>
 		/// Binds an index buffer to the input-assembler stage.
@@ -840,7 +840,7 @@ namespace reshade { namespace api
 		/// Uses the largest mipmap level of the view to recursively generate the lower levels of the mipmap chain and stops with the smallest level that is specified by the view.
 		/// </summary>
 		/// <remarks>
-		/// This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_set"/> or <see cref="push_descriptors"/>.
+		/// This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_tables"/> or <see cref="push_descriptors"/>.
 		/// The resource the shader resource view points to has to be in the <see cref="resource_usage::shader_resource"/> state and has to have been created with the <see cref="resource_flags::generate_mipmaps"/> flag.
 		/// </remarks>
 		/// <param name="srv">Shader resource view to update.</param>
@@ -849,32 +849,32 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Begins a query.
 		/// </summary>
-		/// <param name="pool">Query pool that will manage the results of the query.</param>
+		/// <param name="heap">Query heap that will manage the results of the query.</param>
 		/// <param name="type">Type of the query to begin.</param>
-		/// <param name="index">Index of the query in the pool.</param>
-		virtual void begin_query(query_pool pool, query_type type, uint32_t index) = 0;
+		/// <param name="index">Index of the query in the query heap.</param>
+		virtual void begin_query(query_heap heap, query_type type, uint32_t index) = 0;
 		/// <summary>
 		/// Ends a query.
 		/// </summary>
-		/// <param name="pool">Query pool that will manage the results of the query.</param>
+		/// <param name="heap">Query heap that will manage the results of the query.</param>
 		/// <param name="type">Type of the query end.</param>
-		/// <param name="index">Index of the query in the pool.</param>
-		virtual void end_query(query_pool pool, query_type type, uint32_t index) = 0;
+		/// <param name="index">Index of the query in the query heap.</param>
+		virtual void end_query(query_heap heap, query_type type, uint32_t index) = 0;
 		/// <summary>
-		/// Copies the results of queries in a query pool to a buffer resource.
+		/// Copies the results of queries in a query heap to a buffer resource.
 		/// </summary>
 		/// <remarks>
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
-		/// <seealso cref="device_caps::copy_query_pool_results"/>
-		/// <param name="pool">Query pool that manages the results of the queries.</param>
+		/// <seealso cref="device_caps::copy_query_heap_results"/>
+		/// <param name="heap">Query heap that manages the results of the queries.</param>
 		/// <param name="type">Type of the queries to copy.</param>
-		/// <param name="first">Index of the first query in the pool to copy the result from.</param>
+		/// <param name="first">Index of the first query in the query heap to copy the result from.</param>
 		/// <param name="count">Number of query results to copy.</param>
 		/// <param name="dest">Buffer resource to copy to.</param>
 		/// <param name="dest_offset">Offset (in bytes) into the <paramref name="dest"/>ination buffer to start copying to.</param>
 		/// <param name="stride">Size (in bytes) of each result element.</param>
-		virtual void copy_query_pool_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource dest, uint64_t dest_offset, uint32_t stride) = 0;
+		virtual void copy_query_heap_results(query_heap heap, query_type type, uint32_t first, uint32_t count, resource dest, uint64_t dest_offset, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Opens a debug event region in the command list.

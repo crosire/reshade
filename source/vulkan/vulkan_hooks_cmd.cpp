@@ -474,7 +474,7 @@ void VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPipelin
 	trampoline(commandBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (!reshade::has_addon_event<reshade::addon_event::bind_descriptor_sets>())
+	if (!reshade::has_addon_event<reshade::addon_event::bind_descriptor_tables>())
 		return;
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
@@ -484,12 +484,12 @@ void VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPipelin
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
 		static_cast<reshade::api::shader_stage>(0); // Unknown pipeline bind point
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		cmd_impl,
 		shader_stages,
 		reshade::api::pipeline_layout { (uint64_t)layout },
 		firstSet, descriptorSetCount,
-		reinterpret_cast<const reshade::api::descriptor_set *>(pDescriptorSets));
+		reinterpret_cast<const reshade::api::descriptor_table *>(pDescriptorSets));
 #endif
 }
 
@@ -1056,7 +1056,7 @@ void VKAPI_CALL vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool query
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 	const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::begin_query>(cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type), query))
+	if (reshade::invoke_addon_event<reshade::addon_event::begin_query>(cmd_impl, reshade::api::query_heap { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type), query))
 		return;
 #endif
 
@@ -1071,7 +1071,7 @@ void VKAPI_CALL vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPo
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 	const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type), query))
+	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(cmd_impl, reshade::api::query_heap { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type), query))
 		return;
 #endif
 
@@ -1086,7 +1086,7 @@ void VKAPI_CALL vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineSta
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 	assert(device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool)->type == VK_QUERY_TYPE_TIMESTAMP);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::api::query_type::timestamp, query))
+	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(cmd_impl, reshade::api::query_heap { (uint64_t)queryPool }, reshade::api::query_type::timestamp, query))
 		return;
 #endif
 
@@ -1104,9 +1104,9 @@ void VKAPI_CALL vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQuery
 
 	assert(stride <= std::numeric_limits<uint32_t>::max());
 
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_query_pool_results>(
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_query_heap_results>(
 			cmd_impl,
-			reshade::api::query_pool { (uint64_t)queryPool },
+			reshade::api::query_heap { (uint64_t)queryPool },
 			reshade::vulkan::convert_query_type(pool_data->type),
 			firstQuery,
 			queryCount,
@@ -1374,7 +1374,7 @@ void VKAPI_CALL vkCmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineSt
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 	assert(device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool)->type == VK_QUERY_TYPE_TIMESTAMP);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::api::query_type::timestamp, query))
+	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(cmd_impl, reshade::api::query_heap { (uint64_t)queryPool }, reshade::api::query_type::timestamp, query))
 		return;
 #endif
 
@@ -1716,8 +1716,8 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 	{
 		const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
-		reshade::api::descriptor_set_update update;
-		update.set = { 0 };
+		reshade::api::descriptor_table_update update;
+		update.table = { 0 };
 		update.binding = write.dstBinding;
 		update.array_offset = write.dstArrayElement;
 		update.count = write.descriptorCount;
@@ -1786,7 +1786,7 @@ void VKAPI_CALL vkCmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQuery
 	const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::begin_query>(
-			cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type, index), query))
+			cmd_impl, reshade::api::query_heap { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type, index), query))
 		return;
 #endif
 
@@ -1802,7 +1802,7 @@ void VKAPI_CALL vkCmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQueryPo
 	const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::end_query>(
-			cmd_impl, reshade::api::query_pool { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type, index), query))
+			cmd_impl, reshade::api::query_heap { (uint64_t)queryPool }, reshade::vulkan::convert_query_type(pool_data->type, index), query))
 		return;
 #endif
 

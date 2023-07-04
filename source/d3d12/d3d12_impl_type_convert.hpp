@@ -135,8 +135,8 @@ namespace reshade::d3d12
 	inline auto to_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) { return api::resource_view { static_cast<uint64_t>(handle.ptr) }; }
 	inline auto to_handle(ID3D12PipelineState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D12RootSignature *ptr) { return api::pipeline_layout { reinterpret_cast<uintptr_t>(ptr) }; }
-	inline auto to_handle(ID3D12QueryHeap *ptr) { return api::query_pool { reinterpret_cast<uintptr_t>(ptr) }; }
-	inline auto to_handle(ID3D12DescriptorHeap *ptr) { return api::descriptor_pool { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D12QueryHeap *ptr) { return api::query_heap { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D12DescriptorHeap *ptr) { return api::descriptor_heap { reinterpret_cast<uintptr_t>(ptr) }; }
 }
 
 #pragma warning(push)

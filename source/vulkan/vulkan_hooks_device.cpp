@@ -1231,7 +1231,7 @@ VkResult VKAPI_CALL vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateIn
 #if RESHADE_ADDON
 	VkQueryPoolCreateInfo create_info = *pCreateInfo;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_query_pool>(device_impl, reshade::vulkan::convert_query_type(create_info.queryType), create_info.queryCount))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_query_heap>(device_impl, reshade::vulkan::convert_query_type(create_info.queryType), create_info.queryCount))
 	{
 		pCreateInfo = &create_info;
 	}
@@ -1252,8 +1252,8 @@ VkResult VKAPI_CALL vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateIn
 
 	device_impl->register_object<VK_OBJECT_TYPE_QUERY_POOL>(*pQueryPool, std::move(data));
 
-	reshade::invoke_addon_event<reshade::addon_event::init_query_pool>(
-		device_impl, reshade::vulkan::convert_query_type(create_info.queryType), create_info.queryCount, reshade::api::query_pool { (uint64_t)*pQueryPool });
+	reshade::invoke_addon_event<reshade::addon_event::init_query_heap>(
+		device_impl, reshade::vulkan::convert_query_type(create_info.queryType), create_info.queryCount, reshade::api::query_heap { (uint64_t)*pQueryPool });
 #endif
 
 	return result;
@@ -1267,7 +1267,7 @@ void     VKAPI_CALL vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool, c
 	GET_DISPATCH_PTR_FROM(DestroyQueryPool, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_query_pool>(device_impl, reshade::api::query_pool{ (uint64_t)queryPool });
+	reshade::invoke_addon_event<reshade::addon_event::destroy_query_heap>(device_impl, reshade::api::query_heap{ (uint64_t)queryPool });
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
 #endif
@@ -1283,7 +1283,7 @@ VkResult VKAPI_CALL vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	assert(stride <= std::numeric_limits<uint32_t>::max());
 
-	if (reshade::invoke_addon_event<reshade::addon_event::get_query_pool_results>(device_impl, reshade::api::query_pool { (uint64_t)queryPool }, firstQuery, queryCount, pData, static_cast<uint32_t>(stride)))
+	if (reshade::invoke_addon_event<reshade::addon_event::get_query_heap_results>(device_impl, reshade::api::query_heap { (uint64_t)queryPool }, firstQuery, queryCount, pData, static_cast<uint32_t>(stride)))
 		return VK_SUCCESS;
 #endif
 
@@ -1848,9 +1848,9 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 		if (!set_layout_impl->push_descriptors)
 		{
-			params[i].type = reshade::api::pipeline_layout_param_type::descriptor_set;
-			params[i].descriptor_set.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
-			params[i].descriptor_set.ranges = set_layout_impl->ranges.data();
+			params[i].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+			params[i].descriptor_table.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
+			params[i].descriptor_table.ranges = set_layout_impl->ranges.data();
 		}
 		else if (set_layout_impl->ranges.size() == 1)
 		{
@@ -1860,8 +1860,8 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		else
 		{
 			params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_ranges;
-			params[i].descriptor_set.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
-			params[i].descriptor_set.ranges = set_layout_impl->ranges.data();
+			params[i].descriptor_table.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
+			params[i].descriptor_table.ranges = set_layout_impl->ranges.data();
 		}
 	}
 
@@ -2151,9 +2151,9 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 	GET_DISPATCH_PTR_FROM(UpdateDescriptorSets, device_impl);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (descriptorWriteCount != 0 && reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+	if (descriptorWriteCount != 0 && reshade::has_addon_event<reshade::addon_event::update_descriptor_tables>())
 	{
-		temp_mem<reshade::api::descriptor_set_update> updates(descriptorWriteCount);
+		temp_mem<reshade::api::descriptor_table_update> updates(descriptorWriteCount);
 
 		uint32_t max_descriptors = 0;
 		for (uint32_t i = 0; i < descriptorWriteCount; ++i)
@@ -2164,8 +2164,8 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 		{
 			const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
-			reshade::api::descriptor_set_update &update = updates[i];
-			update.set = { (uint64_t)write.dstSet };
+			reshade::api::descriptor_table_update &update = updates[i];
+			update.table = { (uint64_t)write.dstSet };
 			update.binding = write.dstBinding;
 			update.array_offset = write.dstArrayElement;
 			update.count = write.descriptorCount;
@@ -2196,29 +2196,29 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 			}
 		}
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates.p))
+		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_tables>(device_impl, descriptorWriteCount, updates.p))
 			descriptorWriteCount = 0;
 	}
 
-	if (descriptorCopyCount != 0 && reshade::has_addon_event<reshade::addon_event::copy_descriptor_sets>())
+	if (descriptorCopyCount != 0 && reshade::has_addon_event<reshade::addon_event::copy_descriptor_tables>())
 	{
-		temp_mem<reshade::api::descriptor_set_copy> copies(descriptorCopyCount);
+		temp_mem<reshade::api::descriptor_table_copy> copies(descriptorCopyCount);
 
 		for (uint32_t i = 0; i < descriptorCopyCount; ++i)
 		{
 			const VkCopyDescriptorSet &internal_copy = pDescriptorCopies[i];
 
-			reshade::api::descriptor_set_copy &copy = copies[i];
-			copy.source_set = { (uint64_t)internal_copy.srcSet };
+			reshade::api::descriptor_table_copy &copy = copies[i];
+			copy.source_table = { (uint64_t)internal_copy.srcSet };
 			copy.source_binding = internal_copy.srcBinding;
 			copy.source_array_offset = internal_copy.srcArrayElement;
-			copy.dest_set = { (uint64_t)internal_copy.dstSet };
+			copy.dest_table = { (uint64_t)internal_copy.dstSet };
 			copy.dest_binding = internal_copy.dstBinding;
 			copy.dest_array_offset = internal_copy.dstArrayElement;
 			copy.count = internal_copy.descriptorCount;
 		}
 
-		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_sets>(device_impl, descriptorCopyCount, copies.p))
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_tables>(device_impl, descriptorCopyCount, copies.p))
 			descriptorCopyCount = 0;
 	}
 #endif

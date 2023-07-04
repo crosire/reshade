@@ -74,15 +74,15 @@ namespace reshade
 			ev != addon_event::unmap_texture_region &&
 			ev != addon_event::update_buffer_region &&
 			ev != addon_event::update_texture_region &&
-			ev != addon_event::copy_descriptor_sets &&
-			ev != addon_event::update_descriptor_sets &&
-			ev != addon_event::get_query_pool_results &&
+			ev != addon_event::copy_descriptor_tables &&
+			ev != addon_event::update_descriptor_tables &&
+			ev != addon_event::get_query_heap_results &&
 			ev != addon_event::barrier &&
 			ev != addon_event::bind_pipeline &&
 			ev != addon_event::bind_pipeline_states &&
 			ev != addon_event::push_constants &&
 			ev != addon_event::push_descriptors &&
-			ev != addon_event::bind_descriptor_sets &&
+			ev != addon_event::bind_descriptor_tables &&
 			ev != addon_event::bind_index_buffer &&
 			ev != addon_event::bind_vertex_buffers &&
 			ev != addon_event::bind_stream_output_buffers &&
@@ -95,7 +95,7 @@ namespace reshade
 			ev != addon_event::generate_mipmaps &&
 			ev != addon_event::begin_query &&
 			ev != addon_event::end_query &&
-			ev != addon_event::copy_query_pool_results,
+			ev != addon_event::copy_query_heap_results,
 			"Event that is disabled with 'RESHADE_ADDON_LITE' was used!");
 
 		// Allow a subset of events even when add-ons are disabled, to ensure they continue working correctly
@@ -120,8 +120,8 @@ namespace reshade
 			ev != addon_event::destroy_pipeline &&
 			ev != addon_event::init_pipeline_layout &&
 			ev != addon_event::destroy_pipeline_layout &&
-			ev != addon_event::init_query_pool &&
-			ev != addon_event::destroy_query_pool)
+			ev != addon_event::init_query_heap &&
+			ev != addon_event::destroy_query_heap)
 		if (!addon_enabled)
 			return;
 #  endif

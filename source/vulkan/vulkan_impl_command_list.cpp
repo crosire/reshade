@@ -473,12 +473,12 @@ void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages
 		static_cast<VkShaderStageFlags>(stages),
 		first * 4, count * 4, values);
 }
-void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
+void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update)
 {
 	if (update.count == 0)
 		return;
 
-	assert(update.set.handle == 0);
+	assert(update.table.handle == 0);
 
 	VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	write.dstBinding = update.binding;
@@ -574,21 +574,21 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		layout_param, 1, &write.dstSet,
 		0, nullptr);
 }
-void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::vulkan::command_list_impl::bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
 {
 	if ((stages & api::shader_stage::all_compute) == api::shader_stage::all_compute)
 	{
 		vk.CmdBindDescriptorSets(_orig,
 			VK_PIPELINE_BIND_POINT_COMPUTE,
 			(VkPipelineLayout)layout.handle,
-			first, count, reinterpret_cast<const VkDescriptorSet *>(sets), 0, nullptr);
+			first, count, reinterpret_cast<const VkDescriptorSet *>(tables), 0, nullptr);
 	}
 	if ((stages & api::shader_stage::all_graphics) == api::shader_stage::all_graphics)
 	{
 		vk.CmdBindDescriptorSets(_orig,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			(VkPipelineLayout)layout.handle,
-			first, count, reinterpret_cast<const VkDescriptorSet *>(sets), 0, nullptr);
+			first, count, reinterpret_cast<const VkDescriptorSet *>(tables), 0, nullptr);
 	}
 }
 
@@ -1045,62 +1045,62 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::vulkan::command_list_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
 {
 	_has_commands = true;
 
-	assert(pool.handle != 0);
-	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)pool.handle)->type == convert_query_type(type));
+	assert(heap.handle != 0);
+	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)heap.handle)->type == convert_query_type(type));
 
-	vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
+	vk.CmdResetQueryPool(_orig, (VkQueryPool)heap.handle, index, 1);
 
 	switch (type)
 	{
 	default:
-		vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
+		vk.CmdBeginQuery(_orig, (VkQueryPool)heap.handle, index, 0);
 		break;
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
 	case api::query_type::stream_output_statistics_3:
 		if (vk.CmdBeginQueryIndexedEXT != nullptr)
-			vk.CmdBeginQueryIndexedEXT(_orig, (VkQueryPool)pool.handle, index, 0, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+			vk.CmdBeginQueryIndexedEXT(_orig, (VkQueryPool)heap.handle, index, 0, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
 		break;
 	}
 }
-void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
 {
 	_has_commands = true;
 
-	assert(pool.handle != 0);
-	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)pool.handle)->type == convert_query_type(type));
+	assert(heap.handle != 0);
+	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)heap.handle)->type == convert_query_type(type));
 
 	switch (type)
 	{
 	default:
-		vk.CmdEndQuery(_orig, (VkQueryPool)pool.handle, index);
+		vk.CmdEndQuery(_orig, (VkQueryPool)heap.handle, index);
 		break;
 	case api::query_type::timestamp:
-		vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
-		vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)pool.handle, index);
+		vk.CmdResetQueryPool(_orig, (VkQueryPool)heap.handle, index, 1);
+		vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)heap.handle, index);
 		break;
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
 	case api::query_type::stream_output_statistics_3:
 		if (vk.CmdEndQueryIndexedEXT != nullptr)
-			vk.CmdEndQueryIndexedEXT(_orig, (VkQueryPool)pool.handle, index, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+			vk.CmdEndQueryIndexedEXT(_orig, (VkQueryPool)heap.handle, index, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
 		break;
 	}
 }
-void reshade::vulkan::command_list_impl::copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::vulkan::command_list_impl::copy_query_heap_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
 	_has_commands = true;
 
-	assert(pool.handle != 0);
-	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)pool.handle)->type == convert_query_type(type));
+	assert(heap.handle != 0);
+	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)heap.handle)->type == convert_query_type(type));
 
-	vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
+	vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
 }
 
 void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, const float color[4])

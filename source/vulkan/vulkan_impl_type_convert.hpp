@@ -11,7 +11,7 @@
 namespace reshade::vulkan
 {
 	static_assert(sizeof(VkViewport) == sizeof(api::viewport));
-	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_set));
+	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_table));
 
 	template <VkObjectType type>
 	struct object_data;

@@ -65,7 +65,7 @@ namespace reshade::opengl
 		GLuint patch_vertices;
 	};
 
-	struct descriptor_set_impl
+	struct descriptor_table_impl
 	{
 		api::descriptor_type type;
 		uint32_t count;
@@ -78,7 +78,7 @@ namespace reshade::opengl
 		std::vector<api::descriptor_range> ranges;
 	};
 
-	struct query_pool_impl
+	struct query_heap_impl
 	{
 		std::vector<GLuint> queries;
 	};

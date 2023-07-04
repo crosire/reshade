@@ -23,7 +23,7 @@ namespace reshade::d3d9
 		D3DPRIMITIVETYPE prim_type;
 	};
 
-	struct descriptor_set_impl
+	struct descriptor_table_impl
 	{
 		api::descriptor_type type;
 		uint32_t count;
@@ -36,7 +36,7 @@ namespace reshade::d3d9
 		std::vector<api::descriptor_range> ranges;
 	};
 
-	struct query_pool_impl
+	struct query_heap_impl
 	{
 		api::query_type type;
 		std::vector<com_ptr<IDirect3DQuery9>> queries;

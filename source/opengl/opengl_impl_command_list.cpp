@@ -789,9 +789,9 @@ void reshade::opengl::render_context_impl::push_constants(api::shader_stage, api
 		gl.UnmapBuffer(GL_UNIFORM_BUFFER);
 	}
 }
-void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
+void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update)
 {
-	assert(update.set.handle == 0 && update.array_offset == 0);
+	assert(update.table.handle == 0 && update.array_offset == 0);
 
 	const uint32_t first = update.binding;
 	assert(layout.handle == 0 || layout == global_pipeline_layout || update.binding >= reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding);
@@ -897,17 +897,17 @@ void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, a
 		break;
 	}
 }
-void reshade::opengl::render_context_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::opengl::render_context_impl::bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<const descriptor_set_impl *>(sets[i].handle);
+		const auto set_impl = reinterpret_cast<const descriptor_table_impl *>(tables[i].handle);
 
 		push_descriptors(
 			stages,
 			layout,
 			first + i,
-			api::descriptor_set_update { {}, set_impl->base_binding, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
+			api::descriptor_table_update { {}, set_impl->base_binding, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
 	}
 }
 
@@ -1633,26 +1633,26 @@ void reshade::opengl::render_context_impl::generate_mipmaps(api::resource_view s
 #endif
 }
 
-void reshade::opengl::render_context_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::opengl::render_context_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
 {
-	assert(pool.handle != 0);
+	assert(heap.handle != 0);
 
 	switch (type)
 	{
 	default:
-		gl.BeginQuery(convert_query_type(type), reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]);
+		gl.BeginQuery(convert_query_type(type), reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index]);
 		break;
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
 	case api::query_type::stream_output_statistics_3:
-		gl.BeginQueryIndexed(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index], static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+		gl.BeginQueryIndexed(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index], static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
 		break;
 	}
 }
-void reshade::opengl::render_context_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::opengl::render_context_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
 {
-	assert(pool.handle != 0);
+	assert(heap.handle != 0);
 
 	switch (type)
 	{
@@ -1660,7 +1660,7 @@ void reshade::opengl::render_context_impl::end_query(api::query_pool pool, api::
 		gl.EndQuery(convert_query_type(type));
 		break;
 	case api::query_type::timestamp:
-		gl.QueryCounter(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index], GL_TIMESTAMP);
+		gl.QueryCounter(reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index], GL_TIMESTAMP);
 		break;
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
@@ -1670,15 +1670,15 @@ void reshade::opengl::render_context_impl::end_query(api::query_pool pool, api::
 		break;
 	}
 }
-void reshade::opengl::render_context_impl::copy_query_pool_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::opengl::render_context_impl::copy_query_heap_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
-	assert(pool.handle != 0);
+	assert(heap.handle != 0);
 
 	for (size_t i = 0; i < count; ++i)
 	{
 		assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 
-		gl.GetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
+		gl.GetQueryBufferObjectui64v(reinterpret_cast<query_heap_impl *>(heap.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
 	}
 }
 

@@ -57,25 +57,25 @@ namespace reshade::d3d12
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		bool allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+		bool allocate_descriptor_tables(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_table *out_tables) final;
+		void free_descriptor_tables(uint32_t count, const api::descriptor_table *tables) final;
 
-		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
+		void get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *out_heap, uint32_t *out_offset) const final;
 
-		__forceinline ID3D12DescriptorHeap *get_descriptor_heap(api::descriptor_set set) const
+		__forceinline ID3D12DescriptorHeap *get_descriptor_heap(api::descriptor_table table) const
 		{
-			api::descriptor_pool pool;
-			get_descriptor_pool_offset(set, 0, 0, &pool, nullptr);
-			return reinterpret_cast<ID3D12DescriptorHeap *>(pool.handle);
+			api::descriptor_heap heap;
+			get_descriptor_heap_offset(table, 0, 0, &heap, nullptr);
+			return reinterpret_cast<ID3D12DescriptorHeap *>(heap.handle);
 		}
 
-		void copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies) final;
-		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
+		void copy_descriptor_tables(uint32_t count, const api::descriptor_table_copy *copies) final;
+		void update_descriptor_tables(uint32_t count, const api::descriptor_table_update *updates) final;
 
-		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;
-		void destroy_query_pool(api::query_pool handle) final;
+		bool create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_handle) final;
+		void destroy_query_heap(api::query_heap handle) final;
 
-		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+		bool get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view, const char * ) final {}
@@ -85,19 +85,19 @@ namespace reshade::d3d12
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
 
-		static  __forceinline api::descriptor_set convert_to_descriptor_set(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+		static __forceinline api::descriptor_table convert_to_descriptor_table(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
 			return { handle.ptr };
 		}
-		__forceinline D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
+		__forceinline  D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 		{
 			D3D12_DESCRIPTOR_HEAP_TYPE actual_type;
-			return convert_to_original_cpu_descriptor_handle(convert_to_descriptor_set(handle), actual_type);
+			return convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(handle), actual_type);
 		}
 #endif
-		api::descriptor_set convert_to_descriptor_set(D3D12_GPU_DESCRIPTOR_HANDLE handle) const;
-		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_set set) const;
-		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_set set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const;
+		api::descriptor_table convert_to_descriptor_table(D3D12_GPU_DESCRIPTOR_HANDLE handle) const;
+		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_table set) const;
+		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_table set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const;
 
 		__forceinline D3D12_CPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{

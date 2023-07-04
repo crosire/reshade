@@ -731,7 +731,7 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 	for (const effect &effect_data : _effects)
 		num_bindings += effect_data.texture_semantic_to_binding.size();
 
-	std::vector<api::descriptor_set_update> descriptor_writes;
+	std::vector<api::descriptor_table_update> descriptor_writes;
 	descriptor_writes.reserve(num_bindings);
 	std::vector<api::sampler_with_resource_view> sampler_descriptors(num_bindings);
 
@@ -742,8 +742,8 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 			if (binding.semantic != semantic)
 				continue;
 
-			api::descriptor_set_update &write = descriptor_writes.emplace_back();
-			write.set = binding.set;
+			api::descriptor_table_update &write = descriptor_writes.emplace_back();
+			write.table = binding.table;
 			write.binding = binding.index;
 			write.count = 1;
 
@@ -771,7 +771,7 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 	if (_is_initialized)
 		_graphics_queue->wait_idle();
 
-	_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
+	_device->update_descriptor_tables(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
 #endif
 }
 

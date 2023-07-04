@@ -749,8 +749,8 @@ void reshade::runtime::on_present()
 
 			cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, _copy_pipeline);
 
-			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 0, api::descriptor_set_update { {}, 0, 0, 1, api::descriptor_type::sampler, &_copy_sampler_state });
-			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 1, api::descriptor_set_update { {}, 0, 0, 1, api::descriptor_type::shader_resource_view, &_back_buffer_resolved_srv });
+			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 0, api::descriptor_table_update { {}, 0, 0, 1, api::descriptor_type::sampler, &_copy_sampler_state });
+			cmd_list->push_descriptors(api::shader_stage::pixel, _copy_pipeline_layout, 1, api::descriptor_table_update { {}, 0, 0, 1, api::descriptor_type::shader_resource_view, &_back_buffer_resolved_srv });
 
 			const api::viewport viewport = { 0.0f, 0.0f, static_cast<float>(_width), static_cast<float>(_height), 0.0f, 1.0f };
 			cmd_list->bind_viewports(0, 1, &viewport);
@@ -2208,9 +2208,9 @@ bool reshade::runtime::create_effect(size_t effect_index)
 		spec_constants.push_back(id);
 	}
 
-	// Create optional query pool for time measurements
-	if (!_device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_pool))
-		LOG(ERROR) << "Failed to create query pool for effect file " << effect.source_file << '!';
+	// Create optional query heap for time measurements
+	if (!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_heap))
+		LOG(ERROR) << "Failed to create query heap for effect file " << effect.source_file << '!';
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
@@ -2248,28 +2248,28 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[3].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
 	api::pipeline_layout_param layout_params[4];
-	layout_params[0].type = api::pipeline_layout_param_type::descriptor_set;
-	layout_params[0].descriptor_set.count = 1;
-	layout_params[0].descriptor_set.ranges = &layout_ranges[0];
+	layout_params[0].type = api::pipeline_layout_param_type::descriptor_table;
+	layout_params[0].descriptor_table.count = 1;
+	layout_params[0].descriptor_table.ranges = &layout_ranges[0];
 
-	layout_params[1].type = api::pipeline_layout_param_type::descriptor_set;
-	layout_params[1].descriptor_set.count = 1;
-	layout_params[1].descriptor_set.ranges = &layout_ranges[1];
+	layout_params[1].type = api::pipeline_layout_param_type::descriptor_table;
+	layout_params[1].descriptor_table.count = 1;
+	layout_params[1].descriptor_table.ranges = &layout_ranges[1];
 
 	if (sampler_with_resource_view)
 	{
-		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[2].descriptor_set.count = 1;
-		layout_params[2].descriptor_set.ranges = &layout_ranges[3];
+		layout_params[2].type = api::pipeline_layout_param_type::descriptor_table;
+		layout_params[2].descriptor_table.count = 1;
+		layout_params[2].descriptor_table.ranges = &layout_ranges[3];
 	}
 	else
 	{
-		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[2].descriptor_set.count = 1;
-		layout_params[2].descriptor_set.ranges = &layout_ranges[2];
-		layout_params[3].type = api::pipeline_layout_param_type::descriptor_set;
-		layout_params[3].descriptor_set.count = 1;
-		layout_params[3].descriptor_set.ranges = &layout_ranges[3];
+		layout_params[2].type = api::pipeline_layout_param_type::descriptor_table;
+		layout_params[2].descriptor_table.count = 1;
+		layout_params[2].descriptor_table.ranges = &layout_ranges[2];
+		layout_params[3].type = api::pipeline_layout_param_type::descriptor_table;
+		layout_params[3].descriptor_table.count = 1;
+		layout_params[3].descriptor_table.ranges = &layout_ranges[3];
 	}
 
 	// Create pipeline layout for this effect
@@ -2283,7 +2283,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	}
 
 	api::buffer_range cb_range = {};
-	std::vector<api::descriptor_set_update> descriptor_writes;
+	std::vector<api::descriptor_table_update> descriptor_writes;
 	descriptor_writes.reserve(effect.module.num_sampler_bindings + effect.module.num_texture_bindings + effect.module.num_storage_bindings + 1);
 	std::vector<api::sampler_with_resource_view> sampler_descriptors;
 	sampler_descriptors.resize(effect.module.num_sampler_bindings + effect.module.num_texture_bindings);
@@ -2304,19 +2304,19 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		_device->set_resource_name(effect.cb, "ReShade constant buffer");
 
-		if (!_device->allocate_descriptor_set(effect.layout, 0, &effect.cb_set))
+		if (!_device->allocate_descriptor_table(effect.layout, 0, &effect.cb_table))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
 
-			LOG(ERROR) << "Failed to create constant buffer descriptor set for effect file " << effect.source_file << '!';
+			LOG(ERROR) << "Failed to create constant buffer descriptor table for effect file " << effect.source_file << '!';
 			return false;
 		}
 
 		cb_range.buffer = effect.cb;
 
-		api::descriptor_set_update &write = descriptor_writes.emplace_back();
-		write.set = effect.cb_set;
+		api::descriptor_table_update &write = descriptor_writes.emplace_back();
+		write.table = effect.cb_table;
 		write.binding = 0;
 		write.type = api::descriptor_type::constant_buffer;
 		write.count = 1;
@@ -2328,17 +2328,17 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 		total_pass_count += info.passes.size();
 
-	std::vector<api::descriptor_set> texture_sets(total_pass_count);
-	std::vector<api::descriptor_set> storage_sets(total_pass_count);
+	std::vector<api::descriptor_table> texture_tables(total_pass_count);
+	std::vector<api::descriptor_table> storage_tables(total_pass_count);
 
 	if (effect.module.num_sampler_bindings != 0)
 	{
-		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(sampler_with_resource_view ? total_pass_count : 1), effect.layout, 1, sampler_with_resource_view ? texture_sets.data() : &effect.sampler_set))
+		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(sampler_with_resource_view ? total_pass_count : 1), effect.layout, 1, sampler_with_resource_view ? texture_tables.data() : &effect.sampler_table))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
 
-			LOG(ERROR) << "Failed to create sampler descriptor set for effect file " << effect.source_file << '!';
+			LOG(ERROR) << "Failed to create sampler descriptor table for effect file " << effect.source_file << '!';
 			return false;
 		}
 
@@ -2379,8 +2379,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					return false;
 				}
 
-				api::descriptor_set_update &write = descriptor_writes.emplace_back();
-				write.set = effect.sampler_set;
+				api::descriptor_table_update &write = descriptor_writes.emplace_back();
+				write.table = effect.sampler_table;
 				write.binding = info.binding;
 				write.type = api::descriptor_type::sampler;
 				write.count = 1;
@@ -2393,24 +2393,24 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		assert(!sampler_with_resource_view);
 
-		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(total_pass_count), effect.layout, 2, texture_sets.data()))
+		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, 2, texture_tables.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
 
-			LOG(ERROR) << "Failed to create texture descriptor set for effect file " << effect.source_file << '!';
+			LOG(ERROR) << "Failed to create texture descriptor table for effect file " << effect.source_file << '!';
 			return false;
 		}
 	}
 
 	if (effect.module.num_storage_bindings != 0)
 	{
-		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(total_pass_count), effect.layout, sampler_with_resource_view ? 2 : 3, storage_sets.data()))
+		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, sampler_with_resource_view ? 2 : 3, storage_tables.data()))
 		{
 			effect.compiled = false;
 			_last_reload_successfull = false;
 
-			LOG(ERROR) << "Failed to create storage descriptor set for effect file " << effect.source_file << '!';
+			LOG(ERROR) << "Failed to create storage descriptor table for effect file " << effect.source_file << '!';
 			return false;
 		}
 	}
@@ -2655,7 +2655,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			if (effect.module.num_sampler_bindings != 0 ||
 				effect.module.num_texture_bindings != 0)
 			{
-				pass_data.texture_set = texture_sets[total_pass_index];
+				pass_data.texture_table = texture_tables[total_pass_index];
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
@@ -2667,8 +2667,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 					api::resource_view &srv = sampler_descriptors[sampler_with_resource_view ? info.binding : effect.module.num_sampler_bindings + info.texture_binding].view;
 
-					api::descriptor_set_update &write = descriptor_writes.emplace_back();
-					write.set = pass_data.texture_set;
+					api::descriptor_table_update &write = descriptor_writes.emplace_back();
+					write.table = pass_data.texture_table;
 					write.count = 1;
 
 					if (sampler_with_resource_view)
@@ -2718,7 +2718,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						// Keep track of the texture descriptor to simplify updating it
 						effect.texture_semantic_to_binding.push_back({
 							sampler_texture->semantic,
-							write.set,
+							write.table,
 							write.binding,
 							sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 },
 							!!info.srgb
@@ -2737,7 +2737,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 			if (effect.module.num_storage_bindings != 0)
 			{
-				pass_data.storage_set = storage_sets[total_pass_index];
+				pass_data.storage_table = storage_tables[total_pass_index];
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
@@ -2756,8 +2756,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 							pass_data.generate_mipmap_views.push_back(storage_texture->srv[0]);
 					}
 
-					api::descriptor_set_update &write = descriptor_writes.emplace_back();
-					write.set = pass_data.storage_set;
+					api::descriptor_table_update &write = descriptor_writes.emplace_back();
+					write.table = pass_data.storage_table;
 					write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
@@ -2768,7 +2768,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	}
 
 	if (!descriptor_writes.empty())
-		_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
+		_device->update_descriptor_tables(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
 
 	// Clear effect assembly now that it was consumed
 	effect.assembly.clear();
@@ -2815,8 +2815,8 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		{
 			_device->destroy_pipeline(pass.pipeline);
 
-			_device->free_descriptor_set(pass.texture_set);
-			_device->free_descriptor_set(pass.storage_set);
+			_device->free_descriptor_table(pass.texture_table);
+			_device->free_descriptor_table(pass.storage_table);
 		}
 
 		tech.passes_data.clear();
@@ -2827,16 +2827,16 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		_device->destroy_resource(effect.cb);
 		effect.cb = {};
 
-		_device->free_descriptor_set(effect.cb_set);
-		effect.cb_set = {};
-		_device->free_descriptor_set(effect.sampler_set);
-		effect.sampler_set = {};
+		_device->free_descriptor_table(effect.cb_table);
+		effect.cb_table = {};
+		_device->free_descriptor_table(effect.sampler_table);
+		effect.sampler_table = {};
 
 		_device->destroy_pipeline_layout(effect.layout);
 		effect.layout = {};
 
-		_device->destroy_query_pool(effect.query_pool);
-		effect.query_pool = {};
+		_device->destroy_query_heap(effect.query_heap);
+		effect.query_heap = {};
 
 		effect.texture_semantic_to_binding.clear();
 	}
@@ -3908,14 +3908,14 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 	const effect &effect = _effects[tech.effect_index];
 
 #if RESHADE_GUI
-	if (_gather_gpu_statistics && effect.query_pool != 0)
+	if (_gather_gpu_statistics && effect.query_heap != 0)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
-			_device->get_query_pool_results(effect.query_pool, tech.query_base_index + ((_frame_count + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
+			_device->get_query_heap_results(effect.query_heap, tech.query_base_index + ((_frame_count + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
 			tech.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 
-		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2);
+		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2);
 	}
 
 	const std::chrono::high_resolution_clock::time_point time_technique_started = std::chrono::high_resolution_clock::now();
@@ -3979,14 +3979,14 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
 			if (effect.cb != 0)
-				cmd_list->bind_descriptor_set(api::shader_stage::all_compute, effect.layout, 0, effect.cb_set);
-			if (effect.sampler_set != 0)
+				cmd_list->bind_descriptor_table(api::shader_stage::all_compute, effect.layout, 0, effect.cb_table);
+			if (effect.sampler_table != 0)
 				assert(!sampler_with_resource_view),
-				cmd_list->bind_descriptor_set(api::shader_stage::all_compute, effect.layout, 1, effect.sampler_set);
-			if (pass_data.texture_set != 0)
-				cmd_list->bind_descriptor_set(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 1 : 2, pass_data.texture_set);
-			if (pass_data.storage_set != 0)
-				cmd_list->bind_descriptor_set(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 2 : 3, pass_data.storage_set);
+				cmd_list->bind_descriptor_table(api::shader_stage::all_compute, effect.layout, 1, effect.sampler_table);
+			if (pass_data.texture_table != 0)
+				cmd_list->bind_descriptor_table(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 1 : 2, pass_data.texture_table);
+			if (pass_data.storage_table != 0)
+				cmd_list->bind_descriptor_table(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 2 : 3, pass_data.storage_table);
 
 			cmd_list->dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
@@ -4043,13 +4043,13 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
 			if (effect.cb != 0)
-				cmd_list->bind_descriptor_set(api::shader_stage::all_graphics, effect.layout, 0, effect.cb_set);
-			if (effect.sampler_set != 0)
+				cmd_list->bind_descriptor_table(api::shader_stage::all_graphics, effect.layout, 0, effect.cb_table);
+			if (effect.sampler_table != 0)
 				assert(!sampler_with_resource_view),
-				cmd_list->bind_descriptor_set(api::shader_stage::all_graphics, effect.layout, 1, effect.sampler_set);
+				cmd_list->bind_descriptor_table(api::shader_stage::all_graphics, effect.layout, 1, effect.sampler_table);
 			// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point (e.g. a depth buffer that was bound to the OM and is now bound as shader resource)
-			if (pass_data.texture_set != 0)
-				cmd_list->bind_descriptor_set(api::shader_stage::all_graphics, effect.layout, sampler_with_resource_view ? 1 : 2, pass_data.texture_set);
+			if (pass_data.texture_table != 0)
+				cmd_list->bind_descriptor_table(api::shader_stage::all_graphics, effect.layout, sampler_with_resource_view ? 1 : 2, pass_data.texture_table);
 
 			const api::viewport viewport = {
 				0.0f, 0.0f,
@@ -4123,8 +4123,8 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 	tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 
-	if (_gather_gpu_statistics && effect.query_pool != 0)
-		cmd_list->end_query(effect.query_pool, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2 + 1);
+	if (_gather_gpu_statistics && effect.query_heap != 0)
+		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2 + 1);
 #endif
 
 #if RESHADE_ADDON

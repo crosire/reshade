@@ -55,18 +55,18 @@ namespace reshade::opengl
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		bool allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+		bool allocate_descriptor_tables(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_table *out_tables) final;
+		void free_descriptor_tables(uint32_t count, const api::descriptor_table *tables) final;
 
-		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
+		void get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *out_heap, uint32_t *out_offset) const final;
 
-		void copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies) final;
-		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
+		void copy_descriptor_tables(uint32_t count, const api::descriptor_table_copy *copies) final;
+		void update_descriptor_tables(uint32_t count, const api::descriptor_table_update *updates) final;
 
-		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle) final;
-		void destroy_query_pool(api::query_pool handle) final;
+		bool create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_handle) final;
+		void destroy_query_heap(api::query_heap handle) final;
 
-		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+		bool get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
