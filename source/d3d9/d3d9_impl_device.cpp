@@ -1385,9 +1385,12 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 		convert_stencil_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_pass_op : depth_stencil_state.front_stencil_pass_op));
 	_orig->SetRenderState(D3DRS_STENCILFUNC,
 		convert_compare_op(rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_func : depth_stencil_state.front_stencil_func));
-	_orig->SetRenderState(D3DRS_STENCILREF, depth_stencil_state.stencil_reference_value);
-	_orig->SetRenderState(D3DRS_STENCILMASK, depth_stencil_state.stencil_read_mask);
-	_orig->SetRenderState(D3DRS_STENCILWRITEMASK, depth_stencil_state.stencil_write_mask);
+	_orig->SetRenderState(D3DRS_STENCILREF,
+		rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_reference_value : depth_stencil_state.front_stencil_reference_value);
+	_orig->SetRenderState(D3DRS_STENCILMASK,
+		rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_read_mask : depth_stencil_state.front_stencil_read_mask);
+	_orig->SetRenderState(D3DRS_STENCILWRITEMASK,
+		rasterizer_state.front_counter_clockwise ? depth_stencil_state.back_stencil_write_mask : depth_stencil_state.front_stencil_write_mask);
 	_orig->SetRenderState(D3DRS_CLIPPING, rasterizer_state.depth_clip_enable);
 	_orig->SetRenderState(D3DRS_LIGHTING, FALSE);
 	_orig->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);

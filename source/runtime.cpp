@@ -2628,16 +2628,18 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				depth_stencil_state.depth_write_mask = false;
 				depth_stencil_state.depth_func = api::compare_op::always;
 				depth_stencil_state.stencil_enable = pass_info.stencil_enable;
-				depth_stencil_state.stencil_read_mask = pass_info.stencil_read_mask;
-				depth_stencil_state.stencil_write_mask = pass_info.stencil_write_mask;
-				depth_stencil_state.back_stencil_fail_op = convert_stencil_op(pass_info.stencil_op_fail);
-				depth_stencil_state.back_stencil_depth_fail_op = convert_stencil_op(pass_info.stencil_op_depth_fail);
-				depth_stencil_state.back_stencil_pass_op = convert_stencil_op(pass_info.stencil_op_pass);
-				depth_stencil_state.back_stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
+				depth_stencil_state.front_stencil_read_mask = pass_info.stencil_read_mask;
+				depth_stencil_state.front_stencil_write_mask = pass_info.stencil_write_mask;
+				depth_stencil_state.front_stencil_func = depth_stencil_state.back_stencil_func;
 				depth_stencil_state.front_stencil_fail_op = depth_stencil_state.back_stencil_fail_op;
 				depth_stencil_state.front_stencil_depth_fail_op = depth_stencil_state.back_stencil_depth_fail_op;
 				depth_stencil_state.front_stencil_pass_op = depth_stencil_state.back_stencil_pass_op;
-				depth_stencil_state.front_stencil_func = depth_stencil_state.back_stencil_func;
+				depth_stencil_state.back_stencil_read_mask = pass_info.stencil_read_mask;
+				depth_stencil_state.back_stencil_write_mask = pass_info.stencil_write_mask;
+				depth_stencil_state.back_stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
+				depth_stencil_state.back_stencil_fail_op = convert_stencil_op(pass_info.stencil_op_fail);
+				depth_stencil_state.back_stencil_depth_fail_op = convert_stencil_op(pass_info.stencil_op_depth_fail);
+				depth_stencil_state.back_stencil_pass_op = convert_stencil_op(pass_info.stencil_op_pass);
 
 				subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_state });
 

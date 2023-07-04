@@ -56,7 +56,18 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadGraphicsPipeline(ID3D12Pipel
 				uint32_t sample_mask = internal_desc.SampleMask;
 				uint32_t sample_count = internal_desc.SampleDesc.Count;
 
-				reshade::api::dynamic_state dynamic_states[3] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::stencil_reference_value };
+				std::vector<reshade::api::dynamic_state> dynamic_states = {
+					reshade::api::dynamic_state::primitive_topology,
+					reshade::api::dynamic_state::blend_constant,
+					reshade::api::dynamic_state::front_stencil_reference_value,
+					reshade::api::dynamic_state::back_stencil_reference_value
+				};
+				if (internal_desc.Flags & D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS)
+				{
+					dynamic_states.push_back(reshade::api::dynamic_state::depth_bias);
+					dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_clamp);
+					dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_slope_scaled);
+				}
 
 				const reshade::api::pipeline_subobject subobjects[] = {
 					{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc },
@@ -74,7 +85,7 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadGraphicsPipeline(ID3D12Pipel
 					{ reshade::api::pipeline_subobject_type::render_target_formats, internal_desc.NumRenderTargets, render_target_formats },
 					{ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format },
 					{ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count },
-					{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(std::size(dynamic_states)), dynamic_states },
+					{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
 				};
 
 				reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_proxy, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));

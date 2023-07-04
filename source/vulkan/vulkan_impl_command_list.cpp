@@ -384,14 +384,23 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			vk.CmdSetBlendConstants(_orig, blend_constant);
 			continue;
 		}
-		case api::dynamic_state::stencil_read_mask:
-			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
+		case api::dynamic_state::front_stencil_read_mask:
+			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_FRONT_BIT, values[i]);
 			continue;
-		case api::dynamic_state::stencil_write_mask:
-			vk.CmdSetStencilWriteMask(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
+		case api::dynamic_state::front_stencil_write_mask:
+			vk.CmdSetStencilWriteMask(_orig, VK_STENCIL_FACE_FRONT_BIT, values[i]);
 			continue;
-		case api::dynamic_state::stencil_reference_value:
-			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
+		case api::dynamic_state::front_stencil_reference_value:
+			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_FRONT_BIT, values[i]);
+			continue;
+		case api::dynamic_state::back_stencil_read_mask:
+			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_BACK_BIT, values[i]);
+			continue;
+		case api::dynamic_state::back_stencil_write_mask:
+			vk.CmdSetStencilWriteMask(_orig, VK_STENCIL_FACE_BACK_BIT, values[i]);
+			continue;
+		case api::dynamic_state::back_stencil_reference_value:
+			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_BACK_BIT, values[i]);
 			continue;
 		}
 

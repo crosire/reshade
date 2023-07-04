@@ -1942,17 +1942,20 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	impl->depth_mask = depth_stencil_desc.depth_write_mask;
 	impl->depth_func = convert_compare_op(depth_stencil_desc.depth_func);
 	impl->stencil_test = depth_stencil_desc.stencil_enable;
-	impl->stencil_read_mask = depth_stencil_desc.stencil_read_mask;
-	impl->stencil_write_mask = depth_stencil_desc.stencil_write_mask;
-	impl->stencil_reference_value = static_cast<GLint>(depth_stencil_desc.stencil_reference_value);
+	impl->front_stencil_read_mask = depth_stencil_desc.front_stencil_read_mask;
+	impl->front_stencil_write_mask = depth_stencil_desc.front_stencil_write_mask;
+	impl->front_stencil_reference_value = static_cast<GLint>(depth_stencil_desc.front_stencil_reference_value);
+	impl->front_stencil_func = convert_compare_op(depth_stencil_desc.front_stencil_func);
 	impl->front_stencil_op_fail = convert_stencil_op(depth_stencil_desc.front_stencil_fail_op);
 	impl->front_stencil_op_depth_fail = convert_stencil_op(depth_stencil_desc.front_stencil_depth_fail_op);
 	impl->front_stencil_op_pass = convert_stencil_op(depth_stencil_desc.front_stencil_pass_op);
-	impl->front_stencil_func = convert_compare_op(depth_stencil_desc.front_stencil_func);
+	impl->back_stencil_read_mask = depth_stencil_desc.back_stencil_read_mask;
+	impl->back_stencil_write_mask = depth_stencil_desc.back_stencil_write_mask;
+	impl->back_stencil_reference_value = static_cast<GLint>(depth_stencil_desc.back_stencil_reference_value);
+	impl->back_stencil_func = convert_compare_op(depth_stencil_desc.back_stencil_func);
 	impl->back_stencil_op_fail = convert_stencil_op(depth_stencil_desc.back_stencil_fail_op);
 	impl->back_stencil_op_depth_fail = convert_stencil_op(depth_stencil_desc.back_stencil_depth_fail_op);
 	impl->back_stencil_op_pass = convert_stencil_op(depth_stencil_desc.back_stencil_pass_op);
-	impl->back_stencil_func = convert_compare_op(depth_stencil_desc.back_stencil_func);
 
 	impl->sample_mask = sample_mask;
 	impl->prim_mode = convert_primitive_topology(topology);

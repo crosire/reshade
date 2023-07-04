@@ -245,7 +245,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	uint32_t sample_mask = internal_desc.SampleMask;
 	uint32_t sample_count = internal_desc.SampleDesc.Count;
 
-	std::vector<reshade::api::dynamic_state> dynamic_states = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::stencil_reference_value };
+	std::vector<reshade::api::dynamic_state> dynamic_states = {
+		reshade::api::dynamic_state::primitive_topology,
+		reshade::api::dynamic_state::blend_constant,
+		reshade::api::dynamic_state::front_stencil_reference_value,
+		reshade::api::dynamic_state::back_stencil_reference_value
+	};
 	if (internal_desc.Flags & D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS)
 	{
 		dynamic_states.push_back(reshade::api::dynamic_state::depth_bias);
@@ -1514,7 +1519,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 	reshade::api::format render_target_formats[8];
 	uint32_t sample_mask;
 	uint32_t sample_count;
-	std::vector<reshade::api::dynamic_state> dynamic_states = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::stencil_reference_value };
+	std::vector<reshade::api::dynamic_state> dynamic_states = {
+		reshade::api::dynamic_state::primitive_topology,
+		reshade::api::dynamic_state::blend_constant,
+		reshade::api::dynamic_state::front_stencil_reference_value,
+		reshade::api::dynamic_state::back_stencil_reference_value
+	};
 
 	std::vector<reshade::api::pipeline_subobject> subobjects;
 

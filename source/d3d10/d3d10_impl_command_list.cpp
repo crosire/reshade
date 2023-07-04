@@ -165,7 +165,7 @@ void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api
 			_orig->OMSetBlendState(state.get(), blend_constant, sample_mask);
 			break;
 		}
-		case api::dynamic_state::stencil_reference_value:
+		case api::dynamic_state::front_stencil_reference_value:
 		{
 			com_ptr<ID3D10DepthStencilState> state;
 			_orig->OMGetDepthStencilState(&state, nullptr);

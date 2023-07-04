@@ -235,6 +235,9 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 	{
 		switch (states[i])
 		{
+		case api::dynamic_state::primitive_topology:
+			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			break;
 		case api::dynamic_state::blend_constant:
 		{
 			float blend_factor[4];
@@ -245,11 +248,8 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			_orig->OMSetBlendFactor(blend_factor);
 			break;
 		}
-		case api::dynamic_state::stencil_reference_value:
+		case api::dynamic_state::front_stencil_reference_value:
 			_orig->OMSetStencilRef(values[i]);
-			break;
-		case api::dynamic_state::primitive_topology:
-			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		default:
 			assert(false);

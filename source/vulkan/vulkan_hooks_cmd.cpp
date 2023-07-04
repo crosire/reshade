@@ -419,14 +419,15 @@ void VKAPI_CALL vkCmdSetStencilCompareMask(VkCommandBuffer commandBuffer, VkSten
 	trampoline(commandBuffer, faceMask, compareMask);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (faceMask != VK_STENCIL_FACE_FRONT_AND_BACK || !reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+	if (!reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 		return;
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	const reshade::api::dynamic_state state = reshade::api::dynamic_state::stencil_read_mask;
+	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_read_mask, reshade::api::dynamic_state::back_stencil_read_mask };
+	const uint32_t values[2] = { compareMask, compareMask };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, 1, &state, &compareMask);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, faceMask == VK_STENCIL_FACE_FRONT_AND_BACK ? 2 : 1, &states[faceMask == VK_STENCIL_FACE_BACK_BIT ? 1 : 0], values);
 #endif
 }
 void VKAPI_CALL vkCmdSetStencilWriteMask(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t writeMask)
@@ -442,9 +443,10 @@ void VKAPI_CALL vkCmdSetStencilWriteMask(VkCommandBuffer commandBuffer, VkStenci
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	const reshade::api::dynamic_state state = reshade::api::dynamic_state::stencil_write_mask;
+	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_write_mask, reshade::api::dynamic_state::back_stencil_write_mask };
+	const uint32_t values[2] = { writeMask, writeMask };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, 1, &state, &writeMask);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, faceMask == VK_STENCIL_FACE_FRONT_AND_BACK ? 2 : 1, &states[faceMask == VK_STENCIL_FACE_BACK_BIT ? 1 : 0], values);
 #endif
 }
 void VKAPI_CALL vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t reference)
@@ -460,9 +462,10 @@ void VKAPI_CALL vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkStenci
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	const reshade::api::dynamic_state state = reshade::api::dynamic_state::stencil_reference_value;
+	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
+	const uint32_t values[2] = { reference, reference };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, 1, &state, &reference);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, faceMask == VK_STENCIL_FACE_FRONT_AND_BACK ? 2 : 1, &states[faceMask == VK_STENCIL_FACE_BACK_BIT ? 1 : 0], values);
 #endif
 }
 

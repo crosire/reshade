@@ -130,11 +130,12 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 		if (stencil_test)
 		{
 			gl.Enable(GL_STENCIL_TEST);
-			gl.StencilMask(stencil_write_mask);
-			gl.StencilOpSeparate(GL_BACK, back_stencil_op_fail, back_stencil_op_depth_fail, back_stencil_op_pass);
+			gl.StencilMaskSeparate(GL_FRONT, front_stencil_write_mask);
+			gl.StencilMaskSeparate(GL_BACK, back_stencil_write_mask);
 			gl.StencilOpSeparate(GL_FRONT, front_stencil_op_fail, front_stencil_op_depth_fail, front_stencil_op_pass);
-			gl.StencilFuncSeparate(GL_BACK, back_stencil_func, stencil_reference_value, stencil_read_mask);
-			gl.StencilFuncSeparate(GL_FRONT, front_stencil_func, stencil_reference_value, stencil_read_mask);
+			gl.StencilOpSeparate(GL_BACK, back_stencil_op_fail, back_stencil_op_depth_fail, back_stencil_op_pass);
+			gl.StencilFuncSeparate(GL_FRONT, front_stencil_func, front_stencil_reference_value, front_stencil_read_mask);
+			gl.StencilFuncSeparate(GL_BACK, back_stencil_func, back_stencil_reference_value, back_stencil_read_mask);
 		}
 		else
 		{
@@ -636,25 +637,25 @@ void reshade::opengl::render_context_impl::bind_pipeline_states(uint32_t count, 
 		case api::dynamic_state::stencil_enable:
 			glEnableOrDisable(GL_STENCIL_TEST, values[i]);
 			break;
-		case api::dynamic_state::stencil_read_mask:
+		case api::dynamic_state::front_stencil_read_mask:
 		{
 			GLint prev_stencil_func = GL_NONE;
 			GLint prev_stencil_reference_value = 0;
 			gl.GetIntegerv(GL_STENCIL_FUNC, &prev_stencil_func);
 			gl.GetIntegerv(GL_STENCIL_REF, &prev_stencil_reference_value);
-			gl.StencilFunc(prev_stencil_func, prev_stencil_reference_value, values[i]);
+			gl.StencilFuncSeparate(GL_FRONT, prev_stencil_func, prev_stencil_reference_value, values[i]);
 			break;
 		}
-		case api::dynamic_state::stencil_write_mask:
-			gl.StencilMask(values[i]);
+		case api::dynamic_state::front_stencil_write_mask:
+			gl.StencilMaskSeparate(GL_FRONT, values[i]);
 			break;
-		case api::dynamic_state::stencil_reference_value:
+		case api::dynamic_state::front_stencil_reference_value:
 		{
 			GLint prev_stencil_func = GL_NONE;
 			GLint prev_stencil_read_mask = 0;
 			gl.GetIntegerv(GL_STENCIL_FUNC, &prev_stencil_func);
 			gl.GetIntegerv(GL_STENCIL_VALUE_MASK, &prev_stencil_read_mask);
-			gl.StencilFunc(prev_stencil_func, values[i], prev_stencil_read_mask);
+			gl.StencilFuncSeparate(GL_FRONT, prev_stencil_func, values[i], prev_stencil_read_mask);
 			break;
 		}
 		case api::dynamic_state::front_stencil_func:
@@ -691,6 +692,27 @@ void reshade::opengl::render_context_impl::bind_pipeline_states(uint32_t count, 
 			gl.GetIntegerv(GL_STENCIL_FAIL, &prev_stencil_fail_op);
 			gl.GetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, &prev_stencil_pass_op);
 			gl.StencilOpSeparate(GL_FRONT, prev_stencil_fail_op, convert_stencil_op(static_cast<api::stencil_op>(values[i])), prev_stencil_pass_op);
+			break;
+		}
+		case api::dynamic_state::back_stencil_read_mask:
+		{
+			GLint prev_stencil_func = GL_NONE;
+			GLint prev_stencil_reference_value = 0;
+			gl.GetIntegerv(GL_STENCIL_BACK_FUNC, &prev_stencil_func);
+			gl.GetIntegerv(GL_STENCIL_BACK_REF, &prev_stencil_reference_value);
+			gl.StencilFuncSeparate(GL_BACK, prev_stencil_func, prev_stencil_reference_value, values[i]);
+			break;
+		}
+		case api::dynamic_state::back_stencil_write_mask:
+			gl.StencilMaskSeparate(GL_BACK, values[i]);
+			break;
+		case api::dynamic_state::back_stencil_reference_value:
+		{
+			GLint prev_stencil_func = GL_NONE;
+			GLint prev_stencil_read_mask = 0;
+			gl.GetIntegerv(GL_STENCIL_BACK_FUNC, &prev_stencil_func);
+			gl.GetIntegerv(GL_STENCIL_BACK_VALUE_MASK, &prev_stencil_read_mask);
+			gl.StencilFuncSeparate(GL_BACK, prev_stencil_func, values[i], prev_stencil_read_mask);
 			break;
 		}
 		case api::dynamic_state::back_stencil_func:

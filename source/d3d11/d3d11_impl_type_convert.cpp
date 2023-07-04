@@ -1248,16 +1248,16 @@ void reshade::d3d11::convert_depth_stencil_desc(const api::depth_stencil_desc &d
 	internal_desc.DepthWriteMask = desc.depth_write_mask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
 	internal_desc.DepthFunc = convert_compare_op(desc.depth_func);
 	internal_desc.StencilEnable = desc.stencil_enable;
-	internal_desc.StencilReadMask = desc.stencil_read_mask;
-	internal_desc.StencilWriteMask = desc.stencil_write_mask;
-	internal_desc.BackFace.StencilFailOp = convert_stencil_op(desc.back_stencil_fail_op);
-	internal_desc.BackFace.StencilDepthFailOp = convert_stencil_op(desc.back_stencil_depth_fail_op);
-	internal_desc.BackFace.StencilPassOp = convert_stencil_op(desc.back_stencil_pass_op);
-	internal_desc.BackFace.StencilFunc = convert_compare_op(desc.back_stencil_func);
+	internal_desc.StencilReadMask = desc.front_stencil_read_mask;
+	internal_desc.StencilWriteMask = desc.front_stencil_write_mask;
 	internal_desc.FrontFace.StencilFailOp = convert_stencil_op(desc.front_stencil_fail_op);
 	internal_desc.FrontFace.StencilDepthFailOp = convert_stencil_op(desc.front_stencil_depth_fail_op);
 	internal_desc.FrontFace.StencilPassOp = convert_stencil_op(desc.front_stencil_pass_op);
 	internal_desc.FrontFace.StencilFunc = convert_compare_op(desc.front_stencil_func);
+	internal_desc.BackFace.StencilFailOp = convert_stencil_op(desc.back_stencil_fail_op);
+	internal_desc.BackFace.StencilDepthFailOp = convert_stencil_op(desc.back_stencil_depth_fail_op);
+	internal_desc.BackFace.StencilPassOp = convert_stencil_op(desc.back_stencil_pass_op);
+	internal_desc.BackFace.StencilFunc = convert_compare_op(desc.back_stencil_func);
 }
 reshade::api::depth_stencil_desc reshade::d3d11::convert_depth_stencil_desc(const D3D11_DEPTH_STENCIL_DESC *internal_desc)
 {
@@ -1269,16 +1269,18 @@ reshade::api::depth_stencil_desc reshade::d3d11::convert_depth_stencil_desc(cons
 		desc.depth_write_mask = internal_desc->DepthWriteMask != D3D11_DEPTH_WRITE_MASK_ZERO;
 		desc.depth_func = convert_compare_op(internal_desc->DepthFunc);
 		desc.stencil_enable = internal_desc->StencilEnable;
-		desc.stencil_read_mask = internal_desc->StencilReadMask;
-		desc.stencil_write_mask = internal_desc->StencilWriteMask;
-		desc.back_stencil_fail_op = convert_stencil_op(internal_desc->BackFace.StencilFailOp);
-		desc.back_stencil_depth_fail_op = convert_stencil_op(internal_desc->BackFace.StencilDepthFailOp);
-		desc.back_stencil_pass_op = convert_stencil_op(internal_desc->BackFace.StencilPassOp);
-		desc.back_stencil_func = convert_compare_op(internal_desc->BackFace.StencilFunc);
+		desc.front_stencil_read_mask = internal_desc->StencilReadMask;
+		desc.front_stencil_write_mask = internal_desc->StencilWriteMask;
+		desc.front_stencil_func = convert_compare_op(internal_desc->FrontFace.StencilFunc);
 		desc.front_stencil_fail_op = convert_stencil_op(internal_desc->FrontFace.StencilFailOp);
 		desc.front_stencil_depth_fail_op = convert_stencil_op(internal_desc->FrontFace.StencilDepthFailOp);
 		desc.front_stencil_pass_op = convert_stencil_op(internal_desc->FrontFace.StencilPassOp);
-		desc.front_stencil_func = convert_compare_op(internal_desc->FrontFace.StencilFunc);
+		desc.back_stencil_read_mask = internal_desc->StencilReadMask;
+		desc.back_stencil_write_mask = internal_desc->StencilWriteMask;
+		desc.back_stencil_func = convert_compare_op(internal_desc->BackFace.StencilFunc);
+		desc.back_stencil_fail_op = convert_stencil_op(internal_desc->BackFace.StencilFailOp);
+		desc.back_stencil_depth_fail_op = convert_stencil_op(internal_desc->BackFace.StencilDepthFailOp);
+		desc.back_stencil_pass_op = convert_stencil_op(internal_desc->BackFace.StencilPassOp);
 	}
 	else
 	{
@@ -1286,16 +1288,18 @@ reshade::api::depth_stencil_desc reshade::d3d11::convert_depth_stencil_desc(cons
 		desc.depth_enable = true;
 		desc.depth_write_mask = true;
 		desc.depth_func = api::compare_op::less;
-		desc.stencil_read_mask = D3D11_DEFAULT_STENCIL_READ_MASK;
-		desc.stencil_write_mask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
-		desc.back_stencil_fail_op = api::stencil_op::keep;
-		desc.back_stencil_depth_fail_op = api::stencil_op::keep;
-		desc.back_stencil_pass_op = api::stencil_op::keep;
-		desc.back_stencil_func = api::compare_op::always;
+		desc.front_stencil_read_mask = D3D11_DEFAULT_STENCIL_READ_MASK;
+		desc.front_stencil_write_mask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+		desc.front_stencil_func = api::compare_op::always;
 		desc.front_stencil_fail_op = api::stencil_op::keep;
 		desc.front_stencil_depth_fail_op = api::stencil_op::keep;
 		desc.front_stencil_pass_op = api::stencil_op::keep;
-		desc.front_stencil_func = api::compare_op::always;
+		desc.back_stencil_read_mask = D3D11_DEFAULT_STENCIL_READ_MASK;
+		desc.back_stencil_write_mask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+		desc.back_stencil_func = api::compare_op::always;
+		desc.back_stencil_fail_op = api::stencil_op::keep;
+		desc.back_stencil_depth_fail_op = api::stencil_op::keep;
+		desc.back_stencil_pass_op = api::stencil_op::keep;
 	}
 
 	return desc;

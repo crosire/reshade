@@ -563,17 +563,17 @@ namespace reshade { namespace api
 		/// </summary>
 		bool stencil_enable = false;
 		/// <summary>
-		/// Mask applied to stencil values read from the depth-stencil buffer.
+		/// Mask applied to stencil values read from the depth-stencil buffer for pixels whose surface normal is towards the camera.
 		/// </summary>
-		uint8_t stencil_read_mask = 0xFF;
+		uint8_t front_stencil_read_mask = 0xFF;
 		/// <summary>
-		/// Mask applied to stencil values written to the depth-stencil buffer.
+		/// Mask applied to stencil values written to the depth-stencil buffer for pixels whose surface normal is towards the camera.
 		/// </summary>
-		uint8_t stencil_write_mask = 0xFF;
+		uint8_t front_stencil_write_mask = 0xFF;
 		/// <summary>
-		/// Reference value to perform against when doing stencil testing.
+		/// Reference value to perform against when stencil testing pixels whose surface normal is towards the camera.
 		/// </summary>
-		uint8_t stencil_reference_value = 0;
+		uint8_t front_stencil_reference_value = 0;
 		/// <summary>
 		/// Comparison function to use to compare new stencil value from a fragment against current stencil value for pixels whose surface normal is facing towards the camera.
 		/// </summary>
@@ -590,6 +590,18 @@ namespace reshade { namespace api
 		/// Stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing towards the camera.
 		/// </summary>
 		stencil_op front_stencil_depth_fail_op = stencil_op::keep;
+		/// <summary>
+		/// Mask applied to stencil values read from the depth-stencil buffer for pixels whose surface normal is facing away from the camera.
+		/// </summary>
+		uint8_t back_stencil_read_mask = 0xFF;
+		/// <summary>
+		/// Mask applied to stencil values written to the depth-stencil buffer for pixels whose surface normal is facing away from the camera.
+		/// </summary>
+		uint8_t back_stencil_write_mask = 0xFF;
+		/// <summary>
+		/// Reference value to perform against when stencil testing pixels whose surface normal is facing away from the camera.
+		/// </summary>
+		uint8_t back_stencil_reference_value = 0;
 		/// <summary>
 		/// Comparison function to use to compare new stencil value from a fragment against current stencil value for pixels whose surface normal is facing away from the camera.
 		/// </summary>
@@ -942,17 +954,20 @@ namespace reshade { namespace api
 		depth_write_mask = 14,
 		depth_func = 23,
 		stencil_enable = 52,
-		stencil_read_mask = 58,
-		stencil_write_mask = 59,
-		stencil_reference_value = 57,
 		front_stencil_func = 56,
 		front_stencil_pass_op = 55,
 		front_stencil_fail_op = 53,
 		front_stencil_depth_fail_op = 54,
+		front_stencil_read_mask = 58,
+		front_stencil_write_mask = 59,
+		front_stencil_reference_value = 57,
 		back_stencil_func = 189,
 		back_stencil_pass_op = 188,
 		back_stencil_fail_op = 186,
-		back_stencil_depth_fail_op = 187
+		back_stencil_depth_fail_op = 187,
+		back_stencil_read_mask = 1006,
+		back_stencil_write_mask = 1007,
+		back_stencil_reference_value = 1008,
 	};
 
 	/// <summary>

@@ -48,17 +48,20 @@ namespace reshade::opengl
 		GLboolean depth_mask;
 		GLenum depth_func;
 		GLboolean stencil_test;
-		GLuint stencil_read_mask;
-		GLuint stencil_write_mask;
-		GLint  stencil_reference_value;
+		GLuint front_stencil_read_mask;
+		GLuint front_stencil_write_mask;
+		GLint  front_stencil_reference_value;
+		GLenum front_stencil_func;
 		GLenum front_stencil_op_fail;
 		GLenum front_stencil_op_depth_fail;
 		GLenum front_stencil_op_pass;
-		GLenum front_stencil_func;
+		GLuint back_stencil_read_mask;
+		GLuint back_stencil_write_mask;
+		GLint  back_stencil_reference_value;
+		GLenum back_stencil_func;
 		GLenum back_stencil_op_fail;
 		GLenum back_stencil_op_depth_fail;
 		GLenum back_stencil_op_pass;
-		GLenum back_stencil_func;
 
 		GLbitfield sample_mask;
 		GLenum prim_mode;

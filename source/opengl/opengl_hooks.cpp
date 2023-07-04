@@ -1032,10 +1032,12 @@ extern "C" void APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
-		const reshade::api::dynamic_state states[4] = { reshade::api::dynamic_state::front_stencil_func, reshade::api::dynamic_state::back_stencil_func, reshade::api::dynamic_state::stencil_reference_value, reshade::api::dynamic_state::stencil_read_mask };
-		const uint32_t values[4] = { static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(ref), mask };
+		const auto stencil_func = reshade::opengl::convert_compare_op(func);
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 4, states, values);
+		const reshade::api::dynamic_state states[6] = { reshade::api::dynamic_state::front_stencil_func, reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::front_stencil_read_mask, reshade::api::dynamic_state::back_stencil_func, reshade::api::dynamic_state::back_stencil_reference_value, reshade::api::dynamic_state::back_stencil_read_mask };
+		const uint32_t values[6] = { static_cast<uint32_t>(stencil_func), static_cast<uint32_t>(ref), mask, static_cast<uint32_t>(stencil_func), static_cast<uint32_t>(ref), mask };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 6, states, values);
 	}
 #endif
 }
@@ -1048,8 +1050,12 @@ extern "C" void APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
-		const reshade::api::dynamic_state states[6] = { reshade::api::dynamic_state::front_stencil_fail_op, reshade::api::dynamic_state::back_stencil_fail_op, reshade::api::dynamic_state::front_stencil_depth_fail_op, reshade::api::dynamic_state::back_stencil_depth_fail_op, reshade::api::dynamic_state::front_stencil_pass_op, reshade::api::dynamic_state::back_stencil_pass_op };
-		const uint32_t values[6] = { static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)) };
+		const auto stencil_fail_op = reshade::opengl::convert_stencil_op(fail);
+		const auto stencil_depth_fail_op = reshade::opengl::convert_stencil_op(zfail);
+		const auto stencil_pass_op = reshade::opengl::convert_stencil_op(zpass);
+
+		const reshade::api::dynamic_state states[6] = { reshade::api::dynamic_state::front_stencil_fail_op, reshade::api::dynamic_state::front_stencil_depth_fail_op, reshade::api::dynamic_state::front_stencil_pass_op, reshade::api::dynamic_state::back_stencil_fail_op, reshade::api::dynamic_state::back_stencil_depth_fail_op, reshade::api::dynamic_state::back_stencil_pass_op };
+		const uint32_t values[6] = { static_cast<uint32_t>(stencil_fail_op), static_cast<uint32_t>(stencil_depth_fail_op), static_cast<uint32_t>(stencil_pass_op), static_cast<uint32_t>(stencil_fail_op), static_cast<uint32_t>(stencil_depth_fail_op), static_cast<uint32_t>(stencil_pass_op) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 6, states, values);
 	}
@@ -1064,10 +1070,10 @@ extern "C" void APIENTRY glStencilMask(GLuint mask)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
-		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_write_mask };
-		const uint32_t values[1] = { mask };
+		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_write_mask, reshade::api::dynamic_state::back_stencil_write_mask };
+		const uint32_t values[2] = { mask, mask };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);
 	}
 #endif
 }
@@ -1843,7 +1849,9 @@ void APIENTRY glUseProgram(GLuint program)
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::all_shader_stages, program != 0 ? reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program } : reshade::api::pipeline {});
+		const auto pipeline = (program != 0) ? reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program } : reshade::api::pipeline {};
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::all_shader_stages, pipeline);
 	}
 #endif
 }
@@ -1874,13 +1882,12 @@ void APIENTRY glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint 
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
-		const auto front_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_func : reshade::api::dynamic_state::back_stencil_func;
-		const auto back_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_func : reshade::api::dynamic_state::front_stencil_func;
+		const auto stencil_func = reshade::opengl::convert_compare_op(func);
 
-		const reshade::api::dynamic_state states[4] = { front_state, back_state, reshade::api::dynamic_state::stencil_reference_value, reshade::api::dynamic_state::stencil_read_mask };
-		const uint32_t values[4] = { static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(ref), mask };
+		const reshade::api::dynamic_state states[6] = { reshade::api::dynamic_state::front_stencil_func, reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::front_stencil_read_mask, reshade::api::dynamic_state::back_stencil_func, reshade::api::dynamic_state::back_stencil_reference_value, reshade::api::dynamic_state::back_stencil_read_mask };
+		const uint32_t values[6] = { static_cast<uint32_t>(stencil_func), static_cast<uint32_t>(ref), mask, static_cast<uint32_t>(stencil_func), static_cast<uint32_t>(ref), mask };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 4, states, values);
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, face == GL_FRONT_AND_BACK ? 6 : 3, &states[face == GL_BACK ? 3 : 0], values);
 	}
 #endif
 }
@@ -1893,17 +1900,14 @@ void APIENTRY glStencilOpSeparate(GLenum face, GLenum fail, GLenum zfail, GLenum
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
-		const auto front_fail_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_fail_op : reshade::api::dynamic_state::back_stencil_fail_op;
-		const auto back_fail_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_fail_op : reshade::api::dynamic_state::front_stencil_fail_op;
-		const auto front_depth_fail_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_depth_fail_op : reshade::api::dynamic_state::back_stencil_depth_fail_op;
-		const auto back_depth_fail_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_depth_fail_op : reshade::api::dynamic_state::front_stencil_depth_fail_op;
-		const auto front_pass_state = (face == GL_FRONT || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::front_stencil_pass_op : reshade::api::dynamic_state::back_stencil_pass_op;
-		const auto back_passs_state = (face == GL_BACK || face == GL_FRONT_AND_BACK) ? reshade::api::dynamic_state::back_stencil_pass_op : reshade::api::dynamic_state::front_stencil_pass_op;
+		const auto stencil_fail_op = reshade::opengl::convert_stencil_op(fail);
+		const auto stencil_depth_fail_op = reshade::opengl::convert_stencil_op(zfail);
+		const auto stencil_pass_op = reshade::opengl::convert_stencil_op(zpass);
 
-		const reshade::api::dynamic_state states[6] = { front_fail_state, back_fail_state, front_depth_fail_state, back_depth_fail_state, front_pass_state, back_passs_state };
-		const uint32_t values[6] = { static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)) };
+		const reshade::api::dynamic_state states[6] = { reshade::api::dynamic_state::front_stencil_fail_op, reshade::api::dynamic_state::front_stencil_depth_fail_op, reshade::api::dynamic_state::front_stencil_pass_op, reshade::api::dynamic_state::back_stencil_fail_op, reshade::api::dynamic_state::back_stencil_depth_fail_op, reshade::api::dynamic_state::back_stencil_pass_op };
+		const uint32_t values[6] = { static_cast<uint32_t>(stencil_fail_op), static_cast<uint32_t>(stencil_depth_fail_op), static_cast<uint32_t>(stencil_pass_op), static_cast<uint32_t>(stencil_fail_op), static_cast<uint32_t>(stencil_depth_fail_op), static_cast<uint32_t>(stencil_pass_op) };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 6, states, values);
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, face == GL_FRONT_AND_BACK ? 6 : 3, &states[face == GL_BACK ? 3 : 0], values);
 	}
 #endif
 }
@@ -1916,10 +1920,10 @@ void APIENTRY glStencilMaskSeparate(GLenum face, GLuint mask)
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
-		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::stencil_write_mask };
-		const uint32_t values[1] = { mask };
+		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_write_mask, reshade::api::dynamic_state::back_stencil_write_mask };
+		const uint32_t values[2] = { mask, mask };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, face == GL_FRONT_AND_BACK ? 2 : 1, &states[face == GL_BACK ? 1 : 0], values);
 	}
 #endif
 }

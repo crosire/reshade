@@ -1149,43 +1149,43 @@ auto reshade::d3d9::convert_dynamic_state(D3DRENDERSTATETYPE value) -> api::dyna
 auto reshade::d3d9::convert_dynamic_state(api::dynamic_state value) -> D3DRENDERSTATETYPE
 {
 	static_assert(
-		(DWORD)reshade::api::dynamic_state::depth_enable                == D3DRS_ZENABLE &&
-		(DWORD)reshade::api::dynamic_state::fill_mode                   == D3DRS_FILLMODE &&
-		(DWORD)reshade::api::dynamic_state::depth_write_mask            == D3DRS_ZWRITEENABLE &&
-		(DWORD)reshade::api::dynamic_state::alpha_test_enable           == D3DRS_ALPHATESTENABLE &&
-		(DWORD)reshade::api::dynamic_state::source_color_blend_factor   == D3DRS_SRCBLEND &&
-		(DWORD)reshade::api::dynamic_state::dest_color_blend_factor     == D3DRS_DESTBLEND &&
-		(DWORD)reshade::api::dynamic_state::cull_mode                   == D3DRS_CULLMODE &&
-		(DWORD)reshade::api::dynamic_state::depth_func                  == D3DRS_ZFUNC &&
-		(DWORD)reshade::api::dynamic_state::alpha_reference_value       == D3DRS_ALPHAREF &&
-		(DWORD)reshade::api::dynamic_state::alpha_func                  == D3DRS_ALPHAFUNC &&
-		(DWORD)reshade::api::dynamic_state::blend_enable                == D3DRS_ALPHABLENDENABLE &&
-		(DWORD)reshade::api::dynamic_state::stencil_enable              == D3DRS_STENCILENABLE &&
-		(DWORD)reshade::api::dynamic_state::front_stencil_fail_op       == D3DRS_STENCILFAIL &&
-		(DWORD)reshade::api::dynamic_state::front_stencil_depth_fail_op == D3DRS_STENCILZFAIL &&
-		(DWORD)reshade::api::dynamic_state::front_stencil_pass_op       == D3DRS_STENCILPASS &&
-		(DWORD)reshade::api::dynamic_state::front_stencil_func          == D3DRS_STENCILFUNC &&
-		(DWORD)reshade::api::dynamic_state::stencil_reference_value     == D3DRS_STENCILREF &&
-		(DWORD)reshade::api::dynamic_state::stencil_read_mask           == D3DRS_STENCILMASK &&
-		(DWORD)reshade::api::dynamic_state::stencil_write_mask          == D3DRS_STENCILWRITEMASK &&
-		(DWORD)reshade::api::dynamic_state::depth_clip_enable           == D3DRS_CLIPPING &&
-		(DWORD)reshade::api::dynamic_state::multisample_enable          == D3DRS_MULTISAMPLEANTIALIAS &&
-		(DWORD)reshade::api::dynamic_state::sample_mask                 == D3DRS_MULTISAMPLEMASK &&
-		(DWORD)reshade::api::dynamic_state::render_target_write_mask    == D3DRS_COLORWRITEENABLE &&
-		(DWORD)reshade::api::dynamic_state::color_blend_op              == D3DRS_BLENDOP &&
-		(DWORD)reshade::api::dynamic_state::scissor_enable              == D3DRS_SCISSORTESTENABLE &&
-		(DWORD)reshade::api::dynamic_state::depth_bias_slope_scaled     == D3DRS_SLOPESCALEDEPTHBIAS &&
-		(DWORD)reshade::api::dynamic_state::antialiased_line_enable     == D3DRS_ANTIALIASEDLINEENABLE &&
-		(DWORD)reshade::api::dynamic_state::back_stencil_fail_op        == D3DRS_CCW_STENCILFAIL &&
-		(DWORD)reshade::api::dynamic_state::back_stencil_depth_fail_op  == D3DRS_CCW_STENCILZFAIL &&
-		(DWORD)reshade::api::dynamic_state::back_stencil_pass_op        == D3DRS_CCW_STENCILPASS &&
-		(DWORD)reshade::api::dynamic_state::back_stencil_func           == D3DRS_CCW_STENCILFUNC &&
-		(DWORD)reshade::api::dynamic_state::blend_constant              == D3DRS_BLENDFACTOR &&
-		(DWORD)reshade::api::dynamic_state::srgb_write_enable           == D3DRS_SRGBWRITEENABLE &&
-		(DWORD)reshade::api::dynamic_state::depth_bias                  == D3DRS_DEPTHBIAS &&
-		(DWORD)reshade::api::dynamic_state::source_alpha_blend_factor   == D3DRS_SRCBLENDALPHA &&
-		(DWORD)reshade::api::dynamic_state::dest_alpha_blend_factor     == D3DRS_DESTBLENDALPHA &&
-		(DWORD)reshade::api::dynamic_state::alpha_blend_op              == D3DRS_BLENDOPALPHA);
+		(DWORD)reshade::api::dynamic_state::depth_enable                  == D3DRS_ZENABLE &&
+		(DWORD)reshade::api::dynamic_state::fill_mode                     == D3DRS_FILLMODE &&
+		(DWORD)reshade::api::dynamic_state::depth_write_mask              == D3DRS_ZWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::alpha_test_enable             == D3DRS_ALPHATESTENABLE &&
+		(DWORD)reshade::api::dynamic_state::source_color_blend_factor     == D3DRS_SRCBLEND &&
+		(DWORD)reshade::api::dynamic_state::dest_color_blend_factor       == D3DRS_DESTBLEND &&
+		(DWORD)reshade::api::dynamic_state::cull_mode                     == D3DRS_CULLMODE &&
+		(DWORD)reshade::api::dynamic_state::depth_func                    == D3DRS_ZFUNC &&
+		(DWORD)reshade::api::dynamic_state::alpha_reference_value         == D3DRS_ALPHAREF &&
+		(DWORD)reshade::api::dynamic_state::alpha_func                    == D3DRS_ALPHAFUNC &&
+		(DWORD)reshade::api::dynamic_state::blend_enable                  == D3DRS_ALPHABLENDENABLE &&
+		(DWORD)reshade::api::dynamic_state::stencil_enable                == D3DRS_STENCILENABLE &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_fail_op         == D3DRS_STENCILFAIL &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_depth_fail_op   == D3DRS_STENCILZFAIL &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_pass_op         == D3DRS_STENCILPASS &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_func            == D3DRS_STENCILFUNC &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_reference_value == D3DRS_STENCILREF &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_read_mask       == D3DRS_STENCILMASK &&
+		(DWORD)reshade::api::dynamic_state::front_stencil_write_mask      == D3DRS_STENCILWRITEMASK &&
+		(DWORD)reshade::api::dynamic_state::depth_clip_enable             == D3DRS_CLIPPING &&
+		(DWORD)reshade::api::dynamic_state::multisample_enable            == D3DRS_MULTISAMPLEANTIALIAS &&
+		(DWORD)reshade::api::dynamic_state::sample_mask                   == D3DRS_MULTISAMPLEMASK &&
+		(DWORD)reshade::api::dynamic_state::render_target_write_mask      == D3DRS_COLORWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::color_blend_op                == D3DRS_BLENDOP &&
+		(DWORD)reshade::api::dynamic_state::scissor_enable                == D3DRS_SCISSORTESTENABLE &&
+		(DWORD)reshade::api::dynamic_state::depth_bias_slope_scaled       == D3DRS_SLOPESCALEDEPTHBIAS &&
+		(DWORD)reshade::api::dynamic_state::antialiased_line_enable       == D3DRS_ANTIALIASEDLINEENABLE &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_fail_op          == D3DRS_CCW_STENCILFAIL &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_depth_fail_op    == D3DRS_CCW_STENCILZFAIL &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_pass_op          == D3DRS_CCW_STENCILPASS &&
+		(DWORD)reshade::api::dynamic_state::back_stencil_func             == D3DRS_CCW_STENCILFUNC &&
+		(DWORD)reshade::api::dynamic_state::blend_constant                == D3DRS_BLENDFACTOR &&
+		(DWORD)reshade::api::dynamic_state::srgb_write_enable             == D3DRS_SRGBWRITEENABLE &&
+		(DWORD)reshade::api::dynamic_state::depth_bias                    == D3DRS_DEPTHBIAS &&
+		(DWORD)reshade::api::dynamic_state::source_alpha_blend_factor     == D3DRS_SRCBLENDALPHA &&
+		(DWORD)reshade::api::dynamic_state::dest_alpha_blend_factor       == D3DRS_DESTBLENDALPHA &&
+		(DWORD)reshade::api::dynamic_state::alpha_blend_op                == D3DRS_BLENDOPALPHA);
 
 	return static_cast<D3DRENDERSTATETYPE>(value);
 }

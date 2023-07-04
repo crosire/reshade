@@ -935,7 +935,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 
 	D3D11_DEPTH_STENCIL_DESC internal_desc = {};
 	auto desc = reshade::d3d11::convert_depth_stencil_desc(pDepthStencilDesc);
-	reshade::api::dynamic_state dynamic_states[1] = { reshade::api::dynamic_state::stencil_reference_value };
+	reshade::api::dynamic_state dynamic_states[2] = { reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
 
 	const reshade::api::pipeline_subobject subobjects[] = {
 		{ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &desc },

@@ -774,7 +774,7 @@ bool reshade::d3d11::device_impl::create_pipeline(api::pipeline_layout, uint32_t
 				if (!create_depth_stencil_state(*static_cast<const api::depth_stencil_desc *>(subobjects[i].data), &temp))
 					goto exit_failure;
 				depth_stencil_state = com_ptr<ID3D11DepthStencilState>(reinterpret_cast<ID3D11DepthStencilState *>(temp.handle), true);
-				stencil_reference_value = static_cast<const api::depth_stencil_desc *>(subobjects[i].data)->stencil_reference_value;
+				stencil_reference_value = static_cast<const api::depth_stencil_desc *>(subobjects[i].data)->front_stencil_reference_value;
 				break;
 			case api::pipeline_subobject_type::primitive_topology:
 				assert(subobjects[i].count == 1);
