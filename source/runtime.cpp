@@ -2092,7 +2092,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				// Try to find another pooled texture to share with (and do not share within the same effect)
 				if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
 						[&new_texture](const texture &item) {
-							return item.annotation_as_int("pooled") && item.effect_index != new_texture.effect_index && item.matches_description(new_texture);
+							return item.annotation_as_int("pooled") && std::find(item.shared.begin(), item.shared.end(), new_texture.effect_index) == item.shared.end() && item.matches_description(new_texture);
 						});
 					existing_texture != _textures.end())
 				{
