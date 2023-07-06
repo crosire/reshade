@@ -3,7 +3,7 @@ ReShade API
 
 The ReShade API lets you interact with the resources and rendering commands of applications ReShade was loaded into. It [abstracts](#abstraction) away differences between the various graphics API ReShade supports (Direct3D 9/10/11/12, OpenGL and Vulkan), to make it possible to write add-ons that work across a wide range of applications, regardless of the graphics API they use.
 
-A ReShade add-on is a DLL that uses the header-only ReShade API to register callbacks for events and do work in those callbacks after they were invoked by ReShade. There are no further requirements, no functions need to be exported and no libraries need to be linked against. Simply add the [include directory from the ReShade repository](https://github.com/crosire/reshade/tree/main/include) to your DLL project and include the `reshade.hpp` header to get started.
+A ReShade add-on is a DLL or part of the application that uses the header-only ReShade API to register callbacks for events and do work in those callbacks after they were invoked by ReShade. There are no further requirements, no functions need to be exported and no libraries need to be linked against (although linking against ReShade is supported as well by defining `RESHADE_API_LIBRARY` before including the headers). Simply add the [include directory from the ReShade repository](https://github.com/crosire/reshade/tree/main/include) to your project and include the `reshade.hpp` header to get started.
 
 Optionally an add-on may export an `AddonInit` function (with the function signature `extern "C" bool AddonInit(HMODULE addon_module, HMODULE reshade_module)`) if more complicated one-time initialization than possible in `DllMain` is required, which will be called by ReShade right after loading the add-on module.
 Similarily it may also export an `AddonUninit` function (with the function signature `extern "C" void AddonUninit(HMODULE addon_module, HMODULE reshade_module)`) that will be called right before unloading (but only if initialization was successfull).
@@ -43,7 +43,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 }
 ```
 
-After building an add-on DLL, change its file extension from `.dll` to `.addon` and put it into the same directory as ReShade. It will be picked up and loaded automatically on the next launch of the application.
+After building an add-on DLL, change its file extension from `.dll` to `.addon` and put it into the add-on search directory configured in ReShade (which defaults to the same directory as ReShade). It will be picked up and loaded automatically on the next launch of the application.
 
 For more complex examples, see the [examples directory in the repository](https://github.com/crosire/reshade/tree/main/examples).
 
