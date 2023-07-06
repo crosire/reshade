@@ -867,15 +867,16 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 	_orig->SetComputeRootDescriptorTable(3, sampler_handle_gpu);
 
-	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-	transition.Transition.pResource = resource;
-	transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	transition.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	transition.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-	_orig->ResourceBarrier(1, &transition);
-
 	for (uint32_t level = 1; level < desc.MipLevels; ++level)
 	{
+		D3D12_RESOURCE_BARRIER barriers[2];
+		barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+		barriers[0].Transition.pResource = resource;
+		barriers[0].Transition.Subresource = level;
+		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		_orig->ResourceBarrier(1, barriers);
+
 		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> level);
 		const uint32_t height = std::max(1u, desc.Height >> level);
 
@@ -890,13 +891,15 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		_orig->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 
 		// Wait for all accesses to be finished, since the result will be the input for the next mipmap
-		D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
-		barrier.UAV.pResource = transition.Transition.pResource;
-		_orig->ResourceBarrier(1, &barrier);
+		barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
+		barriers[0].UAV.pResource = resource;
+		barriers[1] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+		barriers[1].Transition.pResource = resource;
+		barriers[1].Transition.Subresource = level;
+		barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		_orig->ResourceBarrier(2, barriers);
 	}
-
-	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
-	_orig->ResourceBarrier(1, &transition);
 
 	// Reset descriptor heaps and root signature
 	if (_current_descriptor_heaps[0] != nullptr && (
