@@ -932,8 +932,8 @@ namespace reshade { namespace api
 		source_alpha_blend_factor = 207,
 		dest_alpha_blend_factor = 208,
 		alpha_blend_op = 209,
-		logic_op = 1005,
 		blend_constant = 193,
+		logic_op = 1005,
 		render_target_write_mask = 168,
 
 		// Rasterizer state
