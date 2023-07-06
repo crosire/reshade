@@ -17,7 +17,7 @@ struct __declspec(uuid("33319e83-387c-448e-881c-7e68fc2e52c4")) descriptor_track
 	/// <summary>
 	/// Gets the shader resource view in a descriptor set at the specified offset.
 	/// </summary>
-	reshade::api::resource_view get_shader_resource_view(reshade::api::descriptor_pool pool, uint32_t offset) const;
+	reshade::api::resource_view get_shader_resource_view(reshade::api::descriptor_heap heap, uint32_t offset) const;
 
 	/// <summary>
 	/// Gets the description that was used to create the specified pipeline layout parameter.
@@ -33,13 +33,13 @@ public /* internal */:
 		std::vector<reshade::api::pipeline_layout_param> params;
 		std::vector<std::vector<reshade::api::descriptor_range>> ranges;
 	};
-	struct descriptor_pool_data
+	struct descriptor_heap_data
 	{
 		std::vector<std::pair<reshade::api::descriptor_type, uint64_t>> descriptors;
 	};
 
 	mutable std::shared_mutex mutex;
-	std::map<reshade::api::descriptor_pool, descriptor_pool_data> pools;
+	std::map<reshade::api::descriptor_heap, descriptor_heap_data> heaps;
 
 private:
 	std::map<reshade::api::pipeline_layout, pipeline_layout_data> layouts;

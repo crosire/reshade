@@ -26,8 +26,8 @@ void state_block::apply(command_list *cmd_list) const
 	if (!scissor_rects.empty())
 		cmd_list->bind_scissor_rects(0, static_cast<uint32_t>(scissor_rects.size()), scissor_rects.data());
 
-	for (const auto &[stages, descriptor] : descriptor_sets)
-		cmd_list->bind_descriptor_sets(stages, descriptor.layout, 0, static_cast<uint32_t>(descriptor.sets.size()), descriptor.sets.data());
+	for (const auto &[stages, descriptor] : descriptor_tables)
+		cmd_list->bind_descriptor_tables(stages, descriptor.layout, 0, static_cast<uint32_t>(descriptor.tables.size()), descriptor.tables.data());
 }
 
 void state_block::clear()
@@ -39,7 +39,7 @@ void state_block::clear()
 	blend_constant = 0;
 	viewports.clear();
 	scissor_rects.clear();
-	descriptor_sets.clear();
+	descriptor_tables.clear();
 }
 
 static void on_init_command_list(command_list *cmd_list)
@@ -104,19 +104,19 @@ static void on_bind_scissor_rects(command_list *cmd_list, uint32_t first, uint32
 		state.scissor_rects[i + first] = rects[i];
 }
 
-static void on_bind_descriptor_sets(command_list *cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets)
+static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables)
 {
-	auto &state = cmd_list->get_private_data<state_block>().descriptor_sets[stages];
+	auto &state = cmd_list->get_private_data<state_block>().descriptor_tables[stages];
 
 	if (layout != state.layout)
-		state.sets.clear(); // Layout changed, which resets all descriptor set bindings
+		state.tables.clear(); // Layout changed, which resets all descriptor set bindings
 	state.layout = layout;
 
-	if (state.sets.size() < (first + count))
-		state.sets.resize(first + count);
+	if (state.tables.size() < (first + count))
+		state.tables.resize(first + count);
 
 	for (uint32_t i = 0; i < count; ++i)
-		state.sets[i + first] = sets[i];
+		state.tables[i + first] = tables[i];
 }
 
 static void on_reset_command_list(command_list *cmd_list)
@@ -135,7 +135,7 @@ void register_state_tracking()
 	reshade::register_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);
 	reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewports);
 	reshade::register_event<reshade::addon_event::bind_scissor_rects>(on_bind_scissor_rects);
-	reshade::register_event<reshade::addon_event::bind_descriptor_sets>(on_bind_descriptor_sets);
+	reshade::register_event<reshade::addon_event::bind_descriptor_tables>(on_bind_descriptor_tables);
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset_command_list);
 }
@@ -149,7 +149,7 @@ void unregister_state_tracking()
 	reshade::unregister_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);
 	reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewports);
 	reshade::unregister_event<reshade::addon_event::bind_scissor_rects>(on_bind_scissor_rects);
-	reshade::unregister_event<reshade::addon_event::bind_descriptor_sets>(on_bind_descriptor_sets);
+	reshade::unregister_event<reshade::addon_event::bind_descriptor_tables>(on_bind_descriptor_tables);
 
 	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset_command_list);
 }

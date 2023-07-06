@@ -26,10 +26,10 @@ struct __declspec(uuid("c9abddf0-f9c2-4a7b-af49-89d8d470e207")) state_block
 	void clear();
 
 public /* internal */:
-	struct descriptor_set_data
+	struct descriptor_table_data
 	{
 		reshade::api::pipeline_layout layout;
-		std::vector<reshade::api::descriptor_set> sets;
+		std::vector<reshade::api::descriptor_table> tables;
 	};
 
 	std::vector<reshade::api::resource_view> render_targets;
@@ -39,7 +39,7 @@ public /* internal */:
 	uint32_t blend_constant = 0;
 	std::vector<reshade::api::viewport> viewports;
 	std::vector<reshade::api::rect> scissor_rects;
-	std::unordered_map<reshade::api::shader_stage, descriptor_set_data> descriptor_sets;
+	std::unordered_map<reshade::api::shader_stage, descriptor_table_data> descriptor_tables;
 };
 
 void register_state_tracking();

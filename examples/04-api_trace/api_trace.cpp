@@ -169,12 +169,12 @@ namespace
 			return "depth_func";
 		case dynamic_state::stencil_enable:
 			return "stencil_enable";
-		case dynamic_state::stencil_read_mask:
-			return "stencil_read_mask";
-		case dynamic_state::stencil_write_mask:
-			return "stencil_write_mask";
-		case dynamic_state::stencil_reference_value:
-			return "stencil_reference_value";
+		case dynamic_state::front_stencil_read_mask:
+			return "front_stencil_read_mask";
+		case dynamic_state::front_stencil_write_mask:
+			return "front_stencil_write_mask";
+		case dynamic_state::front_stencil_reference_value:
+			return "front_stencil_reference_value";
 		case dynamic_state::front_stencil_func:
 			return "front_stencil_func";
 		case dynamic_state::front_stencil_pass_op:
@@ -183,6 +183,12 @@ namespace
 			return "front_stencil_fail_op";
 		case dynamic_state::front_stencil_depth_fail_op:
 			return "front_stencil_depth_fail_op";
+		case dynamic_state::back_stencil_read_mask:
+			return "back_stencil_read_mask";
+		case dynamic_state::back_stencil_write_mask:
+			return "back_stencil_write_mask";
+		case dynamic_state::back_stencil_reference_value:
+			return "back_stencil_reference_value";
 		case dynamic_state::back_stencil_func:
 			return "back_stencil_func";
 		case dynamic_state::back_stencil_pass_op:
@@ -475,7 +481,7 @@ static void on_push_constants(command_list *, shader_stage stages, pipeline_layo
 
 	reshade::log_message(reshade::log_level::info, s.str().c_str());
 }
-static void on_push_descriptors(command_list *, shader_stage stages, pipeline_layout layout, uint32_t param_index, const descriptor_set_update &update)
+static void on_push_descriptors(command_list *, shader_stage stages, pipeline_layout layout, uint32_t param_index, const descriptor_table_update &update)
 {
 	if (!s_do_capture)
 		return;
@@ -513,14 +519,14 @@ static void on_push_descriptors(command_list *, shader_stage stages, pipeline_la
 
 	reshade::log_message(reshade::log_level::info, s.str().c_str());
 }
-static void on_bind_descriptor_sets(command_list *, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets)
+static void on_bind_descriptor_tables(command_list *, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables)
 {
 	if (!s_do_capture)
 		return;
 
 	std::stringstream s;
 	for (uint32_t i = 0; i < count; ++i)
-		s << "bind_descriptor_set(" << to_string(stages) << ", " << (void *)layout.handle << ", " << (first + i) << ", " << (void *)sets[i].handle << ")" << std::endl;
+		s << "bind_descriptor_table(" << to_string(stages) << ", " << (void *)layout.handle << ", " << (first + i) << ", " << (void *)tables[i].handle << ")" << std::endl;
 
 	reshade::log_message(reshade::log_level::info, s.str().c_str());
 }
@@ -842,31 +848,31 @@ static bool on_generate_mipmaps(command_list *, resource_view srv)
 	return false;
 }
 
-static bool on_begin_query(command_list *cmd_list, query_pool pool, query_type type, uint32_t index)
+static bool on_begin_query(command_list *cmd_list, query_heap heap, query_type type, uint32_t index)
 {
 	if (!s_do_capture)
 		return false;
 
 	std::stringstream s;
-	s << "begin_query(" << (void *)pool.handle << ", " << to_string(type) << ", " << index << ")";
+	s << "begin_query(" << (void *)heap.handle << ", " << to_string(type) << ", " << index << ")";
 
 	reshade::log_message(reshade::log_level::info, s.str().c_str());
 
 	return false;
 }
-static bool on_end_query(command_list *cmd_list, query_pool pool, query_type type, uint32_t index)
+static bool on_end_query(command_list *cmd_list, query_heap heap, query_type type, uint32_t index)
 {
 	if (!s_do_capture)
 		return false;
 
 	std::stringstream s;
-	s << "end_query(" << (void *)pool.handle << ", " << to_string(type) << ", " << index << ")";
+	s << "end_query(" << (void *)heap.handle << ", " << to_string(type) << ", " << index << ")";
 
 	reshade::log_message(reshade::log_level::info, s.str().c_str());
 
 	return false;
 }
-static bool on_copy_query_pool_results(command_list *cmd_list, query_pool pool, query_type type, uint32_t first, uint32_t count, resource dest, uint64_t dest_offset, uint32_t stride)
+static bool on_copy_query_heap_results(command_list *cmd_list, query_heap heap, query_type type, uint32_t first, uint32_t count, resource dest, uint64_t dest_offset, uint32_t stride)
 {
 	if (!s_do_capture)
 		return false;
@@ -879,7 +885,7 @@ static bool on_copy_query_pool_results(command_list *cmd_list, query_pool pool, 
 #endif
 
 	std::stringstream s;
-	s << "copy_query_pool_results(" << (void *)pool.handle << ", " << to_string(type) << ", " << first << ", " << count << (void *)dest.handle << ", " << dest_offset << ", " << stride << ")";
+	s << "copy_query_heap_results(" << (void *)heap.handle << ", " << to_string(type) << ", " << first << ", " << count << (void *)dest.handle << ", " << dest_offset << ", " << stride << ")";
 
 	reshade::log_message(reshade::log_level::info, s.str().c_str());
 
@@ -937,7 +943,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::bind_scissor_rects>(on_bind_scissor_rects);
 		reshade::register_event<reshade::addon_event::push_constants>(on_push_constants);
 		reshade::register_event<reshade::addon_event::push_descriptors>(on_push_descriptors);
-		reshade::register_event<reshade::addon_event::bind_descriptor_sets>(on_bind_descriptor_sets);
+		reshade::register_event<reshade::addon_event::bind_descriptor_tables>(on_bind_descriptor_tables);
 		reshade::register_event<reshade::addon_event::bind_index_buffer>(on_bind_index_buffer);
 		reshade::register_event<reshade::addon_event::bind_vertex_buffers>(on_bind_vertex_buffers);
 		reshade::register_event<reshade::addon_event::draw>(on_draw);
@@ -957,7 +963,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::generate_mipmaps>(on_generate_mipmaps);
 		reshade::register_event<reshade::addon_event::begin_query>(on_begin_query);
 		reshade::register_event<reshade::addon_event::end_query>(on_end_query);
-		reshade::register_event<reshade::addon_event::copy_query_pool_results>(on_copy_query_pool_results);
+		reshade::register_event<reshade::addon_event::copy_query_heap_results>(on_copy_query_heap_results);
 
 		reshade::register_event<reshade::addon_event::reshade_present>(on_present);
 		break;
