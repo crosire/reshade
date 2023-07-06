@@ -604,6 +604,26 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	}
 
 	assert(_interface_version >= 3);
+
+	const char *color_space_string = nullptr;
+	switch (ColorSpace)
+	{
+	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
+		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709";
+		break;
+	case DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709:
+		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709";
+		break;
+	case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
+		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020";
+		break;
+	}
+
+	if (color_space_string != nullptr)
+		LOG(INFO) << "IDXGISwapChain3::SetColorSpace1: ColorSpace set to: " << color_space_string;
+	else
+		LOG(INFO) << "IDXGISwapChain3::SetColorSpace1: ColorSpace set to: " << ColorSpace;
+
 	return static_cast<IDXGISwapChain3 *>(_orig)->SetColorSpace1(ColorSpace);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue)
