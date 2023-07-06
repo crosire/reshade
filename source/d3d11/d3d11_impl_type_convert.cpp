@@ -214,16 +214,13 @@ static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::
 		flags |= api::resource_flags::sparse_binding;
 }
 
-auto reshade::d3d11::convert_access_flags(api::map_access access, bool is_vertex_or_index_buffer) -> D3D11_MAP
+auto reshade::d3d11::convert_access_flags(api::map_access access) -> D3D11_MAP
 {
 	switch (access)
 	{
 	case api::map_access::read_only:
 		return D3D11_MAP_READ;
 	case api::map_access::write_only:
-		if (is_vertex_or_index_buffer)
-			// Use no overwrite flag to simulate D3D12 behavior of there only being one allocation that backs a buffer (instead of the runtime managing multiple ones behind the scenes)
-			return D3D11_MAP_WRITE_NO_OVERWRITE;
 		return D3D11_MAP_WRITE;
 	case api::map_access::read_write:
 		return D3D11_MAP_READ_WRITE;

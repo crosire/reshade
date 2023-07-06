@@ -407,9 +407,13 @@ bool reshade::d3d10::device_impl::map_buffer_region(api::resource resource, uint
 
 	D3D10_BUFFER_DESC internal_desc = {};
 	reinterpret_cast<ID3D10Buffer *>(resource.handle)->GetDesc(&internal_desc);
-	const bool is_vertex_or_index_buffer = (internal_desc.BindFlags & (D3D10_BIND_VERTEX_BUFFER | D3D10_BIND_INDEX_BUFFER)) != 0 && (internal_desc.BindFlags & D3D10_BIND_CONSTANT_BUFFER) == 0;
 
-	if (SUCCEEDED(ID3D10Buffer_Map(reinterpret_cast<ID3D10Buffer *>(resource.handle), convert_access_flags(access, is_vertex_or_index_buffer), 0, out_data)))
+	D3D10_MAP map_type = convert_access_flags(access);
+	if ((internal_desc.BindFlags & (D3D10_BIND_VERTEX_BUFFER | D3D10_BIND_INDEX_BUFFER)) != 0 && (internal_desc.BindFlags & D3D10_BIND_CONSTANT_BUFFER) == 0 && map_type == D3D10_MAP_WRITE)
+		// Use no overwrite flag to simulate D3D12 behavior of there only being one allocation that backs a buffer (instead of the runtime managing multiple ones behind the scenes)
+		map_type = D3D10_MAP_WRITE_NO_OVERWRITE;
+
+	if (SUCCEEDED(ID3D10Buffer_Map(reinterpret_cast<ID3D10Buffer *>(resource.handle), map_type, 0, out_data)))
 	{
 		*out_data = static_cast<uint8_t *>(*out_data) + offset;
 		return true;
@@ -447,13 +451,13 @@ bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uin
 	switch (dimension)
 	{
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		return SUCCEEDED(ID3D10Texture1D_Map(static_cast<ID3D10Texture1D *>(object), subresource, convert_access_flags(access, false), 0, &out_data->data));
+		return SUCCEEDED(ID3D10Texture1D_Map(static_cast<ID3D10Texture1D *>(object), subresource, convert_access_flags(access), 0, &out_data->data));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 		static_assert(sizeof(api::subresource_data) >= sizeof(D3D10_MAPPED_TEXTURE2D));
-		return SUCCEEDED(ID3D10Texture2D_Map(static_cast<ID3D10Texture2D *>(object), subresource, convert_access_flags(access, false), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data)));
+		return SUCCEEDED(ID3D10Texture2D_Map(static_cast<ID3D10Texture2D *>(object), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data)));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
 		static_assert(sizeof(api::subresource_data) == sizeof(D3D10_MAPPED_TEXTURE3D));
-		return SUCCEEDED(ID3D10Texture3D_Map(static_cast<ID3D10Texture3D *>(object), subresource, convert_access_flags(access, false), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data)));
+		return SUCCEEDED(ID3D10Texture3D_Map(static_cast<ID3D10Texture3D *>(object), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data)));
 	}
 
 	return false;

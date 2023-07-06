@@ -553,13 +553,17 @@ bool reshade::d3d11::device_impl::map_buffer_region(api::resource resource, uint
 
 	D3D11_BUFFER_DESC internal_desc = {};
 	reinterpret_cast<ID3D11Buffer *>(resource.handle)->GetDesc(&internal_desc);
-	const bool is_vertex_or_index_buffer = (internal_desc.BindFlags & (D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_INDEX_BUFFER)) != 0 && (internal_desc.BindFlags & D3D11_BIND_CONSTANT_BUFFER) == 0;
+
+	D3D11_MAP map_type = convert_access_flags(access);
+	if ((internal_desc.BindFlags & (D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_INDEX_BUFFER)) != 0 && (internal_desc.BindFlags & D3D11_BIND_CONSTANT_BUFFER) == 0 && map_type == D3D11_MAP_WRITE)
+		// Use no overwrite flag to simulate D3D12 behavior of there only being one allocation that backs a buffer (instead of the runtime managing multiple ones behind the scenes)
+		map_type = D3D11_MAP_WRITE_NO_OVERWRITE;
 
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
 	if (D3D11_MAPPED_SUBRESOURCE mapped;
-		SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access, is_vertex_or_index_buffer), 0, &mapped)))
+		SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, map_type, 0, &mapped)))
 	{
 		*out_data = static_cast<uint8_t *>(mapped.pData) + offset;
 		return true;
@@ -597,7 +601,7 @@ bool reshade::d3d11::device_impl::map_texture_region(api::resource resource, uin
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
-	return SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, convert_access_flags(access, false), 0, reinterpret_cast<D3D11_MAPPED_SUBRESOURCE *>(out_data)));
+	return SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D11_MAPPED_SUBRESOURCE *>(out_data)));
 }
 void reshade::d3d11::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
 {

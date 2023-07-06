@@ -232,7 +232,7 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 		return VK_SUCCESS;
 	}
 
-	// Workaround bug in validation layers that cause them to not update "pToolCount" after writing their properties
+	// Workaround bug in validation layers that causes them to not update "pToolCount" after writing their properties
 	if (*pToolCount == available_tool_count && available_tool_count > 1)
 		*pToolCount -= 1;
 
