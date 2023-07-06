@@ -505,16 +505,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 	_orig->SetComputeRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (!reshade::has_addon_event<reshade::addon_event::bind_descriptor_tables>())
-		return;
-
-	const reshade::api::descriptor_table table = _device_impl->convert_to_descriptor_table(BaseDescriptor);
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
 		reshade::api::shader_stage::all_compute,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
-		1, &table);
+		1, reinterpret_cast<const reshade::api::descriptor_table *>(&BaseDescriptor));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
@@ -522,16 +518,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 	_orig->SetGraphicsRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	if (!reshade::has_addon_event<reshade::addon_event::bind_descriptor_tables>())
-		return;
-
-	const reshade::api::descriptor_table table = _device_impl->convert_to_descriptor_table(BaseDescriptor);
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
 		reshade::api::shader_stage::all_graphics,
 		to_handle(_current_root_signature[0]),
 		RootParameterIndex,
-		1, &table);
+		1, reinterpret_cast<const reshade::api::descriptor_table *>(&BaseDescriptor));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)
@@ -834,7 +826,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const UINT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	ViewCPUHandle = _device_impl->convert_to_original_cpu_descriptor_handle(ViewCPUHandle);
+	ViewCPUHandle = _device_impl->convert_to_original_cpu_descriptor_handle(_device_impl->convert_to_descriptor_table(ViewCPUHandle));
 #endif
 
 #if RESHADE_ADDON
@@ -846,7 +838,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const FLOAT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	ViewCPUHandle = _device_impl->convert_to_original_cpu_descriptor_handle(ViewCPUHandle);
+	ViewCPUHandle = _device_impl->convert_to_original_cpu_descriptor_handle(_device_impl->convert_to_descriptor_table(ViewCPUHandle));
 #endif
 
 #if RESHADE_ADDON

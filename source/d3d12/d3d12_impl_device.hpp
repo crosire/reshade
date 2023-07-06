@@ -87,17 +87,18 @@ namespace reshade::d3d12
 
 		static __forceinline api::descriptor_table convert_to_descriptor_table(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
-			return { handle.ptr };
-		}
-		__forceinline  D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
-		{
-			D3D12_DESCRIPTOR_HEAP_TYPE actual_type;
-			return convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(handle), actual_type);
+			assert((handle.ptr & 0xF000000000000000ull) == 0);
+			return { 0xF000000000000000ull | handle.ptr }; // Add bit to be able to distinguish this handle CPU and GPU descriptor handles
 		}
 #endif
-		api::descriptor_table convert_to_descriptor_table(D3D12_GPU_DESCRIPTOR_HANDLE handle) const;
+		static __forceinline api::descriptor_table convert_to_descriptor_table(D3D12_GPU_DESCRIPTOR_HANDLE handle)
+		{
+			assert((handle.ptr & 0xF000000000000000ull) != 0xF000000000000000ull);
+			return { handle.ptr };
+		}
+
+		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_table set, D3D12_DESCRIPTOR_HEAP_TYPE *type = nullptr) const;
 		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_table set) const;
-		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_table set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const;
 
 		__forceinline D3D12_CPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{

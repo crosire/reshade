@@ -1053,47 +1053,77 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 	assert(table.handle != 0 && array_offset == 0);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const size_t heap_index = (table.handle >> heap_index_start) & 0xFFFFFFF;
-	D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(table.handle & 0x3);
-	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
-
-	if (heap != nullptr)
+	// Check if this is a D3D12_CPU_DESCRIPTOR_HANDLE or D3D12_GPU_DESCRIPTOR_HANDLE
+	if ((table.handle & 0xF000000000000000ull) == 0xF000000000000000ull)
 	{
-		*heap = to_handle(_descriptor_heaps[heap_index]->_orig);
+		const size_t heap_index = (table.handle >> heap_index_start) & 0xFFFFFFF;
+		D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(table.handle & 0x3);
+		assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
+
+		if (heap != nullptr)
+			*heap = to_handle(_descriptor_heaps[heap_index]->_orig);
+
+		if (offset != nullptr)
+		{
+			*offset = ((table.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) / _descriptor_handle_size[type]) + binding;
+			assert(*offset < _descriptor_heaps[heap_index]->_orig->GetDesc().NumDescriptors);
+		}
+		return;
 	}
+#endif
 
-	if (offset != nullptr)
+	const D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = { table.handle };
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	for (D3D12DescriptorHeap *const test_heap : _descriptor_heaps)
 	{
-		*offset = ((table.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) / _descriptor_handle_size[type]) + binding;
-		assert(*offset < _descriptor_heaps[heap_index]->_orig->GetDesc().NumDescriptors);
+		if (test_heap == nullptr || handle_gpu.ptr < test_heap->_orig_base_gpu_handle.ptr)
+			continue;
+
+		D3D12_DESCRIPTOR_HEAP_DESC desc = test_heap->_orig->GetDesc();
+		if (handle_gpu.ptr >= offset_descriptor_handle(test_heap->_orig_base_gpu_handle, desc.NumDescriptors, desc.Type).ptr)
+			continue;
+
+		if (heap != nullptr)
+			*heap = to_handle(test_heap->_orig);
+
+		if (offset != nullptr)
+			*offset = static_cast<uint32_t>(handle_gpu.ptr - test_heap->_orig_base_gpu_handle.ptr);
+		return;
 	}
 #else
-	D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = convert_to_original_gpu_descriptor_handle(table);
-
 	if (_gpu_view_heap.contains(handle_gpu))
 	{
 		if (heap != nullptr)
 			*heap = to_handle(_gpu_view_heap.get());
+
 		if (offset != nullptr)
-			*offset = static_cast<uint32_t>((handle_gpu.ptr - _gpu_view_heap.get()->GetGPUDescriptorHandleForHeapStart().ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]) + binding;
+		{
+			const D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu = _gpu_view_heap.get()->GetGPUDescriptorHandleForHeapStart();
+			*offset = static_cast<uint32_t>((handle_gpu.ptr - base_handle_gpu.ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]) + binding;
+		}
+		return;
 	}
 	else if (_gpu_sampler_heap.contains(handle_gpu))
 	{
 		if (heap != nullptr)
 			*heap = to_handle(_gpu_sampler_heap.get());
-		if (offset != nullptr)
-			*offset = static_cast<uint32_t>((handle_gpu.ptr - _gpu_sampler_heap.get()->GetGPUDescriptorHandleForHeapStart().ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]) + binding;
-	}
-	else
-	{
-		assert(false);
 
-		if (heap != nullptr)
-			*heap = { 0 }; // Not implemented
 		if (offset != nullptr)
-			*offset = binding;
+		{
+			const D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu = _gpu_sampler_heap.get()->GetGPUDescriptorHandleForHeapStart();
+			*offset = static_cast<uint32_t>((handle_gpu.ptr - base_handle_gpu.ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]) + binding;
+		}
+		return;
 	}
 #endif
+
+	assert(false);
+
+	if (heap != nullptr)
+		*heap = { 0 }; // Not implemented
+	if (offset != nullptr)
+		*offset = binding;
 }
 
 void reshade::d3d12::device_impl::copy_descriptor_tables(uint32_t count, const api::descriptor_table_copy *copies)
@@ -1106,9 +1136,9 @@ void reshade::d3d12::device_impl::copy_descriptor_tables(uint32_t count, const a
 
 		assert(copy.dest_array_offset == 0 && copy.source_array_offset == 0);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = convert_to_original_cpu_descriptor_handle(copy.dest_table, heap_type);
+		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = convert_to_original_cpu_descriptor_handle(copy.dest_table, &heap_type);
 		dst_range_start = offset_descriptor_handle(dst_range_start, copy.dest_binding, heap_type);
-		D3D12_CPU_DESCRIPTOR_HANDLE src_range_start = convert_to_original_cpu_descriptor_handle(copy.source_table, heap_type);
+		D3D12_CPU_DESCRIPTOR_HANDLE src_range_start = convert_to_original_cpu_descriptor_handle(copy.source_table, &heap_type);
 		src_range_start = offset_descriptor_handle(src_range_start, copy.source_binding, heap_type);
 
 		_orig->CopyDescriptorsSimple(copy.count, dst_range_start, src_range_start, heap_type);
@@ -1124,7 +1154,7 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 
 		assert(update.array_offset == 0);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = convert_to_original_cpu_descriptor_handle(update.table, heap_type);
+		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = convert_to_original_cpu_descriptor_handle(update.table, &heap_type);
 		dst_range_start = offset_descriptor_handle(dst_range_start, update.binding, heap_type);
 
 		assert(convert_descriptor_type_to_heap_type(update.type) == heap_type);
@@ -1421,70 +1451,71 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 }
 #endif
 
-reshade::api::descriptor_table reshade::d3d12::device_impl::convert_to_descriptor_table(D3D12_GPU_DESCRIPTOR_HANDLE handle) const
+D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(api::descriptor_table table, D3D12_DESCRIPTOR_HEAP_TYPE *type) const
 {
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	// Check if this is a D3D12_CPU_DESCRIPTOR_HANDLE or D3D12_GPU_DESCRIPTOR_HANDLE
+	if ((table.handle & 0xF000000000000000ull) == 0xF000000000000000ull)
+	{
+		const size_t heap_index = (table.handle >> heap_index_start) & 0xFFFFFFF;
+		if (type != nullptr)
+			*type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(table.handle & 0x3);
+		assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
+
+		return { _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr + (table.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) };
+	}
+#endif
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = { 0 };
+	const D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = { table.handle };
+
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	for (D3D12DescriptorHeap *const heap : _descriptor_heaps)
 	{
-		if (heap == nullptr || handle.ptr < heap->_orig_base_gpu_handle.ptr)
+		if (heap == nullptr || handle_gpu.ptr < heap->_orig_base_gpu_handle.ptr)
 			continue;
 
 		D3D12_DESCRIPTOR_HEAP_DESC desc = heap->_orig->GetDesc();
-		if (handle.ptr >= offset_descriptor_handle(heap->_orig_base_gpu_handle, desc.NumDescriptors, desc.Type).ptr)
+		if (handle_gpu.ptr >= offset_descriptor_handle(heap->_orig_base_gpu_handle, desc.NumDescriptors, desc.Type).ptr)
 			continue;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE handle_cpu = { 0 };
-		handle_cpu.ptr = heap->_internal_base_cpu_handle.ptr + static_cast<SIZE_T>(handle.ptr - heap->_orig_base_gpu_handle.ptr);
+		handle.ptr = heap->_orig_base_cpu_handle.ptr + static_cast<SIZE_T>(handle_gpu.ptr - heap->_orig_base_gpu_handle.ptr);
 
-		return convert_to_descriptor_table(handle_cpu);
+		if (type != nullptr)
+			*type = desc.Type;
+		break;
 	}
-
-	assert(false);
-	return { 0 };
 #else
-	return { handle.ptr };
-#endif
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu_descriptor_handle(api::descriptor_table set) const
-{
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const size_t heap_index = (set.handle >> heap_index_start) & 0xFFFFFFF;
-	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
-
-	return { _descriptor_heaps[heap_index]->_orig_base_gpu_handle.ptr + (set.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) };
-#else
-	return { set.handle };
-#endif
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(api::descriptor_table set, D3D12_DESCRIPTOR_HEAP_TYPE &type) const
-{
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const size_t heap_index = (set.handle >> heap_index_start) & 0xFFFFFFF;
-	type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(set.handle & 0x3);
-	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
-
-	return { _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr + (set.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) };
-#else
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = { 0 };
-	const D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = convert_to_original_gpu_descriptor_handle(set);
-
 	if (_gpu_view_heap.contains(handle_gpu))
 	{
-		type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		if (type != nullptr)
+			*type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		_gpu_view_heap.convert_handle(handle_gpu, handle);
 	}
 	else if (_gpu_sampler_heap.contains(handle_gpu))
 	{
-		type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+		if (type != nullptr)
+			*type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 		_gpu_sampler_heap.convert_handle(handle_gpu, handle);
 	}
-	else
-	{
-		assert(false);
-	}
-
-	return handle;
 #endif
+
+	assert(handle.ptr != 0);
+	return handle;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu_descriptor_handle(api::descriptor_table table) const
+{
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+	// Check if this is a D3D12_CPU_DESCRIPTOR_HANDLE or D3D12_GPU_DESCRIPTOR_HANDLE
+	if ((table.handle & 0xF000000000000000ull) == 0xF000000000000000ull)
+	{
+		const size_t heap_index = (table.handle >> heap_index_start) & 0xFFFFFFF;
+		assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
+
+		return { _descriptor_heaps[heap_index]->_orig_base_gpu_handle.ptr + (table.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) };
+	}
+#endif
+
+	return { table.handle };
 }

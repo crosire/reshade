@@ -12,6 +12,7 @@ namespace reshade::d3d12
 	static_assert(sizeof(D3D12_BOX) == sizeof(api::subresource_box));
 	static_assert(sizeof(D3D12_RECT) == sizeof(api::rect));
 	static_assert(sizeof(D3D12_VIEWPORT) == sizeof(api::viewport));
+	static_assert(sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) == sizeof(api::descriptor_table));
 
 	struct pipeline_extra_data
 	{

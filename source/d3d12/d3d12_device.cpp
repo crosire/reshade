@@ -732,8 +732,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const auto table = DestDescriptor;
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
+	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
 #endif
 	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
 
@@ -747,7 +747,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 	buffer_range.size = pDesc->SizeInBytes;
 
 	reshade::api::descriptor_table_update update;
-	update.table = convert_to_descriptor_table(table);
+	update.table = table;
 	update.binding = 0;
 	update.array_offset = 0;
 	update.type = reshade::api::descriptor_type::constant_buffer;
@@ -773,8 +773,8 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const auto table = DestDescriptor;
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
+	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
 #endif
 	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
 
@@ -790,7 +790,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 		return;
 
 	reshade::api::descriptor_table_update update;
-	update.table = convert_to_descriptor_table(table);
+	update.table = table;
 	update.binding = 0;
 	update.array_offset = 0;
 	update.type = reshade::api::descriptor_type::shader_resource_view;
@@ -816,8 +816,8 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const auto table = DestDescriptor;
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
+	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
 #endif
 	_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
 
@@ -833,7 +833,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 		return;
 
 	reshade::api::descriptor_table_update update;
-	update.table = convert_to_descriptor_table(table);
+	update.table = table;
 	update.binding = 0;
 	update.array_offset = 0;
 	update.type = reshade::api::descriptor_type::unordered_access_view;
@@ -904,8 +904,8 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const auto table = DestDescriptor;
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
+	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
 #endif
 	_orig->CreateSampler(pDesc, DestDescriptor);
 
@@ -920,7 +920,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 		return;
 
 	reshade::api::descriptor_table_update update;
-	update.table = convert_to_descriptor_table(table);
+	update.table = table;
 	update.binding = 0;
 	update.array_offset = 0;
 	update.type = reshade::api::descriptor_type::sampler;
@@ -991,9 +991,9 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 
 		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, 32> descriptor_range_starts(NumDestDescriptorRanges + NumSrcDescriptorRanges);
 		for (UINT i = 0; i < NumSrcDescriptorRanges; ++i)
-			descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(pSrcDescriptorRangeStarts[i]);
+			descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(pSrcDescriptorRangeStarts[i]));
 		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
-			descriptor_range_starts[NumSrcDescriptorRanges + i] = convert_to_original_cpu_descriptor_handle(pDestDescriptorRangeStarts[i]);
+			descriptor_range_starts[NumSrcDescriptorRanges + i] = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(pDestDescriptorRangeStarts[i]));
 
 		_orig->CopyDescriptors(NumDestDescriptorRanges, descriptor_range_starts.p + NumSrcDescriptorRanges, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, descriptor_range_starts.p, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 		return;
@@ -1025,6 +1025,7 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 		}
 	}
 #endif
+
 	_orig->CopyDescriptors(NumDestDescriptorRanges, pDestDescriptorRangeStarts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart, D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
@@ -1032,18 +1033,15 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
 	{
-		if (reshade::has_addon_event<reshade::addon_event::copy_descriptor_tables>())
-		{
-			reshade::api::descriptor_table_copy copy;
-			copy.dest_table = convert_to_descriptor_table(DestDescriptorRangeStart);
-			copy.source_table = convert_to_descriptor_table(SrcDescriptorRangeStart);
-			copy.count = NumDescriptors;
+		reshade::api::descriptor_table_copy copy;
+		copy.dest_table = convert_to_descriptor_table(DestDescriptorRangeStart);
+		copy.source_table = convert_to_descriptor_table(SrcDescriptorRangeStart);
+		copy.count = NumDescriptors;
 
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_tables>(this, 1, &copy))
-				return;
-		}
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_tables>(this, 1, &copy))
+			return;
 
-		_orig->CopyDescriptorsSimple(NumDescriptors, convert_to_original_cpu_descriptor_handle(DestDescriptorRangeStart), convert_to_original_cpu_descriptor_handle(SrcDescriptorRangeStart), DescriptorHeapsType);
+		_orig->CopyDescriptorsSimple(NumDescriptors, convert_to_original_cpu_descriptor_handle(copy.dest_table), convert_to_original_cpu_descriptor_handle(copy.source_table), DescriptorHeapsType);
 		return;
 	}
 	else
@@ -1055,6 +1053,7 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors
 			register_resource_view(offset_descriptor_handle(DestDescriptorRangeStart, i, DescriptorHeapsType), offset_descriptor_handle(SrcDescriptorRangeStart, i, DescriptorHeapsType));
 	}
 #endif
+
 	_orig->CopyDescriptorsSimple(NumDescriptors, DestDescriptorRangeStart, SrcDescriptorRangeStart, DescriptorHeapsType);
 }
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC *pResourceDescs)
@@ -2137,7 +2136,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource1(ID3D12Heap *pHeap, 
 void    STDMETHODCALLTYPE D3D12Device::CreateSamplerFeedbackUnorderedAccessView(ID3D12Resource *pTargetedResource, ID3D12Resource *pFeedbackResource, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(DestDescriptor));
 #endif
 
 	assert(_interface_version >= 8);
@@ -2426,8 +2425,8 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler2(const D3D12_SAMPLER_DESC2 
 #endif
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const auto table = DestDescriptor;
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
+	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
 #endif
 	static_cast<ID3D12Device11 *>(_orig)->CreateSampler2(pDesc, DestDescriptor);
 
@@ -2442,7 +2441,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler2(const D3D12_SAMPLER_DESC2 
 		return;
 
 	reshade::api::descriptor_table_update update;
-	update.table = convert_to_descriptor_table(table);
+	update.table = table;
 	update.binding = 0;
 	update.array_offset = 0;
 	update.type = reshade::api::descriptor_type::sampler;
