@@ -1209,7 +1209,7 @@ void reshade::d3d11::device_impl::free_descriptor_tables(uint32_t count, const a
 
 void reshade::d3d11::device_impl::get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *heap, uint32_t *offset) const
 {
-	assert(table.handle != 0 && array_offset == 0);
+	assert(table.handle != 0 && array_offset == 0 && heap != nullptr && offset != nullptr);
 
 	*heap = { 0 }; // Not implemented
 	*offset = binding;

@@ -1050,7 +1050,7 @@ void reshade::d3d12::device_impl::free_descriptor_tables(uint32_t count, const a
 
 void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *heap, uint32_t *offset) const
 {
-	assert(table.handle != 0 && array_offset == 0);
+	assert(table.handle != 0 && array_offset == 0 && heap != nullptr);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// Check if this is a D3D12_CPU_DESCRIPTOR_HANDLE or D3D12_GPU_DESCRIPTOR_HANDLE
@@ -1060,8 +1060,7 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 		D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(table.handle & 0x3);
 		assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
-		if (heap != nullptr)
-			*heap = to_handle(_descriptor_heaps[heap_index]->_orig);
+		*heap = to_handle(_descriptor_heaps[heap_index]->_orig);
 
 		if (offset != nullptr)
 		{
@@ -1075,27 +1074,25 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 	const D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = { table.handle };
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	for (D3D12DescriptorHeap *const test_heap : _descriptor_heaps)
+	for (D3D12DescriptorHeap *const heap_impl : _descriptor_heaps)
 	{
-		if (test_heap == nullptr || handle_gpu.ptr < test_heap->_orig_base_gpu_handle.ptr)
+		if (heap_impl == nullptr || handle_gpu.ptr < heap_impl->_orig_base_gpu_handle.ptr)
 			continue;
 
-		D3D12_DESCRIPTOR_HEAP_DESC desc = test_heap->_orig->GetDesc();
-		if (handle_gpu.ptr >= offset_descriptor_handle(test_heap->_orig_base_gpu_handle, desc.NumDescriptors, desc.Type).ptr)
+		D3D12_DESCRIPTOR_HEAP_DESC desc = heap_impl->_orig->GetDesc();
+		if (handle_gpu.ptr >= offset_descriptor_handle(heap_impl->_orig_base_gpu_handle, desc.NumDescriptors, desc.Type).ptr)
 			continue;
 
-		if (heap != nullptr)
-			*heap = to_handle(test_heap->_orig);
+		*heap = to_handle(heap_impl->_orig);
 
 		if (offset != nullptr)
-			*offset = static_cast<uint32_t>(handle_gpu.ptr - test_heap->_orig_base_gpu_handle.ptr);
+			*offset = static_cast<uint32_t>(handle_gpu.ptr - heap_impl->_orig_base_gpu_handle.ptr);
 		return;
 	}
 #else
 	if (_gpu_view_heap.contains(handle_gpu))
 	{
-		if (heap != nullptr)
-			*heap = to_handle(_gpu_view_heap.get());
+		*heap = to_handle(_gpu_view_heap.get());
 
 		if (offset != nullptr)
 		{
@@ -1106,8 +1103,7 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 	}
 	else if (_gpu_sampler_heap.contains(handle_gpu))
 	{
-		if (heap != nullptr)
-			*heap = to_handle(_gpu_sampler_heap.get());
+		*heap = to_handle(_gpu_sampler_heap.get());
 
 		if (offset != nullptr)
 		{
@@ -1120,8 +1116,7 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 
 	assert(false);
 
-	if (heap != nullptr)
-		*heap = { 0 }; // Not implemented
+	*heap = { 0 }; // Not implemented
 	if (offset != nullptr)
 		*offset = binding;
 }
@@ -1470,16 +1465,16 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 	const D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu = { table.handle };
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	for (D3D12DescriptorHeap *const heap : _descriptor_heaps)
+	for (D3D12DescriptorHeap *const heap_impl : _descriptor_heaps)
 	{
-		if (heap == nullptr || handle_gpu.ptr < heap->_orig_base_gpu_handle.ptr)
+		if (heap_impl == nullptr || handle_gpu.ptr < heap_impl->_orig_base_gpu_handle.ptr)
 			continue;
 
-		D3D12_DESCRIPTOR_HEAP_DESC desc = heap->_orig->GetDesc();
-		if (handle_gpu.ptr >= offset_descriptor_handle(heap->_orig_base_gpu_handle, desc.NumDescriptors, desc.Type).ptr)
+		D3D12_DESCRIPTOR_HEAP_DESC desc = heap_impl->_orig->GetDesc();
+		if (handle_gpu.ptr >= offset_descriptor_handle(heap_impl->_orig_base_gpu_handle, desc.NumDescriptors, desc.Type).ptr)
 			continue;
 
-		handle.ptr = heap->_orig_base_cpu_handle.ptr + static_cast<SIZE_T>(handle_gpu.ptr - heap->_orig_base_gpu_handle.ptr);
+		handle.ptr = heap_impl->_orig_base_cpu_handle.ptr + static_cast<SIZE_T>(handle_gpu.ptr - heap_impl->_orig_base_gpu_handle.ptr);
 
 		if (type != nullptr)
 			*type = desc.Type;

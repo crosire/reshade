@@ -1507,6 +1507,8 @@ void reshade::vulkan::device_impl::free_descriptor_tables(uint32_t count, const 
 
 void reshade::vulkan::device_impl::get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *heap, uint32_t *offset) const
 {
+	assert(heap != nullptr && offset != nullptr);
+
 	const auto set_data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)table.handle);
 	const auto set_layout_data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
 
