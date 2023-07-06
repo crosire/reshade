@@ -472,6 +472,7 @@ auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::c
 	switch (color_space)
 	{
 	default:
+		assert(false);
 		return api::color_space::unknown;
 	case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
 		return api::color_space::srgb_nonlinear;

@@ -25,6 +25,9 @@ auto reshade::d3d11::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 {
 	switch (type)
 	{
+	default:
+		assert(false);
+		return api::color_space::unknown;
 	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
 		return api::color_space::srgb_nonlinear;
 	case DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709:
@@ -33,11 +36,7 @@ auto reshade::d3d11::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 		return api::color_space::hdr10_st2084;
 	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020:
 		return api::color_space::hdr10_hlg;
-	default:
-		break;
 	}
-
-	return api::color_space::unknown;
 }
 
 static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D11_USAGE &usage, UINT &cpu_access_flags)
