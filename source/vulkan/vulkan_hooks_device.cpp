@@ -1859,7 +1859,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		}
 		else
 		{
-			params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_ranges;
+			params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_ranges;
 			params[i].descriptor_table.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
 			params[i].descriptor_table.ranges = set_layout_impl->ranges.data();
 		}

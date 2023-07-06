@@ -1345,7 +1345,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
 		const uint32_t range_count = push_descriptors ? 1 : params[i].descriptor_table.count;
 		const api::descriptor_range *const input_ranges = push_descriptors ? &params[i].push_descriptors : params[i].descriptor_table.ranges;
-		push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_ranges);
+		push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges);
 
 		object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
 		data.ranges.assign(input_ranges, input_ranges + range_count);

@@ -1088,7 +1088,7 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t param_count, c
 		switch (params[i].type)
 		{
 		case api::pipeline_layout_param_type::descriptor_table:
-		case api::pipeline_layout_param_type::push_descriptors_ranges:
+		case api::pipeline_layout_param_type::push_descriptors_with_ranges:
 			if (params[i].descriptor_table.count == 0)
 				return false;
 

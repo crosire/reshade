@@ -73,7 +73,7 @@ namespace reshade { namespace api
 		push_constants = 1,
 		descriptor_table = 0,
 		push_descriptors = 2,
-		push_descriptors_ranges = 3
+		push_descriptors_with_ranges = 3
 	};
 
 	/// <summary>
@@ -169,7 +169,7 @@ namespace reshade { namespace api
 			descriptor_range push_descriptors;
 
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table"/> or <see cref="pipeline_layout_param_type::push_descriptors_ranges"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_ranges"/>.
 			/// </summary>
 			struct
 			{
@@ -626,6 +626,7 @@ namespace reshade { namespace api
 	enum class pipeline_subobject_type : uint32_t
 	{
 		unknown,
+
 		/// <summary>
 		/// Vertex shader to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
@@ -853,13 +854,13 @@ namespace reshade { namespace api
 		/// </summary>
 		descriptor_table table = { 0 };
 		/// <summary>
-		/// OpenGL/Vulkan binding index in the descriptor table.
+		/// OpenGL/Vulkan binding index in the descriptor set.
 		/// In D3D this is equivalent to the offset (in descriptors) from the start of the table.
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>
 		/// Array index in the specified <see cref="binding"/> to begin updating at.
-		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 0 (since each GLSL array element gets a separate binding index).
+		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 0 (since each array element gets a separate binding).
 		/// </summary>
 		uint32_t array_offset = 0;
 		/// <summary>
@@ -954,20 +955,20 @@ namespace reshade { namespace api
 		depth_write_mask = 14,
 		depth_func = 23,
 		stencil_enable = 52,
+		front_stencil_read_mask = 58,
+		front_stencil_write_mask = 59,
+		front_stencil_reference_value = 57,
 		front_stencil_func = 56,
 		front_stencil_pass_op = 55,
 		front_stencil_fail_op = 53,
 		front_stencil_depth_fail_op = 54,
-		front_stencil_read_mask = 58,
-		front_stencil_write_mask = 59,
-		front_stencil_reference_value = 57,
+		back_stencil_read_mask = 1006,
+		back_stencil_write_mask = 1007,
+		back_stencil_reference_value = 1008,
 		back_stencil_func = 189,
 		back_stencil_pass_op = 188,
 		back_stencil_fail_op = 186,
 		back_stencil_depth_fail_op = 187,
-		back_stencil_read_mask = 1006,
-		back_stencil_write_mask = 1007,
-		back_stencil_reference_value = 1008,
 	};
 
 	/// <summary>
