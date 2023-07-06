@@ -10,6 +10,7 @@
 
 namespace reshade::vulkan
 {
+	static_assert(sizeof(VkBuffer) == sizeof(reshade::api::resource));
 	static_assert(sizeof(VkViewport) == sizeof(api::viewport));
 	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_table));
 
