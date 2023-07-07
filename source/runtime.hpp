@@ -390,7 +390,7 @@ namespace reshade
 		std::filesystem::path _startup_preset_path;
 		std::filesystem::path _current_preset_path;
 
-		bool _is_in_between_presets_transition = false;
+		bool _is_in_preset_transition = false;
 		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
 
 		struct preset_shortcut
@@ -447,6 +447,7 @@ namespace reshade
 		unsigned int _show_frametime = false;
 		bool _show_screenshot_message = true;
 #  if RESHADE_FX
+		bool _show_preset_transition_message = true;
 		unsigned int _reload_count = 0;
 #  endif
 

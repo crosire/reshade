@@ -726,7 +726,7 @@ void reshade::runtime::on_present()
 			}
 
 			// Continuously update preset values while a transition is in progress
-			if (_is_in_between_presets_transition)
+			if (_is_in_preset_transition)
 				load_current_preset();
 		}
 #endif
@@ -1007,7 +1007,7 @@ void reshade::runtime::load_current_preset()
 		preset.get(effect.source_file.filename().u8string(), "PreprocessorDefinitions", preset_preprocessor_definitions[effect.source_file.filename().u8string()]);
 
 	// Recompile effects if preprocessor definitions have changed or running in performance mode (in which case all preset values are compile-time constants)
-	if (_reload_remaining_effects != 0) // ... unless this is the 'load_current_preset' call in 'update_effects'
+	if (_reload_remaining_effects != 0 && (!_is_in_preset_transition || _last_preset_switching_time == _last_present_time)) // ... unless this is the 'load_current_preset' call in 'update_effects' or the call every frame during preset transition
 	{
 		if (_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions)
 		{
@@ -1086,8 +1086,8 @@ void reshade::runtime::load_current_preset()
 	auto transition_ms_left = _preset_transition_duration - transition_time / 1000;
 	auto transition_ms_left_from_last_frame = transition_ms_left + std::chrono::duration_cast<std::chrono::microseconds>(_last_frame_duration).count() / 1000;
 
-	if (_is_in_between_presets_transition && transition_ms_left <= 0)
-		_is_in_between_presets_transition = false;
+	if (_is_in_preset_transition && transition_ms_left <= 0)
+		_is_in_preset_transition = false;
 
 	for (effect &effect : _effects)
 	{
@@ -1105,7 +1105,7 @@ void reshade::runtime::load_current_preset()
 			}
 
 			// Reset values to defaults before loading from a new preset
-			if (!_is_in_between_presets_transition)
+			if (!_is_in_preset_transition)
 				reset_uniform_value(variable);
 
 			reshadefx::constant values, values_old;
@@ -1127,7 +1127,7 @@ void reshade::runtime::load_current_preset()
 				get_uniform_value(variable, values.as_float, variable.type.components());
 				values_old = values;
 				preset.get(effect_name, variable.name, values.as_float);
-				if (_is_in_between_presets_transition)
+				if (_is_in_preset_transition)
 				{
 					// Perform smooth transition on floating point values
 					for (unsigned int i = 0; i < variable.type.components(); i++)
@@ -1284,7 +1284,7 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 		{
 			_current_preset_path = filter_path;
 			_last_preset_switching_time = _last_present_time;
-			_is_in_between_presets_transition = true;
+			_is_in_preset_transition = true;
 
 			return true;
 		}
@@ -1336,7 +1336,7 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	}
 
 	_last_preset_switching_time = _last_present_time;
-	_is_in_between_presets_transition = true;
+	_is_in_preset_transition = true;
 
 	return true;
 }

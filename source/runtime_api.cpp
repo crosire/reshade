@@ -1246,7 +1246,7 @@ void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path
 	if (resolve_preset_path(preset_path, ec))
 	{
 		// Stop any preset transition that may still be happening
-		_is_in_between_presets_transition = false;
+		_is_in_preset_transition = false;
 
 		// First save current preset, before switching to a new one
 		save_current_preset();

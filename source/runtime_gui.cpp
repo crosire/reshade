@@ -255,6 +255,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 	config.get("OVERLAY", "AutoSavePreset", _auto_save_preset);
+	config.get("OVERLAY", "ShowPresetTransitionMessage", _show_preset_transition_message);
 #endif
 
 	ImGuiStyle &imgui_style = _imgui_context->Style;
@@ -348,6 +349,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 	config.set("OVERLAY", "AutoSavePreset", _auto_save_preset);
+	config.set("OVERLAY", "ShowPresetTransitionMessage", _show_preset_transition_message);
 #endif
 
 	const ImGuiStyle &imgui_style = _imgui_context->Style;
@@ -732,7 +734,13 @@ void reshade::runtime::draw_gui()
 
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
 	const bool show_screenshot_message = (_show_screenshot_message || !_last_screenshot_save_successfull) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_last_screenshot_save_successfull ? 3 : 5);
-	if (show_screenshot_message || !_preset_save_successfull)
+#if RESHADE_FX
+	const bool show_preset_transition_message = _show_preset_transition_message && _is_in_preset_transition;
+#else
+	const bool show_preset_transition_message = false;
+#endif
+
+	if (show_screenshot_message || show_preset_transition_message || !_preset_save_successfull)
 		show_splash = true;
 
 	_ignore_shortcuts = false;
@@ -864,6 +872,10 @@ void reshade::runtime::draw_gui()
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path could not be created: %s", (g_reshade_base_path / _screenshot_path).u8string().c_str());
 			else
 				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.u8string().c_str());
+		}
+		else if (show_preset_transition_message)
+		{
+			ImGui::Text("Switching preset to %s ...", _current_preset_path.stem().u8string().c_str());
 		}
 		else
 		{
@@ -1369,7 +1381,7 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		// Cannot save in performance mode, since there are no variables to retrieve values from then
-		ImGui::BeginDisabled(_performance_mode || _is_in_between_presets_transition);
+		ImGui::BeginDisabled(_performance_mode || _is_in_preset_transition);
 
 		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 		{
@@ -1483,11 +1495,13 @@ void reshade::runtime::draw_gui_home()
 
 		if (reload_preset)
 		{
-			_show_splash = true;
-			_preset_is_modified = false;
-
 			save_config();
 			load_current_preset();
+
+			_show_splash = true;
+			_preset_is_modified = false;
+			_last_preset_switching_time = _last_present_time;
+			_is_in_preset_transition = true;
 
 #if RESHADE_ADDON
 			if (!is_loading()) // Will be called by 'update_effects' when 'load_current_preset' forced a reload
@@ -1535,7 +1549,7 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::SameLine();
 
-		ImGui::BeginDisabled(_is_in_between_presets_transition);
+		ImGui::BeginDisabled(_is_in_preset_transition);
 
 		if (ImGui::Button("Active to top", ImVec2(auto_save_button_spacing + 11.0f * _font_size, 0)))
 		{
@@ -1607,7 +1621,7 @@ void reshade::runtime::draw_gui_home()
 				}
 			}
 
-			ImGui::BeginDisabled(_is_in_between_presets_transition);
+			ImGui::BeginDisabled(_is_in_preset_transition);
 			draw_technique_editor();
 			ImGui::EndDisabled();
 		}
@@ -1650,7 +1664,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::BeginChild("##variables", ImVec2(0, -bottom_height), true))
 		{
-			ImGui::BeginDisabled(_is_in_between_presets_transition);
+			ImGui::BeginDisabled(_is_in_preset_transition);
 			draw_variable_editor();
 			ImGui::EndDisabled();
 		}
@@ -1918,6 +1932,8 @@ void reshade::runtime::draw_gui_settings()
 		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
 
 #if RESHADE_FX
+		modified |= ImGui::Checkbox("Show preset transition message", &_show_preset_transition_message);
+
 		if (_effect_load_skipping)
 			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_show_force_load_effects_button);
 #endif
