@@ -366,10 +366,18 @@ namespace ReShade.Setup.Pages
 					}
 
 #if !RESHADE_SETUP_USE_MUI_CACHE
-					// Continue searching in sub-directories
-					foreach (var path in Directory.GetDirectories(searchPath))
+					try
 					{
-						searchPaths.Add(path);
+						// Continue searching in sub-directories
+						foreach (var path in Directory.GetDirectories(searchPath))
+						{
+							searchPaths.Add(path);
+						}
+					}
+					catch
+					{
+						// Skip permission errors
+						continue;
 					}
 				}
 #endif
