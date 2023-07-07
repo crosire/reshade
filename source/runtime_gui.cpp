@@ -709,27 +709,9 @@ void reshade::runtime::draw_gui()
 	}
 
 #if RESHADE_FX
-	bool show_splash = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0));
+	const bool show_splash_window = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0));
 #else
-	bool show_splash = _show_splash && (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
-#endif
-
-	const bool show_clock = _show_clock == 1 || (_show_overlay && _show_clock > 1);
-	const bool show_fps = _show_fps == 1 || (_show_overlay && _show_fps > 1);
-	const bool show_frametime = _show_frametime == 1 || (_show_overlay && _show_frametime > 1);
-	bool show_stats_window = show_clock || show_fps || show_frametime;
-#if RESHADE_ADDON
-	for (const addon_info &info : addon_loaded_info)
-	{
-		for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
-		{
-			if (widget.title == "OSD")
-			{
-				show_stats_window = true;
-				break;
-			}
-		}
-	}
+	const bool show_splash_window = _show_splash && (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
 #endif
 
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
@@ -739,9 +721,25 @@ void reshade::runtime::draw_gui()
 #else
 	const bool show_preset_transition_message = false;
 #endif
+	const bool show_message_window = show_screenshot_message || show_preset_transition_message || !_preset_save_successfull;
 
-	if (show_screenshot_message || show_preset_transition_message || !_preset_save_successfull)
-		show_splash = true;
+	const bool show_clock = _show_clock == 1 || (_show_overlay && _show_clock > 1);
+	const bool show_fps = _show_fps == 1 || (_show_overlay && _show_fps > 1);
+	const bool show_frametime = _show_frametime == 1 || (_show_overlay && _show_frametime > 1);
+	bool show_statistics_window = show_clock || show_fps || show_frametime;
+#if RESHADE_ADDON
+	for (const addon_info &info : addon_loaded_info)
+	{
+		for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
+		{
+			if (widget.title == "OSD")
+			{
+				show_statistics_window = true;
+				break;
+			}
+		}
+	}
+#endif
 
 	_ignore_shortcuts = false;
 	_block_input_next_frame = false;
@@ -750,7 +748,7 @@ void reshade::runtime::draw_gui()
 	_effects_expanded_state &= 2;
 #endif
 
-	if (!show_splash && !show_stats_window && !_show_overlay
+	if (!show_splash_window && !show_message_window && !show_statistics_window && !_show_overlay
 #if RESHADE_FX
 		&& _preview_texture == 0
 #endif
@@ -839,14 +837,108 @@ void reshade::runtime::draw_gui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash)
+	if (show_splash_window)
 	{
 		ImGui::SetNextWindowPos(_imgui_context->Style.WindowPadding);
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.7f));
-		ImGui::Begin("Splash Screen", nullptr,
+		ImGui::Begin("Splash Window", nullptr,
+			ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNav |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoInputs |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoDocking |
+			ImGuiWindowFlags_NoFocusOnAppearing);
+
+		ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
+
+		if (_needs_update)
+		{
+			ImGui::TextColored(COLOR_YELLOW,
+				"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
+				_latest_version[0], _latest_version[1], _latest_version[2]);
+		}
+		else
+		{
+			ImGui::TextUnformatted("Visit https://reshade.me for news, updates, effects and discussion.");
+		}
+
+		ImGui::Spacing();
+
+#if RESHADE_FX
+		if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
+		{
+			ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
+			ImGui::SameLine(15);
+			ImGui::Text(
+				"Compiling (%zu effects remaining) ... "
+				"This might take a while. The application could become unresponsive for some time.",
+				_reload_remaining_effects.load());
+		}
+		else
+#endif
+		{
+			ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
+			ImGui::SameLine(15);
+
+			if (_input == nullptr)
+			{
+				ImGui::TextColored(COLOR_YELLOW, "No keyboard or mouse input available.%s", _input_gamepad != nullptr ? " Use gamepad instead: Press 'left + right shoulder + start button' to open the configuration overlay." : "");
+			}
+#if RESHADE_FX
+			else if (_tutorial_index == 0)
+			{
+				ImGui::TextUnformatted("ReShade is now installed successfully! Press '");
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextUnformatted("' to start the tutorial.");
+			}
+#endif
+			else
+			{
+				ImGui::TextUnformatted("Press '");
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::TextUnformatted("' to open the configuration overlay.");
+			}
+		}
+
+		std::string error_message;
+#if RESHADE_ADDON
+		if (!addon_all_loaded)
+			error_message += "loading some add-ons";
+#endif
+#if RESHADE_FX
+		if (!_last_reload_successfull)
+			error_message += (error_message.empty() ? std::string() : " and ") + "compiling some effects";
+#endif
+		if (!error_message.empty())
+		{
+			ImGui::Spacing();
+			ImGui::TextColored(COLOR_RED,
+				"There were errors %s. Check the log for more details.", error_message.c_str());
+		}
+
+		viewport_offset.y += ImGui::GetWindowHeight() + _imgui_context->Style.WindowPadding.x; // Add small space between windows
+
+		ImGui::End();
+		ImGui::PopStyleColor(2);
+		ImGui::PopStyleVar();
+	}
+
+	if (show_message_window)
+	{
+		ImGui::SetNextWindowPos(_imgui_context->Style.WindowPadding + viewport_offset);
+		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.7f));
+		ImGui::Begin("Message Window", nullptr,
 			ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoMove |
@@ -873,83 +965,12 @@ void reshade::runtime::draw_gui()
 			else
 				ImGui::Text("Screenshot successfully saved to %s", _last_screenshot_file.u8string().c_str());
 		}
+#if RESHADE_FX
 		else if (show_preset_transition_message)
 		{
 			ImGui::Text("Switching preset to %s ...", _current_preset_path.stem().u8string().c_str());
 		}
-		else
-		{
-			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
-
-			if (_needs_update)
-			{
-				ImGui::TextColored(COLOR_YELLOW,
-					"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
-					_latest_version[0], _latest_version[1], _latest_version[2]);
-			}
-			else
-			{
-				ImGui::TextUnformatted("Visit https://reshade.me for news, updates, effects and discussion.");
-			}
-
-			ImGui::Spacing();
-
-#if RESHADE_FX
-			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
-			{
-				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
-				ImGui::SameLine(15);
-				ImGui::Text(
-					"Compiling (%zu effects remaining) ... "
-					"This might take a while. The application could become unresponsive for some time.",
-					_reload_remaining_effects.load());
-			}
-			else
 #endif
-			{
-				ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
-				ImGui::SameLine(15);
-
-				if (_input == nullptr)
-				{
-					ImGui::TextColored(COLOR_YELLOW, "No keyboard or mouse input available.%s", _input_gamepad != nullptr ? " Use gamepad instead: Press 'left + right shoulder + start button' to open the configuration overlay." : "");
-				}
-#if RESHADE_FX
-				else if (_tutorial_index == 0)
-				{
-					ImGui::TextUnformatted("ReShade is now installed successfully! Press '");
-					ImGui::SameLine(0.0f, 0.0f);
-					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
-					ImGui::SameLine(0.0f, 0.0f);
-					ImGui::TextUnformatted("' to start the tutorial.");
-				}
-#endif
-				else
-				{
-					ImGui::TextUnformatted("Press '");
-					ImGui::SameLine(0.0f, 0.0f);
-					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
-					ImGui::SameLine(0.0f, 0.0f);
-					ImGui::TextUnformatted("' to open the configuration overlay.");
-				}
-			}
-
-			std::string error_message;
-#if RESHADE_ADDON
-			if (!addon_all_loaded)
-				error_message += "loading some add-ons";
-#endif
-#if RESHADE_FX
-			if (!_last_reload_successfull)
-				error_message += (error_message.empty() ? std::string() : " and ") + "compiling some effects";
-#endif
-			if (!error_message.empty())
-			{
-				ImGui::Spacing();
-				ImGui::TextColored(COLOR_RED,
-					"There were errors %s. Check the log for more details.", error_message.c_str());
-			}
-		}
 
 		viewport_offset.y += ImGui::GetWindowHeight() + _imgui_context->Style.WindowPadding.x; // Add small space between windows
 
@@ -957,7 +978,8 @@ void reshade::runtime::draw_gui()
 		ImGui::PopStyleColor(2);
 		ImGui::PopStyleVar();
 	}
-	else if (show_stats_window)
+
+	if (show_statistics_window && !show_splash_window && !show_message_window)
 	{
 		ImVec2 fps_window_pos(5, 5);
 		ImVec2 fps_window_size(200, 0);
@@ -1153,7 +1175,7 @@ void reshade::runtime::draw_gui()
 		{
 			for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
 			{
-				if (widget.title == "OSD" ? show_splash : !_show_overlay)
+				if (widget.title == "OSD" ? show_splash_window : !_show_overlay)
 					continue;
 
 				if (ImGui::Begin(widget.title.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
