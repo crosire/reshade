@@ -330,6 +330,8 @@ reshade::addon_info *reshade::find_addon(void *address)
 	return nullptr;
 }
 
+#if defined(RESHADE_API_LIBRARY_EXPORT)
+
 bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 {
 	// Can only register an add-on module once
@@ -547,6 +549,8 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 			return item.title == title && item.callback == callback;
 		}), info->overlay_callbacks.end());
 }
+
+#endif
 
 #endif
 

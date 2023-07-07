@@ -1057,13 +1057,13 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 	if ((table.handle & 0xF000000000000000ull) == 0xF000000000000000ull)
 	{
 		const size_t heap_index = (table.handle >> heap_index_start) & 0xFFFFFFF;
-		D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(table.handle & 0x3);
 		assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
 		*heap = to_handle(_descriptor_heaps[heap_index]->_orig);
 
 		if (offset != nullptr)
 		{
+			const D3D12_DESCRIPTOR_HEAP_TYPE type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(table.handle & 0x3);
 			*offset = ((table.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) / _descriptor_handle_size[type]) + binding;
 			assert(*offset < _descriptor_heaps[heap_index]->_orig->GetDesc().NumDescriptors);
 		}
@@ -1096,8 +1096,8 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 
 		if (offset != nullptr)
 		{
-			const D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu = _gpu_view_heap.get()->GetGPUDescriptorHandleForHeapStart();
-			*offset = static_cast<uint32_t>((handle_gpu.ptr - base_handle_gpu.ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]) + binding;
+			const D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			*offset = static_cast<uint32_t>((handle_gpu.ptr - _gpu_view_heap.get()->GetGPUDescriptorHandleForHeapStart().ptr) / _descriptor_handle_size[type]) + binding;
 		}
 		return;
 	}
@@ -1107,8 +1107,8 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 
 		if (offset != nullptr)
 		{
-			const D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu = _gpu_sampler_heap.get()->GetGPUDescriptorHandleForHeapStart();
-			*offset = static_cast<uint32_t>((handle_gpu.ptr - base_handle_gpu.ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]) + binding;
+			const D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+			*offset = static_cast<uint32_t>((handle_gpu.ptr - _gpu_sampler_heap.get()->GetGPUDescriptorHandleForHeapStart().ptr) / _descriptor_handle_size[type]) + binding;
 		}
 		return;
 	}
