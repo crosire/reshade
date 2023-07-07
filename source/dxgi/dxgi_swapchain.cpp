@@ -592,19 +592,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::CheckColorSpaceSupport(DXGI_COLOR_SPACE
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE ColorSpace)
 {
-	// Only supported in Direct3D 11 and 12 (see https://docs.microsoft.com/windows/win32/direct3darticles/high-dynamic-range)
-	switch (_direct3d_version)
-	{
-	case 11:
-		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_back_buffer_color_space(ColorSpace);
-		break;
-	case 12:
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_back_buffer_color_space(ColorSpace);
-		break;
-	}
-
-	assert(_interface_version >= 3);
-
 	const char *color_space_string = nullptr;
 	switch (ColorSpace)
 	{
@@ -617,13 +604,28 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
 		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020";
 		break;
+	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020:
+		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020";
+		break;
 	}
 
 	if (color_space_string != nullptr)
-		LOG(INFO) << "IDXGISwapChain3::SetColorSpace1: ColorSpace set to: " << color_space_string;
+		LOG(INFO) << "Redirecting " << "IDXGISwapChain3::SetColorSpace1" << '(' << "ColorSpace = " << color_space_string << ')' << " ...";
 	else
-		LOG(INFO) << "IDXGISwapChain3::SetColorSpace1: ColorSpace set to: " << ColorSpace;
+		LOG(INFO) << "Redirecting " << "IDXGISwapChain3::SetColorSpace1" << '(' << "ColorSpace = " << ColorSpace << ')' << " ...";
 
+	// Only supported in Direct3D 11 and 12 (see https://docs.microsoft.com/windows/win32/direct3darticles/high-dynamic-range)
+	switch (_direct3d_version)
+	{
+	case 11:
+		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_back_buffer_color_space(ColorSpace);
+		break;
+	case 12:
+		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_back_buffer_color_space(ColorSpace);
+		break;
+	}
+
+	assert(_interface_version >= 3);
 	return static_cast<IDXGISwapChain3 *>(_orig)->SetColorSpace1(ColorSpace);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue)
