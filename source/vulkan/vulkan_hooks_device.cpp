@@ -749,11 +749,37 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	case VK_FORMAT_B8G8R8A8_SRGB:
 		format_string = "VK_FORMAT_B8G8R8A8_SRGB";
 		break;
+	case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
+		format_string = "VK_FORMAT_A2B10G10R10_UNORM_PACK32";
+		break;
 	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
 		format_string = "VK_FORMAT_A2R10G10B10_UNORM_PACK32";
 		break;
+	case VK_FORMAT_R16G16B16A16_UNORM:
+		format_string = "VK_FORMAT_R16G16B16A16_UNORM";
+		break;
 	case VK_FORMAT_R16G16B16A16_SFLOAT:
 		format_string = "VK_FORMAT_R16G16B16A16_SFLOAT";
+		break;
+	}
+
+	const char *color_space_string = nullptr;
+	switch (create_info.imageColorSpace)
+	{
+	case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
+		color_space_string = "VK_COLOR_SPACE_SRGB_NONLINEAR_KHR";
+		break;
+	case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
+		color_space_string = "VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT";
+		break;
+	case VK_COLOR_SPACE_BT2020_LINEAR_EXT:
+		color_space_string = "VK_COLOR_SPACE_BT2020_LINEAR_EXT";
+		break;
+	case VK_COLOR_SPACE_HDR10_ST2084_EXT:
+		color_space_string = "VK_COLOR_SPACE_HDR10_ST2084_EXT";
+		break;
+	case VK_COLOR_SPACE_HDR10_HLG_EXT:
+		color_space_string = "VK_COLOR_SPACE_HDR10_HLG_EXT";
 		break;
 	}
 
@@ -762,7 +788,11 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	else
 		LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << create_info.imageFormat << " |";
 
-	LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << create_info.imageColorSpace << " |";
+	if (color_space_string != nullptr)
+		LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << color_space_string << " |";
+	else
+		LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << create_info.imageColorSpace << " |";
+
 	LOG(INFO) << "  | imageExtent                             | " << std::setw(19) << create_info.imageExtent.width << ' ' << std::setw(19) << create_info.imageExtent.height << " |";
 	LOG(INFO) << "  | imageArrayLayers                        | " << std::setw(39) << create_info.imageArrayLayers << " |";
 	LOG(INFO) << "  | imageUsage                              | " << std::setw(39) << std::hex << create_info.imageUsage << std::dec << " |";

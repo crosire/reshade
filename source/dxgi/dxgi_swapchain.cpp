@@ -592,6 +592,28 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::CheckColorSpaceSupport(DXGI_COLOR_SPACE
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE ColorSpace)
 {
+	const char *color_space_string = nullptr;
+	switch (ColorSpace)
+	{
+	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
+		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709";
+		break;
+	case DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709:
+		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709";
+		break;
+	case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
+		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020";
+		break;
+	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020:
+		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020";
+		break;
+	}
+
+	if (color_space_string != nullptr)
+		LOG(INFO) << "Redirecting " << "IDXGISwapChain3::SetColorSpace1" << '(' << "ColorSpace = " << color_space_string << ')' << " ...";
+	else
+		LOG(INFO) << "Redirecting " << "IDXGISwapChain3::SetColorSpace1" << '(' << "ColorSpace = " << ColorSpace << ')' << " ...";
+
 	// Only supported in Direct3D 11 and 12 (see https://docs.microsoft.com/windows/win32/direct3darticles/high-dynamic-range)
 	switch (_direct3d_version)
 	{
