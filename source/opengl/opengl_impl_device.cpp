@@ -2008,7 +2008,7 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 			if (merged_range.array_size > 1)
 				return false;
 
-			for (uint32_t k = 1; k < params[i].descriptor_table.count; ++i)
+			for (uint32_t k = 1; k < params[i].descriptor_table.count; ++k)
 			{
 				const api::descriptor_range &range = params[i].descriptor_table.ranges[k];
 
