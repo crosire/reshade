@@ -473,30 +473,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12R
 	_orig->SetComputeRootSignature(pRootSignature);
 
 	_current_root_signature[1] = pRootSignature;
-
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
-		this,
-		reshade::api::shader_stage::all_compute,
-		to_handle(_current_root_signature[1]),
-		0,
-		0, nullptr);
-#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootSignature(ID3D12RootSignature *pRootSignature)
 {
 	_orig->SetGraphicsRootSignature(pRootSignature);
 
 	_current_root_signature[0] = pRootSignature;
-
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
-		this,
-		reshade::api::shader_stage::all_graphics,
-		to_handle(_current_root_signature[0]),
-		0,
-		0, nullptr);
-#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
