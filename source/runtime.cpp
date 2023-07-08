@@ -244,6 +244,10 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 		_config_path.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
 		if (std::filesystem::exists(config_path_default, ec) && !std::filesystem::exists(_config_path, ec))
 			std::filesystem::copy_file(config_path_default, _config_path, ec);
+
+#if RESHADE_GUI && RESHADE_FX
+		_tutorial_index = 4;
+#endif
 	}
 
 #if RESHADE_GUI
