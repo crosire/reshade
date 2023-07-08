@@ -81,7 +81,7 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_direct3d_command_queue->AddRef();
 }
 
-void DXGISwapChain::runtime_reset()
+void DXGISwapChain::on_reset()
 {
 	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
@@ -98,7 +98,7 @@ void DXGISwapChain::runtime_reset()
 		break;
 	}
 }
-void DXGISwapChain::runtime_resize()
+void DXGISwapChain::on_resize()
 {
 	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
@@ -115,7 +115,7 @@ void DXGISwapChain::runtime_resize()
 		break;
 	}
 }
-void DXGISwapChain::runtime_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params)
+void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params)
 {
 	// Some D3D11 games test presentation for timing and composition purposes
 	// These calls are not rendering related, but rather a status request for the D3D runtime and as such should be ignored
@@ -187,9 +187,6 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 {
 	_was_still_drawing_last_frame = (hr == DXGI_ERROR_WAS_STILL_DRAWING);
 
-	if (!_impl->is_initialized())
-		return;
-
 	// Handle scenarios where device is lost and just clean up all resources
 	if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
 	{
@@ -214,7 +211,7 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 			LOG(ERROR) << "> Device removal reason is " << reason << '.';
 		}
 
-		runtime_reset();
+		on_reset();
 	}
 }
 
@@ -351,7 +348,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
-	runtime_present(Flags);
+	on_present(Flags);
 
 	if (_force_vsync)
 		SyncInterval = 1;
@@ -411,7 +408,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		<< ", SwapChainFlags = " << std::hex << SwapChainFlags << std::dec
 		<< ')' << " ...";
 
-	runtime_reset();
+	on_reset();
 
 	DXGI_SWAP_CHAIN_DESC desc = {};
 	GetDesc(&desc);
@@ -437,12 +434,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	g_in_dxgi_runtime = false;
 	if (SUCCEEDED(hr))
 	{
-		runtime_resize();
+		on_resize();
 	}
 	else if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
 	{
 		LOG(WARN) << "IDXGISwapChain::ResizeBuffers" << " failed with error code " << "DXGI_ERROR_INVALID_CALL" << '.';
-		runtime_resize();
+		on_resize();
 	}
 	else
 	{
@@ -498,7 +495,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppU
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
-	runtime_present(PresentFlags, pPresentParameters);
+	on_present(PresentFlags, pPresentParameters);
 
 	if (_force_vsync)
 		SyncInterval = 1;
@@ -641,7 +638,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		<< ", ppPresentQueue = " << ppPresentQueue
 		<< ')' << " ...";
 
-	runtime_reset();
+	on_reset();
 
 	HWND hwnd = nullptr;
 	GetHwnd(&hwnd);
@@ -678,12 +675,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	g_in_dxgi_runtime = false;
 	if (SUCCEEDED(hr))
 	{
-		runtime_resize();
+		on_resize();
 	}
 	else if (hr == DXGI_ERROR_INVALID_CALL)
 	{
 		LOG(WARN) << "IDXGISwapChain3::ResizeBuffers1" << " failed with error code " << "DXGI_ERROR_INVALID_CALL" << '.';
-		runtime_resize();
+		on_resize();
 	}
 	else
 	{

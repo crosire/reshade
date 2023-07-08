@@ -11,7 +11,7 @@
 struct D3D10Device;
 struct D3D11Device;
 struct D3D12CommandQueue;
-namespace reshade { class runtime; }
+namespace reshade::api { struct swapchain; }
 
 struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : IDXGISwapChain4
 {
@@ -82,9 +82,9 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	HRESULT STDMETHODCALLTYPE SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData) override;
 	#pragma endregion
 
-	void runtime_reset();
-	void runtime_resize();
-	void runtime_present(UINT flags, const DXGI_PRESENT_PARAMETERS *params = nullptr);
+	void on_reset();
+	void on_resize();
+	void on_present(UINT flags, const DXGI_PRESENT_PARAMETERS *params = nullptr);
 	void handle_device_loss(HRESULT hr);
 
 	bool check_and_upgrade_interface(REFIID riid);
@@ -96,7 +96,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	IUnknown *const _direct3d_command_queue;
 	const unsigned int _direct3d_version;
 	std::shared_mutex _impl_mutex;
-	reshade::runtime *const _impl;
+	reshade::api::swapchain *const _impl;
 	bool _was_still_drawing_last_frame = false;
 
 	bool _force_vsync = false;
