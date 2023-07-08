@@ -1413,6 +1413,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// Is not called for immediate command lists (since they cannot be reset).
+		/// </remarks>
 		reset_command_list,
 
 		/// <summary>
@@ -1424,6 +1427,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// Is not called for immediate command lists (since they cannot be closed).
+		/// </remarks>
 		close_command_list,
 
 		/// <summary>

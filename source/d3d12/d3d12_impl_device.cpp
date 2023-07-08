@@ -1012,6 +1012,8 @@ bool reshade::d3d12::device_impl::allocate_descriptor_tables(uint32_t count, api
 
 	if (total_count != 0 && total_count <= 0xFF)
 	{
+		assert(heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES);
+
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE base_handle;

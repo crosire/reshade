@@ -476,6 +476,9 @@ void reshade::opengl::render_context_impl::update_current_window_height(api::res
 
 void reshade::opengl::render_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
+	if (pipeline.handle == 0)
+		return;
+
 	// Special case for application pipeline handles
 	if ((pipeline.handle >> 40) == GL_PROGRAM)
 	{
@@ -483,8 +486,6 @@ void reshade::opengl::render_context_impl::bind_pipeline(api::pipeline_stage sta
 		gl.UseProgram(pipeline.handle & 0xFFFFFFFF);
 		return;
 	}
-
-	assert(pipeline.handle != 0);
 
 	// Set clip space to something consistent
 	if (gl.ClipControl != nullptr)
@@ -787,6 +788,8 @@ void reshade::opengl::render_context_impl::bind_scissor_rects(uint32_t first, ui
 
 void reshade::opengl::render_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
+	assert(first == 0);
+
 	const GLuint push_constants_size = (first + count) * sizeof(uint32_t);
 	const GLuint push_constants_binding = (layout.handle != 0 && layout != global_pipeline_layout) ? reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
 
@@ -923,13 +926,13 @@ void reshade::opengl::render_context_impl::bind_descriptor_tables(api::shader_st
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<const descriptor_table_impl *>(tables[i].handle);
+		const auto table_impl = reinterpret_cast<const descriptor_table_impl *>(tables[i].handle);
 
 		push_descriptors(
 			stages,
 			layout,
 			first + i,
-			api::descriptor_table_update { {}, set_impl->base_binding, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
+			api::descriptor_table_update { {}, table_impl->base_binding, 0, table_impl->count, table_impl->type, table_impl->descriptors.data() });
 	}
 }
 
@@ -1053,7 +1056,7 @@ void reshade::opengl::render_context_impl::copy_buffer_region(api::resource src,
 
 	if (_device_impl->_supports_dsa)
 	{
-		if (size == UINT64_MAX)
+		if (UINT64_MAX == size)
 		{
 #ifndef _WIN64
 			GLint max_size = 0;
@@ -1072,7 +1075,7 @@ void reshade::opengl::render_context_impl::copy_buffer_region(api::resource src,
 		gl.BindBuffer(GL_COPY_READ_BUFFER, src_object);
 		gl.BindBuffer(GL_COPY_WRITE_BUFFER, dst_object);
 
-		if (size == UINT64_MAX)
+		if (UINT64_MAX == size)
 		{
 #ifndef _WIN64
 			GLint max_size = 0;

@@ -58,8 +58,8 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 			D3D12_GLOBAL_BARRIER barrier = {};
 			barrier.SyncBefore = D3D12_BARRIER_SYNC_ALL;
 			barrier.SyncAfter = D3D12_BARRIER_SYNC_ALL;
-			barrier.AccessBefore = reshade::d3d12::convert_usage_to_access(old_states[i]);
-			barrier.AccessAfter = reshade::d3d12::convert_usage_to_access(new_states[i]);
+			barrier.AccessBefore = convert_usage_to_access(old_states[i]);
+			barrier.AccessAfter = convert_usage_to_access(new_states[i]);
 
 			D3D12_BARRIER_GROUP barrier_group = {};
 			barrier_group.Type = D3D12_BARRIER_TYPE_GLOBAL;
@@ -202,9 +202,9 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 #else
 	const auto rtv_handles = reinterpret_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(rtvs);
 #endif
-	const D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = { static_cast<SIZE_T>(dsv.handle) };
+	const D3D12_CPU_DESCRIPTOR_HANDLE depth_stencil_handle = { static_cast<SIZE_T>(dsv.handle) };
 
-	_orig->OMSetRenderTargets(count, rtv_handles, FALSE, dsv.handle != 0 ? &dsv_handle : nullptr);
+	_orig->OMSetRenderTargets(count, rtv_handles, FALSE, dsv.handle != 0 ? &depth_stencil_handle : nullptr);
 }
 
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
@@ -240,12 +240,8 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			break;
 		case api::dynamic_state::blend_constant:
 		{
-			float blend_factor[4];
-			blend_factor[0] = ((values[i]      ) & 0xFF) / 255.0f;
-			blend_factor[1] = ((values[i] >>  4) & 0xFF) / 255.0f;
-			blend_factor[2] = ((values[i] >>  8) & 0xFF) / 255.0f;
-			blend_factor[3] = ((values[i] >> 12) & 0xFF) / 255.0f;
-			_orig->OMSetBlendFactor(blend_factor);
+			const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
+			_orig->OMSetBlendFactor(blend_constant);
 			break;
 		}
 		case api::dynamic_state::front_stencil_reference_value:
@@ -282,7 +278,7 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 {
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
-	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
+	if ((stages & api::shader_stage::all_compute) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -292,7 +288,7 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 
 		_orig->SetComputeRoot32BitConstants(layout_param, count, values, first);
 	}
-	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
+	if ((stages & api::shader_stage::all_graphics) != 0)
 	{
 		if (root_signature != _current_root_signature[0])
 		{
@@ -305,7 +301,7 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 }
 void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update)
 {
-	assert(update.table.handle == 0);
+	assert(update.table.handle == 0 && update.array_offset == 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
@@ -326,12 +322,12 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	{
 		for (uint32_t k = 0; k < update.count; ++k, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 		{
-			const auto buffer_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
-			const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffer_range.buffer.handle);
+			const api::buffer_range &buffer_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
+			ID3D12Resource *buffer_resource = reinterpret_cast<ID3D12Resource *>(buffer_range.buffer.handle);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
 			view_desc.BufferLocation = buffer_resource->GetGPUVirtualAddress() + buffer_range.offset;
-			view_desc.SizeInBytes = (buffer_range.size == UINT64_MAX) ? static_cast<UINT>(buffer_resource->GetDesc().Width) : static_cast<UINT>(buffer_range.size);
+			view_desc.SizeInBytes = static_cast<UINT>(buffer_range.size == UINT64_MAX ? buffer_resource->GetDesc().Width - buffer_range.offset : buffer_range.size);
 
 			_device_impl->_orig->CreateConstantBufferView(&view_desc, base_handle);
 		}
@@ -355,6 +351,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	else
 	{
 		assert(false);
+		return;
 	}
 
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
@@ -377,7 +374,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	}
 #endif
 
-	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
+	if ((stages & api::shader_stage::all_compute) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -387,7 +384,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 
 		_orig->SetComputeRootDescriptorTable(layout_param, base_handle_gpu);
 	}
-	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
+	if ((stages & api::shader_stage::all_graphics) != 0)
 	{
 		if (root_signature != _current_root_signature[0])
 		{
@@ -436,7 +433,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
-	if (static_cast<uint32_t>(stages & api::shader_stage::all_compute) != 0)
+	if ((stages & api::shader_stage::all_compute) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -447,7 +444,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 		for (uint32_t i = 0; i < count; ++i)
 			_orig->SetComputeRootDescriptorTable(first + i, _device_impl->convert_to_original_gpu_descriptor_handle(tables[i]));
 	}
-	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
+	if ((stages & api::shader_stage::all_graphics) != 0)
 	{
 		if (root_signature != _current_root_signature[0])
 		{
@@ -470,7 +467,7 @@ void reshade::d3d12::command_list_impl::bind_index_buffer(api::resource buffer, 
 
 		D3D12_INDEX_BUFFER_VIEW view;
 		view.BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
-		view.Format = index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+		view.Format = (index_size == 2) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
 		view.SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offset);
 
 		_orig->IASetIndexBuffer(&view);
@@ -505,12 +502,12 @@ void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t firs
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
-		const auto offset = (offsets != nullptr ? offsets[i] : 0);
+		const auto offset = (offsets != nullptr) ? offsets[i] : 0;
 		const auto counter_buffer_resource = reinterpret_cast<ID3D12Resource *>(counter_buffers[i].handle);
-		const auto counter_offset = (counter_offsets != nullptr ? counter_offsets[i] : 0);
+		const auto counter_offset = (counter_offsets != nullptr) ? counter_offsets[i] : 0;
 
 		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
-		views[i].SizeInBytes = max_sizes != nullptr && max_sizes[i] != UINT64_MAX ? max_sizes[0] : 0;
+		views[i].SizeInBytes = (max_sizes != nullptr && max_sizes[i] != UINT64_MAX) ? max_sizes[0] : 0;
 		views[i].BufferFilledSizeLocation = counter_buffer_resource->GetGPUVirtualAddress() + counter_offset;
 	}
 
@@ -756,7 +753,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 		return;
 	}
 
-	const auto view_heap = _device_impl->_gpu_view_heap.get();
+	ID3D12DescriptorHeap *const view_heap = _device_impl->_gpu_view_heap.get();
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
 		_orig->SetDescriptorHeaps(1, &view_heap);
 
@@ -783,7 +780,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 		return;
 	}
 
-	const auto view_heap = _device_impl->_gpu_view_heap.get();
+	ID3D12DescriptorHeap *const view_heap = _device_impl->_gpu_view_heap.get();
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
 		_orig->SetDescriptorHeaps(1, &view_heap);
 
@@ -867,12 +864,16 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 	_orig->SetComputeRootDescriptorTable(3, sampler_handle_gpu);
 
+	D3D12_RESOURCE_BARRIER barriers[2];
+	barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	barriers[0].Transition.pResource = resource;
+	barriers[1] = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
+	barriers[1].UAV.pResource = resource;
+
 	for (uint32_t level = 1; level < desc.MipLevels; ++level)
 	{
-		D3D12_RESOURCE_BARRIER barriers[2];
-		barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-		barriers[0].Transition.pResource = resource;
 		barriers[0].Transition.Subresource = level;
+
 		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 		barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 		_orig->ResourceBarrier(1, barriers);
@@ -891,13 +892,8 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		_orig->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 
 		// Wait for all accesses to be finished, since the result will be the input for the next mipmap
-		barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
-		barriers[0].UAV.pResource = resource;
-		barriers[1] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-		barriers[1].Transition.pResource = resource;
-		barriers[1].Transition.Subresource = level;
-		barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-		barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 		_orig->ResourceBarrier(2, barriers);
 	}
 

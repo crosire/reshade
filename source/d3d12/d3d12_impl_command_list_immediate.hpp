@@ -30,6 +30,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Fence> _fence[NUM_COMMAND_FRAMES];
 		com_ptr<ID3D12CommandAllocator> _cmd_alloc[NUM_COMMAND_FRAMES];
 
+		// List of query fences scheduled for signaling during next flush
 		std::vector<std::pair<ID3D12Fence *, UINT64>> _current_query_fences;
 	};
 }

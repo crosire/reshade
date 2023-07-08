@@ -1623,9 +1623,7 @@ bool reshade::d3d9::device_impl::allocate_descriptor_tables(uint32_t count, api:
 	else
 	{
 		for (uint32_t i = 0; i < count; ++i)
-		{
 			out_tables[i] = { 0 };
-		}
 
 		return false;
 	}

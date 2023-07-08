@@ -396,11 +396,8 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	if (count == 0)
 		return;
 
-	if (first != 0)
-	{
-		assert(false);
-		return;
-	}
+	assert(first == 0);
+	count += first;
 
 	if (count > _push_constants_size)
 	{
@@ -428,7 +425,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	if (D3D11_MAPPED_SUBRESOURCE mapped;
 		SUCCEEDED(_orig->Map(push_constants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
 	{
-		std::memcpy(static_cast<uint32_t *>(mapped.pData) + first, values, count * sizeof(uint32_t));
+		std::memcpy(static_cast<uint32_t *>(mapped.pData) + first, values, (count - first) * sizeof(uint32_t));
 		_orig->Unmap(push_constants, 0);
 	}
 
@@ -492,13 +489,13 @@ void reshade::d3d11::device_context_impl::bind_descriptor_tables(api::shader_sta
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<const descriptor_table_impl *>(tables[i].handle);
+		const auto table_impl = reinterpret_cast<const descriptor_table_impl *>(tables[i].handle);
 
 		push_descriptors(
 			stages,
 			layout,
 			first + i,
-			api::descriptor_table_update { {}, set_impl->base_binding, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
+			api::descriptor_table_update { {}, table_impl->base_binding, 0, table_impl->count, table_impl->type, table_impl->descriptors.data() });
 	}
 }
 
@@ -591,7 +588,7 @@ void reshade::d3d11::device_context_impl::copy_buffer_region(api::resource src, 
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (size == UINT64_MAX)
+	if (UINT64_MAX == size)
 	{
 		D3D11_BUFFER_DESC desc;
 		reinterpret_cast<ID3D11Buffer *>(src.handle)->GetDesc(&desc);

@@ -655,6 +655,11 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		{
 			object_data<VK_OBJECT_TYPE_IMAGE_VIEW> data;
 			data.create_info = create_info;
+			data.image_extent = resource_data->create_info.extent;
+			if (VK_REMAINING_MIP_LEVELS == data.create_info.subresourceRange.levelCount)
+				data.create_info.subresourceRange.levelCount = resource_data->create_info.mipLevels;
+			if (VK_REMAINING_ARRAY_LAYERS == data.create_info.subresourceRange.layerCount)
+				data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers;
 
 			register_object<VK_OBJECT_TYPE_IMAGE_VIEW>(image_view, std::move(data));
 
@@ -1611,15 +1616,15 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 			else
 			{
 				write.descriptorType = convert_descriptor_type(update.type, false);
-
-				static_assert(sizeof(*descriptors) == sizeof(VkBufferView));
 				write.pTexelBufferView = reinterpret_cast<const VkBufferView *>(descriptors);
 			}
 			break;
 		case api::descriptor_type::constant_buffer:
 		case api::descriptor_type::shader_storage_buffer:
-			static_assert(sizeof(api::buffer_range) == sizeof(VkDescriptorBufferInfo));
 			write.pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(update.descriptors);
+			break;
+		default:
+			assert(false);
 			break;
 		}
 	}

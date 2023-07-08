@@ -10,9 +10,11 @@
 
 namespace reshade::vulkan
 {
-	static_assert(sizeof(VkBuffer) == sizeof(reshade::api::resource));
+	static_assert(sizeof(VkBuffer) == sizeof(api::resource));
+	static_assert(sizeof(VkBufferView) == sizeof(api::resource_view));
 	static_assert(sizeof(VkViewport) == sizeof(api::viewport));
 	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_table));
+	static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(api::buffer_range));
 
 	template <VkObjectType type>
 	struct object_data;
@@ -52,6 +54,8 @@ namespace reshade::vulkan
 		using Handle = VkImageView;
 
 		VkImageViewCreateInfo create_info;
+		// Keep track of image extent to avoid common extra lookup of view
+		VkExtent3D image_extent;
 	};
 
 	template <>

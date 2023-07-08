@@ -276,11 +276,8 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 	if (count == 0)
 		return;
 
-	if (first != 0)
-	{
-		assert(false);
-		return;
-	}
+	assert(first == 0);
+	count += first;
 
 	if (count > _push_constants_size)
 	{
@@ -308,7 +305,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 	if (uint32_t *mapped_data;
 		SUCCEEDED(ID3D10Buffer_Map(push_constants, D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&mapped_data))))
 	{
-		std::memcpy(mapped_data + first, values, count * sizeof(uint32_t));
+		std::memcpy(mapped_data + first, values, (count - first) * sizeof(uint32_t));
 		ID3D10Buffer_Unmap(push_constants);
 	}
 
@@ -363,13 +360,13 @@ void reshade::d3d10::device_impl::bind_descriptor_tables(api::shader_stage stage
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<const descriptor_table_impl *>(tables[i].handle);
+		const auto table_impl = reinterpret_cast<const descriptor_table_impl *>(tables[i].handle);
 
 		push_descriptors(
 			stages,
 			layout,
 			first + i,
-			api::descriptor_table_update { {}, set_impl->base_binding, 0, set_impl->count, set_impl->type, set_impl->descriptors.data() });
+			api::descriptor_table_update { {}, table_impl->base_binding, 0, table_impl->count, table_impl->type, table_impl->descriptors.data() });
 	}
 }
 
@@ -446,7 +443,7 @@ void reshade::d3d10::device_impl::copy_buffer_region(api::resource src, uint64_t
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
-	if (size == UINT64_MAX)
+	if (UINT64_MAX == size)
 	{
 		D3D10_BUFFER_DESC desc;
 		reinterpret_cast<ID3D10Buffer *>(src.handle)->GetDesc(&desc);

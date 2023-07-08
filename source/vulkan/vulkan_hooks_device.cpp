@@ -1523,6 +1523,13 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	data.create_info = create_info;
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
+	const auto resource_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(create_info.image);
+	data.image_extent = resource_data->create_info.extent;
+	if (VK_REMAINING_MIP_LEVELS == data.create_info.subresourceRange.levelCount)
+		data.create_info.subresourceRange.levelCount = resource_data->create_info.mipLevels;
+	if (VK_REMAINING_ARRAY_LAYERS == data.create_info.subresourceRange.layerCount)
+		data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers;
+
 	device_impl->register_object<VK_OBJECT_TYPE_IMAGE_VIEW>(*pView, std::move(data));
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
