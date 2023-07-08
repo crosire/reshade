@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <d3d9.h>
 #include "com_ptr.hpp"
+#include <d3d9.h>
 
 namespace reshade::d3d9
 {

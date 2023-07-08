@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <d3d9on12.h>
 #include "com_ptr.hpp"
+#include <d3d9on12.h>
 
 struct Direct3DDevice9;
 struct D3D12Device;

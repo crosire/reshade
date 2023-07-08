@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include <d3d11_4.h>
 #include "com_ptr.hpp"
 #include "addon_manager.hpp"
+#include <d3d11_4.h>
 
 namespace reshade::d3d11
 {

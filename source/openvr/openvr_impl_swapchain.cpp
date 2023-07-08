@@ -22,7 +22,7 @@ reshade::openvr::swapchain_impl::swapchain_impl(D3D10Device *device, vr::IVRComp
 
 	_direct3d_device = static_cast<ID3D10Device *>(device);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
-	_direct3d_device->AddRef();
+	static_cast<IUnknown *>(_direct3d_device)->AddRef();
 }
 
 reshade::openvr::swapchain_impl::swapchain_impl(D3D11Device *device, vr::IVRCompositor *compositor) :
@@ -32,7 +32,7 @@ reshade::openvr::swapchain_impl::swapchain_impl(D3D11Device *device, vr::IVRComp
 
 	_direct3d_device = static_cast<ID3D11Device *>(device);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
-	_direct3d_device->AddRef();
+	static_cast<IUnknown *>(_direct3d_device)->AddRef();
 }
 
 reshade::openvr::swapchain_impl::swapchain_impl(D3D12CommandQueue *queue, vr::IVRCompositor *compositor) :
@@ -40,7 +40,7 @@ reshade::openvr::swapchain_impl::swapchain_impl(D3D12CommandQueue *queue, vr::IV
 {
 	_direct3d_device = queue;
 	// Explicitly add a reference to the command queue, to ensure it stays valid for the lifetime of this swap chain object
-	_direct3d_device->AddRef();
+	static_cast<IUnknown *>(_direct3d_device)->AddRef();
 }
 
 reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor) :
@@ -79,7 +79,7 @@ reshade::openvr::swapchain_impl::~swapchain_impl()
 
 	// Release the explicit reference to the device now that the effect runtime was destroyed and is longer referencing it
 	if (_direct3d_device != nullptr)
-		_direct3d_device->Release();
+		static_cast<IUnknown *>(_direct3d_device)->Release();
 }
 
 reshade::api::resource reshade::openvr::swapchain_impl::get_back_buffer(uint32_t index)

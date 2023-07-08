@@ -3,16 +3,16 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "version.h"
-#include "dll_log.hpp"
-#include "dll_resources.hpp"
-#include "ini_file.hpp"
-#include "addon_manager.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include "effect_preprocessor.hpp"
+#include "version.h"
+#include "dll_log.hpp"
+#include "dll_resources.hpp"
+#include "ini_file.hpp"
+#include "addon_manager.hpp"
 #include "input.hpp"
 #include "input_gamepad.hpp"
 #include "com_ptr.hpp"

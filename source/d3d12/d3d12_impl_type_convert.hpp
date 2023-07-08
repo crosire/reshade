@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "reshade_api_pipeline.hpp"
+#include <vector>
 #include <d3d12.h>
 
 namespace reshade::d3d12

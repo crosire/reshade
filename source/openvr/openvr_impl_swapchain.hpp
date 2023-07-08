@@ -8,7 +8,6 @@
 #include "runtime.hpp"
 #include "addon_manager.hpp"
 #include <openvr.h>
-#include <Unknwn.h>
 
 struct D3D10Device;
 struct D3D11Device;
@@ -47,6 +46,6 @@ namespace reshade::openvr
 	private:
 		api::resource _side_by_side_texture = {};
 		void *_app_state = nullptr;
-		IUnknown *_direct3d_device = nullptr;
+		void *_direct3d_device = nullptr;
 	};
 }

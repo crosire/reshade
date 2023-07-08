@@ -5,6 +5,10 @@
 
 #pragma once
 
+#include "reshade_api.hpp"
+#if RESHADE_GUI
+#include "imgui_code_editor.hpp"
+#endif
 #include <chrono>
 #include <memory>
 #include <filesystem>
@@ -13,10 +17,6 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include "reshade_api.hpp"
-#if RESHADE_GUI
-#include "imgui_code_editor.hpp"
-#endif
 
 class ini_file;
 

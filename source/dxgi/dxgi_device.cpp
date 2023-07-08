@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include "dll_log.hpp"
 #include "dxgi_device.hpp"
+#include "dll_log.hpp"
 
 DXGIDevice::DXGIDevice(IDXGIDevice1 *original) :
 	_orig(original),

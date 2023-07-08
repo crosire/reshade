@@ -5,13 +5,13 @@
 
 #if RESHADE_GUI
 
+#include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "version.h"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "ini_file.hpp"
 #include "addon_manager.hpp"
-#include "runtime.hpp"
-#include "runtime_objects.hpp"
 #include "input.hpp"
 #include "input_gamepad.hpp"
 #include "imgui_widgets.hpp"

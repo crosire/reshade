@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+#include "vulkan_hooks.hpp"
 #include "version.h"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
-#include "vulkan_hooks.hpp"
 
 lockfree_linear_map<void *, instance_dispatch_table, 16> g_instance_dispatch;
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;

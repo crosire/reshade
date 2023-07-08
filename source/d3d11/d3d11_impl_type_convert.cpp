@@ -3,11 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <vector>
-#include <limits>
-#include "com_ptr.hpp"
-#include "reshade_api_pipeline.hpp"
 #include "d3d11_impl_type_convert.hpp"
+#include <limits>
 
 auto reshade::d3d11::convert_format(api::format format) -> DXGI_FORMAT
 {

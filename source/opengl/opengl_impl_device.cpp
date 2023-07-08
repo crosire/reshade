@@ -89,12 +89,12 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	// Reserve a configurable range of resource names in old OpenGL games (which will use a compatibility context) to work around this
 	// - Call of Duty uses buffer and texture names in range 0-1500
 	// - Star Wars Jedi Knight II: Jedi Outcast uses texture names in range 2000-3000
-	auto num_reserve_buffer_names = _compatibility_context ? 2000 : 0u;
+	unsigned int num_reserve_buffer_names = _compatibility_context ? 2000 : 0;
 	reshade::global_config().get("APP", "ReserveBufferNames", num_reserve_buffer_names);
 	_reserved_buffer_names.resize(num_reserve_buffer_names);
 	if (!_reserved_buffer_names.empty())
 		gl.GenBuffers(static_cast<GLsizei>(_reserved_buffer_names.size()), _reserved_buffer_names.data());
-	auto num_reserve_texture_names = _compatibility_context ? 4000 : 0u;
+	unsigned int num_reserve_texture_names = _compatibility_context ? 4000 : 0;
 	reshade::global_config().get("APP", "ReserveTextureNames", num_reserve_texture_names);
 	_reserved_texture_names.resize(num_reserve_texture_names);
 	if (!_reserved_texture_names.empty())

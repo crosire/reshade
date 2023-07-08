@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "version.h"
 #include "runtime.hpp"
+#include "version.h"
 #include <Windows.h>
 #include <WinInet.h>
 

@@ -3,11 +3,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <vector>
+#include "d3d12_impl_type_convert.hpp"
 #include <limits>
 #include <cassert>
-#include "reshade_api_pipeline.hpp"
-#include "d3d12_impl_type_convert.hpp"
 
 // {B2257A30-4014-46EA-BD88-DEC21DB6A02B}
 const GUID reshade::d3d12::extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };

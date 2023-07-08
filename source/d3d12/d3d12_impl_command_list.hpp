@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <d3d12.h>
 #include "addon_manager.hpp"
+#include <d3d12.h>
 
 namespace reshade::d3d12
 {

@@ -5,10 +5,10 @@
 
 #if RESHADE_GUI
 
+#include "runtime.hpp"
 #include "version.h"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
-#include "runtime.hpp"
 #include "imgui_widgets.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
 #include <openvr.h>
