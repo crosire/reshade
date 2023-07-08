@@ -70,9 +70,6 @@ bool reshade::d3d12::command_list_immediate_impl::flush()
 	_current_root_signature[1] = nullptr;
 	_current_descriptor_heaps[0] = nullptr;
 	_current_descriptor_heaps[1] = nullptr;
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	_current_pipeline_state = nullptr;
-#endif
 
 	assert(_orig != nullptr);
 

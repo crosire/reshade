@@ -840,7 +840,7 @@ namespace reshade { namespace api
 		/// Uses the largest mipmap level of the view to recursively generate the lower levels of the mipmap chain and stops with the smallest level that is specified by the view.
 		/// </summary>
 		/// <remarks>
-		/// This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_tables"/> or <see cref="push_descriptors"/>.
+		/// This will invalidate all previous descriptor and pipeline bindings, which will need to be reset by calls to <see cref="bind_descriptor_tables"/> or <see cref="push_descriptors"/> and <see cref="bind_pipeline"/>.
 		/// The resource the shader resource view points to has to be in the <see cref="resource_usage::shader_resource"/> state and has to have been created with the <see cref="resource_flags::generate_mipmaps"/> flag.
 		/// </remarks>
 		/// <param name="srv">Shader resource view to update.</param>

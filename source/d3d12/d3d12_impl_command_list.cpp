@@ -215,10 +215,6 @@ void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages
 	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
 	_orig->SetPipelineState(pipeline_object);
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	_current_pipeline_state = pipeline_object;
-#endif
-
 	pipeline_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
 	if (stages == api::pipeline_stage::all_graphics &&
@@ -856,11 +852,14 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
 	{
 		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
+		std::copy_n(heaps, 2, _current_descriptor_heaps);
 		_orig->SetDescriptorHeaps(2, heaps);
 	}
 
 	_orig->SetComputeRootSignature(_device_impl->_mipmap_signature.get());
 	_orig->SetPipelineState(_device_impl->_mipmap_pipeline.get());
+
+	_current_root_signature[1] = nullptr;
 
 	_orig->SetComputeRootDescriptorTable(3, sampler_handle_gpu);
 
@@ -896,22 +895,6 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 		_orig->ResourceBarrier(2, barriers);
 	}
-
-	// Reset descriptor heaps and root signature
-	if (_current_descriptor_heaps[0] != nullptr && (
-		_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
-		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get()))
-	{
-		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
-	}
-
-	_orig->SetComputeRootSignature(_current_root_signature[1]);
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	com_ptr<ID3D12PipelineState> pipeline_state;
-	if (_current_pipeline_state != nullptr &&
-		SUCCEEDED(_current_pipeline_state->QueryInterface(&pipeline_state)))
-		_orig->SetPipelineState(pipeline_state.get());
-#endif
 }
 
 void reshade::d3d12::command_list_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
