@@ -1196,18 +1196,27 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 bool reshade::d3d12::device_impl::create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_handle)
 {
 	com_ptr<ID3D12Resource> readback_resource;
-	{
-		D3D12_RESOURCE_DESC readback_desc = {};
-		readback_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		readback_desc.Width = size * sizeof(uint64_t);
-		readback_desc.Height = 1;
-		readback_desc.DepthOrArraySize = 1;
-		readback_desc.MipLevels = 1;
-		readback_desc.SampleDesc = { 1, 0 };
-		readback_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_READBACK };
+	std::vector<com_ptr<ID3D12Fence>> fences(size);
 
-		if (FAILED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &readback_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback_resource))))
+	D3D12_RESOURCE_DESC readback_desc = {};
+	readback_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	readback_desc.Width = size * sizeof(uint64_t);
+	readback_desc.Height = 1;
+	readback_desc.DepthOrArraySize = 1;
+	readback_desc.MipLevels = 1;
+	readback_desc.SampleDesc = { 1, 0 };
+	readback_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_READBACK };
+
+	if (FAILED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &readback_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback_resource))))
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	for (uint32_t i = 0; i < size; i++)
+	{
+		if (FAILED(_orig->CreateFence(0ull, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fences[i]))))
 		{
 			*out_handle = { 0 };
 			return false;
@@ -1221,7 +1230,15 @@ bool reshade::d3d12::device_impl::create_query_heap(api::query_type type, uint32
 	if (com_ptr<ID3D12QueryHeap> object;
 		SUCCEEDED(_orig->CreateQueryHeap(&internal_desc, IID_PPV_ARGS(&object))))
 	{
-		object->SetPrivateDataInterface(extra_data_guid, readback_resource.get());
+		query_heap_extra_data extra_data;
+		extra_data.size = size;
+		extra_data.readback_resource = readback_resource.release();
+		extra_data.fences = new std::pair<ID3D12Fence *, UINT64>[size];
+		for (uint32_t i = 0; i < extra_data.size; ++i)
+			// Start with fence value above the initial value, so that 'get_query_heap_results' will return false for the first frame as well
+			extra_data.fences[i] = std::make_pair(fences[i].release(), 1ull);
+
+		object->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
 
 		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
@@ -1234,8 +1251,23 @@ bool reshade::d3d12::device_impl::create_query_heap(api::query_type type, uint32
 }
 void reshade::d3d12::device_impl::destroy_query_heap(api::query_heap handle)
 {
-	if (handle.handle != 0)
-		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle == 0)
+		return;
+
+	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(handle.handle);
+
+	query_heap_extra_data extra_data;
+	UINT extra_data_size = sizeof(extra_data);
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	{
+		extra_data.readback_resource->Release();
+
+		for (uint32_t i = 0; i < extra_data.size; ++i)
+			extra_data.fences[i].first->Release();
+		delete[] extra_data.fences;
+	}
+
+	heap_object->Release();
 }
 
 bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
@@ -1245,20 +1277,29 @@ bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, u
 
 	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
 
-	com_ptr<ID3D12Resource> readback_resource;
-	UINT extra_data_size = sizeof(ID3D12Resource *);
-	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &readback_resource)))
+	query_heap_extra_data extra_data;
+	UINT extra_data_size = sizeof(extra_data);
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
+		for (size_t i = 0; i < count; ++i)
+		{
+			const std::pair<ID3D12Fence *, UINT64> &fence = extra_data.fences[i + first];
+
+			// Verify that the query has finished executing on the GPU
+			if (fence.first->GetCompletedValue() < fence.second)
+				return false;
+		}
+
 		const D3D12_RANGE read_range = { static_cast<SIZE_T>(first) * sizeof(uint64_t), (static_cast<SIZE_T>(first) + static_cast<SIZE_T>(count)) * sizeof(uint64_t) };
 		const D3D12_RANGE write_range = { 0, 0 };
 
 		void *mapped_data = nullptr;
-		if (SUCCEEDED(ID3D12Resource_Map(readback_resource.get(), 0, &read_range, &mapped_data)))
+		if (SUCCEEDED(ID3D12Resource_Map(extra_data.readback_resource, 0, &read_range, &mapped_data)))
 		{
 			for (size_t i = 0; i < count; ++i)
 				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[first + i];
 
-			ID3D12Resource_Unmap(readback_resource.get(), 0, &write_range);
+			ID3D12Resource_Unmap(extra_data.readback_resource, 0, &write_range);
 
 			return true;
 		}
@@ -1285,11 +1326,12 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 		desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
-		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
+		if (const D3D12_GPU_VIRTUAL_ADDRESS address = resource->GetGPUVirtualAddress())
+		{
+			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
-		const D3D12_GPU_VIRTUAL_ADDRESS address = resource->GetGPUVirtualAddress();
-		if (address != 0)
 			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { address, desc.Width });
+		}
 	}
 #endif
 }

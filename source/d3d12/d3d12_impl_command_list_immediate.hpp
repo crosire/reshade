@@ -17,6 +17,8 @@ namespace reshade::d3d12
 		command_list_immediate_impl(device_impl *device, ID3D12CommandQueue *queue);
 		~command_list_immediate_impl();
 
+		void end_query(api::query_heap heap, api::query_type type, uint32_t index) final;
+
 		bool flush();
 		bool flush_and_wait();
 
@@ -27,5 +29,7 @@ namespace reshade::d3d12
 		UINT64 _fence_value[NUM_COMMAND_FRAMES] = {};
 		com_ptr<ID3D12Fence> _fence[NUM_COMMAND_FRAMES];
 		com_ptr<ID3D12CommandAllocator> _cmd_alloc[NUM_COMMAND_FRAMES];
+
+		std::vector<std::pair<ID3D12Fence *, UINT64>> _current_query_fences;
 	};
 }

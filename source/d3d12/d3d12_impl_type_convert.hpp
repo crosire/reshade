@@ -25,6 +25,13 @@ namespace reshade::d3d12
 		const std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT> *ranges;
 	};
 
+	struct query_heap_extra_data
+	{
+		UINT size;
+		ID3D12Resource *readback_resource;
+		std::pair<ID3D12Fence *, UINT64> *fences;
+	};
+
 	extern const GUID extra_data_guid;
 
 	auto convert_format(api::format format) -> DXGI_FORMAT;

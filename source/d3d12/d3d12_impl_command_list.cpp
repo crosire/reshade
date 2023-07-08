@@ -932,16 +932,7 @@ void reshade::d3d12::command_list_impl::end_query(api::query_heap heap, api::que
 
 	assert(heap.handle != 0);
 
-	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
-	const auto d3d_query_type = convert_query_type(type);
-	_orig->EndQuery(heap_object, d3d_query_type, index);
-
-	com_ptr<ID3D12Resource> readback_resource;
-	UINT extra_data_size = sizeof(ID3D12Resource *);
-	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &readback_resource)))
-	{
-		_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), index, 1, readback_resource.get(), index * sizeof(uint64_t));
-	}
+	_orig->EndQuery(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), index);
 }
 void reshade::d3d12::command_list_impl::copy_query_heap_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
