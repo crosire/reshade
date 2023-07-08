@@ -1265,9 +1265,9 @@ In that event here are some steps you can try to resolve this:
 				config.RenameValue("INSTALL", "AddonPath", "ADDON", "AddonPath");
 			}
 
-			if (!config.HasValue("GENERAL", "AutoSavePreset") && config.HasValue("GENERAL", "SavePresetOnModification"))
+			if (!config.HasValue("OVERLAY", "AutoSavePreset") && config.HasValue("OVERLAY", "SavePresetOnModification"))
 			{
-				config.RenameValue("GENERAL", "SavePresetOnModification", "AutoSavePreset");
+				config.RenameValue("OVERLAY", "SavePresetOnModification", "AutoSavePreset");
 			}
 
 			// Always add app section if this is the global config
