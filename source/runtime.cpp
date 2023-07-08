@@ -282,6 +282,9 @@ bool reshade::runtime::on_init(input::window_handle window)
 {
 	assert(!_is_initialized);
 
+	if (_config_path.empty())
+		return false;
+
 	const api::resource_desc back_buffer_desc = _device->get_resource_desc(get_back_buffer(0));
 
 	_width = back_buffer_desc.texture.width;
@@ -842,6 +845,13 @@ void reshade::runtime::load_config()
 {
 	const ini_file &config = ini_file::load_cache(_config_path);
 
+	if (config.get("GENERAL", "Disable"))
+	{
+		// Indicate that this effect runtime should never initialize
+		_config_path.clear();
+		return;
+	}
+
 	if (config.get("INPUT", "GamepadNavigation"))
 		_input_gamepad = input_gamepad::load();
 	else
@@ -928,6 +938,9 @@ void reshade::runtime::load_config()
 }
 void reshade::runtime::save_config() const
 {
+	if (_config_path.empty())
+		return;
+
 	ini_file &config = ini_file::load_cache(_config_path);
 
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);

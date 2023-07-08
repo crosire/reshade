@@ -249,6 +249,8 @@ void ini_file::clear_cache(const std::filesystem::path &path)
 
 ini_file &ini_file::load_cache(const std::filesystem::path &path)
 {
+	assert(!path.empty());
+
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
 	const auto insert = s_ini_cache.try_emplace(path);
