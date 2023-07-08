@@ -855,11 +855,11 @@ void reshade::runtime::draw_gui()
 
 		ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
-		if (_needs_update)
+		if (s_needs_update)
 		{
 			ImGui::TextColored(COLOR_YELLOW,
-				"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
-				_latest_version[0], _latest_version[1], _latest_version[2]);
+				"An update is available! Please visit https://reshade.me and install the new version (v%u.%u.%u).",
+				s_latest_version[0], s_latest_version[1], s_latest_version[2]);
 		}
 		else
 		{
