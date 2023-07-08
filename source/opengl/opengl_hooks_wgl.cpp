@@ -1322,36 +1322,37 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #endif
 
 #if RESHADE_ADDON
-#  ifdef GL_VERSION_1_2
+
+#ifdef GL_VERSION_1_2
 		HOOK_PROC(glTexImage3D);
 		HOOK_PROC(glTexSubImage3D);
 		HOOK_PROC(glCopyTexSubImage3D);
 		HOOK_PROC(glDrawRangeElements);
-#  endif
-#  ifdef GL_VERSION_1_3
+#endif
+#ifdef GL_VERSION_1_3
 		HOOK_PROC(glCompressedTexImage1D);
 		HOOK_PROC(glCompressedTexImage2D);
 		HOOK_PROC(glCompressedTexImage3D);
 		HOOK_PROC(glCompressedTexSubImage1D);
 		HOOK_PROC(glCompressedTexSubImage2D);
 		HOOK_PROC(glCompressedTexSubImage3D);
-#  endif
-#  ifdef GL_VERSION_1_4
+#endif
+#ifdef GL_VERSION_1_4
 		HOOK_PROC(glBlendFuncSeparate);
 		HOOK_PROC(glBlendColor);
 		HOOK_PROC(glBlendEquation);
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawElements);
-#  endif
-#  ifdef GL_VERSION_1_5
+#endif
+#ifdef GL_VERSION_1_5
 		HOOK_PROC(glDeleteBuffers);
 		HOOK_PROC(glBufferData);
 		HOOK_PROC(glBufferSubData);
 		HOOK_PROC(glMapBuffer);
 		HOOK_PROC(glUnmapBuffer);
 		HOOK_PROC(glBindBuffer);
-#  endif
-#  ifdef GL_VERSION_2_0
+#endif
+#ifdef GL_VERSION_2_0
 		HOOK_PROC(glDeleteProgram);
 		HOOK_PROC(glLinkProgram);
 		HOOK_PROC(glShaderSource);
@@ -1376,8 +1377,8 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2iv);
 		HOOK_PROC(glUniform3iv);
 		HOOK_PROC(glUniform4iv);
-#  endif
-#  ifdef GL_VERSION_3_0
+#endif
+#ifdef GL_VERSION_3_0
 		HOOK_PROC(glMapBufferRange);
 		HOOK_PROC(glDeleteRenderbuffers);
 		HOOK_PROC(glFramebufferTexture1D);
@@ -1405,14 +1406,14 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2uiv);
 		HOOK_PROC(glUniform3uiv);
 		HOOK_PROC(glUniform4uiv);
-#  endif
-#  ifdef GL_VERSION_3_1
+#endif
+#ifdef GL_VERSION_3_1
 		HOOK_PROC(glTexBuffer);
 		HOOK_PROC(glCopyBufferSubData);
 		HOOK_PROC(glDrawArraysInstanced);
 		HOOK_PROC(glDrawElementsInstanced);
-#  endif
-#  ifdef GL_VERSION_3_2
+#endif
+#ifdef GL_VERSION_3_2
 		HOOK_PROC(glFramebufferTexture);
 		HOOK_PROC(glTexImage2DMultisample);
 		HOOK_PROC(glTexImage3DMultisample);
@@ -1420,20 +1421,20 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawRangeElementsBaseVertex);
 		HOOK_PROC(glDrawElementsInstancedBaseVertex);
 		HOOK_PROC(glMultiDrawElementsBaseVertex);
-#  endif
-#  ifdef GL_VERSION_4_0
+#endif
+#ifdef GL_VERSION_4_0
 		HOOK_PROC(glDrawArraysIndirect);
 		HOOK_PROC(glDrawElementsIndirect);
-#  endif
-#  ifdef GL_VERSION_4_1
+#endif
+#ifdef GL_VERSION_4_1
 		HOOK_PROC(glScissorArrayv);
 		HOOK_PROC(glScissorIndexed);
 		HOOK_PROC(glScissorIndexedv);
 		HOOK_PROC(glViewportArrayv);
 		HOOK_PROC(glViewportIndexedf);
 		HOOK_PROC(glViewportIndexedfv);
-#  endif
-#  ifdef GL_VERSION_4_2
+#endif
+#ifdef GL_VERSION_4_2
 		HOOK_PROC(glTexStorage1D);
 		HOOK_PROC(glTexStorage2D);
 		HOOK_PROC(glTexStorage3D);
@@ -1441,8 +1442,8 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawArraysInstancedBaseInstance);
 		HOOK_PROC(glDrawElementsInstancedBaseInstance);
 		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
-#  endif
-#  ifdef GL_VERSION_4_3
+#endif
+#ifdef GL_VERSION_4_3
 		HOOK_PROC(glTextureView);
 		HOOK_PROC(glTexBufferRange);
 		HOOK_PROC(glTexStorage2DMultisample);
@@ -1453,16 +1454,16 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDispatchComputeIndirect);
 		HOOK_PROC(glMultiDrawArraysIndirect);
 		HOOK_PROC(glMultiDrawElementsIndirect);
-#  endif
-#  ifdef GL_VERSION_4_4
+#endif
+#ifdef GL_VERSION_4_4
 		HOOK_PROC(glBufferStorage);
 		HOOK_PROC(glBindBuffersBase);
 		HOOK_PROC(glBindBuffersRange);
 		HOOK_PROC(glBindTextures);
 		HOOK_PROC(glBindImageTextures);
 		HOOK_PROC(glBindVertexBuffers);
-#  endif
-#  ifdef GL_VERSION_4_5
+#endif
+#ifdef GL_VERSION_4_5
 		HOOK_PROC(glTextureBuffer);
 		HOOK_PROC(glTextureBufferRange);
 		HOOK_PROC(glNamedBufferData);
@@ -1495,7 +1496,7 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBlitNamedFramebuffer);
 		HOOK_PROC(glGenerateTextureMipmap);
 		HOOK_PROC(glBindTextureUnit);
-#  endif
+#endif
 
 		// GL_ARB_vertex_program / GL_ARB_fragment_program
 		HOOK_PROC(glProgramStringARB);

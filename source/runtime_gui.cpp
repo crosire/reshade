@@ -1167,9 +1167,9 @@ void reshade::runtime::draw_gui()
 	}
 
 #if RESHADE_ADDON
-#  if RESHADE_ADDON_LITE
+#if RESHADE_ADDON_LITE
 	if (addon_enabled)
-#  endif
+#endif
 	{
 		for (const addon_info &info : addon_loaded_info)
 		{
@@ -2709,7 +2709,7 @@ void reshade::runtime::draw_gui_addons()
 {
 	ini_file &config = global_config();
 
-#  if RESHADE_ADDON_LITE
+#if RESHADE_ADDON_LITE
 	if (!addon_enabled)
 	{
 		ImGui::TextColored(COLOR_YELLOW, "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
@@ -2718,12 +2718,12 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted("This build of ReShade has only limited add-on functionality.");
-#  else
+#else
 	std::filesystem::path addon_search_path = g_reshade_base_path;
 	config.get("ADDON", "AddonPath", addon_search_path);
 	if (imgui::directory_input_box("Add-on search path", addon_search_path, _file_selection_path))
 		config.set("ADDON", "AddonPath", addon_search_path);
-#  endif
+#endif
 
 	ImGui::Spacing();
 	ImGui::Separator();
@@ -2740,11 +2740,11 @@ void reshade::runtime::draw_gui_addons()
 	if (!addon_all_loaded)
 	{
 		ImGui::PushTextWrapPos();
-#  if RESHADE_ADDON_LITE
+#if RESHADE_ADDON_LITE
 		ImGui::TextColored(COLOR_YELLOW, "Some add-ons were not loaded because this build of ReShade has only limited add-on functionality.");
-#  else
+#else
 		ImGui::TextColored(COLOR_RED, "There were errors loading some add-ons. Check the log for more details.");
-#  endif
+#endif
 		ImGui::PopTextWrapPos();
 		ImGui::Spacing();
 	}

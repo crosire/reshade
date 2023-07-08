@@ -31,7 +31,6 @@
 #include <stb_image_resize.h>
 #include <d3dcompiler.h>
 
-#if RESHADE_FX
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
 	// First convert path to an absolute path
@@ -43,6 +42,8 @@ bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 		path = std::move(canonical_path);
 	return !ec; // The canonicalization step fails if the path does not exist
 }
+
+#if RESHADE_FX
 bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec)
 {
 	ec.clear();
@@ -604,6 +605,8 @@ void reshade::runtime::on_present()
 
 #if RESHADE_ADDON
 	_is_in_present_call = true;
+#endif
+#if RESHADE_ADDON && RESHADE_FX
 	_should_block_effect_reload = false;
 #endif
 

@@ -229,9 +229,9 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 #if RESHADE_ADDON
-#  if RESHADE_ADDON_LITE
+#if RESHADE_ADDON_LITE
 	if (addon_enabled)
-#  endif
+#endif
 	{
 		for (const addon_info &info : addon_loaded_info)
 		{
@@ -258,9 +258,9 @@ void reshade::runtime::draw_gui_vr()
 #if RESHADE_ADDON
 	else if (selected_overlay_index < overlay_index)
 	{
-#  if RESHADE_ADDON_LITE
+#if RESHADE_ADDON_LITE
 		assert(addon_enabled);
-#  endif
+#endif
 
 		overlay_index = static_cast<int>(std::size(overlay_callbacks));
 

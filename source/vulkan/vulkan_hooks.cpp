@@ -36,9 +36,11 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(BindImageMemory);
 	HOOK_PROC(CreateQueryPool);
 	HOOK_PROC(DestroyQueryPool);
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC(GetQueryPoolResults);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC(CreateBuffer);
 	HOOK_PROC(DestroyBuffer);
 	HOOK_PROC(CreateBufferView);
@@ -47,7 +49,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(DestroyImage);
 	HOOK_PROC(CreateImageView);
 	HOOK_PROC(DestroyImageView);
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC(CreateShaderModule);
 	HOOK_PROC(DestroyShaderModule);
 	HOOK_PROC(CreateGraphicsPipelines);
@@ -55,10 +58,12 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(DestroyPipeline);
 	HOOK_PROC(CreatePipelineLayout);
 	HOOK_PROC(DestroyPipelineLayout);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC(CreateSampler);
 	HOOK_PROC(DestroySampler);
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC(CreateDescriptorSetLayout);
 	HOOK_PROC(DestroyDescriptorSetLayout);
 	HOOK_PROC(CreateDescriptorPool);
@@ -67,7 +72,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(AllocateDescriptorSets);
 	HOOK_PROC(FreeDescriptorSets);
 	HOOK_PROC(UpdateDescriptorSets);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC(CreateFramebuffer);
 	HOOK_PROC(DestroyFramebuffer);
 	HOOK_PROC(CreateRenderPass);
@@ -77,13 +83,15 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(FreeCommandBuffers);
 	HOOK_PROC(BeginCommandBuffer);
 	HOOK_PROC(EndCommandBuffer);
-
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC(CmdBindPipeline);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC(CmdSetViewport);
 	HOOK_PROC(CmdSetScissor);
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC(CmdSetDepthBias);
 	HOOK_PROC(CmdSetBlendConstants);
 	HOOK_PROC(CmdSetStencilCompareMask);
@@ -92,24 +100,28 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdBindDescriptorSets);
 	HOOK_PROC(CmdBindIndexBuffer);
 	HOOK_PROC(CmdBindVertexBuffers);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC(CmdDraw);
 	HOOK_PROC(CmdDrawIndexed);
 	HOOK_PROC(CmdDrawIndirect);
 	HOOK_PROC(CmdDrawIndexedIndirect);
 	HOOK_PROC(CmdDispatch);
 	HOOK_PROC(CmdDispatchIndirect);
-#if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC(CmdCopyBuffer);
 	HOOK_PROC(CmdCopyImage);
 	HOOK_PROC(CmdBlitImage);
 	HOOK_PROC(CmdCopyBufferToImage);
 	HOOK_PROC(CmdCopyImageToBuffer);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC(CmdClearColorImage);
 	HOOK_PROC(CmdClearDepthStencilImage);
 	HOOK_PROC(CmdClearAttachments);
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC(CmdResolveImage);
 	HOOK_PROC(CmdPipelineBarrier);
 	HOOK_PROC(CmdBeginQuery);
@@ -117,7 +129,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdWriteTimestamp);
 	HOOK_PROC(CmdCopyQueryPoolResults);
 	HOOK_PROC(CmdPushConstants);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC(CmdBeginRenderPass);
 	HOOK_PROC(CmdNextSubpass);
 	HOOK_PROC(CmdEndRenderPass);
@@ -134,36 +147,44 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdBeginRenderPass2);
 	HOOK_PROC(CmdNextSubpass2);
 	HOOK_PROC(CmdEndRenderPass2);
+#endif
 
 	// Core 1_3
-#  if !RESHADE_ADDON_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC_OPTIONAL(CmdPipelineBarrier2,);
 	HOOK_PROC_OPTIONAL(CmdWriteTimestamp2,);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC_OPTIONAL(QueueSubmit2,);
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC_OPTIONAL(CmdCopyBuffer2,);
 	HOOK_PROC_OPTIONAL(CmdCopyImage2,);
 	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2,);
 	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2,);
 	HOOK_PROC_OPTIONAL(CmdBlitImage2,);
 	HOOK_PROC_OPTIONAL(CmdResolveImage2,);
-#  endif
+#endif
+#if RESHADE_ADDON
 	HOOK_PROC_OPTIONAL(CmdBeginRendering,);
 	HOOK_PROC_OPTIONAL(CmdEndRendering,);
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2,);
-#  endif
+#endif
 
+#if RESHADE_ADDON
 	// VK_KHR_dynamic_rendering
 	HOOK_PROC_OPTIONAL(CmdBeginRendering, KHR);
 	HOOK_PROC_OPTIONAL(CmdEndRendering, KHR);
+#endif
 
-#  if !RESHADE_ADDON_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// VK_KHR_push_descriptor
 	HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR,);
-#  endif
+#endif
 
+#if RESHADE_ADDON
 	// VK_KHR_create_renderpass2
 	HOOK_PROC_OPTIONAL(CreateRenderPass2, KHR);
 	HOOK_PROC_OPTIONAL(CmdBeginRenderPass2, KHR);
@@ -177,8 +198,9 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	// VK_KHR_draw_indirect_count
 	HOOK_PROC_OPTIONAL(CmdDrawIndirectCount, KHR);
 	HOOK_PROC_OPTIONAL(CmdDrawIndexedIndirectCount, KHR);
+#endif
 
-#  if !RESHADE_ADDON_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// VK_KHR_synchronization2
 	HOOK_PROC_OPTIONAL(CmdPipelineBarrier2, KHR);
 
@@ -197,7 +219,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 
 	// VK_EXT_extended_dynamic_state
 	HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2, EXT);
-#  endif
 #endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)

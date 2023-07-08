@@ -438,8 +438,9 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 	}
 }
 
-#  if !RESHADE_ADDON_LITE
+#endif
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 static bool copy_buffer_region(GLenum src_target, GLuint src_object, GLintptr src_offset, GLenum dst_target, GLuint dst_object, GLintptr dst_offset, GLsizeiptr size)
 {
 	if (!g_current_context || !reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
@@ -599,8 +600,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 		return reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(g_current_context, src, reinterpret_cast<uintptr_t>(pixels), row_length, slice_height, dst, subresource, &dst_box);
 	}
 }
-
-#  endif
+#endif
 
 static void update_current_primitive_topology(GLenum mode, GLenum type)
 {
@@ -611,7 +611,7 @@ static void update_current_primitive_topology(GLenum mode, GLenum type)
 	{
 		g_current_context->_current_prim_mode = mode;
 
-#  if !RESHADE_ADDON_LITE
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
 		uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
 
@@ -625,7 +625,7 @@ static void update_current_primitive_topology(GLenum mode, GLenum type)
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
-#  endif
+#endif
 	}
 }
 
@@ -633,8 +633,6 @@ static __forceinline GLuint get_index_buffer_offset(const GLvoid *indices)
 {
 	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
 }
-
-#endif
 
 #ifdef GL_VERSION_1_0
 extern "C" void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
@@ -677,9 +675,11 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 			trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 			if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X)
 				resource.invoke_initialize_event(0); // Initialize resource with the first cubemap face
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 			update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, format, type, pixels);
-#  endif
+#endif
+#if RESHADE_ADDON
 		}
 		else
 		{
@@ -1385,9 +1385,11 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 			trampoline(target, level, internalformat, width, height, border, imageSize, data);
 			if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X)
 				resource.invoke_initialize_event(0); // Initialize resource with the first cubemap face
-#  if !RESHADE_ADDON_LITE
+#endif
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 			update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, internalformat, GL_UNSIGNED_BYTE, data);
-#  endif
+#endif
+#if RESHADE_ADDON
 		}
 		else
 		{
