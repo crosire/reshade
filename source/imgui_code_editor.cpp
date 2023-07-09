@@ -114,14 +114,14 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	ImGuiIO &io = ImGui::GetIO();
 	const bool ctrl = io.KeyCtrl, shift = io.KeyShift, alt = io.KeyAlt;
 
-	const bool open_search_window = ctrl && !shift && !alt && (ImGui::IsKeyPressed('F') || ImGui::IsKeyPressed('H'));
+	const bool open_search_window = ctrl && !shift && !alt && (ImGui::IsKeyPressed(ImGuiKey_F) || ImGui::IsKeyPressed(ImGuiKey_H));
 	if (open_search_window)
 	{
 		// Copy currently selected text into search box
 		if (_select_beg != _select_end)
 			_search_text[get_selected_text().copy(_search_text, sizeof(_search_text) - 1)] = '\0';
 
-		_search_window_open = ImGui::IsKeyPressed('H') ? 2 /* search + replace */ : 1 /* search */;
+		_search_window_open = ImGui::IsKeyPressed(ImGuiKey_H) ? 2 /* search + replace */ : 1 /* search */;
 	}
 	else if (_search_window_open < 0)
 	{
@@ -130,7 +130,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	}
 
 	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
-	ImGui::PushAllowKeyboardFocus(true);
+	ImGui::PushTabStop(true);
 
 	char buf[128] = "", *buf_end = buf;
 
@@ -151,60 +151,60 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		io.WantTextInput = true;
 		io.WantCaptureKeyboard = true;
 
-		if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+		if (ImGui::IsKeyPressed(ImGuiKey_Escape))
 			ImGui::SetWindowFocus(nullptr); // Reset window focus
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z)))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Z))
 			undo();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Y)))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Y))
 			redo();
-		else if (!ctrl && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
+		else if (!ctrl && ImGui::IsKeyPressed(ImGuiKey_UpArrow))
 			if (alt && !shift) // Alt + Up moves the current line one up
 				move_lines_up();
 			else
 				move_up(1, shift);
-		else if (!ctrl && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)))
+		else if (!ctrl && ImGui::IsKeyPressed(ImGuiKey_DownArrow))
 			if (alt && !shift) // Alt + Down moves the current line one down
 				move_lines_down();
 			else
 				move_down(1, shift);
-		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_LeftArrow)))
+		else if (!alt && ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
 			move_left(1, shift, ctrl);
-		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightArrow)))
+		else if (!alt && ImGui::IsKeyPressed(ImGuiKey_RightArrow))
 			move_right(1, shift, ctrl);
-		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageUp)))
+		else if (!alt && ImGui::IsKeyPressed(ImGuiKey_PageUp))
 			move_up(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4.0f), shift);
-		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageDown)))
+		else if (!alt && ImGui::IsKeyPressed(ImGuiKey_PageDown))
 			move_down(static_cast<size_t>(floor((ImGui::GetWindowHeight() - 20.0f) / char_advance.y) - 4.0f), shift);
-		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Home)))
+		else if (!alt && ImGui::IsKeyPressed(ImGuiKey_Home))
 			if (ctrl)
 				move_top(shift);
 			else
 				move_home(shift);
-		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_End)))
+		else if (!alt && ImGui::IsKeyPressed(ImGuiKey_End))
 			if (ctrl)
 				move_bottom(shift);
 			else
 				move_end(shift);
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete)))
+		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Delete))
 			delete_next();
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
+		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Backspace))
 			delete_previous();
-		else if (!alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
+		else if (!alt && ImGui::IsKeyPressed(ImGuiKey_Insert))
 			if (ctrl)
 				clipboard_copy();
 			else if (shift)
 				clipboard_paste();
 			else
 				_overwrite ^= true;
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C)))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_C))
 			clipboard_copy();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V)))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_V))
 			clipboard_paste();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_X)))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_X))
 			clipboard_cut();
-		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_A)))
+		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_A))
 			select_all();
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)))
+		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Enter))
 			insert_character('\n', true);
 		else
 			for (ImWchar c : io.InputQueueCharacters)
@@ -560,7 +560,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		_scroll_to_cursor = false;
 	}
 
-	ImGui::PopAllowKeyboardFocus();
+	ImGui::PopTabStop();
 	ImGui::EndChild();
 
 	ImGui::PopStyleVar();
@@ -587,26 +587,26 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 
 		ImGui::SameLine(0.0f, button_spacing);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[_search_case_sensitive ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
-		if (ImGui::Button("Aa", ImVec2(button_size + 5, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed('C')))
+		if (ImGui::Button("Aa", ImVec2(button_size + 5, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_C)))
 			_search_case_sensitive = !_search_case_sensitive;
 		ImGui::PopStyleColor();
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Match case (Alt + C)");
 
 		ImGui::SameLine(0.0f, button_spacing);
-		if (ImGui::Button("<", ImVec2(button_size, 0)) || (shift && ImGui::IsKeyPressed(0x72))) // VK_F3
+		if (ImGui::Button("<", ImVec2(button_size, 0)) || (shift && ImGui::IsKeyPressed(ImGuiKey_F3)))
 			find_and_scroll_to_text(_search_text, true);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Find previous (Shift + F3)");
 
 		ImGui::SameLine(0.0f, button_spacing);
-		if (ImGui::Button(">", ImVec2(button_size, 0)) || (!shift && ImGui::IsKeyPressed(0x72)))
+		if (ImGui::Button(">", ImVec2(button_size, 0)) || (!shift && ImGui::IsKeyPressed(ImGuiKey_F3)))
 			find_and_scroll_to_text(_search_text, false);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Find next (F3)");
 
 		ImGui::SameLine(0.0f, button_spacing);
-		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape))
 		{
 			// Move focus back to text editor again next frame
 			_search_window_open = -1;
@@ -627,14 +627,14 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			ImGui::PopItemWidth();
 
 			ImGui::SameLine(0.0f, button_spacing * 2 + button_size + 5);
-			if (ImGui::Button("Repl", ImVec2(2 * button_size + button_spacing, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed('R')))
+			if (ImGui::Button("Repl", ImVec2(2 * button_size + button_spacing, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_R)))
 				if (find_and_scroll_to_text(_search_text, false, true))
 					insert_text(_replace_text);
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Replace next (Alt + R)");
 
 			ImGui::SameLine(0.0f, button_spacing);
-			if (ImGui::Button("A", ImVec2(button_size, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed('A')))
+			if (ImGui::Button("A", ImVec2(button_size, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_A)))
 			{
 				// Reset select position so that replace stats at document begin
 				_select_beg = text_pos();

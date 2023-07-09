@@ -1,3 +1,5 @@
+$version = 0
+
 $function_list = @{}
 
 $function_table = ""
@@ -9,6 +11,11 @@ $is_inside_struct = ""
 $is_inside_namespace = 0
 
 Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
+	if ($_.StartsWith("#define IMGUI_VERSION_NUM")) {
+		$version = [int]$_.Substring(26)
+		return
+	}
+
 	if ($is_inside_namespace -eq 0 -and $_.StartsWith("namespace ImGui")) {
 		$is_inside_namespace = 1
 		return
@@ -204,7 +211,7 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 $year = Get-Date -Format "yyyy"
 
 $function_table = @"
-struct imgui_function_table
+struct imgui_function_table_$version
 {
 $function_table
 };
@@ -221,9 +228,9 @@ $function_table_init = @"
 
 #include <new>
 #include <imgui.h>
-#include "reshade_overlay.hpp"
+#include "imgui_function_table_$version.hpp"
 
-imgui_function_table g_imgui_function_table = {
+imgui_function_table_$version g_imgui_function_table_$version = {
 $function_table_init
 };
 
@@ -239,14 +246,18 @@ $function_definitions = @"
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#pragma once
-
 #if defined(IMGUI_VERSION_NUM)
+
+#if IMGUI_VERSION_NUM != $version
+#error Unexpected ImGui version, please update the "imgui.h" header to version $version!
+#endif
 
 // Check that the 'ImTextureID' type has the same size as 'reshade::api::resource_view'
 static_assert(sizeof(ImTextureID) == 8, "missing \"#define ImTextureID ImU64\" before \"#include <imgui.h>\"");
 
 $function_table
+
+using imgui_function_table = imgui_function_table_$version;
 
 inline const imgui_function_table *&imgui_function_table_instance()
 {
@@ -254,7 +265,7 @@ inline const imgui_function_table *&imgui_function_table_instance()
 	return instance;
 }
 
-#ifndef RESHADE_ADDON
+#ifndef RESHADE_API_LIBRARY_EXPORT
 
 namespace ImGui
 {
@@ -268,5 +279,18 @@ $function_definitions_struct
 #endif
 "@
 
-$function_table_init | Out-File -FilePath "..\source\imgui_function_table.cpp" -Encoding ASCII
+$function_table = @"
+/*
+ * Copyright (C) 2021 Patrick Mours
+ * Copyright (C) 2014-$year Omar Cornut
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
+ */
+
+#pragma once
+
+$function_table
+"@
+
+$function_table | Out-File -FilePath "..\source\imgui_function_table_$version.hpp" -Encoding ASCII
+$function_table_init | Out-File -FilePath "..\source\imgui_function_table_$version.cpp" -Encoding ASCII
 $function_definitions | Out-File -FilePath "..\include\reshade_overlay.hpp" -Encoding ASCII

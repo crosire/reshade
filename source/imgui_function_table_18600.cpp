@@ -8,11 +8,144 @@
 
 #include <new>
 #include <imgui.h>
-#include "reshade_overlay.hpp"
+#include "imgui_function_table_18600.hpp"
 
-imgui_function_table g_imgui_function_table = {
-	ImGui::GetIO,
-	ImGui::GetStyle,
+imgui_function_table_18600 g_imgui_function_table_18600 = {
+	[]() -> imgui_io_18600 & {
+		static imgui_io_18600 io = {};
+		ImGuiIO &new_io = ImGui::GetIO();
+
+		io.ConfigFlags = new_io.ConfigFlags;
+		io.BackendFlags = new_io.BackendFlags;
+		io.DisplaySize = new_io.DisplaySize;
+		io.DeltaTime = new_io.DeltaTime;
+		io.IniSavingRate = new_io.IniSavingRate;
+		io.IniFilename = new_io.IniFilename;
+		io.LogFilename = new_io.LogFilename;
+		io.MouseDoubleClickTime = new_io.MouseDoubleClickTime;
+		io.MouseDoubleClickMaxDist = new_io.MouseDoubleClickMaxDist;
+		io.MouseDragThreshold = new_io.MouseDragThreshold;
+		for (int i = 0; i < 22; ++i)
+			io.KeyMap[i] = new_io.KeyMap[i];
+		io.KeyRepeatDelay = new_io.KeyRepeatDelay;
+		io.KeyRepeatRate = new_io.KeyRepeatRate;
+		io.UserData = new_io.UserData;
+
+		io.Fonts = new_io.Fonts;
+		io.FontGlobalScale = new_io.FontGlobalScale;
+		io.FontAllowUserScaling = new_io.FontAllowUserScaling;
+		io.FontDefault = new_io.FontDefault;
+		io.DisplayFramebufferScale = new_io.DisplayFramebufferScale;
+
+		io.ConfigDockingNoSplit = new_io.ConfigDockingNoSplit;
+		io.ConfigDockingWithShift = new_io.ConfigDockingWithShift;
+		io.ConfigDockingAlwaysTabBar = new_io.ConfigDockingAlwaysTabBar;
+		io.ConfigDockingTransparentPayload = new_io.ConfigDockingTransparentPayload;
+
+		io.ConfigViewportsNoAutoMerge = new_io.ConfigViewportsNoAutoMerge;
+		io.ConfigViewportsNoTaskBarIcon = new_io.ConfigViewportsNoTaskBarIcon;
+		io.ConfigViewportsNoDecoration = new_io.ConfigViewportsNoDecoration;
+		io.ConfigViewportsNoDefaultParent = new_io.ConfigViewportsNoDefaultParent;
+
+		io.MouseDrawCursor = new_io.MouseDrawCursor;
+		io.ConfigMacOSXBehaviors = new_io.ConfigMacOSXBehaviors;
+		io.ConfigInputTextCursorBlink = new_io.ConfigInputTextCursorBlink;
+		io.ConfigDragClickToInputText = new_io.ConfigDragClickToInputText;
+		io.ConfigWindowsResizeFromEdges = new_io.ConfigWindowsResizeFromEdges;
+		io.ConfigWindowsMoveFromTitleBarOnly = new_io.ConfigWindowsMoveFromTitleBarOnly;
+		io.ConfigMemoryCompactTimer = new_io.ConfigMemoryCompactTimer;
+
+		io.BackendPlatformName = new_io.BackendPlatformName;
+		io.BackendRendererName = new_io.BackendRendererName;
+		io.BackendPlatformUserData = new_io.BackendPlatformUserData;
+		io.BackendRendererUserData = new_io.BackendRendererUserData;
+		io.BackendLanguageUserData = new_io.BackendLanguageUserData;
+
+		io.GetClipboardTextFn = new_io.GetClipboardTextFn;
+		io.SetClipboardTextFn = new_io.SetClipboardTextFn;
+		io.ClipboardUserData = new_io.ClipboardUserData;
+
+		io.MousePos = new_io.MousePos;
+		for (int i = 0; i < 5; ++i)
+			io.MouseDown[i] = new_io.MouseDown[i];
+		io.MouseWheel = new_io.MouseWheel;
+		io.MouseWheelH = new_io.MouseWheelH;
+		io.MouseHoveredViewport = new_io.MouseHoveredViewport;
+		io.KeyCtrl = new_io.KeyCtrl;
+		io.KeyShift = new_io.KeyShift;
+		io.KeyAlt = new_io.KeyAlt;
+		io.KeySuper = new_io.KeySuper;
+		for (int i = 0; i < 512; ++i)
+			io.KeysDown[i] = new_io.KeysDown[i];
+		for (int i = 0; i < (20 < ImGuiNavInput_COUNT ? 20 : ImGuiNavInput_COUNT); ++i)
+			io.NavInputs[i] = new_io.NavInputs[i];
+
+		io.WantCaptureMouse = new_io.WantCaptureMouse;
+		io.WantCaptureKeyboard = new_io.WantCaptureKeyboard;
+		io.WantTextInput = new_io.WantTextInput;
+		io.WantSetMousePos = new_io.WantSetMousePos;
+		io.WantSaveIniSettings = new_io.WantSaveIniSettings;
+		io.NavActive = new_io.NavActive;
+		io.NavVisible = new_io.NavVisible;
+		io.Framerate = new_io.Framerate;
+		io.MetricsRenderVertices = new_io.MetricsRenderVertices;
+		io.MetricsRenderIndices = new_io.MetricsRenderIndices;
+		io.MetricsRenderWindows = new_io.MetricsRenderWindows;
+		io.MetricsActiveWindows = new_io.MetricsActiveWindows;
+		io.MetricsActiveAllocations = new_io.MetricsActiveAllocations;
+		io.MouseDelta = new_io.MouseDelta;
+
+		return io;
+	},
+	[]() -> imgui_style_18600 & {
+		static imgui_style_18600 style = {};
+		ImGuiStyle &new_style = ImGui::GetStyle();
+
+		style.Alpha = new_style.Alpha;
+		style.DisabledAlpha = new_style.DisabledAlpha;
+		style.WindowPadding = new_style.WindowPadding;
+		style.WindowRounding = new_style.WindowRounding;
+		style.WindowBorderSize = new_style.WindowBorderSize;
+		style.WindowMinSize = new_style.WindowMinSize;
+		style.WindowTitleAlign = new_style.WindowTitleAlign;
+		style.WindowMenuButtonPosition = new_style.WindowMenuButtonPosition;
+		style.ChildRounding = new_style.ChildRounding;
+		style.ChildBorderSize = new_style.ChildBorderSize;
+		style.PopupRounding = new_style.PopupRounding;
+		style.PopupBorderSize = new_style.PopupBorderSize;
+		style.FramePadding = new_style.FramePadding;
+		style.FrameRounding = new_style.FrameRounding;
+		style.FrameBorderSize = new_style.FrameBorderSize;
+		style.ItemSpacing = new_style.ItemSpacing;
+		style.ItemInnerSpacing = new_style.ItemInnerSpacing;
+		style.CellPadding = new_style.CellPadding;
+		style.TouchExtraPadding = new_style.TouchExtraPadding;
+		style.IndentSpacing = new_style.IndentSpacing;
+		style.ColumnsMinSpacing = new_style.ColumnsMinSpacing;
+		style.ScrollbarSize = new_style.ScrollbarSize;
+		style.ScrollbarRounding = new_style.ScrollbarRounding;
+		style.GrabMinSize = new_style.GrabMinSize;
+		style.GrabRounding = new_style.GrabRounding;
+		style.LogSliderDeadzone = new_style.LogSliderDeadzone;
+		style.TabRounding = new_style.TabRounding;
+		style.TabBorderSize = new_style.TabBorderSize;
+		style.TabMinWidthForCloseButton = new_style.TabMinWidthForCloseButton;
+		style.ColorButtonPosition = new_style.ColorButtonPosition;
+		style.ButtonTextAlign = new_style.ButtonTextAlign;
+		style.SelectableTextAlign = new_style.SelectableTextAlign;
+		style.DisplayWindowPadding = new_style.DisplayWindowPadding;
+		style.DisplaySafeAreaPadding = new_style.DisplaySafeAreaPadding;
+		style.MouseCursorScale = new_style.MouseCursorScale;
+		style.AntiAliasedLines = new_style.AntiAliasedLines;
+		style.AntiAliasedLinesUseTex = new_style.AntiAliasedLinesUseTex;
+		style.AntiAliasedFill = new_style.AntiAliasedFill;
+		style.CurveTessellationTol = new_style.CurveTessellationTol;
+		style.CircleTessellationMaxError = new_style.CircleTessellationMaxError;
+		for (int i = 0; i < 55; ++i)
+			style.Colors[i] = new_style.Colors[i];
+
+		return style;
+	},
 	ImGui::GetVersion,
 	ImGui::Begin,
 	ImGui::End,
@@ -67,8 +200,8 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::PushStyleVar,
 	ImGui::PushStyleVar,
 	ImGui::PopStyleVar,
-	ImGui::PushAllowKeyboardFocus,
-	ImGui::PopAllowKeyboardFocus,
+	ImGui::PushTabStop,
+	ImGui::PopTabStop,
 	ImGui::PushButtonRepeat,
 	ImGui::PopButtonRepeat,
 	ImGui::PushItemWidth,
@@ -127,7 +260,17 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::InvisibleButton,
 	ImGui::ArrowButton,
 	ImGui::Image,
-	ImGui::ImageButton,
+	[](ImTextureID user_texture_id, const ImVec2 &size, const ImVec2 &uv0, const ImVec2 &uv1, int frame_padding, const ImVec4 &bg_col, const ImVec4 &tint_col) -> bool
+	{
+		ImGui::PushID(reinterpret_cast<void *>(user_texture_id));
+		if (frame_padding >= 0)
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2((float)frame_padding, (float)frame_padding));
+		bool ret = ImGui::ImageButton("#image", user_texture_id, size, uv0, uv1, bg_col, tint_col);
+		if (frame_padding >= 0)
+			ImGui::PopStyleVar();
+		ImGui::PopID();
+		return ret;
+	},
 	ImGui::Checkbox,
 	ImGui::CheckboxFlags,
 	ImGui::CheckboxFlags,
@@ -184,7 +327,7 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::ColorEdit4,
 	ImGui::ColorPicker3,
 	ImGui::ColorPicker4,
-	ImGui::ColorButton,
+	[](const char *desc_id, const ImVec4 &col, ImGuiColorEditFlags flags, ImVec2 size) -> bool { return ImGui::ColorButton(desc_id, col, flags, size); },
 	ImGui::SetColorEditOptions,
 	ImGui::TreeNode,
 	ImGui::TreeNodeV,
@@ -221,7 +364,7 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::EndMenu,
 	ImGui::MenuItem,
 	ImGui::MenuItem,
-	ImGui::BeginTooltip,
+	[]() { ImGui::BeginTooltip(); },
 	ImGui::EndTooltip,
 	ImGui::SetTooltipV,
 	ImGui::BeginPopup,
@@ -300,7 +443,7 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::GetItemRectMin,
 	ImGui::GetItemRectMax,
 	ImGui::GetItemRectSize,
-	ImGui::SetItemAllowOverlap,
+	[]() { /* ImGui::SetItemAllowOverlap(); */ },
 	ImGui::IsRectVisible,
 	ImGui::IsRectVisible,
 	ImGui::GetTime,
@@ -320,12 +463,12 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::ColorConvertFloat4ToU32,
 	ImGui::ColorConvertRGBtoHSV,
 	ImGui::ColorConvertHSVtoRGB,
-	ImGui::GetKeyIndex,
-	ImGui::IsKeyDown,
-	ImGui::IsKeyPressed,
-	ImGui::IsKeyReleased,
-	ImGui::GetKeyPressedAmount,
-	ImGui::CaptureKeyboardFromApp,
+	[](ImGuiKey imgui_key) -> int { return static_cast<int>(ImGui::GetKeyIndex(imgui_key)); },
+	[](int user_key_index) -> bool { return ImGui::IsKeyDown(static_cast<ImGuiKey>(user_key_index)); },
+	[](int user_key_index, bool repeat) -> bool { return ImGui::IsKeyPressed(static_cast<ImGuiKey>(user_key_index), repeat); },
+	[](int user_key_index) -> bool { return ImGui::IsKeyReleased(static_cast<ImGuiKey>(user_key_index)); },
+	[](int user_key_index, float repeat_delay, float rate) -> int { return ImGui::GetKeyPressedAmount(static_cast<ImGuiKey>(user_key_index), repeat_delay, rate); },
+	ImGui::SetNextFrameWantCaptureKeyboard,
 	ImGui::IsMouseDown,
 	ImGui::IsMouseClicked,
 	ImGui::IsMouseReleased,
@@ -341,7 +484,7 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::ResetMouseDragDelta,
 	ImGui::GetMouseCursor,
 	ImGui::SetMouseCursor,
-	ImGui::CaptureMouseFromApp,
+	ImGui::SetNextFrameWantCaptureMouse,
 	ImGui::GetClipboardText,
 	ImGui::SetClipboardText,
 	ImGui::DebugCheckVersionAndDataLayout,
@@ -368,7 +511,7 @@ imgui_function_table g_imgui_function_table = {
 	[](ImGuiListClipper *_this, int items_count, float items_height) -> void { _this->Begin(items_count, items_height); },
 	[](ImGuiListClipper *_this) -> void { _this->End(); },
 	[](ImGuiListClipper *_this) -> bool { return _this->Step(); },
-	[](ImGuiListClipper *_this, int item_min, int item_max) -> void { _this->ForceDisplayRangeByIndices(item_min, item_max); },
+	[](ImGuiListClipper *_this, int item_min, int item_max) -> void { _this->IncludeRangeByIndices(item_min, item_max); },
 	[](ImDrawList *_this, ImVec2 clip_rect_min, ImVec2 clip_rect_max, bool intersect_with_current_clip_rect) -> void { _this->PushClipRect(clip_rect_min, clip_rect_max, intersect_with_current_clip_rect); },
 	[](ImDrawList *_this) -> void { _this->PushClipRectFullScreen(); },
 	[](ImDrawList *_this) -> void { _this->PopClipRect(); },

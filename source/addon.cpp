@@ -85,16 +85,20 @@ void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 #if RESHADE_GUI
 
 #include <imgui.h>
-#include "reshade_overlay.hpp"
+#include "imgui_function_table_18971.hpp"
+#include "imgui_function_table_18600.hpp"
 
-extern imgui_function_table g_imgui_function_table;
+extern imgui_function_table_18971 g_imgui_function_table_18971;
+extern imgui_function_table_18600 g_imgui_function_table_18600;
 
-extern "C" __declspec(dllexport) const imgui_function_table *ReShadeGetImGuiFunctionTable(uint32_t version)
+extern "C" __declspec(dllexport) const void *ReShadeGetImGuiFunctionTable(uint32_t version)
 {
-	if (version == IMGUI_VERSION_NUM)
-		return &g_imgui_function_table;
+	if (version == 18971)
+		return &g_imgui_function_table_18971;
+	if (version == 18600)
+		return &g_imgui_function_table_18600;
 
-	LOG(ERROR) << "Failed to retrieve ImGui function table, because the requested ImGui version (" << version << ") is not supported (expected " << IMGUI_VERSION_NUM << ").";
+	LOG(ERROR) << "Failed to retrieve ImGui function table, because the requested ImGui version (" << version << ") is not supported.";
 	return nullptr;
 }
 

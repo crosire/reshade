@@ -124,7 +124,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 	if (parent_path.has_parent_path() && parent_path != parent_path.root_path())
 	{
-		if (ImGui::Selectable(ICON_FK_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) && (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsNavInputTest(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed)))
+		if (ImGui::Selectable(ICON_FK_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) && (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_NavGamepadActivate)))
 		{
 			path = parent_path.parent_path();
 			if (path.has_stem())
@@ -145,7 +145,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 				path = entry;
 
 				// Navigate into directory when double clicking one
-				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsNavInputTest(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed))
+				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_NavGamepadActivate))
 					path += std::filesystem::path::preferred_separator;
 			}
 
@@ -184,7 +184,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			path = std::move(file_path);
 
 			// Double clicking a file on the other hand acts as if pressing the ok button
-			if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsNavInputTest(ImGuiNavInput_Activate, ImGuiInputReadMode_Pressed))
+			if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_NavGamepadActivate))
 				has_double_clicked_file = true;
 		}
 
@@ -219,7 +219,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	std::wstring path_ext = path.extension().wstring();
 	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), towlower);
 
-	const bool result = (select || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || has_double_clicked_file) && (exts.empty() || std::find(exts.cbegin(), exts.cend(), path_ext) != exts.cend());
+	const bool result = (select || ImGui::IsKeyPressed(ImGuiKey_Enter) || has_double_clicked_file) && (exts.empty() || std::find(exts.cbegin(), exts.cend(), path_ext) != exts.cend());
 	if (result || cancel)
 		ImGui::CloseCurrentPopup();
 
@@ -244,7 +244,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 		const unsigned int last_key_pressed = input.last_key_pressed();
 		if (last_key_pressed != 0)
 		{
-			if (last_key_pressed == static_cast<unsigned int>(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
+			if (last_key_pressed == 0x08) // Backspace
 			{
 				key[0] = 0;
 				key[1] = 0;
@@ -264,7 +264,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 	}
 	else if (ImGui::IsItemHovered())
 	{
-		ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
+		ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key or press backspace to remove the shortcut.");
 	}
 
 	ImGui::EndDisabled();

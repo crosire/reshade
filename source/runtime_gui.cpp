@@ -88,10 +88,25 @@ void reshade::runtime::init_gui()
 	imgui_io.KeyMap[ImGuiKey_Escape] = 0x1B; // VK_ESCAPE
 	imgui_io.KeyMap[ImGuiKey_A] = 'A';
 	imgui_io.KeyMap[ImGuiKey_C] = 'C';
+	imgui_io.KeyMap[ImGuiKey_F] = 'F';
+	imgui_io.KeyMap[ImGuiKey_H] = 'H';
+	imgui_io.KeyMap[ImGuiKey_R] = 'R';
 	imgui_io.KeyMap[ImGuiKey_V] = 'V';
 	imgui_io.KeyMap[ImGuiKey_X] = 'X';
 	imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 	imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
+	imgui_io.KeyMap[ImGuiKey_F1] = 0x70; // VK_F1
+	imgui_io.KeyMap[ImGuiKey_F2] = 0x71; // VK_F2
+	imgui_io.KeyMap[ImGuiKey_F3] = 0x72; // VK_F3
+	imgui_io.KeyMap[ImGuiKey_F4] = 0x73; // VK_F4
+	imgui_io.KeyMap[ImGuiKey_F5] = 0x74; // VK_F5
+	imgui_io.KeyMap[ImGuiKey_F6] = 0x75; // VK_F6
+	imgui_io.KeyMap[ImGuiKey_F7] = 0x76; // VK_F7
+	imgui_io.KeyMap[ImGuiKey_F8] = 0x77; // VK_F8
+	imgui_io.KeyMap[ImGuiKey_F9] = 0x78; // VK_F9
+	imgui_io.KeyMap[ImGuiKey_F10] = 0x79; // VK_F10
+	imgui_io.KeyMap[ImGuiKey_F11] = 0x80; // VK_F11
+	imgui_io.KeyMap[ImGuiKey_F12] = 0x81; // VK_F12
 	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
 	imgui_io.BackendFlags = ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_RendererHasVtxOffset;
 
@@ -1110,11 +1125,11 @@ void reshade::runtime::draw_gui()
 		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
 		ImGui::End();
 
-		if (_imgui_context->NavInputSource != ImGuiInputSource_None)
+		if (_imgui_context->NavInputSource > ImGuiInputSource_Mouse)
 		{
 			// Reset input source to mouse when the cursor is moved
 			if (_input != nullptr && (_input->mouse_movement_delta_x() != 0 || _input->mouse_movement_delta_y() != 0))
-				_imgui_context->NavInputSource = ImGuiInputSource_None;
+				_imgui_context->NavInputSource = ImGuiInputSource_Mouse;
 			// Ensure there is always a window that has navigation focus when keyboard or gamepad navigation is used (choose the first overlay window created next)
 			else if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
 				ImGui::SetNextWindowFocus();
@@ -1503,7 +1518,7 @@ void reshade::runtime::draw_gui_home()
 				}
 			}
 
-			if (preset_name[0] == '\0' && ImGui::IsKeyPressedMap(ImGuiKey_Backspace))
+			if (preset_name[0] == '\0' && ImGui::IsKeyPressed(ImGuiKey_Backspace))
 				ImGui::CloseCurrentPopup();
 
 			ImGui::EndPopup();
@@ -1664,7 +1679,7 @@ void reshade::runtime::draw_gui_home()
 		if (ImGui::IsItemActive())
 		{
 			ImVec2 move_delta = _imgui_context->IO.MouseDelta;
-			move_delta += ImGui::GetNavInputAmount2d(ImGuiNavDirSourceFlags_RawKeyboard | ImGuiNavDirSourceFlags_PadLStick, ImGuiInputReadMode_Down) * _imgui_context->IO.DeltaTime * 500.0f;
+			move_delta += ImGui::GetKeyMagnitude2d(ImGuiKey_GamepadLStickLeft, ImGuiKey_GamepadLStickRight, ImGuiKey_GamepadLStickUp, ImGuiKey_GamepadLStickDown) * _imgui_context->IO.DeltaTime * 500.0f;
 
 			_variable_editor_height = std::max(_variable_editor_height - move_delta.y, 0.0f);
 			save_config();
@@ -3240,9 +3255,11 @@ void reshade::runtime::draw_variable_editor()
 			if (const std::string_view tooltip = variable.annotation_as_string("ui_tooltip");
 				!tooltip.empty() && ImGui::IsItemHovered())
 			{
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted(tooltip.data());
-				ImGui::EndTooltip();
+				if (ImGui::BeginTooltip())
+				{
+					ImGui::TextUnformatted(tooltip.data());
+					ImGui::EndTooltip();
+				}
 			}
 
 			// Create context menu
@@ -3453,9 +3470,11 @@ void reshade::runtime::draw_technique_editor()
 			// Display tooltip
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !effect.errors.empty())
 			{
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted(effect.errors.c_str());
-				ImGui::EndTooltip();
+				if (ImGui::BeginTooltip())
+				{
+					ImGui::TextUnformatted(effect.errors.c_str());
+					ImGui::EndTooltip();
+				}
 			}
 
 			ImGui::PopStyleColor();
@@ -3491,9 +3510,11 @@ void reshade::runtime::draw_technique_editor()
 					{
 						if (ImGui::IsItemHovered())
 						{
-							ImGui::BeginTooltip();
-							ImGui::TextUnformatted(source_file_errors_it->second.c_str());
-							ImGui::EndTooltip();
+							if (ImGui::BeginTooltip())
+							{
+								ImGui::TextUnformatted(source_file_errors_it->second.c_str());
+								ImGui::EndTooltip();
+							}
 						}
 
 						ImGui::PopStyleColor();
@@ -3520,9 +3541,11 @@ void reshade::runtime::draw_technique_editor()
 							{
 								if (ImGui::IsItemHovered())
 								{
-									ImGui::BeginTooltip();
-									ImGui::TextUnformatted(included_file_errors_it->second.c_str());
-									ImGui::EndTooltip();
+									if (ImGui::BeginTooltip())
+									{
+										ImGui::TextUnformatted(included_file_errors_it->second.c_str());
+										ImGui::EndTooltip();
+									}
 								}
 
 								ImGui::PopStyleColor();
@@ -3621,9 +3644,11 @@ void reshade::runtime::draw_technique_editor()
 			if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
 				!tooltip.empty() && ImGui::IsItemHovered())
 			{
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted(tooltip.data());
-				ImGui::EndTooltip();
+				if (ImGui::BeginTooltip())
+				{
+					ImGui::TextUnformatted(tooltip.data());
+					ImGui::EndTooltip();
+				}
 			}
 
 			// Create context menu
