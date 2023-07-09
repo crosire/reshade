@@ -1089,7 +1089,7 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 		*heap = to_handle(heap_impl->_orig);
 
 		if (offset != nullptr)
-			*offset = static_cast<uint32_t>(handle_gpu.ptr - heap_impl->_orig_base_gpu_handle.ptr);
+			*offset = static_cast<uint32_t>((handle_gpu.ptr - heap_impl->_orig_base_gpu_handle.ptr) / _descriptor_handle_size[desc.Type]) + binding;
 		return;
 	}
 #else
