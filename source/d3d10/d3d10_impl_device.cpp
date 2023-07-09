@@ -860,14 +860,14 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t param_count, c
 				return false;
 
 			merged_range = params[i].descriptor_table.ranges[0];
-			if (merged_range.array_size > 1 || merged_range.dx_register_space != 0)
+			if (merged_range.count == UINT32_MAX || merged_range.array_size > 1 || merged_range.dx_register_space != 0)
 				return false;
 
 			for (uint32_t k = 1; k < params[i].descriptor_table.count; ++k)
 			{
 				const api::descriptor_range &range = params[i].descriptor_table.ranges[k];
 
-				if (range.type != merged_range.type || range.array_size > 1 || range.dx_register_space != merged_range.dx_register_space)
+				if (range.type != merged_range.type || range.count == UINT32_MAX || range.array_size > 1 || range.dx_register_space != merged_range.dx_register_space)
 					return false;
 
 				if (range.binding >= merged_range.binding)
@@ -876,8 +876,9 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 					if ((range.dx_register_index - merged_range.dx_register_index) != distance)
 						return false;
+					assert(merged_range.count <= distance);
 
-					merged_range.count += distance;
+					merged_range.count = distance + range.count;
 					merged_range.visibility |= range.visibility;
 				}
 				else
@@ -886,6 +887,7 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 					if ((merged_range.dx_register_index - range.dx_register_index) != distance)
 						return false;
+					assert(range.count <= distance);
 
 					merged_range.binding = range.binding;
 					merged_range.dx_register_index = range.dx_register_index;

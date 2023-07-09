@@ -213,6 +213,9 @@ static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stage
 		{
 			const descriptor_range &range = param.descriptor_table.ranges[k];
 
+			if (range.count == UINT32_MAX)
+				continue; // Skip unbounded ranges
+
 			if ((range.visibility & shader_stage::pixel) != shader_stage::pixel || (range.type != descriptor_type::shader_resource_view && range.type != descriptor_type::sampler_with_resource_view))
 				continue;
 
@@ -220,7 +223,7 @@ static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stage
 			descriptor_heap heap = { 0 };
 			device->get_descriptor_heap_offset(tables[i], range.binding, 0, &heap, &base_offset);
 
-			for (uint32_t j = 0; j < std::min(10u, range.count); ++j)
+			for (uint32_t j = 0; j < range.count; ++j)
 			{
 				resource_view descriptor = descriptor_data.get_shader_resource_view(heap, base_offset + j);
 				if (descriptor.handle == 0)

@@ -1388,6 +1388,9 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 			offset += internal_binding.descriptorCount;
 
+			if (range.count == UINT32_MAX)
+				continue; // Skip unbounded ranges
+
 			// Add additional bindings if the total descriptor count exceeds the array size of the binding
 			for (uint32_t j = 0; j < (range.count - range.array_size); ++j)
 			{

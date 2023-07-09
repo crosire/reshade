@@ -891,7 +891,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 				prev_heap_type = heap_type;
 
-				set_ranges[i].second = std::max(set_ranges[i].second, range.binding + range.count);
+				if (range.count != UINT32_MAX) // Don't count unbounded ranges
+					set_ranges[i].second = std::max(set_ranges[i].second, range.binding + range.count);
 			}
 
 			set_ranges[i].first = prev_heap_type;

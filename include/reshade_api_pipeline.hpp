@@ -123,6 +123,7 @@ namespace reshade { namespace api
 		uint32_t dx_register_space = 0;
 		/// <summary>
 		/// Number of descriptors in this range.
+		/// Set to -1 (UINT32_MAX) to indicate an unbounded range.
 		/// </summary>
 		uint32_t count = 0;
 		/// <summary>

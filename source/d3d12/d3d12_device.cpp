@@ -573,7 +573,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 										else
 											range.binding = range_data->OffsetInDescriptorsFromTableStart;
 
-										descriptor_offset = range.binding + range.count;
+										if (range_data->NumDescriptors == UINT_MAX)
+											// Only the last entry in a table can have an unbounded size
+											assert(j == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+										else
+											descriptor_offset = range.binding + range.count;
 									}
 									break;
 								}
@@ -597,7 +601,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 										else
 											range.binding = range_data->OffsetInDescriptorsFromTableStart;
 
-										descriptor_offset = range.binding + range.count;
+										if (range_data->NumDescriptors == UINT_MAX)
+											// Only the last entry in a table can have an unbounded size
+											assert(j == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+										else
+											descriptor_offset = range.binding + range.count;
 									}
 									break;
 								}
