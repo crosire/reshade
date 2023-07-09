@@ -111,14 +111,26 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(palette[color_background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
+	ImGuiIO &io = ImGui::GetIO();
+	const bool ctrl = io.KeyCtrl, shift = io.KeyShift, alt = io.KeyAlt;
+
+	const bool open_search_window = ctrl && !shift && !alt && (ImGui::IsKeyPressed('F') || ImGui::IsKeyPressed('H'));
+	if (open_search_window)
+	{
+		// Copy currently selected text into search box
+		if (_select_beg != _select_end)
+			_search_text[get_selected_text().copy(_search_text, sizeof(_search_text) - 1)] = '\0';
+
+		_search_window_open = ImGui::IsKeyPressed('H') ? 2 /* search + replace */ : 1 /* search */;
+	}
+	else if (_search_window_open < 0)
+	{
+		_search_window_open = 0;
+		ImGui::SetNextWindowFocus();
+	}
+
 	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
 	ImGui::PushAllowKeyboardFocus(true);
-
-	if (_search_window_focus < 0)
-	{
-		_search_window_focus = 0;
-		ImGui::SetWindowFocus();
-	}
 
 	char buf[128] = "", *buf_end = buf;
 
@@ -128,10 +140,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	// The following holds the approximate width and height of a default character for offset calculation
 	const ImVec2 char_advance = ImVec2(calc_text_size(" ").x, ImGui::GetTextLineHeightWithSpacing() * _line_spacing);
 
-	ImGuiIO &io = ImGui::GetIO();
 	_cursor_anim += io.DeltaTime;
-
-	const bool ctrl = io.KeyCtrl, shift = io.KeyShift, alt = io.KeyAlt;
 
 	// Handle keyboard input
 	if (ImGui::IsWindowFocused())
@@ -545,7 +554,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		if (len + text_start > (ImGui::GetScrollX() + max_scroll_width - extra_space))
 			ImGui::SetScrollX(std::max(0.0f, len + text_start + extra_space - max_scroll_width));
 
-		if (!_search_window_open) // Focus on search text box instead of the editor window
+		if (_search_window_open == 0) // Focus on search text box instead of the editor window when it is open
 			ImGui::SetWindowFocus();
 
 		_scroll_to_cursor = false;
@@ -558,26 +567,13 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	ImGui::PopStyleColor();
 	ImGui::PopFont();
 
-	if (ctrl && !shift && !alt && (ImGui::IsKeyPressed('F') || ImGui::IsKeyPressed('H')))
-	{
-		// Copy currently selected text into search box
-		if (_select_beg != _select_end)
-			_search_text[get_selected_text().copy(_search_text, sizeof(_search_text) - 1)] = '\0';
-
-		_search_window_open = ImGui::IsKeyPressed('H') ? 2 /* search + replace */ : 1 /* search */;
-		_search_window_focus = 2; // Need to focus multiple frames (see https://github.com/ocornut/imgui/issues/343)
-	}
-
-	if (_search_window_open)
+	if (_search_window_open > 0)
 	{
 		ImGui::Dummy(ImVec2(0, ImGui::GetStyle().ItemSpacing.y));
 		ImGui::BeginChild("##search", ImVec2(0, 0));
 
-		if (_search_window_focus > 0)
-		{
-			_search_window_focus -= 1;
+		if (open_search_window)
 			ImGui::SetKeyboardFocusHere();
-		}
 
 		const float input_width = ImGui::GetContentRegionAvail().x - (4 * button_spacing) - (4 * button_size) - 5;
 		ImGui::PushItemWidth(input_width);
@@ -612,14 +608,13 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
 		{
-			_search_window_open = 0;
 			// Move focus back to text editor again next frame
-			_search_window_focus = -1;
+			_search_window_open = -1;
 		}
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Close (Escape)");
 
-		if (_search_window_open != 1)
+		if (_search_window_open > +1)
 		{
 			ImGui::PushItemWidth(input_width);
 			if (ImGui::InputText("##replace", _replace_text, sizeof(_replace_text), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AllowTabInput))

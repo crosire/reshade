@@ -268,11 +268,10 @@ namespace reshade::imgui
 
 		std::unordered_map<size_t, std::pair<std::string, bool>> _errors;
 
+		signed int _search_window_open = 0;
 		char _search_text[256] = "";
 		char _replace_text[256] = "";
 		bool _search_case_sensitive = false;
-		signed int _search_window_open = 0;
-		signed int _search_window_focus = 0;
 
 		size_t _colorize_line_beg = 0;
 		size_t _colorize_line_end = 0;
