@@ -398,12 +398,6 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 
 	const uint32_t new_size = count + first;
 
-	if (first == 0 && _old_push_constants_data.size() > 0)
-	{
-		_old_push_constants_data.clear();
-		_old_push_constants_data.resize(0);
-	}
-
 	if (new_size > _push_constants_size)
 	{
 		// Enlarge push constant buffer to fit new requirement

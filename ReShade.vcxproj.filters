@@ -665,6 +665,9 @@
     <FxCompile Include="res\shaders\imgui_ps_4_0.hlsl">
       <Filter>resources\shaders</Filter>
     </FxCompile>
+    <FxCompile Include="res\shaders\imgui_ps_4_0_hdr.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
     <FxCompile Include="res\shaders\imgui_vs_3_0.hlsl">
       <Filter>resources\shaders</Filter>
     </FxCompile>
@@ -677,6 +680,9 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="res\shaders\imgui_ps.glsl">
+      <Filter>resources\shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="res\shaders\imgui_ps_hdr.glsl">
       <Filter>resources\shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="res\shaders\imgui_vs.glsl">
