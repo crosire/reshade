@@ -353,8 +353,10 @@ struct imgui_function_table_18971
 	void(*SetNextFrameWantCaptureMouse)(bool want_capture_mouse);
 	const char*(*GetClipboardText)();
 	void(*SetClipboardText)(const char* text);
+#ifndef IMGUI_DISABLE_DEBUG_TOOLS
 	void(*DebugTextEncoding)(const char* text);
 	bool(*DebugCheckVersionAndDataLayout)(const char* version_str, size_t sz_io, size_t sz_style, size_t sz_vec2, size_t sz_vec4, size_t sz_drawvert, size_t sz_drawidx);
+#endif
 	void(*SetAllocatorFunctions)(ImGuiMemAllocFunc alloc_func, ImGuiMemFreeFunc free_func, void* user_data);
 	void(*GetAllocatorFunctions)(ImGuiMemAllocFunc* p_alloc_func, ImGuiMemFreeFunc* p_free_func, void** p_user_data);
 	void*(*MemAlloc)(size_t size);
@@ -791,8 +793,10 @@ namespace ImGui
 	inline void SetNextFrameWantCaptureMouse(bool want_capture_mouse) { imgui_function_table_instance()->SetNextFrameWantCaptureMouse(want_capture_mouse); }
 	inline const char* GetClipboardText() { return imgui_function_table_instance()->GetClipboardText(); }
 	inline void SetClipboardText(const char* text) { imgui_function_table_instance()->SetClipboardText(text); }
+#ifndef IMGUI_DISABLE_DEBUG_TOOLS
 	inline void DebugTextEncoding(const char* text) { imgui_function_table_instance()->DebugTextEncoding(text); }
 	inline bool DebugCheckVersionAndDataLayout(const char* version_str, size_t sz_io, size_t sz_style, size_t sz_vec2, size_t sz_vec4, size_t sz_drawvert, size_t sz_drawidx) { return imgui_function_table_instance()->DebugCheckVersionAndDataLayout(version_str, sz_io, sz_style, sz_vec2, sz_vec4, sz_drawvert, sz_drawidx); }
+#endif
 	inline void SetAllocatorFunctions(ImGuiMemAllocFunc alloc_func, ImGuiMemFreeFunc free_func, void* user_data) { imgui_function_table_instance()->SetAllocatorFunctions(alloc_func, free_func, user_data); }
 	inline void GetAllocatorFunctions(ImGuiMemAllocFunc* p_alloc_func, ImGuiMemFreeFunc* p_free_func, void** p_user_data) { imgui_function_table_instance()->GetAllocatorFunctions(p_alloc_func, p_free_func, p_user_data); }
 	inline void* MemAlloc(size_t size) { return imgui_function_table_instance()->MemAlloc(size); }

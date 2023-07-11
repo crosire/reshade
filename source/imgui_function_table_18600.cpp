@@ -487,7 +487,9 @@ imgui_function_table_18600 g_imgui_function_table_18600 = {
 	ImGui::SetNextFrameWantCaptureMouse,
 	ImGui::GetClipboardText,
 	ImGui::SetClipboardText,
+#ifndef IMGUI_DISABLE_DEBUG_TOOLS
 	ImGui::DebugCheckVersionAndDataLayout,
+#endif
 	ImGui::SetAllocatorFunctions,
 	ImGui::GetAllocatorFunctions,
 	ImGui::MemAlloc,

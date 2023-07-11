@@ -489,7 +489,9 @@ struct imgui_function_table_18600
 	void(*CaptureMouseFromApp)(bool want_capture_mouse_value);
 	const char *(*GetClipboardText)();
 	void(*SetClipboardText)(const char *text);
+#ifndef IMGUI_DISABLE_DEBUG_TOOLS
 	bool(*DebugCheckVersionAndDataLayout)(const char *version_str, size_t sz_io, size_t sz_style, size_t sz_vec2, size_t sz_vec4, size_t sz_drawvert, size_t sz_drawidx);
+#endif
 	void(*SetAllocatorFunctions)(ImGuiMemAllocFunc alloc_func, ImGuiMemFreeFunc free_func, void *user_data);
 	void(*GetAllocatorFunctions)(ImGuiMemAllocFunc *p_alloc_func, ImGuiMemFreeFunc *p_free_func, void **p_user_data);
 	void *(*MemAlloc)(size_t size);
