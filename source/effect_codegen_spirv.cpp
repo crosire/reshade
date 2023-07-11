@@ -480,29 +480,22 @@ private:
 				assert(info.rows == 0 && info.cols == 0 && info.definition != 0);
 				type = info.definition;
 				break;
-			case type::t_sampler:
-				assert(info.rows == 0 && info.cols == 0);
-				elem_type = convert_type({ type::t_texture, 0, 0, type::q_uniform }, false, storage, format);
+			case type::t_sampler_int:
+			case type::t_sampler_uint:
+			case type::t_sampler_float:
+				assert(info.cols == 1);
+				elem_type = convert_image_type(info, format);
 				add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants, type)
 					.add(elem_type);
 				break;
-			case type::t_storage:
+			case type::t_storage_int:
+			case type::t_storage_uint:
+			case type::t_storage_float:
+				assert(info.cols == 1);
 				// No format specified for the storage image
 				if (format == spv::ImageFormatUnknown)
 					add_capability(spv::CapabilityStorageImageWriteWithoutFormat);
-				[[fallthrough]];
-			case type::t_texture:
-				assert(info.rows == 0 && info.cols == 0);
-				elem_type = convert_type({ format == spv::ImageFormatR32i ? type::t_int : format == spv::ImageFormatR32ui ? type::t_uint : type::t_float, 1, 1 });
-				add_instruction(spv::OpTypeImage, 0, _types_and_constants, type)
-					.add(elem_type) // Sampled Type
-					.add(spv::Dim2D)
-					.add(0) // Not a depth image
-					.add(0) // Not an array
-					.add(0) // Not multi-sampled
-					.add(info.is_texture() ? 1 : 2) // Used with a sampler or as storage
-					.add(format);
-				break;
+				return convert_image_type(info, format);
 			default:
 				return assert(false), 0;
 			}
@@ -534,6 +527,50 @@ private:
 		_function_type_lookup.push_back({ info, inst.result });;
 
 		return inst.result;
+	}
+	spv::Id convert_image_type(type info, spv::ImageFormat format = spv::ImageFormatUnknown)
+	{
+		type_lookup lookup { info, false, 0u, { spv::StorageClassUniformConstant, format } };
+
+		auto elem_info = info;
+		elem_info.rows = 1;
+		elem_info.cols = 1;
+
+		if (!info.is_numeric())
+		{
+			if (info.base == type::t_sampler_int || info.base == type::t_storage_int || (format >= spv::ImageFormatRgba32i && format <= spv::ImageFormatR8i))
+				elem_info.base = type::t_int;
+			else if (info.base == type::t_sampler_uint || info.base == type::t_storage_uint || (format >= spv::ImageFormatRgba32ui && format <= spv::ImageFormatR8ui))
+				elem_info.base = type::t_uint;
+			else
+				elem_info.base = type::t_float;
+		}
+
+		if (!info.is_storage())
+		{
+			lookup.type.base = type::t_texture;
+			lookup.type.definition = static_cast<uint32_t>(elem_info.base);
+		}
+
+		if (const auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
+			[&lookup](const auto &lookup_it) { return lookup_it.first == lookup; });
+			it != _type_lookup.end())
+			return it->second;
+
+		spv::Id type, elem_type = convert_type(elem_info, false, spv::StorageClassUniformConstant);
+
+		add_instruction(spv::OpTypeImage, 0, _types_and_constants, type)
+			.add(elem_type) // Sampled Type (always a scalar type)
+			.add(spv::Dim2D)
+			.add(0) // Not a depth image
+			.add(0) // Not an array
+			.add(0) // Not multi-sampled
+			.add(info.is_storage() ? 2 : 1) // Used with a sampler or as storage
+			.add(format);
+
+		_type_lookup.push_back({ lookup, type });
+
+		return type;
 	}
 
 	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_array_length = 1)
@@ -739,7 +776,7 @@ private:
 	}
 	id   define_sampler(const location &loc, sampler_info &info) override
 	{
-		info.id = define_variable(loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
+		info.id = define_variable(loc, info.type, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 		info.binding = _module.num_sampler_bindings++;
 		info.texture_binding = ~0u;
 
@@ -752,7 +789,13 @@ private:
 	}
 	id   define_storage(const location &loc, storage_info &info) override
 	{
-		info.id = define_variable(loc, { type::t_storage, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant, format_to_image_format(info.format));
+		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
+			[&info](const auto &it) {
+			return it.unique_name == info.texture_name;
+		});
+		assert(texture != _module.textures.end());
+
+		info.id = define_variable(loc, info.type, info.unique_name.c_str(), spv::StorageClassUniformConstant, format_to_image_format(texture->format));
 		info.binding = _module.num_storage_bindings++;
 
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });

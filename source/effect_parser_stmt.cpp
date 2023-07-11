@@ -1467,8 +1467,18 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
 		if (sampler_info.srgb && texture_info.format != texture_format::rgba8)
 			return error(location, 4582, '\'' + name + "': texture does not support sRGB sampling (only textures with RGBA8 format do)"), false;
+		if (texture_info.format == texture_format::r32i ?
+				type.base != type::t_sampler_int :
+			texture_info.format == texture_format::r32u ?
+				type.base != type::t_sampler_uint :
+				type.base != type::t_sampler_float)
+			return error(location, 4582, '\'' + name + "': type mismatch between texture format and sampler element type"), false;
+		if (texture_info.format == texture_format::r32i || texture_info.format == texture_format::r32u)
+			return error(location, 4582, '\'' + name + "': cannot sample from non-floating point texture formats"), false;
 
 		sampler_info.name = name;
+		sampler_info.type = type;
+
 		// Add namespace scope to avoid name clashes
 		sampler_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
@@ -1482,13 +1492,20 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (storage_info.texture_name.empty())
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+		if (texture_info.format == texture_format::r32i ?
+				type.base != type::t_storage_int :
+			texture_info.format == texture_format::r32u ?
+				type.base != type::t_storage_uint :
+				type.base != type::t_storage_float)
+			return error(location, 4582, '\'' + name + "': type mismatch between texture format and storage element type"), false;
 
 		storage_info.name = name;
+		storage_info.type = type;
+
 		// Add namespace scope to avoid name clashes
 		storage_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(storage_info.unique_name.begin(), storage_info.unique_name.end(), ':', '_');
 
-		storage_info.format = texture_info.format;
 		if (storage_info.level > texture_info.levels - 1)
 			storage_info.level = texture_info.levels - 1;
 

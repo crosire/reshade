@@ -75,8 +75,10 @@ struct intrinsic
 #define out_float2 { reshadefx::type::t_float, 2, 1, reshadefx::type::q_out }
 #define out_float3 { reshadefx::type::t_float, 3, 1, reshadefx::type::q_out }
 #define out_float4 { reshadefx::type::t_float, 4, 1, reshadefx::type::q_out }
-#define sampler { reshadefx::type::t_sampler }
-#define storage { reshadefx::type::t_storage }
+#define sampler_float4 { reshadefx::type::t_sampler_float, 4, 1 }
+#define storage_int { reshadefx::type::t_storage_int, 1, 1 }
+#define storage_uint { reshadefx::type::t_storage_uint, 1, 1 }
+#define storage_float4 { reshadefx::type::t_storage_float, 4, 1 }
 
 // Import intrinsic function definitions
 static const intrinsic s_intrinsics[] =
@@ -119,7 +121,7 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	if (src.is_struct() || dst.is_struct())
 		return src.definition == dst.definition ? 32 : 0; // Structs are only compatible if they are the same type
 	if (!src.is_numeric() || !dst.is_numeric())
-		return src.base == dst.base ? 32 : 0; // Numeric values are not compatible with other types
+		return src.base == dst.base && src.rows == dst.rows && src.cols == dst.cols ? 32 : 0; // Numeric values are not compatible with other types
 	if (src.is_matrix() && (!dst.is_matrix() || src.rows != dst.rows || src.cols != dst.cols))
 		return 0; // Matrix truncation or dimensions do not match
 

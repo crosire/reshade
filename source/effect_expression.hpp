@@ -26,8 +26,12 @@ namespace reshadefx
 			t_float,
 			t_string,
 			t_struct,
-			t_sampler,
-			t_storage,
+			t_sampler_int,
+			t_sampler_uint,
+			t_sampler_float,
+			t_storage_int,
+			t_storage_uint,
+			t_storage_float,
 			t_texture,
 			t_function,
 		};
@@ -65,21 +69,24 @@ namespace reshadefx
 		std::string description() const;
 
 		bool has(qualifier x) const { return (qualifiers & x) == x; }
-		bool is_array() const { return array_length != 0; }
-		bool is_scalar() const { return !is_array() && !is_matrix() && !is_vector() && is_numeric(); }
-		bool is_vector() const { return rows > 1 && cols == 1; }
-		bool is_matrix() const { return rows >= 1 && cols > 1; }
-		bool is_signed() const { return base == t_min16int || base == t_int || base == t_min16float || base == t_float; }
-		bool is_numeric() const { return base >= t_bool && base <= t_float; }
+
 		bool is_void() const { return base == t_void; }
 		bool is_boolean() const { return base == t_bool; }
 		bool is_integral() const { return base >= t_bool && base <= t_uint; }
 		bool is_floating_point() const { return base == t_min16float || base == t_float; }
+		bool is_signed() const { return base == t_min16int || base == t_int || base == t_min16float || base == t_float; }
+		bool is_numeric() const { return base >= t_bool && base <= t_float; }
+
 		bool is_struct() const { return base == t_struct; }
+		bool is_sampler() const { return base >= t_sampler_int && base <= t_sampler_float; }
+		bool is_storage() const { return base >= t_storage_int && base <= t_storage_float; }
 		bool is_texture() const { return base == t_texture; }
-		bool is_sampler() const { return base == t_sampler; }
-		bool is_storage() const { return base == t_storage; }
 		bool is_function() const { return base == t_function; }
+
+		bool is_array() const { return array_length != 0; }
+		bool is_scalar() const { return is_numeric() && !is_matrix() && !is_vector() && !is_array(); }
+		bool is_vector() const { return is_numeric() && rows > 1 && cols == 1; }
+		bool is_matrix() const { return is_numeric() && rows >= 1 && cols > 1; }
 
 		unsigned int precision() const { return base == t_min16int || base == t_min16uint || base == t_min16float ? 16 : 32; }
 		unsigned int components() const { return rows * cols; }

@@ -152,7 +152,7 @@ private:
 		{
 		case type::t_void:
 			s += "void";
-			break;
+			return;
 		case type::t_bool:
 			s += "bool";
 			break;
@@ -179,15 +179,22 @@ private:
 			break;
 		case type::t_struct:
 			s += id_to_name(type.definition);
-			break;
-		case type::t_sampler:
+			return;
+		case type::t_sampler_float:
 			s += "__sampler2D";
-			break;
-		case type::t_storage:
-			s += "RWTexture2D<float4>";
-			break;
+			return;
+		case type::t_storage_int:
+			s += "RWTexture2D<int" + std::to_string(type.rows) + '>';
+			return;
+		case type::t_storage_uint:
+			s += "RWTexture2D<uint" + std::to_string(type.rows) + '>';
+			return;
+		case type::t_storage_float:
+			s += "RWTexture2D<float" + std::to_string(type.rows) + '>';
+			return;
 		default:
 			assert(false);
+			return;
 		}
 
 		if (type.rows > 1)
@@ -306,17 +313,17 @@ private:
 	{
 		switch (format)
 		{
-		case texture_format::r8:
-		case texture_format::r16:
-		case texture_format::r16f:
-		case texture_format::r32f:
-			s += "float";
-			break;
 		case texture_format::r32i:
 			s += "int";
 			break;
 		case texture_format::r32u:
 			s += "uint";
+			break;
+		case texture_format::r8:
+		case texture_format::r16:
+		case texture_format::r16f:
+		case texture_format::r32f:
+			s += "float";
 			break;
 		default:
 			assert(false);
@@ -491,6 +498,7 @@ private:
 				return it.unique_name == info.texture_name;
 			});
 		assert(texture != _module.textures.end());
+		assert(info.type.base == type::t_sampler_float);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -564,9 +572,8 @@ private:
 			if (_shader_model >= 60)
 				code += "[[vk::binding(" + std::to_string(info.binding) + ", 3)]] "; // Descriptor set 3
 
-			code += "RWTexture2D<";
-			write_texture_format(code, info.format);
-			code += "> " + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
+			write_type(code, info.type);
+			code += ' ' + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
 		}
 
 		_module.storages.push_back(info);

@@ -222,10 +222,22 @@ private:
 		case type::t_struct:
 			s += id_to_name(type.definition);
 			break;
-		case type::t_sampler:
+		case type::t_sampler_int:
+			s += "isampler2D";
+			break;
+		case type::t_sampler_uint:
+			s += "usampler2D";
+			break;
+		case type::t_sampler_float:
 			s += "sampler2D";
 			break;
-		case type::t_storage:
+		case type::t_storage_int:
+			s += "writeonly iimage2D";
+			break;
+		case type::t_storage_uint:
+			s += "writeonly uimage2D";
+			break;
+		case type::t_storage_float:
 			s += "writeonly image2D";
 			break;
 		default:
@@ -307,7 +319,7 @@ private:
 
 		s += "#line " + std::to_string(loc.line) + '\n';
 	}
-	void write_texture_format(std::string &s, texture_format format, std::string &prefix)
+	void write_texture_format(std::string &s, texture_format format)
 	{
 		switch (format)
 		{
@@ -322,11 +334,9 @@ private:
 			break;
 		case texture_format::r32i:
 			s += "r32i";
-			prefix = 'i';
 			break;
 		case texture_format::r32u:
 			s += "r32u";
-			prefix = 'u';
 			break;
 		case texture_format::r32f:
 			s += "r32f";
@@ -360,7 +370,6 @@ private:
 			break;
 		default:
 			assert(false);
-			break;
 		}
 	}
 
@@ -543,24 +552,27 @@ private:
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
-			[&info](const auto &it) {
-			return it.unique_name == info.texture_name;
-		});
-		assert(texture != _module.textures.end());
-
-		std::string &code = _blocks.at(_current_block), prefix;
+		std::string &code = _blocks.at(_current_block);
 
 		write_location(code, loc);
 
-		if (texture->format == texture_format::r32i)
-			prefix = 'i';
-		if (texture->format == texture_format::r32u)
-			prefix = 'u';
-
 		code += "layout(binding = " + std::to_string(info.binding);
 		code += ") uniform ";
-		code += prefix + "sampler2D " + id_to_name(info.id) + "; \n";
+
+		switch (info.type.base)
+		{
+		case type::t_sampler_int:
+			code += "isampler2D";
+			break;
+		case type::t_sampler_uint:
+			code += "usampler2D";
+			break;
+		case type::t_sampler_float:
+			code += "sampler2D";
+			break;
+		}
+
+		code += ' ' + id_to_name(info.id) + ";\n";
 
 		_module.samplers.push_back(info);
 
@@ -573,22 +585,34 @@ private:
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		std::string &code = _blocks.at(_current_block), prefix;
+		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
+			[&info](const auto &it) {
+			return it.unique_name == info.texture_name;
+		});
+		assert(texture != _module.textures.end());
+
+		std::string &code = _blocks.at(_current_block);
 
 		write_location(code, loc);
 
-		code += "layout(binding = " + std::to_string(info.binding);
+		code += "layout(binding = " + std::to_string(info.binding) + ", ";
+		write_texture_format(code, texture->format);
+		code += ") uniform ";
 
-		if (info.format != texture_format::unknown)
+		switch (info.type.base)
 		{
-			code += ", ";
-			write_texture_format(code, info.format, prefix);
+		case type::t_storage_int:
+			code += "iimage2D";
+			break;
+		case type::t_storage_uint:
+			code += "uimage2D";
+			break;
+		case type::t_storage_float:
+			code += "image2D";
+			break;
 		}
 
-		code += ") uniform ";
-		if (info.format == texture_format::unknown)
-			code += "writeonly ";
-		code += prefix + "image2D " + id_to_name(info.id) + ";\n";
+		code += ' ' + id_to_name(info.id) + ";\n";
 
 		_module.storages.push_back(info);
 

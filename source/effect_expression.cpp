@@ -78,11 +78,23 @@ std::string reshadefx::type::description() const
 	case reshadefx::type::t_struct:
 		result = "struct";
 		break;
-	case reshadefx::type::t_sampler:
-		result = "sampler";
+	case reshadefx::type::t_sampler_int:
+		result = "sampler<int" + std::to_string(rows) + '>';
 		break;
-	case reshadefx::type::t_storage:
-		result = "storage";
+	case reshadefx::type::t_sampler_uint:
+		result = "sampler<uint" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler_float:
+		result = "sampler<float" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage_int:
+		result = "storage<int" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage_uint:
+		result = "storage<uint" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage_float:
+		result = "storage<float" + std::to_string(rows) + '>';
 		break;
 	case reshadefx::type::t_texture:
 		result = "texture";

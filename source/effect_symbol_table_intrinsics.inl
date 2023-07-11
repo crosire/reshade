@@ -1678,8 +1678,8 @@ IMPLEMENT_INTRINSIC_SPIRV(isnan, 0, {
 
 // ret tex2D(s, coords)
 // ret tex2D(s, coords, offset)
-DEFINE_INTRINSIC(tex2D, 0, float4, sampler, float2)
-DEFINE_INTRINSIC(tex2D, 1, float4, sampler, float2, int2)
+DEFINE_INTRINSIC(tex2D, 0, float4, sampler_float4, float2)
+DEFINE_INTRINSIC(tex2D, 1, float4, sampler_float4, float2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2D, 0, {
 	code += "texture(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
@@ -1720,8 +1720,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2D, 1, {
 
 // ret tex2Dlod(s, coords)
 // ret tex2Dlod(s, coords, offset)
-DEFINE_INTRINSIC(tex2Dlod, 0, float4, sampler, float4)
-DEFINE_INTRINSIC(tex2Dlod, 1, float4, sampler, float4, int2)
+DEFINE_INTRINSIC(tex2Dlod, 0, float4, sampler_float4, float4)
+DEFINE_INTRINSIC(tex2Dlod, 1, float4, sampler_float4, float4, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dlod, 0, {
 	code += "textureLod(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w)";
 	})
@@ -1785,9 +1785,11 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 
 // ret tex2Dfetch(s, coords)
 // ret tex2Dfetch(s, coords, lod)
-DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler, int2)
-DEFINE_INTRINSIC(tex2Dfetch, 1, float4, sampler, int2, int)
-DEFINE_INTRINSIC(tex2Dfetch, 2, float4, storage, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler_float4, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 1, float4, sampler_float4, int2, int)
+DEFINE_INTRINSIC(tex2Dfetch, 2, int, storage_int, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 2, uint, storage_uint, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 2, float4, storage_float4, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 0, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", 0)";
 	})
@@ -1795,7 +1797,9 @@ IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 1, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 2, {
-	code += "imageLoad(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ")";
+	code += "imageLoad(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x"; // Collapse last argument from a 4-component vector
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
 	if (_shader_model >= 40)
@@ -1819,8 +1823,9 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 2, {
 	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
-	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
-		.add(args[0].base).result;
+	const spv::Id image = add_instruction(spv::OpImage, convert_image_type(args[0].type))
+		.add(args[0].base)
+		.result;
 
 	return add_instruction(spv::OpImageFetch, convert_type(res_type))
 		.add(image)
@@ -1828,8 +1833,9 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
-	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
-		.add(args[0].base).result;
+	const spv::Id image = add_instruction(spv::OpImage, convert_image_type(args[0].type))
+		.add(args[0].base)
+		.result;
 
 	return add_instruction(spv::OpImageFetch, convert_type(res_type))
 		.add(image)
@@ -1839,18 +1845,28 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 2, {
-	return add_instruction(spv::OpImageRead, convert_type(res_type))
+	auto comp_type = res_type;
+	comp_type.rows = 4;
+
+	spv::Id data = add_instruction(spv::OpImageRead, convert_type(comp_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.result;
+	if (res_type.rows == 1)
+		// Collapse last argument from a 4-component vector
+		data = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(data)
+			.add(0u)
+			.result;
+	return data;
 	})
 
 // ret tex2DgatherR(s, coords)
 // ret tex2DgatherR(s, coords, offset)
 // ret tex2DgatherR(s, coords, offset0, offset1, offset2, offset3)
-DEFINE_INTRINSIC(tex2DgatherR, 0, float4, sampler, float2)
-DEFINE_INTRINSIC(tex2DgatherR, 1, float4, sampler, float2, int2)
-DEFINE_INTRINSIC(tex2DgatherR, 2, float4, sampler, float2, int2, int2, int2, int2)
+DEFINE_INTRINSIC(tex2DgatherR, 0, float4, sampler_float4, float2)
+DEFINE_INTRINSIC(tex2DgatherR, 1, float4, sampler_float4, float2, int2)
+DEFINE_INTRINSIC(tex2DgatherR, 2, float4, sampler_float4, float2, int2, int2, int2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherR, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", 0)";
@@ -1965,9 +1981,9 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 2, {
 // ret tex2DgatherG(s, coords)
 // ret tex2DgatherG(s, coords, offset)
 // ret tex2DgatherG(s, coords, offset0, offset1, offset2, offset3)
-DEFINE_INTRINSIC(tex2DgatherG, 0, float4, sampler, float2)
-DEFINE_INTRINSIC(tex2DgatherG, 1, float4, sampler, float2, int2)
-DEFINE_INTRINSIC(tex2DgatherG, 2, float4, sampler, float2, int2, int2, int2, int2)
+DEFINE_INTRINSIC(tex2DgatherG, 0, float4, sampler_float4, float2)
+DEFINE_INTRINSIC(tex2DgatherG, 1, float4, sampler_float4, float2, int2)
+DEFINE_INTRINSIC(tex2DgatherG, 2, float4, sampler_float4, float2, int2, int2, int2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherG, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", 1)";
@@ -2082,9 +2098,9 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 2, {
 // ret tex2DgatherB(s, coords)
 // ret tex2DgatherB(s, coords, offset)
 // ret tex2DgatherB(s, coords, offset0, offset1, offset2, offset3)
-DEFINE_INTRINSIC(tex2DgatherB, 0, float4, sampler, float2)
-DEFINE_INTRINSIC(tex2DgatherB, 1, float4, sampler, float2, int2)
-DEFINE_INTRINSIC(tex2DgatherB, 2, float4, sampler, float2, int2, int2, int2, int2)
+DEFINE_INTRINSIC(tex2DgatherB, 0, float4, sampler_float4, float2)
+DEFINE_INTRINSIC(tex2DgatherB, 1, float4, sampler_float4, float2, int2)
+DEFINE_INTRINSIC(tex2DgatherB, 2, float4, sampler_float4, float2, int2, int2, int2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherB, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", 2)";
@@ -2199,9 +2215,9 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 2, {
 // ret tex2DgatherA(s, coords)
 // ret tex2DgatherA(s, coords, offset)
 // ret tex2DgatherA(s, coords, offset0, offset1, offset2, offset3)
-DEFINE_INTRINSIC(tex2DgatherA, 0, float4, sampler, float2)
-DEFINE_INTRINSIC(tex2DgatherA, 1, float4, sampler, float2, int2)
-DEFINE_INTRINSIC(tex2DgatherA, 2, float4, sampler, float2, int2, int2, int2, int2)
+DEFINE_INTRINSIC(tex2DgatherA, 0, float4, sampler_float4, float2)
+DEFINE_INTRINSIC(tex2DgatherA, 1, float4, sampler_float4, float2, int2)
+DEFINE_INTRINSIC(tex2DgatherA, 2, float4, sampler_float4, float2, int2, int2, int2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherA, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", 3)";
@@ -2315,28 +2331,47 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 2, {
 	})
 
 // tex2Dstore(s, coords, value)
-DEFINE_INTRINSIC(tex2Dstore, 0, void, storage, int2, float4)
+DEFINE_INTRINSIC(tex2Dstore, 0, void, storage_int, int2, int)
+DEFINE_INTRINSIC(tex2Dstore, 0, void, storage_uint, int2, uint)
+DEFINE_INTRINSIC(tex2Dstore, 0, void, storage_float4, int2, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
 	code += "imageStore(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", " +
-		id_to_name(args[2].base) + ')';
+		id_to_name(args[2].base);
+	if (args[2].type.rows == 1)
+		code += ".xxxx"; // Expand last argument to a 4-component vector
+	code += ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
 	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
+	auto comp_type = args[2].type;
+	comp_type.rows = 4;
+
+	spv::Id data = args[2].base;
+	if (args[2].type.rows == 1)
+		// Expand last argument to a 4-component vector
+		data = add_instruction(spv::OpCompositeConstruct, convert_type(comp_type))
+			.add(data)
+			.add(data)
+			.add(data)
+			.add(data)
+			.result;
 	add_instruction_without_result(spv::OpImageWrite)
 		.add(args[0].base)
 		.add(args[1].base)
-		.add(args[2].base);
+		.add(data);
 	return 0;
 	})
 
 // ret tex2Dsize(s)
 // ret tex2Dsize(s, lod)
-DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler)
-DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler, int)
-DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage)
+DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler_float4)
+DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler_float4, int)
+DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage_int)
+DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage_uint)
+DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage_float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dsize, 0, {
 	code += "textureSize(" + id_to_name(args[0].base) + ", 0)";
 	})
@@ -2368,8 +2403,9 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 2, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 0, {
 	add_capability(spv::CapabilityImageQuery);
 
-	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
-		.add(args[0].base).result;
+	const spv::Id image = add_instruction(spv::OpImage, convert_image_type(args[0].type))
+		.add(args[0].base)
+		.result;
 	const spv::Id level = emit_constant(0u);
 
 	return add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
@@ -2380,8 +2416,9 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 0, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 1, {
 	add_capability(spv::CapabilityImageQuery);
 
-	const spv::Id image = add_instruction(spv::OpImage, convert_type({ type::t_texture }))
-		.add(args[0].base).result;
+	const spv::Id image = add_instruction(spv::OpImage, convert_image_type(args[0].type))
+		.add(args[0].base)
+		.result;
 
 	return add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
 		.add(image)
@@ -2474,8 +2511,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 0, {
 		.result;
 	})
 // ret atomicAdd(s, coords, data)
-DEFINE_INTRINSIC(atomicAdd, 1, int, storage, int2, int)
-DEFINE_INTRINSIC(atomicAdd, 1, uint, storage, int2, uint)
+DEFINE_INTRINSIC(atomicAdd, 1, int, storage_int, int2, int)
+DEFINE_INTRINSIC(atomicAdd, 1, uint, storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicAdd, 1, {
 	code += "imageAtomicAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2522,8 +2559,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 0, {
 		.result;
 	})
 // ret atomicAnd(s, coords, data)
-DEFINE_INTRINSIC(atomicAnd, 1, int, storage, int2, int)
-DEFINE_INTRINSIC(atomicAnd, 1, uint, storage, int2, uint)
+DEFINE_INTRINSIC(atomicAnd, 1, int, storage_int, int2, int)
+DEFINE_INTRINSIC(atomicAnd, 1, uint, storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicAnd, 1, {
 	code += "imageAtomicAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2570,8 +2607,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 0, {
 		.result;
 	})
 // ret atomicOr(s, coords, data)
-DEFINE_INTRINSIC(atomicOr, 1, int, storage, int2, int)
-DEFINE_INTRINSIC(atomicOr, 1, uint, storage, int2, uint)
+DEFINE_INTRINSIC(atomicOr, 1, int, storage_int, int2, int)
+DEFINE_INTRINSIC(atomicOr, 1, uint, storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicOr, 1, {
 	code += "imageAtomicOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2618,8 +2655,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 0, {
 		.result;
 	})
 // ret atomicXor(s, coords, data)
-DEFINE_INTRINSIC(atomicXor, 1, int, storage, int2, int)
-DEFINE_INTRINSIC(atomicXor, 1, uint, storage, int2, uint)
+DEFINE_INTRINSIC(atomicXor, 1, int, storage_int, int2, int)
+DEFINE_INTRINSIC(atomicXor, 1, uint, storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicXor, 1, {
 	code += "imageAtomicXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2683,8 +2720,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 1, {
 		.result;
 	})
 // ret atomicMin(s, coords, data)
-DEFINE_INTRINSIC(atomicMin, 2, int, storage, int2, int)
-DEFINE_INTRINSIC(atomicMin, 3, uint, storage, int2, uint)
+DEFINE_INTRINSIC(atomicMin, 2, int, storage_int, int2, int)
+DEFINE_INTRINSIC(atomicMin, 3, uint, storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicMin, 2, {
 	code += "imageAtomicMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2772,8 +2809,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 1, {
 		.result;
 	})
 // ret atomicMax(s, coords, data)
-DEFINE_INTRINSIC(atomicMax, 2, int, storage, int2, int)
-DEFINE_INTRINSIC(atomicMax, 3, uint, storage, int2, uint)
+DEFINE_INTRINSIC(atomicMax, 2, int, storage_int, int2, int)
+DEFINE_INTRINSIC(atomicMax, 3, uint, storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicMax, 2, {
 	code += "imageAtomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2844,8 +2881,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 0, {
 		.result;
 	})
 // ret atomicExchange(s, coords, data)
-DEFINE_INTRINSIC(atomicExchange, 1, int, storage, int2, int)
-DEFINE_INTRINSIC(atomicExchange, 1, uint, storage, int2, uint)
+DEFINE_INTRINSIC(atomicExchange, 1, int, storage_int, int2, int)
+DEFINE_INTRINSIC(atomicExchange, 1, uint, storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicExchange, 1, {
 	code += "imageAtomicExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2894,8 +2931,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 0, {
 		.result;
 	})
 // ret atomicCompareExchange(s, coords, data)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, int, storage, int2, int)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, storage, int2, uint)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, int, storage_int, int2, int)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicCompareExchange, 1, {
 	code += "imageAtomicCompSwap(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})

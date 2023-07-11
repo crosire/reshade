@@ -134,7 +134,8 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 		return false;
 	}
-	else if (accept(tokenid::vector))
+
+	if (accept(tokenid::vector))
 	{
 		type.base = type::t_float; // Default to float4 unless a type is specified (see below)
 		type.rows = 4, type.cols = 1;
@@ -159,7 +160,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 		return true;
 	}
-	else if (accept(tokenid::matrix))
+	if (accept(tokenid::matrix))
 	{
 		type.base = type::t_float; // Default to float4x4 unless a type is specified (see below)
 		type.rows = 4, type.cols = 4;
@@ -187,6 +188,63 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 			if (!expect('>'))
 				return false;
+		}
+
+		return true;
+	}
+
+	if (accept(tokenid::sampler))
+	{
+		if (accept('<'))
+		{
+			if (!accept_type_class(type))
+				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected sampler element type"), false;
+			if (!type.is_numeric() || type.is_matrix())
+				return error(_token.location, 3122, "sampler element type must be a numeric scalar or vector type"), false;
+
+			if (type.is_floating_point())
+				type.base = type::t_sampler_float;
+			else if (type.is_signed())
+				type.base = type::t_sampler_int;
+			else
+				type.base = type::t_sampler_uint;
+
+			if (!expect('>'))
+				return false;
+		}
+		else
+		{
+			type.base = type::t_sampler_float;
+			type.rows = 4;
+			type.cols = 1;
+		}
+
+		return true;
+	}
+	if (accept(tokenid::storage))
+	{
+		if (accept('<'))
+		{
+			if (!accept_type_class(type))
+				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected storage element type"), false;
+			if (!type.is_numeric() || type.is_matrix())
+				return error(_token.location, 3122, "storage element type must be a 4-component numeric scalar or vector type"), false;
+
+			if (type.is_floating_point())
+				type.base = type::t_storage_float;
+			else if (type.is_signed())
+				type.base = type::t_storage_int;
+			else
+				type.base = type::t_storage_uint;
+
+			if (!expect('>'))
+				return false;
+		}
+		else
+		{
+			type.base = type::t_storage_float;
+			type.rows = 4;
+			type.cols = 1;
 		}
 
 		return true;
@@ -310,12 +368,6 @@ bool reshadefx::parser::accept_type_class(type &type)
 		break;
 	case tokenid::texture:
 		type.base = type::t_texture;
-		break;
-	case tokenid::sampler:
-		type.base = type::t_sampler;
-		break;
-	case tokenid::storage:
-		type.base = type::t_storage;
 		break;
 	default:
 		return false;
