@@ -31,7 +31,7 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 		$args = $matches[3]
 
 		# Filter out various functions
-		if ($name.StartsWith("Log") -or $name.StartsWith("Show") -or $name.StartsWith("StyleColors") -or $name.EndsWith("Context") -or $name.Contains("IniSettings") -or $name.Contains("Viewport") -or $name.Contains("Platform") -or $name -eq "NewFrame" -or $name -eq "EndFrame" -or $name -eq "Render" -or $name -eq "GetDrawData") {
+		if ($name.StartsWith("Debug") -or $name.StartsWith("Log") -or $name.StartsWith("Show") -or $name.StartsWith("StyleColors") -or $name.EndsWith("Context") -or $name.Contains("IniSettings") -or $name.Contains("Viewport") -or $name.Contains("Platform") -or $name -eq "NewFrame" -or $name -eq "EndFrame" -or $name -eq "Render" -or $name -eq "GetDrawData") {
 			return;
 		}
 

@@ -349,8 +349,6 @@ imgui_function_table_18971 g_imgui_function_table_18971 = {
 	ImGui::SetNextFrameWantCaptureMouse,
 	ImGui::GetClipboardText,
 	ImGui::SetClipboardText,
-	ImGui::DebugTextEncoding,
-	ImGui::DebugCheckVersionAndDataLayout,
 	ImGui::SetAllocatorFunctions,
 	ImGui::GetAllocatorFunctions,
 	ImGui::MemAlloc,
