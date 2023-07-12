@@ -396,17 +396,20 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	if (count == 0)
 		return;
 
-	assert(first == 0);
-	count += first;
+	const uint32_t new_size = count + first;
 
-	if (count > _push_constants_size)
+	if (new_size > _push_constants_size)
 	{
 		// Enlarge push constant buffer to fit new requirement
 		D3D11_BUFFER_DESC desc = {};
-		desc.ByteWidth = count * sizeof(uint32_t);
+		// ByteWidth has to be a multiple of 16
+		desc.ByteWidth = ((new_size * sizeof(uint32_t) + 15) & ~15) * 16;
 		desc.Usage = D3D11_USAGE_DYNAMIC;
 		desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		// Release current push constants so we can create a new buffer with a different size
+		_push_constants.reset();
 
 		if (FAILED(_device_impl->_orig->CreateBuffer(&desc, nullptr, &_push_constants)))
 		{
@@ -416,16 +419,28 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 
 		_device_impl->set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants.get()) }, "Push constants");
 
-		_push_constants_size = count;
+		_push_constants_size = new_size;
 	}
 
 	const auto push_constants = _push_constants.get();
 
-	// Discard the buffer to so driver can return a new memory region to avoid stalls
+	// Discard the buffer too so driver can return a new memory region to avoid stalls
 	if (D3D11_MAPPED_SUBRESOURCE mapped;
 		SUCCEEDED(_orig->Map(push_constants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
 	{
-		std::memcpy(static_cast<uint32_t *>(mapped.pData) + first, values, (count - first) * sizeof(uint32_t));
+		// Copy old push constants over
+		if (_old_push_constants_data.size() > 0)
+			std::memcpy(mapped.pData, _old_push_constants_data.data(), first * sizeof(uint32_t));
+
+		// Add the new push constants
+		std::memcpy(static_cast<uint32_t *>(mapped.pData) + first, values, count * sizeof(uint32_t));
+
+		// Copy current push constants over as we might need them when more push constants get added
+		// The Unmap below frees the memory so we can't safely retrieve them later
+		if (_old_push_constants_data.size() < new_size)
+			_old_push_constants_data.resize(new_size);
+		std::memcpy(_old_push_constants_data.data(), mapped.pData, new_size * sizeof(uint32_t));
+
 		_orig->Unmap(push_constants, 0);
 	}
 

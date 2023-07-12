@@ -142,5 +142,6 @@ namespace reshade::d3d11
 
 		UINT _push_constants_size = 0;
 		com_ptr<ID3D11Buffer> _push_constants;
+		std::vector<uint32_t> _old_push_constants_data;
 	};
 }
