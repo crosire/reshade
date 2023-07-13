@@ -276,28 +276,33 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 	if (count == 0)
 		return;
 
-	assert(first == 0);
 	count += first;
 
-	if (count > _push_constants_size)
+	if (count > _push_constants_data.size())
 	{
+		_push_constants_data.resize(count);
+
 		// Enlarge push constant buffer to fit new requirement
 		D3D10_BUFFER_DESC desc = {};
-		desc.ByteWidth = count * sizeof(uint32_t);
+		desc.ByteWidth = ((count * sizeof(uint32_t)) + 15) & ~15; // Align to 16 bytes
 		desc.Usage = D3D10_USAGE_DYNAMIC;
 		desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
+		_push_constants.reset();
+
 		if (FAILED(_orig->CreateBuffer(&desc, nullptr, &_push_constants)))
 		{
+			_push_constants_data.clear();
+
 			LOG(ERROR) << "Failed to create push constant buffer!";
 			return;
 		}
 
 		set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants.get()) }, "Push constants");
-
-		_push_constants_size = count;
 	}
+
+	std::memcpy(_push_constants_data.data() + first, values, (count - first) * sizeof(uint32_t));
 
 	const auto push_constants = _push_constants.get();
 
@@ -305,7 +310,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 	if (uint32_t *mapped_data;
 		SUCCEEDED(ID3D10Buffer_Map(push_constants, D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&mapped_data))))
 	{
-		std::memcpy(mapped_data + first, values, (count - first) * sizeof(uint32_t));
+		std::memcpy(mapped_data, _push_constants_data.data(), _push_constants_data.size() * sizeof(uint32_t));
 		ID3D10Buffer_Unmap(push_constants);
 	}
 

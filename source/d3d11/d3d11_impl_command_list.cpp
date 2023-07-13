@@ -396,51 +396,41 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	if (count == 0)
 		return;
 
-	const uint32_t new_size = count + first;
+	count += first;
 
-	if (new_size > _push_constants_size)
+	if (count > _push_constants_data.size())
 	{
+		_push_constants_data.resize(count);
+
 		// Enlarge push constant buffer to fit new requirement
 		D3D11_BUFFER_DESC desc = {};
-		// ByteWidth has to be a multiple of 16
-		desc.ByteWidth = ((new_size * sizeof(uint32_t) + 15) & ~15) * 16;
+		desc.ByteWidth = ((count * sizeof(uint32_t)) + 15) & ~15; // Align to 16 bytes
 		desc.Usage = D3D11_USAGE_DYNAMIC;
 		desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-		// Release current push constants so we can create a new buffer with a different size
 		_push_constants.reset();
 
 		if (FAILED(_device_impl->_orig->CreateBuffer(&desc, nullptr, &_push_constants)))
 		{
+			_push_constants_data.clear();
+
 			LOG(ERROR) << "Failed to create push constant buffer!";
 			return;
 		}
 
 		_device_impl->set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants.get()) }, "Push constants");
-
-		_push_constants_size = new_size;
 	}
+
+	std::memcpy(_push_constants_data.data() + first, values, (count - first) * sizeof(uint32_t));
 
 	const auto push_constants = _push_constants.get();
 
-	// Discard the buffer too so driver can return a new memory region to avoid stalls
+	// Discard the buffer so driver can return a new memory region to avoid stalls
 	if (D3D11_MAPPED_SUBRESOURCE mapped;
 		SUCCEEDED(_orig->Map(push_constants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
 	{
-		// Copy old push constants over
-		if (_old_push_constants_data.size() > 0)
-			std::memcpy(mapped.pData, _old_push_constants_data.data(), first * sizeof(uint32_t));
-
-		// Add the new push constants
-		std::memcpy(static_cast<uint32_t *>(mapped.pData) + first, values, count * sizeof(uint32_t));
-
-		// Copy current push constants over as we might need them when more push constants get added
-		// The Unmap below frees the memory so we can't safely retrieve them later
-		if (_old_push_constants_data.size() < new_size)
-			_old_push_constants_data.resize(new_size);
-		std::memcpy(_old_push_constants_data.data(), mapped.pData, new_size * sizeof(uint32_t));
-
+		std::memcpy(mapped.pData, _push_constants_data.data(), _push_constants_data.size() * sizeof(uint32_t));
 		_orig->Unmap(push_constants, 0);
 	}
 

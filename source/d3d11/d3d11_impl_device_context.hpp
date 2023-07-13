@@ -140,8 +140,7 @@ namespace reshade::d3d11
 		device_impl *const _device_impl;
 		com_ptr<ID3DUserDefinedAnnotation> _annotations;
 
-		UINT _push_constants_size = 0;
 		com_ptr<ID3D11Buffer> _push_constants;
-		std::vector<uint32_t> _old_push_constants_data;
+		std::vector<uint32_t> _push_constants_data;
 	};
 }

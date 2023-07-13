@@ -136,7 +136,7 @@ namespace reshade::d3d10
 		void insert_debug_marker(const char *, const float[4]) final {}
 
 	private:
-		UINT _push_constants_size = 0;
 		com_ptr<ID3D10Buffer> _push_constants;
+		std::vector<uint32_t> _push_constants_data;
 	};
 }
