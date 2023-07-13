@@ -1467,14 +1467,13 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
 		if (sampler_info.srgb && texture_info.format != texture_format::rgba8)
 			return error(location, 4582, '\'' + name + "': texture does not support sRGB sampling (only textures with RGBA8 format do)"), false;
+
 		if (texture_info.format == texture_format::r32i ?
 				type.base != type::t_sampler_int :
 			texture_info.format == texture_format::r32u ?
 				type.base != type::t_sampler_uint :
 				type.base != type::t_sampler_float)
 			return error(location, 4582, '\'' + name + "': type mismatch between texture format and sampler element type"), false;
-		if (texture_info.format == texture_format::r32i || texture_info.format == texture_format::r32u)
-			return error(location, 4582, '\'' + name + "': cannot sample from non-floating point texture formats"), false;
 
 		sampler_info.name = name;
 		sampler_info.type = type;
@@ -1492,6 +1491,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (storage_info.texture_name.empty())
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+
 		if (texture_info.format == texture_format::r32i ?
 				type.base != type::t_storage_int :
 			texture_info.format == texture_format::r32u ?

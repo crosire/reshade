@@ -75,6 +75,8 @@ struct intrinsic
 #define out_float2 { reshadefx::type::t_float, 2, 1, reshadefx::type::q_out }
 #define out_float3 { reshadefx::type::t_float, 3, 1, reshadefx::type::q_out }
 #define out_float4 { reshadefx::type::t_float, 4, 1, reshadefx::type::q_out }
+#define sampler_int { reshadefx::type::t_sampler_int, 1, 1 }
+#define sampler_uint { reshadefx::type::t_sampler_uint, 1, 1 }
 #define sampler_float4 { reshadefx::type::t_sampler_float, 4, 1 }
 #define storage_int { reshadefx::type::t_storage_int, 1, 1 }
 #define storage_uint { reshadefx::type::t_storage_uint, 1, 1 }

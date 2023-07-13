@@ -232,13 +232,19 @@ private:
 			s += "sampler2D";
 			break;
 		case type::t_storage_int:
-			s += "writeonly iimage2D";
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "iimage2D";
 			break;
 		case type::t_storage_uint:
-			s += "writeonly uimage2D";
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "uimage2D";
 			break;
 		case type::t_storage_float:
-			s += "writeonly image2D";
+			if constexpr (is_param) // Images need a format to be readable, but declaring that on function parameters is not well supported, so can only support write-only images there
+				s += "writeonly ";
+			s += "image2D";
 			break;
 		default:
 			assert(false);
@@ -558,20 +564,7 @@ private:
 
 		code += "layout(binding = " + std::to_string(info.binding);
 		code += ") uniform ";
-
-		switch (info.type.base)
-		{
-		case type::t_sampler_int:
-			code += "isampler2D";
-			break;
-		case type::t_sampler_uint:
-			code += "usampler2D";
-			break;
-		case type::t_sampler_float:
-			code += "sampler2D";
-			break;
-		}
-
+		write_type(code, info.type);
 		code += ' ' + id_to_name(info.id) + ";\n";
 
 		_module.samplers.push_back(info);
@@ -587,8 +580,8 @@ private:
 
 		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
 			[&info](const auto &it) {
-			return it.unique_name == info.texture_name;
-		});
+				return it.unique_name == info.texture_name;
+			});
 		assert(texture != _module.textures.end());
 
 		std::string &code = _blocks.at(_current_block);
@@ -598,20 +591,7 @@ private:
 		code += "layout(binding = " + std::to_string(info.binding) + ", ";
 		write_texture_format(code, texture->format);
 		code += ") uniform ";
-
-		switch (info.type.base)
-		{
-		case type::t_storage_int:
-			code += "iimage2D";
-			break;
-		case type::t_storage_uint:
-			code += "uimage2D";
-			break;
-		case type::t_storage_float:
-			code += "image2D";
-			break;
-		}
-
+		write_type(code, info.type);
 		code += ' ' + id_to_name(info.id) + ";\n";
 
 		_module.storages.push_back(info);

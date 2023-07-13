@@ -1678,67 +1678,136 @@ IMPLEMENT_INTRINSIC_SPIRV(isnan, 0, {
 
 // ret tex2D(s, coords)
 // ret tex2D(s, coords, offset)
+DEFINE_INTRINSIC(tex2D, 0, int, sampler_int, float2)
+DEFINE_INTRINSIC(tex2D, 0, uint, sampler_uint, float2)
 DEFINE_INTRINSIC(tex2D, 0, float4, sampler_float4, float2)
+DEFINE_INTRINSIC(tex2D, 1, int, sampler_int, float2, int2)
+DEFINE_INTRINSIC(tex2D, 1, uint, sampler_uint, float2, int2)
 DEFINE_INTRINSIC(tex2D, 1, float4, sampler_float4, float2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2D, 0, {
 	code += "texture(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x"; // Collapse last argument from a 4-component vector
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2D, 1, {
 	code += "textureOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2D, 0, {
-	if (_shader_model >= 40) // SM4 and higher use a more object-oriented programming model for textures
-		code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
-	else
+	if (_shader_model >= 40) { // SM4 and higher use a more object-oriented programming model for textures
+		if (res_type.is_floating_point() || _shader_model >= 67)
+			code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
+		else // Integer sampling is not supported until SM6.7, so emulate with a texture fetch
+			code += "uint2 temp" + std::to_string(res) + "; " + id_to_name(args[0].base) + ".t.GetDimensions(temp" + std::to_string(res) + ".x, temp" + std::to_string(res) + ".y); " +
+				id_to_name(res) + " = " + id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + " * temp" + std::to_string(res) + ", 0))";
+	}
+	else {
 		code += "tex2D(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
+		if (res_type.rows == 1)
+			code += ".x";
+	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2D, 1, {
-	if (_shader_model >= 40)
-		code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	else
+	if (_shader_model >= 40) {
+		if (res_type.is_floating_point() || _shader_model >= 67)
+			code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+		else
+			code += "uint2 temp" + std::to_string(res) + "; " + id_to_name(args[0].base) + ".t.GetDimensions(temp" + std::to_string(res) + ".x, temp" + std::to_string(res) + ".y); " +
+				id_to_name(res) + " = " + id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + " * temp" + std::to_string(res) + ".xy, 0), " + id_to_name(args[2].base) + ')';
+	}
+	else {
 		code += "tex2D(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + " + id_to_name(args[2].base) + " * " + id_to_name(args[0].base) + ".pixelsize)";
+		if (res_type.rows == 1)
+			code += ".x";
+	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2D, 0, {
-	return add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_type))
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	spv::Id res = add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(spv::ImageOperandsMaskNone)
 		.result;
+	if (res_type.rows == 1)
+		// Collapse last argument from a 4-component vector
+		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+
+	return res;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2D, 1, {
 	// Non-constant offset operand needs extended capability
 	if (!args[2].is_constant)
 		add_capability(spv::CapabilityImageGatherExtended);
 
-	return add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_type))
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	spv::Id res = add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
 		.result;
+	if (res_type.rows == 1)
+		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+
+	return res;
 	})
 
 // ret tex2Dlod(s, coords)
 // ret tex2Dlod(s, coords, offset)
+DEFINE_INTRINSIC(tex2Dlod, 0, int, sampler_int, float4)
+DEFINE_INTRINSIC(tex2Dlod, 0, uint, sampler_uint, float4)
 DEFINE_INTRINSIC(tex2Dlod, 0, float4, sampler_float4, float4)
+DEFINE_INTRINSIC(tex2Dlod, 1, int, sampler_int, float4, int2)
+DEFINE_INTRINSIC(tex2Dlod, 1, uint, sampler_uint, float4, int2)
 DEFINE_INTRINSIC(tex2Dlod, 1, float4, sampler_float4, float4, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dlod, 0, {
 	code += "textureLod(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w)";
+	if (res_type.rows == 1)
+		code += ".x"; // Collapse last argument from a 4-component vector
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2Dlod, 1, {
 	code += "textureLodOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w, " + id_to_name(args[2].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dlod, 0, {
-	if (_shader_model >= 40)
-		code += id_to_name(args[0].base) + ".t.SampleLevel(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w)";
-	else
+	if (_shader_model >= 40) {
+		if (res_type.is_floating_point() || _shader_model >= 67)
+			code += id_to_name(args[0].base) + ".t.SampleLevel(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w)";
+		else // Integer sampling is not supported until SM6.7, so emulate with a texture fetch
+			code += "uint3 temp" + std::to_string(res) + "; " + id_to_name(args[0].base) + ".t.GetDimensions((int)" + id_to_name(args[1].base) + ".w, temp" + std::to_string(res) + ".x, temp" + std::to_string(res) + ".y, temp" + std::to_string(res) + ".z); " +
+				id_to_name(res) + " = " + id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + ".xy * temp" + std::to_string(res) + ".xy, (int)" + id_to_name(args[1].base) + ".w))";
+	}
+	else {
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
+		if (res_type.rows == 1)
+			code += ".x";
+	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dlod, 1, {
-	if (_shader_model >= 40)
-		code += id_to_name(args[0].base) + ".t.SampleLevel(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w, " + id_to_name(args[2].base) + ')';
-	else
+	if (_shader_model >= 40) {
+		if (res_type.is_floating_point() || _shader_model >= 67)
+			code += id_to_name(args[0].base) + ".t.SampleLevel(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w, " + id_to_name(args[2].base) + ')';
+		else
+			code += "uint3 temp" + std::to_string(res) + "; " + id_to_name(args[0].base) + ".t.GetDimensions((int)" + id_to_name(args[1].base) + ".w, temp" + std::to_string(res) + ".x, temp" + std::to_string(res) + ".y, temp" + std::to_string(res) + ".z); " +
+				id_to_name(res) + " = " + id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + ".xy * temp" + std::to_string(res) + ".xy, (int)" + id_to_name(args[1].base) + ".w))" + id_to_name(args[2].base) + ')';
+	}
+	else {
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + float4(" + id_to_name(args[2].base) + " * " + id_to_name(args[0].base) + ".pixelsize, 0, 0))";
+		if (res_type.rows == 1)
+			code += ".x";
+	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 0, {
 	const spv::Id xy = add_instruction(spv::OpVectorShuffle, convert_type({ type::t_float, 2, 1 }))
@@ -1752,12 +1821,23 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 0, {
 		.add(3) // .w
 		.result;
 
-	return add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_type))
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(xy)
 		.add(spv::ImageOperandsLodMask)
 		.add(lod)
 		.result;
+	if (res_type.rows == 1)
+		// Collapse last argument from a 4-component vector
+		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+
+	return res;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 	if (!args[2].is_constant)
@@ -1774,50 +1854,74 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 		.add(3) // .w
 		.result;
 
-	return add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_type))
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(xy)
 		.add(spv::ImageOperandsLodMask | (args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask))
 		.add(lod)
 		.add(args[2].base)
 		.result;
+	if (res_type.rows == 1)
+		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+
+	return res;
 	})
 
 // ret tex2Dfetch(s, coords)
 // ret tex2Dfetch(s, coords, lod)
+DEFINE_INTRINSIC(tex2Dfetch, 0, int, sampler_int, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 0, uint, sampler_uint, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler_float4, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 1, int, sampler_int, int2, int)
+DEFINE_INTRINSIC(tex2Dfetch, 1, uint, sampler_uint, int2, int)
 DEFINE_INTRINSIC(tex2Dfetch, 1, float4, sampler_float4, int2, int)
 DEFINE_INTRINSIC(tex2Dfetch, 2, int, storage_int, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 2, uint, storage_uint, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 2, float4, storage_float4, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 0, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", 0)";
+	if (res_type.rows == 1)
+		code += ".x"; // Collapse last argument from a 4-component vector
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 1, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 2, {
 	code += "imageLoad(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	if (res_type.rows == 1)
-		code += ".x"; // Collapse last argument from a 4-component vector
+		code += ".x";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
 	if (_shader_model >= 40)
 		code += id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + ", 0))";
-	else
+	else {
 		// SM3 does not have a fetch intrinsic, so emulate it by transforming coordinates into texture space ones
 		// Also add a half-pixel offset to align texels with pixels
 		//   (coords + 0.5) / size
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, float4((" +
 			id_to_name(args[1].base) + ".xy + 0.5) * " + id_to_name(args[0].base) + ".pixelsize, 0, 0))";
+		if (res_type.rows == 1)
+			code += ".x";
+	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 1, {
 	if (_shader_model >= 40)
 		code += id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + "))";
-	else
+	else {
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, float4((" +
 			id_to_name(args[1].base) + " + 0.5) * " + id_to_name(args[0].base) + ".pixelsize * exp2(" + id_to_name(args[2].base) + "), 0, " +
 			id_to_name(args[2].base) + "))";
+		if (res_type.rows == 1)
+			code += ".x";
+	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 2, {
 	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']';
@@ -1827,38 +1931,59 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 		.add(args[0].base)
 		.result;
 
-	return add_instruction(spv::OpImageFetch, convert_type(res_type))
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	spv::Id res = add_instruction(spv::OpImageFetch, convert_type(res_vector_type))
 		.add(image)
 		.add(args[1].base)
 		.result;
+	if (res_type.rows == 1)
+		// Collapse last argument from a 4-component vector
+		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+
+	return res;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
 	const spv::Id image = add_instruction(spv::OpImage, convert_image_type(args[0].type))
 		.add(args[0].base)
 		.result;
 
-	return add_instruction(spv::OpImageFetch, convert_type(res_type))
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	spv::Id res = add_instruction(spv::OpImageFetch, convert_type(res_vector_type))
 		.add(image)
 		.add(args[1].base)
 		.add(spv::ImageOperandsLodMask)
 		.add(args[2].base)
 		.result;
+	if (res_type.rows == 1)
+		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+
+	return res;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 2, {
-	auto comp_type = res_type;
-	comp_type.rows = 4;
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
 
-	spv::Id data = add_instruction(spv::OpImageRead, convert_type(comp_type))
+	spv::Id res = add_instruction(spv::OpImageRead, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.result;
 	if (res_type.rows == 1)
-		// Collapse last argument from a 4-component vector
-		data = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
-			.add(data)
+		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
 			.add(0u)
 			.result;
-	return data;
+
+	return res;
 	})
 
 // ret tex2DgatherR(s, coords)
@@ -2367,7 +2492,11 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
 
 // ret tex2Dsize(s)
 // ret tex2Dsize(s, lod)
+DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler_int)
+DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler_uint)
 DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler_float4)
+DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler_int, int)
+DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler_uint, int)
 DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler_float4, int)
 DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage_int)
 DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage_uint)

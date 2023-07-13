@@ -55,7 +55,9 @@ private:
 
 		if (_shader_model >= 40)
 		{
-			preamble += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
+			preamble += "struct __sampler2D_int1 { Texture2D<int1> t; SamplerState s; };\n";
+			preamble += "struct __sampler2D_uint1 { Texture2D<uint1> t; SamplerState s; };\n";
+			preamble += "struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n";
 
 			if (!_cbuffer_block.empty())
 			{
@@ -67,7 +69,7 @@ private:
 		}
 		else
 		{
-			preamble += "struct __sampler2D { sampler2D s; float2 pixelsize; };\n";
+			preamble += "struct __sampler2D_float4 { sampler2D s; float2 pixelsize; };\n";
 			preamble += "uniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
 			if (_uses_bitwise_cast)
@@ -180,8 +182,14 @@ private:
 		case type::t_struct:
 			s += id_to_name(type.definition);
 			return;
+		case type::t_sampler_int:
+			s += "__sampler2D_int" + std::to_string(type.rows);
+			return;
+		case type::t_sampler_uint:
+			s += "__sampler2D_uint" + std::to_string(type.rows);
+			return;
 		case type::t_sampler_float:
-			s += "__sampler2D";
+			s += "__sampler2D_float" + std::to_string(type.rows);
 			return;
 		case type::t_storage_int:
 			s += "RWTexture2D<int" + std::to_string(type.rows) + '>';
@@ -314,21 +322,19 @@ private:
 		switch (format)
 		{
 		case texture_format::r32i:
-			s += "int";
+			s += "int1";
 			break;
 		case texture_format::r32u:
-			s += "uint";
-			break;
-		case texture_format::r8:
-		case texture_format::r16:
-		case texture_format::r16f:
-		case texture_format::r32f:
-			s += "float";
+			s += "uint1";
 			break;
 		default:
 			assert(false);
 			[[fallthrough]];
 		case texture_format::unknown:
+		case texture_format::r8:
+		case texture_format::r16:
+		case texture_format::r16f:
+		case texture_format::r32f:
 		case texture_format::rg8:
 		case texture_format::rg16:
 		case texture_format::rg16f:
@@ -498,7 +504,6 @@ private:
 				return it.unique_name == info.texture_name;
 			});
 		assert(texture != _module.textures.end());
-		assert(info.type.base == type::t_sampler_float);
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -529,7 +534,9 @@ private:
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += "static const ";
+			write_type(code, info.type);
+			code += ' ' + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{
@@ -540,7 +547,9 @@ private:
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float2(";
+			code += "static const ";
+			write_type(code, info.type);
+			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float2(";
 
 			if (texture->semantic.empty())
 				code += "1.0 / " + std::to_string(texture->width) + ", 1.0 / " + std::to_string(texture->height);
@@ -1254,7 +1263,8 @@ private:
 			intrinsic == atomicMin0 || intrinsic == atomicMin1 || intrinsic == atomicMin2 || intrinsic == atomicMin3 ||
 			intrinsic == atomicMax0 || intrinsic == atomicMax1 || intrinsic == atomicMax2 || intrinsic == atomicMax3 ||
 			intrinsic == atomicExchange0 || intrinsic == atomicExchange1 ||
-			intrinsic == atomicCompareExchange0 || intrinsic == atomicCompareExchange1))
+			intrinsic == atomicCompareExchange0 || intrinsic == atomicCompareExchange1 ||
+			(!(res_type.is_floating_point() || _shader_model >= 67) && (intrinsic == tex2D0 || intrinsic == tex2D1 || intrinsic == tex2Dlod0 || intrinsic == tex2Dlod1))))
 		{
 			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
 			// Same with the atomic intrinsics, which use the last parameter to return the previous value of the target
