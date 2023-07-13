@@ -1375,7 +1375,7 @@ void reshade::runtime::draw_gui_home()
 			else
 				shortcut.preset_path = _current_preset_path;
 
-			ImGui::SetNextItemWidth(230.0f);
+			ImGui::SetNextItemWidth(18.0f * _font_size);
 			if (imgui::key_input_box("##toggle_key", shortcut.key_data, *_input))
 			{
 				if (preset_shortcut_it != _preset_shortcuts.end())
@@ -3280,13 +3280,13 @@ void reshade::runtime::draw_variable_editor()
 			// Create context menu
 			if (ImGui::BeginPopupContextItem("##context"))
 			{
-				ImGui::SetNextItemWidth(230.0f);
+				ImGui::SetNextItemWidth(18.0f * _font_size);
 				if (variable.supports_toggle_key() &&
 					_input != nullptr &&
 					imgui::key_input_box("##toggle_key", variable.toggle_key_data, *_input))
 					modified = true;
 
-				if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(230.0f, 0)))
+				if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(18.0f * _font_size, 0)))
 				{
 					modified = true;
 					reset_uniform_value(variable);
@@ -3383,7 +3383,7 @@ void reshade::runtime::draw_variable_editor()
 					if (!force_reload_effect && // Cannot compare iterators if definitions were just modified above
 						ImGui::BeginPopupContextItem())
 					{
-						if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(230.0f, 0)))
+						if (ImGui::Button(ICON_FK_UNDO " Reset to default", ImVec2(18.0f * _font_size, 0)))
 						{
 							if (definition_scope != nullptr)
 							{
@@ -3500,12 +3500,12 @@ void reshade::runtime::draw_technique_editor()
 
 			if (ImGui::BeginPopup("##context"))
 			{
-				if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
+				if (ImGui::Button("Open folder in explorer", ImVec2(18.0f * _font_size, 0)))
 					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
 
-				if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
+				if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 18.0f * _font_size))
 				{
 					std::unordered_map<std::string, std::string> file_errors_lookup;
 					parse_errors(effect.errors,
@@ -3578,7 +3578,7 @@ void reshade::runtime::draw_technique_editor()
 				}
 
 				if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
-					imgui::popup_button("Show compiled results", 230.0f))
+					imgui::popup_button("Show compiled results", 18.0f * _font_size))
 				{
 					const bool open_generated_code = ImGui::MenuItem("Generated code");
 
@@ -3672,7 +3672,7 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::TextUnformatted(tech.name.c_str());
 				ImGui::Separator();
 
-				ImGui::SetNextItemWidth(230.0f);
+				ImGui::SetNextItemWidth(18.0f * _font_size);
 				if (_input != nullptr && !force_enabled &&
 					imgui::key_input_box("##toggle_key", tech.toggle_key_data, *_input))
 				{
@@ -3685,7 +3685,7 @@ void reshade::runtime::draw_technique_editor()
 				const bool is_not_top = index > 0;
 				const bool is_not_bottom = index < _technique_sorting.size() - 1;
 
-				if (is_not_top && ImGui::Button("Move to top", ImVec2(230.0f, 0)))
+				if (is_not_top && ImGui::Button("Move to top", ImVec2(18.0f * _font_size, 0)))
 				{
 					std::vector<size_t> technique_indices = _technique_sorting;
 					technique_indices.insert(technique_indices.begin(), technique_indices[index]);
@@ -3699,7 +3699,7 @@ void reshade::runtime::draw_technique_editor()
 
 					ImGui::CloseCurrentPopup();
 				}
-				if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(230.0f, 0)))
+				if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(18.0f * _font_size, 0)))
 				{
 					std::vector<size_t> technique_indices = _technique_sorting;
 					technique_indices.push_back(technique_indices[index]);
@@ -3717,12 +3717,12 @@ void reshade::runtime::draw_technique_editor()
 				if (is_not_top || is_not_bottom || (_input != nullptr && !force_enabled))
 					ImGui::Separator();
 
-				if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
+				if (ImGui::Button("Open folder in explorer", ImVec2(18.0f * _font_size, 0)))
 					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
 
-				if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
+				if (imgui::popup_button(ICON_FK_PENCIL " Edit source code", 18.0f * _font_size))
 				{
 					std::filesystem::path source_file;
 					if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
@@ -3757,7 +3757,7 @@ void reshade::runtime::draw_technique_editor()
 				}
 
 				if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
-					imgui::popup_button("Show compiled results", 230.0f))
+					imgui::popup_button("Show compiled results", 18.0f * _font_size))
 				{
 					const bool open_generated_code = ImGui::MenuItem("Generated code");
 
