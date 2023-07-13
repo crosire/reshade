@@ -26,13 +26,27 @@ namespace reshadefx
 			t_float,
 			t_string,
 			t_struct,
-			t_sampler_int,
-			t_sampler_uint,
-			t_sampler_float,
-			t_storage_int,
-			t_storage_uint,
-			t_storage_float,
-			t_texture,
+			t_texture1d,
+			t_texture2d,
+			t_texture3d,
+			t_sampler1d_int,
+			t_sampler2d_int,
+			t_sampler3d_int,
+			t_sampler1d_uint,
+			t_sampler2d_uint,
+			t_sampler3d_uint,
+			t_sampler1d_float,
+			t_sampler2d_float,
+			t_sampler3d_float,
+			t_storage1d_int,
+			t_storage2d_int,
+			t_storage3d_int,
+			t_storage1d_uint,
+			t_storage2d_uint,
+			t_storage3d_uint,
+			t_storage1d_float,
+			t_storage2d_float,
+			t_storage3d_float,
 			t_function,
 		};
 		enum qualifier : uint32_t
@@ -72,16 +86,17 @@ namespace reshadefx
 
 		bool is_void() const { return base == t_void; }
 		bool is_boolean() const { return base == t_bool; }
-		bool is_integral() const { return base >= t_bool && base <= t_uint; }
-		bool is_floating_point() const { return base == t_min16float || base == t_float; }
-		bool is_signed() const { return base == t_min16int || base == t_int || base == t_min16float || base == t_float; }
 		bool is_numeric() const { return base >= t_bool && base <= t_float; }
+		bool is_integral() const { return (base >= t_bool && base <= t_uint) || (base >= t_sampler1d_int && base <= t_sampler3d_uint) || (base >= t_storage1d_int && base <= t_storage3d_uint); }
+		bool is_floating_point() const { return base == t_min16float || base == t_float || (base >= t_sampler1d_float && base <= t_sampler3d_float) || (base >= t_storage1d_float && base <= t_storage3d_float); }
+		bool is_signed() const { return base == t_min16int || base == t_int || (base >= t_sampler1d_int && base <= t_sampler3d_int) || (base >= t_storage1d_int && base <= t_storage3d_int) || is_floating_point(); }
+		bool is_unsigned() const { return base == t_min16uint || base == t_uint || (base >= t_sampler1d_uint && base <= t_sampler3d_uint) || (base >= t_storage1d_uint && base <= t_storage3d_uint); }
 
 		bool is_struct() const { return base == t_struct; }
-		bool is_object() const { return base >= t_sampler_int && base <= t_texture; }
-		bool is_sampler() const { return base >= t_sampler_int && base <= t_sampler_float; }
-		bool is_storage() const { return base >= t_storage_int && base <= t_storage_float; }
-		bool is_texture() const { return base == t_texture; }
+		bool is_object() const { return is_texture() || is_sampler() || is_storage(); }
+		bool is_texture() const { return base >= t_texture1d && base <= t_texture3d; }
+		bool is_sampler() const { return base >= t_sampler1d_int && base <= t_sampler3d_float; }
+		bool is_storage() const { return base >= t_storage1d_int && base <= t_storage3d_float; }
 		bool is_function() const { return base == t_function; }
 
 		bool is_array() const { return array_length != 0; }
@@ -91,6 +106,7 @@ namespace reshadefx
 
 		unsigned int precision() const { return base == t_min16int || base == t_min16uint || base == t_min16float ? 16 : 32; }
 		unsigned int components() const { return rows * cols; }
+		unsigned int texture_dimension() const { return base >= t_texture1d && base <= t_storage3d_float ? ((base - t_texture1d) % 3) + 1 : 0; }
 
 		friend inline bool operator==(const type &lhs, const type &rhs)
 		{

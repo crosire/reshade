@@ -199,9 +199,15 @@ namespace reshadefx
 		vector,
 		matrix,
 		string_,
-		texture,
-		sampler,
-		storage,
+		texture1d,
+		texture2d,
+		texture3d,
+		sampler1d,
+		sampler2d,
+		sampler3d,
+		storage1d,
+		storage2d,
+		storage3d,
 
 		// preprocessor directives
 		hash_def,

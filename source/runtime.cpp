@@ -2985,6 +2985,25 @@ bool reshade::runtime::create_texture(texture &tex)
 	if (!tex.semantic.empty())
 		return true;
 
+	api::resource_type type = api::resource_type::unknown;
+	api::resource_view_type view_type = api::resource_view_type::unknown;
+
+	switch (tex.type)
+	{
+	case reshadefx::texture_type::texture_1d:
+		type = api::resource_type::texture_1d;
+		view_type = api::resource_view_type::texture_1d;
+		break;
+	case reshadefx::texture_type::texture_2d:
+		type = api::resource_type::texture_2d;
+		view_type = api::resource_view_type::texture_2d;
+		break;
+	case reshadefx::texture_type::texture_3d:
+		type = api::resource_type::texture_3d;
+		view_type = api::resource_view_type::texture_3d;
+		break;
+	}
+
 	api::format format = api::format::unknown;
 	api::format view_format = api::format::unknown;
 	api::format view_format_srgb = api::format::unknown;
@@ -3057,15 +3076,16 @@ bool reshade::runtime::create_texture(texture &tex)
 		flags |= api::resource_flags::generate_mipmaps;
 
 	// Clear texture to zero since by default its contents are undefined
-	std::vector<uint8_t> zero_data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 16);
+	std::vector<uint8_t> zero_data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * 16);
 	std::vector<api::subresource_data> initial_data(tex.levels);
-	for (uint32_t level = 0, width = tex.width; level < tex.levels; ++level, width /= 2)
+	for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
 	{
 		initial_data[level].data = zero_data.data();
 		initial_data[level].row_pitch = width * 16;
+		initial_data[level].slice_pitch = initial_data[level].row_pitch * height;
 	}
 
-	if (!_device->create_resource(api::resource_desc(tex.width, tex.height, 1, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
+	if (!_device->create_resource(api::resource_desc(type, tex.width, tex.height, tex.depth, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
 	{
 		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "' (width = " << tex.width << ", height = " << tex.height << ", levels = " << tex.levels << ", format = " << static_cast<uint32_t>(format) << ", usage = " << std::hex << static_cast<uint32_t>(usage) << std::dec << ")! Make sure the texture dimensions are reasonable.";
 		return false;
@@ -3075,7 +3095,7 @@ bool reshade::runtime::create_texture(texture &tex)
 
 	// Always create shader resource views
 	{
-		if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_format, 0, tex.levels, 0, 1), &tex.srv[0]))
+		if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_type, view_format, 0, tex.levels, 0, UINT32_MAX), &tex.srv[0]))
 		{
 			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format) << ", levels = " << tex.levels << ")!";
 			return false;
@@ -3084,7 +3104,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		{
 			tex.srv[1] = tex.srv[0];
 		}
-		else if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_format_srgb, 0, tex.levels, 0, 1), &tex.srv[1]))
+		else if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_type, view_format_srgb, 0, tex.levels, 0, UINT32_MAX), &tex.srv[1]))
 		{
 			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format_srgb) << ", levels = " << tex.levels << ")!";
 			return false;
@@ -3116,7 +3136,7 @@ bool reshade::runtime::create_texture(texture &tex)
 
 		for (uint16_t level = 0; level < tex.levels; ++level)
 		{
-			if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format, level, 1, 0, 1), &tex.uav[level]))
+			if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_type, view_format, level, 1, 0, UINT32_MAX), &tex.uav[level]))
 			{
 				LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format) << ", level = " << level << ")!";
 				return false;
@@ -4227,6 +4247,12 @@ void reshade::runtime::save_texture(const texture &tex)
 }
 void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t height, const uint8_t *pixels)
 {
+	if (tex.depth != 1)
+	{
+		LOG(ERROR) << "Texture upload is not supported for 3D textures!";
+		return;
+	}
+
 	std::vector<uint8_t> resized(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
 	// Need to potentially resize image data to the texture dimensions
 	if (tex.width != width || tex.height != height)

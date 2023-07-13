@@ -1366,14 +1366,17 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					reshadefx::texture_info &target_info = _codegen->get_texture(expression.base);
-					if (type.is_storage())
-						// Texture is used as storage
-						target_info.storage_access = true;
+					if (type.is_sampler() || type.is_storage())
+					{
+						reshadefx::texture_info &target_info = _codegen->get_texture(expression.base);
+						if (type.is_storage())
+							// Texture is used as storage
+							target_info.storage_access = true;
 
-					texture_info = target_info;
-					sampler_info.texture_name = target_info.unique_name;
-					storage_info.texture_name = target_info.unique_name;
+						texture_info = target_info;
+						sampler_info.texture_name = target_info.unique_name;
+						storage_info.texture_name = target_info.unique_name;
+					}
 				}
 				else
 				{
@@ -1387,39 +1390,54 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (value < 0) // There is little use for negative values, so warn in those cases
 						warning(expression.location, 3571, "negative value specified for property '" + property_name + '\'');
 
-					if (property_name == "Width")
-						texture_info.width  = value > 0 ? value : 1;
-					else if (property_name == "Height")
-						texture_info.height = value > 0 ? value : 1;
-					else if (property_name == "MipLevels")
-						texture_info.levels = value > 0 && value <= std::numeric_limits<uint16_t>::max() ?
-							static_cast<uint16_t>(value) : 1; // Also ensures negative values do not cause problems
-					else if (property_name == "Format")
-						texture_info.format = static_cast<texture_format>(value);
-					else if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
-						sampler_info.srgb = value != 0;
-					else if (property_name == "AddressU")
-						sampler_info.address_u = static_cast<texture_address_mode>(value);
-					else if (property_name == "AddressV")
-						sampler_info.address_v = static_cast<texture_address_mode>(value);
-					else if (property_name == "AddressW")
-						sampler_info.address_w = static_cast<texture_address_mode>(value);
-					else if (property_name == "MinFilter")
-						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x0F) | ((value << 4) & 0x30)); // Combine sampler filter components into a single filter enumeration value
-					else if (property_name == "MagFilter")
-						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x33) | ((value << 2) & 0x0C));
-					else if (property_name == "MipFilter")
-						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x3C) |  (value       & 0x03));
-					else if (property_name == "MinLOD" || property_name == "MaxMipLevel")
-						sampler_info.min_lod = static_cast<float>(value);
-					else if (property_name == "MaxLOD")
-						sampler_info.max_lod = static_cast<float>(value);
-					else if (property_name == "MipLODBias" || property_name == "MipMapLodBias")
-						sampler_info.lod_bias = static_cast<float>(value);
-					else if (property_name == "MipLOD" || property_name == "MipLevel")
-						storage_info.level = value > 0 && value < std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 0;
-					else
-						return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+					if (type.is_texture())
+					{
+						if (property_name == "Width")
+							texture_info.width = value > 0 ? value : 1;
+						else if (type.texture_dimension() >= 2 && property_name == "Height")
+							texture_info.height = value > 0 ? value : 1;
+						else if (type.texture_dimension() >= 3 && property_name == "Depth")
+							texture_info.depth = value > 0 && value <= std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 1;
+						else if (property_name == "MipLevels")
+							// Also ensures negative values do not cause problems
+							texture_info.levels = value > 0 && value <= std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 1;
+						else if (property_name == "Format")
+							texture_info.format = static_cast<texture_format>(value);
+						else
+							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+					}
+					else if (type.is_sampler())
+					{
+						if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
+							sampler_info.srgb = value != 0;
+						else if (property_name == "AddressU")
+							sampler_info.address_u = static_cast<texture_address_mode>(value);
+						else if (property_name == "AddressV")
+							sampler_info.address_v = static_cast<texture_address_mode>(value);
+						else if (property_name == "AddressW")
+							sampler_info.address_w = static_cast<texture_address_mode>(value);
+						else if (property_name == "MinFilter")
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x0F) | ((value << 4) & 0x30)); // Combine sampler filter components into a single filter enumeration value
+						else if (property_name == "MagFilter")
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x33) | ((value << 2) & 0x0C));
+						else if (property_name == "MipFilter")
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x3C) |  (value       & 0x03));
+						else if (property_name == "MinLOD" || property_name == "MaxMipLevel")
+							sampler_info.min_lod = static_cast<float>(value);
+						else if (property_name == "MaxLOD")
+							sampler_info.max_lod = static_cast<float>(value);
+						else if (property_name == "MipLODBias" || property_name == "MipMapLodBias")
+							sampler_info.lod_bias = static_cast<float>(value);
+						else
+							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+					}
+					else if (type.is_storage())
+					{
+						if (property_name == "MipLOD" || property_name == "MipLevel")
+							storage_info.level = value > 0 && value < std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 0;
+						else
+							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+					}
 				}
 
 				if (!expect(';'))
@@ -1449,6 +1467,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		assert(global);
 
 		texture_info.name = name;
+		texture_info.type = static_cast<texture_type>(type.texture_dimension());
+
 		// Add namespace scope to avoid name clashes
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
@@ -1465,14 +1485,16 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (sampler_info.texture_name.empty())
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+		if (type.texture_dimension() != static_cast<unsigned int>(texture_info.type))
+			return error(location, 3521, '\'' + name + "': type mismatch between texture and sampler type"), false;
 		if (sampler_info.srgb && texture_info.format != texture_format::rgba8)
 			return error(location, 4582, '\'' + name + "': texture does not support sRGB sampling (only textures with RGBA8 format do)"), false;
 
 		if (texture_info.format == texture_format::r32i ?
-				type.base != type::t_sampler_int :
+				!type.is_integral() || !type.is_signed() :
 			texture_info.format == texture_format::r32u ?
-				type.base != type::t_sampler_uint :
-				type.base != type::t_sampler_float)
+				!type.is_integral() || !type.is_unsigned() :
+				!type.is_floating_point())
 			return error(location, 4582, '\'' + name + "': type mismatch between texture format and sampler element type"), false;
 
 		sampler_info.name = name;
@@ -1491,12 +1513,14 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (storage_info.texture_name.empty())
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+		if (type.texture_dimension() != static_cast<unsigned int>(texture_info.type))
+			return error(location, 3521, '\'' + name + "': type mismatch between texture and storage type"), false;
 
 		if (texture_info.format == texture_format::r32i ?
-				type.base != type::t_storage_int :
+				!type.is_integral() || !type.is_signed() :
 			texture_info.format == texture_format::r32u ?
-				type.base != type::t_storage_uint :
-				type.base != type::t_storage_float)
+				!type.is_integral() || !type.is_unsigned() :
+				!type.is_floating_point())
 			return error(location, 4582, '\'' + name + "': type mismatch between texture format and storage element type"), false;
 
 		storage_info.name = name;
@@ -1695,6 +1719,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					else if (!symbol.type.is_texture())
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected texture name");
+					else if (symbol.type.texture_dimension() != 2)
+						parse_success = false,
+						error(location, 3020, "cannot use texture" + std::to_string(symbol.type.texture_dimension()) + "D as render target");
 					else {
 						reshadefx::texture_info &target_info = _codegen->get_texture(symbol.id);
 						// Texture is used as a render target

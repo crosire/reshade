@@ -222,29 +222,77 @@ private:
 		case type::t_struct:
 			s += id_to_name(type.definition);
 			break;
-		case type::t_sampler_int:
+		case type::t_sampler1d_int:
+			s += "isampler1D";
+			break;
+		case type::t_sampler2d_int:
 			s += "isampler2D";
 			break;
-		case type::t_sampler_uint:
+		case type::t_sampler3d_int:
+			s += "isampler3D";
+			break;
+		case type::t_sampler1d_uint:
+			s += "usampler1D";
+			break;
+		case type::t_sampler3d_uint:
+			s += "usampler3D";
+			break;
+		case type::t_sampler2d_uint:
 			s += "usampler2D";
 			break;
-		case type::t_sampler_float:
+		case type::t_sampler1d_float:
+			s += "sampler1D";
+			break;
+		case type::t_sampler2d_float:
 			s += "sampler2D";
 			break;
-		case type::t_storage_int:
+		case type::t_sampler3d_float:
+			s += "sampler3D";
+			break;
+		case type::t_storage1d_int:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "iimage1D";
+			break;
+		case type::t_storage2d_int:
 			if constexpr (is_param)
 				s += "writeonly ";
 			s += "iimage2D";
 			break;
-		case type::t_storage_uint:
+		case type::t_storage3d_int:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "iimage3D";
+			break;
+		case type::t_storage1d_uint:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "uimage1D";
+			break;
+		case type::t_storage2d_uint:
 			if constexpr (is_param)
 				s += "writeonly ";
 			s += "uimage2D";
 			break;
-		case type::t_storage_float:
+		case type::t_storage3d_uint:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "uimage3D";
+			break;
+		case type::t_storage1d_float:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "image1D";
+			break;
+		case type::t_storage2d_float:
 			if constexpr (is_param) // Images need a format to be readable, but declaring that on function parameters is not well supported, so can only support write-only images there
 				s += "writeonly ";
 			s += "image2D";
+			break;
+		case type::t_storage3d_float:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "image3D";
 			break;
 		default:
 			assert(false);

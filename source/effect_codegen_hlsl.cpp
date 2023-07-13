@@ -56,9 +56,15 @@ private:
 		if (_shader_model >= 40)
 		{
 			preamble +=
+				"struct __sampler1D_int { Texture1D<int> t; SamplerState s; };\n"
 				"struct __sampler2D_int { Texture2D<int> t; SamplerState s; };\n"
+				"struct __sampler3D_int { Texture3D<int> t; SamplerState s; };\n"
+				"struct __sampler1D_uint { Texture1D<uint> t; SamplerState s; };\n"
 				"struct __sampler2D_uint { Texture2D<uint> t; SamplerState s; };\n"
-				"struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n";
+				"struct __sampler3D_uint { Texture3D<uint> t; SamplerState s; };\n"
+				"struct __sampler1D_float4 { Texture1D<float4> t; SamplerState s; };\n"
+				"struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n"
+				"struct __sampler3D_float4 { Texture3D<float4> t; SamplerState s; };\n";
 
 			if (!_cbuffer_block.empty())
 			{
@@ -71,7 +77,9 @@ private:
 		else
 		{
 			preamble +=
-				"struct __sampler2D_float4 { sampler2D s; float2 pixelsize; };\n"
+				"struct __sampler1D { sampler1D s; float1 pixelsize; };\n"
+				"struct __sampler2D { sampler2D s; float2 pixelsize; };\n"
+				"struct __sampler3D { sampler3D s; float3 pixelsize; };\n"
 				"uniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
 			if (_uses_bitwise_cast)
@@ -184,23 +192,77 @@ private:
 		case type::t_struct:
 			s += id_to_name(type.definition);
 			return;
-		case type::t_sampler_int:
-			s += "__sampler2D_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+		case type::t_sampler1d_int:
+			s += "__sampler1D";
+			if (_shader_model >= 40)
+				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
 			return;
-		case type::t_sampler_uint:
-			s += "__sampler2D_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+		case type::t_sampler2d_int:
+			s += "__sampler2D";
+			if (_shader_model >= 40)
+				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
 			return;
-		case type::t_sampler_float:
-			s += "__sampler2D_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+		case type::t_sampler3d_int:
+			s += "__sampler3D";
+			if (_shader_model >= 40)
+				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
 			return;
-		case type::t_storage_int:
+		case type::t_sampler1d_uint:
+			s += "__sampler1D";
+			if (_shader_model >= 40)
+				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler2d_uint:
+			s += "__sampler2D";
+			if (_shader_model >= 40)
+				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler3d_uint:
+			s += "__sampler3D";
+			if (_shader_model >= 40)
+				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler1d_float:
+			s += "__sampler1D";
+			if (_shader_model >= 40)
+				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler2d_float:
+			s += "__sampler2D";
+			if (_shader_model >= 40)
+				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler3d_float:
+			s += "__sampler3D";
+			if (_shader_model >= 40)
+				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_storage1d_int:
+			s += "RWTexture1D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage2d_int:
 			s += "RWTexture2D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
 			return;
-		case type::t_storage_uint:
+		case type::t_storage3d_int:
+			s += "RWTexture3D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage1d_uint:
+			s += "RWTexture1D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage2d_uint:
 			s += "RWTexture2D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
 			return;
-		case type::t_storage_float:
+		case type::t_storage3d_uint:
+			s += "RWTexture3D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage1d_float:
+			s += "RWTexture1D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage2d_float:
 			s += "RWTexture2D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage3d_float:
+			s += "RWTexture3D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
 			return;
 		default:
 			assert(false);
@@ -479,14 +541,14 @@ private:
 			if (_shader_model >= 60)
 				code += "[[vk::binding(" + std::to_string(info.binding + 0) + ", 2)]] "; // Descriptor set 2
 
-			code += "Texture2D<";
+			code += "Texture" + std::to_string(static_cast<unsigned int>(info.type)) + "D<";
 			write_texture_format(code, info.format);
 			code += "> __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + "); \n";
 
 			if (_shader_model >= 60)
 				code += "[[vk::binding(" + std::to_string(info.binding + 1) + ", 2)]] "; // Descriptor set 2
 
-			code += "Texture2D<";
+			code += "Texture" + std::to_string(static_cast<unsigned int>(info.type)) + "D<";
 			write_texture_format(code, info.format);
 			code += "> __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + "); \n";
 		}
@@ -539,18 +601,29 @@ private:
 			info.binding = _module.num_sampler_bindings++;
 			info.texture_binding = ~0u; // Unset texture binding
 
-			code += "sampler2D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
+			const unsigned int texture_dimension = info.type.texture_dimension();
+
+			code += "sampler" + std::to_string(texture_dimension) + "D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 
 			write_location(code, loc);
 
 			code += "static const ";
 			write_type(code, info.type);
-			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float2(";
+			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float" + std::to_string(texture_dimension) + '(';
 
 			if (tex_info.semantic.empty())
-				code += "1.0 / " + std::to_string(tex_info.width) + ", 1.0 / " + std::to_string(tex_info.height);
+			{
+				code += "1.0 / " + std::to_string(tex_info.width);
+				if (texture_dimension >= 2)
+					code += ", 1.0 / " + std::to_string(tex_info.height);
+				if (texture_dimension >= 3)
+					code += ", 1.0 / " + std::to_string(tex_info.depth);
+			}
 			else
-				code += tex_info.semantic + "_PIXEL_SIZE"; // Expect application to set inverse texture size via a define if it is not known here
+			{
+				// Expect application to set inverse texture size via a define if it is not known here
+				code += tex_info.semantic + "_PIXEL_SIZE";
+			}
 
 			code += ") }; \n";
 		}
@@ -1248,16 +1321,9 @@ private:
 		code += '\t';
 
 		if (_shader_model >= 40 && (
-			intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2 ||
-			intrinsic == atomicAdd0 || intrinsic == atomicAdd1 ||
-			intrinsic == atomicAnd0 || intrinsic == atomicAnd1 ||
-			intrinsic == atomicOr0  || intrinsic == atomicOr1 ||
-			intrinsic == atomicXor0 || intrinsic == atomicXor1 ||
-			intrinsic == atomicMin0 || intrinsic == atomicMin1 || intrinsic == atomicMin2 || intrinsic == atomicMin3 ||
-			intrinsic == atomicMax0 || intrinsic == atomicMax1 || intrinsic == atomicMax2 || intrinsic == atomicMax3 ||
-			intrinsic == atomicExchange0 || intrinsic == atomicExchange1 ||
-			intrinsic == atomicCompareExchange0 || intrinsic == atomicCompareExchange1 ||
-			(!(res_type.is_floating_point() || _shader_model >= 67) && (intrinsic == tex2D0 || intrinsic == tex2D1 || intrinsic == tex2Dlod0 || intrinsic == tex2Dlod1))))
+			(intrinsic >= tex1Dsize0 && intrinsic <= tex3Dsize2) ||
+			(intrinsic >= atomicAdd0 && intrinsic <= atomicCompareExchange1) ||
+			(!(res_type.is_floating_point() || _shader_model >= 67) && (intrinsic >= tex1D0 && intrinsic <= tex3Dlod1))))
 		{
 			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
 			// Same with the atomic intrinsics, which use the last parameter to return the previous value of the target

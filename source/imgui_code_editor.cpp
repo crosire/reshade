@@ -1926,9 +1926,15 @@ void reshade::imgui::code_editor::colorize()
 		case reshadefx::tokenid::vector:
 		case reshadefx::tokenid::matrix:
 		case reshadefx::tokenid::string_:
-		case reshadefx::tokenid::texture:
-		case reshadefx::tokenid::sampler:
-		case reshadefx::tokenid::storage:
+		case reshadefx::tokenid::texture1d:
+		case reshadefx::tokenid::texture2d:
+		case reshadefx::tokenid::texture3d:
+		case reshadefx::tokenid::sampler1d:
+		case reshadefx::tokenid::sampler2d:
+		case reshadefx::tokenid::sampler3d:
+		case reshadefx::tokenid::storage1d:
+		case reshadefx::tokenid::storage2d:
+		case reshadefx::tokenid::storage3d:
 			col = color_keyword;
 			break;
 		case reshadefx::tokenid::hash_def:

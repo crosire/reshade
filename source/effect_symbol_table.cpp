@@ -75,14 +75,30 @@ struct intrinsic
 #define out_float2 { reshadefx::type::t_float, 2, 1, reshadefx::type::q_out }
 #define out_float3 { reshadefx::type::t_float, 3, 1, reshadefx::type::q_out }
 #define out_float4 { reshadefx::type::t_float, 4, 1, reshadefx::type::q_out }
-#define sampler_int { reshadefx::type::t_sampler_int, 1, 1 }
-#define sampler_uint { reshadefx::type::t_sampler_uint, 1, 1 }
-#define sampler_float4 { reshadefx::type::t_sampler_float, 4, 1 }
-#define storage_int { reshadefx::type::t_storage_int, 1, 1 }
-#define storage_uint { reshadefx::type::t_storage_uint, 1, 1 }
-#define storage_float4 { reshadefx::type::t_storage_float, 4, 1 }
-#define inout_storage_int { reshadefx::type::t_storage_int, 1, 1, reshadefx::type::q_inout }
-#define inout_storage_uint { reshadefx::type::t_storage_uint, 1, 1, reshadefx::type::q_inout }
+#define sampler1d_int { reshadefx::type::t_sampler1d_int, 1, 1 }
+#define sampler2d_int { reshadefx::type::t_sampler2d_int, 1, 1 }
+#define sampler3d_int { reshadefx::type::t_sampler3d_int, 1, 1 }
+#define sampler1d_uint { reshadefx::type::t_sampler1d_uint, 1, 1 }
+#define sampler2d_uint { reshadefx::type::t_sampler2d_uint, 1, 1 }
+#define sampler3d_uint { reshadefx::type::t_sampler3d_uint, 1, 1 }
+#define sampler1d_float4 { reshadefx::type::t_sampler1d_float, 4, 1 }
+#define sampler2d_float4 { reshadefx::type::t_sampler2d_float, 4, 1 }
+#define sampler3d_float4 { reshadefx::type::t_sampler3d_float, 4, 1 }
+#define storage1d_int { reshadefx::type::t_storage1d_int, 1, 1 }
+#define storage2d_int { reshadefx::type::t_storage2d_int, 1, 1 }
+#define storage3d_int { reshadefx::type::t_storage3d_int, 1, 1 }
+#define storage1d_uint { reshadefx::type::t_storage1d_uint, 1, 1 }
+#define storage2d_uint { reshadefx::type::t_storage2d_uint, 1, 1 }
+#define storage3d_uint { reshadefx::type::t_storage3d_uint, 1, 1 }
+#define storage1d_float4 { reshadefx::type::t_storage1d_float, 4, 1 }
+#define storage2d_float4 { reshadefx::type::t_storage2d_float, 4, 1 }
+#define storage3d_float4 { reshadefx::type::t_storage3d_float, 4, 1 }
+#define inout_storage1d_int { reshadefx::type::t_storage1d_int, 1, 1, reshadefx::type::q_inout }
+#define inout_storage2d_int { reshadefx::type::t_storage2d_int, 1, 1, reshadefx::type::q_inout }
+#define inout_storage3d_int { reshadefx::type::t_storage3d_int, 1, 1, reshadefx::type::q_inout }
+#define inout_storage1d_uint { reshadefx::type::t_storage1d_uint, 1, 1, reshadefx::type::q_inout }
+#define inout_storage2d_uint { reshadefx::type::t_storage2d_uint, 1, 1, reshadefx::type::q_inout }
+#define inout_storage3d_uint { reshadefx::type::t_storage3d_uint, 1, 1, reshadefx::type::q_inout }
 
 // Import intrinsic function definitions
 static const intrinsic s_intrinsics[] =
@@ -115,8 +131,30 @@ static const intrinsic s_intrinsics[] =
 #undef out_float2
 #undef out_float3
 #undef out_float4
-#undef sampler
-#undef storage
+#undef sampler1d_int
+#undef sampler2d_int
+#undef sampler3d_int
+#undef sampler1d_uint
+#undef sampler2d_uint
+#undef sampler3d_uint
+#undef sampler1d_float4
+#undef sampler2d_float4
+#undef sampler3d_float4
+#undef storage1d_int
+#undef storage2d_int
+#undef storage3d_int
+#undef storage1d_uint
+#undef storage2d_uint
+#undef storage3d_uint
+#undef storage1d_float4
+#undef storage2d_float4
+#undef storage3d_float4
+#undef inout_storage1d_int
+#undef inout_storage2d_int
+#undef inout_storage3d_int
+#undef inout_storage1d_uint
+#undef inout_storage2d_uint
+#undef inout_storage3d_uint
 
 unsigned int reshadefx::type::rank(const type &src, const type &dst)
 {

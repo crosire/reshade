@@ -195,56 +195,64 @@ bool reshadefx::parser::accept_type_class(type &type)
 		return true;
 	}
 
-	if (accept(tokenid::sampler))
+	if (accept(tokenid::sampler1d) || accept(tokenid::sampler2d) || accept(tokenid::sampler3d))
 	{
+		const unsigned int texture_dimension = static_cast<unsigned int>(_token.id) - static_cast<unsigned int>(tokenid::sampler1d);
+
 		if (accept('<'))
 		{
 			if (!accept_type_class(type))
 				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected sampler element type"), false;
+			if (type.is_object())
+				return error(_token.location, 3124, "object element type cannot be an object type"), false;
 			if (!type.is_numeric() || type.is_matrix())
-				return error(_token.location, 3122, "sampler element type must be a numeric scalar or vector type"), false;
+				return error(_token.location, 3521, "sampler element tyoe must fit in four 32-bit quantities"), false;
 
-			if (type.is_floating_point())
-				type.base = type::t_sampler_float;
-			else if (type.is_signed())
-				type.base = type::t_sampler_int;
+			if (type.is_integral() && type.is_signed())
+				type.base = static_cast<type::datatype>(type::t_sampler1d_int + texture_dimension);
+			else if (type.is_integral() && type.is_unsigned())
+				type.base = static_cast<type::datatype>(type::t_sampler1d_uint + texture_dimension);
 			else
-				type.base = type::t_sampler_uint;
+				type.base = static_cast<type::datatype>(type::t_sampler1d_float + texture_dimension);
 
 			if (!expect('>'))
 				return false;
 		}
 		else
 		{
-			type.base = type::t_sampler_float;
+			type.base = static_cast<type::datatype>(type::t_sampler1d_float + texture_dimension);
 			type.rows = 4;
 			type.cols = 1;
 		}
 
 		return true;
 	}
-	if (accept(tokenid::storage))
+	if (accept(tokenid::storage1d) || accept(tokenid::storage2d) || accept(tokenid::storage3d))
 	{
+		const unsigned int texture_dimension = static_cast<unsigned int>(_token.id) - static_cast<unsigned int>(tokenid::storage1d);
+
 		if (accept('<'))
 		{
 			if (!accept_type_class(type))
 				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected storage element type"), false;
+			if (type.is_object())
+				return error(_token.location, 3124, "object element type cannot be an object type"), false;
 			if (!type.is_numeric() || type.is_matrix())
-				return error(_token.location, 3122, "storage element type must be a 4-component numeric scalar or vector type"), false;
+				return error(_token.location, 3521, "storage element tyoe must fit in four 32-bit quantities"), false;
 
-			if (type.is_floating_point())
-				type.base = type::t_storage_float;
-			else if (type.is_signed())
-				type.base = type::t_storage_int;
+			if (type.is_integral() && type.is_signed())
+				type.base = static_cast<type::datatype>(type::t_storage1d_int + texture_dimension);
+			else if (type.is_integral() && type.is_unsigned())
+				type.base = static_cast<type::datatype>(type::t_storage1d_uint + texture_dimension);
 			else
-				type.base = type::t_storage_uint;
+				type.base = static_cast<type::datatype>(type::t_storage1d_float + texture_dimension);
 
 			if (!expect('>'))
 				return false;
 		}
 		else
 		{
-			type.base = type::t_storage_float;
+			type.base = static_cast<type::datatype>(type::t_storage1d_float + texture_dimension);
 			type.rows = 4;
 			type.cols = 1;
 		}
@@ -368,8 +376,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::string_:
 		type.base = type::t_string;
 		break;
-	case tokenid::texture:
-		type.base = type::t_texture;
+	case tokenid::texture1d:
+		type.base = type::t_texture1d;
+		break;
+	case tokenid::texture2d:
+		type.base = type::t_texture2d;
+		break;
+	case tokenid::texture3d:
+		type.base = type::t_texture3d;
 		break;
 	default:
 		return false;

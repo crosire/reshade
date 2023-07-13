@@ -480,17 +480,33 @@ private:
 				assert(info.rows == 0 && info.cols == 0 && info.definition != 0);
 				type = info.definition;
 				break;
-			case type::t_sampler_int:
-			case type::t_sampler_uint:
-			case type::t_sampler_float:
+			case type::t_sampler1d_int:
+			case type::t_sampler1d_uint:
+			case type::t_sampler1d_float:
+				add_capability(spv::CapabilitySampled1D);
+				[[fallthrough]];
+			case type::t_sampler2d_int:
+			case type::t_sampler2d_uint:
+			case type::t_sampler3d_int:
+			case type::t_sampler2d_float:
+			case type::t_sampler3d_uint:
+			case type::t_sampler3d_float:
 				assert(info.cols == 1);
 				elem_type = convert_image_type(info, format);
 				add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants, type)
 					.add(elem_type);
 				break;
-			case type::t_storage_int:
-			case type::t_storage_uint:
-			case type::t_storage_float:
+			case type::t_storage1d_int:
+			case type::t_storage1d_uint:
+			case type::t_storage1d_float:
+				add_capability(spv::CapabilityImage1D);
+				[[fallthrough]];
+			case type::t_storage2d_int:
+			case type::t_storage2d_uint:
+			case type::t_storage3d_int:
+			case type::t_storage2d_float:
+			case type::t_storage3d_uint:
+			case type::t_storage3d_float:
 				assert(info.cols == 1);
 				// No format specified for the storage image
 				if (format == spv::ImageFormatUnknown)
@@ -538,9 +554,9 @@ private:
 
 		if (!info.is_numeric())
 		{
-			if (info.base == type::t_sampler_int || info.base == type::t_storage_int || (format >= spv::ImageFormatRgba32i && format <= spv::ImageFormatR8i))
+			if ((info.is_integral() && info.is_signed()) || (format >= spv::ImageFormatRgba32i && format <= spv::ImageFormatR8i))
 				elem_info.base = type::t_int;
-			else if (info.base == type::t_sampler_uint || info.base == type::t_storage_uint || (format >= spv::ImageFormatRgba32ui && format <= spv::ImageFormatR8ui))
+			else if ((info.is_integral() && info.is_unsigned()) || (format >= spv::ImageFormatRgba32ui && format <= spv::ImageFormatR8ui))
 				elem_info.base = type::t_uint;
 			else
 				elem_info.base = type::t_float;
@@ -548,7 +564,7 @@ private:
 
 		if (!info.is_storage())
 		{
-			lookup.type.base = type::t_texture;
+			lookup.type.base = static_cast<type::datatype>(type::t_texture1d + info.texture_dimension() - 1);
 			lookup.type.definition = static_cast<uint32_t>(elem_info.base);
 		}
 
@@ -561,7 +577,7 @@ private:
 
 		add_instruction(spv::OpTypeImage, 0, _types_and_constants, type)
 			.add(elem_type) // Sampled Type (always a scalar type)
-			.add(spv::Dim2D)
+			.add(spv::Dim1D + info.texture_dimension() - 1)
 			.add(0) // Not a depth image
 			.add(0) // Not an array
 			.add(0) // Not multi-sampled
