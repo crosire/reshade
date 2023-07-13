@@ -38,43 +38,45 @@ namespace reshadefx
 		/// Defines a new struct type.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="info">The struct type description.</param>
+		/// <param name="info">Description of the type.</param>
 		/// <returns>New SSA ID of the type.</returns>
 		virtual id define_struct(const location &loc, struct_info &info) = 0;
 		/// <summary>
 		/// Defines a new texture binding.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="info">The texture description.</param>
+		/// <param name="info">Description of the texture object.</param>
 		/// <returns>New SSA ID of the binding.</returns>
 		virtual id define_texture(const location &loc, texture_info &info) = 0;
 		/// <summary>
 		/// Defines a new sampler binding.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="info">The sampler description.</param>
+		/// <param name="tex_info">Description of the texture this sampler object references.</param>
+		/// <param name="info">Description of the sampler object.</param>
 		/// <returns>New SSA ID of the binding.</returns>
-		virtual id define_sampler(const location &loc, sampler_info &info) = 0;
+		virtual id define_sampler(const location &loc, const texture_info &tex_info, sampler_info &info) = 0;
 		/// <summary>
 		/// Defines a new storage binding.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="info">The storage description.</param>
+		/// <param name="tex_info">Description of the texture this storage object references.</param>
+		/// <param name="info">Description of the storage object.</param>
 		/// <returns>New SSA ID of the binding.</returns>
-		virtual id define_storage(const location &loc, storage_info &info) = 0;
+		virtual id define_storage(const location &loc, const texture_info &tex_info, storage_info &info) = 0;
 		/// <summary>
 		/// Defines a new uniform variable.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="info">The uniform variable description.</param>
+		/// <param name="info">Description of the uniform variable.</param>
 		/// <returns>New SSA ID of the variable.</returns>
 		virtual id define_uniform(const location &loc, uniform_info &info) = 0;
 		/// <summary>
 		/// Defines a new variable.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="type">The variable type.</param>
-		/// <param name="name">The variable name.</param>
+		/// <param name="type">Data type of the variable.</param>
+		/// <param name="name">Name of the variable.</param>
 		/// <param name="global"><c>true</c> if this variable is in global scope, <c>false</c> otherwise.</param>
 		/// <param name="initializer_value">SSA ID of an optional initializer value.</param>
 		/// <returns>New SSA ID of the variable.</returns>
@@ -83,7 +85,7 @@ namespace reshadefx
 		/// Defines a new function and its function parameters and make it current. Any code added after this call is added to this function.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="info">The function description.</param>
+		/// <param name="info">Description of the function.</param>
 		/// <returns>New SSA ID of the function.</returns>
 		virtual id define_function(const location &loc, function_info &info) = 0;
 
@@ -91,7 +93,7 @@ namespace reshadefx
 		/// Defines a new effect technique.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
-		/// <param name="info">The technique description.</param>
+		/// <param name="info">Description of the technique.</param>
 		void define_technique(technique_info &info) { _module.techniques.push_back(info); }
 		/// <summary>
 		/// Makes a function a shader entry point.

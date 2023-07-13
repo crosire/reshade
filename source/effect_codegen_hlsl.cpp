@@ -493,17 +493,11 @@ private:
 
 		return info.id;
 	}
-	id   define_sampler(const location &loc, sampler_info &info) override
+	id   define_sampler(const location &loc, const texture_info &tex_info, sampler_info &info) override
 	{
 		info.id = make_id();
 
 		define_name<naming::unique>(info.id, info.unique_name);
-
-		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
-			[&info](const auto &it) {
-				return it.unique_name == info.texture_name;
-			});
-		assert(texture != _module.textures.end());
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -530,7 +524,7 @@ private:
 			}
 
 			assert(info.srgb == 0 || info.srgb == 1);
-			info.texture_binding = texture->binding + info.srgb; // Offset binding by one to choose the SRGB variant
+			info.texture_binding = tex_info.binding + info.srgb; // Offset binding by one to choose the SRGB variant
 
 			write_location(code, loc);
 
@@ -551,10 +545,10 @@ private:
 			write_type(code, info.type);
 			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float2(";
 
-			if (texture->semantic.empty())
-				code += "1.0 / " + std::to_string(texture->width) + ", 1.0 / " + std::to_string(texture->height);
+			if (tex_info.semantic.empty())
+				code += "1.0 / " + std::to_string(tex_info.width) + ", 1.0 / " + std::to_string(tex_info.height);
 			else
-				code += texture->semantic + "_PIXEL_SIZE"; // Expect application to set inverse texture size via a define if it is not known here
+				code += tex_info.semantic + "_PIXEL_SIZE"; // Expect application to set inverse texture size via a define if it is not known here
 
 			code += ") }; \n";
 		}
@@ -563,7 +557,7 @@ private:
 
 		return info.id;
 	}
-	id   define_storage(const location &loc, storage_info &info) override
+	id   define_storage(const location &loc, const texture_info &, storage_info &info) override
 	{
 		info.id = make_id();
 		info.binding = ~0u;

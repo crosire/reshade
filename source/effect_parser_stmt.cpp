@@ -1483,7 +1483,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
 
 		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_sampler(location, sampler_info);
+		symbol.id = _codegen->define_sampler(location, texture_info, sampler_info);
 	}
 	else if (type.is_storage())
 	{
@@ -1510,7 +1510,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			storage_info.level = texture_info.levels - 1;
 
 		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_storage(location, storage_info);
+		symbol.id = _codegen->define_storage(location, texture_info, storage_info);
 	}
 	// Uniform variables are put into a global uniform buffer structure
 	else if (type.has(type::q_uniform))
