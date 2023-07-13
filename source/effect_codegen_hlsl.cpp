@@ -55,8 +55,8 @@ private:
 
 		if (_shader_model >= 40)
 		{
-			preamble += "struct __sampler2D_int1 { Texture2D<int1> t; SamplerState s; };\n";
-			preamble += "struct __sampler2D_uint1 { Texture2D<uint1> t; SamplerState s; };\n";
+			preamble += "struct __sampler2D_int { Texture2D<int> t; SamplerState s; };\n";
+			preamble += "struct __sampler2D_uint { Texture2D<uint> t; SamplerState s; };\n";
 			preamble += "struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n";
 
 			if (!_cbuffer_block.empty())
@@ -183,22 +183,22 @@ private:
 			s += id_to_name(type.definition);
 			return;
 		case type::t_sampler_int:
-			s += "__sampler2D_int" + std::to_string(type.rows);
+			s += "__sampler2D_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
 			return;
 		case type::t_sampler_uint:
-			s += "__sampler2D_uint" + std::to_string(type.rows);
+			s += "__sampler2D_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
 			return;
 		case type::t_sampler_float:
-			s += "__sampler2D_float" + std::to_string(type.rows);
+			s += "__sampler2D_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
 			return;
 		case type::t_storage_int:
-			s += "RWTexture2D<int" + std::to_string(type.rows) + '>';
+			s += "RWTexture2D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
 			return;
 		case type::t_storage_uint:
-			s += "RWTexture2D<uint" + std::to_string(type.rows) + '>';
+			s += "RWTexture2D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
 			return;
 		case type::t_storage_float:
-			s += "RWTexture2D<float" + std::to_string(type.rows) + '>';
+			s += "RWTexture2D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
 			return;
 		default:
 			assert(false);
@@ -322,10 +322,10 @@ private:
 		switch (format)
 		{
 		case texture_format::r32i:
-			s += "int1";
+			s += "int";
 			break;
 		case texture_format::r32u:
-			s += "uint1";
+			s += "uint";
 			break;
 		default:
 			assert(false);
@@ -1247,9 +1247,6 @@ private:
 			#include "effect_symbol_table_intrinsics.inl"
 		};
 
-		if (intrinsic == tex2Dstore0)
-			code += "#pragma warning(disable : 3206)\n";
-
 		write_location(code, loc);
 
 		code += '\t';
@@ -1286,9 +1283,6 @@ private:
 		}
 
 		code += ";\n";
-
-		if (intrinsic == tex2Dstore0)
-			code += "#pragma warning(default : 3206)\n";
 
 		return res;
 	}

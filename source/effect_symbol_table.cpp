@@ -81,6 +81,8 @@ struct intrinsic
 #define storage_int { reshadefx::type::t_storage_int, 1, 1 }
 #define storage_uint { reshadefx::type::t_storage_uint, 1, 1 }
 #define storage_float4 { reshadefx::type::t_storage_float, 4, 1 }
+#define inout_storage_int { reshadefx::type::t_storage_int, 1, 1, reshadefx::type::q_inout }
+#define inout_storage_uint { reshadefx::type::t_storage_uint, 1, 1, reshadefx::type::q_inout }
 
 // Import intrinsic function definitions
 static const intrinsic s_intrinsics[] =

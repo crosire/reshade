@@ -2640,8 +2640,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 0, {
 		.result;
 	})
 // ret atomicAdd(s, coords, data)
-DEFINE_INTRINSIC(atomicAdd, 1, int, storage_int, int2, int)
-DEFINE_INTRINSIC(atomicAdd, 1, uint, storage_uint, int2, uint)
+DEFINE_INTRINSIC(atomicAdd, 1, int, inout_storage_int, int2, int)
+DEFINE_INTRINSIC(atomicAdd, 1, uint, inout_storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicAdd, 1, {
 	code += "imageAtomicAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2688,8 +2688,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 0, {
 		.result;
 	})
 // ret atomicAnd(s, coords, data)
-DEFINE_INTRINSIC(atomicAnd, 1, int, storage_int, int2, int)
-DEFINE_INTRINSIC(atomicAnd, 1, uint, storage_uint, int2, uint)
+DEFINE_INTRINSIC(atomicAnd, 1, int, inout_storage_int, int2, int)
+DEFINE_INTRINSIC(atomicAnd, 1, uint, inout_storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicAnd, 1, {
 	code += "imageAtomicAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2736,8 +2736,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 0, {
 		.result;
 	})
 // ret atomicOr(s, coords, data)
-DEFINE_INTRINSIC(atomicOr, 1, int, storage_int, int2, int)
-DEFINE_INTRINSIC(atomicOr, 1, uint, storage_uint, int2, uint)
+DEFINE_INTRINSIC(atomicOr, 1, int, inout_storage_int, int2, int)
+DEFINE_INTRINSIC(atomicOr, 1, uint, inout_storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicOr, 1, {
 	code += "imageAtomicOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2784,8 +2784,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 0, {
 		.result;
 	})
 // ret atomicXor(s, coords, data)
-DEFINE_INTRINSIC(atomicXor, 1, int, storage_int, int2, int)
-DEFINE_INTRINSIC(atomicXor, 1, uint, storage_uint, int2, uint)
+DEFINE_INTRINSIC(atomicXor, 1, int, inout_storage_int, int2, int)
+DEFINE_INTRINSIC(atomicXor, 1, uint, inout_storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicXor, 1, {
 	code += "imageAtomicXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2849,8 +2849,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 1, {
 		.result;
 	})
 // ret atomicMin(s, coords, data)
-DEFINE_INTRINSIC(atomicMin, 2, int, storage_int, int2, int)
-DEFINE_INTRINSIC(atomicMin, 3, uint, storage_uint, int2, uint)
+DEFINE_INTRINSIC(atomicMin, 2, int, inout_storage_int, int2, int)
+DEFINE_INTRINSIC(atomicMin, 3, uint, inout_storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicMin, 2, {
 	code += "imageAtomicMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -2938,8 +2938,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 1, {
 		.result;
 	})
 // ret atomicMax(s, coords, data)
-DEFINE_INTRINSIC(atomicMax, 2, int, storage_int, int2, int)
-DEFINE_INTRINSIC(atomicMax, 3, uint, storage_uint, int2, uint)
+DEFINE_INTRINSIC(atomicMax, 2, int, inout_storage_int, int2, int)
+DEFINE_INTRINSIC(atomicMax, 3, uint, inout_storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicMax, 2, {
 	code += "imageAtomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -3010,8 +3010,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 0, {
 		.result;
 	})
 // ret atomicExchange(s, coords, data)
-DEFINE_INTRINSIC(atomicExchange, 1, int, storage_int, int2, int)
-DEFINE_INTRINSIC(atomicExchange, 1, uint, storage_uint, int2, uint)
+DEFINE_INTRINSIC(atomicExchange, 1, int, inout_storage_int, int2, int)
+DEFINE_INTRINSIC(atomicExchange, 1, uint, inout_storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicExchange, 1, {
 	code += "imageAtomicExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
@@ -3060,8 +3060,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 0, {
 		.result;
 	})
 // ret atomicCompareExchange(s, coords, data)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, int, storage_int, int2, int)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, storage_uint, int2, uint)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, int, inout_storage_int, int2, int)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, inout_storage_uint, int2, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicCompareExchange, 1, {
 	code += "imageAtomicCompSwap(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})

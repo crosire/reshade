@@ -895,7 +895,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			{
 				const auto &param_type = symbol.function->parameter_list[i].type;
 
-				if (param_type.has(type::q_out) && (arguments[i].type.has(type::q_const) || !arguments[i].is_lvalue))
+				if (param_type.has(type::q_out) && (!arguments[i].is_lvalue || (arguments[i].type.has(type::q_const) && !arguments[i].type.is_object())))
 					return error(arguments[i].location, 3025, "l-value specifies const object for an 'out' parameter"), false;
 
 				if (arguments[i].type.components() > param_type.components())
@@ -903,7 +903,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					if (param_type.is_sampler() || param_type.is_storage() || param_type.has(type::q_groupshared) /* Special case for atomic intrinsics */)
+					if (param_type.is_object() || param_type.has(type::q_groupshared) /* Special case for atomic intrinsics */)
 					{
 						if (arguments[i].type != param_type)
 							return error(location, 3004, "no matching intrinsic overload for '" + identifier + '\''), false;
@@ -941,7 +941,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			for (size_t i = 0; i < arguments.size(); ++i)
 			{
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_object())
 				{
 					expression arg = arguments[i];
 					arg.add_cast_operation(parameters[i].type);
@@ -960,7 +960,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			for (size_t i = 0; i < arguments.size(); ++i)
 			{
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_object())
 				{
 					expression arg = parameters[i];
 					arg.add_cast_operation(arguments[i].type);

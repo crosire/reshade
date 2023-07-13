@@ -1194,7 +1194,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		else if (!type.has(type::q_groupshared))
 		{
 			// Make all global variables 'uniform' by default, since they should be externally visible without the 'static' keyword
-			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler() || type.is_storage()))
+			if (!type.has(type::q_uniform) && !type.is_object())
 				warning(location, 5000, '\'' + name + "': global variables are considered 'uniform' by default");
 
 			// Global variables that are not 'static' are always 'extern' and 'uniform'
@@ -1218,8 +1218,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (type.has(type::q_groupshared))
 			return error(location, 3010, '\'' + name + "': local variables cannot be declared 'groupshared'"), false;
 
-		if (type.is_texture() || type.is_sampler() || type.is_storage())
-			return error(location, 3038, '\'' + name + "': local variables cannot be textures or samplers"), false;
+		if (type.is_object())
+			return error(location, 3038, '\'' + name + "': local variables cannot be texture, sampler or storage objects"), false;
 	}
 
 	// The variable name may be followed by an optional array size expression

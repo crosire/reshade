@@ -78,6 +78,7 @@ namespace reshadefx
 		bool is_numeric() const { return base >= t_bool && base <= t_float; }
 
 		bool is_struct() const { return base == t_struct; }
+		bool is_object() const { return base >= t_sampler_int && base <= t_texture; }
 		bool is_sampler() const { return base >= t_sampler_int && base <= t_sampler_float; }
 		bool is_storage() const { return base >= t_storage_int && base <= t_storage_float; }
 		bool is_texture() const { return base == t_texture; }

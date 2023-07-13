@@ -349,7 +349,7 @@ private:
 		if (is_ptr == false)
 			storage = spv::StorageClassFunction;
 		// There cannot be sampler variables that are local to a function, so always assume uniform storage for them
-		if (info.is_texture() || info.is_sampler() || info.is_storage())
+		if (info.is_object())
 			storage = spv::StorageClassUniformConstant;
 		else
 			assert(format == spv::ImageFormatUnknown);
