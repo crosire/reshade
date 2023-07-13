@@ -285,13 +285,13 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("STYLE", "FPSScale", _fps_scale);
 	config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
 	config.get("STYLE", "GrabRounding", imgui_style.GrabRounding);
-	config.get("STYLE", "HdrOverlayBrightness", _hdr_overlay.brightness);
-	config.get("STYLE", "HdrOverlayOverwriteColorSpaceTo", _hdr_overlay.overwrite_color_space_to);
 	config.get("STYLE", "PopupRounding", imgui_style.PopupRounding);
 	config.get("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
 	config.get("STYLE", "StyleIndex", _style_index);
 	config.get("STYLE", "TabRounding", imgui_style.TabRounding);
 	config.get("STYLE", "WindowRounding", imgui_style.WindowRounding);
+	config.get("STYLE", "HdrOverlayBrightness", _hdr_overlay_brightness);
+	config.get("STYLE", "HdrOverlayOverwriteColorSpaceTo", reinterpret_cast<int &>(_hdr_overlay_overwrite_color_space));
 
 	// For compatibility with older versions, set the alpha value if it is missing
 	if (_fps_col[3] == 0.0f)
@@ -381,13 +381,13 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("STYLE", "FPSScale", _fps_scale);
 	config.set("STYLE", "FrameRounding", imgui_style.FrameRounding);
 	config.set("STYLE", "GrabRounding", imgui_style.GrabRounding);
-	config.set("STYLE", "HdrOverlayBrightness", _hdr_overlay.brightness);
-	config.set("STYLE", "HdrOverlayOverwriteColorSpaceTo", _hdr_overlay.overwrite_color_space_to);
 	config.set("STYLE", "PopupRounding", imgui_style.PopupRounding);
 	config.set("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
 	config.set("STYLE", "StyleIndex", _style_index);
 	config.set("STYLE", "TabRounding", imgui_style.TabRounding);
 	config.set("STYLE", "WindowRounding", imgui_style.WindowRounding);
+	config.set("STYLE", "HdrOverlayBrightness", _hdr_overlay_brightness);
+	config.set("STYLE", "HdrOverlayOverwriteColorSpaceTo", static_cast<int>(_hdr_overlay_overwrite_color_space));
 
 	// Do not save custom style colors by default, only when actually used and edited
 
@@ -2118,20 +2118,15 @@ void reshade::runtime::draw_gui_settings()
 			modified = true;
 		}
 
-		// only for d3d11, d3d12, Vulkan API and possible hdr swapchains
-		if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000)
-		 && (_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm ||_back_buffer_format == reshade::api::format::r16g16b16a16_float))
+		// Only show on possible HDR swapchains
+		if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000) &&
+			(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float))
 		{
-			if (float &hdr_overlay_brightness = _hdr_overlay.brightness; ImGui::SliderFloat("HDR overlay brightness", &hdr_overlay_brightness, 20.f, 400.f, "%.0f nits", ImGuiSliderFlags_AlwaysClamp))
-			{
+			if (ImGui::SliderFloat("HDR overlay brightness", &_hdr_overlay_brightness, 20.f, 400.f, "%.0f nits", ImGuiSliderFlags_AlwaysClamp))
 				modified = true;
-			}
 
-			// options mirror values of "api::color_space"
-			if (ImGui::Combo("Overlay color space", &_hdr_overlay.overwrite_color_space_to, "Auto\0SDR\0scRGB\0HDR10\0HLG\0"))
-			{
+			if (ImGui::Combo("Overlay color space", reinterpret_cast<int *>(&_hdr_overlay_overwrite_color_space), "Auto\0SDR\0scRGB\0HDR10\0HLG\0"))
 				modified = true;
-			}
 		}
 
 		if (float &rounding = _imgui_context->Style.FrameRounding; ImGui::SliderFloat("Frame rounding", &rounding, 0.0f, 12.0f, "%.0f"))
@@ -4020,18 +4015,18 @@ bool reshade::runtime::init_imgui_resources()
 			layout_params[num_layout_params++] = api::descriptor_range { 0, 0, 0, 1, api::shader_stage::pixel, 1, api::descriptor_type::shader_resource_view }; // t0
 		}
 
-		uint32_t count = 16;
+		uint32_t num_push_constants = 16;
 		reshade::api::shader_stage shader_stage = api::shader_stage::vertex;
 
-		// only for d3d11, d3d12, Vulkan API and possible hdr swapchains
-		if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000)
-		 && (_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm ||_back_buffer_format == reshade::api::format::r16g16b16a16_float))
+		// Add HDR push constants for possible HDR swapchains
+		if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000) &&
+			(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float))
 		{
-			count += 4;
+			num_push_constants += 4;
 			shader_stage |= api::shader_stage::pixel;
 		}
 
-		layout_params[num_layout_params++] = api::constant_range { 0, 0, 0, count, shader_stage }; // b0
+		layout_params[num_layout_params++] = api::constant_range { 0, 0, 0, num_push_constants, shader_stage }; // b0
 
 		if (!_device->create_pipeline_layout(num_layout_params, layout_params, &_imgui_pipeline_layout))
 		{
@@ -4046,13 +4041,15 @@ bool reshade::runtime::init_imgui_resources()
 	api::shader_desc vs_desc, ps_desc;
 
 	if ((_renderer_id & 0xF0000) == 0 || _renderer_id >= 0x20000)
-	{		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id >= 0x20000 ? IDR_IMGUI_VS_SPIRV : _renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
+	{
+		const bool is_possibe_hdr_swapchain =
+			(_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000) &&
+			(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float);
+
+		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id >= 0x20000 ? IDR_IMGUI_VS_SPIRV : _renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
 		vs_desc.code = vs_res.data;
 		vs_desc.code_size = vs_res.data_size;
 
-		// only load hdr pixel shader when it's needed
-		const bool is_possibe_hdr_swapchain = (_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000)
-										   && (_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm ||_back_buffer_format == reshade::api::format::r16g16b16a16_float);
 		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id >= 0x20000 ? !is_possibe_hdr_swapchain ? IDR_IMGUI_PS_SPIRV : IDR_IMGUI_PS_SPIRV_HDR : _renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : !is_possibe_hdr_swapchain ? IDR_IMGUI_PS_4_0 : IDR_IMGUI_PS_4_0_HDR);
 		ps_desc.code = ps_res.data;
 		ps_desc.code_size = ps_res.data_size;
@@ -4244,30 +4241,27 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	};
 
 	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
-	const uint32_t ortho_projection_push_constants_size = sizeof(ortho_projection) / 4;
-	cmd_list->push_constants(api::shader_stage::vertex, _imgui_pipeline_layout, has_combined_sampler_and_view ? 1 : 2, 0, ortho_projection_push_constants_size, ortho_projection);
+	cmd_list->push_constants(api::shader_stage::vertex, _imgui_pipeline_layout, has_combined_sampler_and_view ? 1 : 2, 0, sizeof(ortho_projection) / 4, ortho_projection);
 	if (!has_combined_sampler_and_view)
 		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_table_update { {}, 0, 0, 1, api::descriptor_type::sampler, &_imgui_sampler_state });
 
-	// only for d3d11, d3d12, Vulkan API and possible hdr swapchains
-	if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000)
-	 && (_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm ||_back_buffer_format == reshade::api::format::r16g16b16a16_float))
+	// Add HDR push constants for possible HDR swapchains
+	if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000) &&
+		(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float))
 	{
-		struct
-		{
-			reshade::api::format back_buffer_format;
-			reshade::api::color_space back_buffer_color_space;
+		const struct {
+			api::format back_buffer_format;
+			api::color_space back_buffer_color_space;
 			float hdr_overlay_brightness;
-			int hdr_overlay_overwrite_color_space_to;
-		} hdr_push_constants;
+			api::color_space hdr_overlay_overwrite_color_space;
+		} hdr_push_constants = {
+			_back_buffer_format,
+			_back_buffer_color_space,
+			_hdr_overlay_brightness,
+			_hdr_overlay_overwrite_color_space
+		};
 
-		hdr_push_constants.back_buffer_format = _back_buffer_format;
-		hdr_push_constants.back_buffer_color_space = _back_buffer_color_space;
-		hdr_push_constants.hdr_overlay_brightness = _hdr_overlay.brightness;
-		hdr_push_constants.hdr_overlay_overwrite_color_space_to = _hdr_overlay.overwrite_color_space_to;
-
-		const uint32_t hdr_push_constants_size = sizeof(hdr_push_constants) / 4;
-		cmd_list->push_constants(api::shader_stage::pixel, _imgui_pipeline_layout, has_combined_sampler_and_view ? 1 : 2, ortho_projection_push_constants_size, hdr_push_constants_size, reinterpret_cast<const void*>(&hdr_push_constants));
+		cmd_list->push_constants(api::shader_stage::pixel, _imgui_pipeline_layout, has_combined_sampler_and_view ? 1 : 2, sizeof(ortho_projection) / 4, sizeof(hdr_push_constants) / 4, &hdr_push_constants);
 	}
 
 	int vtx_offset = 0, idx_offset = 0;
