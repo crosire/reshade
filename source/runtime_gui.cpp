@@ -3199,12 +3199,17 @@ void reshade::runtime::draw_variable_editor()
 					const int ui_max_val = variable.annotation_as_int("ui_max", 0, ui_type == "slider" ? 1 : std::numeric_limits<int>::max());
 					const int ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
 
+					// Append units
+					std::string format = "%d";
+					const std::string_view units = variable.annotation_as_string("ui_units");
+					format.append(units);
+
 					if (ui_type == "slider")
-						modified = imgui::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
+						modified = imgui::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
 					else if (ui_type == "drag")
 						modified = variable.annotation_as_int("ui_step") == 0 ?
-							ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val) :
-							imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
+							ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val, format.c_str()) :
+							imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
 					else if (ui_type == "list")
 						modified = imgui::list_with_buttons(label.data(), variable.annotation_as_string("ui_items"), data[0]);
 					else if (ui_type == "combo")
@@ -3233,16 +3238,20 @@ void reshade::runtime::draw_variable_editor()
 					const float ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
 
 					// Calculate display precision based on step value
-					char precision_format[] = "%.0f";
+					std::string precision_format = "%.0f";
 					for (float x = 1.0f; x * ui_stp_val < 1.0f && precision_format[2] < '9'; x *= 10.0f)
 						++precision_format[2]; // This changes the text to "%.1f", "%.2f", "%.3f", ...
 
+					// Append units
+					const std::string_view units = variable.annotation_as_string("ui_units");
+					precision_format.append(units);
+
 					if (ui_type == "slider")
-						modified = imgui::slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
+						modified = imgui::slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
 					else if (ui_type == "drag")
 						modified = variable.annotation_as_float("ui_step") == 0 ?
-							ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format) :
-							imgui::drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format);
+							ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str()) :
+							imgui::drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
 					else if (ui_type == "color" && variable.type.rows == 1)
 						modified = imgui::slider_for_alpha_value(label.data(), data);
 					else if (ui_type == "color" && variable.type.rows == 3)
