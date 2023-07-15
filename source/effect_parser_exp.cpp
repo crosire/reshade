@@ -8,6 +8,8 @@
 #include "effect_codegen.hpp"
 #include <cassert>
 
+#define RESHADEFX_SHORT_CIRCUIT 0
+
 reshadefx::parser::parser()
 {
 }
@@ -1151,7 +1153,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else if (exp.type.is_struct())
 			{
-				const auto &member_list = _codegen->find_struct(exp.type.definition).member_list;
+				const auto &member_list = _codegen->get_struct(exp.type.definition).member_list;
 
 				// Find member with matching name is structure definition
 				uint32_t member_index = 0;

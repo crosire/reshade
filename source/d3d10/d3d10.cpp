@@ -118,7 +118,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	}
 
 	auto device = *ppDevice;
-	// Query for the DXGI device since we need to reference it in the hooked device
+	// Query for the DXGI device since we need to reference it in the proxy device
 	com_ptr<IDXGIDevice1> dxgi_device;
 	hr = device->QueryInterface(&dxgi_device);
 	assert(SUCCEEDED(hr));

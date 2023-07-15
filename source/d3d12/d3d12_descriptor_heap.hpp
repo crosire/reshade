@@ -39,7 +39,7 @@ struct DECLSPEC_UUID("8628AD68-6047-4D27-9D87-3E5F386E0231") D3D12DescriptorHeap
 
 	void initialize_descriptor_base_handle(size_t heap_index);
 
-	ID3D12DescriptorHeap *_orig;
+	ID3D12DescriptorHeap *const _orig;
 	ULONG _ref = 1;
 	ID3D12Device *const _device;
 

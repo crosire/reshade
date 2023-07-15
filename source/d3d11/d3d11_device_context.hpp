@@ -190,6 +190,6 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 #endif
 
 	LONG _ref = 1;
-	unsigned int _interface_version;
+	unsigned short _interface_version;
 	D3D11Device *const _device;
 };

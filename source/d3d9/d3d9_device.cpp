@@ -51,7 +51,7 @@ const reshade::api::subresource_box *convert_rect_to_box(const POINT *point, LON
 
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	device_impl(original),
-	_extended_interface(0),
+	_extended_interface(false),
 	_use_software_rendering(use_software_rendering)
 {
 	assert(_orig != nullptr);
@@ -63,7 +63,7 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
 	Direct3DDevice9(static_cast<IDirect3DDevice9 *>(original), use_software_rendering)
 {
-	_extended_interface = 1;
+	_extended_interface = true;
 }
 
 #if RESHADE_ADDON
@@ -90,7 +90,7 @@ void Direct3DDevice9::init_auto_depth_stencil()
 			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
 	}
 
-	const auto surface = auto_depth_stencil.release(); // This internal reference is later released in 'reset_auto_depth_stencil' below
+	IDirect3DSurface9 *const surface = auto_depth_stencil.release(); // This internal reference is later released in 'reset_auto_depth_stencil' below
 	_auto_depth_stencil = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 
 	// The auto depth-stencil starts with a public reference count of zero
@@ -480,11 +480,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		assert(ppTexture != nullptr);
 
 #if RESHADE_ADDON
-		const auto resource = *ppTexture;
+		IDirect3DTexture9 *const resource = *ppTexture;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		resource->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 			reshade::hooks::install("IDirect3DTexture9::LockRect", reshade::hooks::vtable_from_instance(resource), 19, reinterpret_cast<reshade::hook::address>(&IDirect3DTexture9_LockRect));
@@ -557,12 +557,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateTexture" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -584,11 +584,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 		assert(ppVolumeTexture != nullptr);
 
 #if RESHADE_ADDON
-		const auto resource = *ppVolumeTexture;
+		IDirect3DVolumeTexture9 *const resource = *ppVolumeTexture;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		resource->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 			reshade::hooks::install("IDirect3DVolumeTexture9::LockBox", reshade::hooks::vtable_from_instance(resource), 19, reinterpret_cast<reshade::hook::address>(&IDirect3DVolumeTexture9_LockBox));
@@ -636,12 +636,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateVolumeTexture" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -663,11 +663,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		assert(ppCubeTexture != nullptr);
 
 #if RESHADE_ADDON
-		const auto resource = *ppCubeTexture;
+		IDirect3DCubeTexture9 *const resource = *ppCubeTexture;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		resource->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 			reshade::hooks::install("IDirect3DCubeTexture9::LockRect", reshade::hooks::vtable_from_instance(resource), 19, reinterpret_cast<reshade::hook::address>(&IDirect3DCubeTexture9_LockRect));
@@ -746,12 +746,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateCubeTexture" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -777,11 +777,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 		assert(ppVertexBuffer != nullptr);
 
 #if RESHADE_ADDON
-		const auto resource = *ppVertexBuffer;
+		IDirect3DVertexBuffer9 *const resource = *ppVertexBuffer;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		resource->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 			reshade::hooks::install("IDirect3DVertexBuffer9::Lock", reshade::hooks::vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&IDirect3DVertexBuffer9_Lock));
@@ -798,12 +798,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 		});
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateVertexBuffer" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -828,11 +828,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 		assert(ppIndexBuffer != nullptr);
 
 #if RESHADE_ADDON
-		const auto resource = *ppIndexBuffer;
+		IDirect3DIndexBuffer9 *const resource = *ppIndexBuffer;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		resource->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 			reshade::hooks::install("IDirect3DIndexBuffer9::Lock", reshade::hooks::vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&IDirect3DIndexBuffer9_Lock));
@@ -849,12 +849,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 		});
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateIndexBuffer" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -878,11 +878,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 		assert(ppSurface != nullptr);
 
 #if RESHADE_ADDON
-		const auto surface = *ppSurface;
+		IDirect3DSurface9 *const surface = *ppSurface;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		surface->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (Lockable)
 		{
@@ -925,12 +925,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateRenderTarget" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -955,7 +955,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		assert(ppSurface != nullptr);
 
 #if RESHADE_ADDON
-		const auto surface = *ppSurface;
+		IDirect3DSurface9 *const surface = *ppSurface;
 		*ppSurface = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 
 		// In case surface was replaced with a texture resource
@@ -990,12 +990,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateDepthStencilSurface" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1152,11 +1152,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 		assert(ppSurface != nullptr);
 
 #if RESHADE_ADDON
-		const auto surface = *ppSurface;
+		IDirect3DSurface9 *const surface = *ppSurface;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		surface->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 			reshade::hooks::install("IDirect3DSurface9::LockRect", reshade::hooks::vtable_from_instance(surface), 13, reinterpret_cast<reshade::hook::address>(&IDirect3DSurface9_LockRect));
@@ -1191,12 +1191,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateOffscreenPlainSurface" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1301,8 +1301,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 
 		if (_current_depth_stencil != nullptr)
 		{
-			const auto surface = *ppZStencilSurface;
-			const auto surface_proxy = _current_depth_stencil.get();
+			IDirect3DSurface9 *const surface = *ppZStencilSurface;
+			Direct3DDepthStencilSurface9 *const surface_proxy = _current_depth_stencil.get();
 
 			surface_proxy->AddRef();
 			surface->Release();
@@ -1482,6 +1482,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 
 		const reshade::api::dynamic_state state = reshade::d3d9::convert_dynamic_state(State);
 		const uint32_t value = Value;
+
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 	}
 #endif
@@ -1625,6 +1626,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
 		const uint32_t value = static_cast<uint32_t>(reshade::d3d9::convert_primitive_topology(PrimitiveType));
+
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 #endif
 #if RESHADE_ADDON
@@ -1646,6 +1648,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
 		const uint32_t value = static_cast<uint32_t>(reshade::d3d9::convert_primitive_topology(PrimitiveType));
+
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 #endif
 #if RESHADE_ADDON
@@ -1667,6 +1670,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
 		const uint32_t value = static_cast<uint32_t>(reshade::d3d9::convert_primitive_topology(PrimitiveType));
+
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 #endif
 #if RESHADE_ADDON
@@ -1688,6 +1692,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
 		const uint32_t value = static_cast<uint32_t>(reshade::d3d9::convert_primitive_topology(PrimitiveType));
+
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 #endif
 #if RESHADE_ADDON
@@ -1763,12 +1768,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppDecl));
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateVertexDeclaration" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1841,12 +1846,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppShader));
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreateVertexShader" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -2025,12 +2030,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppShader));
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9::CreatePixelShader" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -2238,11 +2243,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 		assert(ppSurface != nullptr);
 
 #if RESHADE_ADDON
-		const auto surface = *ppSurface;
+		IDirect3DSurface9 *const surface = *ppSurface;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		surface->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (Lockable)
 		{
@@ -2285,12 +2290,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9Ex::CreateRenderTargetEx" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -2314,11 +2319,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 		assert(ppSurface != nullptr);
 
 #if RESHADE_ADDON
-		const auto surface = *ppSurface;
+		IDirect3DSurface9 *const surface = *ppSurface;
 #endif
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		const auto device_proxy = this;
-		surface->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
+		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
 		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
 			reshade::hooks::install("IDirect3DSurface9::LockRect", reshade::hooks::vtable_from_instance(surface), 13, reinterpret_cast<reshade::hook::address>(&IDirect3DSurface9_LockRect));
@@ -2353,12 +2358,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9Ex::CreateOffscreenPlainSurfaceEx" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -2385,7 +2390,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		assert(ppSurface != nullptr);
 
 #if RESHADE_ADDON
-		const auto surface = *ppSurface;
+		IDirect3DSurface9 *const surface = *ppSurface;
 		*ppSurface = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 
 		// In case surface was replaced with a texture resource
@@ -2420,12 +2425,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "IDirect3DDevice9Ex::CreateDepthStencilSurfaceEx" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }

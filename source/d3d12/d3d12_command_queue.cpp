@@ -31,7 +31,7 @@ bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12CommandQueue),
 	};
 
-	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;

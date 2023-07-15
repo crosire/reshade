@@ -2118,7 +2118,7 @@ void reshade::runtime::draw_gui_settings()
 			modified = true;
 		}
 
-		// Only show on possible HDR swapchains
+		// Only show on possible HDR swap chains
 		if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000) &&
 			(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float))
 		{
@@ -4027,7 +4027,7 @@ bool reshade::runtime::init_imgui_resources()
 		uint32_t num_push_constants = 16;
 		reshade::api::shader_stage shader_stage = api::shader_stage::vertex;
 
-		// Add HDR push constants for possible HDR swapchains
+		// Add HDR push constants for possible HDR swap chains
 		if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000) &&
 			(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float))
 		{
@@ -4254,7 +4254,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	if (!has_combined_sampler_and_view)
 		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_table_update { {}, 0, 0, 1, api::descriptor_type::sampler, &_imgui_sampler_state });
 
-	// Add HDR push constants for possible HDR swapchains
+	// Add HDR push constants for possible HDR swap chains
 	if ((_renderer_id & 0xB000 || _renderer_id & 0xC000 || _renderer_id & 0x20000) &&
 		(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float))
 	{

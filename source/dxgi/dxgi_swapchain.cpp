@@ -231,7 +231,7 @@ bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
 		__uuidof(IDXGISwapChain4),
 	};
 
-	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;
@@ -410,22 +410,25 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	on_reset();
 
-	DXGI_SWAP_CHAIN_DESC desc = {};
-	GetDesc(&desc);
-	desc.BufferCount = BufferCount;
-	desc.BufferDesc.Width = Width;
-	desc.BufferDesc.Height = Height;
-	if (NewFormat != DXGI_FORMAT_UNKNOWN)
-		desc.BufferDesc.Format = NewFormat;
-	desc.Flags = SwapChainFlags;
-
-	if (modify_swapchain_desc(desc))
+	// Handle update of the swap chain description
 	{
-		BufferCount = desc.BufferCount;
-		Width = desc.BufferDesc.Width;
-		Height = desc.BufferDesc.Height;
-		NewFormat = static_cast<DXGI_FORMAT>(desc.BufferDesc.Format);
-		SwapChainFlags = desc.Flags;
+		DXGI_SWAP_CHAIN_DESC desc = {};
+		GetDesc(&desc);
+		desc.BufferCount = BufferCount;
+		desc.BufferDesc.Width = Width;
+		desc.BufferDesc.Height = Height;
+		if (NewFormat != DXGI_FORMAT_UNKNOWN)
+			desc.BufferDesc.Format = NewFormat;
+		desc.Flags = SwapChainFlags;
+
+		if (modify_swapchain_desc(desc))
+		{
+			BufferCount = desc.BufferCount;
+			Width = desc.BufferDesc.Width;
+			Height = desc.BufferDesc.Height;
+			NewFormat = static_cast<DXGI_FORMAT>(desc.BufferDesc.Format);
+			SwapChainFlags = desc.Flags;
+		}
 	}
 
 	assert(!g_in_dxgi_runtime);
@@ -640,22 +643,25 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	on_reset();
 
-	HWND hwnd = nullptr;
-	GetHwnd(&hwnd);
-	DXGI_SWAP_CHAIN_DESC1 desc = {};
-	GetDesc1(&desc);
-	desc.BufferCount = BufferCount;
-	desc.Width = Width;
-	desc.Height = Height;
-	if (Format != DXGI_FORMAT_UNKNOWN)
-		desc.Format = Format;
-	desc.Flags = SwapChainFlags;
-
-	if (modify_swapchain_desc(desc, hwnd))
+	// Handle update of the swap chain description
 	{
-		Width = desc.Width;
-		Height = desc.Height;
-		Format = desc.Format;
+		HWND hwnd = nullptr;
+		GetHwnd(&hwnd);
+		DXGI_SWAP_CHAIN_DESC1 desc = {};
+		GetDesc1(&desc);
+		desc.BufferCount = BufferCount;
+		desc.Width = Width;
+		desc.Height = Height;
+		if (Format != DXGI_FORMAT_UNKNOWN)
+			desc.Format = Format;
+		desc.Flags = SwapChainFlags;
+
+		if (modify_swapchain_desc(desc, hwnd))
+		{
+			Width = desc.Width;
+			Height = desc.Height;
+			Format = desc.Format;
+		}
 	}
 
 	// Need to extract the original command queue object from the proxies passed in

@@ -4,7 +4,6 @@
  */
 
 #include "vulkan_hooks.hpp"
-#include "version.h"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
@@ -211,6 +210,9 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 }
 
 #ifdef VK_EXT_tooling_info
+
+#include "version.h"
+
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
 {
 	GET_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
@@ -248,4 +250,5 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 
 	return VK_SUCCESS;
 }
+
 #endif

@@ -1115,7 +1115,7 @@ private:
 				// Flatten structure parameters
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = find_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.definition);
 
 					type struct_type = param.type;
 					const int array_length = std::max(1, param.type.array_length);
@@ -1166,7 +1166,7 @@ private:
 			{
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = find_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.definition);
 
 					for (int a = 0, array_length = std::max(1, param.type.array_length); a < array_length; a++)
 					{
@@ -1196,7 +1196,7 @@ private:
 
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = find_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.definition);
 
 					type struct_type = param.type;
 					const int array_length = std::max(1, param.type.array_length);
@@ -1248,7 +1248,7 @@ private:
 				// Input parameters do not need to store anything, but increase the input/output variable index
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = find_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.definition);
 					inputs_and_outputs_index += definition.member_list.size() * std::max(1, param.type.array_length);
 				}
 				else
@@ -1260,7 +1260,7 @@ private:
 
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = find_struct(func.return_type.definition);
+			const struct_info &definition = get_struct(func.return_type.definition);
 
 			for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
 			{

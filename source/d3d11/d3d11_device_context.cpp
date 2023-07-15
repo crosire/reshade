@@ -55,7 +55,7 @@ bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D11DeviceContext4),
 	};
 
-	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;
@@ -311,6 +311,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UIN
 	{
 		D3D11_RESOURCE_DIMENSION type;
 		pResource->GetType(&type);
+
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(Subresource == 0);
@@ -349,6 +350,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::Unmap(ID3D11Resource *pResource, U
 	{
 		D3D11_RESOURCE_DIMENSION type;
 		pResource->GetType(&type);
+
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(Subresource == 0);
@@ -447,7 +449,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetPrimitiveTopology(D3D11_PRIMI
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::primitive_topology };
 	const uint32_t values[1] = { static_cast<uint32_t>(reshade::d3d11::convert_primitive_topology(Topology)) };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
@@ -553,12 +556,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *
 
 	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
 	const uint32_t values[2] = {
-		(BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }
+		(BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }, see D3D11_DEFAULT_BLEND_FACTOR_*
 			((static_cast<uint32_t>(BlendFactor[0] * 255.f) & 0xFF)) |
 			((static_cast<uint32_t>(BlendFactor[1] * 255.f) & 0xFF) << 8) |
 			((static_cast<uint32_t>(BlendFactor[2] * 255.f) & 0xFF) << 16) |
 			((static_cast<uint32_t>(BlendFactor[3] * 255.f) & 0xFF) << 24), SampleMask };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 2, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetDepthStencilState(ID3D11DepthStencilState *pDepthStencilState, UINT StencilRef)
@@ -570,7 +574,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetDepthStencilState(ID3D11Depth
 
 	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
 	const uint32_t values[2] = { StencilRef, StencilRef };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 2, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::SOSetTargets(UINT NumBuffers, ID3D11Buffer *const *ppSOTargets, const UINT *pOffsets)
@@ -672,6 +677,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resour
 	{
 		D3D11_RESOURCE_DIMENSION type;
 		pDstResource->GetType(&type);
+
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(SrcSubresource == 0 && DstSubresource == 0);
@@ -777,6 +783,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 	{
 		D3D11_RESOURCE_DIMENSION type;
 		pDstResource->GetType(&type);
+
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(DstSubresource == 0);
@@ -1148,7 +1155,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearState()
 
 	const reshade::api::dynamic_state states[5] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask, reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
 	const uint32_t values[5] = { static_cast<uint32_t>(reshade::api::primitive_topology::undefined), 0xFFFFFFFF, D3D11_DEFAULT_SAMPLE_MASK, D3D11_DEFAULT_STENCIL_REFERENCE, D3D11_DEFAULT_STENCIL_REFERENCE };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 5, states, values);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 
 	constexpr size_t max_null_objects = std::max(D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, std::max(D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, std::max(D3D11_1_UAV_SLOT_COUNT, std::max(D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, std::max(D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)))));
 	void *const null_objects[max_null_objects] = {};
@@ -1221,6 +1228,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion1(ID3D11Resou
 	{
 		D3D11_RESOURCE_DIMENSION type;
 		pDstResource->GetType(&type);
+
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(SrcSubresource == 0 && DstSubresource == 0);
@@ -1317,6 +1325,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 	{
 		D3D11_RESOURCE_DIMENSION type;
 		pDstResource->GetType(&type);
+
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(DstSubresource == 0);
@@ -1526,6 +1535,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::EndEvent()
 
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush1(D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent)
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+#endif
+
 	assert(_interface_version >= 3);
 	static_cast<ID3D11DeviceContext3 *>(_orig)->Flush1(ContextType, hEvent);
 }

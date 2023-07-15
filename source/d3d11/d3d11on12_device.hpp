@@ -40,7 +40,7 @@ struct DECLSPEC_UUID("6BE8CF18-2108-4506-AAA0-AD5A29812A31") D3D11On12Device fin
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ID3D11On12Device *_orig;
-	unsigned int _interface_version;
+	unsigned short _interface_version;
 	D3D11Device *const _parent_device_11;
 	const com_ptr<D3D12Device> _parent_device_12;
 };

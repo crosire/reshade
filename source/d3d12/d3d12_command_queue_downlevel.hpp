@@ -26,6 +26,6 @@ struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDo
 	HRESULT STDMETHODCALLTYPE Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags) override;
 	#pragma endregion
 
-	ID3D12CommandQueueDownlevel *_orig;
+	ID3D12CommandQueueDownlevel *const _orig;
 	D3D12CommandQueue *const _parent_queue;
 };

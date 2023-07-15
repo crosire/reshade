@@ -523,7 +523,7 @@ private:
 
 		code += "struct " + id_to_name(info.definition) + "\n{\n";
 
-		for (const auto &member : info.member_list)
+		for (const struct_member_info &member : info.member_list)
 		{
 			code += '\t';
 			write_type(code, member.type); // GLSL does not allow interpolation attributes on struct members
@@ -815,7 +815,7 @@ private:
 		// Translate function parameters to input/output variables
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = find_struct(func.return_type.definition);
+			const struct_info &definition = get_struct(func.return_type.definition);
 
 			for (const struct_member_info &member : definition.member_list)
 				create_varying_variable(member.type, type::q_out, "_return_" + member.name, member.semantic);
@@ -837,7 +837,7 @@ private:
 				// Flatten structure parameters
 				if (param_type.is_struct())
 				{
-					const struct_info &definition = find_struct(param_type.definition);
+					const struct_info &definition = get_struct(param_type.definition);
 
 					for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
 						for (const struct_member_info &member : definition.member_list)
@@ -853,7 +853,7 @@ private:
 			{
 				if (param_type.is_struct())
 				{
-					const struct_info &definition = find_struct(param_type.definition);
+					const struct_info &definition = get_struct(param_type.definition);
 
 					for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
 						for (const struct_member_info &member : definition.member_list)
@@ -895,7 +895,7 @@ private:
 						write_type<false, false>(code, param_type);
 						code += '(';
 
-						const struct_info &definition = find_struct(param_type.definition);
+						const struct_info &definition = get_struct(param_type.definition);
 
 						for (const struct_member_info &member : definition.member_list)
 						{
@@ -1027,7 +1027,7 @@ private:
 
 			if (param_type.is_struct())
 			{
-				const struct_info &definition = find_struct(param_type.definition);
+				const struct_info &definition = get_struct(param_type.definition);
 
 				// Split out struct fields into separate output variables again
 				for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
@@ -1094,7 +1094,7 @@ private:
 		// Handle return struct output variables
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = find_struct(func.return_type.definition);
+			const struct_info &definition = get_struct(func.return_type.definition);
 
 			for (const struct_member_info &member : definition.member_list)
 			{
@@ -1136,7 +1136,7 @@ private:
 				break;
 			case expression::operation::op_member:
 				expr_code += '.';
-				expr_code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
+				expr_code += escape_name(get_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
 				// For matrices this will extract a column, but that is fine, since they are initialized column-wise too
@@ -1224,7 +1224,7 @@ private:
 			{
 			case expression::operation::op_member:
 				code += '.';
-				code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
+				code += escape_name(get_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
 				code += "[int(" + id_to_name(op.index) + ")]";

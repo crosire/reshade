@@ -38,14 +38,16 @@ IMPLEMENT_INTRINSIC_HLSL(abs, 1, {
 	code += "abs(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(abs, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450SAbs)
 		.add(args[0].base)
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(abs, 1, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FAbs)
 		.add(args[0].base)
@@ -73,7 +75,8 @@ IMPLEMENT_INTRINSIC_SPIRV(all, 0, {
 	return args[0].base;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(all, 1, {
-	return add_instruction(spv::OpAll, convert_type(res_type))
+	return
+	add_instruction(spv::OpAll, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -99,7 +102,8 @@ IMPLEMENT_INTRINSIC_SPIRV(any, 0, {
 	return args[0].base;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(any, 1, {
-	return add_instruction(spv::OpAny, convert_type(res_type))
+	return
+	add_instruction(spv::OpAny, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -116,7 +120,8 @@ IMPLEMENT_INTRINSIC_HLSL(asin, 0, {
 	code += "asin(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asin, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Asin)
 		.add(args[0].base)
@@ -135,7 +140,8 @@ IMPLEMENT_INTRINSIC_HLSL(acos, 0, {
 	code += "acos(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(acos, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Acos)
 		.add(args[0].base)
@@ -154,7 +160,8 @@ IMPLEMENT_INTRINSIC_HLSL(atan, 0, {
 	code += "atan(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atan, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Atan)
 		.add(args[0].base)
@@ -173,7 +180,8 @@ IMPLEMENT_INTRINSIC_HLSL(atan2, 0, {
 	code += "atan2(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atan2, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Atan2)
 		.add(args[0].base)
@@ -193,7 +201,8 @@ IMPLEMENT_INTRINSIC_HLSL(sin, 0, {
 	code += "sin(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sin, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Sin)
 		.add(args[0].base)
@@ -212,7 +221,8 @@ IMPLEMENT_INTRINSIC_HLSL(sinh, 0, {
 	code += "sinh(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sinh, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Sinh)
 		.add(args[0].base)
@@ -231,7 +241,8 @@ IMPLEMENT_INTRINSIC_HLSL(cos, 0, {
 	code += "cos(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(cos, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Cos)
 		.add(args[0].base)
@@ -250,7 +261,8 @@ IMPLEMENT_INTRINSIC_HLSL(cosh, 0, {
 	code += "cosh(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(cosh, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Cosh)
 		.add(args[0].base)
@@ -269,7 +281,8 @@ IMPLEMENT_INTRINSIC_HLSL(tan, 0, {
 	code += "tan(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tan, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Tan)
 		.add(args[0].base)
@@ -288,7 +301,8 @@ IMPLEMENT_INTRINSIC_HLSL(tanh, 0, {
 	code += "tanh(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tanh, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Tanh)
 		.add(args[0].base)
@@ -338,13 +352,13 @@ IMPLEMENT_INTRINSIC_GLSL(asint, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(asint, 0, {
 	_uses_bitwise_cast = true;
-	if (_shader_model >= 40)
-		code += "asint(" + id_to_name(args[0].base) + ')';
-	else
-		code += "__asint(" + id_to_name(args[0].base) + ')';
+	if (_shader_model < 40)
+		code += "__";
+	code += "asint(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asint, 0, {
-	return add_instruction(spv::OpBitcast, convert_type(res_type))
+	return
+	add_instruction(spv::OpBitcast, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -359,13 +373,13 @@ IMPLEMENT_INTRINSIC_GLSL(asuint, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(asuint, 0, {
 	_uses_bitwise_cast = true;
-	if (_shader_model >= 40)
-		code += "asuint(" + id_to_name(args[0].base) + ')';
-	else
-		code += "__asuint(" + id_to_name(args[0].base) + ')';
+	if (_shader_model < 40)
+		code += "__";
+	code += "asuint(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asuint, 0, {
-	return add_instruction(spv::OpBitcast, convert_type(res_type))
+	return
+	add_instruction(spv::OpBitcast, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -387,25 +401,25 @@ IMPLEMENT_INTRINSIC_GLSL(asfloat, 1, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(asfloat, 0, {
 	_uses_bitwise_cast = true;
-	if (_shader_model >= 40)
-		code += "asfloat(" + id_to_name(args[0].base) + ')';
-	else
-		code += "__asfloat(" + id_to_name(args[0].base) + ')';
+	if (_shader_model < 40)
+		code += "__";
+	code += "asfloat(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(asfloat, 1, {
 	_uses_bitwise_cast = true;
-	if (_shader_model >= 40)
-		code += "asfloat(" + id_to_name(args[0].base) + ')';
-	else
-		code += "__asfloat(" + id_to_name(args[0].base) + ')';
+	if (_shader_model < 40)
+		code += "__";
+	code += "asfloat(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asfloat, 0, {
-	return add_instruction(spv::OpBitcast, convert_type(res_type))
+	return
+	add_instruction(spv::OpBitcast, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asfloat, 1, {
-	return add_instruction(spv::OpBitcast, convert_type(res_type))
+	return
+	add_instruction(spv::OpBitcast, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -419,10 +433,13 @@ IMPLEMENT_INTRINSIC_GLSL(firstbitlow, 0, {
 	code += "findLSB(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(firstbitlow, 0, {
+	if (_shader_model < 50)
+		code += "__";
 	code += "firstbitlow(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(firstbitlow, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FindILsb)
 		.add(args[0].base)
@@ -445,20 +462,26 @@ IMPLEMENT_INTRINSIC_GLSL(firstbithigh, 1, {
 	code += "findMSB(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(firstbithigh, 0, {
+	if (_shader_model < 50)
+		code += "__";
 	code += "firstbithigh(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(firstbithigh, 1, {
+	if (_shader_model < 50)
+		code += "__";
 	code += "firstbithigh(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(firstbithigh, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FindSMsb)
 		.add(args[0].base)
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(firstbithigh, 1, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FindUMsb)
 		.add(args[0].base)
@@ -474,10 +497,13 @@ IMPLEMENT_INTRINSIC_GLSL(countbits, 0, {
 	code += "bitCount(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(countbits, 0, {
+	if (_shader_model < 50)
+		code += "__";
 	code += "countbits(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(countbits, 0, {
-	return add_instruction(spv::OpBitCount, convert_type(res_type))
+	return
+	add_instruction(spv::OpBitCount, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -491,10 +517,13 @@ IMPLEMENT_INTRINSIC_GLSL(reversebits, 0, {
 	code += "bitfieldReverse(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(reversebits, 0, {
+	if (_shader_model < 50)
+		code += "__";
 	code += "reversebits(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(reversebits, 0, {
-	return add_instruction(spv::OpBitReverse, convert_type(res_type))
+	return
+	add_instruction(spv::OpBitReverse, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -511,7 +540,8 @@ IMPLEMENT_INTRINSIC_HLSL(ceil, 0, {
 	code += "ceil(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(ceil, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Ceil)
 		.add(args[0].base)
@@ -533,7 +563,8 @@ IMPLEMENT_INTRINSIC_HLSL(floor, 0, {
 		code += id_to_name(args[0].base) + " - frac(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(floor, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Floor)
 		.add(args[0].base)
@@ -572,7 +603,8 @@ IMPLEMENT_INTRINSIC_HLSL(clamp, 2, {
 	code += "clamp(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(clamp, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450SClamp)
 		.add(args[0].base)
@@ -581,7 +613,8 @@ IMPLEMENT_INTRINSIC_SPIRV(clamp, 0, {
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(clamp, 1, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450UClamp)
 		.add(args[0].base)
@@ -590,7 +623,8 @@ IMPLEMENT_INTRINSIC_SPIRV(clamp, 1, {
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(clamp, 2, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FClamp)
 		.add(args[0].base)
@@ -614,7 +648,8 @@ IMPLEMENT_INTRINSIC_SPIRV(saturate, 0, {
 	const spv::Id constant_one = emit_constant(args[0].type, 1u);
 	const spv::Id constant_zero = emit_constant(args[0].type, 0u);
 
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FClamp)
 		.add(args[0].base)
@@ -638,7 +673,8 @@ IMPLEMENT_INTRINSIC_HLSL(mad, 0, {
 		code += id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + " + " + id_to_name(args[2].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mad, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Fma)
 		.add(args[0].base)
@@ -664,7 +700,8 @@ IMPLEMENT_INTRINSIC_HLSL(rcp, 0, {
 IMPLEMENT_INTRINSIC_SPIRV(rcp, 0, {
 	const spv::Id constant_one = emit_constant(args[0].type, 1u);
 
-	return add_instruction(spv::OpFDiv, convert_type(res_type))
+	return
+	add_instruction(spv::OpFDiv, convert_type(res_type))
 		.add(constant_one)
 		.add(args[0].base)
 		.result;
@@ -682,7 +719,8 @@ IMPLEMENT_INTRINSIC_HLSL(pow, 0, {
 	code += "pow(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(pow, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Pow)
 		.add(args[0].base)
@@ -702,7 +740,8 @@ IMPLEMENT_INTRINSIC_HLSL(exp, 0, {
 	code += "exp(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(exp, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Exp)
 		.add(args[0].base)
@@ -721,7 +760,8 @@ IMPLEMENT_INTRINSIC_HLSL(exp2, 0, {
 	code += "exp2(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(exp2, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Exp2)
 		.add(args[0].base)
@@ -740,7 +780,8 @@ IMPLEMENT_INTRINSIC_HLSL(log, 0, {
 	code += "log(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(log, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Log)
 		.add(args[0].base)
@@ -759,7 +800,8 @@ IMPLEMENT_INTRINSIC_HLSL(log2, 0, {
 	code += "log2(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(log2, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Log2)
 		.add(args[0].base)
@@ -787,7 +829,8 @@ IMPLEMENT_INTRINSIC_SPIRV(log10, 0, {
 	const spv::Id log10 = emit_constant(args[0].type, /* log2(10) */
 		constant { { 3.321928f, 3.321928f, 3.321928f, 3.321928f } });
 
-	return add_instruction(spv::OpFDiv, convert_type(res_type))
+	return
+	add_instruction(spv::OpFDiv, convert_type(res_type))
 		.add(log2)
 		.add(log10)
 		.result; })
@@ -814,14 +857,16 @@ IMPLEMENT_INTRINSIC_HLSL(sign, 1, {
 	code += "sign(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sign, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450SSign)
 		.add(args[0].base)
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sign, 1, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FSign)
 		.add(args[0].base)
@@ -840,7 +885,8 @@ IMPLEMENT_INTRINSIC_HLSL(sqrt, 0, {
 	code += "sqrt(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(sqrt, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Sqrt)
 		.add(args[0].base)
@@ -859,7 +905,8 @@ IMPLEMENT_INTRINSIC_HLSL(rsqrt, 0, {
 	code += "rsqrt(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(rsqrt, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450InverseSqrt)
 		.add(args[0].base)
@@ -878,7 +925,8 @@ IMPLEMENT_INTRINSIC_HLSL(lerp, 0, {
 	code += "lerp(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(lerp, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FMix)
 		.add(args[0].base)
@@ -899,7 +947,8 @@ IMPLEMENT_INTRINSIC_HLSL(step, 0, {
 	code += "step(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(step, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Step)
 		.add(args[0].base)
@@ -919,7 +968,8 @@ IMPLEMENT_INTRINSIC_HLSL(smoothstep, 0, {
 	code += "smoothstep(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(smoothstep, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(args[2].type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(args[2].type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450SmoothStep)
 		.add(args[0].base)
@@ -940,7 +990,8 @@ IMPLEMENT_INTRINSIC_HLSL(frac, 0, {
 	code += "frac(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(frac, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Fract)
 		.add(args[0].base)
@@ -959,7 +1010,8 @@ IMPLEMENT_INTRINSIC_HLSL(ldexp, 0, {
 	code += "ldexp(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(ldexp, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Ldexp)
 		.add(args[0].base)
@@ -979,7 +1031,8 @@ IMPLEMENT_INTRINSIC_HLSL(modf, 0, {
 	code += "modf(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(modf, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Modf)
 		.add(args[0].base)
@@ -999,7 +1052,8 @@ IMPLEMENT_INTRINSIC_HLSL(frexp, 0, {
 	code += "frexp(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(frexp, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Frexp)
 		.add(args[0].base)
@@ -1019,7 +1073,8 @@ IMPLEMENT_INTRINSIC_HLSL(trunc, 0, {
 	code += "trunc(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(trunc, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Trunc)
 		.add(args[0].base)
@@ -1038,7 +1093,8 @@ IMPLEMENT_INTRINSIC_HLSL(round, 0, {
 	code += "round(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(round, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Round)
 		.add(args[0].base)
@@ -1067,7 +1123,8 @@ IMPLEMENT_INTRINSIC_HLSL(min, 1, {
 	code += "min(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(min, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450SMin)
 		.add(args[0].base)
@@ -1075,7 +1132,8 @@ IMPLEMENT_INTRINSIC_SPIRV(min, 0, {
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(min, 1, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FMin)
 		.add(args[0].base)
@@ -1105,7 +1163,8 @@ IMPLEMENT_INTRINSIC_HLSL(max, 1, {
 	code += "max(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(max, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450SMax)
 		.add(args[0].base)
@@ -1113,7 +1172,8 @@ IMPLEMENT_INTRINSIC_SPIRV(max, 0, {
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(max, 1, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FMax)
 		.add(args[0].base)
@@ -1133,7 +1193,8 @@ IMPLEMENT_INTRINSIC_HLSL(degrees, 0, {
 	code += "degrees(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(degrees, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Degrees)
 		.add(args[0].base)
@@ -1152,7 +1213,8 @@ IMPLEMENT_INTRINSIC_HLSL(radians, 0, {
 	code += "radians(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(radians, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Radians)
 		.add(args[0].base)
@@ -1171,7 +1233,8 @@ IMPLEMENT_INTRINSIC_HLSL(ddx, 0, {
 	code += "ddx(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(ddx, 0, {
-	return add_instruction(spv::OpDPdx, convert_type(res_type))
+	return
+	add_instruction(spv::OpDPdx, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -1188,7 +1251,8 @@ IMPLEMENT_INTRINSIC_HLSL(ddy, 0, {
 	code += "ddy(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(ddy, 0, {
-	return add_instruction(spv::OpDPdy, convert_type(res_type))
+	return
+	add_instruction(spv::OpDPdy, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -1205,7 +1269,8 @@ IMPLEMENT_INTRINSIC_HLSL(fwidth, 0, {
 	code += "fwidth(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(fwidth, 0, {
-	return add_instruction(spv::OpFwidth, convert_type(res_type))
+	return
+	add_instruction(spv::OpFwidth, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -1228,13 +1293,15 @@ IMPLEMENT_INTRINSIC_HLSL(dot, 1, {
 	code += "dot(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(dot, 0, {
-	return add_instruction(spv::OpFMul, convert_type(res_type))
+	return
+	add_instruction(spv::OpFMul, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.result;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(dot, 1, {
-	return add_instruction(spv::OpDot, convert_type(res_type))
+	return
+	add_instruction(spv::OpDot, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.result;
@@ -1249,7 +1316,8 @@ IMPLEMENT_INTRINSIC_HLSL(cross, 0, {
 	code += "cross(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(cross, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Cross)
 		.add(args[0].base)
@@ -1269,7 +1337,8 @@ IMPLEMENT_INTRINSIC_HLSL(length, 0, {
 	code += "length(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(length, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Length)
 		.add(args[0].base)
@@ -1288,7 +1357,8 @@ IMPLEMENT_INTRINSIC_HLSL(distance, 0, {
 	code += "distance(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(distance, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Distance)
 		.add(args[0].base)
@@ -1307,7 +1377,8 @@ IMPLEMENT_INTRINSIC_HLSL(normalize, 0, {
 	code += "normalize(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(normalize, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Normalize)
 		.add(args[0].base)
@@ -1331,7 +1402,8 @@ IMPLEMENT_INTRINSIC_HLSL(transpose, 0, {
 	code += "transpose(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(transpose, 0, {
-	return add_instruction(spv::OpTranspose, convert_type(res_type))
+	return
+	add_instruction(spv::OpTranspose, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -1347,7 +1419,8 @@ IMPLEMENT_INTRINSIC_HLSL(determinant, 0, {
 	code += "determinant(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(determinant, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Determinant)
 		.add(args[0].base)
@@ -1365,7 +1438,8 @@ IMPLEMENT_INTRINSIC_HLSL(reflect, 0, {
 	code += "reflect(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(reflect, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Reflect)
 		.add(args[0].base)
@@ -1384,7 +1458,8 @@ IMPLEMENT_INTRINSIC_HLSL(refract, 0, {
 	code += "refract(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(refract, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450Refract)
 		.add(args[0].base)
@@ -1405,7 +1480,8 @@ IMPLEMENT_INTRINSIC_HLSL(faceforward, 0, {
 	code += "faceforward(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(faceforward, 0, {
-	return add_instruction(spv::OpExtInst, convert_type(res_type))
+	return
+	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
 		.add(spv::GLSLstd450FaceForward)
 		.add(args[0].base)
@@ -1428,7 +1504,8 @@ IMPLEMENT_INTRINSIC_HLSL(mul, 0, {
 	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 0, {
-	return add_instruction(spv::OpVectorTimesScalar, convert_type(res_type))
+	return
+	add_instruction(spv::OpVectorTimesScalar, convert_type(res_type))
 		.add(args[1].base)
 		.add(args[0].base)
 		.result;
@@ -1446,7 +1523,8 @@ IMPLEMENT_INTRINSIC_HLSL(mul, 1, {
 	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 1, {
-	return add_instruction(spv::OpVectorTimesScalar, convert_type(res_type))
+	return
+	add_instruction(spv::OpVectorTimesScalar, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.result;
@@ -1477,7 +1555,8 @@ IMPLEMENT_INTRINSIC_HLSL(mul, 2, {
 	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 2, {
-	return add_instruction(spv::OpMatrixTimesScalar, convert_type(res_type))
+	return
+	add_instruction(spv::OpMatrixTimesScalar, convert_type(res_type))
 		.add(args[1].base)
 		.add(args[0].base)
 		.result;
@@ -1507,7 +1586,8 @@ IMPLEMENT_INTRINSIC_HLSL(mul, 3, {
 	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 3, {
-	return add_instruction(spv::OpMatrixTimesScalar, convert_type(res_type))
+	return
+	add_instruction(spv::OpMatrixTimesScalar, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.result;
@@ -1539,7 +1619,8 @@ IMPLEMENT_INTRINSIC_HLSL(mul, 4, {
 	code += "mul(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 4, {
-	return add_instruction(spv::OpMatrixTimesVector, convert_type(res_type))
+	return
+	add_instruction(spv::OpMatrixTimesVector, convert_type(res_type))
 		.add(args[1].base) // Flip inputs because matrices are column-wise
 		.add(args[0].base)
 		.result;
@@ -1563,14 +1644,16 @@ DEFINE_INTRINSIC(mul, 5, float4, float4x2, float2)
 DEFINE_INTRINSIC(mul, 5, float4, float4x3, float3)
 DEFINE_INTRINSIC(mul, 5, float4, float4x4, float4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 5, {
+	// Flip inputs because matrices are column-wise
 	code += '(' + id_to_name(args[1].base) + " * " + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(mul, 5, {
 	code += "mul(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 5, {
-	return add_instruction(spv::OpVectorTimesMatrix, convert_type(res_type))
-		.add(args[1].base)
+	return
+	add_instruction(spv::OpVectorTimesMatrix, convert_type(res_type))
+		.add(args[1].base) // Flip inputs because matrices are column-wise
 		.add(args[0].base)
 		.result;
 	})
@@ -1630,14 +1713,16 @@ DEFINE_INTRINSIC(mul, 6, float4x2, float4x4, float4x2)
 DEFINE_INTRINSIC(mul, 6, float4x3, float4x4, float4x3)
 DEFINE_INTRINSIC(mul, 6, float4x4, float4x4, float4x4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 6, {
+	// Flip inputs because matrices are column-wise
 	code += '(' + id_to_name(args[1].base) + " * " + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(mul, 6, {
 	code += "mul(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(mul, 6, {
-	return add_instruction(spv::OpMatrixTimesMatrix, convert_type(res_type))
-		.add(args[1].base)
+	return
+	add_instruction(spv::OpMatrixTimesMatrix, convert_type(res_type))
+		.add(args[1].base) // Flip inputs because matrices are column-wise
 		.add(args[0].base)
 		.result;
 	})
@@ -1654,7 +1739,8 @@ IMPLEMENT_INTRINSIC_HLSL(isinf, 0, {
 	code += "isinf(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(isinf, 0, {
-	return add_instruction(spv::OpIsInf, convert_type(res_type))
+	return
+	add_instruction(spv::OpIsInf, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -1671,7 +1757,8 @@ IMPLEMENT_INTRINSIC_HLSL(isnan, 0, {
 	code += "isnan(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(isnan, 0, {
-	return add_instruction(spv::OpIsNan, convert_type(res_type))
+	return
+	add_instruction(spv::OpIsNan, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -1726,19 +1813,20 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2D, 0, {
 	type res_vector_type = res_type;
 	res_vector_type.rows = 4;
 
-	spv::Id res = add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_vector_type))
+	const spv::Id res = add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(spv::ImageOperandsMaskNone)
 		.result;
 	if (res_type.rows == 1)
 		// Collapse last argument from a 4-component vector
-		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
 			.add(res)
 			.add(0u)
 			.result;
-
-	return res;
+	else
+		return res;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2D, 1, {
 	// Non-constant offset operand needs extended capability
@@ -1748,19 +1836,20 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2D, 1, {
 	type res_vector_type = res_type;
 	res_vector_type.rows = 4;
 
-	spv::Id res = add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_vector_type))
+	const spv::Id res = add_instruction(spv::OpImageSampleImplicitLod, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
 		.result;
 	if (res_type.rows == 1)
-		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
 			.add(res)
 			.add(0u)
 			.result;
-
-	return res;
+	else
+		return res;
 	})
 
 // ret tex2Dlod(s, coords)
@@ -1824,7 +1913,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 0, {
 	type res_vector_type = res_type;
 	res_vector_type.rows = 4;
 
-	spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
+	const spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(xy)
 		.add(spv::ImageOperandsLodMask)
@@ -1832,12 +1921,13 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 0, {
 		.result;
 	if (res_type.rows == 1)
 		// Collapse last argument from a 4-component vector
-		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
 			.add(res)
 			.add(0u)
 			.result;
-
-	return res;
+	else
+		return res;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 	if (!args[2].is_constant)
@@ -1857,7 +1947,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 	type res_vector_type = res_type;
 	res_vector_type.rows = 4;
 
-	spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
+	const spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(xy)
 		.add(spv::ImageOperandsLodMask | (args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask))
@@ -1865,12 +1955,13 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 		.add(args[2].base)
 		.result;
 	if (res_type.rows == 1)
-		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
 			.add(res)
 			.add(0u)
 			.result;
-
-	return res;
+	else
+		return res;
 	})
 
 // ret tex2Dfetch(s, coords)
@@ -1934,18 +2025,19 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 	type res_vector_type = res_type;
 	res_vector_type.rows = 4;
 
-	spv::Id res = add_instruction(spv::OpImageFetch, convert_type(res_vector_type))
+	const spv::Id res = add_instruction(spv::OpImageFetch, convert_type(res_vector_type))
 		.add(image)
 		.add(args[1].base)
 		.result;
 	if (res_type.rows == 1)
 		// Collapse last argument from a 4-component vector
-		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
 			.add(res)
 			.add(0u)
 			.result;
-
-	return res;
+	else
+		return res;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
 	const spv::Id image = add_instruction(spv::OpImage, convert_image_type(args[0].type))
@@ -1955,35 +2047,37 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
 	type res_vector_type = res_type;
 	res_vector_type.rows = 4;
 
-	spv::Id res = add_instruction(spv::OpImageFetch, convert_type(res_vector_type))
+	const spv::Id res = add_instruction(spv::OpImageFetch, convert_type(res_vector_type))
 		.add(image)
 		.add(args[1].base)
 		.add(spv::ImageOperandsLodMask)
 		.add(args[2].base)
 		.result;
 	if (res_type.rows == 1)
-		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
 			.add(res)
 			.add(0u)
 			.result;
-
-	return res;
+	else
+		return res;
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 2, {
 	type res_vector_type = res_type;
 	res_vector_type.rows = 4;
 
-	spv::Id res = add_instruction(spv::OpImageRead, convert_type(res_vector_type))
+	const spv::Id res = add_instruction(spv::OpImageRead, convert_type(res_vector_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.result;
 	if (res_type.rows == 1)
-		res = add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
 			.add(res)
 			.add(0u)
 			.result;
-
-	return res;
+	else
+		return res;
 	})
 
 // ret tex2DgatherR(s, coords)
@@ -2063,7 +2157,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 2, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 0, {
 	const spv::Id comp = emit_constant(0u);
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2076,7 +2171,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 1, {
 
 	const spv::Id comp = emit_constant(0u);
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2095,7 +2191,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 2, {
 		.add(args[5].base)
 		.result;
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2180,7 +2277,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 2, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 0, {
 	const spv::Id comp = emit_constant(1u);
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2193,7 +2291,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 1, {
 
 	const spv::Id comp = emit_constant(1u);
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2212,7 +2311,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 2, {
 		.add(args[5].base)
 		.result;
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2297,7 +2397,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 2, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 0, {
 	const spv::Id comp = emit_constant(2u);
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2310,7 +2411,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 1, {
 
 	const spv::Id comp = emit_constant(2u);
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2329,7 +2431,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 2, {
 		.add(args[5].base)
 		.result;
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2414,7 +2517,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 2, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 0, {
 	const spv::Id comp = emit_constant(3u);
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2427,7 +2531,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 1, {
 
 	const spv::Id comp = emit_constant(3u);
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2446,7 +2551,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 2, {
 		.add(args[5].base)
 		.result;
 
-	return add_instruction(spv::OpImageGather, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(comp)
@@ -2471,18 +2577,21 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
 	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
-	auto comp_type = args[2].type;
-	comp_type.rows = 4;
-
 	spv::Id data = args[2].base;
 	if (args[2].type.rows == 1)
+	{
 		// Expand last argument to a 4-component vector
+		auto comp_type = args[2].type;
+		comp_type.rows = 4;
+
 		data = add_instruction(spv::OpCompositeConstruct, convert_type(comp_type))
 			.add(data)
 			.add(data)
 			.add(data)
 			.add(data)
 			.result;
+	}
+
 	add_instruction_without_result(spv::OpImageWrite)
 		.add(args[0].base)
 		.add(args[1].base)
@@ -2537,7 +2646,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 0, {
 		.result;
 	const spv::Id level = emit_constant(0u);
 
-	return add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
 		.add(image)
 		.add(level)
 		.result;
@@ -2549,7 +2659,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 1, {
 		.add(args[0].base)
 		.result;
 
-	return add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageQuerySizeLod, convert_type(res_type))
 		.add(image)
 		.add(args[1].base)
 		.result;
@@ -2557,7 +2668,8 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 1, {
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 2, {
 	add_capability(spv::CapabilityImageQuery);
 
-	return add_instruction(spv::OpImageQuerySize, convert_type(res_type))
+	return
+	add_instruction(spv::OpImageQuerySize, convert_type(res_type))
 		.add(args[0].base)
 		.result;
 	})
@@ -2632,7 +2744,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicIAdd, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicIAdd, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2659,7 +2772,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicIAdd, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicIAdd, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2680,7 +2794,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicAnd, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicAnd, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2707,7 +2822,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicAnd, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicAnd, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2728,7 +2844,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicOr, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicOr, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2755,7 +2872,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicOr, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicOr, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2776,7 +2894,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicXor, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicXor, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2803,7 +2922,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicXor, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicXor, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2830,7 +2950,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicSMin, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicSMin, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2841,7 +2962,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicUMin, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicUMin, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2874,7 +2996,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 2, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicSMin, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicSMin, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2892,7 +3015,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 3, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicUMin, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicUMin, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2919,7 +3043,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicSMax, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicSMax, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2930,7 +3055,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicUMax, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicUMax, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2963,7 +3089,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 2, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicSMax, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicSMax, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -2981,7 +3108,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 3, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicUMax, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicUMax, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -3002,7 +3130,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicExchange, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicExchange, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -3029,7 +3158,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicExchange, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicExchange, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -3050,7 +3180,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicCompareExchange, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicCompareExchange, convert_type(res_type))
 		.add(args[0].base)
 		.add(mem_scope)
 		.add(mem_semantics)
@@ -3079,7 +3210,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 1, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
 	const spv::Id mem_semantics = emit_constant(spv::MemorySemanticsMaskNone);
 
-	return add_instruction(spv::OpAtomicCompareExchange, convert_type(res_type))
+	return
+	add_instruction(spv::OpAtomicCompareExchange, convert_type(res_type))
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)

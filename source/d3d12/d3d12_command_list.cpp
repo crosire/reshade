@@ -40,7 +40,7 @@ bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12GraphicsCommandList9),
 	};
 
-	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;
@@ -175,7 +175,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearState(ID3D12PipelineState 
 	// The primitive topology is set to D3D_PRIMITIVE_TOPOLOGY_UNDEFINED. Viewports, scissor rectangles, stencil reference value, and the blend factor are set to empty values (all zeros).
 	const reshade::api::dynamic_state states[4] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
 	const uint32_t values[4] = { static_cast<uint32_t>(reshade::api::primitive_topology::undefined), 0, 0, 0 };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 4, states, values);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 
 	constexpr size_t max_null_objects = D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT * 2;
 	void *const null_objects[max_null_objects] = {};
@@ -351,9 +351,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetPrimitiveTopology(D3D12_PR
 	_orig->IASetPrimitiveTopology(PrimitiveTopology);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-	const uint32_t value = static_cast<uint32_t>(reshade::d3d12::convert_primitive_topology(PrimitiveTopology));
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
+	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::primitive_topology };
+	const uint32_t values[1] = { static_cast<uint32_t>(reshade::d3d12::convert_primitive_topology(PrimitiveTopology)) };
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetViewports(UINT NumViewports, const D3D12_VIEWPORT *pViewports)
@@ -377,13 +378,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetBlendFactor(const FLOAT Bl
 	_orig->OMSetBlendFactor(BlendFactor);
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
-	const reshade::api::dynamic_state state = reshade::api::dynamic_state::blend_constant;
-	const uint32_t value = (BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }
-		((static_cast<uint32_t>(BlendFactor[0] * 255.f) & 0xFF)) |
-		((static_cast<uint32_t>(BlendFactor[1] * 255.f) & 0xFF) << 8) |
-		((static_cast<uint32_t>(BlendFactor[2] * 255.f) & 0xFF) << 16) |
-		((static_cast<uint32_t>(BlendFactor[3] * 255.f) & 0xFF) << 24);
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
+	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::blend_constant };
+	const uint32_t values[1] = {
+		(BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }, see D3D12_DEFAULT_BLEND_FACTOR_*
+			((static_cast<uint32_t>(BlendFactor[0] * 255.f) & 0xFF)) |
+			((static_cast<uint32_t>(BlendFactor[1] * 255.f) & 0xFF) << 8) |
+			((static_cast<uint32_t>(BlendFactor[2] * 255.f) & 0xFF) << 16) |
+			((static_cast<uint32_t>(BlendFactor[3] * 255.f) & 0xFF) << 24) };
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetStencilRef(UINT StencilRef)
@@ -393,7 +396,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetStencilRef(UINT StencilRef
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
 	const uint32_t values[2] = { StencilRef, StencilRef };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 2, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12PipelineState *pPipelineState)
@@ -1085,7 +1089,8 @@ void   STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetFrontAndBackStencilRef(U
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
 	const uint32_t values[2] = { FrontStencilRef, BackStencilRef };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 2, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 
@@ -1097,7 +1102,8 @@ void   STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetDepthBias(FLOAT DepthBia
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const reshade::api::dynamic_state states[3] = { reshade::api::dynamic_state::depth_bias, reshade::api::dynamic_state::depth_bias_clamp, reshade::api::dynamic_state::depth_bias_slope_scaled };
 	const uint32_t values[3] = { *reinterpret_cast<const uint32_t *>(&DepthBias), *reinterpret_cast<const uint32_t *>(&DepthBiasClamp), *reinterpret_cast<const uint32_t *>(&SlopeScaledDepthBias) };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 3, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void   STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBufferStripCutValue(D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue)

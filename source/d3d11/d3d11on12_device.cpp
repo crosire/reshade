@@ -32,7 +32,7 @@ bool D3D11On12Device::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D11On12Device2),
 	};
 
-	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;

@@ -380,7 +380,7 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 		}
 	}
 
-	// Did not find a hooked device
+	// Did not find a proxy device
 	return 0;
 }
 
@@ -397,7 +397,7 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 	{
 		const com_ptr<D3D10Device> &device = reinterpret_cast<const com_ptr<D3D10Device> &>(device_proxy);
 
-		swapchain_proxy = new DXGISwapChain(device.get(), swapchain); // Overwrite returned swap chain pointer with hooked object
+		swapchain_proxy = new DXGISwapChain(device.get(), swapchain); // Overwrite returned swap chain with proxy swap chain
 	}
 	else if (direct3d_version == 11)
 	{
@@ -420,7 +420,7 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 	}
 	else
 	{
-		LOG(WARN) << "Skipping swap chain because it was created without a hooked Direct3D device.";
+		LOG(WARN) << "Skipping swap chain because it was created without a proxy Direct3D device.";
 	}
 
 	if (swapchain_proxy != nullptr)
@@ -616,7 +616,8 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
 
 	// Check for DXGI 1.2 support and install IDXGIFactory2 hooks if it exists
-	if (com_ptr<IDXGIFactory2> factory2; SUCCEEDED(factory->QueryInterface(&factory2)))
+	if (com_ptr<IDXGIFactory2> factory2;
+		SUCCEEDED(factory->QueryInterface(&factory2)))
 	{
 		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", reshade::hooks::vtable_from_instance(factory2.get()), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
 		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", reshade::hooks::vtable_from_instance(factory2.get()), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
@@ -630,13 +631,14 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 }
 extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppFactory)
 {
-	// IDXGIFactory  {7B7166EC-21C7-44AE-B21A-C9AE321AE369}
-	// IDXGIFactory1 {770AAE78-F26F-4DBA-A829-253C83D1B387}
-	// IDXGIFactory2 {50C83A1C-E072-4C48-87B0-3630FA36A6D0}
-	// IDXGIFactory3 {25483823-CD46-4C7D-86CA-47AA95B837BD}
-	// IDXGIFactory4 {1BC6EA02-EF36-464F-BF0C-21CA39E5168A}
-	// IDXGIFactory5 {7632E1f5-EE65-4DCA-87FD-84CD75F8838D}
-	// IDXGIFactory6 {C1B6694F-FF09-44A9-B03C-77900A0A1D17}
+	// Possible interfaces:
+	//   IDXGIFactory  {7B7166EC-21C7-44AE-B21A-C9AE321AE369}
+	//   IDXGIFactory1 {770AAE78-F26F-4DBA-A829-253C83D1B387}
+	//   IDXGIFactory2 {50C83A1C-E072-4C48-87B0-3630FA36A6D0}
+	//   IDXGIFactory3 {25483823-CD46-4C7D-86CA-47AA95B837BD}
+	//   IDXGIFactory4 {1BC6EA02-EF36-464F-BF0C-21CA39E5168A}
+	//   IDXGIFactory5 {7632E1f5-EE65-4DCA-87FD-84CD75F8838D}
+	//   IDXGIFactory6 {C1B6694F-FF09-44A9-B03C-77900A0A1D17}
 
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory2" << '(' << "Flags = " << std::hex << Flags << std::dec << ", riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 
@@ -664,7 +666,8 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 
 	reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
 
-	if (com_ptr<IDXGIFactory2> factory2; SUCCEEDED(factory->QueryInterface(&factory2)))
+	if (com_ptr<IDXGIFactory2> factory2;
+		SUCCEEDED(factory->QueryInterface(&factory2)))
 	{
 		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", reshade::hooks::vtable_from_instance(factory2.get()), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
 		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", reshade::hooks::vtable_from_instance(factory2.get()), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));

@@ -8,6 +8,8 @@
 #include "com_ptr.hpp"
 #include <d3d11_1.h>
 
+#define RESHADE_D3D11_STATE_BLOCK_TYPE 0
+
 namespace reshade::d3d11
 {
 	class state_block
@@ -24,9 +26,10 @@ namespace reshade::d3d11
 
 		D3D_FEATURE_LEVEL _device_feature_level;
 		com_ptr<ID3D11DeviceContext> _device_context;
+#if RESHADE_D3D11_STATE_BLOCK_TYPE
 		com_ptr<ID3DDeviceContextState> _state;
 		com_ptr<ID3DDeviceContextState> _captured_state;
-
+#endif
 		ID3D11InputLayout *_ia_input_layout;
 		D3D11_PRIMITIVE_TOPOLOGY _ia_primitive_topology;
 		ID3D11Buffer *_ia_vertex_buffers[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];

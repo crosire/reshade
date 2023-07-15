@@ -1147,7 +1147,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 	// Insert the function and parameter symbols into the symbol table and update current function pointer to the permanent one
 	symbol symbol = { symbol_type::function, id, { type::t_function } };
-	symbol.function = _current_function = &_codegen->find_function(id);
+	symbol.function = _current_function = &_codegen->get_function(id);
 
 	if (!insert_symbol(name, symbol, true))
 		return error(location, 3003, "redefinition of '" + name + '\''), false;
@@ -1321,7 +1321,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 							return static_cast<std::string::value_type>(std::toupper(c));
 						});
 
-					static const std::unordered_map<std::string_view, uint32_t> s_values = {
+					static const std::unordered_map<std::string_view, uint32_t> s_enum_values = {
 						{ "NONE", 0 }, { "POINT", 0 },
 						{ "LINEAR", 1 },
 						{ "WRAP", uint32_t(texture_address_mode::wrap) }, { "REPEAT", uint32_t(texture_address_mode::wrap) },
@@ -1346,8 +1346,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					};
 
 					// Look up identifier in list of possible enumeration names
-					if (const auto it = s_values.find(_token.literal_as_string);
-						it != s_values.end())
+					if (const auto it = s_enum_values.find(_token.literal_as_string);
+						it != s_enum_values.end())
 						expression.reset_to_rvalue_constant(_token.location, it->second);
 					else // No match found, so rewind to parser state before the identifier was consumed and try parsing it as a normal expression
 						restore();
@@ -1366,7 +1366,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					reshadefx::texture_info &target_info = _codegen->find_texture(expression.base);
+					reshadefx::texture_info &target_info = _codegen->get_texture(expression.base);
 					if (type.is_storage())
 						// Texture is used as storage
 						target_info.storage_access = true;
@@ -1573,7 +1573,7 @@ bool reshadefx::parser::parse_technique()
 		}
 	}
 
-	_codegen->define_technique(info);
+	_codegen->define_technique(std::move(info));
 
 	return expect('}') && parse_success;
 }
@@ -1662,7 +1662,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						error(location, 3020, "type mismatch, expected function name");
 					else {
 						// Look up the matching function info for this function definition
-						function_info &function_info = _codegen->find_function(symbol.id);
+						function_info &function_info = _codegen->get_function(symbol.id);
 
 						// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
 						switch (state[0])
@@ -1696,7 +1696,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected texture name");
 					else {
-						reshadefx::texture_info &target_info = _codegen->find_texture(symbol.id);
+						reshadefx::texture_info &target_info = _codegen->get_texture(symbol.id);
 						// Texture is used as a render target
 						target_info.render_target = true;
 
@@ -1740,24 +1740,24 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					{ "NONE", 0 }, { "ZERO", 0 }, { "ONE", 1 },
 					{ "ADD", uint32_t(pass_blend_op::add) },
 					{ "SUBTRACT", uint32_t(pass_blend_op::subtract) },
-					{ "REVSUBTRACT", uint32_t(pass_blend_op::rev_subtract) },
+					{ "REVSUBTRACT", uint32_t(pass_blend_op::reverse_subtract) },
 					{ "MIN", uint32_t(pass_blend_op::min) },
 					{ "MAX", uint32_t(pass_blend_op::max) },
-					{ "SRCCOLOR", uint32_t(pass_blend_func::src_color) },
-					{ "SRCALPHA", uint32_t(pass_blend_func::src_alpha) },
-					{ "INVSRCCOLOR", uint32_t(pass_blend_func::inv_src_color) },
-					{ "INVSRCALPHA", uint32_t(pass_blend_func::inv_src_alpha) },
-					{ "DESTCOLOR", uint32_t(pass_blend_func::dst_color) },
-					{ "DESTALPHA", uint32_t(pass_blend_func::dst_alpha) },
-					{ "INVDESTCOLOR", uint32_t(pass_blend_func::inv_dst_color) },
-					{ "INVDESTALPHA", uint32_t(pass_blend_func::inv_dst_alpha) },
+					{ "SRCCOLOR", uint32_t(pass_blend_factor::source_color) },
+					{ "INVSRCCOLOR", uint32_t(pass_blend_factor::one_minus_source_color) },
+					{ "DESTCOLOR", uint32_t(pass_blend_factor::dest_color) },
+					{ "INVDESTCOLOR", uint32_t(pass_blend_factor::one_minus_dest_color) },
+					{ "SRCALPHA", uint32_t(pass_blend_factor::source_alpha) },
+					{ "INVSRCALPHA", uint32_t(pass_blend_factor::one_minus_source_alpha) },
+					{ "DESTALPHA", uint32_t(pass_blend_factor::dest_alpha) },
+					{ "INVDESTALPHA", uint32_t(pass_blend_factor::one_minus_dest_alpha) },
 					{ "KEEP", uint32_t(pass_stencil_op::keep) },
 					{ "REPLACE", uint32_t(pass_stencil_op::replace) },
 					{ "INVERT", uint32_t(pass_stencil_op::invert) },
-					{ "INCR", uint32_t(pass_stencil_op::incr) },
-					{ "INCRSAT", uint32_t(pass_stencil_op::incr_sat) },
-					{ "DECR", uint32_t(pass_stencil_op::decr) },
-					{ "DECRSAT", uint32_t(pass_stencil_op::decr_sat) },
+					{ "INCR", uint32_t(pass_stencil_op::increment) },
+					{ "INCRSAT", uint32_t(pass_stencil_op::increment_saturate) },
+					{ "DECR", uint32_t(pass_stencil_op::decrement) },
+					{ "DECRSAT", uint32_t(pass_stencil_op::decrement_saturate) },
 					{ "NEVER", uint32_t(pass_stencil_func::never) },
 					{ "EQUAL", uint32_t(pass_stencil_func::equal) },
 					{ "NEQUAL", uint32_t(pass_stencil_func::not_equal) }, { "NOTEQUAL", uint32_t(pass_stencil_func::not_equal)  },
@@ -1820,10 +1820,10 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.stencil_write_mask = value & 0xFF;
 			SET_STATE_VALUE_INDEXED(BlendOp, blend_op, static_cast<pass_blend_op>(value))
 			SET_STATE_VALUE_INDEXED(BlendOpAlpha, blend_op_alpha, static_cast<pass_blend_op>(value))
-			SET_STATE_VALUE_INDEXED(SrcBlend, src_blend, static_cast<pass_blend_func>(value))
-			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, src_blend_alpha, static_cast<pass_blend_func>(value))
-			SET_STATE_VALUE_INDEXED(DestBlend, dest_blend, static_cast<pass_blend_func>(value))
-			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_blend_alpha, static_cast<pass_blend_func>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlend, src_blend, static_cast<pass_blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, src_blend_alpha, static_cast<pass_blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(DestBlend, dest_blend, static_cast<pass_blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_blend_alpha, static_cast<pass_blend_factor>(value))
 			else if (state == "StencilFunc")
 				info.stencil_comparison_func = static_cast<pass_stencil_func>(value);
 			else if (state == "StencilRef")
@@ -1873,9 +1873,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				warning(pass_location, 3089,  "pass is specifying both 'PixelShader' and 'ComputeShader' which cannot be used together");
 
 			for (codegen::id id : cs_info.referenced_samplers)
-				info.samplers.push_back(_codegen->find_sampler(id));
+				info.samplers.push_back(_codegen->get_sampler(id));
 			for (codegen::id id : cs_info.referenced_storages)
-				info.storages.push_back(_codegen->find_storage(id));
+				info.storages.push_back(_codegen->get_storage(id));
 		}
 		else if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
 		{
@@ -1956,9 +1956,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			}
 
 			for (codegen::id id : vs_info.referenced_samplers)
-				info.samplers.push_back(_codegen->find_sampler(id));
+				info.samplers.push_back(_codegen->get_sampler(id));
 			for (codegen::id id : ps_info.referenced_samplers)
-				info.samplers.push_back(_codegen->find_sampler(id));
+				info.samplers.push_back(_codegen->get_sampler(id));
 			if (!vs_info.referenced_storages.empty() || !ps_info.referenced_storages.empty())
 			{
 				parse_success = false;

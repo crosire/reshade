@@ -49,9 +49,9 @@ void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *,
 	if (transitions_away_from_shader_resource_usage)
 	{
 		ID3D10ShaderResourceView *null_srv[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-		_orig->VSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
-		_orig->GSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
-		_orig->PSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+		_orig->VSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, null_srv);
+		_orig->GSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, null_srv);
+		_orig->PSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, null_srv);
 	}
 }
 

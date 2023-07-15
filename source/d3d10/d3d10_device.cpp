@@ -300,7 +300,8 @@ void    STDMETHODCALLTYPE D3D10Device::IASetPrimitiveTopology(D3D10_PRIMITIVE_TO
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::primitive_topology };
 	const uint32_t values[1] = { static_cast<uint32_t>(reshade::d3d10::convert_primitive_topology(Topology)) };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews)
@@ -365,12 +366,13 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendS
 
 	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
 	const uint32_t values[2] = {
-		(BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }
+		(BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }, see D3D10_DEFAULT_BLEND_FACTOR_*
 			((static_cast<uint32_t>(BlendFactor[0] * 255.f) & 0xFF)) |
 			((static_cast<uint32_t>(BlendFactor[1] * 255.f) & 0xFF) << 8) |
 			((static_cast<uint32_t>(BlendFactor[2] * 255.f) & 0xFF) << 16) |
 			((static_cast<uint32_t>(BlendFactor[3] * 255.f) & 0xFF) << 24), SampleMask };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 2, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetDepthStencilState(ID3D10DepthStencilState *pDepthStencilState, UINT StencilRef)
@@ -382,7 +384,8 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetDepthStencilState(ID3D10DepthStencil
 
 	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
 	const uint32_t values[2] = { StencilRef, StencilRef };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 2, states, values);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffer *const *ppSOTargets, const UINT *pOffsets)
@@ -466,6 +469,7 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 	{
 		D3D10_RESOURCE_DIMENSION type;
 		pDstResource->GetType(&type);
+
 		if (type == D3D10_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(SrcSubresource == 0 && DstSubresource == 0);
@@ -571,6 +575,7 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 	{
 		D3D10_RESOURCE_DIMENSION type;
 		pDstResource->GetType(&type);
+
 		if (type == D3D10_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(DstSubresource == 0);
@@ -760,7 +765,7 @@ void    STDMETHODCALLTYPE D3D10Device::ClearState()
 
 	const reshade::api::dynamic_state states[5] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask, reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
 	const uint32_t values[5] = { static_cast<uint32_t>(reshade::api::primitive_topology::undefined), 0xFFFFFFFF, D3D10_DEFAULT_SAMPLE_MASK, D3D10_DEFAULT_STENCIL_REFERENCE, D3D10_DEFAULT_STENCIL_REFERENCE };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 5, states, values);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
 
 	constexpr size_t max_null_objects = std::max(D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, std::max(D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, std::max(D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, std::max(D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT))));
 	void *const null_objects[max_null_objects] = {};
@@ -814,7 +819,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 	const HRESULT hr = _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
 	if (SUCCEEDED(hr))
 	{
-		const auto resource = *ppBuffer;
+		ID3D10Buffer *const resource = *ppBuffer;
 
 		reshade::hooks::install("ID3D10Buffer::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
 
@@ -836,12 +841,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateBuffer" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -876,7 +881,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 	const HRESULT hr = _orig->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
 	if (SUCCEEDED(hr))
 	{
-		const auto resource = *ppTexture1D;
+		ID3D10Texture1D *const resource = *ppTexture1D;
 
 		reshade::hooks::install("ID3D10Texture1D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
 
@@ -898,12 +903,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateTexture1D" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -937,7 +942,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 	const HRESULT hr = _orig->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
 	if (SUCCEEDED(hr))
 	{
-		const auto resource = *ppTexture2D;
+		ID3D10Texture2D *const resource = *ppTexture2D;
 
 		reshade::hooks::install("ID3D10Texture2D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
 
@@ -959,12 +964,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateTexture2D" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -998,7 +1003,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 	const HRESULT hr = _orig->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
 	if (SUCCEEDED(hr))
 	{
-		const auto resource = *ppTexture3D;
+		ID3D10Texture3D *const resource = *ppTexture3D;
 
 		reshade::hooks::install("ID3D10Texture3D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
 
@@ -1020,12 +1025,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateTexture3D" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1051,22 +1056,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, to_handle(*ppShaderResourceView));
+		ID3D10ShaderResourceView *const resource_view = *ppShaderResourceView;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, to_handle(resource_view));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		{
-			register_destruction_callback_d3dx(*ppShaderResourceView, [this, resource_view = *ppShaderResourceView]() {
+			register_destruction_callback_d3dx(resource_view, [this, resource_view]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1092,22 +1099,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::render_target, desc, to_handle(*ppRenderTargetView));
+		ID3D10RenderTargetView *const resource_view = *ppRenderTargetView;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::render_target, desc, to_handle(resource_view));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		{
-			register_destruction_callback_d3dx(*ppRenderTargetView, [this, resource_view = *ppRenderTargetView]() {
+			register_destruction_callback_d3dx(resource_view, [this, resource_view]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1133,22 +1142,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::depth_stencil, desc, to_handle(*ppDepthStencilView));
+		ID3D10DepthStencilView *const resource_view = *ppDepthStencilView;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::depth_stencil, desc, to_handle(resource_view));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		{
-			register_destruction_callback_d3dx(*ppDepthStencilView, [this, resource_view = *ppDepthStencilView]() {
+			register_destruction_callback_d3dx(resource_view, [this, resource_view]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1184,22 +1195,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppInputLayout));
+		ID3D10InputLayout *const pipeline = *ppInputLayout;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppInputLayout, [this, pipeline = *ppInputLayout]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateInputLayout" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1228,22 +1241,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppVertexShader));
+		ID3D10VertexShader *const pipeline = *ppVertexShader;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppVertexShader, [this, pipeline = *ppVertexShader]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateVertexShader" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1272,22 +1287,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppGeometryShader));
+		ID3D10GeometryShader *const pipeline = *ppGeometryShader;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateGeometryShader" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1321,22 +1338,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppGeometryShader));
+		ID3D10GeometryShader *const pipeline = *ppGeometryShader;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateGeometryShaderWithStreamOutput" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1365,22 +1384,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppPixelShader));
+		ID3D10PixelShader *const pipeline = *ppPixelShader;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppPixelShader, [this, pipeline = *ppPixelShader]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreatePixelShader" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1410,22 +1431,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppBlendState));
+		ID3D10BlendState *const pipeline = *ppBlendState;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppBlendState, [this, pipeline = *ppBlendState]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateBlendState" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1455,22 +1478,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilState(const D3D10_DEPTH
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppDepthStencilState));
+		ID3D10DepthStencilState *const pipeline = *ppDepthStencilState;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppDepthStencilState, [this, pipeline = *ppDepthStencilState]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateDepthStencilState" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1498,22 +1523,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERI
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppRasterizerState));
+		ID3D10RasterizerState *const pipeline = *ppRasterizerState;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateRasterizerState" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1539,22 +1566,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateSamplerState(const D3D10_SAMPLER_DE
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, to_handle(*ppSamplerState));
+		ID3D10SamplerState *const sampler = *ppSamplerState;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, to_handle(sampler));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_sampler>())
 		{
-			register_destruction_callback_d3dx(*ppSamplerState, [this, sampler = *ppSamplerState]() {
+			register_destruction_callback_d3dx(sampler, [this, sampler]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(this, to_handle(sampler));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::CreateSamplerState" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1599,7 +1628,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 
 #if RESHADE_ADDON
 		// The returned interface IID may be 'IDXGIResource', which is a different pointer than 'ID3D10Resource', so need to query it first
-		com_ptr<ID3D10Resource> resource;
+		ID3D10Resource *resource = nullptr;
 		reshade::api::resource_desc desc;
 
 		if (com_ptr<ID3D10Buffer> buffer_resource;
@@ -1608,7 +1637,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 			D3D10_BUFFER_DESC internal_desc;
 			buffer_resource->GetDesc(&internal_desc);
 			desc = reshade::d3d10::convert_resource_desc(internal_desc);
-			resource = std::move(reinterpret_cast<com_ptr<ID3D10Resource> &>(buffer_resource));
+			resource = buffer_resource.get();
 		}
 		else
 		if (com_ptr<ID3D10Texture1D> texture1d_resource;
@@ -1617,7 +1646,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 			D3D10_TEXTURE1D_DESC internal_desc;
 			texture1d_resource->GetDesc(&internal_desc);
 			desc = reshade::d3d10::convert_resource_desc(internal_desc);
-			resource = std::move(reinterpret_cast<com_ptr<ID3D10Resource> &>(texture1d_resource));
+			resource = texture1d_resource.get();
 		}
 		else
 		if (com_ptr<ID3D10Texture2D> texture2d_resource;
@@ -1626,7 +1655,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 			D3D10_TEXTURE2D_DESC internal_desc;
 			texture2d_resource->GetDesc(&internal_desc);
 			desc = reshade::d3d10::convert_resource_desc(internal_desc);
-			resource = std::move(reinterpret_cast<com_ptr<ID3D10Resource> &>(texture2d_resource));
+			resource = texture2d_resource.get();
 		}
 		else
 		if (com_ptr<ID3D10Texture3D> texture3d_resource;
@@ -1635,30 +1664,30 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 			D3D10_TEXTURE3D_DESC internal_desc;
 			texture3d_resource->GetDesc(&internal_desc);
 			desc = reshade::d3d10::convert_resource_desc(internal_desc);
-			resource = std::move(reinterpret_cast<com_ptr<ID3D10Resource> &>(texture3d_resource));
+			resource = texture3d_resource.get();
 		}
 
 		if (resource != nullptr)
 		{
 			assert((desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared);
 
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource.get()));
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource));
 
 			if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
 			{
-				register_destruction_callback_d3dx(resource.get(), [this, resource = resource.get()]() {
+				register_destruction_callback_d3dx(resource, [this, resource]() {
 					reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 				});
 			}
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device::OpenSharedResource" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1693,22 +1722,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, to_handle(*ppShaderResourceView));
+		ID3D10ShaderResourceView1 *const resource_view = *ppShaderResourceView;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, to_handle(resource_view));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		{
-			register_destruction_callback_d3dx(*ppShaderResourceView, [this, resource_view = *ppShaderResourceView]() {
+			register_destruction_callback_d3dx(resource_view, [this, resource_view]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(resource_view));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device1::CreateShaderResourceView1" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }
@@ -1738,22 +1769,24 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppBlendState));
+		ID3D10BlendState1 *const pipeline = *ppBlendState;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
-			register_destruction_callback_d3dx(*ppBlendState, [this, pipeline = *ppBlendState]() {
+			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
 			});
 		}
 #endif
 	}
+#if RESHADE_VERBOSE_LOG
 	else
 	{
-#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D10Device1::CreateBlendState1" << " failed with error code " << hr << '.';
-#endif
 	}
+#endif
 
 	return hr;
 }

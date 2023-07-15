@@ -220,7 +220,7 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, bool use_softw
 	const auto device_proxy = new Direct3DDevice9(device, use_software_rendering);
 	device_proxy->_implicit_swapchain = new Direct3DSwapChain9(device_proxy, swapchain);
 
-	// Overwrite returned device with hooked one
+	// Overwrite returned device with proxy device
 	device = device_proxy;
 
 	// Check if this device was created via D3D9on12 and hook it too if so

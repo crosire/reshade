@@ -86,8 +86,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush()
 		return false;
 	}
 
-	ID3D12CommandList *const cmd_lists[] = { _orig };
-	_parent_queue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
+	_parent_queue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList *const *>(&_orig));
 
 	if (const UINT64 sync_value = _fence_value[_cmd_index] + NUM_COMMAND_FRAMES;
 		SUCCEEDED(_parent_queue->Signal(_fence[_cmd_index].get(), sync_value)))

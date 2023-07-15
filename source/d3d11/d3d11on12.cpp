@@ -40,7 +40,7 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	}
 	else
 	{
-		LOG(WARN) << "Skipping D3D11on12 device because it was created without a hooked Direct3D 12 device.";
+		LOG(WARN) << "Skipping D3D11on12 device because it was created without a proxy Direct3D 12 device.";
 
 		return reshade::hooks::call(D3D11On12CreateDevice)(pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
 	}
@@ -82,7 +82,7 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	}
 
 	auto device = *ppDevice;
-	// Query for the DXGI device, D3D11on12 device and immediate device context since we need to reference them in the hooked device
+	// Query for the DXGI device, D3D11on12 device and immediate device context since we need to reference them in the proxy device
 	com_ptr<IDXGIDevice1> dxgi_device;
 	hr = device->QueryInterface(&dxgi_device);
 	assert(SUCCEEDED(hr));
@@ -97,7 +97,6 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	const auto device_proxy = new D3D11Device(dxgi_device.get(), device);
 	device_proxy->_d3d11on12_device = new D3D11On12Device(device_proxy, device_proxy_12.get(), d3d11on12_device);
 	device_proxy->_immediate_context = new D3D11DeviceContext(device_proxy, device_context);
-	device = device_proxy;
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning " << "ID3D11Device0" << " object " << static_cast<ID3D11Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
@@ -107,7 +106,7 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 
 	if (ppImmediateContext != nullptr)
 	{
-		device->GetImmediateContext(ppImmediateContext);
+		device_proxy->GetImmediateContext(ppImmediateContext);
 	}
 
 	return hr;

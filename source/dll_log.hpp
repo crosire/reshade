@@ -112,9 +112,11 @@ namespace reshade::log
 		message &operator<<(const std::wstring &message)
 		{
 			static_assert(sizeof(std::wstring::value_type) == sizeof(uint16_t), "expected 'std::wstring' to use UTF-16 encoding");
+
 			std::string utf8_message;
 			utf8_message.reserve(message.size());
 			utf8::unchecked::utf16to8(message.begin(), message.end(), std::back_inserter(utf8_message));
+
 			return operator<<(utf8_message);
 		}
 
@@ -133,10 +135,12 @@ namespace reshade::log
 
 		inline message &operator<<(const wchar_t *message)
 		{
-			assert(message != nullptr);
 			static_assert(sizeof(wchar_t) == sizeof(uint16_t), "expected 'wchar_t' to use UTF-16 encoding");
+
+			assert(message != nullptr);
 			std::string utf8_message;
 			utf8::unchecked::utf16to8(message, message + wcslen(message), std::back_inserter(utf8_message));
+
 			return operator<<(utf8_message);
 		}
 

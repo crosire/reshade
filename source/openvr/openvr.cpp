@@ -3,10 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "dll_log.hpp"
-#include "com_utils.hpp"
-#include "hook_manager.hpp"
-#include "lockfree_linear_map.hpp"
+#include "openvr_impl_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
@@ -17,7 +14,10 @@
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
 #include "vulkan/vulkan_impl_command_queue.hpp"
-#include "openvr_impl_swapchain.hpp"
+#include "dll_log.hpp"
+#include "com_utils.hpp"
+#include "hook_manager.hpp"
+#include "lockfree_linear_map.hpp"
 #include <functional>
 #include <ivrclientcore.h>
 
@@ -264,12 +264,11 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 {
 	extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
-	reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
-	reshade::vulkan::command_queue_impl *queue = nullptr;
-
+	reshade::vulkan::device_impl *device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
 	if (device == nullptr)
 		goto normal_submit;
 
+	reshade::vulkan::command_queue_impl *queue = nullptr;
 	if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),
 			[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
 		queue_it != device->_queues.cend())

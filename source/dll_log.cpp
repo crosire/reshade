@@ -33,7 +33,7 @@ reshade::log::message::message(level level)
 
 	if (static_cast<size_t>(level) == 0)
 		level = level::error;
-	if (static_cast<size_t>(level) > ARRAYSIZE(level_names))
+	if (static_cast<size_t>(level) > std::size(level_names))
 		level = level::debug;
 
 	SYSTEMTIME time;

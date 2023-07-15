@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "dll_log.hpp"
 #include "openvr_impl_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d10/d3d10_impl_state_block.hpp"
@@ -14,6 +13,7 @@
 #include "d3d12/d3d12_command_queue.hpp"
 #include "opengl/opengl_impl_swapchain.hpp"
 #include "opengl/opengl_impl_state_block.hpp"
+#include "dll_log.hpp"
 
 reshade::openvr::swapchain_impl::swapchain_impl(D3D10Device *device, vr::IVRCompositor *compositor) :
 	swapchain_impl(device, device, compositor)
@@ -56,6 +56,7 @@ reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::comman
 reshade::openvr::swapchain_impl::~swapchain_impl()
 {
 	extern thread_local reshade::opengl::render_context_impl *g_current_context;
+	// Do not access '_device' object to check the device API, in case it was already destroyed
 	if (static_cast<api::device_api>(_renderer_id) == api::device_api::opengl && g_current_context == nullptr)
 	{
 		delete static_cast<opengl::state_block *>(_app_state);

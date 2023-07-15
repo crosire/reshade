@@ -21,7 +21,7 @@ reshade::d3d11::state_block::state_block(ID3D11Device *device)
 
 	_device_feature_level = device->GetFeatureLevel();
 
-#if 0
+#if RESHADE_D3D11_STATE_BLOCK_TYPE
 	// Unfortunately this breaks RTSS, because calling 'ID3D11Device::CreateDeviceContextState' will expose the 'ID3D10Device' interface on the D3D11 device, making RTSS use its D3D10 renderer while the interface is locked out
 	com_ptr<ID3D11Device1> device1;
 	if (SUCCEEDED(device->QueryInterface(&device1)))
@@ -42,7 +42,7 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 
 	_device_context = device_context;
 
-#if 0
+#if RESHADE_D3D11_STATE_BLOCK_TYPE
 	com_ptr<ID3D11DeviceContext1> device_context1;
 	if (_state != nullptr && _device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE && SUCCEEDED(_device_context->QueryInterface(&device_context1)))
 	{
@@ -113,7 +113,7 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 }
 void reshade::d3d11::state_block::apply_and_release()
 {
-#if 0
+#if RESHADE_D3D11_STATE_BLOCK_TYPE
 	com_ptr<ID3D11DeviceContext1> device_context1;
 	if (_state != nullptr && _device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE && SUCCEEDED(_device_context->QueryInterface(&device_context1)))
 	{

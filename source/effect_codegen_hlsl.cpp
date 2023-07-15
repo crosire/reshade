@@ -55,9 +55,10 @@ private:
 
 		if (_shader_model >= 40)
 		{
-			preamble += "struct __sampler2D_int { Texture2D<int> t; SamplerState s; };\n";
-			preamble += "struct __sampler2D_uint { Texture2D<uint> t; SamplerState s; };\n";
-			preamble += "struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n";
+			preamble +=
+				"struct __sampler2D_int { Texture2D<int> t; SamplerState s; };\n"
+				"struct __sampler2D_uint { Texture2D<uint> t; SamplerState s; };\n"
+				"struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n";
 
 			if (!_cbuffer_block.empty())
 			{
@@ -69,8 +70,9 @@ private:
 		}
 		else
 		{
-			preamble += "struct __sampler2D_float4 { sampler2D s; float2 pixelsize; };\n";
-			preamble += "uniform float2 __TEXEL_SIZE__ : register(c255);\n";
+			preamble +=
+				"struct __sampler2D_float4 { sampler2D s; float2 pixelsize; };\n"
+				"uniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
 			if (_uses_bitwise_cast)
 				preamble +=
@@ -442,7 +444,7 @@ private:
 
 		code += "struct " + id_to_name(info.definition) + "\n{\n";
 
-		for (const auto &member : info.member_list)
+		for (const struct_member_info &member : info.member_list)
 		{
 			code += '\t';
 			write_type<true>(code, member.type); // HLSL allows interpolation attributes on struct members, so handle this like a parameter
@@ -782,7 +784,7 @@ private:
 			if (func.return_type.is_struct() && stype == shader_type::vs)
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
-				for (const struct_member_info &member : find_struct(func.return_type.definition).member_list)
+				for (const struct_member_info &member : get_struct(func.return_type.definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = id_to_name(ret) + '.' + member.name;
 			}
@@ -803,7 +805,7 @@ private:
 		{
 			if (param.type.is_struct() && stype == shader_type::vs)
 			{
-				for (const struct_member_info &member : find_struct(param.type.definition).member_list)
+				for (const struct_member_info &member : get_struct(param.type.definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = param.name + '.' + member.name;
 			}
@@ -920,7 +922,7 @@ private:
 				break;
 			case expression::operation::op_member:
 				expr_code += '.';
-				expr_code += find_struct(op.from.definition).member_list[op.index].name;
+				expr_code += get_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_dynamic_index:
 				expr_code += '[' + id_to_name(op.index) + ']';
@@ -981,7 +983,7 @@ private:
 			{
 			case expression::operation::op_member:
 				code += '.';
-				code += find_struct(op.from.definition).member_list[op.index].name;
+				code += get_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_dynamic_index:
 				code += '[' + id_to_name(op.index) + ']';

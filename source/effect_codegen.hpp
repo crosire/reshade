@@ -94,7 +94,7 @@ namespace reshadefx
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">Description of the technique.</param>
-		void define_technique(technique_info &info) { _module.techniques.push_back(info); }
+		void define_technique(technique_info &&info) { _module.techniques.push_back(std::move(info)); }
 		/// <summary>
 		/// Makes a function a shader entry point.
 		/// </summary>
@@ -278,31 +278,41 @@ namespace reshadefx
 		virtual void leave_function() = 0;
 
 		/// <summary>
-		/// Looks up an existing struct definition.
+		/// Looks up an existing struct type.
 		/// </summary>
-		/// <param name="id">SSA ID of the struct type to find.</param>
+		/// <param name="id">SSA ID of the type to find.</param>
 		/// <returns>Reference to the struct description.</returns>
-		struct_info &find_struct(id id)
+		const struct_info &get_struct(id id) const
 		{
 			return *std::find_if(_structs.begin(), _structs.end(),
 				[id](const auto &it) { return it.definition == id; });
 		}
 		/// <summary>
-		/// Looks up an existing texture definition.
+		/// Looks up an existing texture binding.
 		/// </summary>
-		/// <param name="id">SSA ID of the texture variable to find.</param>
+		/// <param name="id">SSA ID of the texture binding to find.</param>
 		/// <returns>Reference to the texture description.</returns>
-		texture_info &find_texture(id id)
+		texture_info &get_texture(id id)
 		{
 			return *std::find_if(_module.textures.begin(), _module.textures.end(),
 				[id](const auto &it) { return it.id == id; });
 		}
-		sampler_info &find_sampler(id id)
+		/// <summary>
+		/// Looks up an existing sampler binding.
+		/// </summary>
+		/// <param name="id">SSA ID of the sampler binding to find.</param>
+		/// <returns>Reference to the sampler description.</returns>
+		const sampler_info &get_sampler(id id) const
 		{
 			return *std::find_if(_module.samplers.begin(), _module.samplers.end(),
 				[id](const auto &it) { return it.id == id; });
 		}
-		storage_info &find_storage(id id)
+		/// <summary>
+		/// Looks up an existing storage binding.
+		/// </summary>
+		/// <param name="id">SSA ID of the storage binding to find.</param>
+		/// <returns>Reference to the storage description.</returns>
+		const storage_info &get_storage(id id) const
 		{
 			return *std::find_if(_module.storages.begin(), _module.storages.end(),
 				[id](const auto &it) { return it.id == id; });
@@ -312,7 +322,7 @@ namespace reshadefx
 		/// </summary>
 		/// <param name="id">SSA ID of the function variable to find.</param>
 		/// <returns>Reference to the function description.</returns>
-		function_info &find_function(id id)
+		function_info &get_function(id id)
 		{
 			return *std::find_if(_functions.begin(), _functions.end(),
 				[id](const auto &it) { return it->definition == id; })->get();

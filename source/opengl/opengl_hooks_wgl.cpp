@@ -1322,7 +1322,6 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #endif
 
 #if RESHADE_ADDON
-
 #ifdef GL_VERSION_1_2
 		HOOK_PROC(glTexImage3D);
 		HOOK_PROC(glTexSubImage3D);

@@ -1438,6 +1438,7 @@ namespace reshade
 		/// <item><description>IDirect3DDevice9::EndScene</description></item>
 		/// <item><description>ID3D10Device::Flush</description></item>
 		/// <item><description>ID3D11DeviceContext::Flush</description></item>
+		/// <item><description>ID3D11DeviceContext3::Flush1</description></item>
 		/// <item><description>ID3D12CommandQueue::ExecuteCommandLists</description></item>
 		/// <item><description>glFlush</description></item>
 		/// <item><description>vkQueueSubmit</description></item>

@@ -380,7 +380,7 @@ void VKAPI_CALL vkCmdSetDepthBias(VkCommandBuffer commandBuffer, float depthBias
 	const reshade::api::dynamic_state states[3] = { reshade::api::dynamic_state::depth_bias, reshade::api::dynamic_state::depth_bias_clamp, reshade::api::dynamic_state::depth_bias_slope_scaled };
 	const uint32_t values[3] = { *reinterpret_cast<const uint32_t *>(&depthBiasConstantFactor), *reinterpret_cast<const uint32_t *>(&depthBiasClamp), *reinterpret_cast<const uint32_t *>(&depthBiasSlopeFactor) };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, 3, states, values);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void VKAPI_CALL vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const float blendConstants[4])
@@ -398,14 +398,14 @@ void VKAPI_CALL vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const floa
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	const reshade::api::dynamic_state state = reshade::api::dynamic_state::blend_constant;
-	const uint32_t value =
+	const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::blend_constant };
+	const uint32_t values[1] = {
 		((static_cast<uint32_t>(blendConstants[0] * 255.f) & 0xFF)      ) |
 		((static_cast<uint32_t>(blendConstants[1] * 255.f) & 0xFF) <<  8) |
 		((static_cast<uint32_t>(blendConstants[2] * 255.f) & 0xFF) << 16) |
-		((static_cast<uint32_t>(blendConstants[3] * 255.f) & 0xFF) << 24);
+		((static_cast<uint32_t>(blendConstants[3] * 255.f) & 0xFF) << 24) };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, 1, &state, &value);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(cmd_impl, static_cast<uint32_t>(std::size(states)), states, values);
 #endif
 }
 void VKAPI_CALL vkCmdSetStencilCompareMask(VkCommandBuffer commandBuffer, VkStencilFaceFlags faceMask, uint32_t compareMask)

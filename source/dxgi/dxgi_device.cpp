@@ -28,7 +28,7 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 		__uuidof(IDXGIDevice4),
 	};
 
-	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;
