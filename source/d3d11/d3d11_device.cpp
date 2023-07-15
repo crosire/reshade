@@ -104,6 +104,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 			return _d3d11on12_device->QueryInterface(riid, ppvObj);
 	}
 
+	// Unimplemented interfaces:
+	//   ID3D11Debug        {79CF2233-7536-4948-9D36-1E4692DC5760}
+	//   ID3D11InfoQueue    {6543DBB6-1B48-42F5-AB82-E97EC74326F6}
+	//   ID3D11Multithread  {9B7E4E00-342C-4106-A19F-4F2704F689F0}
+	//   ID3D11VideoDevice  {10EC4D5B-975A-4689-B9E4-D0AAC30FE333}
+	//   ID3D11VideoDevice1 {29DA1D51-1321-4454-804B-F5FC9F861F0F}
+	//   ID3D11VideoDevice2 {59C0CB01-35F0-4A70-8F67-87905C906A53}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D11Device::AddRef()

@@ -91,6 +91,12 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 		return S_OK;
 	}
 
+	// Unimplemented interfaces:
+	//   ID3D11VideoContext  {61F21C45-3C0E-4a74-9CEA-67100D9AD5E4}
+	//   ID3D11VideoContext1 {A7F026DA-A5F8-4487-A564-15E34357651E}
+	//   ID3D11VideoContext2 {C4E7374C-6243-4D1B-AE87-52B4F740E261}
+	//   ID3D11VideoContext3 {A9E2FAA0-CB39-418F-A0B7-D8AAD4DE672E}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D11DeviceContext::AddRef()

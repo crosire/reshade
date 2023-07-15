@@ -189,6 +189,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 			return _d3d9on12_device->QueryInterface(riid, ppvObj);
 	}
 
+	// Unimplemented interfaces:
+	//   IDirect3DDevice9Video {26DC4561-A1EE-4ae7-96DA-118A36C0EC95}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE Direct3DDevice9::AddRef()
