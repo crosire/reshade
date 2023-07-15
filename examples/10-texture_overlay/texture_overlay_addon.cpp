@@ -10,6 +10,7 @@
 #include <cassert>
 #include <algorithm>
 #include <filesystem>
+#include <unordered_map>
 #include <unordered_set>
 
 using namespace reshade::api;
@@ -23,7 +24,11 @@ struct tex_data
 
 struct tex_hash
 {
-	inline size_t operator()(resource_view value) const
+	size_t operator()(resource value) const
+	{
+		return static_cast<size_t>(value.handle);
+	}
+	size_t operator()(resource_view value) const
 	{
 		return static_cast<size_t>(value.handle);
 	}
@@ -35,7 +40,7 @@ struct __declspec(uuid("0ce51b56-a973-4104-bcca-945686f50170")) device_data
 	resource_view green_texture_srv = {};
 	resource_view replaced_texture_srv = {};
 	std::unordered_set<resource_view, tex_hash> current_texture_list;
-	std::map<resource, tex_data> total_texture_list;
+	std::unordered_map<resource, tex_data, tex_hash> total_texture_list;
 	std::vector<resource_view> destroyed_views;
 	uint64_t frame_index = 0;
 
@@ -274,7 +279,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 	data.destroyed_views.clear();
 }
 
-// See implementation in 'save_texture.cpp'
+// See implementation in 'utils\save_texture_image.cpp'
 extern bool save_texture_image(const resource_desc &desc, const subresource_data &data);
 
 static bool save_texture_image(command_queue *queue, resource tex, const resource_desc &desc)
@@ -412,6 +417,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		if (!reshade::register_addon(hModule))
 			return FALSE;
 
+		descriptor_tracking::register_events();
+
 		reshade::register_event<reshade::addon_event::init_device>(on_init_device);
 		reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
 		reshade::register_event<reshade::addon_event::init_command_list>(on_init_cmd_list);
@@ -428,11 +435,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::present>(on_present);
 
 		reshade::register_overlay("TexMod", draw_overlay);
-
-		register_descriptor_tracking();
 		break;
 	case DLL_PROCESS_DETACH:
-		unregister_descriptor_tracking();
+		descriptor_tracking::unregister_events();
 
 		reshade::unregister_addon(hModule);
 		break;

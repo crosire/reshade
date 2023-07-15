@@ -26,8 +26,8 @@ void state_block::apply(command_list *cmd_list) const
 	if (!scissor_rects.empty())
 		cmd_list->bind_scissor_rects(0, static_cast<uint32_t>(scissor_rects.size()), scissor_rects.data());
 
-	for (const auto &[stages, descriptor] : descriptor_tables)
-		cmd_list->bind_descriptor_tables(stages, descriptor.layout, 0, static_cast<uint32_t>(descriptor.tables.size()), descriptor.tables.data());
+	for (const auto &[stages, descriptor_state] : descriptor_tables)
+		cmd_list->bind_descriptor_tables(stages, descriptor_state.first, 0, static_cast<uint32_t>(descriptor_state.second.size()), descriptor_state.second.data());
 }
 
 void state_block::clear()
@@ -44,29 +44,29 @@ void state_block::clear()
 
 static void on_init_command_list(command_list *cmd_list)
 {
-	cmd_list->create_private_data<state_block>();
+	cmd_list->create_private_data<state_tracking>();
 }
 static void on_destroy_command_list(command_list *cmd_list)
 {
-	cmd_list->destroy_private_data<state_block>();
+	cmd_list->destroy_private_data<state_tracking>();
 }
 
 static void on_bind_render_targets_and_depth_stencil(command_list *cmd_list, uint32_t count, const resource_view *rtvs, resource_view dsv)
 {
-	auto &state = cmd_list->get_private_data<state_block>();
+	auto &state = cmd_list->get_private_data<state_tracking>();
 	state.render_targets.assign(rtvs, rtvs + count);
 	state.depth_stencil = dsv;
 }
 
 static void on_bind_pipeline(command_list *cmd_list, pipeline_stage stages, pipeline pipeline)
 {
-	auto &state = cmd_list->get_private_data<state_block>();
+	auto &state = cmd_list->get_private_data<state_tracking>();
 	state.pipelines[stages] = pipeline;
 }
 
 static void on_bind_pipeline_states(command_list *cmd_list, uint32_t count, const dynamic_state *states, const uint32_t *values)
 {
-	auto &state = cmd_list->get_private_data<state_block>();
+	auto &state = cmd_list->get_private_data<state_tracking>();
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -84,7 +84,7 @@ static void on_bind_pipeline_states(command_list *cmd_list, uint32_t count, cons
 
 static void on_bind_viewports(command_list *cmd_list, uint32_t first, uint32_t count, const viewport *viewports)
 {
-	auto &state = cmd_list->get_private_data<state_block>();
+	auto &state = cmd_list->get_private_data<state_tracking>();
 
 	if (state.viewports.size() < (first + count))
 		state.viewports.resize(first + count);
@@ -95,7 +95,7 @@ static void on_bind_viewports(command_list *cmd_list, uint32_t first, uint32_t c
 
 static void on_bind_scissor_rects(command_list *cmd_list, uint32_t first, uint32_t count, const rect *rects)
 {
-	auto &state = cmd_list->get_private_data<state_block>();
+	auto &state = cmd_list->get_private_data<state_tracking>();
 
 	if (state.scissor_rects.size() < (first + count))
 		state.scissor_rects.resize(first + count);
@@ -106,26 +106,26 @@ static void on_bind_scissor_rects(command_list *cmd_list, uint32_t first, uint32
 
 static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables)
 {
-	auto &state = cmd_list->get_private_data<state_block>().descriptor_tables[stages];
+	auto &state = cmd_list->get_private_data<state_tracking>().descriptor_tables[stages];
 
-	if (layout != state.layout)
-		state.tables.clear(); // Layout changed, which resets all descriptor set bindings
-	state.layout = layout;
+	if (layout != state.first)
+		state.second.clear(); // Layout changed, which resets all descriptor set bindings
+	state.first = layout;
 
-	if (state.tables.size() < (first + count))
-		state.tables.resize(first + count);
+	if (state.second.size() < (first + count))
+		state.second.resize(first + count);
 
 	for (uint32_t i = 0; i < count; ++i)
-		state.tables[i + first] = tables[i];
+		state.second[i + first] = tables[i];
 }
 
 static void on_reset_command_list(command_list *cmd_list)
 {
-	auto &state = cmd_list->get_private_data<state_block>();
+	auto &state = cmd_list->get_private_data<state_tracking>();
 	state.clear();
 }
 
-void register_state_tracking()
+void state_tracking::register_events()
 {
 	reshade::register_event<reshade::addon_event::init_command_list>(on_init_command_list);
 	reshade::register_event<reshade::addon_event::destroy_command_list>(on_destroy_command_list);
@@ -139,7 +139,7 @@ void register_state_tracking()
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset_command_list);
 }
-void unregister_state_tracking()
+void state_tracking::unregister_events()
 {
 	reshade::unregister_event<reshade::addon_event::init_command_list>(on_init_command_list);
 	reshade::unregister_event<reshade::addon_event::destroy_command_list>(on_destroy_command_list);

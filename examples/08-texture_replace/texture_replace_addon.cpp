@@ -10,7 +10,7 @@ using namespace reshade::api;
 
 static thread_local std::vector<std::vector<uint8_t>> s_data_to_delete;
 
-// See implementation in 'load_texture.cpp'
+// See implementation in 'utils\load_texture_image.cpp'
 extern bool load_texture_image(const resource_desc &desc, subresource_data &data, std::vector<std::vector<uint8_t>> &data_to_delete);
 
 static inline bool filter_texture(device *device, const resource_desc &desc, const subresource_box *box)

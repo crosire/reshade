@@ -7,7 +7,7 @@
 
 using namespace reshade::api;
 
-// See implementation in 'save_texture.cpp'
+// See implementation in 'utils\save_texture_image.cpp'
 extern bool save_texture_image(const resource_desc &desc, const subresource_data &data);
 
 // There are multiple different ways textures can be initialized, so try and intercept them all
