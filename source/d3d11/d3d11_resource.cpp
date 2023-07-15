@@ -12,7 +12,7 @@
 // See https://chromium.googlesource.com/angle/angle/+/refs/heads/main/src/libANGLE/renderer/d3d/d3d11/Renderer11.cpp#1567
 void STDMETHODCALLTYPE ID3D11Resource_GetDevice(ID3D11Resource *pResource, ID3D11Device **ppDevice)
 {
-	reshade::hooks::call(ID3D11Resource_GetDevice, vtable_from_instance(pResource) + 3)(pResource, ppDevice);
+	reshade::hooks::call(ID3D11Resource_GetDevice, reshade::hooks::vtable_from_instance(pResource) + 3)(pResource, ppDevice);
 
 	const auto device = *ppDevice;
 	assert(device != nullptr);
@@ -20,6 +20,8 @@ void STDMETHODCALLTYPE ID3D11Resource_GetDevice(ID3D11Resource *pResource, ID3D1
 	const auto device_proxy = get_private_pointer_d3dx<D3D11Device>(device);
 	if (device_proxy != nullptr)
 	{
+		assert(device != device_proxy);
+
 		*ppDevice = device_proxy;
 		device_proxy->_ref++;
 	}

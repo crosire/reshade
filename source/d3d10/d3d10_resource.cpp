@@ -10,7 +10,7 @@
 
 void STDMETHODCALLTYPE ID3D10Resource_GetDevice(ID3D10Resource *pResource, ID3D10Device **ppDevice)
 {
-	reshade::hooks::call(ID3D10Resource_GetDevice, vtable_from_instance(pResource) + 3)(pResource, ppDevice);
+	reshade::hooks::call(ID3D10Resource_GetDevice, reshade::hooks::vtable_from_instance(pResource) + 3)(pResource, ppDevice);
 
 	const auto device = *ppDevice;
 	assert(device != nullptr);
@@ -18,6 +18,8 @@ void STDMETHODCALLTYPE ID3D10Resource_GetDevice(ID3D10Resource *pResource, ID3D1
 	const auto device_proxy = get_private_pointer_d3dx<D3D10Device>(device);
 	if (device_proxy != nullptr)
 	{
+		assert(device != device_proxy);
+
 		*ppDevice = device_proxy;
 		device_proxy->_ref++;
 	}
@@ -88,7 +90,7 @@ static void invoke_unmap_texture_region_event(ID3D10Resource *resource, UINT sub
 
 HRESULT STDMETHODCALLTYPE ID3D10Buffer_Map(ID3D10Buffer *pResource, D3D10_MAP MapType, UINT MapFlags, void **ppData)
 {
-	const HRESULT hr = reshade::hooks::call(ID3D10Buffer_Map, vtable_from_instance(pResource) + 10)(pResource, MapType, MapFlags, ppData);
+	const HRESULT hr = reshade::hooks::call(ID3D10Buffer_Map, reshade::hooks::vtable_from_instance(pResource) + 10)(pResource, MapType, MapFlags, ppData);
 	if (SUCCEEDED(hr))
 	{
 		assert(ppData != nullptr);
@@ -102,12 +104,12 @@ HRESULT STDMETHODCALLTYPE ID3D10Buffer_Unmap(ID3D10Buffer *pResource)
 {
 	invoke_unmap_buffer_region_event(pResource);
 
-	return reshade::hooks::call(ID3D10Buffer_Unmap, vtable_from_instance(pResource) + 11)(pResource);
+	return reshade::hooks::call(ID3D10Buffer_Unmap, reshade::hooks::vtable_from_instance(pResource) + 11)(pResource);
 }
 
 HRESULT STDMETHODCALLTYPE ID3D10Texture1D_Map(ID3D10Texture1D *pResource, UINT Subresource, D3D10_MAP MapType, UINT MapFlags, void **ppData)
 {
-	const HRESULT hr = reshade::hooks::call(ID3D10Texture1D_Map, vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, ppData);
+	const HRESULT hr = reshade::hooks::call(ID3D10Texture1D_Map, reshade::hooks::vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, ppData);
 	if (SUCCEEDED(hr) && ppData != nullptr)
 	{
 		reshade::api::subresource_data data;
@@ -126,12 +128,12 @@ HRESULT STDMETHODCALLTYPE ID3D10Texture1D_Unmap(ID3D10Texture1D *pResource, UINT
 {
 	invoke_unmap_texture_region_event(pResource, Subresource);
 
-	return reshade::hooks::call(ID3D10Texture1D_Unmap, vtable_from_instance(pResource) + 11)(pResource, Subresource);
+	return reshade::hooks::call(ID3D10Texture1D_Unmap, reshade::hooks::vtable_from_instance(pResource) + 11)(pResource, Subresource);
 }
 
 HRESULT STDMETHODCALLTYPE ID3D10Texture2D_Map(ID3D10Texture2D *pResource, UINT Subresource, D3D10_MAP MapType, UINT MapFlags, D3D10_MAPPED_TEXTURE2D *pMappedTex2D)
 {
-	const HRESULT hr = reshade::hooks::call(ID3D10Texture2D_Map, vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, pMappedTex2D);
+	const HRESULT hr = reshade::hooks::call(ID3D10Texture2D_Map, reshade::hooks::vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, pMappedTex2D);
 	if (SUCCEEDED(hr) && pMappedTex2D != nullptr)
 	{
 		reshade::api::subresource_data data;
@@ -151,12 +153,12 @@ HRESULT STDMETHODCALLTYPE ID3D10Texture2D_Unmap(ID3D10Texture2D *pResource, UINT
 {
 	invoke_unmap_texture_region_event(pResource, Subresource);
 
-	return reshade::hooks::call(ID3D10Texture2D_Unmap, vtable_from_instance(pResource) + 11)(pResource, Subresource);
+	return reshade::hooks::call(ID3D10Texture2D_Unmap, reshade::hooks::vtable_from_instance(pResource) + 11)(pResource, Subresource);
 }
 
 HRESULT STDMETHODCALLTYPE ID3D10Texture3D_Map(ID3D10Texture3D *pResource, UINT Subresource, D3D10_MAP MapType, UINT MapFlags, D3D10_MAPPED_TEXTURE3D *pMappedTex3D)
 {
-	const HRESULT hr = reshade::hooks::call(ID3D10Texture3D_Map, vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, pMappedTex3D);
+	const HRESULT hr = reshade::hooks::call(ID3D10Texture3D_Map, reshade::hooks::vtable_from_instance(pResource) + 10)(pResource, Subresource, MapType, MapFlags, pMappedTex3D);
 	if (SUCCEEDED(hr) && pMappedTex3D != nullptr)
 	{
 		invoke_map_texture_region_event(pResource, Subresource, MapType, reinterpret_cast<reshade::api::subresource_data *>(pMappedTex3D));
@@ -168,7 +170,7 @@ HRESULT STDMETHODCALLTYPE ID3D10Texture3D_Unmap(ID3D10Texture3D *pResource, UINT
 {
 	invoke_unmap_texture_region_event(pResource, Subresource);
 
-	return reshade::hooks::call(ID3D10Texture3D_Unmap, vtable_from_instance(pResource) + 11)(pResource, Subresource);
+	return reshade::hooks::call(ID3D10Texture3D_Unmap, reshade::hooks::vtable_from_instance(pResource) + 11)(pResource, Subresource);
 }
 
 #endif

@@ -162,12 +162,12 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Buffer **ppBuffer)
 {
-#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppBuffer == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
 
+#if RESHADE_ADDON
 	D3D11_BUFFER_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
 
@@ -191,7 +191,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 	{
 		const auto resource = *ppBuffer;
 
-		reshade::hooks::install("ID3D11Buffer::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
+		reshade::hooks::install("ID3D11Buffer::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(resource));
@@ -215,12 +215,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture1D **ppTexture1D)
 {
-#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture1D == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
 
+#if RESHADE_ADDON
 	D3D11_TEXTURE1D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
 
@@ -246,7 +246,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 	{
 		const auto resource = *ppTexture1D;
 
-		reshade::hooks::install("ID3D11Texture1D::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
+		reshade::hooks::install("ID3D11Texture1D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(resource));
@@ -270,12 +270,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture2D **ppTexture2D)
 {
-#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture2D == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
 
+#if RESHADE_ADDON
 	D3D11_TEXTURE2D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
 
@@ -300,7 +300,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 	{
 		const auto resource = *ppTexture2D;
 
-		reshade::hooks::install("ID3D11Texture2D::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
+		reshade::hooks::install("ID3D11Texture2D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(resource));
@@ -324,12 +324,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture3D **ppTexture3D)
 {
-#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture3D == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
 
+#if RESHADE_ADDON
 	D3D11_TEXTURE3D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
 
@@ -354,7 +354,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 	{
 		const auto resource = *ppTexture3D;
 
-		reshade::hooks::install("ID3D11Texture3D::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
+		reshade::hooks::install("ID3D11Texture3D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(resource));
@@ -1592,12 +1592,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 {
 	assert(_interface_version >= 3);
 
-#if RESHADE_ADDON
 	if (pDesc1 == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture2D == nullptr) // This can happen when application only wants to validate input parameters
 		return static_cast<ID3D11Device3 *>(_orig)->CreateTexture2D1(pDesc1, pInitialData, ppTexture2D);
 
+#if RESHADE_ADDON
 	D3D11_TEXTURE2D_DESC1 internal_desc = *pDesc1;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
 
@@ -1622,7 +1622,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 	{
 		const auto resource = *ppTexture2D;
 
-		reshade::hooks::install("ID3D11Texture2D1::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
+		reshade::hooks::install("ID3D11Texture2D1::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(resource));
@@ -1648,12 +1648,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 {
 	assert(_interface_version >= 3);
 
-#if RESHADE_ADDON
 	if (pDesc1 == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture3D == nullptr) // This can happen when application only wants to validate input parameters
 		return static_cast<ID3D11Device3 *>(_orig)->CreateTexture3D1(pDesc1, pInitialData, ppTexture3D);
 
+#if RESHADE_ADDON
 	D3D11_TEXTURE3D_DESC1 internal_desc = *pDesc1;
 	auto desc = reshade::d3d11::convert_resource_desc(internal_desc);
 
@@ -1678,7 +1678,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 	{
 		const auto resource = *ppTexture3D;
 
-		reshade::hooks::install("ID3D11Texture3D1::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
+		reshade::hooks::install("ID3D11Texture3D1::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D11Resource_GetDevice));
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, to_handle(resource));

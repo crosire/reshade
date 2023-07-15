@@ -416,18 +416,18 @@ bool reshade::hooks::install(const char *name, hook::address target, hook::addre
 	return install_internal(name, hook, hook_method::function_hook) &&
 		(queue_enable || hook::apply_queued_actions()); // Can optionally only queue up the hooks instead of installing them right away
 }
-bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned int offset, hook::address replacement)
+bool reshade::hooks::install(const char *name, hook::address vtable[], size_t vtable_index, hook::address replacement)
 {
 	assert(vtable != nullptr && replacement != nullptr);
 
-	hook hook = find_internal(&vtable[offset], replacement);
+	hook hook = find_internal(&vtable[vtable_index], replacement);
 	// Check if the hook was already installed to this virtual function table
 	if (hook.installed())
 		// It may happen that some other third party (like NVIDIA Streamline) replaced the virtual function table entry since it was originally installed, just ignore that
-		return vtable[offset] == hook.replacement;
+		return vtable[vtable_index] == hook.replacement;
 
-	hook.target = &vtable[offset]; // Target is the address of the virtual function table entry
-	hook.trampoline = vtable[offset]; // The current function in that entry is the original function to call
+	hook.target = &vtable[vtable_index]; // Target is the address of the virtual function table entry
+	hook.trampoline = vtable[vtable_index]; // The current function in that entry is the original function to call
 	hook.replacement = replacement;
 
 	return install_internal(name, hook, hook_method::vtable_hook);

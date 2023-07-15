@@ -18,7 +18,7 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadGraphicsPipeline(ID3D12Pipel
 {
 	// Do not invoke 'create_pipeline' event, since it is not possible to modify the pipeline
 
-	const HRESULT hr = reshade::hooks::call(ID3D12PipelineLibrary_LoadGraphicsPipeline, vtable_from_instance(pPipelineLibrary) + 9)(pPipelineLibrary, pName, pDesc, riid, ppPipelineState);
+	const HRESULT hr = reshade::hooks::call(ID3D12PipelineLibrary_LoadGraphicsPipeline, reshade::hooks::vtable_from_instance(pPipelineLibrary) + 9)(pPipelineLibrary, pName, pDesc, riid, ppPipelineState);
 	if (SUCCEEDED(hr))
 	{
 		assert(pDesc != nullptr && ppPipelineState != nullptr);
@@ -117,7 +117,7 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadComputePipeline(ID3D12Pipeli
 {
 	// Do not invoke 'create_pipeline' event, since it is not possible to modify the pipeline
 
-	const HRESULT hr = reshade::hooks::call(ID3D12PipelineLibrary_LoadComputePipeline, vtable_from_instance(pPipelineLibrary) + 10)(pPipelineLibrary, pName, pDesc, riid, ppPipelineState);
+	const HRESULT hr = reshade::hooks::call(ID3D12PipelineLibrary_LoadComputePipeline, reshade::hooks::vtable_from_instance(pPipelineLibrary) + 10)(pPipelineLibrary, pName, pDesc, riid, ppPipelineState);
 	if (SUCCEEDED(hr))
 	{
 		assert(pDesc != nullptr && ppPipelineState != nullptr);
@@ -169,7 +169,7 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary1_LoadPipeline(ID3D12PipelineLibr
 {
 	// Do not invoke 'create_pipeline' event, since it is not possible to modify the pipeline
 
-	const HRESULT hr = reshade::hooks::call(ID3D12PipelineLibrary1_LoadPipeline, vtable_from_instance(pPipelineLibrary) + 13)(pPipelineLibrary, pName, pDesc, riid, ppPipelineState);
+	const HRESULT hr = reshade::hooks::call(ID3D12PipelineLibrary1_LoadPipeline, reshade::hooks::vtable_from_instance(pPipelineLibrary) + 13)(pPipelineLibrary, pName, pDesc, riid, ppPipelineState);
 	if (SUCCEEDED(hr))
 	{
 		assert(pDesc != nullptr && ppPipelineState != nullptr);

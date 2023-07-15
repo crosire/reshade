@@ -3,15 +3,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-
 #include "d3d12_device.hpp"
 #include "d3d12_resource.hpp"
-#include "d3d12_impl_type_convert.hpp"
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
-
-using reshade::d3d12::to_handle;
 
 extern std::shared_mutex g_adapter_mutex;
 
@@ -19,7 +14,7 @@ extern std::shared_mutex g_adapter_mutex;
 // This crashes if that device pointer is not pointing to the proxy device, due to our modified descriptor handles, so need to make sure that is the case
 HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, REFIID riid, void **ppvDevice)
 {
-	const HRESULT hr = reshade::hooks::call(ID3D12Resource_GetDevice, vtable_from_instance(pResource) + 7)(pResource, riid, ppvDevice);
+	const HRESULT hr = reshade::hooks::call(ID3D12Resource_GetDevice, reshade::hooks::vtable_from_instance(pResource) + 7)(pResource, riid, ppvDevice);
 	if (SUCCEEDED(hr))
 	{
 		const auto device = static_cast<ID3D12Device *>(*ppvDevice);
@@ -30,6 +25,8 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, RE
 		const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(device);
 		if (device_proxy != nullptr)
 		{
+			assert(device != device_proxy);
+
 			*ppvDevice = device_proxy;
 			device_proxy->_ref++;
 		}
@@ -38,9 +35,15 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, RE
 	return hr;
 }
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+
+#include "d3d12_impl_type_convert.hpp"
+
+using reshade::d3d12::to_handle;
+
 HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pReadRange, void **ppData)
 {
-	const HRESULT hr = reshade::hooks::call(ID3D12Resource_Map, vtable_from_instance(pResource) + 8)(pResource, Subresource, pReadRange, ppData);
+	const HRESULT hr = reshade::hooks::call(ID3D12Resource_Map, reshade::hooks::vtable_from_instance(pResource) + 8)(pResource, Subresource, pReadRange, ppData);
 	if (SUCCEEDED(hr))
 	{
 		com_ptr<ID3D12Device> device;
@@ -121,7 +124,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT S
 		}
 	}
 
-	return reshade::hooks::call(ID3D12Resource_Unmap, vtable_from_instance(pResource) + 9)(pResource, Subresource, pWrittenRange);
+	return reshade::hooks::call(ID3D12Resource_Unmap, reshade::hooks::vtable_from_instance(pResource) + 9)(pResource, Subresource, pWrittenRange);
 }
 
 #endif

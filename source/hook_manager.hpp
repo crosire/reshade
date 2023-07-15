@@ -9,14 +9,6 @@
 #include <filesystem>
 #include <type_traits>
 
-template <typename T>
-inline reshade::hook::address *vtable_from_instance(T *instance)
-{
-	static_assert(std::is_polymorphic<T>::value, "can only get virtual function table from polymorphic types");
-
-	return *reinterpret_cast<reshade::hook::address **>(instance);
-}
-
 namespace reshade::hooks
 {
 	/// <summary>
@@ -33,10 +25,10 @@ namespace reshade::hooks
 	/// </summary>
 	/// <param name="name">Function name. This is used for logging and debugging only.</param>
 	/// <param name="vtable">Virtual function table pointer of the target object.</param>
-	/// <param name="offset">Index of the target function in the virtual function table.</param>
+	/// <param name="vtable_index">Index of the target function in the virtual function table.</param>
 	/// <param name="replacement">Address of the hook function.</param>
 	/// <returns>Status of the hook installation.</returns>
-	bool install(const char *name, hook::address vtable[], unsigned int offset, hook::address replacement);
+	bool install(const char *name, hook::address vtable[], size_t vtable_index, hook::address replacement);
 	/// <summary>
 	/// Uninstalls all previously installed hooks.
 	/// Only call this function while the loader lock is held, since it is not thread-safe.
@@ -62,7 +54,7 @@ namespace reshade::hooks
 	bool is_hooked(hook::address target);
 
 	/// <summary>
-	/// Calls the original/trampoline function for the specified hook.
+	/// Gets the original/trampoline function for the specified hook.
 	/// </summary>
 	/// <param name="target">Original target address of the hooked function (optional).</param>
 	/// <param name="replacement">Address of the hook function.</param>
@@ -72,5 +64,39 @@ namespace reshade::hooks
 	inline T call(T replacement, hook::address target = nullptr)
 	{
 		return reinterpret_cast<T>(call(reinterpret_cast<hook::address>(replacement), target));
+	}
+
+	/// <summary>
+	/// Gets the virtual function table of the specified object.
+	/// </summary>
+	/// <typeparam name="T">Type of the object.</typeparam>
+	/// <param name="instance">Pointer to the object.</param>
+	/// <returns>Address of the virtual function table.</returns>
+	template <typename T>
+	inline hook::address *vtable_from_instance(T *instance)
+	{
+		static_assert(std::is_polymorphic<T>::value, "can only get virtual function table from polymorphic types");
+
+		return *reinterpret_cast<hook::address **>(instance);
+	}
+
+	/// <summary>
+	/// Calls the original function for the specified virtual function table entry.
+	/// </summary>
+	/// <typeparam name="R">Type of the return value.</typeparam>
+	/// <typeparam name="T">Type of the object.</typeparam>
+	/// <typeparam name="...Args">Type of the function parameters.</typeparam>
+	/// <typeparam name="vtable_index">Index of the target function in the virtual function table.</typeparam>
+	/// <param name="instance">Pointer to the object.</param>
+	/// <param name="...args">Arguments to call the function with.</param>
+	/// <returns>Return value from the called function.</returns>
+	template <size_t vtable_index, typename R, typename T, typename... Args>
+	inline R call_vtable(T *instance, Args... args)
+	{
+		const auto vtable_entry = vtable_from_instance(instance) + vtable_index;
+		const auto func = is_hooked(vtable_entry) ?
+			call<R(STDMETHODCALLTYPE *)(T *, Args...)>(nullptr, vtable_entry) :
+			reinterpret_cast<R(STDMETHODCALLTYPE *)(T *, Args...)>(*vtable_entry);
+		return func(instance, std::forward<Args>(args)...);
 	}
 }

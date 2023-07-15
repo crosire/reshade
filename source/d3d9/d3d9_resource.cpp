@@ -155,7 +155,7 @@ extern const reshade::api::subresource_box *convert_rect_to_box(const RECT *rect
 
 HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface, D3DLOCKED_RECT *pLockedRect, const RECT *pRect, DWORD Flags)
 {
-	const HRESULT hr = reshade::hooks::call(IDirect3DSurface9_LockRect, vtable_from_instance(pSurface) + 13)(pSurface, pLockedRect, pRect, Flags);
+	const HRESULT hr = reshade::hooks::call(IDirect3DSurface9_LockRect, reshade::hooks::vtable_from_instance(pSurface) + 13)(pSurface, pLockedRect, pRect, Flags);
 	if (SUCCEEDED(hr))
 	{
 		assert(pLockedRect != nullptr);
@@ -196,12 +196,12 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_UnlockRect(IDirect3DSurface9 *pSurfa
 			subresource);
 	}
 
-	return reshade::hooks::call(IDirect3DSurface9_UnlockRect, vtable_from_instance(pSurface) + 14)(pSurface);
+	return reshade::hooks::call(IDirect3DSurface9_UnlockRect, reshade::hooks::vtable_from_instance(pSurface) + 14)(pSurface);
 }
 
 HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVolume, D3DLOCKED_BOX *pLockedVolume, const D3DBOX *pBox, DWORD Flags)
 {
-	const HRESULT hr = reshade::hooks::call(IDirect3DVolume9_LockBox, vtable_from_instance(pVolume) + 9)(pVolume, pLockedVolume, pBox, Flags);
+	const HRESULT hr = reshade::hooks::call(IDirect3DVolume9_LockBox, reshade::hooks::vtable_from_instance(pVolume) + 9)(pVolume, pLockedVolume, pBox, Flags);
 	if (SUCCEEDED(hr))
 	{
 		assert(pLockedVolume != nullptr);
@@ -242,12 +242,12 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolume9_UnlockBox(IDirect3DVolume9 *pVolume)
 			subresource);
 	}
 
-	return reshade::hooks::call(IDirect3DVolume9_UnlockBox, vtable_from_instance(pVolume) + 10)(pVolume);
+	return reshade::hooks::call(IDirect3DVolume9_UnlockBox, reshade::hooks::vtable_from_instance(pVolume) + 10)(pVolume);
 }
 
 HRESULT STDMETHODCALLTYPE IDirect3DTexture9_LockRect(IDirect3DTexture9 *pTexture, UINT Level, D3DLOCKED_RECT *pLockedRect, const RECT *pRect, DWORD Flags)
 {
-	const HRESULT hr = reshade::hooks::call(IDirect3DTexture9_LockRect, vtable_from_instance(pTexture) + 19)(pTexture, Level, pLockedRect, pRect, Flags);
+	const HRESULT hr = reshade::hooks::call(IDirect3DTexture9_LockRect, reshade::hooks::vtable_from_instance(pTexture) + 19)(pTexture, Level, pLockedRect, pRect, Flags);
 	if (SUCCEEDED(hr))
 	{
 		assert(pLockedRect != nullptr);
@@ -282,12 +282,12 @@ HRESULT STDMETHODCALLTYPE IDirect3DTexture9_UnlockRect(IDirect3DTexture9 *pTextu
 		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), Level);
 	}
 
-	return reshade::hooks::call(IDirect3DTexture9_UnlockRect, vtable_from_instance(pTexture) + 20)(pTexture, Level);
+	return reshade::hooks::call(IDirect3DTexture9_UnlockRect, reshade::hooks::vtable_from_instance(pTexture) + 20)(pTexture, Level);
 }
 
 HRESULT STDMETHODCALLTYPE IDirect3DVolumeTexture9_LockBox(IDirect3DVolumeTexture9 *pTexture, UINT Level, D3DLOCKED_BOX *pLockedVolume, const D3DBOX *pBox, DWORD Flags)
 {
-	const HRESULT hr = reshade::hooks::call(IDirect3DVolumeTexture9_LockBox, vtable_from_instance(pTexture) + 19)(pTexture, Level, pLockedVolume, pBox, Flags);
+	const HRESULT hr = reshade::hooks::call(IDirect3DVolumeTexture9_LockBox, reshade::hooks::vtable_from_instance(pTexture) + 19)(pTexture, Level, pLockedVolume, pBox, Flags);
 	if (SUCCEEDED(hr))
 	{
 		assert(pLockedVolume != nullptr);
@@ -322,12 +322,12 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolumeTexture9_UnlockBox(IDirect3DVolumeTextu
 		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), Level);
 	}
 
-	return reshade::hooks::call(IDirect3DVolumeTexture9_UnlockBox, vtable_from_instance(pTexture) + 20)(pTexture, Level);
+	return reshade::hooks::call(IDirect3DVolumeTexture9_UnlockBox, reshade::hooks::vtable_from_instance(pTexture) + 20)(pTexture, Level);
 }
 
 HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_LockRect(IDirect3DCubeTexture9 *pTexture, D3DCUBEMAP_FACES FaceType, UINT Level, D3DLOCKED_RECT *pLockedRect, const RECT *pRect, DWORD Flags)
 {
-	const HRESULT hr = reshade::hooks::call(IDirect3DCubeTexture9_LockRect, vtable_from_instance(pTexture) + 19)(pTexture, FaceType, Level, pLockedRect, pRect, Flags);
+	const HRESULT hr = reshade::hooks::call(IDirect3DCubeTexture9_LockRect, reshade::hooks::vtable_from_instance(pTexture) + 19)(pTexture, FaceType, Level, pLockedRect, pRect, Flags);
 	if (SUCCEEDED(hr))
 	{
 		assert(pLockedRect != nullptr);
@@ -365,12 +365,12 @@ HRESULT STDMETHODCALLTYPE IDirect3DCubeTexture9_UnlockRect(IDirect3DCubeTexture9
 		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(pTexture), subresource);
 	}
 
-	return reshade::hooks::call(IDirect3DCubeTexture9_UnlockRect, vtable_from_instance(pTexture) + 20)(pTexture, FaceType, Level);
+	return reshade::hooks::call(IDirect3DCubeTexture9_UnlockRect, reshade::hooks::vtable_from_instance(pTexture) + 20)(pTexture, FaceType, Level);
 }
 
 HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Lock(IDirect3DVertexBuffer9 *pVertexBuffer, UINT OffsetToLock, UINT SizeToLock, void **ppbData, DWORD Flags)
 {
-	const HRESULT hr = reshade::hooks::call(IDirect3DVertexBuffer9_Lock, vtable_from_instance(pVertexBuffer) + 11)(pVertexBuffer, OffsetToLock, SizeToLock, ppbData, Flags);
+	const HRESULT hr = reshade::hooks::call(IDirect3DVertexBuffer9_Lock, reshade::hooks::vtable_from_instance(pVertexBuffer) + 11)(pVertexBuffer, OffsetToLock, SizeToLock, ppbData, Flags);
 	if (SUCCEEDED(hr))
 	{
 		assert(ppbData != nullptr);
@@ -396,12 +396,12 @@ HRESULT STDMETHODCALLTYPE IDirect3DVertexBuffer9_Unlock(IDirect3DVertexBuffer9 *
 		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, to_handle(pVertexBuffer));
 	}
 
-	return reshade::hooks::call(IDirect3DVertexBuffer9_Unlock, vtable_from_instance(pVertexBuffer) + 12)(pVertexBuffer);
+	return reshade::hooks::call(IDirect3DVertexBuffer9_Unlock, reshade::hooks::vtable_from_instance(pVertexBuffer) + 12)(pVertexBuffer);
 }
 
 HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Lock(IDirect3DIndexBuffer9 *pIndexBuffer, UINT OffsetToLock, UINT SizeToLock, void **ppbData, DWORD Flags)
 {
-	const HRESULT hr = reshade::hooks::call(IDirect3DIndexBuffer9_Lock, vtable_from_instance(pIndexBuffer) + 11)(pIndexBuffer, OffsetToLock, SizeToLock, ppbData, Flags);
+	const HRESULT hr = reshade::hooks::call(IDirect3DIndexBuffer9_Lock, reshade::hooks::vtable_from_instance(pIndexBuffer) + 11)(pIndexBuffer, OffsetToLock, SizeToLock, ppbData, Flags);
 	if (SUCCEEDED(hr))
 	{
 		assert(ppbData != nullptr);
@@ -427,7 +427,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DIndexBuffer9_Unlock(IDirect3DIndexBuffer9 *pI
 		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, to_handle(pIndexBuffer));
 	}
 
-	return reshade::hooks::call(IDirect3DIndexBuffer9_Unlock, vtable_from_instance(pIndexBuffer) + 12)(pIndexBuffer);
+	return reshade::hooks::call(IDirect3DIndexBuffer9_Unlock, reshade::hooks::vtable_from_instance(pIndexBuffer) + 12)(pIndexBuffer);
 }
 
 #endif

@@ -787,12 +787,12 @@ void    STDMETHODCALLTYPE D3D10Device::Flush()
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Buffer **ppBuffer)
 {
-#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppBuffer == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
 
+#if RESHADE_ADDON
 	D3D10_BUFFER_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d10::convert_resource_desc(internal_desc);
 
@@ -816,13 +816,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 	{
 		const auto resource = *ppBuffer;
 
-		reshade::hooks::install("ID3D10Buffer::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
+		reshade::hooks::install("ID3D10Buffer::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
-			reshade::hooks::install("ID3D10Buffer::Map", vtable_from_instance(resource), 10, reinterpret_cast<reshade::hook::address>(&ID3D10Buffer_Map));
+			reshade::hooks::install("ID3D10Buffer::Map", reshade::hooks::vtable_from_instance(resource), 10, reinterpret_cast<reshade::hook::address>(&ID3D10Buffer_Map));
 		if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
-			reshade::hooks::install("ID3D10Buffer::Unmap", vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&ID3D10Buffer_Unmap));
+			reshade::hooks::install("ID3D10Buffer::Unmap", reshade::hooks::vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&ID3D10Buffer_Unmap));
 #endif
 
 #if RESHADE_ADDON
@@ -847,12 +847,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture1D **ppTexture1D)
 {
-#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture1D == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
 
+#if RESHADE_ADDON
 	D3D10_TEXTURE1D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d10::convert_resource_desc(internal_desc);
 
@@ -878,13 +878,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 	{
 		const auto resource = *ppTexture1D;
 
-		reshade::hooks::install("ID3D10Texture1D::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
+		reshade::hooks::install("ID3D10Texture1D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-			reshade::hooks::install("ID3D10Texture1D::Map", vtable_from_instance(resource), 10, reinterpret_cast<reshade::hook::address>(&ID3D10Texture1D_Map));
+			reshade::hooks::install("ID3D10Texture1D::Map", reshade::hooks::vtable_from_instance(resource), 10, reinterpret_cast<reshade::hook::address>(&ID3D10Texture1D_Map));
 		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-			reshade::hooks::install("ID3D10Texture1D::Unmap", vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&ID3D10Texture1D_Unmap));
+			reshade::hooks::install("ID3D10Texture1D::Unmap", reshade::hooks::vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&ID3D10Texture1D_Unmap));
 #endif
 
 #if RESHADE_ADDON
@@ -909,12 +909,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture2D **ppTexture2D)
 {
-#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture2D == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
 
+#if RESHADE_ADDON
 	D3D10_TEXTURE2D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d10::convert_resource_desc(internal_desc);
 
@@ -939,13 +939,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 	{
 		const auto resource = *ppTexture2D;
 
-		reshade::hooks::install("ID3D10Texture2D::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
+		reshade::hooks::install("ID3D10Texture2D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-			reshade::hooks::install("ID3D10Texture2D::Map", vtable_from_instance(resource), 10, reinterpret_cast<reshade::hook::address>(&ID3D10Texture2D_Map));
+			reshade::hooks::install("ID3D10Texture2D::Map", reshade::hooks::vtable_from_instance(resource), 10, reinterpret_cast<reshade::hook::address>(&ID3D10Texture2D_Map));
 		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-			reshade::hooks::install("ID3D10Texture2D::Unmap", vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&ID3D10Texture2D_Unmap));
+			reshade::hooks::install("ID3D10Texture2D::Unmap", reshade::hooks::vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&ID3D10Texture2D_Unmap));
 #endif
 
 #if RESHADE_ADDON
@@ -970,12 +970,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture3D **ppTexture3D)
 {
-#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
 	if (ppTexture3D == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
 
+#if RESHADE_ADDON
 	D3D10_TEXTURE3D_DESC internal_desc = *pDesc;
 	auto desc = reshade::d3d10::convert_resource_desc(internal_desc);
 
@@ -1000,13 +1000,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 	{
 		const auto resource = *ppTexture3D;
 
-		reshade::hooks::install("ID3D10Texture3D::GetDevice", vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
+		reshade::hooks::install("ID3D10Texture3D::GetDevice", reshade::hooks::vtable_from_instance(resource), 3, reinterpret_cast<reshade::hook::address>(&ID3D10Resource_GetDevice));
 
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-			reshade::hooks::install("ID3D10Texture3D::Map", vtable_from_instance(resource), 10, reinterpret_cast<reshade::hook::address>(&ID3D10Texture3D_Map));
+			reshade::hooks::install("ID3D10Texture3D::Map", reshade::hooks::vtable_from_instance(resource), 10, reinterpret_cast<reshade::hook::address>(&ID3D10Texture3D_Map));
 		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-			reshade::hooks::install("ID3D10Texture3D::Unmap", vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&ID3D10Texture3D_Unmap));
+			reshade::hooks::install("ID3D10Texture3D::Unmap", reshade::hooks::vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(&ID3D10Texture3D_Unmap));
 #endif
 
 #if RESHADE_ADDON

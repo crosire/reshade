@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <d3d10_1.h>
+#include <d3d10.h>
 
 void STDMETHODCALLTYPE ID3D10Resource_GetDevice(ID3D10Resource *pResource, ID3D10Device **ppDevice);
 
