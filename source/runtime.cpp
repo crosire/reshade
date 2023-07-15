@@ -241,10 +241,10 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	// Add an index to the config file name in case there are multiple runtimes
 	else if (runtime_index != 0)
 	{
-		const std::filesystem::path config_path_default = _config_path;
-		_config_path.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
-		if (std::filesystem::exists(config_path_default, ec) && !std::filesystem::exists(_config_path, ec))
-			std::filesystem::copy_file(config_path_default, _config_path, ec);
+		config_path_alt.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
+
+		if (std::filesystem::exists(config_path_alt, ec) || !std::filesystem::exists(_config_path, ec) || std::filesystem::copy_file(_config_path, config_path_alt, ec))
+			_config_path = std::move(config_path_alt);
 
 #if RESHADE_GUI && RESHADE_FX
 		_tutorial_index = 4;
