@@ -5,11 +5,11 @@
 
 #pragma once
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-
 #include <d3d10_1.h>
 
 void STDMETHODCALLTYPE ID3D10Resource_GetDevice(ID3D10Resource *pResource, ID3D10Device **ppDevice);
+
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 
 HRESULT STDMETHODCALLTYPE ID3D10Buffer_Map(ID3D10Buffer *pResource, D3D10_MAP MapType, UINT MapFlags, void **ppData);
 HRESULT STDMETHODCALLTYPE ID3D10Buffer_Unmap(ID3D10Buffer *pResource);

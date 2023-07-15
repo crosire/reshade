@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-
 #include "hook_manager.hpp"
 
 template <size_t vtable_index, typename R, typename T, typename... Args>
@@ -19,6 +17,8 @@ static inline R call_vtable(T *object, Args... args)
 
 #define ID3D10Resource_GetDevice call_vtable<3, HRESULT, ID3D10Resource, ID3D10Device **>
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+
 #define ID3D10Buffer_Map call_vtable<10, HRESULT, ID3D10Buffer, D3D10_MAP, UINT, void **>
 #define ID3D10Buffer_Unmap call_vtable<11, HRESULT, ID3D10Buffer>
 
@@ -32,8 +32,6 @@ static inline R call_vtable(T *object, Args... args)
 #define ID3D10Texture3D_Unmap call_vtable<11, HRESULT, ID3D10Texture3D, UINT>
 
 #else
-
-#define ID3D10Resource_GetDevice(p, a) (p)->GetDevice(a)
 
 #define ID3D10Buffer_Map(p, a, b, c) (p)->Map(a, b, c)
 #define ID3D10Buffer_Unmap(p) (p)->Unmap()

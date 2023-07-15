@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
-
 #include "d3d11_device.hpp"
 #include "d3d11_resource.hpp"
 #include "com_utils.hpp"
@@ -26,5 +24,3 @@ void STDMETHODCALLTYPE ID3D11Resource_GetDevice(ID3D11Resource *pResource, ID3D1
 		device_proxy->_ref++;
 	}
 }
-
-#endif
