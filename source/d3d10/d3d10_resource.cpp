@@ -70,6 +70,21 @@ static void invoke_unmap_texture_region_event(ID3D10Resource *resource, UINT sub
 	reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, to_handle(resource), subresource);
 }
 
+void STDMETHODCALLTYPE ID3D10Resource_GetDevice(ID3D10Resource *pResource, ID3D10Device **ppDevice)
+{
+	reshade::hooks::call(ID3D10Resource_GetDevice, vtable_from_instance(pResource) + 3)(pResource, ppDevice);
+
+	const auto device = *ppDevice;
+	assert(device != nullptr);
+
+	const auto device_proxy = get_private_pointer_d3dx<D3D10Device>(device);
+	if (device_proxy != nullptr)
+	{
+		*ppDevice = device_proxy;
+		device_proxy->_ref++;
+	}
+}
+
 HRESULT STDMETHODCALLTYPE ID3D10Buffer_Map(ID3D10Buffer *pResource, D3D10_MAP MapType, UINT MapFlags, void **ppData)
 {
 	const HRESULT hr = reshade::hooks::call(ID3D10Buffer_Map, vtable_from_instance(pResource) + 10)(pResource, MapType, MapFlags, ppData);

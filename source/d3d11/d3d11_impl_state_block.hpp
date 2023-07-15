@@ -6,7 +6,7 @@
 #pragma once
 
 #include "com_ptr.hpp"
-#include <d3d11_4.h>
+#include <d3d11_1.h>
 
 namespace reshade::d3d11
 {

@@ -532,6 +532,7 @@
     <ClCompile Include="source\d3d11\d3d11_impl_state_block.cpp" />
     <ClCompile Include="source\d3d11\d3d11_impl_swapchain.cpp" />
     <ClCompile Include="source\d3d11\d3d11_impl_type_convert.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_resource.cpp" />
     <ClCompile Include="source\d3d12\d3d12.cpp" />
     <ClCompile Include="source\d3d12\d3d12_command_list.cpp" />
     <ClCompile Include="source\d3d12\d3d12_command_queue.cpp" />
@@ -653,6 +654,8 @@
     <ClInclude Include="source\d3d11\d3d11_impl_state_block.hpp" />
     <ClInclude Include="source\d3d11\d3d11_impl_swapchain.hpp" />
     <ClInclude Include="source\d3d11\d3d11_impl_type_convert.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_resource.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_resource_call_vtable.inl" />
     <ClInclude Include="source\d3d12\d3d12_command_list.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_queue.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_queue_downlevel.hpp" />
