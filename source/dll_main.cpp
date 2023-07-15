@@ -188,7 +188,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #else
 				"(64-bit) "
 #endif
-				"loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
+				"loaded from " << g_reshade_dll_path << " into " << static_cast<const wchar_t *>(GetCommandLineW()) << " ...";
 
 			// Check if another ReShade instance was already loaded into the process
 			if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
