@@ -2015,7 +2015,10 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 1, {
 	}
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 2, {
-	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']';
+	if (_shader_model >= 50)
+		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']';
+	else
+		code += "{}";
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 0, {
 	const spv::Id image = add_instruction(spv::OpImage, convert_image_type(args[0].type))
@@ -2574,7 +2577,8 @@ IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
 	code += ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
-	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
+	if (_shader_model >= 50)
+		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
 	spv::Id data = args[2].base;
@@ -2738,7 +2742,10 @@ IMPLEMENT_INTRINSIC_GLSL(atomicAdd, 0, {
 	code += "atomicAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicAdd, 0, {
-	code += "InterlockedAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " += " + id_to_name(args[1].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -2759,7 +2766,8 @@ IMPLEMENT_INTRINSIC_GLSL(atomicAdd, 1, {
 	code += "imageAtomicAdd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicAdd, 1, {
-	code += "InterlockedAdd(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedAdd(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicAdd, 1, {
 	const spv::Id ms_sample = emit_constant(0u);
@@ -2788,7 +2796,10 @@ IMPLEMENT_INTRINSIC_GLSL(atomicAnd, 0, {
 	code += "atomicAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicAnd, 0, {
-	code += "InterlockedAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " &= " + id_to_name(args[1].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -2809,7 +2820,8 @@ IMPLEMENT_INTRINSIC_GLSL(atomicAnd, 1, {
 	code += "imageAtomicAnd(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicAnd, 1, {
-	code += "InterlockedAnd(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedAnd(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 1, {
 	const spv::Id ms_sample = emit_constant(0u);
@@ -2838,7 +2850,10 @@ IMPLEMENT_INTRINSIC_GLSL(atomicOr, 0, {
 	code += "atomicOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicOr, 0, {
-	code += "InterlockedOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " |= " + id_to_name(args[1].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -2859,7 +2874,8 @@ IMPLEMENT_INTRINSIC_GLSL(atomicOr, 1, {
 	code += "imageAtomicOr(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicOr, 1, {
-	code += "InterlockedOr(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedOr(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicOr, 1, {
 	const spv::Id ms_sample = emit_constant(0u);
@@ -2888,7 +2904,10 @@ IMPLEMENT_INTRINSIC_GLSL(atomicXor, 0, {
 	code += "atomicXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicXor, 0, {
-	code += "InterlockedXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " ^= " + id_to_name(args[1].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -2909,7 +2928,8 @@ IMPLEMENT_INTRINSIC_GLSL(atomicXor, 1, {
 	code += "imageAtomicXor(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicXor, 1, {
-	code += "InterlockedXor(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedXor(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicXor, 1, {
 	const spv::Id ms_sample = emit_constant(0u);
@@ -2941,10 +2961,16 @@ IMPLEMENT_INTRINSIC_GLSL(atomicMin, 1, {
 	code += "atomicMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMin, 0, {
-	code += "InterlockedMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " = min(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMin, 1, {
-	code += "InterlockedMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " = min(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -2980,10 +3006,12 @@ IMPLEMENT_INTRINSIC_GLSL(atomicMin, 3, {
 	code += "imageAtomicMin(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMin, 2, {
-	code += "InterlockedMin(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedMin(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMin, 3, {
-	code += "InterlockedMin(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedMin(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicMin, 2, {
 	const spv::Id ms_sample = emit_constant(0u);
@@ -3034,10 +3062,16 @@ IMPLEMENT_INTRINSIC_GLSL(atomicMax, 1, {
 	code += "atomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMax, 0, {
-	code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " = max(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMax, 1, {
-	code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " = max(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -3073,10 +3107,12 @@ IMPLEMENT_INTRINSIC_GLSL(atomicMax, 3, {
 	code += "imageAtomicMax(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMax, 2, {
-	code += "InterlockedMax(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedMax(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicMax, 3, {
-	code += "InterlockedMax(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedMax(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicMax, 2, {
 	const spv::Id ms_sample = emit_constant(0u);
@@ -3124,7 +3160,10 @@ IMPLEMENT_INTRINSIC_GLSL(atomicExchange, 0, {
 	code += "atomicExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicExchange, 0, {
-	code += "InterlockedExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; " + id_to_name(args[0].base) + " = " + id_to_name(args[1].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -3145,7 +3184,8 @@ IMPLEMENT_INTRINSIC_GLSL(atomicExchange, 1, {
 	code += "imageAtomicExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicExchange, 1, {
-	code += "InterlockedExchange(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedExchange(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicExchange, 1, {
 	const spv::Id ms_sample = emit_constant(0u);
@@ -3174,7 +3214,10 @@ IMPLEMENT_INTRINSIC_GLSL(atomicCompareExchange, 0, {
 	code += "atomicCompSwap(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicCompareExchange, 0, {
-	code += "InterlockedCompareExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedCompareExchange(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	else
+		code += id_to_name(res) + " = " + id_to_name(args[0].base) + "; if (" + id_to_name(args[0].base) + " == " + id_to_name(args[1].base) + ") " + id_to_name(args[0].base) + " = " + id_to_name(args[2].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 0, {
 	const spv::Id mem_scope = emit_constant(spv::ScopeDevice);
@@ -3197,7 +3240,8 @@ IMPLEMENT_INTRINSIC_GLSL(atomicCompareExchange, 1, {
 	code += "imageAtomicCompSwap(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicCompareExchange, 1, {
-	code += "InterlockedCompareExchange(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+	if (_shader_model >= 50)
+		code += "InterlockedCompareExchange(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 1, {
 	const spv::Id ms_sample = emit_constant(0u);
