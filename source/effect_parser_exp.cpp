@@ -206,7 +206,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 			if (type.is_object())
 				return error(_token.location, 3124, "object element type cannot be an object type"), false;
 			if (!type.is_numeric() || type.is_matrix())
-				return error(_token.location, 3521, "sampler element tyoe must fit in four 32-bit quantities"), false;
+				return error(_token.location, 3521, "sampler element type must fit in four 32-bit quantities"), false;
 
 			if (type.is_integral() && type.is_signed())
 				type.base = static_cast<type::datatype>(type::t_sampler1d_int + texture_dimension);
@@ -238,7 +238,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 			if (type.is_object())
 				return error(_token.location, 3124, "object element type cannot be an object type"), false;
 			if (!type.is_numeric() || type.is_matrix())
-				return error(_token.location, 3521, "storage element tyoe must fit in four 32-bit quantities"), false;
+				return error(_token.location, 3521, "storage element type must fit in four 32-bit quantities"), false;
 
 			if (type.is_integral() && type.is_signed())
 				type.base = static_cast<type::datatype>(type::t_storage1d_int + texture_dimension);
