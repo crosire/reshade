@@ -4121,19 +4121,19 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 0, {
 		.add(args[1].base)
 		.result;
 	})
-// ret atomicCompareExchange(s, coords, data)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, int, inout_storage1d_int, int, int)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, int, inout_storage2d_int, int2, int)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, int, inout_storage3d_int, int3, int)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, inout_storage1d_uint, int, uint)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, inout_storage2d_uint, int2, uint)
-DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, inout_storage3d_uint, int3, uint)
+// ret atomicCompareExchange(s, coords, compare, data)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, int, inout_storage1d_int, int, int, int)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, int, inout_storage2d_int, int2, int, int)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, int, inout_storage3d_int, int3, int, int)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, inout_storage1d_uint, int, uint, uint)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, inout_storage2d_uint, int2, uint, uint)
+DEFINE_INTRINSIC(atomicCompareExchange, 1, uint, inout_storage3d_uint, int3, uint, uint)
 IMPLEMENT_INTRINSIC_GLSL(atomicCompareExchange, 1, {
-	code += "imageAtomicCompSwap(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
+	code += "imageAtomicCompSwap(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicCompareExchange, 1, {
 	if (_shader_model >= 50)
-		code += "InterlockedCompareExchange(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+		code += "InterlockedCompareExchange(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 1, {
 	const spv::Id ms_sample = emit_constant(0u);
@@ -4151,6 +4151,8 @@ IMPLEMENT_INTRINSIC_SPIRV(atomicCompareExchange, 1, {
 		.add(texel)
 		.add(mem_scope)
 		.add(mem_semantics)
+		.add(mem_semantics)
+		.add(args[3].base)
 		.add(args[2].base)
 		.result;
 	})
