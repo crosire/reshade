@@ -4191,6 +4191,12 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 void reshade::runtime::save_texture(const texture &tex)
 {
+	if (tex.type == reshadefx::texture_type::texture_3d)
+	{
+		LOG(ERROR) << "Texture saving is not supported for 3D textures!";
+		return;
+	}
+
 	std::string filename = tex.unique_name;
 	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
 
@@ -4247,7 +4253,7 @@ void reshade::runtime::save_texture(const texture &tex)
 }
 void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t height, const uint8_t *pixels)
 {
-	if (tex.depth != 1)
+	if (tex.type == reshadefx::texture_type::texture_3d)
 	{
 		LOG(ERROR) << "Texture upload is not supported for 3D textures!";
 		return;
