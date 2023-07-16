@@ -416,7 +416,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_implicit_swapchain->on_present();
 
-	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
+	_implicit_swapchain->handle_device_loss(hr);
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetBackBuffer(UINT iSwapChain, UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9 **ppBackBuffer)
 {
@@ -2177,7 +2181,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	}
 
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
-	_implicit_swapchain->_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
+
+	_implicit_swapchain->handle_device_loss(hr);
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetGPUThreadPriority(INT *pPriority)

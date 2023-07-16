@@ -90,6 +90,8 @@ namespace reshade::log
 				return *this << "D3DERR_INVALIDCALL";
 			case 0x88760870:
 				return *this << "D3DERR_DEVICEREMOVED";
+			case 0x88760874:
+				return *this << "D3DERR_DEVICEHUNG";
 			case DXGI_ERROR_INVALID_CALL:
 				return *this << "DXGI_ERROR_INVALID_CALL";
 			case DXGI_ERROR_UNSUPPORTED:
