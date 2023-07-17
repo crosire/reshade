@@ -2373,8 +2373,8 @@ void reshade::runtime::draw_gui_statistics()
 			ImGui::BeginGroup();
 
 			int64_t memory_size = 0;
-			for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
-				memory_size += static_cast<size_t>(width) * static_cast<size_t>(height) * pixel_sizes[static_cast<int>(tex.format)];
+			for (uint32_t level = 0, width = tex.width, height = tex.height, depth = tex.depth; level < tex.levels; ++level, width /= 2, height /= 2, depth /= 2)
+				memory_size += static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * pixel_sizes[static_cast<int>(tex.format)];
 
 			post_processing_memory_size += memory_size;
 
@@ -2391,12 +2391,33 @@ void reshade::runtime::draw_gui_statistics()
 			}
 
 			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", tex.unique_name.c_str(), tex.shared.size() > 1 ? " (Pooled)" : "");
-			ImGui::Text("%ux%u | %u mipmap(s) | %s | %lld.%03lld %s",
-				tex.width,
-				tex.height,
-				tex.levels - 1,
-				texture_formats[static_cast<int>(tex.format)],
-				memory_view.quot, memory_view.rem, memory_size_unit);
+			switch (tex.type)
+			{
+			case reshadefx::texture_type::texture_1d:
+				ImGui::Text("%u | %u mipmap(s) | %s | %lld.%03lld %s",
+					tex.width,
+					tex.levels - 1,
+					texture_formats[static_cast<int>(tex.format)],
+					memory_view.quot, memory_view.rem, memory_size_unit);
+				break;
+			case reshadefx::texture_type::texture_2d:
+				ImGui::Text("%ux%u | %u mipmap(s) | %s | %lld.%03lld %s",
+					tex.width,
+					tex.height,
+					tex.levels - 1,
+					texture_formats[static_cast<int>(tex.format)],
+					memory_view.quot, memory_view.rem, memory_size_unit);
+				break;
+			case reshadefx::texture_type::texture_3d:
+				ImGui::Text("%ux%ux%u | %u mipmap(s) | %s | %lld.%03lld %s",
+					tex.width,
+					tex.height,
+					tex.depth,
+					tex.levels - 1,
+					texture_formats[static_cast<int>(tex.format)],
+					memory_view.quot, memory_view.rem, memory_size_unit);
+				break;
+			}
 
 			size_t num_referenced_passes = 0;
 			std::vector<std::pair<size_t, std::vector<std::string>>> references;
@@ -2451,7 +2472,8 @@ void reshade::runtime::draw_gui_statistics()
 				}
 			}
 
-			const bool supports_saving = (
+			const bool supports_saving =
+				tex.type != reshadefx::texture_type::texture_3d && (
 				tex.format == reshadefx::texture_format::r8 ||
 				tex.format == reshadefx::texture_format::rg8 ||
 				tex.format == reshadefx::texture_format::rgba8 ||
@@ -2500,47 +2522,50 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::EndPopup();
 			}
 
-			if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check))
+			if (tex.type == reshadefx::texture_type::texture_2d)
 			{
-				_preview_size[0] = 0;
-				_preview_size[1] = 0;
-				_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
-			}
-			ImGui::SameLine();
-			if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check))
-			{
-				_preview_size[0] = tex.width;
-				_preview_size[1] = tex.height;
-				_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
-			}
+				if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check))
+				{
+					_preview_size[0] = 0;
+					_preview_size[1] = 0;
+					_preview_texture = !check ? tex.srv[0] : api::resource_view{ 0 };
+				}
+				ImGui::SameLine();
+				if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check))
+				{
+					_preview_size[0] = tex.width;
+					_preview_size[1] = tex.height;
+					_preview_texture = !check ? tex.srv[0] : api::resource_view{ 0 };
+				}
 
-			bool r = (_preview_size[2] & 0x000000FF) != 0;
-			bool g = (_preview_size[2] & 0x0000FF00) != 0;
-			bool b = (_preview_size[2] & 0x00FF0000) != 0;
-			ImGui::SameLine();
-			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
-			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 1));
-			imgui::toggle_button("R", r, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
-			ImGui::PopStyleColor();
-			if (tex.format >= reshadefx::texture_format::rg8)
-			{
-				ImGui::SameLine(0, 1);
-				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 1, 0, 1));
-				imgui::toggle_button("G", g, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
+				bool r = (_preview_size[2] & 0x000000FF) != 0;
+				bool g = (_preview_size[2] & 0x0000FF00) != 0;
+				bool b = (_preview_size[2] & 0x00FF0000) != 0;
+				ImGui::SameLine();
+				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 1));
+				imgui::toggle_button("R", r, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
 				ImGui::PopStyleColor();
-				if (tex.format >= reshadefx::texture_format::rgba8)
+				if (tex.format >= reshadefx::texture_format::rg8)
 				{
 					ImGui::SameLine(0, 1);
-					ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 1, 1));
-					imgui::toggle_button("B", b, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
+					ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 1, 0, 1));
+					imgui::toggle_button("G", g, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
 					ImGui::PopStyleColor();
+					if (tex.format >= reshadefx::texture_format::rgba8)
+					{
+						ImGui::SameLine(0, 1);
+						ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 1, 1));
+						imgui::toggle_button("B", b, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
+						ImGui::PopStyleColor();
+					}
 				}
-			}
-			ImGui::PopStyleVar();
-			_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
+				ImGui::PopStyleVar();
+				_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
 
-			const float aspect_ratio = static_cast<float>(tex.width) / static_cast<float>(tex.height);
-			imgui::image_with_checkerboard_background(tex.srv[0].handle, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
+				const float aspect_ratio = static_cast<float>(tex.width) / static_cast<float>(tex.height);
+				imgui::image_with_checkerboard_background(tex.srv[0].handle, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
+			}
 
 			ImGui::EndGroup();
 			ImGui::PopID();

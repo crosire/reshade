@@ -106,7 +106,7 @@ namespace reshade
 
 		bool matches_description(const reshadefx::texture_info &desc) const
 		{
-			return width == desc.width && height == desc.height && levels == desc.levels && format == desc.format;
+			return type == desc.type && width == desc.width && height == desc.height && levels == desc.levels && format == desc.format;
 		}
 
 		size_t effect_index = std::numeric_limits<size_t>::max();
