@@ -2216,8 +2216,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 		if (!create_texture(tex))
 		{
 			effect.errors += "Failed to create texture " + tex.unique_name + '.';
-			effect.compiled = false;
-			_last_reload_successfull = false;
 			return false;
 		}
 	}
@@ -2299,9 +2297,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	// Create pipeline layout for this effect
 	if (!_device->create_pipeline_layout(sampler_with_resource_view ? 3 : 4, layout_params, &effect.layout))
 	{
-		effect.compiled = false;
-		_last_reload_successfull = false;
-
 		LOG(ERROR) << "Failed to create pipeline layout for effect file " << effect.source_file << '!';
 		return false;
 	}
@@ -2319,9 +2314,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				api::resource_desc(effect.uniform_data_storage.size(), api::memory_heap::cpu_to_gpu, api::resource_usage::constant_buffer),
 				nullptr, api::resource_usage::cpu_access, &effect.cb))
 		{
-			effect.compiled = false;
-			_last_reload_successfull = false;
-
 			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << '!';
 			return false;
 		}
@@ -2330,9 +2322,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		if (!_device->allocate_descriptor_table(effect.layout, 0, &effect.cb_table))
 		{
-			effect.compiled = false;
-			_last_reload_successfull = false;
-
 			LOG(ERROR) << "Failed to create constant buffer descriptor table for effect file " << effect.source_file << '!';
 			return false;
 		}
@@ -2359,9 +2348,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(sampler_with_resource_view ? total_pass_count : 1), effect.layout, 1, sampler_with_resource_view ? texture_tables.data() : &effect.sampler_table))
 		{
-			effect.compiled = false;
-			_last_reload_successfull = false;
-
 			LOG(ERROR) << "Failed to create sampler descriptor table for effect file " << effect.source_file << '!';
 			return false;
 		}
@@ -2396,9 +2382,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				api::sampler &sampler_handle = sampler_descriptors[info.binding].sampler;
 				if (!create_effect_sampler_state(desc, sampler_handle))
 				{
-					effect.compiled = false;
-					_last_reload_successfull = false;
-
 					LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
 					return false;
 				}
@@ -2419,9 +2402,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, 2, texture_tables.data()))
 		{
-			effect.compiled = false;
-			_last_reload_successfull = false;
-
 			LOG(ERROR) << "Failed to create texture descriptor table for effect file " << effect.source_file << '!';
 			return false;
 		}
@@ -2431,9 +2411,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, sampler_with_resource_view ? 2 : 3, storage_tables.data()))
 		{
-			effect.compiled = false;
-			_last_reload_successfull = false;
-
 			LOG(ERROR) << "Failed to create storage descriptor table for effect file " << effect.source_file << '!';
 			return false;
 		}
@@ -2479,8 +2456,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				if (!_device->create_pipeline(effect.layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pass_data.pipeline))
 				{
 					effect.errors += "error: internal compiler error";
-					effect.compiled = false;
-					_last_reload_successfull = false;
 
 					LOG(ERROR) << "Failed to create compute pipeline for pass " << pass_index << " in technique '" << tech.name << "' in " << effect.source_file << '!';
 					return false;
@@ -2670,8 +2645,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				if (!_device->create_pipeline(effect.layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pass_data.pipeline))
 				{
 					effect.errors += "error: internal compiler error";
-					effect.compiled = false;
-					_last_reload_successfull = false;
 
 					LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << tech.name << "' in " << effect.source_file << '!';
 					return false;
@@ -2720,9 +2693,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 						if (!create_effect_sampler_state(desc, sampler_descriptors[info.binding].sampler))
 						{
-							effect.compiled = false;
-							_last_reload_successfull = false;
-
 							LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
 							return false;
 						}
@@ -2927,8 +2897,16 @@ void reshade::runtime::load_textures()
 		// Search for image file using the provided search paths unless the path provided is already absolute
 		if (!find_file(_texture_search_paths, source_path))
 		{
-			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
-				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" was not found.\n";
+			effect &effect = _effects[tex.effect_index];
+			if (effect.errors.find(source_path.u8string()) == std::string::npos)
+				effect.errors += "error: " + tex.unique_name + ": image file \"" + source_path.u8string() + "\" was not found\n";
+
+			// Disable all techniques belonging to this effect
+			for (technique &tech : _techniques)
+				if (tech.effect_index == tex.effect_index)
+					disable_technique(tech);
+			effect.compiled = false;
+			_last_reload_successfull = false;
 
 			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' was not found in any of the texture search paths!";
 			continue;
@@ -2936,14 +2914,6 @@ void reshade::runtime::load_textures()
 
 		std::error_code ec;
 		const uintmax_t file_size = std::filesystem::file_size(source_path, ec);
-		if (ec)
-		{
-			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
-				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
-
-			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
-			continue;
-		}
 
 		stbi_uc *pixels = nullptr;
 		int width = 0, height = 0, depth = 1, channels = 0;
@@ -2961,12 +2931,19 @@ void reshade::runtime::load_textures()
 				pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
 		}
 
-		if (pixels == nullptr)
+		if (ec || pixels == nullptr)
 		{
-			if (_effects[tex.effect_index].errors.find(source_path.u8string()) == std::string::npos)
-				_effects[tex.effect_index].errors += "warning: " + tex.unique_name + ": source \"" + source_path.u8string() + "\" could not be loaded.\n";
+			effect &effect = _effects[tex.effect_index];
+			if (effect.errors.find(source_path.u8string()) == std::string::npos)
+				effect.errors += "error: " + tex.unique_name + ": image file \"" + source_path.u8string() + "\" could not be loaded\n";
 
-			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "'! Make sure it is of a compatible file format.";
+			for (technique &tech : _techniques)
+				if (tech.effect_index == tex.effect_index)
+					disable_technique(tech);
+			effect.compiled = false;
+			_last_reload_successfull = false;
+
+			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
 			continue;
 		}
 
@@ -3622,6 +3599,7 @@ void reshade::runtime::update_effects()
 				if (tech.effect_index == effect_index)
 					disable_technique(tech);
 
+			_effects[effect_index].compiled = false;
 			_last_reload_successfull = false;
 		}
 
