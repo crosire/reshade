@@ -286,7 +286,7 @@ bool reshade::imgui::font_input_box(const char *name, std::filesystem::path &pat
 
 	ImGui::SameLine(0, spacing);
 	ImGui::SetNextItemWidth(80);
-	if (ImGui::SliderInt("##size", &size, 8, 32))
+	if (ImGui::SliderInt("##size", &size, 8, 32, "%d", ImGuiSliderFlags_AlwaysClamp))
 		res = true;
 
 	ImGui::PopID();
