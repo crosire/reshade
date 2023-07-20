@@ -2946,7 +2946,7 @@ void reshade::runtime::load_textures()
 		}
 
 		stbi_uc *pixels = nullptr;
-		int width = 0, height = 0, channels = 0;
+		int width = 0, height = 0, depth = 1, channels = 0;
 
 		if (auto file = std::ifstream(source_path, std::ios::binary))
 		{
@@ -2956,7 +2956,7 @@ void reshade::runtime::load_textures()
 			file.close();
 
 			if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
-				pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+				pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &depth, &channels, STBI_rgb_alpha);
 			else
 				pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
 		}
@@ -2970,7 +2970,7 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		update_texture(tex, width, height, pixels);
+		update_texture(tex, width, height, depth, pixels);
 
 		stbi_image_free(pixels);
 
@@ -4251,15 +4251,15 @@ void reshade::runtime::save_texture(const texture &tex)
 		});
 	}
 }
-void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t height, const uint8_t *pixels)
+void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t height, uint32_t depth, const uint8_t *pixels)
 {
-	if (tex.type == reshadefx::texture_type::texture_3d)
+	if (tex.depth != depth || (tex.depth != 1 && (tex.width != width || tex.height != height)))
 	{
-		LOG(ERROR) << "Texture upload is not supported for 3D textures!";
+		LOG(ERROR) << "Resizing image data is not supported for 3D textures like '" << tex.unique_name << "'.";
 		return;
 	}
 
-	std::vector<uint8_t> resized(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
+	std::vector<uint8_t> resized(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * 4);
 	// Need to potentially resize image data to the texture dimensions
 	if (tex.width != width || tex.height != height)
 	{

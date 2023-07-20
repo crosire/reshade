@@ -674,7 +674,7 @@ void reshade::runtime::update_texture([[maybe_unused]] api::effect_texture_varia
 	if (variable == nullptr || variable->resource == 0)
 		return;
 
-	update_texture(*variable, width, height, pixels);
+	update_texture(*variable, width, height, 1, pixels);
 #endif
 }
 

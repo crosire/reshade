@@ -235,7 +235,7 @@ namespace reshade
 		void render_technique(technique &technique, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb);
 
 		void save_texture(const texture &texture);
-		void update_texture(texture &texture, uint32_t width, uint32_t height, const uint8_t *pixels);
+		void update_texture(texture &texture, uint32_t width, uint32_t height, uint32_t depth, const uint8_t *pixels);
 
 		void reset_uniform_value(uniform &variable);
 
