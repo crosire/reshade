@@ -24,9 +24,9 @@
 
 RESHADE_API_LIBRARY_DECLSPEC void ReShadeLogMessage(HMODULE module, int level, const char *message);
 
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeGetBasePath(HMODULE module, char *path, size_t *size);
+RESHADE_API_LIBRARY_DECLSPEC void ReShadeGetBasePath(char *path, size_t *path_size);
 
-RESHADE_API_LIBRARY_DECLSPEC bool ReShadeGetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size);
+RESHADE_API_LIBRARY_DECLSPEC bool ReShadeGetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *value_size);
 RESHADE_API_LIBRARY_DECLSPEC void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value);
 
 RESHADE_API_LIBRARY_DECLSPEC bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version);
@@ -122,11 +122,11 @@ namespace reshade
 	inline void get_reshade_base_path(char *path, size_t *path_size)
 	{
 #if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && defined(RESHADE_ADDON))
-		ReShadeGetBasePath(nullptr, path, path_size);
+		ReShadeGetBasePath(path, path_size);
 #elif !defined(RESHADE_API_LIBRARY_EXPORT)
-		static const auto func = reinterpret_cast<bool(*)(HMODULE, char *, size_t *)>(
+		static const auto func = reinterpret_cast<bool(*)(char *, size_t *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetBasePath"));
-		func(internal::get_current_module_handle(), path, path_size);
+		func(path, path_size);
 #endif
 	}
 

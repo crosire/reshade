@@ -24,7 +24,7 @@ void ReShadeLogMessage(HMODULE module, int level, const char *message)
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
 }
 
-void ReShadeGetBasePath(HMODULE, char *path, size_t *size)
+void ReShadeGetBasePath(char *path, size_t *size)
 {
 	if (size == nullptr)
 		return;
