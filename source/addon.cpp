@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#if RESHADE_ADDON && defined(RESHADE_API_LIBRARY_EXPORT)
+#if defined(RESHADE_API_LIBRARY_EXPORT)
 
 #include "reshade.hpp"
 #include "addon_manager.hpp"
@@ -14,12 +14,16 @@
 void ReShadeLogMessage(HMODULE module, int level, const char *message)
 {
 	std::string prefix;
+#if RESHADE_ADDON
 	if (module != nullptr)
 	{
 		reshade::addon_info *const info = reshade::find_addon(module);
 		if (info != nullptr)
 			prefix = "[" + info->name + "] ";
 	}
+#else
+	UNREFERENCED_PARAMETER(module);
+#endif
 
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
 }
@@ -82,7 +86,7 @@ void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 	config.set(section_string, key_string, value_string);
 }
 
-#if RESHADE_GUI
+#if RESHADE_ADDON && RESHADE_GUI
 
 #include <imgui.h>
 #include "imgui_function_table_18971.hpp"

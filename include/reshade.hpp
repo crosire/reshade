@@ -105,15 +105,12 @@ namespace reshade
 	/// <param name="message">A null-terminated message string.</param>
 	inline void log_message(log_level level, const char *message)
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
+#if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
 		ReShadeLogMessage(nullptr, static_cast<int>(level), message);
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+#else
 		static const auto func = reinterpret_cast<void(*)(HMODULE, int, const char *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeLogMessage"));
 		func(internal::get_current_module_handle(), static_cast<int>(level), message);
-#else
-		UNREFERENCED_PARAMETER(level);
-		UNREFERENCED_PARAMETER(message);
 #endif
 	}
 
@@ -124,15 +121,12 @@ namespace reshade
 	/// <param name="path_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 	inline void get_reshade_base_path(char *path, size_t *path_size)
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
+#if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
 		ReShadeGetBasePath(path, path_size);
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+#else
 		static const auto func = reinterpret_cast<bool(*)(char *, size_t *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetBasePath"));
 		func(path, path_size);
-#else
-		UNREFERENCED_PARAMETER(path);
-		UNREFERENCED_PARAMETER(path_size);
 #endif
 	}
 
@@ -147,19 +141,12 @@ namespace reshade
 	/// <returns><see langword="true"/> if the specified config value exists, <see cref="false"/> otherwise.</returns>
 	inline bool get_config_value(api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *value_size)
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
+#if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
 		return ReShadeGetConfigValue(nullptr, runtime, section, key, value, value_size);
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+#else
 		static const auto func = reinterpret_cast<bool(*)(HMODULE, api::effect_runtime *, const char *, const char *, char *, size_t *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeGetConfigValue"));
 		return func(internal::get_current_module_handle(), runtime, section, key, value, value_size);
-#else
-		UNREFERENCED_PARAMETER(runtime);
-		UNREFERENCED_PARAMETER(section);
-		UNREFERENCED_PARAMETER(key);
-		UNREFERENCED_PARAMETER(value);
-		UNREFERENCED_PARAMETER(value_size);
-		return false;
 #endif
 	}
 #if _HAS_CXX17
@@ -191,17 +178,12 @@ namespace reshade
 	/// <param name="value">Config value to set.</param>
 	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
+#if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
 		ReShadeSetConfigValue(nullptr, runtime, section, key, value);
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+#else
 		static const auto func = reinterpret_cast<void(*)(HMODULE, api::effect_runtime *, const char *, const char *, const char *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeSetConfigValue"));
 		func(internal::get_current_module_handle(), runtime, section, key, value);
-#else
-		UNREFERENCED_PARAMETER(runtime);
-		UNREFERENCED_PARAMETER(section);
-		UNREFERENCED_PARAMETER(key);
-		UNREFERENCED_PARAMETER(value);
 #endif
 	}
 #if _HAS_CXX17
@@ -228,7 +210,6 @@ namespace reshade
 	inline bool register_addon(HMODULE addon_module, [[maybe_unused]] HMODULE reshade_module = nullptr)
 	{
 #if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
-		UNREFERENCED_PARAMETER(reshade_module);
 		return ReShadeRegisterAddon(addon_module, RESHADE_API_VERSION);
 #elif !defined(RESHADE_API_LIBRARY_EXPORT)
 		addon_module = internal::get_current_module_handle(addon_module);
