@@ -3226,7 +3226,7 @@ void reshade::runtime::draw_variable_editor()
 
 					const int ui_min_val = variable.annotation_as_int("ui_min", 0, ui_type == "slider" ? 0 : std::numeric_limits<int>::lowest());
 					const int ui_max_val = variable.annotation_as_int("ui_max", 0, ui_type == "slider" ? 1 : std::numeric_limits<int>::max());
-					const int ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
+					const int ui_stp_val = variable.annotation_as_int("ui_step", 0, 1);
 
 					// Append units
 					std::string format = "%d";
@@ -3264,7 +3264,7 @@ void reshade::runtime::draw_variable_editor()
 
 					const float ui_min_val = variable.annotation_as_float("ui_min", 0, ui_type == "slider" ? 0.0f : std::numeric_limits<float>::lowest());
 					const float ui_max_val = variable.annotation_as_float("ui_max", 0, ui_type == "slider" ? 1.0f : std::numeric_limits<float>::max());
-					const float ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
+					const float ui_stp_val = variable.annotation_as_float("ui_step", 0, 0.001f);
 
 					// Calculate display precision based on step value
 					std::string precision_format = "%.0f";
@@ -3278,7 +3278,7 @@ void reshade::runtime::draw_variable_editor()
 					if (ui_type == "slider")
 						modified = imgui::slider_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
 					else if (ui_type == "drag")
-						modified = variable.annotation_as_float("ui_step") == 0 ?
+						modified = variable.annotation_as_float("ui_step") == 0.0f ?
 							ImGui::DragScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str()) :
 							imgui::drag_with_buttons(label.data(), ImGuiDataType_Float, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
 					else if (ui_type == "color" && variable.type.rows == 1)
