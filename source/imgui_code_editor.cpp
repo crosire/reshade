@@ -590,20 +590,17 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		if (ImGui::Button("Aa", ImVec2(button_size + 5, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_C)))
 			_search_case_sensitive = !_search_case_sensitive;
 		ImGui::PopStyleColor();
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Match case (Alt + C)");
+		ImGui::SetItemTooltip("Match case (Alt + C)");
 
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button("<", ImVec2(button_size, 0)) || (shift && ImGui::IsKeyPressed(ImGuiKey_F3)))
 			find_and_scroll_to_text(_search_text, true);
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Find previous (Shift + F3)");
+		ImGui::SetItemTooltip("Find previous (Shift + F3)");
 
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button(">", ImVec2(button_size, 0)) || (!shift && ImGui::IsKeyPressed(ImGuiKey_F3)))
 			find_and_scroll_to_text(_search_text, false);
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Find next (F3)");
+		ImGui::SetItemTooltip("Find next (F3)");
 
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button("X", ImVec2(button_size, 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape))
@@ -611,8 +608,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			// Move focus back to text editor again next frame
 			_search_window_open = -1;
 		}
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Close (Escape)");
+		ImGui::SetItemTooltip("Close (Escape)");
 
 		if (_search_window_open > +1)
 		{
@@ -630,8 +626,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			if (ImGui::Button("Repl", ImVec2(2 * button_size + button_spacing, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_R)))
 				if (find_and_scroll_to_text(_search_text, false, true))
 					insert_text(_replace_text);
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Replace next (Alt + R)");
+			ImGui::SetItemTooltip("Replace next (Alt + R)");
 
 			ImGui::SameLine(0.0f, button_spacing);
 			if (ImGui::Button("A", ImVec2(button_size, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_A)))
@@ -641,8 +636,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 				while (find_and_scroll_to_text(_search_text, false, true))
 					insert_text(_replace_text);
 			}
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Replace all (Alt + A)");
+			ImGui::SetItemTooltip("Replace all (Alt + A)");
 		}
 
 		ImGui::EndChild();

@@ -1332,16 +1332,14 @@ void reshade::runtime::draw_gui_home()
 		if (ImGui::ArrowButtonEx("<", ImGuiDir_Left, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), true))
 				reload_preset = true;
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Previous preset");
+		ImGui::SetItemTooltip("Previous preset");
 
 		ImGui::SameLine(0, button_spacing);
 
 		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), false))
 				reload_preset = true;
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Next preset");
+		ImGui::SetItemTooltip("Next preset");
 
 		ImGui::SameLine();
 
@@ -1397,8 +1395,7 @@ void reshade::runtime::draw_gui_home()
 			save_config();
 		}
 
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Save current preset automatically on every modification");
+		ImGui::SetItemTooltip("Save current preset automatically on every modification");
 
 		if (was_auto_save_preset)
 		{
@@ -1413,8 +1410,7 @@ void reshade::runtime::draw_gui_home()
 			if (imgui::confirm_button(ICON_FK_UNDO, button_size, "Do you really want to reset all techniques and values?"))
 				reload_preset = true;
 
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Reset all techniques and values to those of the current preset");
+			ImGui::SetItemTooltip("Reset all techniques and values to those of the current preset");
 
 			ImGui::EndDisabled();
 
@@ -1433,8 +1429,7 @@ void reshade::runtime::draw_gui_home()
 			_preset_is_modified = false;
 		}
 
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Clean up and save the current preset (removes all values for disabled techniques)");
+		ImGui::SetItemTooltip("Clean up and save the current preset (removes all values for disabled techniques)");
 
 		ImGui::EndDisabled();
 
@@ -1447,8 +1442,7 @@ void reshade::runtime::draw_gui_home()
 			ImGui::OpenPopup("##create");
 		}
 
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Add a new preset");
+		ImGui::SetItemTooltip("Add a new preset");
 
 		if (was_loading)
 		{
@@ -1737,8 +1731,7 @@ void reshade::runtime::draw_gui_home()
 			reload_effects(); // Reload effects after switching
 		}
 
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Reload all effects into a more optimal representation that can give a performance boost (disables variable tweaking)");
+		ImGui::SetItemTooltip("Reload all effects into a more optimal representation that can give a performance boost (disables variable tweaking)");
 	}
 	else
 	{
@@ -1806,8 +1799,7 @@ void reshade::runtime::draw_gui_settings()
 			modified |= imgui::key_input_box("Next preset key", _next_preset_key_data, *_input);
 
 			modified |= ImGui::SliderInt("Preset transition duration", reinterpret_cast<int *>(&_preset_transition_duration), 0, 10 * 1000);
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Make a smooth transition when switching presets, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
+			ImGui::SetItemTooltip("Make a smooth transition when switching presets, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
 #endif
 
 			modified |= ImGui::Combo("Input processing", reinterpret_cast<int *>(&_input_processing_mode),
@@ -1821,17 +1813,14 @@ void reshade::runtime::draw_gui_settings()
 
 #if RESHADE_FX
 		modified |= imgui::file_input_box("Start-up preset", nullptr, _startup_preset_path, _file_selection_path, { L".ini", L".txt" });
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("When not empty, reset the current preset to this file during reloads.");
+		ImGui::SetItemTooltip("When not empty, reset the current preset to this file during reloads.");
 
 		ImGui::Spacing();
 
 		modified |= imgui::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("List of directory paths to be searched for effect files (.fx).\nPaths that end in \"\\**\" are searched recursively.");
+		ImGui::SetItemTooltip("List of directory paths to be searched for effect files (.fx).\nPaths that end in \"\\**\" are searched recursively.");
 		modified |= imgui::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("List of directory paths to be searched for texture image files.\nPaths that end in \"\\**\" are searched recursively.");
+		ImGui::SetItemTooltip("List of directory paths to be searched for texture image files.\nPaths that end in \"\\**\" are searched recursively.");
 
 		if (ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping))
 		{
@@ -1844,8 +1833,7 @@ void reshade::runtime::draw_gui_settings()
 
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
 			clear_effect_cache();
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Clear effect cache located in \"%s\".", _effect_cache_path.u8string().c_str());
+		ImGui::SetItemTooltip("Clear effect cache located in \"%s\".", _effect_cache_path.u8string().c_str());
 #endif
 	}
 
@@ -1866,7 +1854,7 @@ void reshade::runtime::draw_gui_settings()
 			_screenshot_name = name;
 		}
 
-		if (ImGui::IsItemHovered())
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 		{
 			ImGui::SetTooltip(
 				"Macros you can add that are resolved during saving:\n"
@@ -1906,12 +1894,10 @@ void reshade::runtime::draw_gui_settings()
 		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshot_save_gui);
 
 		modified |= imgui::file_input_box("Screenshot sound", "sound.wav", _screenshot_sound_path, _file_selection_path, { L".wav" });
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Audio file that is played when taking a screenshot.");
+		ImGui::SetItemTooltip("Audio file that is played when taking a screenshot.");
 
 		modified |= imgui::file_input_box("Post-save command", "command.exe", _screenshot_post_save_command, _file_selection_path, { L".exe" });
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Executable that is called after saving a screenshot.\nThis can be used to perform additional processing on the image (e.g. compressing it with an image optimizer).");
+		ImGui::SetItemTooltip("Executable that is called after saving a screenshot.\nThis can be used to perform additional processing on the image (e.g. compressing it with an image optimizer).");
 
 		char arguments[260];
 		arguments[_screenshot_post_save_command_arguments.copy(arguments, sizeof(arguments) - 1)] = '\0';
@@ -1921,7 +1907,7 @@ void reshade::runtime::draw_gui_settings()
 			_screenshot_post_save_command_arguments = arguments;
 		}
 
-		if (ImGui::IsItemHovered())
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 		{
 			const std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg";
 
@@ -2150,8 +2136,7 @@ void reshade::runtime::draw_gui_settings()
 			ImGui::SameLine(0, 10);
 			modified |= imgui::checkbox_tristate("Show frame time", &_show_frametime);
 			ImGui::EndGroup();
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Check to always show, fill out to only show while overlay is open.");
+			ImGui::SetItemTooltip("Check to always show, fill out to only show while overlay is open.");
 
 			if (_show_clock)
 				modified |= ImGui::Combo("Clock format", reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0");
@@ -2494,8 +2479,7 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::SameLine(0, button_spacing);
 				if (ImGui::Button(ICON_FK_FLOPPY, ImVec2(button_size, 0)))
 					save_texture(tex);
-				if (ImGui::IsItemHovered())
-					ImGui::SetTooltip("Save %s", tex.unique_name.c_str());
+				ImGui::SetItemTooltip("Save %s", tex.unique_name.c_str());
 			}
 			ImGui::PopStyleVar();
 
@@ -3306,7 +3290,7 @@ void reshade::runtime::draw_variable_editor()
 
 			// Display tooltip
 			if (const std::string_view tooltip = variable.annotation_as_string("ui_tooltip");
-				!tooltip.empty() && ImGui::IsItemHovered())
+				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 			{
 				if (ImGui::BeginTooltip())
 				{
@@ -3521,7 +3505,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::PopItemFlag();
 
 			// Display tooltip
-			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !effect.errors.empty())
+			if (!effect.errors.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_ForTooltip))
 			{
 				if (ImGui::BeginTooltip())
 				{
@@ -3561,7 +3545,7 @@ void reshade::runtime::draw_technique_editor()
 
 					if (source_file_errors_it != file_errors_lookup.end())
 					{
-						if (ImGui::IsItemHovered())
+						if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 						{
 							if (ImGui::BeginTooltip())
 							{
@@ -3592,7 +3576,7 @@ void reshade::runtime::draw_technique_editor()
 
 							if (included_file_errors_it != file_errors_lookup.end())
 							{
-								if (ImGui::IsItemHovered())
+								if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 								{
 									if (ImGui::BeginTooltip())
 									{
@@ -3695,7 +3679,7 @@ void reshade::runtime::draw_technique_editor()
 
 			// Display tooltip
 			if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
-				!tooltip.empty() && ImGui::IsItemHovered())
+				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 			{
 				if (ImGui::BeginTooltip())
 				{

@@ -262,7 +262,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 			res = true;
 		}
 	}
-	else if (ImGui::IsItemHovered())
+	else if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 	{
 		ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key or press backspace to remove the shortcut.");
 	}
