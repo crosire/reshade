@@ -1959,7 +1959,11 @@ void reshade::runtime::draw_gui_settings()
 		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
 
 #if RESHADE_FX
+		ImGui::BeginDisabled(_preset_transition_duration == 0);
 		modified |= ImGui::Checkbox("Show preset transition message", &_show_preset_transition_message);
+		ImGui::EndDisabled();
+		if (_preset_transition_duration == 0 && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_ForTooltip))
+			ImGui::SetTooltip("Preset transition duration has to be non-zero for the preset transition message to show up.");
 
 		if (_effect_load_skipping)
 			modified |= ImGui::Checkbox("Show \"Force load all effects\" button", &_show_force_load_effects_button);
