@@ -90,7 +90,15 @@ bool reshade::log::open_log_file(const std::filesystem::path &path, std::error_c
 	// Open the log file for writing (and flush on each write) and clear previous contents
 	s_file_handle = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, NULL);
 
-	ec.assign(GetLastError(), std::system_category());
-
-	return s_file_handle != INVALID_HANDLE_VALUE;
+	if (s_file_handle != INVALID_HANDLE_VALUE)
+	{
+		// Last error may be ERROR_ALREADY_EXISTS if an existing file was overwritten, which can be ignored
+		ec.clear();
+		return true;
+	}
+	else
+	{
+		ec.assign(GetLastError(), std::system_category());
+		return false;
+	}
 }
