@@ -187,10 +187,9 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 {
 	_was_still_drawing_last_frame = (hr == DXGI_ERROR_WAS_STILL_DRAWING);
 
-	// Handle scenarios where device is lost and just clean up all resources
 	if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
 	{
-		LOG(ERROR) << "Device was lost with " << hr << "! Destroying all resources and disabling ReShade.";
+		LOG(ERROR) << "Device was lost with " << hr << '!';
 
 		if (hr == DXGI_ERROR_DEVICE_REMOVED)
 		{
@@ -210,8 +209,6 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 
 			LOG(ERROR) << "> Device removal reason is " << reason << '.';
 		}
-
-		on_reset();
 	}
 }
 

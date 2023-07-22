@@ -35,12 +35,11 @@ void Direct3DSwapChain9::handle_device_loss(HRESULT hr)
 {
 	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
 
-	// Handle scenarios where device is lost and just clean up all resources
-	if (hr == D3DERR_DEVICELOST || hr == D3DERR_DEVICEREMOVED || hr == D3DERR_DEVICEHUNG )
+	// Ignore D3DERR_DEVICELOST, since it can frequently occur when minimizing out of exclusive fullscreen
+	if (hr == D3DERR_DEVICEREMOVED || hr == D3DERR_DEVICEHUNG)
 	{
-		LOG(ERROR) << "Device was lost with " << hr << "! Destroying all resources and disabling ReShade.";
-
-		on_reset();
+		LOG(ERROR) << "Device was lost with " << hr << '!';
+		// Do not clean up resources, since application has to call 'IDirect3DDevice9::Reset' anyway, which will take care of that
 	}
 }
 
