@@ -71,11 +71,6 @@ namespace ReShade.Setup
 			else
 			{
 				signed = assembly.GetCustomAttribute<AssemblyConfigurationAttribute>().Configuration.Contains("Signed");
-
-				if (!signed)
-				{
-					NavigationPanel.Background = new SolidColorBrush(Color.FromArgb(255, 237, 189, 0));
-				}
 			}
 
 			// Add support for TLS 1.2 and 1.3, so that HTTPS connection to GitHub succeeds
