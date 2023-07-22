@@ -2837,11 +2837,6 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		effect.texture_semantic_to_binding.clear();
 	}
 
-#if RESHADE_GUI
-	_preview_texture.handle = 0;
-	_effect_filter[0] = '\0'; // And reset filter too, since the list of techniques might have changed
-#endif
-
 	// Lock here to be safe in case another effect is still loading
 	const std::unique_lock<std::shared_mutex> lock(_reload_mutex);
 
@@ -3125,6 +3120,11 @@ bool reshade::runtime::create_texture(texture &tex)
 }
 void reshade::runtime::destroy_texture(texture &tex)
 {
+#if RESHADE_GUI
+	if (_preview_texture == tex.srv[0])
+		_preview_texture.handle = 0;
+#endif
+
 	_device->destroy_resource(tex.resource);
 	tex.resource = {};
 
@@ -3332,6 +3332,10 @@ void reshade::runtime::destroy_effects()
 		if (thread.joinable())
 			thread.join();
 	_worker_threads.clear();
+
+#if RESHADE_GUI
+	_effect_filter[0] = '\0';
+#endif
 
 	// Reset the effect creation queue
 	_reload_create_queue.clear();

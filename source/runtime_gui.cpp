@@ -1226,9 +1226,6 @@ void reshade::runtime::draw_gui()
 			ImGui::End();
 		}
 
-		// The preview texture is unset in 'destroy_effect', so should not be able to reach this while loading
-		assert(!is_loading());
-
 		// Scale image to fill the entire viewport by default
 		ImVec2 preview_min = ImVec2(0, 0);
 		ImVec2 preview_max = imgui_io.DisplaySize;
@@ -2520,14 +2517,14 @@ void reshade::runtime::draw_gui_statistics()
 				{
 					_preview_size[0] = 0;
 					_preview_size[1] = 0;
-					_preview_texture = !check ? tex.srv[0] : api::resource_view{ 0 };
+					_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
 				}
 				ImGui::SameLine();
 				if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check))
 				{
 					_preview_size[0] = tex.width;
 					_preview_size[1] = tex.height;
-					_preview_texture = !check ? tex.srv[0] : api::resource_view{ 0 };
+					_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
 				}
 
 				bool r = (_preview_size[2] & 0x000000FF) != 0;
