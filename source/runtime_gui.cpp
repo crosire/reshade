@@ -729,7 +729,7 @@ void reshade::runtime::draw_gui()
 	}
 
 #if RESHADE_FX
-	const bool show_splash_window = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0));
+	const bool show_splash_window = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0 && _input != nullptr));
 #else
 	const bool show_splash_window = _show_splash && (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
 #endif
