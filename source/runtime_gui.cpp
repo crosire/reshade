@@ -160,7 +160,8 @@ void reshade::runtime::build_font_atlas()
 		icon_config.MergeMode = true;
 		icon_config.PixelSnapH = true;
 		icon_config.GlyphOffset = ImVec2(0.0f, 0.1f * _font_size);
-		constexpr ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
+		// This need to be static so that it doesn't fall out of scope before the atlas is built below
+		static constexpr ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
 
 		atlas->AddFontFromMemoryCompressedBase85TTF(FONT_ICON_BUFFER_NAME_FK, cfg.SizePixels, &icon_config, icon_ranges);
 	}
