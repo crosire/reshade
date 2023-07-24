@@ -43,6 +43,7 @@ private:
 	unsigned int _shader_model = 0;
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
+	std::unordered_map<std::string, std::string> _remapped_semantics;
 
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_bitwise_cast = false;
@@ -436,7 +437,7 @@ private:
 		_names[id] = std::move(name);
 	}
 
-	std::string convert_semantic(const std::string &semantic) const
+	std::string convert_semantic(const std::string &semantic)
 	{
 		if (_shader_model < 40)
 		{
@@ -452,6 +453,25 @@ private:
 				return "TEXCOORD0 /* VERTEXID */";
 			if (semantic == "SV_ISFRONTFACE")
 				return "VFACE";
+
+			if (semantic != "VPOS" &&
+				semantic.compare(0, 5, "COLOR") != 0 &&
+				semantic.compare(0, 6, "NORMAL") != 0 &&
+				semantic.compare(0, 7, "TANGENT") != 0)
+			{
+				// Shader model 3 only supports a selected list of semantic names, so need to remap custom ones to that
+				if (const auto it = _remapped_semantics.find(semantic);
+					it != _remapped_semantics.end())
+					return it->second;
+
+				// Legal semantic indices are between 0 and 15
+				if (_remapped_semantics.size() < 15)
+				{
+					const std::string remapped_semantic = "TEXCOORD" + std::to_string(_remapped_semantics.size()) + " /* " + semantic + " */";
+					_remapped_semantics.emplace(semantic, remapped_semantic);
+					return remapped_semantic;
+				}
+			}
 		}
 		else
 		{
