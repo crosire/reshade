@@ -836,6 +836,7 @@ private:
 		entry_point.return_type = { type::t_void };
 
 		std::unordered_map<std::string, std::string> semantic_to_varying_variable;
+
 		const auto create_varying_variable = [this, stype, &semantic_to_varying_variable](type type, unsigned int extra_qualifiers, const std::string &name, const std::string &semantic) {
 			// Skip built in variables
 			if (!semantic_to_builtin(std::string(), semantic, stype).empty())
@@ -850,8 +851,8 @@ private:
 			assert((type.has(type::q_in) || type.has(type::q_out)) && !type.has(type::q_inout));
 
 			// OpenGL does not allow varying of type boolean
-			if (type.base == type::t_bool)
-				type.base  = type::t_float;
+			if (type.is_boolean())
+				type.base = type::t_float;
 
 			std::string &code = _blocks.at(_current_block);
 
@@ -969,7 +970,17 @@ private:
 
 								for (int b = 0; b < member.type.array_length; b++)
 								{
+									// OpenGL does not allow varying of type boolean, so need to cast here
+									if (member.type.is_boolean())
+									{
+										write_type<false, false>(code, member.type);
+										code += '(';
+									}
+
 									code += escape_name(in_param_name + '_' + std::to_string(b));
+
+									if (member.type.is_boolean())
+										code += ')';
 
 									if (b < member.type.array_length - 1)
 										code += ", ";
@@ -979,7 +990,16 @@ private:
 							}
 							else
 							{
+								if (member.type.is_boolean())
+								{
+									write_type<false, false>(code, member.type);
+									code += '(';
+								}
+
 								code += semantic_to_builtin(std::move(in_param_name), member.semantic, stype);
+
+								if (member.type.is_boolean())
+									code += ')';
 							}
 
 							code += ", ";
@@ -1002,9 +1022,20 @@ private:
 							"_in_param" + std::to_string(i) + '_' + std::to_string(a) :
 							"_in_param" + std::to_string(i));
 						code += " = ";
+
+						if (param_type.is_boolean())
+						{
+							write_type<false, false>(code, param_type);
+							code += '(';
+						}
+
 						code += escape_name(param_type.is_array() ?
 							it->second + '_' + std::to_string(a) :
 							it->second);
+
+						if (param_type.is_boolean())
+							code += ')';
+
 						code += ";\n";
 					}
 				}
@@ -1032,7 +1063,17 @@ private:
 
 					for (int a = 0; a < param_type.array_length; ++a)
 					{
+						// OpenGL does not allow varying of type boolean, so need to cast here
+						if (param_type.is_boolean())
+						{
+							write_type<false, false>(code, param_type);
+							code += '(';
+						}
+
 						code += escape_name("_in_param" + std::to_string(i) + '_' + std::to_string(a));
+
+						if (param_type.is_boolean())
+							code += ')';
 
 						if (a < param_type.array_length - 1)
 							code += ", ";
@@ -1042,7 +1083,16 @@ private:
 				}
 				else
 				{
+					if (param_type.is_boolean())
+					{
+						write_type<false, false>(code, param_type);
+						code += '(';
+					}
+
 					code += semantic_to_builtin("_in_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
+
+					if (param_type.is_boolean())
+						code += ')';
 				}
 			}
 
@@ -1099,12 +1149,26 @@ private:
 								code += '\t';
 								code += escape_name("_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name + '_' + std::to_string(b));
 								code += " = ";
+
+								// OpenGL does not allow varying of type boolean, so need to cast here
+								if (member.type.is_boolean())
+								{
+									type varying_type = member.type;
+									varying_type.base = type::t_float;
+									write_type<false, false>(code, varying_type);
+									code += '(';
+								}
+
 								code += escape_name("_param" + std::to_string(i));
 								if (param_type.is_array())
 									code += '[' + std::to_string(a) + ']';
 								code += '.';
 								code += member.name;
 								code += '[' + std::to_string(b) + ']';
+
+								if (member.type.is_boolean())
+									code += ')';
+
 								code += ";\n";
 							}
 						}
@@ -1113,11 +1177,24 @@ private:
 							code += '\t';
 							code += semantic_to_builtin("_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic, stype);
 							code += " = ";
+
+							if (member.type.is_boolean())
+							{
+								type varying_type = member.type;
+								varying_type.base = type::t_float;
+								write_type<false, false>(code, varying_type);
+								code += '(';
+							}
+
 							code += escape_name("_param" + std::to_string(i));
 							if (param_type.is_array())
 								code += '[' + std::to_string(a) + ']';
 							code += '.';
 							code += member.name;
+
+							if (member.type.is_boolean())
+								code += ')';
+
 							code += ";\n";
 						}
 					}
@@ -1133,8 +1210,22 @@ private:
 						code += '\t';
 						code += escape_name("_out_param" + std::to_string(i) + '_' + std::to_string(a));
 						code += " = ";
+
+						// OpenGL does not allow varying of type boolean, so need to cast here
+						if (param_type.is_boolean())
+						{
+							type varying_type = param_type;
+							varying_type.base = type::t_float;
+							write_type<false, false>(code, varying_type);
+							code += '(';
+						}
+
 						code += escape_name("_param" + std::to_string(i));
 						code += '[' + std::to_string(a) + ']';
+
+						if (param_type.is_boolean())
+							code += ')';
+
 						code += ";\n";
 					}
 				}
@@ -1143,7 +1234,20 @@ private:
 					code += '\t';
 					code += semantic_to_builtin("_out_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
 					code += " = ";
+
+					if (param_type.is_boolean())
+					{
+						type varying_type = param_type;
+						varying_type.base = type::t_float;
+						write_type<false, false>(code, varying_type);
+						code += '(';
+					}
+
 					code += escape_name("_param" + std::to_string(i));
+
+					if (param_type.is_boolean())
+						code += ')';
+
 					code += ";\n";
 				}
 			}
