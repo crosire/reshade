@@ -606,15 +606,25 @@ private:
 			digit_index--;
 		digit_index++;
 
-		const uint32_t base_index = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
-		const std::string base_semantic = semantic.substr(0, digit_index);
+		const uint32_t semantic_digit = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
+		const std::string semantic_base = semantic.substr(0, digit_index);
+
+		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
 
 		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
-		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
-		for (uint32_t a = 0; a < max_array_length + base_index; ++a)
-			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
+		for (uint32_t a = 0; a < semantic_digit + max_array_length; ++a)
+		{
+			const auto insert = _semantic_to_location.emplace(semantic_base + std::to_string(a), location + a);
+			if (!insert.second)
+			{
+				assert(a == 0 || (insert.first->second - a) == location);
 
-		return location + base_index;
+				// Semantic was already created with a different location index, so need to remap to that
+				location = insert.first->second - a;
+			}
+		}
+
+		return location + semantic_digit;
 	}
 
 	const spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype) const
