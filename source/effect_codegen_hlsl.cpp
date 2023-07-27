@@ -63,6 +63,9 @@ private:
 				"struct __sampler1D_uint { Texture1D<uint> t; SamplerState s; };\n"
 				"struct __sampler2D_uint { Texture2D<uint> t; SamplerState s; };\n"
 				"struct __sampler3D_uint { Texture3D<uint> t; SamplerState s; };\n"
+				"struct __sampler1D_float { Texture1D<float> t; SamplerState s; };\n"
+				"struct __sampler2D_float { Texture2D<float> t; SamplerState s; };\n"
+				"struct __sampler3D_float { Texture3D<float> t; SamplerState s; };\n"
 				"struct __sampler1D_float4 { Texture1D<float4> t; SamplerState s; };\n"
 				"struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n"
 				"struct __sampler3D_float4 { Texture3D<float4> t; SamplerState s; };\n";
@@ -392,14 +395,16 @@ private:
 		case texture_format::r32u:
 			s += "uint";
 			break;
-		default:
-			assert(false);
-			[[fallthrough]];
-		case texture_format::unknown:
 		case texture_format::r8:
 		case texture_format::r16:
 		case texture_format::r16f:
 		case texture_format::r32f:
+			s += "float";
+			break;
+		default:
+			assert(false);
+			[[fallthrough]];
+		case texture_format::unknown:
 		case texture_format::rg8:
 		case texture_format::rg16:
 		case texture_format::rg16f:

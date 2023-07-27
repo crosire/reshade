@@ -81,6 +81,9 @@ struct intrinsic
 #define sampler1d_uint { reshadefx::type::t_sampler1d_uint, 1, 1 }
 #define sampler2d_uint { reshadefx::type::t_sampler2d_uint, 1, 1 }
 #define sampler3d_uint { reshadefx::type::t_sampler3d_uint, 1, 1 }
+#define sampler1d_float { reshadefx::type::t_sampler1d_float, 1, 1 }
+#define sampler2d_float { reshadefx::type::t_sampler2d_float, 1, 1 }
+#define sampler3d_float { reshadefx::type::t_sampler3d_float, 1, 1 }
 #define sampler1d_float4 { reshadefx::type::t_sampler1d_float, 4, 1 }
 #define sampler2d_float4 { reshadefx::type::t_sampler2d_float, 4, 1 }
 #define sampler3d_float4 { reshadefx::type::t_sampler3d_float, 4, 1 }
@@ -90,6 +93,9 @@ struct intrinsic
 #define storage1d_uint { reshadefx::type::t_storage1d_uint, 1, 1 }
 #define storage2d_uint { reshadefx::type::t_storage2d_uint, 1, 1 }
 #define storage3d_uint { reshadefx::type::t_storage3d_uint, 1, 1 }
+#define storage1d_float { reshadefx::type::t_storage1d_float, 1, 1 }
+#define storage2d_float { reshadefx::type::t_storage2d_float, 1, 1 }
+#define storage3d_float { reshadefx::type::t_storage3d_float, 1, 1 }
 #define storage1d_float4 { reshadefx::type::t_storage1d_float, 4, 1 }
 #define storage2d_float4 { reshadefx::type::t_storage2d_float, 4, 1 }
 #define storage3d_float4 { reshadefx::type::t_storage3d_float, 4, 1 }

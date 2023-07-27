@@ -1767,9 +1767,11 @@ IMPLEMENT_INTRINSIC_SPIRV(isnan, 0, {
 // ret tex1D(s, coords, offset)
 DEFINE_INTRINSIC(tex1D, 0, int, sampler1d_int, float)
 DEFINE_INTRINSIC(tex1D, 0, uint, sampler1d_uint, float)
+DEFINE_INTRINSIC(tex1D, 0, float, sampler1d_float, float)
 DEFINE_INTRINSIC(tex1D, 0, float4, sampler1d_float4, float)
 DEFINE_INTRINSIC(tex1D, 1, int, sampler1d_int, float, int)
 DEFINE_INTRINSIC(tex1D, 1, uint, sampler1d_uint, float, int)
+DEFINE_INTRINSIC(tex1D, 1, float, sampler1d_float, float, int)
 DEFINE_INTRINSIC(tex1D, 1, float4, sampler1d_float4, float, int)
 IMPLEMENT_INTRINSIC_GLSL(tex1D, 0, {
 	code += "texture(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
@@ -1856,9 +1858,11 @@ IMPLEMENT_INTRINSIC_SPIRV(tex1D, 1, {
 // ret tex2D(s, coords, offset)
 DEFINE_INTRINSIC(tex2D, 0, int, sampler2d_int, float2)
 DEFINE_INTRINSIC(tex2D, 0, uint, sampler2d_uint, float2)
+DEFINE_INTRINSIC(tex2D, 0, float, sampler2d_float, float2)
 DEFINE_INTRINSIC(tex2D, 0, float4, sampler2d_float4, float2)
 DEFINE_INTRINSIC(tex2D, 1, int, sampler2d_int, float2, int2)
 DEFINE_INTRINSIC(tex2D, 1, uint, sampler2d_uint, float2, int2)
+DEFINE_INTRINSIC(tex2D, 1, float, sampler2d_float, float2, int2)
 DEFINE_INTRINSIC(tex2D, 1, float4, sampler2d_float4, float2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2D, 0, {
 	code += "texture(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
@@ -1945,9 +1949,11 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2D, 1, {
 // ret tex3D(s, coords, offset)
 DEFINE_INTRINSIC(tex3D, 0, int, sampler3d_int, float3)
 DEFINE_INTRINSIC(tex3D, 0, uint, sampler3d_uint, float3)
+DEFINE_INTRINSIC(tex3D, 0, float, sampler3d_float, float3)
 DEFINE_INTRINSIC(tex3D, 0, float4, sampler3d_float4, float3)
 DEFINE_INTRINSIC(tex3D, 1, int, sampler3d_int, float3, int3)
 DEFINE_INTRINSIC(tex3D, 1, uint, sampler3d_uint, float3, int3)
+DEFINE_INTRINSIC(tex3D, 1, float, sampler3d_float, float3, int3)
 DEFINE_INTRINSIC(tex3D, 1, float4, sampler3d_float4, float3, int3)
 IMPLEMENT_INTRINSIC_GLSL(tex3D, 0, {
 	code += "texture(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
@@ -2034,9 +2040,11 @@ IMPLEMENT_INTRINSIC_SPIRV(tex3D, 1, {
 // ret tex1Dlod(s, coords, offset)
 DEFINE_INTRINSIC(tex1Dlod, 0, int, sampler1d_int, float4)
 DEFINE_INTRINSIC(tex1Dlod, 0, uint, sampler1d_uint, float4)
+DEFINE_INTRINSIC(tex1Dlod, 0, float, sampler1d_float, float4)
 DEFINE_INTRINSIC(tex1Dlod, 0, float4, sampler1d_float4, float4)
 DEFINE_INTRINSIC(tex1Dlod, 1, int, sampler1d_int, float4, int)
 DEFINE_INTRINSIC(tex1Dlod, 1, uint, sampler1d_uint, float4, int)
+DEFINE_INTRINSIC(tex1Dlod, 1, float, sampler1d_float, float4, int)
 DEFINE_INTRINSIC(tex1Dlod, 1, float4, sampler1d_float4, float4, int)
 IMPLEMENT_INTRINSIC_GLSL(tex1Dlod, 0, {
 	code += "textureLod(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".x, " + id_to_name(args[1].base) + ".w)";
@@ -2142,9 +2150,11 @@ IMPLEMENT_INTRINSIC_SPIRV(tex1Dlod, 1, {
 // ret tex2Dlod(s, coords, offset)
 DEFINE_INTRINSIC(tex2Dlod, 0, int, sampler2d_int, float4)
 DEFINE_INTRINSIC(tex2Dlod, 0, uint, sampler2d_uint, float4)
+DEFINE_INTRINSIC(tex2Dlod, 0, float, sampler2d_float, float4)
 DEFINE_INTRINSIC(tex2Dlod, 0, float4, sampler2d_float4, float4)
 DEFINE_INTRINSIC(tex2Dlod, 1, int, sampler2d_int, float4, int2)
 DEFINE_INTRINSIC(tex2Dlod, 1, uint, sampler2d_uint, float4, int2)
+DEFINE_INTRINSIC(tex2Dlod, 1, float, sampler2d_float, float4, int2)
 DEFINE_INTRINSIC(tex2Dlod, 1, float4, sampler2d_float4, float4, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dlod, 0, {
 	code += "textureLod(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w)";
@@ -2254,9 +2264,11 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 // ret tex3Dlod(s, coords, offset)
 DEFINE_INTRINSIC(tex3Dlod, 0, int, sampler3d_int, float4)
 DEFINE_INTRINSIC(tex3Dlod, 0, uint, sampler3d_uint, float4)
+DEFINE_INTRINSIC(tex3Dlod, 0, float, sampler3d_float, float4)
 DEFINE_INTRINSIC(tex3Dlod, 0, float4, sampler3d_float4, float4)
 DEFINE_INTRINSIC(tex3Dlod, 1, int, sampler3d_int, float4, int2)
 DEFINE_INTRINSIC(tex3Dlod, 1, uint, sampler3d_uint, float4, int2)
+DEFINE_INTRINSIC(tex3Dlod, 1, float, sampler3d_float, float4, int2)
 DEFINE_INTRINSIC(tex3Dlod, 1, float4, sampler3d_float4, float4, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex3Dlod, 0, {
 	code += "textureLod(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xyz, " + id_to_name(args[1].base) + ".w)";
@@ -2368,12 +2380,15 @@ IMPLEMENT_INTRINSIC_SPIRV(tex3Dlod, 1, {
 // ret tex1Dfetch(s, coords, lod)
 DEFINE_INTRINSIC(tex1Dfetch, 0, int, sampler1d_int, int)
 DEFINE_INTRINSIC(tex1Dfetch, 0, uint, sampler1d_uint, int)
+DEFINE_INTRINSIC(tex1Dfetch, 0, float, sampler1d_float, int)
 DEFINE_INTRINSIC(tex1Dfetch, 0, float4, sampler1d_float4, int)
 DEFINE_INTRINSIC(tex1Dfetch, 1, int, sampler1d_int, int, int)
 DEFINE_INTRINSIC(tex1Dfetch, 1, uint, sampler1d_uint, int, int)
+DEFINE_INTRINSIC(tex1Dfetch, 1, float, sampler1d_float, int, int)
 DEFINE_INTRINSIC(tex1Dfetch, 1, float4, sampler1d_float4, int, int)
 DEFINE_INTRINSIC(tex1Dfetch, 2, int, storage1d_int, int)
 DEFINE_INTRINSIC(tex1Dfetch, 2, uint, storage1d_uint, int)
+DEFINE_INTRINSIC(tex1Dfetch, 2, float, storage1d_float, int)
 DEFINE_INTRINSIC(tex1Dfetch, 2, float4, storage1d_float4, int)
 IMPLEMENT_INTRINSIC_GLSL(tex1Dfetch, 0, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", 0)";
@@ -2484,12 +2499,15 @@ IMPLEMENT_INTRINSIC_SPIRV(tex1Dfetch, 2, {
 // ret tex2Dfetch(s, coords, lod)
 DEFINE_INTRINSIC(tex2Dfetch, 0, int, sampler2d_int, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 0, uint, sampler2d_uint, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 0, float, sampler2d_float, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler2d_float4, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 1, int, sampler2d_int, int2, int)
 DEFINE_INTRINSIC(tex2Dfetch, 1, uint, sampler2d_uint, int2, int)
+DEFINE_INTRINSIC(tex2Dfetch, 1, float, sampler2d_float, int2, int)
 DEFINE_INTRINSIC(tex2Dfetch, 1, float4, sampler2d_float4, int2, int)
 DEFINE_INTRINSIC(tex2Dfetch, 2, int, storage2d_int, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 2, uint, storage2d_uint, int2)
+DEFINE_INTRINSIC(tex2Dfetch, 2, float, storage2d_float, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 2, float4, storage2d_float4, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 0, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", 0)";
@@ -2603,12 +2621,15 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 2, {
 // ret tex3Dfetch(s, coords, lod)
 DEFINE_INTRINSIC(tex3Dfetch, 0, int, sampler3d_int, int3)
 DEFINE_INTRINSIC(tex3Dfetch, 0, uint, sampler3d_uint, int3)
+DEFINE_INTRINSIC(tex3Dfetch, 0, float, sampler3d_float, int3)
 DEFINE_INTRINSIC(tex3Dfetch, 0, float4, sampler3d_float4, int3)
 DEFINE_INTRINSIC(tex3Dfetch, 1, int, sampler3d_int, int3, int)
 DEFINE_INTRINSIC(tex3Dfetch, 1, uint, sampler3d_uint, int3, int)
+DEFINE_INTRINSIC(tex3Dfetch, 1, float, sampler3d_float, int3, int)
 DEFINE_INTRINSIC(tex3Dfetch, 1, float4, sampler3d_float4, int3, int)
 DEFINE_INTRINSIC(tex3Dfetch, 2, int, storage3d_int, int3)
 DEFINE_INTRINSIC(tex3Dfetch, 2, uint, storage3d_uint, int3)
+DEFINE_INTRINSIC(tex3Dfetch, 2, float, storage3d_float, int3)
 DEFINE_INTRINSIC(tex3Dfetch, 2, float4, storage3d_float4, int3)
 IMPLEMENT_INTRINSIC_GLSL(tex3Dfetch, 0, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", 0)";
@@ -3199,6 +3220,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 2, {
 // tex1Dstore(s, coords, value)
 DEFINE_INTRINSIC(tex1Dstore, 0, void, storage1d_int, int, int)
 DEFINE_INTRINSIC(tex1Dstore, 0, void, storage1d_uint, int, uint)
+DEFINE_INTRINSIC(tex1Dstore, 0, void, storage1d_float, int, float)
 DEFINE_INTRINSIC(tex1Dstore, 0, void, storage1d_float4, int, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex1Dstore, 0, {
 	code += "imageStore(" + id_to_name(args[0].base) + ", " +
@@ -3239,6 +3261,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex1Dstore, 0, {
 // tex2Dstore(s, coords, value)
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage2d_int, int2, int)
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage2d_uint, int2, uint)
+DEFINE_INTRINSIC(tex2Dstore, 0, void, storage2d_float, int2, float)
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage2d_float4, int2, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
 	code += "imageStore(" + id_to_name(args[0].base) + ", " +
@@ -3278,6 +3301,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dstore, 0, {
 // tex3Dstore(s, coords, value)
 DEFINE_INTRINSIC(tex3Dstore, 0, void, storage3d_int, int3, int)
 DEFINE_INTRINSIC(tex3Dstore, 0, void, storage3d_uint, int3, uint)
+DEFINE_INTRINSIC(tex3Dstore, 0, void, storage3d_float, int3, float)
 DEFINE_INTRINSIC(tex3Dstore, 0, void, storage3d_float4, int3, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex3Dstore, 0, {
 	code += "imageStore(" + id_to_name(args[0].base) + ", " +
@@ -3317,12 +3341,15 @@ IMPLEMENT_INTRINSIC_SPIRV(tex3Dstore, 0, {
 // ret tex1Dsize(s, lod)
 DEFINE_INTRINSIC(tex1Dsize, 0, int, sampler1d_int)
 DEFINE_INTRINSIC(tex1Dsize, 0, int, sampler1d_uint)
+DEFINE_INTRINSIC(tex1Dsize, 0, int, sampler1d_float)
 DEFINE_INTRINSIC(tex1Dsize, 0, int, sampler1d_float4)
 DEFINE_INTRINSIC(tex1Dsize, 1, int, sampler1d_int, int)
 DEFINE_INTRINSIC(tex1Dsize, 1, int, sampler1d_uint, int)
+DEFINE_INTRINSIC(tex1Dsize, 1, int, sampler1d_float, int)
 DEFINE_INTRINSIC(tex1Dsize, 1, int, sampler1d_float4, int)
 DEFINE_INTRINSIC(tex1Dsize, 2, int, storage1d_int)
 DEFINE_INTRINSIC(tex1Dsize, 2, int, storage1d_uint)
+DEFINE_INTRINSIC(tex1Dsize, 2, int, storage1d_float)
 DEFINE_INTRINSIC(tex1Dsize, 2, int, storage1d_float4)
 IMPLEMENT_INTRINSIC_GLSL(tex1Dsize, 0, {
 	code += "textureSize(" + id_to_name(args[0].base) + ", 0)";
@@ -3392,12 +3419,15 @@ IMPLEMENT_INTRINSIC_SPIRV(tex1Dsize, 2, {
 // ret tex2Dsize(s, lod)
 DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler2d_int)
 DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler2d_uint)
+DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler2d_float)
 DEFINE_INTRINSIC(tex2Dsize, 0, int2, sampler2d_float4)
 DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler2d_int, int)
 DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler2d_uint, int)
+DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler2d_float, int)
 DEFINE_INTRINSIC(tex2Dsize, 1, int2, sampler2d_float4, int)
 DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage2d_int)
 DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage2d_uint)
+DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage2d_float)
 DEFINE_INTRINSIC(tex2Dsize, 2, int2, storage2d_float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dsize, 0, {
 	code += "textureSize(" + id_to_name(args[0].base) + ", 0)";
@@ -3467,12 +3497,15 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dsize, 2, {
 // ret tex3Dsize(s, lod)
 DEFINE_INTRINSIC(tex3Dsize, 0, int3, sampler3d_int)
 DEFINE_INTRINSIC(tex3Dsize, 0, int3, sampler3d_uint)
+DEFINE_INTRINSIC(tex3Dsize, 0, int3, sampler3d_float)
 DEFINE_INTRINSIC(tex3Dsize, 0, int3, sampler3d_float4)
 DEFINE_INTRINSIC(tex3Dsize, 1, int3, sampler3d_int, int)
 DEFINE_INTRINSIC(tex3Dsize, 1, int3, sampler3d_uint, int)
+DEFINE_INTRINSIC(tex3Dsize, 1, int3, sampler3d_float, int)
 DEFINE_INTRINSIC(tex3Dsize, 1, int3, sampler3d_float4, int)
 DEFINE_INTRINSIC(tex3Dsize, 2, int3, storage3d_int)
 DEFINE_INTRINSIC(tex3Dsize, 2, int3, storage3d_uint)
+DEFINE_INTRINSIC(tex3Dsize, 2, int3, storage3d_float)
 DEFINE_INTRINSIC(tex3Dsize, 2, int3, storage3d_float4)
 IMPLEMENT_INTRINSIC_GLSL(tex3Dsize, 0, {
 	code += "textureSize(" + id_to_name(args[0].base) + ", 0)";
