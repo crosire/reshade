@@ -83,28 +83,35 @@ static bool find_file(const std::vector<std::filesystem::path> &search_paths, st
 		if (recursive_search)
 			search_path.remove_filename();
 
-		// Append relative file path to absolute search path
-		if (std::filesystem::path search_sub_path = search_path / path;
-			resolve_path(search_sub_path, ec))
+		if (resolve_path(search_path, ec))
 		{
-			path = std::move(search_sub_path);
-			return true;
-		}
-
-		if (recursive_search)
-		{
-			for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			// Append relative file path to absolute search path
+			if (std::filesystem::path search_sub_path = search_path / path;
+				std::filesystem::exists(search_sub_path, ec))
 			{
-				if (!entry.is_directory(ec))
-					continue;
+				path = std::move(search_sub_path);
+				return true;
+			}
 
-				if (std::filesystem::path search_sub_path = entry / path;
-					resolve_path(search_sub_path, ec))
+			if (recursive_search)
+			{
+				for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(search_path, std::filesystem::directory_options::skip_permission_denied, ec))
 				{
-					path = std::move(search_sub_path);
-					return true;
+					if (!entry.is_directory(ec))
+						continue;
+
+					if (std::filesystem::path search_sub_path = entry / path;
+						std::filesystem::exists(search_sub_path, ec))
+					{
+						path = std::move(search_sub_path);
+						return true;
+					}
 				}
 			}
+		}
+		else
+		{
+			LOG(WARN) << "Failed to resolve search path " << search_path << " with error code " << ec.value() << '.';
 		}
 	}
 
