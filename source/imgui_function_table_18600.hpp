@@ -4,8 +4,34 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+struct imgui_font_18600
+{
+	static void convert(const ImFont &from, imgui_font_18600 &to);
+	static void convert(const imgui_font_18600 &from, ImFont &to);
+
+	ImVector<float> IndexAdvanceX;
+	float FallbackAdvanceX;
+	float FontSize;
+	ImVector<ImWchar> IndexLookup;
+	ImVector<ImFontGlyph> Glyphs;
+	const ImFontGlyph *FallbackGlyph;
+	ImFontAtlas *ContainerAtlas;
+	const ImFontConfig *ConfigData;
+	short ConfigDataCount;
+	ImWchar FallbackChar;
+	ImWchar EllipsisChar;
+	ImWchar DotChar;
+	bool DirtyLookupTables;
+	float Scale;
+	float Ascent, Descent;
+	int MetricsTotalSurface;
+	ImU8 Used4kPagesMap[(IM_UNICODE_CODEPOINT_MAX + 1) / 4096 / 8];
+};
+
 struct imgui_io_18600
 {
+	static void convert(const ImGuiIO &from, imgui_io_18600 &to);
+
 	ImGuiConfigFlags ConfigFlags;
 	ImGuiBackendFlags BackendFlags;
 	ImVec2 DisplaySize;
@@ -24,7 +50,7 @@ struct imgui_io_18600
 	ImFontAtlas *Fonts;
 	float FontGlobalScale;
 	bool FontAllowUserScaling;
-	ImFont *FontDefault;
+	imgui_font_18600 *FontDefault;
 	ImVec2 DisplayFramebufferScale;
 
 	bool ConfigDockingNoSplit;
@@ -111,6 +137,8 @@ struct imgui_io_18600
 
 struct imgui_style_18600
 {
+	static void convert(const ImGuiStyle &from, imgui_style_18600 &to);
+
 	float Alpha;
 	float DisabledAlpha;
 	ImVec2 WindowPadding;
@@ -156,25 +184,8 @@ struct imgui_style_18600
 
 struct imgui_list_clipper_18600
 {
-	static void convert(imgui_list_clipper_18600 &_this, ImGuiListClipper &temp)
-	{
-		temp.Ctx = ImGui::GetCurrentContext();
-		temp.DisplayStart = _this.DisplayStart;
-		temp.DisplayEnd = _this.DisplayEnd;
-		temp.ItemsCount = _this.ItemsCount;
-		temp.ItemsHeight = _this.ItemsHeight;
-		temp.StartPosY = _this.StartPosY;
-		temp.TempData = _this.TempData;
-	}
-	static void convert(ImGuiListClipper &temp, imgui_list_clipper_18600 &_this)
-	{
-		_this.DisplayStart = temp.DisplayStart;
-		_this.DisplayEnd = temp.DisplayEnd;
-		_this.ItemsCount = temp.ItemsCount;
-		_this.ItemsHeight = temp.ItemsHeight;
-		_this.StartPosY = temp.StartPosY;
-		_this.TempData = temp.TempData;
-	}
+	static void convert(const ImGuiListClipper &from, imgui_list_clipper_18600 &to);
+	static void convert(const imgui_list_clipper_18600 &from, ImGuiListClipper &to);
 
 	int DisplayStart;
 	int DisplayEnd;
@@ -234,7 +245,7 @@ struct imgui_function_table_18600
 	void(*SetScrollHereY)(float center_y_ratio);
 	void(*SetScrollFromPosX)(float local_x, float center_x_ratio);
 	void(*SetScrollFromPosY)(float local_y, float center_y_ratio);
-	void(*PushFont)(ImFont *font);
+	void(*PushFont)(imgui_font_18600 *font);
 	void(*PopFont)();
 	void(*PushStyleColor)(ImGuiCol idx, ImU32 col);
 	void(*PushStyleColor2)(ImGuiCol idx, const ImVec4 &col);
@@ -252,7 +263,7 @@ struct imgui_function_table_18600
 	float(*CalcItemWidth)();
 	void(*PushTextWrapPos)(float wrap_local_pos_x);
 	void(*PopTextWrapPos)();
-	ImFont *(*GetFont)();
+	imgui_font_18600 *(*GetFont)();
 	float(*GetFontSize)();
 	ImVec2(*GetFontTexUvWhitePixel)();
 	ImU32(*GetColorU32)(ImGuiCol idx, float alpha_mul);
@@ -562,7 +573,7 @@ struct imgui_function_table_18600
 	void(*ImDrawList_AddNgon)(ImDrawList *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments, float thickness);
 	void(*ImDrawList_AddNgonFilled)(ImDrawList *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments);
 	void(*ImDrawList_AddText)(ImDrawList *_this, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end);
-	void(*ImDrawList_AddText2)(ImDrawList *_this, const ImFont *font, float font_size, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end, float wrap_width, const ImVec4 *cpu_fine_clip_rect);
+	void(*ImDrawList_AddText2)(ImDrawList *_this, const imgui_font_18600 *font, float font_size, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end, float wrap_width, const ImVec4 *cpu_fine_clip_rect);
 	void(*ImDrawList_AddPolyline)(ImDrawList *_this, const ImVec2 *points, int num_points, ImU32 col, ImDrawFlags flags, float thickness);
 	void(*ImDrawList_AddConvexPolyFilled)(ImDrawList *_this, const ImVec2 *points, int num_points, ImU32 col);
 	void(*ImDrawList_AddBezierCubic)(ImDrawList *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col, float thickness, int num_segments);
@@ -583,13 +594,13 @@ struct imgui_function_table_18600
 	void(*ImDrawList_PrimRect)(ImDrawList *_this, const ImVec2 &a, const ImVec2 &b, ImU32 col);
 	void(*ImDrawList_PrimRectUV)(ImDrawList *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &uv_a, const ImVec2 &uv_b, ImU32 col);
 	void(*ImDrawList_PrimQuadUV)(ImDrawList *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &c, const ImVec2 &d, const ImVec2 &uv_a, const ImVec2 &uv_b, const ImVec2 &uv_c, const ImVec2 &uv_d, ImU32 col);
-	void(*ConstructImFont)(ImFont *_this);
-	void(*DestructImFont)(ImFont *_this);
-	const ImFontGlyph *(*ImFont_FindGlyph)(const ImFont *_this, ImWchar c);
-	const ImFontGlyph *(*ImFont_FindGlyphNoFallback)(const ImFont *_this, ImWchar c);
-	ImVec2(*ImFont_CalcTextSizeA)(const ImFont *_this, float size, float max_width, float wrap_width, const char *text_begin, const char *text_end, const char **remaining);
-	const char *(*ImFont_CalcWordWrapPositionA)(const ImFont *_this, float scale, const char *text, const char *text_end, float wrap_width);
-	void(*ImFont_RenderChar)(const ImFont *_this, ImDrawList *draw_list, float size, ImVec2 pos, ImU32 col, ImWchar c);
-	void(*ImFont_RenderText)(const ImFont *_this, ImDrawList *draw_list, float size, ImVec2 pos, ImU32 col, const ImVec4 &clip_rect, const char *text_begin, const char *text_end, float wrap_width, bool cpu_fine_clip);
+	void(*ConstructImFont)(imgui_font_18600 *_this);
+	void(*DestructImFont)(imgui_font_18600 *_this);
+	const ImFontGlyph *(*ImFont_FindGlyph)(const imgui_font_18600 *_this, ImWchar c);
+	const ImFontGlyph *(*ImFont_FindGlyphNoFallback)(const imgui_font_18600 *_this, ImWchar c);
+	ImVec2(*ImFont_CalcTextSizeA)(const imgui_font_18600 *_this, float size, float max_width, float wrap_width, const char *text_begin, const char *text_end, const char **remaining);
+	const char *(*ImFont_CalcWordWrapPositionA)(const imgui_font_18600 *_this, float scale, const char *text, const char *text_end, float wrap_width);
+	void(*ImFont_RenderChar)(const imgui_font_18600 *_this, ImDrawList *draw_list, float size, ImVec2 pos, ImU32 col, ImWchar c);
+	void(*ImFont_RenderText)(const imgui_font_18600 *_this, ImDrawList *draw_list, float size, ImVec2 pos, ImU32 col, const ImVec4 &clip_rect, const char *text_begin, const char *text_end, float wrap_width, bool cpu_fine_clip);
 
 };
