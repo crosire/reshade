@@ -154,6 +154,36 @@ struct imgui_style_18600
 	ImVec4 Colors[55];
 };
 
+struct imgui_list_clipper_18600
+{
+	static void convert(imgui_list_clipper_18600 &_this, ImGuiListClipper &temp)
+	{
+		temp.Ctx = ImGui::GetCurrentContext();
+		temp.DisplayStart = _this.DisplayStart;
+		temp.DisplayEnd = _this.DisplayEnd;
+		temp.ItemsCount = _this.ItemsCount;
+		temp.ItemsHeight = _this.ItemsHeight;
+		temp.StartPosY = _this.StartPosY;
+		temp.TempData = _this.TempData;
+	}
+	static void convert(ImGuiListClipper &temp, imgui_list_clipper_18600 &_this)
+	{
+		_this.DisplayStart = temp.DisplayStart;
+		_this.DisplayEnd = temp.DisplayEnd;
+		_this.ItemsCount = temp.ItemsCount;
+		_this.ItemsHeight = temp.ItemsHeight;
+		_this.StartPosY = temp.StartPosY;
+		_this.TempData = temp.TempData;
+	}
+
+	int DisplayStart;
+	int DisplayEnd;
+	int ItemsCount;
+	float ItemsHeight;
+	float StartPosY;
+	void *TempData;
+};
+
 struct imgui_function_table_18600
 {
 	imgui_io_18600 &(*GetIO)();
@@ -508,12 +538,12 @@ struct imgui_function_table_18600
 	void **(*ImGuiStorage_GetVoidPtrRef)(ImGuiStorage *_this, ImGuiID key, void *default_val);
 	void(*ImGuiStorage_SetAllInt)(ImGuiStorage *_this, int val);
 	void(*ImGuiStorage_BuildSortByKey)(ImGuiStorage *_this);
-	void(*ConstructImGuiListClipper)(ImGuiListClipper *_this);
-	void(*DestructImGuiListClipper)(ImGuiListClipper *_this);
-	void(*ImGuiListClipper_Begin)(ImGuiListClipper *_this, int items_count, float items_height);
-	void(*ImGuiListClipper_End)(ImGuiListClipper *_this);
-	bool(*ImGuiListClipper_Step)(ImGuiListClipper *_this);
-	void(*ImGuiListClipper_ForceDisplayRangeByIndices)(ImGuiListClipper *_this, int item_min, int item_max);
+	void(*ConstructImGuiListClipper)(imgui_list_clipper_18600 *_this);
+	void(*DestructImGuiListClipper)(imgui_list_clipper_18600 *_this);
+	void(*ImGuiListClipper_Begin)(imgui_list_clipper_18600 *_this, int items_count, float items_height);
+	void(*ImGuiListClipper_End)(imgui_list_clipper_18600 *_this);
+	bool(*ImGuiListClipper_Step)(imgui_list_clipper_18600 *_this);
+	void(*ImGuiListClipper_ForceDisplayRangeByIndices)(imgui_list_clipper_18600 *_this, int item_min, int item_max);
 	void(*ImDrawList_PushClipRect)(ImDrawList *_this, ImVec2 clip_rect_min, ImVec2 clip_rect_max, bool intersect_with_current_clip_rect);
 	void(*ImDrawList_PushClipRectFullScreen)(ImDrawList *_this);
 	void(*ImDrawList_PopClipRect)(ImDrawList *_this);

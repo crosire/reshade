@@ -506,12 +506,45 @@ imgui_function_table_18600 g_imgui_function_table_18600 = {
 	[](ImGuiStorage *_this, ImGuiID key, void* default_val) -> void** { return _this->GetVoidPtrRef(key, default_val); },
 	[](ImGuiStorage *_this, int val) -> void { _this->SetAllInt(val); },
 	[](ImGuiStorage *_this) -> void { _this->BuildSortByKey(); },
-	[](ImGuiListClipper *_this) -> void { new(_this) ImGuiListClipper(); },
-	[](ImGuiListClipper *_this) -> void { _this->~ImGuiListClipper(); },
-	[](ImGuiListClipper *_this, int items_count, float items_height) -> void { _this->Begin(items_count, items_height); },
-	[](ImGuiListClipper *_this) -> void { _this->End(); },
-	[](ImGuiListClipper *_this) -> bool { return _this->Step(); },
-	[](ImGuiListClipper *_this, int item_min, int item_max) -> void { _this->IncludeRangeByIndices(item_min, item_max); },
+	[](imgui_list_clipper_18600 *_this) -> void {
+		new(_this) imgui_list_clipper_18600();
+		memset(_this, 0, sizeof(*_this));
+		_this->ItemsCount = -1;
+	},
+	[](imgui_list_clipper_18600 *_this) -> void {
+		ImGuiListClipper temp;
+		imgui_list_clipper_18600::convert(*_this, temp);
+		temp.End();
+		_this->~imgui_list_clipper_18600();
+	},
+	[](imgui_list_clipper_18600 *_this, int items_count, float items_height) -> void {
+		ImGuiListClipper temp;
+		imgui_list_clipper_18600::convert(*_this, temp);
+		temp.Begin(items_count, items_height);
+		imgui_list_clipper_18600::convert(temp, *_this);
+		temp.TempData = nullptr; // Prevent 'ImGuiListClipper' destructor from doing anything
+	},
+	[](imgui_list_clipper_18600 *_this) -> void {
+		ImGuiListClipper temp;
+		imgui_list_clipper_18600::convert(*_this, temp);
+		temp.End();
+		imgui_list_clipper_18600::convert(temp, *_this);
+	},
+	[](imgui_list_clipper_18600 *_this) -> bool {
+		ImGuiListClipper temp;
+		imgui_list_clipper_18600::convert(*_this, temp);
+		const bool result = temp.Step();
+		imgui_list_clipper_18600::convert(temp, *_this);
+		temp.TempData = nullptr;
+		return result;
+	},
+	[](imgui_list_clipper_18600 *_this, int item_min, int item_max) -> void {
+		ImGuiListClipper temp;
+		imgui_list_clipper_18600::convert(*_this, temp);
+		temp.IncludeRangeByIndices(item_min, item_max);
+		imgui_list_clipper_18600::convert(temp, *_this);
+		temp.TempData = nullptr;
+	},
 	[](ImDrawList *_this, ImVec2 clip_rect_min, ImVec2 clip_rect_max, bool intersect_with_current_clip_rect) -> void { _this->PushClipRect(clip_rect_min, clip_rect_max, intersect_with_current_clip_rect); },
 	[](ImDrawList *_this) -> void { _this->PushClipRectFullScreen(); },
 	[](ImDrawList *_this) -> void { _this->PopClipRect(); },
