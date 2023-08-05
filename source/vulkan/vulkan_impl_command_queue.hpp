@@ -35,4 +35,12 @@ namespace reshade::vulkan
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
 		const VkQueueFlags _queue_flags;
 	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_QUEUE> : public command_queue_impl
+	{
+		using Handle = VkQueue;
+
+		object_data(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) : command_queue_impl(device, queue_family_index, queue_family, queue) {}
+	};
 }
