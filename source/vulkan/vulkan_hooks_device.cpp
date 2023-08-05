@@ -531,13 +531,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	// VK_KHR_synchronization2
 	INIT_DISPATCH_PTR_EXTENSION(CmdPipelineBarrier2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdWriteTimestamp2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(QueueSubmit2, KHR);
 
 	// VK_KHR_copy_commands2
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBuffer2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImage2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdBlitImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBufferToImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImageToBuffer2, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(CmdBlitImage2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdResolveImage2, KHR);
 
 	// VK_EXT_transform_feedback

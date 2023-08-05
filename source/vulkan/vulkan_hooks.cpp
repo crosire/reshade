@@ -203,13 +203,19 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 #if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// VK_KHR_synchronization2
 	HOOK_PROC_OPTIONAL(CmdPipelineBarrier2, KHR);
+	HOOK_PROC_OPTIONAL(CmdWriteTimestamp2, KHR);
+#endif
+#if RESHADE_ADDON
+	HOOK_PROC_OPTIONAL(QueueSubmit2, KHR);
+#endif
 
+#if RESHADE_ADDON && !RESHADE_ADDON_LITE
 	// VK_KHR_copy_commands2
 	HOOK_PROC_OPTIONAL(CmdCopyBuffer2, KHR);
 	HOOK_PROC_OPTIONAL(CmdCopyImage2, KHR);
-	HOOK_PROC_OPTIONAL(CmdBlitImage2, KHR);
 	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2, KHR);
 	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2, KHR);
+	HOOK_PROC_OPTIONAL(CmdBlitImage2, KHR);
 	HOOK_PROC_OPTIONAL(CmdResolveImage2, KHR);
 
 	// VK_EXT_transform_feedback
