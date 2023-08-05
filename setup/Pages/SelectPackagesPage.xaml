@@ -47,7 +47,7 @@
               <ColumnDefinition Width="35" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <local:EffectPackageCheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" IsEnabled="{Binding Modifiable}" IsThreeState="True">
+            <local:EffectPackageCheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Selected}" IsEnabled="{Binding Modifiable}" IsThreeState="True">
               <local:EffectPackageCheckBox.ToolTip>
                 <TextBlock Text="Check to install all effects in the package, fill out to prompt for individual effects to install in the next step." />
               </local:EffectPackageCheckBox.ToolTip>

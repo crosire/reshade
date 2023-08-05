@@ -24,7 +24,7 @@
     <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>
         <DataTemplate>
-          <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled}" MouseEnter="OnCheckBoxMouseEnter" GotMouseCapture="OnCheckBoxMouseCapture">
+          <CheckBox VerticalAlignment="Center" IsChecked="{Binding Selected}" MouseEnter="OnCheckBoxMouseEnter" GotMouseCapture="OnCheckBoxMouseCapture">
             <CheckBox.ToolTip>
               <ToolTip>
                 <TextBlock Text="{Binding FilePath, Mode=OneTime}" />

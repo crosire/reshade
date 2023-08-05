@@ -16,7 +16,7 @@ namespace ReShade.Setup.Pages
 {
 	public class EffectFile : INotifyPropertyChanged
 	{
-		public bool Enabled { get; set; }
+		public bool Selected { get; set; }
 
 		public string FileName { get; internal set; }
 		public string FilePath { get; internal set; }
@@ -31,7 +31,7 @@ namespace ReShade.Setup.Pages
 
 	public partial class SelectEffectsPage : Page
 	{
-		public IEnumerable<EffectFile> EnabledItems => Items.Where(x => x.Enabled);
+		public IEnumerable<EffectFile> SelectedItems => Items.Where(x => x.Selected);
 		public ObservableCollection<EffectFile> Items { get; } = new ObservableCollection<EffectFile>();
 
 		public SelectEffectsPage(string packageName, IEnumerable<string> files)
@@ -57,7 +57,7 @@ namespace ReShade.Setup.Pages
 
 				Items.Add(new EffectFile
 				{
-					Enabled = enabled,
+					Selected = enabled,
 					FileName = Path.GetFileName(path),
 					FilePath = path
 				});
@@ -68,7 +68,7 @@ namespace ReShade.Setup.Pages
 			{
 				foreach (var item in Items)
 				{
-					item.Enabled = true;
+					item.Selected = true;
 				}
 			}
 		}
@@ -90,8 +90,8 @@ namespace ReShade.Setup.Pages
 
 				foreach (var item in Items)
 				{
-					item.Enabled = check;
-					item.NotifyPropertyChanged(nameof(item.Enabled));
+					item.Selected = check;
+					item.NotifyPropertyChanged(nameof(item.Selected));
 				}
 			}
 		}

@@ -18,7 +18,7 @@ namespace ReShade.Setup.Pages
 {
 	public class EffectPackage : INotifyPropertyChanged
 	{
-		public bool? Enabled { get; set; } = false;
+		public bool? Selected { get; set; } = false;
 		public bool  Modifiable { get; set; } = true;
 
 		public string PackageName { get; internal set; }
@@ -82,7 +82,7 @@ namespace ReShade.Setup.Pages
 
 				Items.Add(new EffectPackage
 				{
-					Enabled = enabled,
+					Selected = enabled,
 					Modifiable = !required,
 					PackageName = packagesIni.GetString(package, "PackageName"),
 					PackageDescription = packagesIni.GetString(package, "PackageDescription"),
@@ -96,7 +96,7 @@ namespace ReShade.Setup.Pages
 			}
 		}
 
-		public IEnumerable<EffectPackage> EnabledItems => Items.Where(x => x.Enabled != false);
+		public IEnumerable<EffectPackage> SelectedItems => Items.Where(x => x.Selected != false);
 		public ObservableCollection<EffectPackage> Items { get; } = new ObservableCollection<EffectPackage>();
 
 		private void OnCheckAllClick(object sender, RoutedEventArgs e)
@@ -121,8 +121,8 @@ namespace ReShade.Setup.Pages
 						continue;
 					}
 
-					item.Enabled = check;
-					item.NotifyPropertyChanged(nameof(item.Enabled));
+					item.Selected = check;
+					item.NotifyPropertyChanged(nameof(item.Selected));
 				}
 			}
 		}
@@ -140,7 +140,7 @@ namespace ReShade.Setup.Pages
 
 			Items.Add(new EffectPackage
 			{
-				Enabled = true,
+				Selected = true,
 				PackageName = Path.GetFileName(url),
 				InstallPath = ".\\reshade-shaders\\Shaders",
 				TextureInstallPath = ".\\reshade-shaders\\Textures",

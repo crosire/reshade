@@ -27,9 +27,11 @@ namespace ReShade.Setup
 {
 	public partial class MainWindow
 	{
+		readonly bool isSigned = false;
 		readonly bool isHeadless = false;
 		readonly bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
 
+		IniFile addonsIni;
 		IniFile packagesIni;
 		IniFile compatibilityIni;
 
@@ -38,7 +40,7 @@ namespace ReShade.Setup
 
 		Api targetApi = Api.Unknown;
 		InstallOperation operation = InstallOperation.Default;
-		bool is64Bit;
+		internal static bool is64Bit;
 		string targetPath;
 		string targetName;
 		string configPath;
@@ -54,6 +56,8 @@ namespace ReShade.Setup
 		Queue<EffectPackage> packages;
 		string[] effects;
 		EffectPackage package;
+		Queue<Addon> addons;
+		Addon addon;
 
 		public MainWindow()
 		{
@@ -63,14 +67,13 @@ namespace ReShade.Setup
 			var productVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
 			Title = "ReShade Setup v" + productVersion;
 
-			var signed = false;
 			if (productVersion.Contains(" "))
 			{
 				NavigationPanel.Background = Brushes.Crimson;
 			}
 			else
 			{
-				signed = assembly.GetCustomAttribute<AssemblyConfigurationAttribute>().Configuration.Contains("Signed");
+				isSigned = assembly.GetCustomAttribute<AssemblyConfigurationAttribute>().Configuration.Contains("Signed");
 			}
 
 			// Add support for TLS 1.2 and 1.3, so that HTTPS connection to GitHub succeeds
@@ -205,7 +208,7 @@ namespace ReShade.Setup
 
 				ResetStatus();
 
-				if (!signed)
+				if (!isSigned)
 				{
 					MessageBox.Show(this, "This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
 				}
@@ -407,7 +410,10 @@ namespace ReShade.Setup
 
 				CurrentPage.Navigate(status);
 
-				Title += success ? " was successful!" : " was not successful!";
+				if (!Title.Contains("successfull"))
+				{
+					Title += success ? " was successful!" : " was not successful!";
+				}
 
 				AeroGlass.HideSystemMenu(this, false);
 			});
@@ -482,6 +488,32 @@ namespace ReShade.Setup
 			}
 		}
 
+		void DownloadAddonsIni()
+		{
+			if (addonsIni != null)
+			{
+				return;
+			}
+
+			// Attempt to download add-ons list
+			using (var client = new WebClient())
+			{
+				// Ensure files are downloaded again if they changed
+				client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
+
+				try
+				{
+					using (var addonsStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Addons.ini"))
+					{
+						addonsIni = new IniFile(addonsStream);
+					}
+				}
+				catch
+				{
+					// Ignore if this list failed to download, since setup can still proceed without them
+				}
+			}
+		}
 		void DownloadCompatibilityIni()
 		{
 			if (compatibilityIni != null)
@@ -1288,44 +1320,6 @@ In that event here are some steps you can try to resolve this:
 			MakeWritable(Path.Combine(basePath, "ReShade.log"));
 			MakeWritable(Path.Combine(basePath, "ReShadePreset.ini"));
 
-			// FiveM ...
-			if (Path.GetFileName(targetPath) == "GTA5.exe" || Path.GetFileName(targetPath) == "PlayGTAV.exe")
-			{
-				string fivemConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FiveM", "FiveM.app", "CitizenFX.ini");
-				if (File.Exists(fivemConfigPath))
-				{
-					string fivemConfig = File.ReadAllText(fivemConfigPath);
-					if (!fivemConfig.Contains("ReShade5"))
-					{
-						Func<string, uint> HashString = (string s) =>
-						{
-							uint hash = 0;
-							foreach (char c in s)
-							{
-								hash += (c >= 'A' && c <= 'Z') ? (uint)(c - 'A' + 'a') : c;
-								hash += (hash << 10);
-								hash ^= (hash >> 6);
-							}
-
-							hash += (hash << 3);
-							hash ^= (hash >> 11);
-							hash += (hash << 15);
-							return hash;
-						};
-
-						var computerName = Environment.GetEnvironmentVariable("COMPUTERNAME") ?? "a";
-
-						fivemConfig += string.Format(@"
-[Addons]
-ReShade5=ID:{0:x8} acknowledged that ReShade 5.x has a bug that will lead to game crashes
-; ... no ReShade does not have a bug that will lead to game crashes, so pretend this is acknowledged
-", HashString(computerName));
-
-						File.WriteAllText(fivemConfigPath, fivemConfig);
-					}
-				}
-			}
-
 			if (!isHeadless && operation != InstallOperation.Update)
 			{
 				// Only show the selection dialog if there are actually packages to choose
@@ -1505,7 +1499,7 @@ ReShade5=ID:{0:x8} acknowledged that ReShade 5.x has a bug that will lead to gam
 			}
 
 			// Show file selection dialog
-			if (!isHeadless && package.Enabled == null)
+			if (!isHeadless && package.Selected == null)
 			{
 				effects = effects.Select(x => targetPathEffects + x.Remove(0, tempPathEffects.Length)).ToArray();
 
@@ -1548,6 +1542,156 @@ ReShade5=ID:{0:x8} acknowledged that ReShade 5.x has a bug that will lead to gam
 			if (packages.Count != 0)
 			{
 				InstallStep_DownloadEffectPackage();
+			}
+			else
+			{
+				InstallStep_CheckAddons();
+			}
+		}
+		void InstallStep_CheckAddons()
+		{
+			if (!isHeadless && !isSigned)
+			{
+				DownloadAddonsIni();
+
+				if (addonsIni != null)
+				{
+					Dispatcher.Invoke(() =>
+					{
+						var page = new SelectAddonsPage(addonsIni);
+
+						CurrentPage.Navigate(page);
+					});
+				}
+				else
+				{
+					InstallStep_Finish();
+				}
+			}
+			else
+			{
+				InstallStep_Finish();
+			}
+		}
+		void InstallStep_DownloadAddon()
+		{
+			addon = addons.Dequeue();
+			downloadPath = Path.GetTempFileName();
+
+			UpdateStatus("Downloading " + addon.Name + " from " + addon.DownloadUrl + " ...");
+
+			tempPath = null;
+
+			var client = new WebClient();
+
+			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) =>
+			{
+				if (e.Error != null)
+				{
+					UpdateStatusAndFinish(false, "Failed to download from " + addon.DownloadUrl + ":\n" + e.Error.Message);
+				}
+				else
+				{
+					string ext = Path.GetExtension(new Uri(addon.DownloadUrl).AbsolutePath);
+
+					if (ext == ".addon" || ext == ".addon32" || ext == ".addon64")
+					{
+						InstallStep_InstallAddon();
+					}
+					else
+					{
+						InstallStep_ExtractAddon();
+					}
+				}
+			};
+
+			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
+			{
+				// Avoid negative percentage values
+				if (e.TotalBytesToReceive > 0)
+				{
+					UpdateStatus("Downloading " + addon.Name + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)");
+				}
+			};
+
+			try
+			{
+				client.DownloadFileAsync(new Uri(addon.DownloadUrl), downloadPath);
+			}
+			catch (Exception ex)
+			{
+				UpdateStatusAndFinish(false, "Failed to download from " + addon.DownloadUrl + ":\n" + ex.Message);
+			}
+		}
+		void InstallStep_ExtractAddon()
+		{
+			UpdateStatus("Extracting " + addon.Name + " ...");
+
+			tempPath = Path.Combine(Path.GetTempPath(), "reshade-addons");
+
+			try
+			{
+				// Delete existing directories since extraction fails if the target is not empty
+				if (Directory.Exists(tempPath))
+				{
+					Directory.Delete(tempPath, true);
+				}
+
+				ZipFile.ExtractToDirectory(downloadPath, tempPath);
+
+				string addonPath = Directory.GetFiles(tempPath, is64Bit ? "*.addon64" : "*.addon32", SearchOption.AllDirectories).FirstOrDefault();
+				if (addonPath == null)
+				{
+					addonPath = Directory.GetFiles(tempPath, "*.addon").FirstOrDefault(x => x.Contains(is64Bit ? "x64" : "x86"));
+				}
+				if (addonPath == null)
+				{
+					Directory.Delete(tempPath, true);
+					File.Delete(downloadPath);
+
+					throw new FileFormatException("Add-on archive is missing add-on binary.");
+				}
+
+				downloadPath = addonPath;
+			}
+			catch (Exception ex)
+			{
+				UpdateStatusAndFinish(false, "Failed to extract " + addon.Name + ":\n" + ex.Message);
+				return;
+			}
+
+			InstallStep_InstallAddon();
+		}
+		void InstallStep_InstallAddon()
+		{
+			string addonPath = Path.GetDirectoryName(targetPath);
+
+			var globalConfigPath = Path.Combine(addonPath, "ReShade.ini");
+			if (File.Exists(globalConfigPath))
+			{
+				var globalConfig = new IniFile(globalConfigPath);
+				addonPath = globalConfig.GetString("ADDON", "AddonPath", addonPath);
+			}
+
+			try
+			{
+				File.Copy(downloadPath, Path.Combine(addonPath, Path.GetFileNameWithoutExtension(tempPath != null ? downloadPath : new Uri(addon.DownloadUrl).AbsolutePath) + (is64Bit ? ".addon64" : ".addon32")), true);
+
+				File.Delete(downloadPath);
+				if (tempPath != null)
+				{
+					Directory.Delete(tempPath, true);
+				}
+			}
+			catch (Exception ex)
+			{
+				UpdateStatusAndFinish(false, "Failed to install " + addon.Name + ":\n" + ex.Message);
+				return;
+			}
+
+			if (addons.Count != 0)
+			{
+				InstallStep_DownloadAddon();
 			}
 			else
 			{
@@ -1746,7 +1890,7 @@ ReShade5=ID:{0:x8} acknowledged that ReShade 5.x has a bug that will lead to gam
 
 			if (CurrentPage.Content is SelectPackagesPage packagesPage)
 			{
-				packages = new Queue<EffectPackage>(packagesPage.EnabledItems);
+				packages = new Queue<EffectPackage>(packagesPage.SelectedItems);
 
 				if (packages.Count != 0)
 				{
@@ -1754,7 +1898,7 @@ ReShade5=ID:{0:x8} acknowledged that ReShade 5.x has a bug that will lead to gam
 				}
 				else
 				{
-					RunTaskWithExceptionHandling(InstallStep_Finish);
+					RunTaskWithExceptionHandling(InstallStep_CheckAddons);
 				}
 				return;
 			}
@@ -1764,13 +1908,28 @@ ReShade5=ID:{0:x8} acknowledged that ReShade 5.x has a bug that will lead to gam
 				RunTaskWithExceptionHandling(() =>
 				{
 					// Delete all unselected effect files before moving
-					foreach (string filePath in effects.Except(effectsPage.EnabledItems.Select(x => x.FilePath)))
+					foreach (string filePath in effects.Except(effectsPage.SelectedItems.Select(x => x.FilePath)))
 					{
 						File.Delete(tempPathEffects + filePath.Remove(0, targetPathEffects.Length));
 					}
 
 					InstallStep_InstallEffectPackage();
 				});
+				return;
+			}
+
+			if (CurrentPage.Content is SelectAddonsPage addonsPage)
+			{
+				addons = new Queue<Addon>(addonsPage.SelectedItems);
+
+				if (addons.Count != 0)
+				{
+					RunTaskWithExceptionHandling(InstallStep_DownloadAddon);
+				}
+				else
+				{
+					RunTaskWithExceptionHandling(InstallStep_Finish);
+				}
 				return;
 			}
 		}
@@ -1799,6 +1958,12 @@ ReShade5=ID:{0:x8} acknowledged that ReShade 5.x has a bug that will lead to gam
 			if (CurrentPage.Content is SelectEffectsPage)
 			{
 				RunTaskWithExceptionHandling(InstallStep_InstallEffectPackage);
+				return;
+			}
+
+			if (CurrentPage.Content is SelectAddonsPage)
+			{
+				RunTaskWithExceptionHandling(InstallStep_Finish);
 				return;
 			}
 
