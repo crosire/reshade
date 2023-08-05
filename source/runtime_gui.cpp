@@ -2182,11 +2182,11 @@ void reshade::runtime::draw_gui_statistics()
 
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::PlotLines("##framerate",
-			_imgui_context->FramerateSecPerFrame, 120,
+			_imgui_context->FramerateSecPerFrame, static_cast<int>(std::size(_imgui_context->FramerateSecPerFrame)),
 			_imgui_context->FramerateSecPerFrameIdx,
 			nullptr,
-			_imgui_context->FramerateSecPerFrameAccum / 120 * 0.5f,
-			_imgui_context->FramerateSecPerFrameAccum / 120 * 1.5f,
+			_imgui_context->FramerateSecPerFrameAccum / static_cast<int>(std::size(_imgui_context->FramerateSecPerFrame)) * 0.5f,
+			_imgui_context->FramerateSecPerFrameAccum / static_cast<int>(std::size(_imgui_context->FramerateSecPerFrame)) * 1.5f,
 			ImVec2(0, 50));
 
 		const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
