@@ -27,7 +27,6 @@ namespace ReShade.Setup
 {
 	public partial class MainWindow
 	{
-		readonly bool isSigned = false;
 		readonly bool isHeadless = false;
 		readonly bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
 
@@ -70,10 +69,6 @@ namespace ReShade.Setup
 			if (productVersion.Contains(" "))
 			{
 				NavigationPanel.Background = Brushes.Crimson;
-			}
-			else
-			{
-				isSigned = assembly.GetCustomAttribute<AssemblyConfigurationAttribute>().Configuration.Contains("Signed");
 			}
 
 			// Add support for TLS 1.2 and 1.3, so that HTTPS connection to GitHub succeeds
@@ -208,10 +203,9 @@ namespace ReShade.Setup
 
 				ResetStatus();
 
-				if (!isSigned)
-				{
-					MessageBox.Show(this, "This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
-				}
+#if !RESHADE_ADDON_LITE
+				MessageBox.Show(this, "This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+#endif
 			}
 		}
 
@@ -1550,7 +1544,8 @@ In that event here are some steps you can try to resolve this:
 		}
 		void InstallStep_CheckAddons()
 		{
-			if (!isHeadless && !isSigned)
+#if !RESHADE_ADDON_LITE
+			if (!isHeadless)
 			{
 				DownloadAddonsIni();
 
@@ -1569,6 +1564,7 @@ In that event here are some steps you can try to resolve this:
 				}
 			}
 			else
+#endif
 			{
 				InstallStep_Finish();
 			}
