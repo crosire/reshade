@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 
 #undef IDirect3DSurface9_LockRect
 #define IDirect3DSurface9_LockRect reshade::hooks::call_vtable<13, HRESULT, IDirect3DSurface9, D3DLOCKED_RECT *, const RECT *, DWORD>

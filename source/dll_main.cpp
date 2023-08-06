@@ -275,7 +275,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 						reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
 				}
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 				if (!GetEnvironmentVariableW(L"RESHADE_DISABLE_NETWORK_HOOK", nullptr, 0))
 				{
 					reshade::hooks::register_module(L"ws2_32.dll");

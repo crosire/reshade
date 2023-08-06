@@ -341,9 +341,9 @@ namespace reshade
 
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;
-#endif
-#if RESHADE_ADDON_LITE && RESHADE_FX
+#if RESHADE_ADDON == 1
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _backup_texture_semantic_bindings;
+#endif
 #endif
 		api::pipeline _copy_pipeline = {};
 		api::pipeline_layout _copy_pipeline_layout = {};

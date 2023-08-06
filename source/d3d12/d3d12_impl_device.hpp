@@ -82,7 +82,7 @@ namespace reshade::d3d12
 
 		command_list_immediate_impl *get_first_immediate_command_list();
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
 
 		static __forceinline api::descriptor_table convert_to_descriptor_table(D3D12_CPU_DESCRIPTOR_HANDLE handle)
@@ -115,7 +115,7 @@ namespace reshade::d3d12
 		void register_resource(ID3D12Resource *resource);
 		void unregister_resource(ID3D12Resource *resource);
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 		void register_descriptor_heap(D3D12DescriptorHeap *heap);
 		void unregister_descriptor_heap(D3D12DescriptorHeap *heap);
 #endif
@@ -145,7 +145,7 @@ namespace reshade::d3d12
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 50000, 2048> _gpu_view_heap;
 
 		mutable std::shared_mutex _resource_mutex;
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 		concurrency::concurrent_vector<D3D12DescriptorHeap *> _descriptor_heaps;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses; // TODO: Replace with interval tree
 #endif

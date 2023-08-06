@@ -203,7 +203,7 @@ namespace ReShade.Setup
 
 				ResetStatus();
 
-#if !RESHADE_ADDON_LITE
+#if RESHADE_ADDON
 				MessageBox.Show(this, "This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
 #endif
 			}
@@ -1544,7 +1544,7 @@ In that event here are some steps you can try to resolve this:
 		}
 		void InstallStep_CheckAddons()
 		{
-#if !RESHADE_ADDON_LITE
+#if RESHADE_ADDON
 			if (!isHeadless)
 			{
 				DownloadAddonsIni();

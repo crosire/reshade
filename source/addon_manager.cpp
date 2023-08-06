@@ -115,7 +115,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 }
 #endif
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 bool reshade::addon_enabled = true;
 #endif
 bool reshade::addon_all_loaded = true;
@@ -180,7 +180,7 @@ void reshade::load_addons()
 #endif
 			continue;
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 		// Indicate that add-ons exist that could not be loaded because this build of ReShade has only limited add-on functionality
 		addon_all_loaded = false;
 
@@ -265,7 +265,7 @@ void reshade::unload_addons()
 	if (InterlockedDecrement(&s_reference_count) != 0)
 		return;
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	// There are no add-ons to unload ...
 #else
 	// Create copy of add-on list before unloading, since add-ons call 'ReShadeUnregisterAddon' during 'FreeLibrary', which modifies the list
@@ -461,7 +461,7 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 		return;
 	}
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	// Block all application events when building without add-on loading support
 	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
 	{
@@ -488,7 +488,7 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 	if (info == nullptr)
 		return; // Do not log an error here, since this may be called if an add-on failed to load
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (info->handle != g_module_handle && (ev > reshade::addon_event::destroy_effect_runtime && ev < reshade::addon_event::present))
 		return;
 #endif

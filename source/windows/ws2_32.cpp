@@ -8,7 +8,7 @@
 #include <Winsock2.h>
 #include <ws2ipdef.h>
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 // Do not count network traffic for local sockets (localhost), so to avoid blocking occuring in games running local servers in single player too
 static bool is_local_socket(SOCKET s)
 {
@@ -48,7 +48,7 @@ extern "C" int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCo
 	static const auto trampoline = reshade::hooks::call(HookWSASend);
 	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (status == 0 && !is_local_socket(s))
 		for (DWORD i = 0; i < dwBufferCount; ++i)
 			InterlockedAdd(&g_network_traffic, lpBuffers[i].len);
@@ -61,7 +61,7 @@ extern "C" int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBuffer
 	static const auto trampoline = reshade::hooks::call(HookWSASendTo);
 	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (status == 0 && !is_local_socket(s))
 		for (DWORD i = 0; i < dwBufferCount; ++i)
 			InterlockedAdd(&g_network_traffic, lpBuffers[i].len);
@@ -74,7 +74,7 @@ extern "C" int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCo
 	static const auto trampoline = reshade::hooks::call(HookWSARecv);
 	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, lpFlags, lpOverlapped, lpCompletionRoutine);
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (status == 0 && lpNumberOfBytesRecvd != nullptr && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, *lpNumberOfBytesRecvd);
 #endif
@@ -86,7 +86,7 @@ extern "C" int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBuff
 	static const auto trampoline = reshade::hooks::call(HookWSARecvFrom);
 	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, lpFlags, lpFrom, lpFromlen, lpOverlapped, lpCompletionRoutine);
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (status == 0 && lpNumberOfBytesRecvd != nullptr && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, *lpNumberOfBytesRecvd);
 #endif
@@ -99,7 +99,7 @@ extern "C" int WSAAPI HookSend(SOCKET s, const char *buf, int len, int flags)
 	static const auto trampoline = reshade::hooks::call(HookSend);
 	const auto num_bytes_sent = trampoline(s, buf, len, flags);
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (num_bytes_sent != SOCKET_ERROR && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, num_bytes_sent);
 #endif
@@ -111,7 +111,7 @@ extern "C" int WSAAPI HookSendTo(SOCKET s, const char *buf, int len, int flags, 
 	static const auto trampoline = reshade::hooks::call(HookSendTo);
 	const auto num_bytes_sent = trampoline(s, buf, len, flags, to, tolen);
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (num_bytes_sent != SOCKET_ERROR && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, num_bytes_sent);
 #endif
@@ -123,7 +123,7 @@ extern "C" int WSAAPI HookRecv(SOCKET s, char *buf, int len, int flags)
 	static const auto trampoline = reshade::hooks::call(HookRecv);
 	const auto num_bytes_recieved = trampoline(s, buf, len, flags);
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (num_bytes_recieved != SOCKET_ERROR && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, num_bytes_recieved);
 #endif
@@ -135,7 +135,7 @@ extern "C" int WSAAPI HookRecvFrom(SOCKET s, char *buf, int len, int flags, stru
 	static const auto trampoline = reshade::hooks::call(HookRecvFrom);
 	const auto num_bytes_recieved = trampoline(s, buf, len, flags, from, fromlen);
 
-#if RESHADE_ADDON_LITE
+#if RESHADE_ADDON == 1
 	if (num_bytes_recieved != SOCKET_ERROR && !is_local_socket(s))
 		InterlockedAdd(&g_network_traffic, num_bytes_recieved);
 #endif

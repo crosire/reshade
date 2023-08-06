@@ -47,7 +47,7 @@ struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DDepthStenci
 
 #endif
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 
 #undef IDirect3DSurface9_LockRect
 #undef IDirect3DSurface9_UnlockRect

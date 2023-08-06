@@ -5,7 +5,7 @@
 
 #define ID3D10Resource_GetDevice reshade::hooks::call_vtable<3, HRESULT, ID3D10Resource, ID3D10Device **>
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 
 #define ID3D10Buffer_Map reshade::hooks::call_vtable<10, HRESULT, ID3D10Buffer, D3D10_MAP, UINT, void **>
 #define ID3D10Buffer_Unmap reshade::hooks::call_vtable<11, HRESULT, ID3D10Buffer>

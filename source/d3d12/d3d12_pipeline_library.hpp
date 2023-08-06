@@ -5,7 +5,7 @@
 
 #pragma once
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 
 #include <d3d12.h>
 

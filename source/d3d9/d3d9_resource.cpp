@@ -16,7 +16,7 @@ Direct3DDepthStencilSurface9::Direct3DDepthStencilSurface9(Direct3DDevice9 *devi
 	_device(device),
 	_orig_desc(desc)
 {
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 	const auto device_proxy = device;
 	_orig->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
 #endif
@@ -147,7 +147,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::ReleaseDC(HDC hdc)
 
 #endif
 
-#if RESHADE_ADDON && !RESHADE_ADDON_LITE
+#if RESHADE_ADDON >= 2
 
 using reshade::d3d9::to_handle;
 
