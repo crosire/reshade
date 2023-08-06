@@ -9,7 +9,7 @@
   <DockPanel LastChildFill="False">
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select preset to install:" />
     <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
-      Choose a preset file (.ini) to configure ReShade to use it and install all used effect packages or click on "Skip" to use a default preset and manually select the effect packages to install.
+      Choose a preset file (.ini) to use and install all used effect packages or click on "Skip" to use a default preset and manually select the effect packages to install.
     </TextBlock>
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
       <Grid.ColumnDefinitions>

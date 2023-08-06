@@ -22,7 +22,7 @@
         <ColumnDefinition Width="10" /> <!-- Margin -->
         <ColumnDefinition Width="100" />
       </Grid.ColumnDefinitions>
-      <TextBox x:Name="PathBox" Grid.Column="0" Text="Enter ZIP download link to custom repository here" GotFocus="OnTextBoxGotFocus" />
+      <TextBox x:Name="PathBox" Grid.Column="0" Text="Optionally enter download link of a custom repository to add here" GotFocus="OnTextBoxGotFocus" />
       <Button Grid.Column="2" Content="Add" Click="OnAddPackageButtonClick" />
     </Grid>
     <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
