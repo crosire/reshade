@@ -1473,6 +1473,9 @@ In that event here are some steps you can try to resolve this:
 					}
 				}
 
+				// Skip any effects no in the shader directory
+				effects = effects.Where(x => x.StartsWith(tempPathEffects)).ToArray();
+
 				// Delete denied effects
 				if (package.DenyEffectFiles != null)
 				{
@@ -1903,10 +1906,18 @@ In that event here are some steps you can try to resolve this:
 			{
 				RunTaskWithExceptionHandling(() =>
 				{
-					// Delete all unselected effect files before moving
-					foreach (string filePath in effects.Except(effectsPage.SelectedItems.Select(x => x.FilePath)))
+					try
 					{
-						File.Delete(tempPathEffects + filePath.Remove(0, targetPathEffects.Length));
+						// Delete all unselected effect files before moving
+						foreach (string filePath in effects.Except(effectsPage.SelectedItems.Select(x => x.FilePath)))
+						{
+							File.Delete(tempPathEffects + filePath.Remove(0, targetPathEffects.Length));
+						}
+					}
+					catch (Exception ex)
+					{
+						UpdateStatusAndFinish(false, "Failed to delete an effect file from " + package.PackageName + ":\n" + ex.Message);
+						return;
 					}
 
 					InstallStep_InstallEffectPackage();
