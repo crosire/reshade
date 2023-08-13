@@ -43,7 +43,7 @@ private:
 	unsigned int _shader_model = 0;
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
-	std::unordered_map<std::string, std::string> _remapped_semantics;
+	std::string _remapped_semantics[15];
 
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_bitwise_cast = false;
@@ -442,12 +442,14 @@ private:
 		_names[id] = std::move(name);
 	}
 
-	std::string convert_semantic(const std::string &semantic)
+	std::string convert_semantic(const std::string &semantic, uint32_t max_attributes = 1)
 	{
 		if (_shader_model < 40)
 		{
 			if (semantic == "SV_POSITION")
 				return "POSITION"; // For pixel shaders this has to be "VPOS", so need to redefine that in post
+			if (semantic == "VPOS")
+				return "VPOS";
 			if (semantic == "SV_POINTSIZE")
 				return "PSIZE";
 			if (semantic.compare(0, 9, "SV_TARGET") == 0)
@@ -459,22 +461,39 @@ private:
 			if (semantic == "SV_ISFRONTFACE")
 				return "VFACE";
 
-			if (semantic != "VPOS" &&
-				semantic.compare(0, 5, "COLOR") != 0 &&
-				semantic.compare(0, 6, "NORMAL") != 0 &&
-				semantic.compare(0, 7, "TANGENT") != 0)
-			{
-				// Shader model 3 only supports a selected list of semantic names, so need to remap custom ones to that
-				if (const auto it = _remapped_semantics.find(semantic);
-					it != _remapped_semantics.end())
-					return it->second;
+			size_t digit_index = semantic.size() - 1;
+			while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
+				digit_index--;
+			digit_index++;
 
-				// Legal semantic indices are between 0 and 15
-				if (_remapped_semantics.size() < 15)
+			const uint32_t semantic_digit = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
+			const std::string semantic_base = semantic.substr(0, digit_index);
+
+			if (semantic_base == "TEXCOORD")
+			{
+				if (semantic_digit < 15)
 				{
-					const std::string remapped_semantic = "TEXCOORD" + std::to_string(_remapped_semantics.size()) + " /* " + semantic + " */";
-					_remapped_semantics.emplace(semantic, remapped_semantic);
-					return remapped_semantic;
+					assert(_remapped_semantics[semantic_digit].empty() || _remapped_semantics[semantic_digit] == semantic); // Mixing custom semantic names and multiple TEXCOORD indices is not supported
+					_remapped_semantics[semantic_digit] = semantic;
+				}
+			}
+			// Shader model 3 only supports a selected list of semantic names, so need to remap custom ones to that
+			else if (
+				semantic_base != "COLOR" &&
+				semantic_base != "NORMAL" &&
+				semantic_base != "TANGENT" &&
+				semantic_base != "BINORMAL")
+			{
+				// Legal semantic indices are between 0 and 15, but skip first entry in case both custom semantic names and the common TEXCOORD0 exist
+				for (int i = 1; i < 15; ++i)
+				{
+					if (_remapped_semantics[i].empty() || _remapped_semantics[i] == semantic)
+					{
+						for (uint32_t a = 0; a < max_attributes && i + a < 15; ++a)
+							_remapped_semantics[i + a] = semantic_base + std::to_string(semantic_digit + a);
+
+						return "TEXCOORD" + std::to_string(i) + " /* " + semantic + " */";
+					}
 				}
 			}
 		}
@@ -536,10 +555,13 @@ private:
 			code += '\t';
 			write_type<true>(code, member.type); // HLSL allows interpolation attributes on struct members, so handle this like a parameter
 			code += ' ' + member.name;
+
 			if (member.type.is_array())
 				code += '[' + std::to_string(member.type.array_length) + ']';
+
 			if (!member.semantic.empty())
-				code += " : " + convert_semantic(member.semantic);
+				code += " : " + convert_semantic(member.semantic, std::max(1, static_cast<int>(member.type.components() / 4)) * std::max(1, member.type.array_length));
+
 			code += ";\n";
 		}
 
@@ -827,7 +849,7 @@ private:
 				code += '[' + std::to_string(param.type.array_length) + ']';
 
 			if (!param.semantic.empty())
-				code += " : " + convert_semantic(param.semantic);
+				code += " : " + convert_semantic(param.semantic, std::max(1, static_cast<int>(param.type.cols / 4)) * std::max(1, param.type.array_length));
 
 			if (i < num_params - 1)
 				code += ',';

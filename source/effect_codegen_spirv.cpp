@@ -591,7 +591,7 @@ private:
 		return type;
 	}
 
-	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_array_length = 1)
+	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_attributes = 1)
 	{
 		if (semantic.compare(0, 5, "COLOR") == 0)
 			return std::strtoul(semantic.c_str() + 5, nullptr, 10);
@@ -614,7 +614,7 @@ private:
 		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
 
 		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
-		for (uint32_t a = 0; a < semantic_digit + max_array_length; ++a)
+		for (uint32_t a = 0; a < semantic_digit + max_attributes; ++a)
 		{
 			const auto insert = _semantic_to_location.emplace(semantic_base + std::to_string(a), location + a);
 			if (!insert.second)

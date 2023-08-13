@@ -455,7 +455,7 @@ private:
 		_names[id] = std::move(name);
 	}
 
-	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_array_length = 1)
+	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_attributes = 1)
 	{
 		if (semantic.compare(0, 5, "COLOR") == 0)
 			return std::strtoul(semantic.c_str() + 5, nullptr, 10);
@@ -478,7 +478,7 @@ private:
 		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
 
 		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
-		for (uint32_t a = 0; a < semantic_digit + max_array_length; ++a)
+		for (uint32_t a = 0; a < semantic_digit + max_attributes; ++a)
 		{
 			const auto insert = _semantic_to_location.emplace(semantic_base + std::to_string(a), location + a);
 			if (!insert.second)
@@ -856,10 +856,9 @@ private:
 
 			std::string &code = _blocks.at(_current_block);
 
-			const int array_length = std::max(1, type.array_length);
-			const uint32_t location = semantic_to_location(semantic, array_length);
+			const uint32_t location = semantic_to_location(semantic, std::max(1, type.array_length));
 
-			for (int a = 0; a < array_length; ++a)
+			for (int a = 0; a < std::max(1, type.array_length); ++a)
 			{
 				code += "layout(location = " + std::to_string(location + a) + ") ";
 				write_type<false, false, true>(code, type);
