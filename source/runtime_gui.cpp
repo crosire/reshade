@@ -67,6 +67,7 @@ void reshade::runtime::init_gui()
 	_overlay_key_data[2] = false;
 	_overlay_key_data[3] = false;
 
+	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	_imgui_context = ImGui::CreateContext();
 
 	ImGuiIO &imgui_io = _imgui_context->IO;
@@ -119,7 +120,8 @@ void reshade::runtime::init_gui()
 	imgui_style.WindowRounding = 0.0f;
 	imgui_style.WindowBorderSize = 0.0f;
 
-	ImGui::SetCurrentContext(nullptr);
+	// Restore previous context in case this was called from a new runtime being created from an add-on event triggered by an existing runtime
+	ImGui::SetCurrentContext(backup_context);
 }
 void reshade::runtime::deinit_gui()
 {
