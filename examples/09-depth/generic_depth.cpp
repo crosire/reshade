@@ -946,8 +946,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	{
 		update_effect_runtime(runtime);
 
-		if (data.selected_shader_resource == 0)
-			device->destroy_resource_view(prev_shader_resource);
+		device->destroy_resource_view(prev_shader_resource);
 	}
 }
 static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_list, resource_view, resource_view)
