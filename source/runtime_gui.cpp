@@ -957,9 +957,6 @@ void reshade::runtime::draw_gui()
 	{
 		ImGui::SetNextWindowPos(_imgui_context->Style.WindowPadding + viewport_offset);
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
-		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.7f));
 		ImGui::Begin("Message Window", nullptr,
 			ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoNav |
@@ -997,8 +994,6 @@ void reshade::runtime::draw_gui()
 		viewport_offset.y += ImGui::GetWindowHeight() + _imgui_context->Style.WindowPadding.x; // Add small space between windows
 
 		ImGui::End();
-		ImGui::PopStyleColor(2);
-		ImGui::PopStyleVar();
 	}
 
 	if (show_statistics_window && !show_splash_window && !show_message_window)
@@ -2819,7 +2814,7 @@ void reshade::runtime::draw_gui_addons()
 
 		ImGui::SameLine();
 
-		ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[info.handle != nullptr ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(info.handle != nullptr ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
 		const auto disabled_it = std::find_if(disabled_addons.begin(), disabled_addons.end(),
 			[&info](const std::string_view &addon_name) {
@@ -3651,7 +3646,7 @@ void reshade::runtime::draw_technique_editor()
 			const bool force_enabled = tech.annotation_as_int("enabled");
 
 			// Gray out disabled techniques
-			ImGui::PushStyleColor(ImGuiCol_Text, _imgui_context->Style.Colors[tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
 			std::string label(tech.annotation_as_string("ui_label"));
 			if (label.empty())
