@@ -182,6 +182,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		extern void check_and_init_openvr_hooks();
 		check_and_init_openvr_hooks();
 
+		extern void check_and_init_openxr_hooks();
+		check_and_init_openxr_hooks();
+
 		uint32_t num_extensions = 0;
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, nullptr);
 		std::vector<VkExtensionProperties> extensions(num_extensions);
