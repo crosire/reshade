@@ -93,6 +93,7 @@
     <Import Project="deps\ImGui.props" />
     <Import Project="deps\MinHook.props" />
     <Import Project="deps\OpenVR.props" />
+    <Import Project="deps\OpenXR.props" />
     <Import Project="deps\SPIRV.props" />
     <Import Project="deps\stb.props" />
     <Import Project="deps\utfcpp.props" />

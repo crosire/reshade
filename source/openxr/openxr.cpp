@@ -1,11 +1,11 @@
 /*
  * OpenXR wiring by The Iron Wolf
- * 
+ *
  * Copyright (C) 2021 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-//#include "openvr_impl_swapchain.hpp"
+ //#include "openvr_impl_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
@@ -21,6 +21,7 @@
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
 #include <functional>
+#include <openxr.h>
 
 #ifdef false
 // There can only be a single global effect runtime in OpenVR (since its API is based on singletons)
@@ -272,7 +273,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 
 	reshade::vulkan::command_queue_impl *queue = nullptr;
 	if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),
-			[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
+		[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
 		queue_it != device->_queues.cend())
 		queue = *queue_it;
 	else
@@ -332,22 +333,22 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 }
 
 #ifdef _WIN64
-	#define VR_Interface_Impl(type, method_name, vtable_index, interface_version, impl, return_type, ...) \
+#define VR_Interface_Impl(type, method_name, vtable_index, interface_version, impl, return_type, ...) \
 		static return_type type##_##method_name##_##interface_version(vr::type *pThis, ##__VA_ARGS__) \
 		{ \
 			static const auto trampoline = reshade::hooks::call(type##_##method_name##_##interface_version, reshade::hooks::vtable_from_instance(pThis) + vtable_index); \
 			impl \
 		}
-	#define VR_Interface_Call(...) trampoline(pThis, ##__VA_ARGS__)
+#define VR_Interface_Call(...) trampoline(pThis, ##__VA_ARGS__)
 #else
-	// The OpenVR interface functions use the __thiscall calling convention on x86, so need to emulate that with __fastcall and a dummy second argument which passes along the EDX register value
-	#define VR_Interface_Impl(type, method_name, vtable_index, interface_version, impl, return_type, ...) \
+// The OpenVR interface functions use the __thiscall calling convention on x86, so need to emulate that with __fastcall and a dummy second argument which passes along the EDX register value
+#define VR_Interface_Impl(type, method_name, vtable_index, interface_version, impl, return_type, ...) \
 		static return_type __fastcall type##_##method_name##_##interface_version(vr::type *pThis, void *EDX, ##__VA_ARGS__) \
 		{ \
 			static const auto trampoline = reshade::hooks::call(type##_##method_name##_##interface_version, reshade::hooks::vtable_from_instance(pThis) + vtable_index); \
 			impl \
 		}
-	#define VR_Interface_Call(...) trampoline(pThis, EDX, ##__VA_ARGS__)
+#define VR_Interface_Call(...) trampoline(pThis, EDX, ##__VA_ARGS__)
 #endif
 
 VR_Interface_Impl(IVRCompositor, Submit, 6, 007, {
@@ -417,46 +418,46 @@ VR_Interface_Impl(IVRCompositor, Submit, 5, 012, {
 	if (pTexture == nullptr || pTexture->handle == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
 
-	// Keep track of pose and depth information of both eyes, so that it can all be send in one step after application submitted both
-	static vr::VRTextureWithPoseAndDepth_t s_last_texture[2];
-	switch (nSubmitFlags & (vr::Submit_TextureWithPose | vr::Submit_TextureWithDepth))
-	{
-	case 0:
-		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::Texture_t));
-		break;
-	case vr::Submit_TextureWithPose:
-		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithPose_t));
-		break;
-	case vr::Submit_TextureWithDepth:
-		// This is not technically compatible with 'vr::VRTextureWithPoseAndDepth_t', but that is fine, since it's only used for storage and none of the fields are accessed directly
-		// TODO: The depth texture bounds may be different then the side-by-side bounds which are used for submission
-		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithDepth_t));
-		break;
-	case vr::Submit_TextureWithPose | vr::Submit_TextureWithDepth:
-		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithPoseAndDepth_t));
-		break;
-	}
+// Keep track of pose and depth information of both eyes, so that it can all be send in one step after application submitted both
+static vr::VRTextureWithPoseAndDepth_t s_last_texture[2];
+switch (nSubmitFlags & (vr::Submit_TextureWithPose | vr::Submit_TextureWithDepth))
+{
+case 0:
+	std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::Texture_t));
+	break;
+case vr::Submit_TextureWithPose:
+	std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithPose_t));
+	break;
+case vr::Submit_TextureWithDepth:
+	// This is not technically compatible with 'vr::VRTextureWithPoseAndDepth_t', but that is fine, since it's only used for storage and none of the fields are accessed directly
+	// TODO: The depth texture bounds may be different then the side-by-side bounds which are used for submission
+	std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithDepth_t));
+	break;
+case vr::Submit_TextureWithPose | vr::Submit_TextureWithDepth:
+	std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithPoseAndDepth_t));
+	break;
+}
 
-	const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
-		// Use the pose and/or depth information that was previously stored during submission, but overwrite the texture handle
-		vr::VRTextureWithPoseAndDepth_t texture = s_last_texture[eye];
-		texture.handle = handle;
-		return VR_Interface_Call(eye, &texture, bounds, flags);
-	};
+const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
+	// Use the pose and/or depth information that was previously stored during submission, but overwrite the texture handle
+	vr::VRTextureWithPoseAndDepth_t texture = s_last_texture[eye];
+	texture.handle = handle;
+	return VR_Interface_Call(eye, &texture, bounds, flags);
+};
 
-	switch (pTexture->eType)
-	{
-	case vr::TextureType_DirectX:
-		return on_vr_submit_d3d11(pThis, eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
-	case vr::TextureType_DirectX12:
-		return on_vr_submit_d3d12(pThis, eEye, static_cast<const vr::D3D12TextureData_t *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
-	case vr::TextureType_OpenGL:
-		return on_vr_submit_opengl(pThis, eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), pBounds, nSubmitFlags, submit_lambda);
-	case vr::TextureType_Vulkan:
-		return on_vr_submit_vulkan(pThis, eEye, static_cast<const vr::VRVulkanTextureData_t *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
-	default:
-		return vr::VRCompositorError_InvalidTexture;
-	}
+switch (pTexture->eType)
+{
+case vr::TextureType_DirectX:
+	return on_vr_submit_d3d11(pThis, eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
+case vr::TextureType_DirectX12:
+	return on_vr_submit_d3d12(pThis, eEye, static_cast<const vr::D3D12TextureData_t *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
+case vr::TextureType_OpenGL:
+	return on_vr_submit_opengl(pThis, eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), pBounds, nSubmitFlags, submit_lambda);
+case vr::TextureType_Vulkan:
+	return on_vr_submit_vulkan(pThis, eEye, static_cast<const vr::VRVulkanTextureData_t *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
+default:
+	return vr::VRCompositorError_InvalidTexture;
+}
 }, vr::EVRCompositorError, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags)
 
 VR_Interface_Impl(IVRClientCore, Cleanup, 1, 001, {
@@ -518,15 +519,38 @@ extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int
 }
 #endif
 
+XRAPI_ATTR XrResult XRAPI_CALL Hook_xrAcquireSwapchainImage(
+	XrSwapchain                                 swapchain,
+	const XrSwapchainImageAcquireInfo *acquireInfo,
+	uint32_t *index)
+{
+	UNREFERENCED_PARAMETER(swapchain);
+	UNREFERENCED_PARAMETER(acquireInfo);
+	UNREFERENCED_PARAMETER(index);
+	//return reshade::hooks::call(Hook_xrAcquireSwapchainImage)(swapchain, acquireInfo, index);
+	static auto const Orig_xrAcquireSwapchainImage = reshade::hooks::call(Hook_xrAcquireSwapchainImage);
+	return Orig_xrAcquireSwapchainImage(swapchain, acquireInfo, index);
+	//return XR_SUCCESS;
+}
+
 bool g_oxr_hooks_init_attempted = false;
 void init_oxr_hooks()
 {
-	install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
-	install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
-	install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
-	install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
+#ifndef _WIN64
+	auto const oxrlh = GetModuleHandleW(L"openxr_loader.dll");
+#else
+	auto const oxrlh = GetModuleHandleW(L"openxr_loader64.dll");
+#endif
+	assert(oxrlh != NULL);
 
-	//reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_007));
+	reshade::hooks::install("xrAcquireSwapchainImage", GetProcAddress(oxrlh, "xrAcquireSwapchainImage"), Hook_xrAcquireSwapchainImage);
+
+	/*install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
+		install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
+		install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
+		install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
+		*/
+		//reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_007));
 }
 
 void check_and_init_openxr_hooks()
@@ -541,8 +565,8 @@ void check_and_init_openxr_hooks()
 		if (GetModuleHandleW(L"openxr_loader64.dll") == nullptr)
 			return;
 #endif
+		init_oxr_hooks();
 
-		
 	}
 	/*if (g_client_core != nullptr ||
 #ifndef _WIN64
