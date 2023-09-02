@@ -519,18 +519,46 @@ extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int
 }
 #endif
 
+XRAPI_ATTR XrResult XRAPI_CALL Hook_xrCreateSwapchain(
+	XrSession session,
+	const XrSwapchainCreateInfo *createInfo,
+	XrSwapchain *swapchain)
+{
+	static auto const Orig_xrCreateSwapchain = reshade::hooks::call(Hook_xrCreateSwapchain);
+	return Orig_xrCreateSwapchain(session, createInfo, swapchain);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL Hook_xrDestroySwapchain(
+	XrSwapchain swapchain)
+{
+	static auto const Orig_xrDestroySwapchain = reshade::hooks::call(Hook_xrDestroySwapchain);
+	return Orig_xrDestroySwapchain(swapchain);
+
+}
+
 XRAPI_ATTR XrResult XRAPI_CALL Hook_xrAcquireSwapchainImage(
-	XrSwapchain                                 swapchain,
+	XrSwapchain swapchain,
 	const XrSwapchainImageAcquireInfo *acquireInfo,
 	uint32_t *index)
 {
-	UNREFERENCED_PARAMETER(swapchain);
-	UNREFERENCED_PARAMETER(acquireInfo);
-	UNREFERENCED_PARAMETER(index);
-	//return reshade::hooks::call(Hook_xrAcquireSwapchainImage)(swapchain, acquireInfo, index);
 	static auto const Orig_xrAcquireSwapchainImage = reshade::hooks::call(Hook_xrAcquireSwapchainImage);
 	return Orig_xrAcquireSwapchainImage(swapchain, acquireInfo, index);
-	//return XR_SUCCESS;
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL Hook_xrReleaseSwapchainImage(
+	XrSwapchain swapchain,
+	const XrSwapchainImageReleaseInfo *releaseInfo)
+{
+	static auto const Orig_xrReleaseSwapchainImage = reshade::hooks::call(Hook_xrReleaseSwapchainImage);
+	return Orig_xrReleaseSwapchainImage(swapchain, releaseInfo);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL Hook_xrEndFrame(
+	XrSession session,
+	const XrFrameEndInfo *frameEndInfo)
+{
+	static auto const Orig_xrEndFrame = reshade::hooks::call(Hook_xrEndFrame);
+	return Orig_xrEndFrame(session, frameEndInfo);
 }
 
 bool g_oxr_hooks_init_attempted = false;
@@ -544,13 +572,10 @@ void init_oxr_hooks()
 	assert(oxrlh != NULL);
 
 	reshade::hooks::install("xrAcquireSwapchainImage", GetProcAddress(oxrlh, "xrAcquireSwapchainImage"), Hook_xrAcquireSwapchainImage);
-
-	/*install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
-		install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
-		install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
-		install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
-		*/
-		//reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_007));
+	reshade::hooks::install("xrReleaseSwapchainImage", GetProcAddress(oxrlh, "xrReleaseSwapchainImage"), Hook_xrReleaseSwapchainImage);
+	reshade::hooks::install("xrCreateSwapchain", GetProcAddress(oxrlh, "xrCreateSwapchain"), Hook_xrCreateSwapchain);
+	reshade::hooks::install("xrDestroySwapchain", GetProcAddress(oxrlh, "xrDestroySwapchain"), Hook_xrDestroySwapchain);
+	reshade::hooks::install("xrEndFrame", GetProcAddress(oxrlh, "xrEndFrame"), Hook_xrEndFrame);
 }
 
 void check_and_init_openxr_hooks()
