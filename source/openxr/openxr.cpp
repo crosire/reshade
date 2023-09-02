@@ -571,6 +571,8 @@ void init_oxr_hooks()
 #endif
 	assert(oxrlh != NULL);
 
+	// I tried to create a general solution using OXR API Layer (xr-vk-layer branch), but no matter what I do game would crash on call to ::xrCreateSession.
+	// So instead, GTR2 would optionally load Reshade before creating OXR swapchains.  And, use good old hooks.
 	reshade::hooks::install("xrAcquireSwapchainImage", GetProcAddress(oxrlh, "xrAcquireSwapchainImage"), Hook_xrAcquireSwapchainImage);
 	reshade::hooks::install("xrReleaseSwapchainImage", GetProcAddress(oxrlh, "xrReleaseSwapchainImage"), Hook_xrReleaseSwapchainImage);
 	reshade::hooks::install("xrCreateSwapchain", GetProcAddress(oxrlh, "xrCreateSwapchain"), Hook_xrCreateSwapchain);
