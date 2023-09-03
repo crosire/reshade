@@ -22,7 +22,11 @@
 #include "lockfree_linear_map.hpp"
 #include <functional>
 #include <deque>
+
+#define XR_USE_PLATFORM_WIN32
+#define XR_USE_GRAPHICS_API_VULKAN
 #include <openxr.h>
+#include "openxr_platform.h"
 
 #ifdef false
 // There can only be a single global effect runtime in OpenVR (since its API is
@@ -727,11 +731,13 @@ VRClientCoreFactory(const char* pInterfaceName, int* pReturnCode)
 static auto constexpr OXR_EYE_COUNT = 2u;
 struct CapturedSwapchain
 {
+  // TODO_OXR: why deque?
   std::deque<uint32_t> acquiredIndex;
   uint32_t lastReleasedIndex{ 0 };
-  bool deferredRelease{ false };
 
   XrSwapchainCreateInfo createInfo{};
+  std::vector<XrSwapchainImageVulkanKHR> surfaceImages;
+
   XrSwapchain fullFovSwapchain[OXR_EYE_COUNT]{ XR_NULL_HANDLE, XR_NULL_HANDLE };
   /* ComPtr<ID3D11Texture2D> flatImage[xr::QuadView::Count];
   ComPtr<ID3D11Texture2D> sharpenedImage[xr::StereoView::Count];
@@ -752,6 +758,25 @@ Hook_xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInf
   if (XR_SUCCEEDED(ret)) {
     CapturedSwapchain newEntry{};
     newEntry.createInfo = *createInfo;
+
+    uint32_t numSurfaces = 0u;
+    static auto const pfnxrEnumerateSwapchainImages = reinterpret_cast<PFN_xrEnumerateSwapchainImages>(::GetProcAddress(::GetModuleHandle(L"openxr_loader.dll"), "xrEnumerateSwapchainImages"));
+	assert(pfnxrEnumerateSwapchainImages != nullptr);
+    auto rv = pfnxrEnumerateSwapchainImages(*swapchain, 0u, &numSurfaces, nullptr);
+    assert(XR_SUCCEEDED(rv));
+    if (!XR_SUCCEEDED(rv))
+      return ret;
+
+    // Track our own information about the swapchain, so we can draw stuff onto it.
+    newEntry.surfaceImages.resize(numSurfaces, { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
+    rv = pfnxrEnumerateSwapchainImages(*swapchain,
+                                   numSurfaces,
+                                   &numSurfaces,
+                                   reinterpret_cast<XrSwapchainImageBaseHeader*>(newEntry.surfaceImages.data()));
+    assert(XR_SUCCEEDED(rv));
+    if (!XR_SUCCEEDED(rv))
+      return ret;
+
     gCapturedSwapchains.insert_or_assign(*swapchain, std::move(newEntry));
   }
   return ret;
@@ -826,6 +851,9 @@ Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
     for (auto viewIndex = 0u; viewIndex < OXR_EYE_COUNT; ++viewIndex) {
       auto const it = gCapturedSwapchains.find(proj->views[viewIndex].subImage.swapchain);
       assert(it != gCapturedSwapchains.end());
+
+
+
     }
   }
   return Orig_xrEndFrame(session, frameEndInfo);
