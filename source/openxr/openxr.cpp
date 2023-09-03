@@ -750,9 +750,9 @@ Hook_xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInf
 
   auto const ret = Orig_xrCreateSwapchain(session, createInfo, swapchain);
   if (XR_SUCCEEDED(ret)) {
-      Swapchain newEntry{};
-      newEntry.createInfo = *createInfo;
-      m_swapchains.insert_or_assign(*swapchain, std::move(newEntry));
+    Swapchain newEntry{};
+    newEntry.createInfo = *createInfo;
+    m_swapchains.insert_or_assign(*swapchain, std::move(newEntry));
   }
   return ret;
 }
@@ -766,8 +766,8 @@ Hook_xrDestroySwapchain(XrSwapchain swapchain)
   if (XR_SUCCEEDED(ret)) {
     auto it = m_swapchains.find(swapchain);
     if (it != m_swapchains.end()) {
-      //Swapchain& entry = it->second;
-	  // TODO_OXR:
+      // Swapchain& entry = it->second;
+      // TODO_OXR:
       /* for (uint32_t i = 0; i < OXR_EYE_COUNT; i++) {
         if (entry.fullFovSwapchain[i] != XR_NULL_HANDLE) {
           OpenXrApi::xrDestroySwapchain(entry.fullFovSwapchain[i]);
@@ -783,14 +783,33 @@ XRAPI_ATTR XrResult XRAPI_CALL
 Hook_xrAcquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo* acquireInfo, uint32_t* index)
 {
   static auto const Orig_xrAcquireSwapchainImage = reshade::hooks::call(Hook_xrAcquireSwapchainImage);
-  return Orig_xrAcquireSwapchainImage(swapchain, acquireInfo, index);
+
+  auto const ret = Orig_xrAcquireSwapchainImage(swapchain, acquireInfo, index);
+  if (XR_SUCCEEDED(ret)) {
+    auto it = m_swapchains.find(swapchain);
+    if (it != m_swapchains.end()) {
+      Swapchain& entry = it->second;
+      entry.acquiredIndex.push_back(*index);
+    }
+  }
+  return ret;
 }
 
 XRAPI_ATTR XrResult XRAPI_CALL
 Hook_xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleaseInfo* releaseInfo)
 {
   static auto const Orig_xrReleaseSwapchainImage = reshade::hooks::call(Hook_xrReleaseSwapchainImage);
-  return Orig_xrReleaseSwapchainImage(swapchain, releaseInfo);
+
+  auto const ret = Orig_xrReleaseSwapchainImage(swapchain, releaseInfo);
+  if (XR_SUCCEEDED(ret)) {
+    auto it = m_swapchains.find(swapchain);
+    if (it != m_swapchains.end()) {
+      Swapchain& entry = it->second;
+      entry.lastReleasedIndex = entry.acquiredIndex.front();
+      entry.acquiredIndex.pop_front();
+    }
+  }
+  return ret;
 }
 
 XRAPI_ATTR XrResult XRAPI_CALL
