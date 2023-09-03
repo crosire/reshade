@@ -8,10 +8,11 @@
 
 reshade::openxr::swapchain_impl::swapchain_impl(api::device* device,
                                                 api::command_queue* graphics_queue,
-                                                XrInstance instance)
-  : api_object_impl(instance, device, graphics_queue)
+                                                XrSession session)
+  : api_object_impl(session, device, graphics_queue)
 {
-  _is_vr = true;
+  //_is_vr = true;
+  _is_vr = false;// TODO_OXR: this calls init_vr_gui, not sure what it even does.
   _renderer_id = static_cast<unsigned int>(device->get_api());
 }
 
@@ -169,23 +170,14 @@ reshade::openxr::swapchain_impl::on_vr_submit(reshade::openxr::eye eye,
   if (source_desc.texture.depth_or_layers <= 1)
     layer = 0;
 
-  const bool is_d3d12 = _device->get_api() == api::device_api::d3d12;
-
   if (source_desc.texture.samples <= 1) {
-    // In all but D3D12 the eye texture resource is already in copy source state at this point
-    if (is_d3d12)
-      cmd_list->barrier(eye_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::copy_source);
     cmd_list->barrier(_side_by_side_texture, api::resource_usage::general, api::resource_usage::copy_dest);
 
     cmd_list->copy_texture_region(
       eye_texture, layer, &source_box, _side_by_side_texture, 0, &dest_box, api::filter_mode::min_mag_mip_point);
 
     cmd_list->barrier(_side_by_side_texture, api::resource_usage::copy_dest, api::resource_usage::general);
-    if (is_d3d12)
-      cmd_list->barrier(eye_texture, api::resource_usage::copy_source, api::resource_usage::shader_resource_pixel);
   } else {
-    if (is_d3d12)
-      cmd_list->barrier(eye_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::resolve_source);
     cmd_list->barrier(_side_by_side_texture, api::resource_usage::general, api::resource_usage::resolve_dest);
 
     cmd_list->resolve_texture_region(eye_texture,
@@ -199,8 +191,6 @@ reshade::openxr::swapchain_impl::on_vr_submit(reshade::openxr::eye eye,
                                      source_desc.texture.format);
 
     cmd_list->barrier(_side_by_side_texture, api::resource_usage::resolve_dest, api::resource_usage::general);
-    if (is_d3d12)
-      cmd_list->barrier(eye_texture, api::resource_usage::resolve_source, api::resource_usage::shader_resource_pixel);
   }
 
   return true;

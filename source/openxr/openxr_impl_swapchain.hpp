@@ -19,10 +19,10 @@ enum class eye
   right
 };
 
-class swapchain_impl : public api::api_object_impl<XrInstance, runtime> // TODO_OXR: Or XrSession, or?
+class swapchain_impl : public api::api_object_impl<XrSession, runtime> // TODO_OXR: Or XrInstance, or?
 {
 public:
-  swapchain_impl(api::device* device, api::command_queue* graphics_queue, XrInstance instance);
+  swapchain_impl(api::device* device, api::command_queue* graphics_queue, XrSession session);
   ~swapchain_impl();
 
   api::resource get_back_buffer(uint32_t index = 0) final;

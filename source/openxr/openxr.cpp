@@ -1,6 +1,7 @@
 /*
  * OpenXR Vulkan wiring by The Iron Wolf.
  *
+ * TODO_OXR:
  * Note this is not a general wiring, it requires Reshade32 loaded by the game right
  * before OXR swapchain creation.  This used in GTR2 with CCGEP plugin.
  *
@@ -268,6 +269,22 @@ struct CapturedSwapchain
 };
 
 std::unordered_map<XrSwapchain, CapturedSwapchain> gCapturedSwapchains;
+VkDevice gVKDevice = VK_NULL_HANDLE;
+uint32_t gVKQueueIndex = 0u;
+
+XRAPI_ATTR XrResult XRAPI_CALL
+Hook_xrCreateSession(XrInstance instance, const XrSessionCreateInfo* createInfo, XrSession* session)
+{
+  static auto const Orig_xrCreateSession = reshade::hooks::call(Hook_xrCreateSession);
+
+  auto const ret = Orig_xrCreateSession(instance, createInfo, session);
+  if (XR_SUCCEEDED(ret)) {
+    auto const gbv = reinterpret_cast<XrGraphicsBindingVulkanKHR const*>(createInfo->next);
+    gVKDevice = gbv->device;
+    gVKQueueIndex = gbv->queueIndex;
+  }
+  return ret;
+}
 
 XRAPI_ATTR XrResult XRAPI_CALL
 Hook_xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain)
@@ -366,98 +383,85 @@ Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
 {
   static auto const Orig_xrEndFrame = reshade::hooks::call(Hook_xrEndFrame);
 
+  XrSwapchainImageVulkanKHR leftImage{ XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR };
+  XrSwapchainCreateInfo leftCI{};
+  XrSwapchainImageVulkanKHR rightImage{ XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR };
+  XrSwapchainCreateInfo rightCI{};
+  auto applyEffects = false;
   for (auto i = 0u; i < frameEndInfo->layerCount; ++i) {
     // We don't care about overlays.
     if (frameEndInfo->layers[i]->type != XR_TYPE_COMPOSITION_LAYER_PROJECTION)
       continue;
 
+    applyEffects = true;
+
     auto const* proj = reinterpret_cast<const XrCompositionLayerProjection*>(frameEndInfo->layers[i]);
     auto const itLeft
       = gCapturedSwapchains.find(proj->views[static_cast<int>(reshade::openxr::eye::left)].subImage.swapchain);
     assert(itLeft != gCapturedSwapchains.end());
+    auto const llri = itLeft->second.lastReleasedIndex;
+    leftImage = itLeft->second.surfaceImages[llri];
+    leftCI = itLeft->second.createInfo;
 
     auto const itRight
       = gCapturedSwapchains.find(proj->views[static_cast<int>(reshade::openxr::eye::right)].subImage.swapchain);
     assert(itRight != gCapturedSwapchains.end());
+    auto const rlri = itRight->second.lastReleasedIndex;
+    rightImage = itRight->second.surfaceImages[rlri];
+    rightCI = itRight->second.createInfo;
 
     break;
   }
 
-  /* extern lockfree_linear_map<void*, reshade::vulkan::device_impl*, 8> g_vulkan_devices;
-    reshade::vulkan::device_impl* device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
-    if (device == nullptr)
-      goto normal_submit;
+  if (applyEffects) {
+    extern lockfree_linear_map<void*, reshade::vulkan::device_impl*, 8> g_vulkan_devices;
+    auto* device = g_vulkan_devices.at(dispatch_key_from_handle(gVKDevice));
 
+    VkQueue graphicsQueue = VK_NULL_HANDLE;
+    device->_dispatch_table.GetDeviceQueue(gVKDevice, device->_graphics_queue_family_index, 0, &graphicsQueue);
+
+    // TODO_OXR:
     reshade::vulkan::command_queue_impl* queue = nullptr;
     if (const auto queue_it = std::find_if(
           device->_queues.cbegin(),
           device->_queues.cend(),
-          [texture](reshade::vulkan::command_queue_impl* queue) { return queue->_orig == texture->m_pQueue; });
+          [graphicsQueue](reshade::vulkan::command_queue_impl* queue) { return queue->_orig == graphicsQueue; });
         queue_it != device->_queues.cend())
       queue = *queue_it;
-    else
-      goto normal_submit;
 
     if (s_vr_swapchain == nullptr)
-      // OpenVR requires the passed in queue to be a graphics queue, so can safely
-      // use it
-      s_vr_swapchain = new reshade::openvr::swapchain_impl(device, queue, compositor);
-    else if (s_vr_swapchain->get_device() != device)
-      return vr::VRCompositorError_InvalidTexture;
+      s_vr_swapchain = new reshade::openxr::swapchain_impl(device, queue, session);
 
     // Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this
     // point
-    if (!s_vr_swapchain->on_vr_submit(eye,
-                                      { (uint64_t)(VkImage)texture->m_nImage },
-                                      bounds,
-                                      (flags & vr::Submit_VulkanTextureWithArrayData) != 0
-                                        ? static_cast<const vr::VRVulkanTextureArrayData_t*>(texture)->m_unArrayIndex
-                                        : 0)) {
-      // Failed to initialize effect runtime or copy the eye texture, so submit
-      // normally without applying effects
-  #if RESHADE_VERBOSE_LOG
-      LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
-  #endif
-    normal_submit:
-      return submit(eye, (void*)texture, bounds, flags);
-    }
+    if (!s_vr_swapchain->on_vr_submit(reshade::openxr::eye::left, { (uint64_t)leftImage.image }, 0))
+      goto Exit;
 
-    // Skip submission of the first eye and instead submit both left and right eye
-    // in one step after application submitted both
-    if (eye != vr::Eye_Right) {
-  #if RESHADE_ADDON
-      const reshade::api::rect left_rect = s_vr_swapchain->get_eye_rect(eye);
-      reshade::invoke_addon_event<reshade::addon_event::present>(
-        queue, s_vr_swapchain, &left_rect, &left_rect, 0, nullptr);
-  #endif
-      return vr::VRCompositorError_None;
-    } else {
-      const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
-  #if RESHADE_ADDON
-      reshade::invoke_addon_event<reshade::addon_event::present>(
-        queue, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
-  #endif
-      s_vr_swapchain->on_present();
+    if (!s_vr_swapchain->on_vr_submit(reshade::openxr::eye::right, { (uint64_t)rightImage.image }, 0))
+      goto Exit;
 
-      assert(queue == s_vr_swapchain->get_command_queue());
-      queue->flush_immediate_command_list();
+    s_vr_swapchain->on_present();
 
-      vr::VRVulkanTextureData_t target_texture = *texture;
-      target_texture.m_nImage = (uint64_t)(VkImage)s_vr_swapchain->get_back_buffer().handle;
-      target_texture.m_nWidth = right_rect.width() * 2;
-      target_texture.m_nHeight = right_rect.height();
-      // Multisampled source textures were already resolved, so sample count is
-      // always one at this point
-      target_texture.m_nSampleCount = 1;
-      // The side-by-side texture is not an array texture
-      flags = static_cast<vr::EVRSubmitFlags>(flags & ~vr::Submit_VulkanTextureWithArrayData);
+    assert(queue == s_vr_swapchain->get_command_queue());
+    queue->flush_immediate_command_list();
 
-      const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
-      submit(vr::Eye_Left, &target_texture, &left_bounds, flags);
-      const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
-      return submit(vr::Eye_Right, &target_texture, &right_bounds, flags);
-    }
-    */
+    vr::VRVulkanTextureData_t target_texture = *texture;
+    target_texture.m_nImage = (uint64_t)(VkImage)s_vr_swapchain->get_back_buffer().handle;
+    target_texture.m_nWidth = right_rect.width() * 2;
+    target_texture.m_nHeight = right_rect.height();
+    // Multisampled source textures were already resolved, so sample count is
+    // always one at this point
+    /* target_texture.m_nSampleCount = 1;
+    // The side-by-side texture is not an array texture
+    flags = static_cast<vr::EVRSubmitFlags>(flags & ~vr::Submit_VulkanTextureWithArrayData);
+
+    const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
+    submit(vr::Eye_Left, &target_texture, &left_bounds, flags);
+    const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
+    return submit(vr::Eye_Right, &target_texture, &right_bounds, flags);*/
+  }
+
+Exit:
   return Orig_xrEndFrame(session, frameEndInfo);
 }
 
@@ -472,6 +476,7 @@ init_oxr_hooks()
 #endif
   assert(oxrlh != NULL);
 
+  reshade::hooks::install("xrCreateSession", GetProcAddress(oxrlh, "xrCreateSession"), Hook_xrCreateSession);
   reshade::hooks::install(
     "xrAcquireSwapchainImage", GetProcAddress(oxrlh, "xrAcquireSwapchainImage"), Hook_xrAcquireSwapchainImage);
   reshade::hooks::install(
