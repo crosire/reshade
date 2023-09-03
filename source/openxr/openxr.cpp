@@ -724,8 +724,8 @@ VRClientCoreFactory(const char* pInterfaceName, int* pReturnCode)
 #endif
 
 // TODO_OXR:
-static auto constexpr OXR_EYE_COUNT = 2;
-struct Swapchain
+static auto constexpr OXR_EYE_COUNT = 2u;
+struct CapturedSwapchain
 {
   std::deque<uint32_t> acquiredIndex;
   uint32_t lastReleasedIndex{ 0 };
@@ -741,7 +741,7 @@ struct Swapchain
 };
 
 // TODO_OXR:
-std::unordered_map<XrSwapchain, Swapchain> m_swapchains;
+std::unordered_map<XrSwapchain, CapturedSwapchain> gCapturedSwapchains;
 
 XRAPI_ATTR XrResult XRAPI_CALL
 Hook_xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain)
@@ -750,9 +750,9 @@ Hook_xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInf
 
   auto const ret = Orig_xrCreateSwapchain(session, createInfo, swapchain);
   if (XR_SUCCEEDED(ret)) {
-    Swapchain newEntry{};
+    CapturedSwapchain newEntry{};
     newEntry.createInfo = *createInfo;
-    m_swapchains.insert_or_assign(*swapchain, std::move(newEntry));
+    gCapturedSwapchains.insert_or_assign(*swapchain, std::move(newEntry));
   }
   return ret;
 }
@@ -764,8 +764,8 @@ Hook_xrDestroySwapchain(XrSwapchain swapchain)
 
   auto const ret = Orig_xrDestroySwapchain(swapchain);
   if (XR_SUCCEEDED(ret)) {
-    auto it = m_swapchains.find(swapchain);
-    if (it != m_swapchains.end()) {
+    auto it = gCapturedSwapchains.find(swapchain);
+    if (it != gCapturedSwapchains.end()) {
       // Swapchain& entry = it->second;
       // TODO_OXR:
       /* for (uint32_t i = 0; i < OXR_EYE_COUNT; i++) {
@@ -773,7 +773,7 @@ Hook_xrDestroySwapchain(XrSwapchain swapchain)
           OpenXrApi::xrDestroySwapchain(entry.fullFovSwapchain[i]);
         }
       }*/
-      m_swapchains.erase(it);
+      gCapturedSwapchains.erase(it);
     }
   }
   return ret;
@@ -786,10 +786,10 @@ Hook_xrAcquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquir
 
   auto const ret = Orig_xrAcquireSwapchainImage(swapchain, acquireInfo, index);
   if (XR_SUCCEEDED(ret)) {
-    auto it = m_swapchains.find(swapchain);
-    if (it != m_swapchains.end()) {
-      Swapchain& entry = it->second;
-      entry.acquiredIndex.push_back(*index);
+    auto it = gCapturedSwapchains.find(swapchain);
+    if (it != gCapturedSwapchains.end()) {
+      auto& csd = it->second;
+      csd.acquiredIndex.push_back(*index);
     }
   }
   return ret;
@@ -802,11 +802,11 @@ Hook_xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleas
 
   auto const ret = Orig_xrReleaseSwapchainImage(swapchain, releaseInfo);
   if (XR_SUCCEEDED(ret)) {
-    auto it = m_swapchains.find(swapchain);
-    if (it != m_swapchains.end()) {
-      Swapchain& entry = it->second;
-      entry.lastReleasedIndex = entry.acquiredIndex.front();
-      entry.acquiredIndex.pop_front();
+    auto it = gCapturedSwapchains.find(swapchain);
+    if (it != gCapturedSwapchains.end()) {
+      auto& csd = it->second;
+      csd.lastReleasedIndex = csd.acquiredIndex.front();
+      csd.acquiredIndex.pop_front();
     }
   }
   return ret;
@@ -816,6 +816,18 @@ XRAPI_ATTR XrResult XRAPI_CALL
 Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
 {
   static auto const Orig_xrEndFrame = reshade::hooks::call(Hook_xrEndFrame);
+
+  for (auto i = 0u; i < frameEndInfo->layerCount; ++i) {
+    // We don't care about overlays.
+    if (frameEndInfo->layers[i]->type != XR_TYPE_COMPOSITION_LAYER_PROJECTION)
+      continue;
+
+    auto const* proj = reinterpret_cast<const XrCompositionLayerProjection*>(frameEndInfo->layers[i]);
+    for (auto viewIndex = 0u; viewIndex < OXR_EYE_COUNT; ++viewIndex) {
+      auto const it = gCapturedSwapchains.find(proj->views[viewIndex].subImage.swapchain);
+      assert(it != gCapturedSwapchains.end());
+    }
+  }
   return Orig_xrEndFrame(session, frameEndInfo);
 }
 
@@ -831,8 +843,8 @@ init_oxr_hooks()
   assert(oxrlh != NULL);
 
   // I tried creating a general solution using OXR API Layer (xr-vk-layerbranch), but no matter what I do game would
-  // crash on call to ::xrCreateSession. So instead, GTR2 would optionally load Reshade before creating OXR swapchains.
-  // And, use good old hooks.
+  // crash on call to ::xrCreateSession. So instead, GTR2 would optionally load Reshade before creating OXR
+  // swapchains. And, use good old hooks.
   reshade::hooks::install(
     "xrAcquireSwapchainImage", GetProcAddress(oxrlh, "xrAcquireSwapchainImage"), Hook_xrAcquireSwapchainImage);
   reshade::hooks::install(
