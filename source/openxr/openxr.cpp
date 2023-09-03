@@ -443,9 +443,11 @@ Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
     s_vr_swapchain->on_present();
 
     assert(queue == s_vr_swapchain->get_command_queue());
+    s_vr_swapchain->on_afer_effects_applied({ (uint64_t)leftImage.image }, { (uint64_t)rightImage.image } );
     queue->flush_immediate_command_list();
+    
 
-    vr::VRVulkanTextureData_t target_texture = *texture;
+    /* vr::VRVulkanTextureData_t target_texture = *texture;
     target_texture.m_nImage = (uint64_t)(VkImage)s_vr_swapchain->get_back_buffer().handle;
     target_texture.m_nWidth = right_rect.width() * 2;
     target_texture.m_nHeight = right_rect.height();

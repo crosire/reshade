@@ -12,7 +12,7 @@ reshade::openxr::swapchain_impl::swapchain_impl(api::device* device,
   : api_object_impl(session, device, graphics_queue)
 {
   //_is_vr = true;
-  _is_vr = false;// TODO_OXR: this calls init_vr_gui, not sure what it even does.
+  _is_vr = false; // TODO_OXR: this calls init_vr_gui, not sure what it even does.
   _renderer_id = static_cast<unsigned int>(device->get_api());
 }
 
@@ -115,13 +115,13 @@ reshade::openxr::swapchain_impl::on_vr_submit(reshade::openxr::eye eye,
       = static_cast<int32_t>(std::ceil(source_desc.texture.height * std::max(bounds->vMin, bounds->vMax)));
     source_box.back = 1;
   } else {*/
-    source_box.left = 0;
-    source_box.top = 0;
-    source_box.front = 0;
-    source_box.right = source_desc.texture.width;
-    source_box.bottom = source_desc.texture.height;
-    source_box.back = 1;
- // }
+  source_box.left = 0;
+  source_box.top = 0;
+  source_box.front = 0;
+  source_box.right = source_desc.texture.width;
+  source_box.bottom = source_desc.texture.height;
+  source_box.back = 1;
+  // }
 
   const uint32_t region_width = source_box.width();
   const uint32_t target_width = region_width * 2;
@@ -191,6 +191,62 @@ reshade::openxr::swapchain_impl::on_vr_submit(reshade::openxr::eye eye,
                                      source_desc.texture.format);
 
     cmd_list->barrier(_side_by_side_texture, api::resource_usage::resolve_dest, api::resource_usage::general);
+  }
+
+  return true;
+}
+
+bool
+reshade::openxr::swapchain_impl::on_afer_effects_applied(api::resource left_xr_swapchain_image,
+                                                         api::resource right_xr_swapchain_image)
+{
+  const api::resource_desc source_desc = _device->get_resource_desc(left_xr_swapchain_image);
+
+  if (source_desc.texture.samples > 1 && !_device->check_capability(api::device_caps::resolve_region))
+    return false; // Can only copy whole subresources when the resource is multisampled
+
+  reshade::api::subresource_box left_source_box;
+  left_source_box.left = 0;
+  left_source_box.top = 0;
+  left_source_box.front = 0;
+  left_source_box.right = source_desc.texture.width;
+  left_source_box.bottom = source_desc.texture.height;
+  left_source_box.back = 1;
+
+  reshade::api::subresource_box right_source_box;
+  right_source_box.left = source_desc.texture.width;
+  right_source_box.top = 0;
+  right_source_box.front = 0;
+  //right_source_box.right = source_desc.texture.width;
+  //right_source_box.bottom = source_desc.texture.height;
+  right_source_box.right = source_desc.texture.width * 2;
+  right_source_box.bottom = source_desc.texture.height;
+  right_source_box.back = 1;
+
+
+  // Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
+
+  api::command_list* const cmd_list = _graphics_queue->get_immediate_command_list();
+
+  // Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current
+  // eye)
+  const api::subresource_box dest_box = get_eye_subresource_box(reshade::openxr::eye::left);
+
+  if (source_desc.texture.samples <= 1) {
+    auto bb = get_back_buffer();
+    cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::general, api::resource_usage::copy_dest);
+
+    cmd_list->copy_texture_region(
+      bb, 0, &left_source_box, left_xr_swapchain_image, 0, &dest_box, api::filter_mode::min_mag_mip_point);
+
+    cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::copy_dest, api::resource_usage::general);
+
+    cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::general, api::resource_usage::copy_dest);
+
+    cmd_list->copy_texture_region(
+      bb, 0, &right_source_box, right_xr_swapchain_image, 0, &dest_box, api::filter_mode::min_mag_mip_point);
+
+    cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::copy_dest, api::resource_usage::general);
   }
 
   return true;

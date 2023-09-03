@@ -41,6 +41,8 @@ public:
                     api::resource eye_texture,
                     /* const vr::VRTextureBounds_t* bounds,*/
                     uint32_t layer);
+  bool on_afer_effects_applied(api::resource left_xr_swapchain_image, api::resource right_xr_swapchain_image);
+
 
 #if RESHADE_ADDON && RESHADE_FX
   void render_effects(api::command_list* cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
