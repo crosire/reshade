@@ -1,4 +1,6 @@
 /*
+ * Vulkan impl by The Iron Wolf, based on OpenVR code.
+ *
  * Copyright (C) 2022 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,45 +9,50 @@
 
 #include "runtime.hpp"
 #include "addon_manager.hpp"
-#include <openvr.h>
+#include <openxr.h>
 
-struct D3D10Device;
-struct D3D11Device;
-struct D3D12CommandQueue;
+namespace reshade::openxr {
 
-namespace reshade::openvr
+enum class eye
 {
-	class swapchain_impl : public api::api_object_impl<vr::IVRCompositor *, runtime>
-	{
-	public:
-		swapchain_impl(D3D10Device *device, vr::IVRCompositor *compositor);
-		swapchain_impl(D3D11Device *device, vr::IVRCompositor *compositor);
-		swapchain_impl(D3D12CommandQueue *queue, vr::IVRCompositor *compositor);
-		swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor);
-		~swapchain_impl();
+  left = 0,
+  right
+};
 
-		api::resource get_back_buffer(uint32_t index = 0) final;
+class swapchain_impl : public api::api_object_impl<XrInstance, runtime> // TODO_OXR: Or XrSession, or?
+{
+public:
+  swapchain_impl(api::device* device, api::command_queue* graphics_queue, XrInstance instance);
+  ~swapchain_impl();
 
-		uint32_t get_back_buffer_count() const final { return 1; }
-		uint32_t get_current_back_buffer_index() const final { return 0; }
+  api::resource get_back_buffer(uint32_t index = 0) final;
 
-		api::rect get_eye_rect(vr::EVREye eye) const;
-		api::subresource_box get_eye_subresource_box(vr::EVREye eye) const;
+  uint32_t get_back_buffer_count() const final { return 1; }
+  uint32_t get_current_back_buffer_index() const final { return 0; }
 
-		bool on_init();
-		void on_reset();
+  api::rect get_eye_rect(reshade::openxr::eye eye) const;
+  api::subresource_box get_eye_subresource_box(reshade::openxr::eye eye) const;
 
-		void on_present();
-		bool on_vr_submit(vr::EVREye eye, api::resource eye_texture, const vr::VRTextureBounds_t *bounds, uint32_t layer);
+  bool on_init();
+  void on_reset();
+
+  void on_present();
+  bool on_vr_submit(reshade::openxr::eye eye,
+                    api::resource eye_texture,
+                    /* const vr::VRTextureBounds_t* bounds,*/
+                    uint32_t layer);
 
 #if RESHADE_ADDON && RESHADE_FX
-		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
-		void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
+  void render_effects(api::command_list* cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
+  void render_technique(api::effect_technique handle,
+                        api::command_list* cmd_list,
+                        api::resource_view rtv,
+                        api::resource_view rtv_srgb) final;
 #endif
 
-	private:
-		api::resource _side_by_side_texture = {};
-		void *_app_state = nullptr;
-		void *_direct3d_device = nullptr;
-	};
+private:
+  api::resource _side_by_side_texture = {};
+  void* _app_state = nullptr;
+  void* _direct3d_device = nullptr;
+};
 }

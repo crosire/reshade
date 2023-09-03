@@ -601,6 +601,7 @@
     <ClCompile Include="source\openvr\openvr.cpp" />
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp" />
     <ClCompile Include="source\openxr\openxr.cpp" />
+    <ClCompile Include="source\openxr\openxr_impl_swapchain.cpp" />
     <ClCompile Include="source\platform_utils.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_api.cpp" />

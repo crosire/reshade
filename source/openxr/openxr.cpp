@@ -1,18 +1,14 @@
 /*
- * OpenXR wiring by The Iron Wolf
+ * OpenXR Vulkan wiring by The Iron Wolf.
+ * 
+ * Note this is not a general wiring, it requires Reshade32 loaded by the game right
+ * before OXR swapchain creation.  This used in GTR2 with CCGEP plugin.
  *
  * Copyright (C) 2021 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 //#include "openvr_impl_swapchain.hpp"
-#include "d3d10/d3d10_device.hpp"
-#include "d3d11/d3d11_device.hpp"
-#include "d3d11/d3d11_device_context.hpp"
-#include "d3d12/d3d12_device.hpp"
-#include "d3d12/d3d12_command_queue.hpp"
-#include "opengl/opengl_impl_swapchain.hpp"
-#include "opengl/opengl_impl_type_convert.hpp"
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
 #include "vulkan/vulkan_impl_command_queue.hpp"
@@ -748,6 +744,96 @@ struct CapturedSwapchain
 
 // TODO_OXR:
 std::unordered_map<XrSwapchain, CapturedSwapchain> gCapturedSwapchains;
+
+/*static reshade::openvr::swapchain_impl *s_vr_swapchain = nullptr;
+
+static vr::EVRCompositorError
+on_vr_submit_vulkan(vr::IVRCompositor* compositor,
+                    vr::EVREye eye,
+                    const vr::VRVulkanTextureData_t* texture,
+                    const vr::VRTextureBounds_t* bounds,
+                    vr::EVRSubmitFlags flags,
+                    std::function<vr::EVRCompositorError(vr::EVREye eye,
+                                                         void* texture,
+                                                         const vr::VRTextureBounds_t* bounds,
+                                                         vr::EVRSubmitFlags flags)> submit)
+{
+  extern lockfree_linear_map<void*, reshade::vulkan::device_impl*, 8> g_vulkan_devices;
+
+  reshade::vulkan::device_impl* device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
+  if (device == nullptr)
+    goto normal_submit;
+
+  reshade::vulkan::command_queue_impl* queue = nullptr;
+  if (const auto queue_it = std::find_if(
+        device->_queues.cbegin(),
+        device->_queues.cend(),
+        [texture](reshade::vulkan::command_queue_impl* queue) { return queue->_orig == texture->m_pQueue; });
+      queue_it != device->_queues.cend())
+    queue = *queue_it;
+  else
+    goto normal_submit;
+
+  if (s_vr_swapchain == nullptr)
+    // OpenVR requires the passed in queue to be a graphics queue, so can safely
+    // use it
+    s_vr_swapchain = new reshade::openvr::swapchain_impl(device, queue, compositor);
+  else if (s_vr_swapchain->get_device() != device)
+    return vr::VRCompositorError_InvalidTexture;
+
+  // Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this
+  // point
+  if (!s_vr_swapchain->on_vr_submit(eye,
+                                    { (uint64_t)(VkImage)texture->m_nImage },
+                                    bounds,
+                                    (flags & vr::Submit_VulkanTextureWithArrayData) != 0
+                                      ? static_cast<const vr::VRVulkanTextureArrayData_t*>(texture)->m_unArrayIndex
+                                      : 0)) {
+    // Failed to initialize effect runtime or copy the eye texture, so submit
+    // normally without applying effects
+#if RESHADE_VERBOSE_LOG
+    LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
+#endif
+  normal_submit:
+    return submit(eye, (void*)texture, bounds, flags);
+  }
+
+  // Skip submission of the first eye and instead submit both left and right eye
+  // in one step after application submitted both
+  if (eye != vr::Eye_Right) {
+#if RESHADE_ADDON
+    const reshade::api::rect left_rect = s_vr_swapchain->get_eye_rect(eye);
+    reshade::invoke_addon_event<reshade::addon_event::present>(
+      queue, s_vr_swapchain, &left_rect, &left_rect, 0, nullptr);
+#endif
+    return vr::VRCompositorError_None;
+  } else {
+    const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
+#if RESHADE_ADDON
+    reshade::invoke_addon_event<reshade::addon_event::present>(
+      queue, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
+#endif
+    s_vr_swapchain->on_present();
+
+    assert(queue == s_vr_swapchain->get_command_queue());
+    queue->flush_immediate_command_list();
+
+    vr::VRVulkanTextureData_t target_texture = *texture;
+    target_texture.m_nImage = (uint64_t)(VkImage)s_vr_swapchain->get_back_buffer().handle;
+    target_texture.m_nWidth = right_rect.width() * 2;
+    target_texture.m_nHeight = right_rect.height();
+    // Multisampled source textures were already resolved, so sample count is
+    // always one at this point
+    target_texture.m_nSampleCount = 1;
+    // The side-by-side texture is not an array texture
+    flags = static_cast<vr::EVRSubmitFlags>(flags & ~vr::Submit_VulkanTextureWithArrayData);
+
+    const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
+    submit(vr::Eye_Left, &target_texture, &left_bounds, flags);
+    const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
+    return submit(vr::Eye_Right, &target_texture, &right_bounds, flags);
+  }
+}*/
 
 XRAPI_ATTR XrResult XRAPI_CALL
 Hook_xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain)
