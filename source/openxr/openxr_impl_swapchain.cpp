@@ -103,25 +103,12 @@ reshade::openxr::swapchain_impl::on_vr_submit(reshade::openxr::eye eye,
     return false; // Can only copy whole subresources when the resource is multisampled
 
   reshade::api::subresource_box source_box;
-  /* if (bounds != nullptr) {
-    source_box.left
-      = static_cast<int32_t>(std::floor(source_desc.texture.width * std::min(bounds->uMin, bounds->uMax)));
-    source_box.top
-      = static_cast<int32_t>(std::floor(source_desc.texture.height * std::min(bounds->vMin, bounds->vMax)));
-    source_box.front = 0;
-    source_box.right
-      = static_cast<int32_t>(std::ceil(source_desc.texture.width * std::max(bounds->uMin, bounds->uMax)));
-    source_box.bottom
-      = static_cast<int32_t>(std::ceil(source_desc.texture.height * std::max(bounds->vMin, bounds->vMax)));
-    source_box.back = 1;
-  } else {*/
   source_box.left = 0;
   source_box.top = 0;
   source_box.front = 0;
   source_box.right = source_desc.texture.width;
   source_box.bottom = source_desc.texture.height;
   source_box.back = 1;
-  // }
 
   const uint32_t region_width = source_box.width();
   const uint32_t target_width = region_width * 2;

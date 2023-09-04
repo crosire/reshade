@@ -228,21 +228,6 @@ Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
     assert(queue == s_vr_swapchain->get_command_queue());
     s_vr_swapchain->on_afer_effects_applied({ (uint64_t)leftImage.image }, { (uint64_t)rightImage.image });
     queue->flush_immediate_command_list();
-
-    /* vr::VRVulkanTextureData_t target_texture = *texture;
-    target_texture.m_nImage = (uint64_t)(VkImage)s_vr_swapchain->get_back_buffer().handle;
-    target_texture.m_nWidth = right_rect.width() * 2;
-    target_texture.m_nHeight = right_rect.height();
-    // Multisampled source textures were already resolved, so sample count is
-    // always one at this point
-    /* target_texture.m_nSampleCount = 1;
-    // The side-by-side texture is not an array texture
-    flags = static_cast<vr::EVRSubmitFlags>(flags & ~vr::Submit_VulkanTextureWithArrayData);
-
-    const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
-    submit(vr::Eye_Left, &target_texture, &left_bounds, flags);
-    const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
-    return submit(vr::Eye_Right, &target_texture, &right_bounds, flags);*/
   }
 
 Exit:
