@@ -217,15 +217,12 @@ reshade::openxr::swapchain_impl::on_afer_effects_applied(api::resource left_xr_s
   right_source_box.left = source_desc.texture.width;
   right_source_box.top = 0;
   right_source_box.front = 0;
-  //right_source_box.right = source_desc.texture.width;
-  //right_source_box.bottom = source_desc.texture.height;
   right_source_box.right = source_desc.texture.width * 2;
   right_source_box.bottom = source_desc.texture.height;
   right_source_box.back = 1;
 
 
   // Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
-
   api::command_list* const cmd_list = _graphics_queue->get_immediate_command_list();
 
   // Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current
