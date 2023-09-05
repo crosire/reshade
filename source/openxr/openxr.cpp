@@ -4,6 +4,10 @@
  * I tried creating a general solution using OXR API Layer (xr-vk-layer branch), but no matter what I do game would
  * crash on call to ::xrCreateSession. So insteaduse good old hooks.
  *
+ * Special thanks to creators of ReShade, OpenVR wiring and Matthieu Bucchianeri for guidance and samples:
+ * https://github.com/mbucchia/_ARCHIVE_XR_APILAYER_NOVENDOR_fov_modifier
+ * https://github.com/mbucchia/Quad-Views-Foveated
+ *
  * Copyright (C) 2021 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -40,7 +44,6 @@ std::unordered_map<XrSwapchain, CapturedSwapchain> gCapturedSwapchains;
 VkDevice gVKDevice = VK_NULL_HANDLE;
 uint32_t gVKQueueIndex = 0u;
 
-// TODO_OXR: this may need cleanup on "Shutdown"
 reshade::openxr::swapchain_impl* s_vr_swapchain = nullptr;
 
 XRAPI_ATTR XrResult XRAPI_CALL
@@ -110,16 +113,8 @@ Hook_xrDestroySwapchain(XrSwapchain swapchain)
   auto const ret = Orig_xrDestroySwapchain(swapchain);
   if (XR_SUCCEEDED(ret)) {
     auto it = gCapturedSwapchains.find(swapchain);
-    if (it != gCapturedSwapchains.end()) {
-      // Swapchain& entry = it->second;
-      // TODO_OXR:
-      /* for (uint32_t i = 0; i < OXR_EYE_COUNT; i++) {
-        if (entry.fullFovSwapchain[i] != XR_NULL_HANDLE) {
-          OpenXrApi::xrDestroySwapchain(entry.fullFovSwapchain[i]);
-        }
-      }*/
+    if (it != gCapturedSwapchains.end())
       gCapturedSwapchains.erase(it);
-    }
   }
   return ret;
 }
