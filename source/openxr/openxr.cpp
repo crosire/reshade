@@ -77,6 +77,7 @@ Hook_xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInf
 {
   static auto const Orig_xrCreateSwapchain = reshade::hooks::call(Hook_xrCreateSwapchain);
 
+  const_cast<XrSwapchainCreateInfo*>(createInfo)->usageFlags |= XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT;
   auto const ret = Orig_xrCreateSwapchain(session, createInfo, swapchain);
   if (XR_SUCCEEDED(ret)) {
     CapturedSwapchain newEntry{};
