@@ -36,13 +36,7 @@ public:
   bool on_init();
   void on_reset();
 
-  void on_present();
-  bool on_vr_submit(reshade::openxr::eye eye,
-                    api::resource eye_texture,
-                    /* const vr::VRTextureBounds_t* bounds,*/
-                    uint32_t layer);
-  bool on_afer_effects_applied(api::resource left_xr_swapchain_image, api::resource right_xr_swapchain_image);
-
+  void on_present(api::resource left_texture, api::resource right_texture);
 
 #if RESHADE_ADDON && RESHADE_FX
   void render_effects(api::command_list* cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;

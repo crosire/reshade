@@ -204,7 +204,6 @@ Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
     VkQueue graphicsQueue = VK_NULL_HANDLE;
     device->_dispatch_table.GetDeviceQueue(gVKDevice, device->_graphics_queue_family_index, 0, &graphicsQueue);
 
-    // TODO_OXR:
     reshade::vulkan::command_queue_impl* queue = nullptr;
     if (const auto queue_it = std::find_if(
           device->_queues.cbegin(),
@@ -216,22 +215,11 @@ Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
     if (s_vr_swapchain == nullptr)
       s_vr_swapchain = new reshade::openxr::swapchain_impl(device, queue, session);
 
-    // Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this
-    // point
-    if (!s_vr_swapchain->on_vr_submit(reshade::openxr::eye::left, { (uint64_t)leftImage.image }, 0))
-      goto Exit;
-
-    if (!s_vr_swapchain->on_vr_submit(reshade::openxr::eye::right, { (uint64_t)rightImage.image }, 0))
-      goto Exit;
-
-    s_vr_swapchain->on_present();
-
+    s_vr_swapchain->on_present({ static_cast<uint64_t>(leftImage.image) }, { static_cast<uint64_t>(rightImage.image) });
     assert(queue == s_vr_swapchain->get_command_queue());
-    s_vr_swapchain->on_afer_effects_applied({ (uint64_t)leftImage.image }, { (uint64_t)rightImage.image });
     queue->flush_immediate_command_list();
   }
 
-Exit:
   return Orig_xrEndFrame(session, frameEndInfo);
 }
 
