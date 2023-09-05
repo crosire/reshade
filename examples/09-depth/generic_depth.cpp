@@ -22,6 +22,10 @@ static bool s_disable_intz = false;
 static unsigned int s_preserve_depth_buffers = 0;
 // Enable or disable the aspect ratio check from 'check_aspect_ratio' in the detection heuristic
 static unsigned int s_use_aspect_ratio_heuristics = 1;
+// Enable or disable the resolution filter to only consider buffers that match the dimensions
+static unsigned int s_use_resolution_filtering = 0;
+static unsigned int s_resolution_filtering_width = 0;
+static unsigned int s_resolution_filtering_height = 0;
 
 enum class clear_op
 {
@@ -383,6 +387,10 @@ static void on_init_device(device *device)
 	reshade::get_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
 	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 	reshade::get_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+	reshade::get_config_value(nullptr, "DEPTH", "UseResolutionFiltering", s_use_resolution_filtering);
+	reshade::get_config_value(nullptr, "DEPTH", "ResolutionFilteringWidth", s_resolution_filtering_width);
+	reshade::get_config_value(nullptr, "DEPTH", "ResolutionFilteringHeight", s_resolution_filtering_height);
+
 }
 static void on_init_command_list(command_list *cmd_list)
 {
@@ -801,6 +809,9 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
 			continue; // Not a good fit
 
+		if (s_use_resolution_filtering && (desc.texture.width != s_resolution_filtering_width || desc.texture.height != s_resolution_filtering_height))
+			continue; // Rejected due to mismatching texture dims
+
 		const depth_stencil_frame_stats &snapshot = info.last_counters;
 		if (best_snapshot == nullptr || (snapshot.total_stats.drawcalls_indirect < (snapshot.total_stats.drawcalls / 3) ?
 				// Choose snapshot with the most vertices, since that is likely to contain the main scene
@@ -1014,6 +1025,33 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		{
 			s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics_ex ? 2 : 1;
 			reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+			force_reset = true;
+		}
+	}
+
+	if (bool use_resolution_filtering = s_use_resolution_filtering != 0;
+		ImGui::Checkbox("Use resolution filtering (only consider matching buffers)", &use_resolution_filtering))
+	{
+		s_use_resolution_filtering = use_resolution_filtering ? 1 : 0;
+		reshade::set_config_value(nullptr, "DEPTH", "UseResolutionFiltering", s_use_resolution_filtering);
+		force_reset = true;
+	}
+
+	if (s_use_resolution_filtering)
+	{
+		if (int resolution_filtering_width = s_resolution_filtering_width;
+			ImGui::InputInt("Width", &resolution_filtering_width) && resolution_filtering_width > 0)
+		{
+			s_resolution_filtering_width = resolution_filtering_width;
+			reshade::set_config_value(nullptr, "DEPTH", "ResolutionFilteringWidth", s_resolution_filtering_width);
+			force_reset = true;
+		}
+
+		if (int resolution_filtering_height = s_resolution_filtering_height;
+			ImGui::InputInt("Height", &resolution_filtering_height) && resolution_filtering_height > 0)
+		{
+			s_resolution_filtering_height = resolution_filtering_height;
+			reshade::set_config_value(nullptr, "DEPTH", "ResolutionFilteringHeight", s_resolution_filtering_height);
 			force_reset = true;
 		}
 	}
