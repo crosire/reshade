@@ -1,10 +1,6 @@
 /*
  * OpenXR Vulkan wiring by The Iron Wolf.
  *
- * TODO_OXR:
- * Note this is not a general wiring, it requires Reshade32 loaded by the game right
- * before OXR swapchain creation.  This used in GTR2 with CCGEP plugin.
- *
  * I tried creating a general solution using OXR API Layer (xr-vk-layerbranch), but no matter what I do game would
  * crash on call to ::xrCreateSession. So instead, GTR2 would optionally load Reshade before creating OXR
  * swapchains. And, use good old hooks.

@@ -12,7 +12,7 @@ reshade::openxr::swapchain_impl::swapchain_impl(api::device* device,
   : api_object_impl(session, device, graphics_queue)
 {
   //_is_vr = true;
-  _is_vr = false; // TODO_OXR: this calls init_vr_gui, not sure what it even does.
+  _is_vr = false; // TODO_OXR: this calls init_vr_gui.  UI is not implemented yet.
   _renderer_id = static_cast<unsigned int>(device->get_api());
 }
 
