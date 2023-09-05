@@ -2,8 +2,7 @@
  * OpenXR Vulkan wiring by The Iron Wolf.
  *
  * I tried creating a general solution using OXR API Layer (xr-vk-layer branch), but no matter what I do game would
- * crash on call to ::xrCreateSession. So instead, GTR2 would optionally load Reshade before creating OXR
- * swapchains. And, use good old hooks.
+ * crash on call to ::xrCreateSession. So insteaduse good old hooks.
  *
  * Copyright (C) 2021 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
