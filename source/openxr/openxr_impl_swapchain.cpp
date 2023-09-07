@@ -211,14 +211,23 @@ reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain_imag
 
   cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::copy_source, api::resource_usage::copy_dest);
   cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::copy_source, api::resource_usage::copy_dest);
-  auto bb = get_back_buffer();
-  cmd_list->barrier(bb, api::resource_usage::present, api::resource_usage::copy_source);
+  cmd_list->barrier(_side_by_side_texture, api::resource_usage::present, api::resource_usage::copy_source);
 
   if (source_desc.texture.samples <= 1) {
-    cmd_list->copy_texture_region(
-      bb, 0, &left_source_box, left_xr_swapchain_image, 0, &dest_box, api::filter_mode::min_mag_mip_point);
-    cmd_list->copy_texture_region(
-      bb, 0, &right_source_box, right_xr_swapchain_image, 0, &dest_box, api::filter_mode::min_mag_mip_point);
+    cmd_list->copy_texture_region(_side_by_side_texture,
+                                  0,
+                                  &left_source_box,
+                                  left_xr_swapchain_image,
+                                  0,
+                                  &dest_box,
+                                  api::filter_mode::min_mag_mip_point);
+    cmd_list->copy_texture_region(_side_by_side_texture,
+                                  0,
+                                  &right_source_box,
+                                  right_xr_swapchain_image,
+                                  0,
+                                  &dest_box,
+                                  api::filter_mode::min_mag_mip_point);
   }
 
   cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::copy_dest, api::resource_usage::render_target);

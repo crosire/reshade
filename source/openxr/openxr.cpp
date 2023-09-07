@@ -2,7 +2,7 @@
  * OpenXR Vulkan wiring by The Iron Wolf.
  *
  * I tried creating a general solution using OXR API Layer (xr-vk-layer branch), but no matter what I do game would
- * crash on call to ::xrCreateSession. So insteaduse good old hooks.
+ * crash on call to ::xrCreateSession. So instead use good old hooks.
  *
  * Special thanks to creators of ReShade, OpenVR wiring and Matthieu Bucchianeri for guidance and samples:
  * https://github.com/mbucchia/_ARCHIVE_XR_APILAYER_NOVENDOR_fov_modifier
@@ -244,7 +244,7 @@ check_and_init_openxr_hooks()
     if (GetModuleHandleW(L"openxr_loader.dll") == nullptr)
       return;
 #else
-    // TODO_OXR: not sure
+    // TODO_OXR: not tested
     if (GetModuleHandleW(L"openxr_loader64.dll") == nullptr)
       return;
 #endif
