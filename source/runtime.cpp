@@ -1184,15 +1184,6 @@ void reshade::runtime::load_current_preset()
 			enable_technique(tech);
 		else
 			disable_technique(tech);
-
-		if (!preset.get({}, "Key" + unique_name, tech.toggle_key_data) &&
-			!preset.get({}, "Key" + tech.name, tech.toggle_key_data))
-		{
-			tech.toggle_key_data[0] = tech.annotation_as_int("toggle");
-			tech.toggle_key_data[1] = tech.annotation_as_int("togglectrl");
-			tech.toggle_key_data[2] = tech.annotation_as_int("toggleshift");
-			tech.toggle_key_data[3] = tech.annotation_as_int("togglealt");
-		}
 	}
 
 	// Reverse queue so that effects are enabled in the order they are defined in the preset (since the queue is worked from back to front)
@@ -1225,8 +1216,6 @@ void reshade::runtime::save_current_preset() const
 
 		if (tech.toggle_key_data[0] != 0)
 			preset.set({}, "Key" + unique_name, tech.toggle_key_data);
-		else if (tech.annotation_as_int("toggle") != 0)
-			preset.set({}, "Key" + unique_name, 0); // Overwrite default toggle key to none
 		else
 			preset.remove_key({}, "Key" + unique_name);
 	}
