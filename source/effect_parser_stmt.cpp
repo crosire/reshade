@@ -10,6 +10,7 @@
 #include <cassert>
 #include <functional>
 #include <string_view>
+#include <limits>
 
 struct on_scope_exit
 {
