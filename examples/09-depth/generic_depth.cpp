@@ -22,6 +22,8 @@ static bool s_disable_intz = false;
 static unsigned int s_preserve_depth_buffers = 0;
 // Enable or disable the aspect ratio check from 'check_aspect_ratio' in the detection heuristic
 static unsigned int s_use_aspect_ratio_heuristics = 1;
+// Enable or disable prioritising draw calls for selection 
+static unsigned int s_prioritise_draw_calls = 1;
 
 enum class clear_op
 {
@@ -383,6 +385,7 @@ static void on_init_device(device *device)
 	reshade::get_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
 	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 	reshade::get_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+	reshade::get_config_value(nullptr, "DEPTH", "PrioritizeDrawCalls", s_prioritise_draw_calls);
 }
 static void on_init_command_list(command_list *cmd_list)
 {
@@ -802,7 +805,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			continue; // Not a good fit
 
 		const depth_stencil_frame_stats &snapshot = info.last_counters;
-		if (best_snapshot == nullptr || (snapshot.total_stats.drawcalls_indirect < (snapshot.total_stats.drawcalls / 3) ?
+		if (best_snapshot == nullptr || (snapshot.total_stats.drawcalls_indirect < (snapshot.total_stats.drawcalls / 3) || s_prioritise_draw_calls == 0 ?
 				// Choose snapshot with the most vertices, since that is likely to contain the main scene
 				snapshot.total_stats.vertices > best_snapshot->total_stats.vertices :
 				// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
@@ -998,6 +1001,14 @@ static inline const char *format_to_string(format format)
 static void draw_settings_overlay(effect_runtime *runtime)
 {
 	bool force_reset = false;
+
+	if (bool prioritise_draw_calls = s_prioritise_draw_calls != 0;
+		ImGui::Checkbox("Prioritise Draw Calls ", &prioritise_draw_calls))
+	{
+		s_prioritise_draw_calls = prioritise_draw_calls ? 1 : 0;
+		reshade::set_config_value(nullptr, "DEPTH", "PrioritizeDrawCalls", s_prioritise_draw_calls);
+		force_reset = true;
+	}
 
 	if (bool use_aspect_ratio_heuristics = s_use_aspect_ratio_heuristics != 0;
 		ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics))
