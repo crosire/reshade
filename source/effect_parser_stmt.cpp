@@ -7,10 +7,10 @@
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include <cctype> // std::toupper
+#include <limits>
 #include <cassert>
 #include <functional>
 #include <string_view>
-#include <limits>
 
 struct on_scope_exit
 {

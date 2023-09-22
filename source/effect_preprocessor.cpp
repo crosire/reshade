@@ -1047,10 +1047,22 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 		push(escape_string(file_stem.u8string()));
 		return true;
 	}
+	if (_token.literal_as_string == "__FILE_STEM_HASH__")
+	{
+		const std::filesystem::path file_stem = std::filesystem::u8path(_token.location.source).stem();
+		push(std::to_string(std::hash<std::string>()(file_stem.u8string()) & 0xFFFFFFFF));
+		return true;
+	}
 	if (_token.literal_as_string == "__FILE_NAME__")
 	{
 		const std::filesystem::path file_name = std::filesystem::u8path(_token.location.source).filename();
 		push(escape_string(file_name.u8string()));
+		return true;
+	}
+	if (_token.literal_as_string == "__FILE_NAME_HASH__")
+	{
+		const std::filesystem::path file_name = std::filesystem::u8path(_token.location.source).filename();
+		push(std::to_string(std::hash<std::string>()(file_name.u8string()) & 0xFFFFFFFF));
 		return true;
 	}
 
