@@ -504,7 +504,7 @@ extern "C" BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMi
 {
 #if 1
 	DWORD mask = QS_ALLINPUT;
-	if (wMsgFilterMin == 0 && wMsgFilterMax == 0)
+	if (wMsgFilterMin != 0 || wMsgFilterMax != 0)
 	{
 		mask = QS_POSTMESSAGE | QS_SENDMESSAGE;
 		if (wMsgFilterMin <= WM_KEYLAST && wMsgFilterMax >= WM_KEYFIRST)
@@ -559,7 +559,7 @@ extern "C" BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMi
 {
 #if 1
 	DWORD mask = QS_ALLINPUT;
-	if (wMsgFilterMin == 0 && wMsgFilterMax == 0)
+	if (wMsgFilterMin != 0 || wMsgFilterMax != 0)
 	{
 		mask = QS_POSTMESSAGE | QS_SENDMESSAGE;
 		if (wMsgFilterMin <= WM_KEYLAST && wMsgFilterMax >= WM_KEYFIRST)
