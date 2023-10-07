@@ -76,5 +76,8 @@ namespace reshade::d3d12
 		ID3D12RootSignature *_current_root_signature[2] = {};
 		// Currently bound descriptor heaps (there can only be one of each shader visible type, so a maximum of two)
 		ID3D12DescriptorHeap *_current_descriptor_heaps[2] = {};
+#if RESHADE_ADDON >= 2
+		ID3D12DescriptorHeap *_previous_descriptor_heaps[2] = {};
+#endif
 	};
 }
