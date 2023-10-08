@@ -207,7 +207,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 
 		desc.type = resource_type::texture_2d;
 		desc.heap = memory_heap::gpu_only;
-		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
+		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::depth_stencil;
 
 		if (api == device_api::d3d9)
 			desc.texture.format = format::r32_float; // D3DFMT_R32F, since INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
@@ -236,6 +236,9 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 
 		depth_stencil_backup &backup = depth_stencil_backups.emplace_back();
 		backup.depth_stencil_resource = resource;
+
+		if (device->check_capability(device_caps::resolve_depth_stencil))
+			desc.texture.samples = 1; // Backup texture should either resolved or never created.
 
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
 			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
@@ -444,7 +447,8 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 {
 	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
 		return false; // Skip resources that are not 2D textures
-	if (desc.texture.samples != 1 || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
+
+	if ((desc.texture.samples != 1 && !device->check_capability(device_caps::resolve_depth_stencil)) || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
 		return false; // Skip MSAA textures and resources that are not used as depth buffers
 
 	switch (device->get_api())
@@ -488,7 +492,7 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 
 	const resource_desc texture_desc = device->get_resource_desc(resource);
 	// Only non-MSAA textures where modified, so skip all others
-	if (texture_desc.texture.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == 0)
+	if ((texture_desc.texture.samples != 1 && !device->check_capability(device_caps::resolve_depth_stencil)) || (texture_desc.usage & resource_usage::depth_stencil) == 0)
 		return false;
 
 	switch (usage_type)
@@ -786,6 +790,8 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	// Unlock while calling into device below, since device may hold a lock itself and that then can deadlock another thread that calls into 'on_destroy_resource' from the device holding that lock
 	lock.unlock();
 
+	const auto api = device->get_api();
+	
 	for (auto &[resource, info] : current_depth_stencil_resources)
 	{
 		if (info.last_counters.total_stats.drawcalls == 0)
@@ -795,7 +801,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			continue;
 
 		const resource_desc desc = device->get_resource_desc(resource);
-		if (desc.texture.samples > 1)
+		if (desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil))
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
 		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
@@ -829,8 +835,6 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	if (best_match != 0) do
 	{
-		const device_api api = device->get_api();
-
 		depth_stencil_backup *depth_stencil_backup = device_data.find_depth_stencil_backup(best_match);
 
 		if (best_match != data.selected_depth_stencil || prev_shader_resource == 0 || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))
@@ -913,7 +917,14 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				if (do_copy)
 				{
 					cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
-					cmd_list->copy_resource(best_match, backup_texture);
+					if (best_match_desc.texture.samples > 1)
+					{
+						assert(device->check_capability(device_caps::resolve_depth_stencil));
+						cmd_list->resolve_texture_region(best_match, 0, nullptr, backup_texture, 0, 0, 0, 0, best_match_desc.texture.format);
+					}
+					else
+						cmd_list->copy_resource(best_match, backup_texture);
+			
 					cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
 				}
 			}
@@ -1089,7 +1100,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		sprintf_s(label, "%c 0x%016llx", (item.resource == data.selected_depth_stencil ? '>' : ' '), item.resource.handle);
 
 		bool disabled = item.unusable;
-		if (item.desc.texture.samples > 1) // Disable widget for MSAA textures
+		if (item.desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil)) // Disable widget for MSAA textures
 			has_msaa_depth_stencil = disabled = true;
 
 		if (disabled)

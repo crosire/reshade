@@ -352,6 +352,7 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 		vk.CmdEndRenderPass(_orig);
 	}
 }
+
 void reshade::vulkan::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view)
 {
 	assert(false);
@@ -864,43 +865,169 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
 	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
-	VkImageResolve region;
-
-	convert_subresource(src_subresource, src_data->create_info, region.srcSubresource);
-	convert_subresource(dst_subresource, dst_data->create_info, region.dstSubresource);
-
-	if (src_box != nullptr)
+	if (!(src_data->create_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
 	{
-		region.srcOffset.x = src_box->left;
-		region.srcOffset.y = src_box->top;
-		region.srcOffset.z = src_box->front;
+		VkImageResolve region;
 
-		region.extent.width  = src_box->width();
-		region.extent.height = src_box->height();
-		region.extent.depth  = src_box->depth();
+		convert_subresource(src_subresource, src_data->create_info, region.srcSubresource);
+		convert_subresource(dst_subresource, dst_data->create_info, region.dstSubresource);
 
-		if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+		if (src_box != nullptr)
 		{
-			region.srcSubresource.layerCount = region.extent.depth;
-			region.dstSubresource.layerCount = region.extent.depth;
-			region.extent.depth = 1;
+			region.srcOffset.x = src_box->left;
+			region.srcOffset.y = src_box->top;
+			region.srcOffset.z = src_box->front;
+
+			region.extent.width = src_box->width();
+			region.extent.height = src_box->height();
+			region.extent.depth = src_box->depth();
+
+			if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				region.srcSubresource.layerCount = region.extent.depth;
+				region.dstSubresource.layerCount = region.extent.depth;
+				region.extent.depth = 1;
+			}
 		}
+		else
+		{
+			region.srcOffset = { 0, 0, 0 };
+
+			region.extent.width = std::max(1u, src_data->create_info.extent.width >> region.srcSubresource.mipLevel);
+			region.extent.height = std::max(1u, src_data->create_info.extent.height >> region.srcSubresource.mipLevel);
+			region.extent.depth = std::max(1u, src_data->create_info.extent.depth >> region.srcSubresource.mipLevel);
+		}
+
+		region.dstOffset = { dst_x, dst_y, dst_z };
+
+		vk.CmdResolveImage(_orig,
+			(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1, &region);
 	}
 	else
 	{
-		region.srcOffset = { 0, 0, 0 };
+		if (!_device_impl->_dynamic_rendering_ext) {
+			assert(false);
+			return;
+		}
 
-		region.extent.width  = std::max(1u, src_data->create_info.extent.width  >> region.srcSubresource.mipLevel);
-		region.extent.height = std::max(1u, src_data->create_info.extent.height >> region.srcSubresource.mipLevel);
-		region.extent.depth  = std::max(1u, src_data->create_info.extent.depth  >> region.srcSubresource.mipLevel);
+		const api::resource_desc src_desc = _device_impl->get_resource_desc(src);
+		const api::resource_desc dst_desc = _device_impl->get_resource_desc(dst);
+
+		VkImageSubresource src_subresource_info;
+		src_subresource_info.aspectMask = aspect_flags_from_format(src_data->create_info.format);
+		src_subresource_info.mipLevel = 0;
+		src_subresource_info.arrayLayer = 0;
+
+		VkImageSubresource dst_subresource_info;
+		dst_subresource_info.aspectMask = aspect_flags_from_format(dst_data->create_info.format);
+		dst_subresource_info.mipLevel = 0;
+		dst_subresource_info.arrayLayer = 0;
+
+		const VkImageSubresourceLayers dst_subresource_layers = {
+		  dst_subresource_info.aspectMask,
+		  dst_subresource_info.mipLevel,
+		  dst_subresource_info.arrayLayer, 1 };
+
+		const VkImageSubresourceLayers src_subresource_layers = {
+		  src_subresource_info.aspectMask,
+		  src_subresource_info.mipLevel,
+		  src_subresource_info.arrayLayer, 1 };
+
+		const VkExtent3D src_extent { src_desc.texture.width, src_desc.texture.height, 1 };
+		const VkExtent3D dst_extent { dst_desc.texture.width, dst_desc.texture.height, 1 };
+		VkImageBlit blit_info;
+		blit_info.dstSubresource = dst_subresource_layers;
+		blit_info.srcSubresource = src_subresource_layers;
+		blit_info.dstOffsets[0] = VkOffset3D { 0, 0, 0 };
+		blit_info.dstOffsets[1] = VkOffset3D { int32_t(dst_extent.width), int32_t(dst_extent.height), 1 };
+		blit_info.srcOffsets[0] = VkOffset3D { 0, 0, 0 };
+		blit_info.srcOffsets[1] = VkOffset3D { int32_t(src_extent.width), int32_t(src_extent.height), 1 };
+
+		const VkExtent3D src_copy_extent = {
+			uint32_t(blit_info.srcOffsets[1].x - blit_info.srcOffsets[0].x),
+			uint32_t(blit_info.srcOffsets[1].y - blit_info.srcOffsets[0].y),
+			uint32_t(blit_info.srcOffsets[1].z - blit_info.srcOffsets[0].z) };
+
+		const VkExtent3D dst_copy_extent = {
+			uint32_t(blit_info.dstOffsets[1].x - blit_info.dstOffsets[0].x),
+			uint32_t(blit_info.dstOffsets[1].y - blit_info.dstOffsets[0].y),
+			uint32_t(blit_info.dstOffsets[1].z - blit_info.dstOffsets[0].z) };
+
+		VkImageResolve resolve_region;
+		resolve_region.srcSubresource = blit_info.srcSubresource;
+		resolve_region.srcOffset = blit_info.srcOffsets[0];
+		resolve_region.dstSubresource = blit_info.srcSubresource;
+		resolve_region.dstOffset = blit_info.srcOffsets[0];
+		resolve_region.extent = src_copy_extent;
+
+		VkImageSubresourceRange dst_subresource_range;
+		dst_subresource_range.aspectMask = resolve_region.dstSubresource.aspectMask;
+		dst_subresource_range.baseMipLevel = resolve_region.dstSubresource.mipLevel;
+		dst_subresource_range.levelCount = 1;
+		dst_subresource_range.baseArrayLayer = resolve_region.dstSubresource.baseArrayLayer;
+		dst_subresource_range.layerCount = resolve_region.dstSubresource.layerCount;
+
+		VkImageViewUsageCreateInfo usage_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO };
+		usage_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+		VkImageViewCreateInfo img_create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, &usage_info };
+		img_create_info.image = dst.handle;
+		img_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		img_create_info.format = src_data->create_info.format;
+		img_create_info.subresourceRange = dst_subresource_range;
+
+		VkImageView dst_img_view;
+		if (vk.CreateImageView(_device_impl->_orig, &img_create_info, nullptr, &dst_img_view)) {
+			assert(false);
+			return;
+		}
+
+		VkImageSubresourceRange src_subresource_range;
+		src_subresource_range.aspectMask = resolve_region.srcSubresource.aspectMask;
+		src_subresource_range.baseMipLevel = resolve_region.srcSubresource.mipLevel;
+		src_subresource_range.levelCount = 1;
+		src_subresource_range.baseArrayLayer = resolve_region.srcSubresource.baseArrayLayer;
+		src_subresource_range.layerCount = resolve_region.srcSubresource.layerCount;
+
+		img_create_info.image = src.handle;
+		img_create_info.subresourceRange = src_subresource_range;
+
+		VkImageView src_img_view;
+		if (vk.CreateImageView(_device_impl->_orig, &img_create_info, nullptr, &src_img_view)) {
+			assert(false);
+			return;
+		}
+
+		VkRenderingAttachmentInfo depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+		depth_attachment.imageView = src_img_view;
+		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depth_attachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+		depth_attachment.resolveImageView = dst_img_view;
+		depth_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+		VkRenderingAttachmentInfo stencil_attachment = depth_attachment;
+		stencil_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
+
+		VkExtent3D extent = src_extent;
+
+		VkRenderingInfo rendering_info = { VK_STRUCTURE_TYPE_RENDERING_INFO };
+		rendering_info.renderArea.offset = VkOffset2D { 0, 0 };
+		rendering_info.renderArea.extent = VkExtent2D { extent.width, extent.height };
+		rendering_info.layerCount = resolve_region.dstSubresource.layerCount;
+
+		if (src_subresource_info.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
+			rendering_info.pDepthAttachment = &depth_attachment;
+
+		if (dst_subresource_info.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
+			rendering_info.pStencilAttachment = &stencil_attachment;
+
+		vk.CmdBeginRendering(_orig, &rendering_info);
+		end_render_pass();
 	}
-
-	region.dstOffset = { dst_x, dst_y, dst_z };
-
-	vk.CmdResolveImage(_orig,
-		(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-		(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		1, &region);
 }
 
 void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)
