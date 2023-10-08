@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2036
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.33801.447
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReShade", "ReShade.vcxproj", "{0401ADF5-D085-4A3D-95B2-D9B7896BB338}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -13,8 +13,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReShade", "ReShade.vcxproj"
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReShade FX", "ReShadeFX.vcxproj", "{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReShade Setup", "setup\ReShade Setup.csproj", "{3B7009FA-0B09-4F27-8126-0885E66A5679}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deps", "deps", "{11B78243-91C3-4357-9FDD-4EAFBF4EE52B}"
 EndProject
@@ -90,22 +88,6 @@ Global
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Release|32-bit.Build.0 = Release|Win32
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Release|64-bit.ActiveCfg = Release|x64
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Release|64-bit.Build.0 = Release|x64
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug App|32-bit.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug App|64-bit.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug Setup|32-bit.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug Setup|32-bit.Build.0 = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug Setup|64-bit.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug Setup|64-bit.Build.0 = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|32-bit.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|64-bit.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release App|32-bit.ActiveCfg = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release App|64-bit.ActiveCfg = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release Setup|32-bit.ActiveCfg = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release Setup|32-bit.Build.0 = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release Setup|64-bit.ActiveCfg = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release Setup|64-bit.Build.0 = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|32-bit.ActiveCfg = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|64-bit.ActiveCfg = Release|Any CPU
 		{79F676AF-1A25-49BB-9549-E533D162FB0A}.Debug App|32-bit.ActiveCfg = Debug|Win32
 		{79F676AF-1A25-49BB-9549-E533D162FB0A}.Debug App|32-bit.Build.0 = Debug|Win32
 		{79F676AF-1A25-49BB-9549-E533D162FB0A}.Debug App|64-bit.ActiveCfg = Debug|x64
