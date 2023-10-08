@@ -494,7 +494,7 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 
 	const resource_desc texture_desc = device->get_resource_desc(resource);
 	// Only non-MSAA textures where modified, so skip all others
-	if (texture_desc.texture.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == 0)
+	if ((texture_desc.texture.samples != 1 && device->get_api() != device_api::vulkan) || (texture_desc.usage & resource_usage::depth_stencil) == 0)
 		return false;
 
 	switch (usage_type)
@@ -1103,7 +1103,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		sprintf_s(label, "%c 0x%016llx", (item.resource == data.selected_depth_stencil ? '>' : ' '), item.resource.handle);
 
 		bool disabled = item.unusable;
-		if (item.desc.texture.samples > 1) // Disable widget for MSAA textures
+		if (item.desc.texture.samples > 1 && device->get_api() != device_api::vulkan) // Disable widget for MSAA textures
 			has_msaa_depth_stencil = disabled = true;
 
 		if (disabled)
