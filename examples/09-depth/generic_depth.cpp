@@ -237,6 +237,9 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		depth_stencil_backup &backup = depth_stencil_backups.emplace_back();
 		backup.depth_stencil_resource = resource;
 
+		if (device->get_api() == device_api::vulkan)
+			desc.texture.samples = 1; // Backup texture should either resolved or never created.
+
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
 			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
 		else
@@ -917,7 +920,14 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				if (do_copy)
 				{
 					cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
-					cmd_list->copy_resource(best_match, backup_texture);
+					if (best_match_desc.texture.samples > 1)
+					{
+						assert(can_resolve_ds);
+						cmd_list->resolve_depth_stencil(best_match, backup_texture);
+					}
+					else
+						cmd_list->copy_resource(best_match, backup_texture);
+			
 					cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
 				}
 			}
