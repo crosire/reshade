@@ -352,6 +352,226 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 		vk.CmdEndRenderPass(_orig);
 	}
 }
+
+void reshade::vulkan::command_list_impl::resolve_depth_stencil(api::resource src, api::resource dst)
+{
+	_has_commands = true;
+
+	if (!_device_impl->_dynamic_rendering_ext) {
+		assert(false);
+		return;
+	}
+
+	const api::resource_desc src_desc = _device_impl->get_resource_desc(src);
+	const api::resource_desc dst_desc = _device_impl->get_resource_desc(dst);
+	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
+	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
+
+
+	VkImageViewUsageCreateInfo usageInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO };
+	usageInfo.usage = (lookupFormatInfo(format)->aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
+		? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+		: VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+	VkImageViewCreateInfo info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, &usageInfo };
+	info.image = dstImage->handle();
+	info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+	info.format = format;
+	info.subresourceRange = vk::makeSubresourceRange(dstSubresources);
+
+	if (m_vkd->vkCreateImageView(m_vkd->device(), &info, nullptr, &m_dstImageView))
+		throw DxvkError("DxvkMetaResolveViews: Failed to create destination view");
+
+	info.image = srcImage->handle();
+	info.subresourceRange = vk::makeSubresourceRange(srcSubresources);
+
+	if (m_vkd->vkCreateImageView(m_vkd->device(), &info, nullptr, &m_srcImageView))
+		throw DxvkError("DxvkMetaResolveViews: Failed to create source view");
+
+	
+	VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+	depthAttachment.imageView = views->getSrcView();
+	depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // TODO_TIW:
+	depthAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+	depthAttachment.resolveImageView = views->getDstView();
+	depthAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	VkRenderingAttachmentInfo stencilAttachment = depthAttachment;
+	stencilAttachment.resolveMode = stencilMode;
+
+	VkExtent3D extent = dstImage->mipLevelExtent(region.dstSubresource.mipLevel);
+
+	VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
+	renderingInfo.renderArea.offset = VkOffset2D { 0, 0 };
+	renderingInfo.renderArea.extent = VkExtent2D { extent.width, extent.height };
+	renderingInfo.layerCount = region.dstSubresource.layerCount;
+
+	if (dstImage->formatInfo()->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
+		renderingInfo.pDepthAttachment = &depthAttachment;
+
+	if (dstImage->formatInfo()->aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
+		renderingInfo.pStencilAttachment = &stencilAttachment;
+---
+	VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
+	rendering_info.renderArea.extent.width = std::numeric_limits<uint32_t>::max();
+	rendering_info.renderArea.extent.height = std::numeric_limits<uint32_t>::max();
+	rendering_info.layerCount = std::numeric_limits<uint32_t>::max();
+
+	temp_mem<VkRenderingAttachmentInfo, 8> color_attachments(count);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		color_attachments[i] = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+		color_attachments[i].imageView = (VkImageView)rts[i].view.handle;
+		color_attachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		color_attachments[i].loadOp = convert_render_pass_load_op(rts[i].load_op);
+		color_attachments[i].storeOp = convert_render_pass_store_op(rts[i].store_op);
+		std::copy_n(rts[i].clear_color, 4, color_attachments[i].clearValue.color.float32);
+
+		const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(color_attachments[i].imageView);
+
+		rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, view_data->image_extent.width);
+		rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, view_data->image_extent.height);
+		rendering_info.layerCount = std::min(rendering_info.layerCount, view_data->create_info.subresourceRange.layerCount);
+	}
+
+	rendering_info.colorAttachmentCount = count;
+	rendering_info.pColorAttachments = color_attachments.p;
+
+	VkRenderingAttachmentInfo depth_attachment, stencil_attachment;
+	if (ds != nullptr && ds->view.handle != 0)
+	{
+		const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)ds->view.handle);
+
+		if (aspect_flags_from_format(view_data->create_info.format) & VK_IMAGE_ASPECT_DEPTH_BIT)
+		{
+			depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+			depth_attachment.imageView = (VkImageView)ds->view.handle;
+			depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depth_attachment.loadOp = convert_render_pass_load_op(ds->depth_load_op);
+			depth_attachment.storeOp = convert_render_pass_store_op(ds->depth_store_op);
+			depth_attachment.clearValue.depthStencil.depth = ds->clear_depth;
+
+			rendering_info.pDepthAttachment = &depth_attachment;
+		}
+
+		if (aspect_flags_from_format(view_data->create_info.format) & VK_IMAGE_ASPECT_STENCIL_BIT)
+		{
+			stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+			stencil_attachment.imageView = (VkImageView)ds->view.handle;
+			stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			stencil_attachment.loadOp = convert_render_pass_load_op(ds->stencil_load_op);
+			stencil_attachment.storeOp = convert_render_pass_store_op(ds->stencil_store_op);
+			stencil_attachment.clearValue.depthStencil.stencil = ds->clear_stencil;
+
+			rendering_info.pStencilAttachment = &stencil_attachment;
+		}
+
+		rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, view_data->image_extent.width);
+		rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, view_data->image_extent.height);
+		rendering_info.layerCount = std::min(rendering_info.layerCount, view_data->create_info.subresourceRange.layerCount);
+	}
+
+	vk.CmdBeginRendering(_orig, &rendering_info);
+
+	/*
+
+	auto dstSubresourceRange = vk::makeSubresourceRange(region.dstSubresource);
+	auto srcSubresourceRange = vk::makeSubresourceRange(region.srcSubresource);
+
+	if (m_execBarriers.isImageDirty(dstImage, dstSubresourceRange, DxvkAccess::Write)
+	 || m_execBarriers.isImageDirty(srcImage, srcSubresourceRange, DxvkAccess::Write))
+	  m_execBarriers.recordCommands(m_cmd);
+
+	// Transition both images to usable layouts if necessary. For the source image we
+	// can be fairly leniet since writable layouts are allowed for resolve attachments.
+	VkImageLayout dstLayout = dstImage->pickLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	VkImageLayout srcLayout = srcImage->info().layout;
+
+	if (srcLayout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+	 && srcLayout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+	  srcLayout = srcImage->pickLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+	if (srcImage->info().layout != srcLayout) {
+	  m_execAcquires.accessImage(srcImage, srcSubresourceRange,
+		srcImage->info().layout,
+		srcImage->info().stages, 0,
+		srcLayout,
+		VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+		VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
+	}
+
+	if (dstImage->info().layout != dstLayout) {
+	  m_execAcquires.accessImage(dstImage, dstSubresourceRange,
+		VK_IMAGE_LAYOUT_UNDEFINED, dstImage->info().stages, 0,
+		dstLayout,
+		VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+		VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+	}
+
+	m_execAcquires.recordCommands(m_cmd);
+
+	// Create a pair of views for the attachment resolve
+	Rc<DxvkMetaResolveViews> views = new DxvkMetaResolveViews(m_device->vkd(),
+	  dstImage, region.dstSubresource, srcImage, region.srcSubresource,
+	  dstImage->info().format);
+
+	VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+	depthAttachment.imageView = views->getSrcView();
+	depthAttachment.imageLayout = srcLayout;
+	depthAttachment.resolveMode = depthMode;
+	depthAttachment.resolveImageView = views->getDstView();
+	depthAttachment.resolveImageLayout = dstLayout;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	VkRenderingAttachmentInfo stencilAttachment = depthAttachment;
+	stencilAttachment.resolveMode = stencilMode;
+
+	VkExtent3D extent = dstImage->mipLevelExtent(region.dstSubresource.mipLevel);
+
+	VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
+	renderingInfo.renderArea.offset = VkOffset2D { 0, 0 };
+	renderingInfo.renderArea.extent = VkExtent2D { extent.width, extent.height };
+	renderingInfo.layerCount = region.dstSubresource.layerCount;
+
+	if (dstImage->formatInfo()->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
+	  renderingInfo.pDepthAttachment = &depthAttachment;
+
+	if (dstImage->formatInfo()->aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
+	  renderingInfo.pStencilAttachment = &stencilAttachment;
+
+	m_cmd->cmdBeginRendering(&renderingInfo);
+	m_cmd->cmdEndRendering();
+
+	// Add barriers for the resolve operation
+	m_execBarriers.accessImage(srcImage, srcSubresourceRange,
+	  srcLayout,
+	  VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+	  VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+	  VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+	  srcImage->info().layout,
+	  srcImage->info().stages,
+	  srcImage->info().access);
+
+	m_execBarriers.accessImage(dstImage, dstSubresourceRange,
+	  dstLayout,
+	  VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+	  VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+	  VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+	  dstImage->info().layout,
+	  dstImage->info().stages,
+	  dstImage->info().access);
+
+	m_cmd->trackResource<DxvkAccess::Write>(dstImage);
+	m_cmd->trackResource<DxvkAccess::Read>(srcImage);
+	m_cmd->trackResource<DxvkAccess::None>(views);
+	*/
+}
+
 void reshade::vulkan::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view)
 {
 	assert(false);

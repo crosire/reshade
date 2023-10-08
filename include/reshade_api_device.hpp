@@ -536,6 +536,8 @@ namespace reshade { namespace api
 		/// Render passes cannot be nested.
 		/// </summary>
 		virtual void end_render_pass() = 0;
+		// TODO_TIW:
+		virtual void resolve_depth_stencil(resource, resource) {}
 		/// <summary>
 		/// Binds individual render target and depth-stencil resource views.
 		/// This must not be called between <see cref="begin_render_pass"/> and <see cref="end_render_pass"/>.
