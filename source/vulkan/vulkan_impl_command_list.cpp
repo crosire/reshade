@@ -367,16 +367,51 @@ void reshade::vulkan::command_list_impl::resolve_depth_stencil(api::resource src
 	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
 	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
+	VkImageSubresource src_subresource;
+	src_subresource.aspectMask = aspect_flags_from_format(src_data->create_info.format);
+	src_subresource.mipLevel = 0; // TODO_TIW: this assumes subresource 0
+	src_subresource.arrayLayer = 0;  // TODO_TIW: this assumes subresource 0
 
-	VkImageViewUsageCreateInfo usageInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO };
-	usageInfo.usage = (lookupFormatInfo(format)->aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
-		? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-		: VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	VkImageSubresource dst_subresource;
+	dst_subresource.aspectMask = aspect_flags_from_format(dst_data->create_info.format);
+	dst_subresource.mipLevel = 0; // TODO_TIW: this assumes subresource 0
+	dst_subresource.arrayLayer = 0;  // TODO_TIW: this assumes subresource 0
 
-	VkImageViewCreateInfo info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, &usageInfo };
-	info.image = dstImage->handle();
-	info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-	info.format = format;
+	VkImageSubresourceLayers dst_subresource_layers = {
+	  dst_subresource.aspectMask,
+	  dst_subresource.mipLevel,
+	  dst_subresource.arrayLayer, 1 };
+
+	VkImageSubresourceLayers src_subresource_layers = {
+	  src_subresource.aspectMask,
+	  src_subresource.mipLevel,
+	  src_subresource.arrayLayer, 1 };
+
+	const VkExtent3D src_extent { src_desc.texture.width, src_desc.texture.height, 1 }; // TODO_TIW: no idea what depth 1 is.
+	const VkExtent3D dst_extent { dst_desc.texture.width, dst_desc.texture.height, 1 }; // TODO_TIW: no idea what depth is.
+	VkImageBlit blit_info;
+	blit_info.dstSubresource = dst_subresource_layers;
+	blit_info.srcSubresource = src_subresource_layers;
+
+	blit_info.dstOffsets[0] = VkOffset3D { 0, 0, 0 };
+	blit_info.dstOffsets[1] = VkOffset3D { int32_t(dst_extent.width), int32_t(dst_extent.height), 1 };
+	blit_info.srcOffsets[0] = VkOffset3D { 0, 0, 0 };
+	blit_info.srcOffsets[1] = VkOffset3D { int32_t(src_extent.width), int32_t(src_extent.height), 1 };
+
+	VkImageResolve region;
+	region.srcSubresource = blit_info.srcSubresource;
+	region.srcOffset = blit_info.srcOffsets[0];
+	region.dstSubresource = intermediate ? blit_info.srcSubresource : blit_info.dstSubresource;
+	region.dstOffset = intermediate ? blit_info.srcOffsets[0] : blit_info.dstOffsets[0];
+	region.extent = srcCopyExtent;
+
+	VkImageSubresourceRange range;
+	range.aspectMask = layers.aspectMask;
+	range.baseMipLevel = layers.mipLevel;
+	range.levelCount = 1;
+	range.baseArrayLayer = layers.baseArrayLayer;
+	range.layerCount = layers.layerCount;
+
 	info.subresourceRange = vk::makeSubresourceRange(dstSubresources);
 
 	if (m_vkd->vkCreateImageView(m_vkd->device(), &info, nullptr, &m_dstImageView))
@@ -388,7 +423,16 @@ void reshade::vulkan::command_list_impl::resolve_depth_stencil(api::resource src
 	if (m_vkd->vkCreateImageView(m_vkd->device(), &info, nullptr, &m_srcImageView))
 		throw DxvkError("DxvkMetaResolveViews: Failed to create source view");
 
-	
+
+
+	VkImageViewUsageCreateInfo usage_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO };
+	usage_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; // TODO_TIW?
+
+	VkImageViewCreateInfo info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, &usage_info };
+	info.image = dst.handle;
+	info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+	info.format = VK_FORMAT_D32_SFLOAT_S8_UINT; // TODO_TIW no idea how to get to it.
+
 	VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 	depthAttachment.imageView = views->getSrcView();
 	depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // TODO_TIW:
