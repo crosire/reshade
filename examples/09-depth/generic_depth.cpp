@@ -444,7 +444,10 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 {
 	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
 		return false; // Skip resources that are not 2D textures
-	if (desc.texture.samples != 1 || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
+
+	const auto api = device->get_api();
+	const auto can_resolve_ds = api == device_api::vulkan;
+	if ((desc.texture.samples != 1 && !can_resolve_ds) || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
 		return false; // Skip MSAA textures and resources that are not used as depth buffers
 
 	switch (device->get_api())
@@ -786,6 +789,9 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	// Unlock while calling into device below, since device may hold a lock itself and that then can deadlock another thread that calls into 'on_destroy_resource' from the device holding that lock
 	lock.unlock();
 
+	const auto api = device->get_api();
+	const auto can_resolve_ds = api == device_api::vulkan;
+
 	for (auto &[resource, info] : current_depth_stencil_resources)
 	{
 		if (info.last_counters.total_stats.drawcalls == 0)
@@ -795,7 +801,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			continue;
 
 		const resource_desc desc = device->get_resource_desc(resource);
-		if (desc.texture.samples > 1)
+		if (desc.texture.samples > 1 && !can_resolve_ds)
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
 		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
@@ -829,8 +835,6 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	if (best_match != 0) do
 	{
-		const device_api api = device->get_api();
-
 		depth_stencil_backup *depth_stencil_backup = device_data.find_depth_stencil_backup(best_match);
 
 		if (best_match != data.selected_depth_stencil || prev_shader_resource == 0 || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))
