@@ -436,13 +436,12 @@ void reshade::vulkan::command_list_impl::resolve_depth_stencil(api::resource src
 	img_create_info.subresourceRange = dst_subresource_range;
 
 	VkImageView dst_img_view;
-	VkImageView src_img_view;
 	if (vk.CreateImageView(_device_impl->_orig,  &img_create_info, nullptr, &dst_img_view)) {
 		assert(false);
 		return;
 	}
-	VkImageSubresourceRange src_subresource_range;
 
+	VkImageSubresourceRange src_subresource_range;
 	src_subresource_range.aspectMask = resolve_region.srcSubresource.aspectMask;
 	src_subresource_range.baseMipLevel = resolve_region.srcSubresource.mipLevel;
 	src_subresource_range.levelCount = 1;
@@ -458,32 +457,34 @@ void reshade::vulkan::command_list_impl::resolve_depth_stencil(api::resource src
 		return;
 	}
 
+	VkRenderingAttachmentInfo depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+	depth_attachment.imageView = src_img_view;
+	depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // TODO_TIW:
+	depth_attachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+	depth_attachment.resolveImageView = dst_img_view;
+	depth_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-	VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-	depthAttachment.imageView = src_img_view;
-	depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // TODO_TIW:
-	depthAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-	depthAttachment.resolveImageView = dst_img_view;
-	depthAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	VkRenderingAttachmentInfo stencil_attachment = depth_attachment;
+	stencil_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 
-	VkRenderingAttachmentInfo stencilAttachment = depthAttachment;
-	stencilAttachment.resolveMode = stencilMode;
+	VkExtent3D extent = src_extent;
 
-	VkExtent3D extent = dstImage->mipLevelExtent(region.dstSubresource.mipLevel);
+	VkRenderingInfo rendering_info = { VK_STRUCTURE_TYPE_RENDERING_INFO };
+	rendering_info.renderArea.offset = VkOffset2D { 0, 0 };
+	rendering_info.renderArea.extent = VkExtent2D { extent.width, extent.height };
+	rendering_info.layerCount = resolve_region.dstSubresource.layerCount;
 
-	VkRenderingInfo renderingInfo = { VK_STRUCTURE_TYPE_RENDERING_INFO };
-	renderingInfo.renderArea.offset = VkOffset2D { 0, 0 };
-	renderingInfo.renderArea.extent = VkExtent2D { extent.width, extent.height };
-	renderingInfo.layerCount = region.dstSubresource.layerCount;
+	if (src_subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
+		rendering_info.pDepthAttachment = &depth_attachment;
 
-	if (dstImage->formatInfo()->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
-		renderingInfo.pDepthAttachment = &depthAttachment;
+	if (dst_subresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
+		rendering_info.pStencilAttachment = &stencil_attachment;
 
-	if (dstImage->formatInfo()->aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
-		renderingInfo.pStencilAttachment = &stencilAttachment;
----
+	vk.CmdBeginRendering(_orig, &rendering_info);
+	/*
+////////////////////////////
 	VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
 	rendering_info.renderArea.extent.width = std::numeric_limits<uint32_t>::max();
 	rendering_info.renderArea.extent.height = std::numeric_limits<uint32_t>::max();
@@ -543,7 +544,7 @@ void reshade::vulkan::command_list_impl::resolve_depth_stencil(api::resource src
 		rendering_info.layerCount = std::min(rendering_info.layerCount, view_data->create_info.subresourceRange.layerCount);
 	}
 
-	vk.CmdBeginRendering(_orig, &rendering_info);
+	vk.CmdBeginRendering(_orig, &rendering_info);*/
 
 	/*
 
