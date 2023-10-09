@@ -354,7 +354,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 
 			// A resource has to be in this state for a clear operation, so can assume it here
 			cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
-			cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture);
+			cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture); // TODO_TIW:
 			cmd_list->barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
 
 			counters.copied_during_frame = true;
