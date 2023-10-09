@@ -923,7 +923,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 					if (best_match_desc.texture.samples > 1)
 					{
 						assert(can_resolve_ds);
-						cmd_list->resolve_depth_stencil(best_match, backup_texture);
+						cmd_list->resolve_texture_region(best_match, 0, nullptr, backup_texture, 0, 0, 0, 0, best_match_desc.texture.format);
 					}
 					else
 						cmd_list->copy_resource(best_match, backup_texture);
