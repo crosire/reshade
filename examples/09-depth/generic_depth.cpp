@@ -207,7 +207,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 
 		desc.type = resource_type::texture_2d;
 		desc.heap = memory_heap::gpu_only;
-		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
+		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::depth_stencil;
 
 		if (api == device_api::d3d9)
 			desc.texture.format = format::r32_float; // D3DFMT_R32F, since INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
