@@ -144,7 +144,9 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		{
 			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)ds->view.handle);
 
-			if (aspect_flags_from_format(view_data->create_info.format) & VK_IMAGE_ASPECT_DEPTH_BIT)
+			const VkImageAspectFlags aspect_flags = aspect_flags_from_format(view_data->create_info.format);
+
+			if (aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT)
 			{
 				depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 				depth_attachment.imageView = (VkImageView)ds->view.handle;
@@ -156,7 +158,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 				rendering_info.pDepthAttachment = &depth_attachment;
 			}
 
-			if (aspect_flags_from_format(view_data->create_info.format) & VK_IMAGE_ASPECT_STENCIL_BIT)
+			if (aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT)
 			{
 				stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 				stencil_attachment.imageView = (VkImageView)ds->view.handle;
@@ -864,7 +866,9 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
 	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
-	if (!(src_data->create_info.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
+	const VkImageAspectFlags aspect_flags = aspect_flags_from_format(src_data->create_info.format);
+
+	if ((aspect_flags & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) == 0)
 	{
 		VkImageResolve region;
 
@@ -906,71 +910,40 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	}
 	else
 	{
-		if (!_device_impl->_dynamic_rendering_ext) {
+		if (!_device_impl->_dynamic_rendering_ext)
+		{
 			assert(false);
 			return;
 		}
 
-		const api::resource_desc src_desc = _device_impl->get_resource_desc(src);
-		const api::resource_desc dst_desc = _device_impl->get_resource_desc(dst);
+		VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
 
-		VkImageSubresource src_subresource_info;
-		src_subresource_info.aspectMask = aspect_flags_from_format(src_data->create_info.format);
-		src_subresource_info.mipLevel = 0;
-		src_subresource_info.arrayLayer = 0;
+		assert(src_subresource == 0 && dst_subresource == 0);
 
-		VkImageSubresource dst_subresource_info;
-		dst_subresource_info.aspectMask = aspect_flags_from_format(dst_data->create_info.format);
-		dst_subresource_info.mipLevel = 0;
-		dst_subresource_info.arrayLayer = 0;
+		if (src_box != nullptr)
+		{
+			rendering_info.renderArea.offset.x = src_box->left;
+			rendering_info.renderArea.offset.y = src_box->top;
+			assert(src_box->front == 0);
 
-		const VkImageSubresourceLayers dst_subresource_layers = {
-		  dst_subresource_info.aspectMask,
-		  dst_subresource_info.mipLevel,
-		  dst_subresource_info.arrayLayer, 1 };
+			rendering_info.renderArea.extent.width = src_box->width();
+			rendering_info.renderArea.extent.height = src_box->height();
+			rendering_info.layerCount = src_box->depth();
+		}
+		else
+		{
+			rendering_info.renderArea.offset = { 0, 0 };
 
-		const VkImageSubresourceLayers src_subresource_layers = {
-		  src_subresource_info.aspectMask,
-		  src_subresource_info.mipLevel,
-		  src_subresource_info.arrayLayer, 1 };
+			rendering_info.renderArea.extent.width = src_data->create_info.extent.width;
+			rendering_info.renderArea.extent.height = src_data->create_info.extent.height;
+			rendering_info.layerCount = src_data->create_info.arrayLayers;
+		}
 
-		const VkExtent3D src_extent { src_desc.texture.width, src_desc.texture.height, 1 };
-		const VkExtent3D dst_extent { dst_desc.texture.width, dst_desc.texture.height, 1 };
-		VkImageBlit blit_info;
-		blit_info.dstSubresource = dst_subresource_layers;
-		blit_info.srcSubresource = src_subresource_layers;
-		blit_info.dstOffsets[0] = VkOffset3D { 0, 0, 0 };
-		blit_info.dstOffsets[1] = VkOffset3D { int32_t(dst_extent.width), int32_t(dst_extent.height), 1 };
-		blit_info.srcOffsets[0] = VkOffset3D { 0, 0, 0 };
-		blit_info.srcOffsets[1] = VkOffset3D { int32_t(src_extent.width), int32_t(src_extent.height), 1 };
+		assert(dst_x == rendering_info.renderArea.offset.x && dst_y == rendering_info.renderArea.offset.y && dst_z == 0);
 
-		const VkExtent3D src_copy_extent = {
-			uint32_t(blit_info.srcOffsets[1].x - blit_info.srcOffsets[0].x),
-			uint32_t(blit_info.srcOffsets[1].y - blit_info.srcOffsets[0].y),
-			uint32_t(blit_info.srcOffsets[1].z - blit_info.srcOffsets[0].z) };
-
-		const VkExtent3D dst_copy_extent = {
-			uint32_t(blit_info.dstOffsets[1].x - blit_info.dstOffsets[0].x),
-			uint32_t(blit_info.dstOffsets[1].y - blit_info.dstOffsets[0].y),
-			uint32_t(blit_info.dstOffsets[1].z - blit_info.dstOffsets[0].z) };
-
-		VkImageResolve resolve_region;
-		resolve_region.srcSubresource = blit_info.srcSubresource;
-		resolve_region.srcOffset = blit_info.srcOffsets[0];
-		resolve_region.dstSubresource = blit_info.srcSubresource;
-		resolve_region.dstOffset = blit_info.srcOffsets[0];
-		resolve_region.extent = src_copy_extent;
-
-		VkImageSubresourceRange dst_subresource_range;
-		dst_subresource_range.aspectMask = resolve_region.dstSubresource.aspectMask;
-		dst_subresource_range.baseMipLevel = resolve_region.dstSubresource.mipLevel;
-		dst_subresource_range.levelCount = 1;
-		dst_subresource_range.baseArrayLayer = resolve_region.dstSubresource.baseArrayLayer;
-		dst_subresource_range.layerCount = resolve_region.dstSubresource.layerCount;
-
-		VkRenderingAttachmentInfo depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+		VkRenderingAttachmentInfo depth_attachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		depth_attachment.imageView = src_data->default_view;
-		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // TODO: Transition image layout correctly
 		depth_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 		depth_attachment.resolveImageView = dst_data->default_view;
 		depth_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -980,17 +953,10 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		VkRenderingAttachmentInfo stencil_attachment = depth_attachment;
 		stencil_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 
-		VkExtent3D extent = src_extent;
-
-		VkRenderingInfo rendering_info = { VK_STRUCTURE_TYPE_RENDERING_INFO };
-		rendering_info.renderArea.offset = VkOffset2D { 0, 0 };
-		rendering_info.renderArea.extent = VkExtent2D { extent.width, extent.height };
-		rendering_info.layerCount = resolve_region.dstSubresource.layerCount;
-
-		if (src_subresource_info.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
+		if (aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT)
 			rendering_info.pDepthAttachment = &depth_attachment;
 
-		if (dst_subresource_info.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
+		if (aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT)
 			rendering_info.pStencilAttachment = &stencil_attachment;
 
 		vk.CmdBeginRendering(_orig, &rendering_info);

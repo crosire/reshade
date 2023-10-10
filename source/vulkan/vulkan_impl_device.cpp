@@ -434,6 +434,9 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			// Initial data upload requires the image to be transferable to
 			if (create_info.usage == 0 || initial_data != nullptr)
 				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+			// Default view creation for resolving requires image to have a usage usable for view creation
+			if (desc.heap != api::memory_heap::unknown && !is_shared && (desc.usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0)
+				create_info.usage |= aspect_flags_from_format(create_info.format) & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT) ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 			// Mapping images is only really useful with linear tiling
 			if (desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only)
 				create_info.tiling = VK_IMAGE_TILING_LINEAR;
@@ -498,14 +501,14 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 					data.memory = allocation_info.deviceMemory;
 					data.memory_offset = allocation_info.offset;
 
-					if ((data.create_info.usage & (VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == VK_IMAGE_USAGE_TRANSFER_DST_BIT &&
-						(data.create_info.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) != 0)
+					// Need to create a default view that is used in 'command_list_impl::resolve_texture_region'
+					if ((desc.usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0)
 					{
 						VkImageViewCreateInfo default_view_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 						default_view_info.image = object;
-						default_view_info.viewType = static_cast<VkImageViewType>(data.create_info.imageType); // Map 'VK_IMAGE_TYPE_1D' to VK_IMAGE_VIEW_TYPE_1D' and so on
-						default_view_info.format = data.create_info.format;
-						default_view_info.subresourceRange.aspectMask = reshade::vulkan::aspect_flags_from_format(data.create_info.format);
+						default_view_info.viewType = static_cast<VkImageViewType>(create_info.imageType); // Map 'VK_IMAGE_TYPE_1D' to VK_IMAGE_VIEW_TYPE_1D' and so on
+						default_view_info.format = create_info.format;
+						default_view_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
 						default_view_info.subresourceRange.baseMipLevel = 0;
 						default_view_info.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
 						default_view_info.subresourceRange.baseArrayLayer = 0;
