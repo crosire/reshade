@@ -497,6 +497,23 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 					vmaGetAllocationInfo(_alloc, allocation, &allocation_info);
 					data.memory = allocation_info.deviceMemory;
 					data.memory_offset = allocation_info.offset;
+
+					// Need to create a default view that is used in 'vkCmdClearColorImage' and 'vkCmdClearDepthStencilImage'
+					if ((data.create_info.usage & (VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == VK_IMAGE_USAGE_TRANSFER_DST_BIT &&
+						(data.create_info.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) != 0)
+					{
+						VkImageViewCreateInfo default_view_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+						default_view_info.image = object;
+						default_view_info.viewType = static_cast<VkImageViewType>(data.create_info.imageType); // Map 'VK_IMAGE_TYPE_1D' to VK_IMAGE_VIEW_TYPE_1D' and so on
+						default_view_info.format = data.create_info.format;
+						default_view_info.subresourceRange.aspectMask = reshade::vulkan::aspect_flags_from_format(data.create_info.format);
+						default_view_info.subresourceRange.baseMipLevel = 0;
+						default_view_info.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+						default_view_info.subresourceRange.baseArrayLayer = 0;
+						default_view_info.subresourceRange.layerCount = 1; // Non-array image view types can only contain a single layer
+
+						vk.CreateImageView(_orig, &default_view_info, nullptr, &data.default_view);
+					}
 				}
 
 				register_object<VK_OBJECT_TYPE_IMAGE>(object, std::move(data));
@@ -564,6 +581,7 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 
 		if (allocation == VMA_NULL)
 		{
+			vk.DestroyImageView(_orig, data->default_view, nullptr);
 			vk.DestroyImage(_orig, (VkImage)handle.handle, nullptr);
 
 			if (memory != VK_NULL_HANDLE)

@@ -969,42 +969,11 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		dst_subresource_range.baseArrayLayer = resolve_region.dstSubresource.baseArrayLayer;
 		dst_subresource_range.layerCount = resolve_region.dstSubresource.layerCount;
 
-		VkImageViewUsageCreateInfo usage_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO };
-		usage_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-
-		VkImageViewCreateInfo img_create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, &usage_info };
-		img_create_info.image = dst.handle;
-		img_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-		img_create_info.format = src_data->create_info.format;
-		img_create_info.subresourceRange = dst_subresource_range;
-
-		VkImageView dst_img_view;
-		if (vk.CreateImageView(_device_impl->_orig, &img_create_info, nullptr, &dst_img_view)) {
-			assert(false);
-			return;
-		}
-
-		VkImageSubresourceRange src_subresource_range;
-		src_subresource_range.aspectMask = resolve_region.srcSubresource.aspectMask;
-		src_subresource_range.baseMipLevel = resolve_region.srcSubresource.mipLevel;
-		src_subresource_range.levelCount = 1;
-		src_subresource_range.baseArrayLayer = resolve_region.srcSubresource.baseArrayLayer;
-		src_subresource_range.layerCount = resolve_region.srcSubresource.layerCount;
-
-		img_create_info.image = src.handle;
-		img_create_info.subresourceRange = src_subresource_range;
-
-		VkImageView src_img_view;
-		if (vk.CreateImageView(_device_impl->_orig, &img_create_info, nullptr, &src_img_view)) {
-			assert(false);
-			return;
-		}
-
 		VkRenderingAttachmentInfo depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-		depth_attachment.imageView = src_img_view;
+		depth_attachment.imageView = src_data->default_view;
 		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		depth_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
-		depth_attachment.resolveImageView = dst_img_view;
+		depth_attachment.resolveImageView = dst_data->default_view;
 		depth_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
