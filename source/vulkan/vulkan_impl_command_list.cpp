@@ -1002,7 +1002,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 
 		VkRenderingAttachmentInfo depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		depth_attachment.imageView = src_img_view;
-		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // TODO_TIW:
+		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		depth_attachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
 		depth_attachment.resolveImageView = dst_img_view;
 		depth_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;

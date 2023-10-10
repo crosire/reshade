@@ -158,7 +158,12 @@ namespace reshade { namespace api
 		/// Specifies whether resource sharing with NT handles is supported.
 		/// If this feature is not present, <see cref="resource_flags::shared_nt_handle"/> must not be used.
 		/// </summary>
-		shared_resource_nt_handle
+		shared_resource_nt_handle,
+		/// <summary>
+		/// Specifies whether depth stencil resolve is supported.
+		/// If this feature is not present, <see cref="command_list::resolve_texture_region"/> must not be used to resolve MSAA depth stencil.
+		/// </summary>
+		resolve_depth_stencil
 	};
 
 	/// <summary>
@@ -772,12 +777,14 @@ namespace reshade { namespace api
 		virtual void copy_texture_to_buffer(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint64_t dest_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
 		/// <summary>
 		/// Copies a region from the multisampled <paramref name="source"/> texture to the non-multisampled <paramref name="dest"/>ination texture.
+		/// May be used to resolve MSAA depth stenicl if supported by the API.
 		/// </summary>
 		/// <remarks>
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::resolve_source"/> state.
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::resolve_dest"/> state.
 		/// </remarks>
 		/// <seealso cref="device_caps::resolve_region"/>
+		/// <seealso cref="device_caps::resolve_depth_stencil"/>
 		/// <param name="source">Texture resource to resolve from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to resolve from.</param>
 		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve.</param>

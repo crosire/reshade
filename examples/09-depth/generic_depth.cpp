@@ -237,7 +237,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		depth_stencil_backup &backup = depth_stencil_backups.emplace_back();
 		backup.depth_stencil_resource = resource;
 
-		if (device->get_api() == device_api::vulkan)
+		if (device->check_capability(device_caps::resolve_depth_stencil))
 			desc.texture.samples = 1; // Backup texture should either resolved or never created.
 
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
@@ -354,7 +354,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 
 			// A resource has to be in this state for a clear operation, so can assume it here
 			cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
-			cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture); // TODO_TIW:
+			cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture);
 			cmd_list->barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
 
 			counters.copied_during_frame = true;
@@ -448,9 +448,7 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
 		return false; // Skip resources that are not 2D textures
 
-	const auto api = device->get_api();
-	const auto can_resolve_ds = api == device_api::vulkan;
-	if ((desc.texture.samples != 1 && !can_resolve_ds) || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
+	if ((desc.texture.samples != 1 && !device->check_capability(device_caps::resolve_depth_stencil)) || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
 		return false; // Skip MSAA textures and resources that are not used as depth buffers
 
 	switch (device->get_api())
@@ -494,7 +492,7 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 
 	const resource_desc texture_desc = device->get_resource_desc(resource);
 	// Only non-MSAA textures where modified, so skip all others
-	if ((texture_desc.texture.samples != 1 && device->get_api() != device_api::vulkan) || (texture_desc.usage & resource_usage::depth_stencil) == 0)
+	if ((texture_desc.texture.samples != 1 && !device->check_capability(device_caps::resolve_depth_stencil)) || (texture_desc.usage & resource_usage::depth_stencil) == 0)
 		return false;
 
 	switch (usage_type)
@@ -793,8 +791,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	lock.unlock();
 
 	const auto api = device->get_api();
-	const auto can_resolve_ds = api == device_api::vulkan;
-
+	
 	for (auto &[resource, info] : current_depth_stencil_resources)
 	{
 		if (info.last_counters.total_stats.drawcalls == 0)
@@ -804,7 +801,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			continue;
 
 		const resource_desc desc = device->get_resource_desc(resource);
-		if (desc.texture.samples > 1 && !can_resolve_ds)
+		if (desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil))
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
 		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
@@ -922,7 +919,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 					cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
 					if (best_match_desc.texture.samples > 1)
 					{
-						assert(can_resolve_ds);
+						assert(device->check_capability(device_caps::resolve_depth_stencil));
 						cmd_list->resolve_texture_region(best_match, 0, nullptr, backup_texture, 0, 0, 0, 0, best_match_desc.texture.format);
 					}
 					else
@@ -1103,7 +1100,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		sprintf_s(label, "%c 0x%016llx", (item.resource == data.selected_depth_stencil ? '>' : ' '), item.resource.handle);
 
 		bool disabled = item.unusable;
-		if (item.desc.texture.samples > 1 && device->get_api() != device_api::vulkan) // Disable widget for MSAA textures
+		if (item.desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil)) // Disable widget for MSAA textures
 			has_msaa_depth_stencil = disabled = true;
 
 		if (disabled)
