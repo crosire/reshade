@@ -158,7 +158,12 @@ namespace reshade { namespace api
 		/// Specifies whether resource sharing with NT handles is supported.
 		/// If this feature is not present, <see cref="resource_flags::shared_nt_handle"/> must not be used.
 		/// </summary>
-		shared_resource_nt_handle
+		shared_resource_nt_handle,
+		/// <summary>
+		/// Specifies whether resolving depth-stencil resources is supported.
+		/// If this feature is not present, <see cref="command_list::resolve_texture_region"/> must not be used to resolve depth-stencil resources.
+		/// </summary>
+		resolve_depth_stencil
 	};
 
 	/// <summary>
@@ -778,6 +783,7 @@ namespace reshade { namespace api
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::resolve_dest"/> state.
 		/// </remarks>
 		/// <seealso cref="device_caps::resolve_region"/>
+		/// <seealso cref="device_caps::resolve_depth_stencil"/>
 		/// <param name="source">Texture resource to resolve from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to resolve from.</param>
 		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve.</param>
