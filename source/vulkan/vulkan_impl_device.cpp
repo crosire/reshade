@@ -574,17 +574,16 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	{
 		const VmaAllocation allocation = data->allocation;
 		const VkDeviceMemory memory = data->memory;
+		const VkImageView default_view = data->default_view;
 
 		// Warning, the 'data' pointer must not be accessed after this call, since it frees that memory!
 		unregister_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
 
 		if (allocation == VMA_NULL)
 		{
-			vk.DestroyImageView(_orig, data->default_view, nullptr);
+			vk.DestroyImageView(_orig, default_view, nullptr);
 			vk.DestroyImage(_orig, (VkImage)handle.handle, nullptr);
-
-			if (memory != VK_NULL_HANDLE)
-				vk.FreeMemory(_orig, memory, nullptr);
+			vk.FreeMemory(_orig, memory, nullptr);
 		}
 		else
 		{
@@ -602,9 +601,7 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 		if (allocation == VMA_NULL)
 		{
 			vk.DestroyBuffer(_orig, (VkBuffer)handle.handle, nullptr);
-
-			if (memory != VK_NULL_HANDLE)
-				vk.FreeMemory(_orig, memory, nullptr);
+			vk.FreeMemory(_orig, memory, nullptr);
 		}
 		else
 		{
