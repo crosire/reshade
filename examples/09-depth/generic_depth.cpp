@@ -237,8 +237,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		depth_stencil_backup &backup = depth_stencil_backups.emplace_back();
 		backup.depth_stencil_resource = resource;
 
-		if (device->check_capability(device_caps::resolve_depth_stencil))
-			desc.texture.samples = 1; // Backup texture should either resolved or never created.
+		desc.texture.samples = 1; // Backup texture should either resolved or never created.
 
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
 			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
@@ -790,8 +789,6 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	// Unlock while calling into device below, since device may hold a lock itself and that then can deadlock another thread that calls into 'on_destroy_resource' from the device holding that lock
 	lock.unlock();
 
-	const auto api = device->get_api();
-	
 	for (auto &[resource, info] : current_depth_stencil_resources)
 	{
 		if (info.last_counters.total_stats.drawcalls == 0)
@@ -835,6 +832,8 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	if (best_match != 0) do
 	{
+		const device_api api = device->get_api();
+
 		depth_stencil_backup *depth_stencil_backup = device_data.find_depth_stencil_backup(best_match);
 
 		if (best_match != data.selected_depth_stencil || prev_shader_resource == 0 || (s_preserve_depth_buffers && depth_stencil_backup == nullptr))

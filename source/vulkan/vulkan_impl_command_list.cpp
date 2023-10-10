@@ -1003,7 +1003,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		VkRenderingAttachmentInfo depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		depth_attachment.imageView = src_img_view;
 		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		depth_attachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+		depth_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 		depth_attachment.resolveImageView = dst_img_view;
 		depth_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -1026,7 +1026,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 			rendering_info.pStencilAttachment = &stencil_attachment;
 
 		vk.CmdBeginRendering(_orig, &rendering_info);
-		end_render_pass();
+		vk.CmdEndRendering(_orig);
 	}
 }
 
