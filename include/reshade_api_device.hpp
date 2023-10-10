@@ -777,7 +777,6 @@ namespace reshade { namespace api
 		virtual void copy_texture_to_buffer(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint64_t dest_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
 		/// <summary>
 		/// Copies a region from the multisampled <paramref name="source"/> texture to the non-multisampled <paramref name="dest"/>ination texture.
-		/// May be used to resolve MSAA depth stenicl if supported by the API.
 		/// </summary>
 		/// <remarks>
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::resolve_source"/> state.

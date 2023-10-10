@@ -498,7 +498,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 					data.memory = allocation_info.deviceMemory;
 					data.memory_offset = allocation_info.offset;
 
-					// Need to create a default view that is used in 'vkCmdClearColorImage' and 'vkCmdClearDepthStencilImage'
 					if ((data.create_info.usage & (VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == VK_IMAGE_USAGE_TRANSFER_DST_BIT &&
 						(data.create_info.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) != 0)
 					{

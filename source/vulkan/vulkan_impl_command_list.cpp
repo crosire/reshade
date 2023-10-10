@@ -352,7 +352,6 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 		vk.CmdEndRenderPass(_orig);
 	}
 }
-
 void reshade::vulkan::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view)
 {
 	assert(false);
