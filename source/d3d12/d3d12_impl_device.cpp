@@ -145,6 +145,8 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::shared_resource:
 	case api::device_caps::shared_resource_nt_handle:
 		return !is_windows7();
+	case api::device_caps::resolve_depth_stencil:
+		return true;
 	default:
 		return false;
 	}

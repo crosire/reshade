@@ -222,6 +222,9 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 	case api::device_caps::shared_resource:
 		return true;
 	case api::device_caps::shared_resource_nt_handle:
+		return false;
+	case api::device_caps::resolve_depth_stencil:
+		return true;
 	default:
 		return false;
 	}

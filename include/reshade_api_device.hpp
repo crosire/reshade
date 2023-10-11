@@ -161,7 +161,7 @@ namespace reshade { namespace api
 		shared_resource_nt_handle,
 		/// <summary>
 		/// Specifies whether resolving depth-stencil resources is supported.
-		/// If this feature is not present, <see cref="command_list::resolve_texture_region"/> must not be used to resolve depth-stencil resources.
+		/// If this feature is not present, <see cref="command_list::resolve_texture_region"/> must not be used with depth-stencil resources.
 		/// </summary>
 		resolve_depth_stencil
 	};

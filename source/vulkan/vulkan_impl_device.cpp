@@ -209,6 +209,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::shared_resource_nt_handle:
 		return !is_windows7();
 	case api::device_caps::resolve_depth_stencil:
+		// VK_KHR_dynamic_rendering has VK_KHR_depth_stencil_resolve as a dependency
 		return _dynamic_rendering_ext;
 	default:
 		return false;
