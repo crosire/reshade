@@ -617,7 +617,6 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 			assert((internal_desc.Usage & D3DUSAGE_DEPTHSTENCIL) != 0);
 			// D16, D24X8 and D24S8 technically support sampling as PCF shadow maps on some GPUs, but not normal sampling, so ignore that
 			break;
-		case MAKEFOURCC('R', 'E', 'S', 'Z'):
 		case MAKEFOURCC('N', 'U', 'L', 'L'):
 			break;
 		}
@@ -641,13 +640,20 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 		case D3DFMT_DXT3:
 		case D3DFMT_DXT4:
 		case D3DFMT_DXT5:
+		case MAKEFOURCC('A', 'T', 'I', '1'):
+		case MAKEFOURCC('A', 'T', 'I', '2'):
 			// Stretching is not supported if either surface is in a compressed format
 			break;
+		case D3DFMT_D24S8:
+		case D3DFMT_D24X8:
+		case MAKEFOURCC('D', 'F', '1', '6'):
+		case MAKEFOURCC('D', 'F', '2', '4'):
+		case MAKEFOURCC('I', 'N', 'T', 'Z'):
+			desc.usage |= api::resource_usage::resolve_dest;
+			[[fallthrough]];
 		case D3DFMT_D16_LOCKABLE:
 		case D3DFMT_D32:
 		case D3DFMT_D15S1:
-		case D3DFMT_D24S8:
-		case D3DFMT_D24X8:
 		case D3DFMT_D24X4S4:
 		case D3DFMT_D16:
 		case D3DFMT_D32F_LOCKABLE:
@@ -656,9 +662,8 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 		case D3DFMT_S8_LOCKABLE:
 			// Stretching depth stencil surfaces is extremly limited (does not support copying from surface to texture for example), so just do not allow it
 			assert((internal_desc.Usage & D3DUSAGE_DEPTHSTENCIL) != 0);
-			break;
-		case MAKEFOURCC('R', 'E', 'S', 'Z'):
-			desc.usage |= api::resource_usage::resolve_source;
+			if (internal_desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+				desc.usage |= api::resource_usage::resolve_source;
 			break;
 		case MAKEFOURCC('N', 'U', 'L', 'L'):
 			// Special render target format that has no memory attached, so cannot be copied

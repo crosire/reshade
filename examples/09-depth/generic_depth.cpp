@@ -457,7 +457,7 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 	switch (device->get_api())
 	{
 	case device_api::d3d9:
-		if (s_disable_intz)
+		if (s_disable_intz || desc.texture.samples > 1)
 			return false;
 		// Skip textures that are sampled as PCF shadow maps (see https://aras-p.info/texts/D3D9GPUHacks.html#shadowmap) using hardware support, since changing format would break that
 		if (desc.type == resource_type::texture_2d && (desc.texture.format == format::d16_unorm || desc.texture.format == format::d24_unorm_x8_uint || desc.texture.format == format::d24_unorm_s8_uint))
@@ -465,6 +465,8 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 		// Skip small textures that are likely just shadow maps too (fixes a hang in Dragon's Dogma: Dark Arisen when changing areas)
 		if (desc.texture.width <= 512)
 			return false;
+		if (desc.texture.format == format::d32_float || desc.texture.format == format::d32_float_s8_uint)
+			reshade::log_message(reshade::log_level::warning, "Replacing high bit depth depth-stencil format with a lower bit depth format");
 		// Replace texture format with special format that supports normal sampling (see https://aras-p.info/texts/D3D9GPUHacks.html#depth)
 		desc.texture.format = format::intz;
 		desc.usage |= resource_usage::shader_resource;

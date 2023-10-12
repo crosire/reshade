@@ -518,10 +518,35 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 		{
 			assert(src_subresource == 0);
 
+			com_ptr<IDirect3DSurface9> src_surface = static_cast<IDirect3DSurface9 *>(src_object);
+
+			D3DSURFACE_DESC src_desc;
+			IDirect3DSurface9_GetDesc(src_surface.get(), &src_desc);
+
+			if ((src_desc.Usage & D3DUSAGE_DEPTHSTENCIL) != 0 && dst_subresource == 0 && check_capability(api::device_caps::resolve_depth_stencil))
+			{
+				// Capture and restore state
+				_backup_state.capture();
+
+				_orig->SetTexture(0, static_cast<IDirect3DBaseTexture9 *>(dst_object));
+				_orig->SetDepthStencilSurface(src_surface.get());
+
+				// Dummy draw call, required to ensure the destination texture is set before the resolve operation is triggered below
+				_orig->SetRenderState(D3DRS_ZENABLE, FALSE);
+				_orig->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+				_orig->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
+				const float dummy_point[3] = { 0.0, 0.0f, 0.0f };
+				_orig->DrawPrimitiveUP(D3DPT_POINTLIST, 1, dummy_point, sizeof(dummy_point));
+
+				// Trigger multisampled depth buffer resolve operation
+				_orig->SetRenderState(D3DRS_POINTSIZE, 0x7FA05000 /* RESZ code */);
+
+				_backup_state.apply_and_release();
+				return;
+			}
+
 			const DWORD dst_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(dst_object));
 			const DWORD dst_level = dst_subresource % dst_level_count;
-
-			com_ptr<IDirect3DSurface9> src_surface = static_cast<IDirect3DSurface9 *>(src_object);
 
 			com_ptr<IDirect3DSurface9> dst_surface;
 			if (FAILED(dst_is_regular_texture ?
@@ -529,8 +554,6 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 					IDirect3DCubeTexture9_GetCubeMapSurface(static_cast<IDirect3DCubeTexture9 *>(dst_object), static_cast<D3DCUBEMAP_FACES>(dst_subresource / dst_level_count), dst_level, &dst_surface)))
 				break;
 
-			D3DSURFACE_DESC src_desc;
-			IDirect3DSurface9_GetDesc(src_surface.get(), &src_desc);
 			D3DSURFACE_DESC dst_desc;
 			IDirect3DSurface9_GetDesc(dst_surface.get(), &dst_desc);
 
