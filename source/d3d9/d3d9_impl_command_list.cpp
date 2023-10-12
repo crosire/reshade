@@ -240,10 +240,22 @@ void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::p
 {
 	assert((first % 4) == 0 && (count % 4) == 0);
 
+	first /= 4;
+	count /= 4;
+
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
-		_orig->SetVertexShaderConstantF(first / 4, static_cast<const float *>(values), count / 4);
+	{
+		// https://learn.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0#input-registers
+		assert((first + count) <= _caps.MaxVertexShaderConst);
+		_orig->SetVertexShaderConstantF(first, static_cast<const float *>(values), count);
+	}
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
-		_orig->SetPixelShaderConstantF(first / 4, static_cast<const float *>(values), count / 4);
+	{
+		// https://learn.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0#input-register-types
+		// Technically limited based on the pixel shader version, but more seem to work on modern hardware and drivers, so do not check:
+		//   assert((first + count) <= (_caps.PixelShaderVersion < D3DPS_VERSION(2, 0) ? 8 : _caps.PixelShaderVersion < D3DPS_VERSION(3, 0) ? 32 : 224));
+		_orig->SetPixelShaderConstantF(first, static_cast<const float *>(values), count);
+	}
 }
 void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update)
 {
