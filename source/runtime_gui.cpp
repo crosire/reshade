@@ -4170,10 +4170,12 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
-		_graphics_queue->wait_idle(); // Be safe and ensure nothing still uses this buffer
-
 		if (_imgui_indices[buffer_index] != 0)
+		{
+			_graphics_queue->wait_idle(); // Be safe and ensure nothing still uses this buffer
+
 			_device->destroy_resource(_imgui_indices[buffer_index]);
+		}
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
 		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
@@ -4188,10 +4190,12 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	}
 	if (_imgui_num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
-		_graphics_queue->wait_idle();
-
 		if (_imgui_vertices[buffer_index] != 0)
+		{
+			_graphics_queue->wait_idle();
+
 			_device->destroy_resource(_imgui_vertices[buffer_index]);
+		}
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
 		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
