@@ -38,7 +38,7 @@ END
 
 3 TEXTINCLUDE 
 BEGIN
-    "#include ""resource.rc2""\r\n"
+    "#include ""version.rc2""\r\n"
     "\0"
 END
 
@@ -47,13 +47,15 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// ICON
+// Icon
 //
 
-#if defined(RESHADE_FXC) || defined(RESHADE_TEST_APPLICATION)
-MAIN_ICON                ICON                   "main_icon.ico"
-
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+#if defined(RESHADE_FXC) || defined(RESHADE_TEST_APPLICATION) || defined(APSTUDIO_INVOKED)
+MAIN_ICON               ICON                    "main_icon.ico"
 #endif
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -61,6 +63,8 @@ MAIN_ICON                ICON                   "main_icon.ico"
 //
 
 #if !defined(RESHADE_FXC)
+IDB_MAIN_ICON           RCDATA                  "main_icon_small.png"
+
 IDR_COPY_PS             RCDATA                  "shaders\\copy_ps.cso"
 
 IDR_FULLSCREEN_VS       RCDATA                  "shaders\\fullscreen_vs.cso"
@@ -100,9 +104,6 @@ IDR_LICENSE_UTFCPP      RCDATA                  "..\\deps\\utfcpp\\LICENSE"
 IDR_LICENSE_VMA         RCDATA                  "..\\deps\\vma\\LICENSE.txt"
 
 IDR_LICENSE_VULKAN      RCDATA                  "..\\deps\\vulkan\\LICENSE.txt"
-
-IDB_MAIN_ICON           RCDATA                  "main_icon_small.png"
-
 #endif
 
 #endif    // Neutral (Default) resources
@@ -115,7 +116,7 @@ IDB_MAIN_ICON           RCDATA                  "main_icon_small.png"
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-#include "resource.rc2"
+#include "version.rc2"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

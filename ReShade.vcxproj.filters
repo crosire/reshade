@@ -654,7 +654,7 @@
     <None Include="res\fonts\forkawesome.inl">
       <Filter>resources\fonts</Filter>
     </None>
-    <None Include="res\resource.rc2">
+    <None Include="res\version.rc2">
       <Filter>resources</Filter>
     </None>
     <None Include="tools\update_version.ps1">

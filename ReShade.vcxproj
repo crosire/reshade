@@ -719,7 +719,7 @@
   <ItemGroup>
     <None Include="res\exports.def" />
     <None Include="res\fonts\forkawesome.inl" />
-    <None Include="res\resource.rc2" />
+    <None Include="res\version.rc2" />
     <None Include="tools\update_version.ps1" />
   </ItemGroup>
   <ItemGroup>
