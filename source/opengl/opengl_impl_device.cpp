@@ -364,15 +364,29 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		}
 		break;
 	case api::resource_type::texture_1d:
+		if (desc.texture.samples > 1)
+			return false;
 		target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;
 		break;
 	case api::resource_type::texture_2d:
 		if ((desc.flags & api::resource_flags::cube_compatible) == 0)
-			target = desc.texture.depth_or_layers > 1 ? (desc.texture.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE_ARRAY : GL_TEXTURE_2D_ARRAY) : (desc.texture.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D);
+		{
+			if (desc.texture.samples > 1)
+				target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_2D_MULTISAMPLE_ARRAY : GL_TEXTURE_2D_MULTISAMPLE;
+			else
+				target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
+		}
 		else
-			target = desc.texture.depth_or_layers > 6 ? GL_TEXTURE_CUBE_MAP_ARRAY : GL_TEXTURE_CUBE_MAP;
+		{
+			if (desc.texture.samples > 1)
+				return false;
+			else
+				target = desc.texture.depth_or_layers > 6 ? GL_TEXTURE_CUBE_MAP_ARRAY : GL_TEXTURE_CUBE_MAP;
+		}
 		break;
 	case api::resource_type::texture_3d:
+		if (desc.texture.samples > 1)
+			return false;
 		target = GL_TEXTURE_3D;
 		break;
 	case api::resource_type::surface:
@@ -381,9 +395,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	default:
 		return false;
 	}
-
-	if (desc.texture.samples > 1 && ((desc.type != api::resource_type::texture_2d && desc.type != api::resource_type::surface) || (desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible))
-		return false;
 
 #if 0
 	GLenum shared_handle_type = GL_NONE;
