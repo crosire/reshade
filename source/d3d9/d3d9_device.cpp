@@ -97,34 +97,36 @@ void Direct3DDevice9::init_auto_depth_stencil()
 	_auto_depth_stencil->_ref = 0;
 
 	// In case surface was replaced with a texture resource
-	const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
-	if (to_handle(surface).handle != resource.handle)
+	com_ptr<IDirect3DResource9> resource;
+	if (SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
 		desc.type = reshade::api::resource_type::texture_2d;
+	else
+		resource = surface;
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 		this,
 		desc,
 		nullptr,
 		reshade::api::resource_usage::depth_stencil,
-		resource);
+		to_handle(resource.get()));
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		this,
-		resource,
+		to_handle(resource.get()),
 		reshade::api::resource_usage::depth_stencil,
 		reshade::api::resource_view_desc(desc.texture.format),
 		to_handle(surface));
 
 	if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
 	{
-		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		register_destruction_callback_d3d9(resource.get(), [this, resource = resource.get()]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 		});
 	}
 	if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 	{
 		register_destruction_callback_d3d9(surface, [this, surface]() {
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-		}, to_handle(surface).handle == resource.handle ? 1 : 0);
+		}, surface == resource ? 1 : 0);
 	}
 
 	// Communicate default state to add-ons
@@ -898,34 +900,36 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 #endif
 #if RESHADE_ADDON
 		// In case surface was replaced with a texture resource
-		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
-		if (to_handle(surface).handle != resource.handle)
+		com_ptr<IDirect3DResource9> resource;
+		if (SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
 			desc.type = reshade::api::resource_type::texture_2d;
+		else
+			resource = surface;
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::render_target,
-			resource);
+			to_handle(resource.get()));
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this,
-			resource,
+			to_handle(resource.get()),
 			reshade::api::resource_usage::render_target,
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
 		{
-			register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			register_destruction_callback_d3d9(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 			});
 		}
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		{
 			register_destruction_callback_d3d9(surface, [this, surface]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			}, to_handle(surface).handle == resource.handle ? 1 : 0);
+			}, surface == resource ? 1 : 0);
 		}
 #endif
 	}
@@ -963,34 +967,36 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		*ppSurface = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 
 		// In case surface was replaced with a texture resource
-		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
-		if (to_handle(surface).handle != resource.handle)
+		com_ptr<IDirect3DResource9> resource;
+		if (SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
 			desc.type = reshade::api::resource_type::texture_2d;
+		else
+			resource = surface;
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::depth_stencil,
-			resource);
+			to_handle(resource.get()));
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this,
-			resource,
+			to_handle(resource.get()),
 			reshade::api::resource_usage::depth_stencil,
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
 		{
-			register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			register_destruction_callback_d3d9(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 			});
 		}
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		{
 			register_destruction_callback_d3d9(surface, [this, surface]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			}, to_handle(surface).handle == resource.handle ? 1 : 0);
+			}, surface == resource ? 1 : 0);
 		}
 #endif
 	}
@@ -2265,34 +2271,36 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 #endif
 #if RESHADE_ADDON
 		// In case surface was replaced with a texture resource
-		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
-		if (to_handle(surface).handle != resource.handle)
+		com_ptr<IDirect3DResource9> resource;
+		if (SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
 			desc.type = reshade::api::resource_type::texture_2d;
+		else
+			resource = surface;
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::render_target,
-			resource);
+			to_handle(resource.get()));
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this,
-			resource,
+			to_handle(resource.get()),
 			reshade::api::resource_usage::render_target,
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
 		{
-			register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			register_destruction_callback_d3d9(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 			});
 		}
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		{
 			register_destruction_callback_d3d9(surface, [this, surface]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			}, to_handle(surface).handle == resource.handle ? 1 : 0);
+			}, surface == resource ? 1 : 0);
 		}
 #endif
 	}
@@ -2400,34 +2408,36 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		*ppSurface = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 
 		// In case surface was replaced with a texture resource
-		const reshade::api::resource resource = get_resource_from_view(to_handle(surface));
-		if (to_handle(surface).handle != resource.handle)
+		com_ptr<IDirect3DResource9> resource;
+		if (SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
 			desc.type = reshade::api::resource_type::texture_2d;
+		else
+			resource = surface;
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::depth_stencil,
-			resource);
+			to_handle(resource.get()));
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this,
-			resource,
+			to_handle(resource.get()),
 			reshade::api::resource_usage::depth_stencil,
 			reshade::api::resource_view_desc(desc.texture.format),
 			to_handle(surface));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
 		{
-			register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			register_destruction_callback_d3d9(resource.get(), [this, resource = resource.get()]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
 			});
 		}
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		{
 			register_destruction_callback_d3d9(surface, [this, surface]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-			}, to_handle(surface).handle == resource.handle ? 1 : 0);
+			}, surface == resource ? 1 : 0);
 		}
 #endif
 	}
