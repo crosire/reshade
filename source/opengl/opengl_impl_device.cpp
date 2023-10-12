@@ -372,16 +372,21 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		if ((desc.flags & api::resource_flags::cube_compatible) == 0)
 		{
 			if (desc.texture.samples > 1)
+			{
+				if (desc.texture.levels > 1)
+					return false;
 				target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_2D_MULTISAMPLE_ARRAY : GL_TEXTURE_2D_MULTISAMPLE;
+			}
 			else
+			{
 				target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
+			}
 		}
 		else
 		{
 			if (desc.texture.samples > 1)
 				return false;
-			else
-				target = desc.texture.depth_or_layers > 6 ? GL_TEXTURE_CUBE_MAP_ARRAY : GL_TEXTURE_CUBE_MAP;
+			target = desc.texture.depth_or_layers > 6 ? GL_TEXTURE_CUBE_MAP_ARRAY : GL_TEXTURE_CUBE_MAP;
 		}
 		break;
 	case api::resource_type::texture_3d:
@@ -719,19 +724,23 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_SAMPLES, &samples);
 
-				gl.GetTextureParameteriv(object, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
-				if (levels == 0)
+				// Rectangle and multisample textures do not have mipmaps
+				if (target != GL_TEXTURE_RECTANGLE && target != GL_TEXTURE_2D_MULTISAMPLE && target != GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
 				{
-					// If number of mipmap levels is not immutable, need to walk through the mipmap chain and check how many actually exist
-					gl.GetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &levels);
-					for (GLsizei level = 1, level_w = 0; level < levels; ++level)
+					gl.GetTextureParameteriv(object, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+					if (levels == 0)
 					{
-						// Check if this mipmap level does exist
-						gl.GetTextureLevelParameteriv(object, level, GL_TEXTURE_WIDTH, &level_w);
-						if (0 == level_w)
+						// If number of mipmap levels is not immutable, need to walk through the mipmap chain and check how many actually exist
+						gl.GetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &levels);
+						for (GLsizei level = 1, level_w = 0; level < levels; ++level)
 						{
-							levels = level;
-							break;
+							// Check if this mipmap level does exist
+							gl.GetTextureLevelParameteriv(object, level, GL_TEXTURE_WIDTH, &level_w);
+							if (0 == level_w)
+							{
+								levels = level;
+								break;
+							}
 						}
 					}
 				}
@@ -755,17 +764,20 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 				gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 				gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_SAMPLES, &samples);
 
-				gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
-				if (levels == 0)
+				if (target != GL_TEXTURE_RECTANGLE && target != GL_TEXTURE_2D_MULTISAMPLE && target != GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
 				{
-					gl.GetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &levels);
-					for (GLsizei level = 1, level_w = 0; level < levels; ++level)
+					gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+					if (levels == 0)
 					{
-						gl.GetTexLevelParameteriv(level_target, level, GL_TEXTURE_WIDTH, &level_w);
-						if (0 == level_w)
+						gl.GetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &levels);
+						for (GLsizei level = 1, level_w = 0; level < levels; ++level)
 						{
-							levels = level;
-							break;
+							gl.GetTexLevelParameteriv(level_target, level, GL_TEXTURE_WIDTH, &level_w);
+							if (0 == level_w)
+							{
+								levels = level;
+								break;
+							}
 						}
 					}
 				}
@@ -1675,6 +1687,7 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		yoffset += layer;
 		[[fallthrough]];
 	case GL_TEXTURE_2D:
+	case GL_TEXTURE_RECTANGLE:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
