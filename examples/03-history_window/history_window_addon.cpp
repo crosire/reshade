@@ -57,7 +57,7 @@ static void on_destroy(reshade::api::effect_runtime *runtime)
 	runtime->destroy_private_data<history_context>();
 }
 
-static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade::api::effect_uniform_variable variable, const void *value, size_t size)
+static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade::api::effect_uniform_variable variable, const void *new_value, size_t new_value_size)
 {
 	history_context &ctx = runtime->get_private_data<history_context>();
 
@@ -86,7 +86,7 @@ static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade:
 		break;
 	}
 
-	std::memcpy(after.as_uint, value, std::min(size, size_t(4 * 16)));
+	std::memcpy(after.as_uint, new_value, std::min(new_value_size, size_t(4 * 16)));
 
 	if (std::memcmp(&before, &after, sizeof(after)) != 0)
 	{

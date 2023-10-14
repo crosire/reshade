@@ -1508,19 +1508,20 @@ namespace reshade
 		reshade_reloaded_effects,
 
 		/// <summary>
-		/// Called before a uniform variable is changed.
-		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_uniform_variable variable, const void *data, size_t size)</c></para>
+		/// Called before a uniform variable is changed, with the new value.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_uniform_variable variable, const void *new_value, size_t new_value_size)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent the variable from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// To prevent the variable value from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// The new value has the data type reported by <see cref="api::effect_runtime::get_uniform_variable_type"/> and the new value size is in bytes.
 		/// </remarks>
 		reshade_set_uniform_value,
 		/// <summary>
-		/// Called before a technique is enabled or disabled.
+		/// Called before a technique is enabled or disabled, with the new state.
 		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_technique technique, bool enabled)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent the technique from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// To prevent the technique state from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		reshade_set_technique_state,
 

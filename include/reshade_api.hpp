@@ -137,6 +137,9 @@ namespace reshade { namespace api
 		/// <param name="effect_name">File name of the effect file the variable is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
 		/// <param name="variable_name">Name of the uniform variable declaration to find.</param>
 		/// <returns>Opaque handle to the uniform variable, or zero in case it was not found.</returns>
+		/// <remarks>
+		/// This will not find uniform variables when performance mode is enabled, since in that case uniform variables are replaced with constants during effect compilation.
+		/// </remarks>
 		virtual effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const = 0;
 
 		/// <summary>
@@ -254,8 +257,10 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of booleans that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// </remarks>
 		virtual void set_uniform_value_bool(effect_uniform_variable variable, const bool *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of boolean values.
@@ -265,8 +270,6 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
 		inline  void set_uniform_value_bool(effect_uniform_variable variable, bool x, bool y = bool(0), bool z = bool(0), bool w = bool(0))
 		{
 			const bool values[4] = { x, y, z, w };
@@ -279,8 +282,10 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of floating-points that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// </remarks>
 		virtual void set_uniform_value_float(effect_uniform_variable variable, const float *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of floating-point values.
@@ -290,8 +295,6 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
 		inline  void set_uniform_value_float(effect_uniform_variable variable, float x, float y = float(0), float z = float(0), float w = float(0))
 		{
 			const float values[4] = { x, y, z, w };
@@ -304,8 +307,10 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of signed integers that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// </remarks>
 		virtual void set_uniform_value_int(effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of signed integer values.
@@ -315,8 +320,6 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
 		inline  void set_uniform_value_int(effect_uniform_variable variable, int32_t x, int32_t y = int32_t(0), int32_t z = int32_t(0), int32_t w = int32_t(0))
 		{
 			const int32_t values[4] = { x, y, z, w };
@@ -329,8 +332,10 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of unsigned integers that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// </remarks>
 		virtual void set_uniform_value_uint(effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of unsigned integer values.
@@ -340,8 +345,6 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
 		inline  void set_uniform_value_uint(effect_uniform_variable variable, uint32_t x, uint32_t y = uint32_t(0), uint32_t z = uint32_t(0), uint32_t w = uint32_t(0))
 		{
 			const uint32_t values[4] = { x, y, z, w };
