@@ -196,7 +196,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A texture sampler defined in the effect code.
+	/// A texture sampler object defined in the effect code.
 	/// </summary>
 	struct sampler_info
 	{
@@ -233,7 +233,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// An uniform variable defined in the effect code.
+	/// A uniform variable defined in the effect code.
 	/// </summary>
 	struct uniform_info
 	{

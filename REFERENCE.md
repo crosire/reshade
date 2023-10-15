@@ -1,12 +1,23 @@
 ReShade API
 ===========
 
-The ReShade API lets you interact with the resources and rendering commands of applications ReShade was loaded into. It [abstracts](#abstraction) away differences between the various graphics API ReShade supports (Direct3D 9/10/11/12, OpenGL and Vulkan), to make it possible to write add-ons that work across a wide range of applications, regardless of the graphics API they use.
+The ReShade API lets you interact with the resources and rendering commands of applications ReShade was loaded into. It [abstracts](#events) away differences between the various graphics API ReShade supports (Direct3D 9/10/11/12, OpenGL and Vulkan), to make it possible to write add-ons that work across a wide range of applications, regardless of the graphics API they use.
 
-A ReShade add-on is a DLL or part of the application that uses the header-only ReShade API to register callbacks for events and do work in those callbacks after they were invoked by ReShade. There are no further requirements, no functions need to be exported and no libraries need to be linked against (although linking against ReShade is supported as well by defining `RESHADE_API_LIBRARY` before including the headers). Simply add the [include directory from the ReShade repository](https://github.com/crosire/reshade/tree/main/include) to your project and include the `reshade.hpp` header to get started.
+A ReShade add-on is a DLL or part of the application that uses the header-only ReShade API to register callbacks for events and do work in those callbacks after they were invoked by ReShade. There are no further requirements, no functions need to be exported and no libraries need to be linked against (although linking against ReShade is supported as well by defining `RESHADE_API_LIBRARY` before including the headers if so desired). Simply add the [include directory from the ReShade repository](https://github.com/crosire/reshade/tree/main/include) to your project and include the `reshade.hpp` header to get started.
 
-Optionally an add-on may export an `AddonInit` function (with the function signature `extern "C" bool AddonInit(HMODULE addon_module, HMODULE reshade_module)`) if more complicated one-time initialization than possible in `DllMain` is required, which will be called by ReShade right after loading the add-on module.
-Similarily it may also export an `AddonUninit` function (with the function signature `extern "C" void AddonUninit(HMODULE addon_module, HMODULE reshade_module)`) that will be called right before unloading (but only if initialization was successfull).
+An add-on may optionally export an `AddonInit` function if more complicated one-time initialization than possible in `DllMain` is required. It will be called by ReShade right after loading the add-on module.
+```cpp
+extern "C" __declspec(dllexport) bool AddonInit(HMODULE addon_module, HMODULE reshade_module)
+{
+    return true;
+}
+```
+Similarily it may also export an `AddonUninit` function, which will be called right before unloading (but only if initialization was successfull).
+```cpp
+extern "C" __declspec(dllexport) void AddonUninit(HMODULE addon_module, HMODULE reshade_module)
+{
+}
+```
 
 Here is a very basic code example of an add-on that registers a callback that gets executed every time a new frame is presented to the screen:
 
@@ -47,71 +58,7 @@ After building an add-on DLL, change its file extension from `.dll` to `.addon` 
 
 For more complex examples, see the [examples directory in the repository](https://github.com/crosire/reshade/tree/main/examples).
 
-## Overlays
-
-It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.
-Overlays are created with the use of the docking branch of [Dear ImGui](https://github.com/ocornut/imgui/tree/v1.89.7-docking). Including `reshade.hpp` after [`imgui.h`](https://github.com/ocornut/imgui/blob/v1.89.7-docking/imgui.h) will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
-
-```cpp
-#define IMGUI_DISABLE_INCLUDE_IMCONFIG_H
-#define ImTextureID ImU64 // Change ImGui texture ID type to that of a 'reshade::api::resource_view' handle
-
-#include <imgui.h>
-#include <reshade.hpp>
-
-bool g_popup_window_visible = false;
-
-static void draw_debug_overlay(reshade::api::effect_runtime *runtime)
-{
-    ImGui::TextUnformatted("Some text");
-
-    if (ImGui::Button("Press me to open an additional popup window"))
-        g_popup_window_visible = true;
-
-    if (g_popup_window_visible)
-    {
-        ImGui::Begin("Popup", &g_popup_window_visible);
-        ImGui::TextUnformatted("Some other text");
-        ImGui::End();
-    }
-}
-
-static void draw_settings_overlay(reshade::api::effect_runtime *runtime)
-{
-    ImGui::Checkbox("Popup window is visible", &g_popup_window_visible);
-}
-
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
-{
-    switch (fdwReason)
-    {
-    case DLL_PROCESS_ATTACH:
-        // This will also populate the Dear ImGui function table.
-        if (!reshade::register_addon(hinstDLL))
-            return FALSE;
-        // This registers a new overlay with the specified name with ReShade.
-        // It will be displayed as an additional window when the ReShade overlay is opened.
-        // Its contents are defined by Dear ImGui commands issued in the specified callback function.
-        reshade::register_overlay("Test", &draw_debug_overlay);
-        // It is also possible to register a special settings overlay by passing 'nullptr' instead of a title.
-        // This is shown beneath the add-on information in the add-on list of the ReShade overlay and can be used to present settings to users.
-        reshade::register_overlay(nullptr, &draw_settings_overlay);
-        break;
-    case DLL_PROCESS_DETACH:
-        reshade::unregister_addon(hinstDLL);
-        break;
-    }
-    return TRUE;
-}
-```
-
-Do not call `ImGui::Begin` and `ImGui::End` in the callback to create the overlay window itself, ReShade already does this for you before and after calling the callback function.
-You can however call `ImGui::Begin` and `ImGui::End` with a different title to open additional popup windows (this is not recommended though, since those are difficult to navigate in VR).
-
-Overlay names are shared across ReShade and all add-ons, which means you can register with a name already used by ReShade or another add-on to append widgets to their overlay.
-For example, `reshade::register_overlay("Settings", ...)` allows you to add widgets to the settings page in ReShade and `reshade::register_overlay("OSD", ...)` allows you to add additional information to the always visible on-screen display (clock, FPS, frametime) ReShade provides.
-
-## Abstraction
+## Events
 
 The graphics API abstraction is modeled after the Direct3D 12 and Vulkan APIs, so much of the terminology used should be familiar to developers that have used those before.
 
@@ -194,3 +141,67 @@ ReShade associates an independent post-processing effect runtime with most swap 
 In contrast to the described basic API abstraction objects, any buffers, textures, pipelines, etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_resource`, `reshade::addon_event::init_pipeline`, ...) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_resource()`, `reshade::api::device::create_pipeline()`, ...).
 
 Buffers and textures are referenced via `reshade::api::resource` handles. Depth-stencil, render target, shader resource or unordered access views to such resources are referenced via `reshade::api::resource_view` handles. Sampler state objects are referenced via `reshade::api::sampler` handles, (partial) pipeline state objects via `reshade::api::pipeline` handles and so on.
+
+## Overlays
+
+It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.
+Overlays are created with the use of the docking branch of [Dear ImGui](https://github.com/ocornut/imgui/tree/v1.89.7-docking). Including `reshade.hpp` after [`imgui.h`](https://github.com/ocornut/imgui/blob/v1.89.7-docking/imgui.h) will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
+
+```cpp
+#define IMGUI_DISABLE_INCLUDE_IMCONFIG_H
+#define ImTextureID ImU64 // Change ImGui texture ID type to that of a 'reshade::api::resource_view' handle
+
+#include <imgui.h>
+#include <reshade.hpp>
+
+bool g_popup_window_visible = false;
+
+static void draw_debug_overlay(reshade::api::effect_runtime *runtime)
+{
+    ImGui::TextUnformatted("Some text");
+
+    if (ImGui::Button("Press me to open an additional popup window"))
+        g_popup_window_visible = true;
+
+    if (g_popup_window_visible)
+    {
+        ImGui::Begin("Popup", &g_popup_window_visible);
+        ImGui::TextUnformatted("Some other text");
+        ImGui::End();
+    }
+}
+
+static void draw_settings_overlay(reshade::api::effect_runtime *runtime)
+{
+    ImGui::Checkbox("Popup window is visible", &g_popup_window_visible);
+}
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
+{
+    switch (fdwReason)
+    {
+    case DLL_PROCESS_ATTACH:
+        // This will also populate the Dear ImGui function table.
+        if (!reshade::register_addon(hinstDLL))
+            return FALSE;
+        // This registers a new overlay with the specified name with ReShade.
+        // It will be displayed as an additional window when the ReShade overlay is opened.
+        // Its contents are defined by Dear ImGui commands issued in the specified callback function.
+        reshade::register_overlay("Test", &draw_debug_overlay);
+        // It is also possible to register a special settings overlay by passing 'nullptr' instead of a title.
+        // This is shown beneath the add-on information in the add-on list of the ReShade overlay and can be used to present settings to users.
+        reshade::register_overlay(nullptr, &draw_settings_overlay);
+        break;
+    case DLL_PROCESS_DETACH:
+        reshade::unregister_addon(hinstDLL);
+        break;
+    }
+    return TRUE;
+}
+```
+
+Do not call `ImGui::Begin` and `ImGui::End` in the callback to create the overlay window itself, ReShade already does this for you before and after calling the callback function.
+You can however call `ImGui::Begin` and `ImGui::End` with a different title to open additional popup windows (this is not recommended though, since those are difficult to navigate in VR).
+
+Overlay names are shared across ReShade and all add-ons, which means you can register with a name already used by ReShade or another add-on to append widgets to their overlay.
+For example, `reshade::register_overlay("Settings", ...)` allows you to add widgets to the settings page in ReShade and `reshade::register_overlay("OSD", ...)` allows you to add additional information to the always visible on-screen display (clock, FPS, frametime) ReShade provides.

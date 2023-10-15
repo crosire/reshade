@@ -794,7 +794,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// The depth-stencil description argument is optional and may be <see langword="nullptr"/>.
+		/// The depth-stencil description argument is optional and may be <see langword="nullptr"/> (which indicates that no depth-stencil is used).
 		/// </remarks>
 		begin_render_pass,
 
@@ -1194,7 +1194,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
-		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/> (which indicates the entire subresource is referenced).
 		/// </remarks>
 		copy_buffer_to_texture,
 
@@ -1226,7 +1226,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
-		/// The subresource box arguments are optional and may be <see langword="nullptr"/>.
+		/// The subresource box arguments are optional and may be <see langword="nullptr"/> (which indicates the entire subresource is used).
 		/// </remarks>
 		copy_texture_region,
 
@@ -1243,7 +1243,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
-		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/> (which indicates the entire subresource is used).
 		/// </remarks>
 		copy_texture_to_buffer,
 
@@ -1266,7 +1266,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::resolve_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::resolve_dest"/> state.
-		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/> (which indicates the entire subresource is used).
 		/// </remarks>
 		resolve_texture_region,
 
@@ -1478,7 +1478,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// The source and destination rectangle arguments are optional and may be <see langword="nullptr"/>.
+		/// The source and destination rectangle arguments are optional and may be <see langword="nullptr"/> (which indicates the swap chain is presented in its entirety).
 		/// </remarks>
 		present,
 
@@ -1503,6 +1503,7 @@ namespace reshade
 		/// <summary>
 		/// Called right after all ReShade effects were reloaded.
 		/// This occurs during effect runtime initialization or because the user pressed the "Reload" button in the overlay.
+		/// Any <see cref="api::effect_technique"/>, <see cref="api::effect_texture_variable"/> and <see cref="api::effect_uniform_variable"/> handles are invalidated when this event occurs and need to be queried again.
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime)</c></para>
 		/// </summary>
 		reshade_reloaded_effects,
@@ -1536,7 +1537,7 @@ namespace reshade
 		reshade_overlay,
 
 		/// <summary>
-		/// Called after a screenshot was taken and saved to disk.
+		/// Called after a screenshot was taken and saved to disk, with the path to the saved image file.
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, const char *path)</c></para>
 		/// </summary>
 		reshade_screenshot,
@@ -1549,13 +1550,13 @@ namespace reshade
 
 		/// <summary>
 		/// Called after a preset was loaded and applied.
-		/// This occurs during reloading or when the user chooses a new preset in the overlay.
+		/// This occurs after effect reloading or when the user chooses a new preset in the overlay.
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, const char *path)</c></para>
 		/// </summary>
 		reshade_set_current_preset_path,
 
 		/// <summary>
-		/// Called when the rendering order of loaded techniques is changed.
+		/// Called when the rendering order of loaded techniques is changed, with a handle array specifying the new order.
 		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, size_t count, api::effect_technique *techniques)</c></para>
 		/// </summary>
 		/// <remarks>
