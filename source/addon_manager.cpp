@@ -211,12 +211,12 @@ void reshade::load_addons()
 		{
 			const DWORD error_code = GetLastError();
 
-			if (!addon_loaded_info.empty() && path.filename().u8string() == addon_loaded_info.back().file)
+			if (error_code == ERROR_DLL_INIT_FAILED && !addon_loaded_info.empty() && path.filename().u8string() == addon_loaded_info.back().file)
 			{
 				// Avoid logging an error if loading failed because the add-on is disabled
 				assert(addon_loaded_info.back().handle == nullptr);
 
-				LOG(INFO) << "> Add-on is disabled. Skipped.";
+				LOG(WARN) << "> Add-on failed to initialize or is disabled. Skipped.";
 			}
 			else
 			{
@@ -234,7 +234,7 @@ void reshade::load_addons()
 			{
 				assert(addon_loaded_info.back().handle == nullptr);
 
-				LOG(INFO) << "> Add-on is disabled. Skipped.";
+				LOG(WARN) << "> Add-on failed to initialize or is disabled. Skipped.";
 			}
 			else
 			{
@@ -323,6 +323,8 @@ reshade::addon_info *reshade::find_addon(void *address)
 	HMODULE module = nullptr;
 	if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(address), &module))
 		return nullptr;
+
+	assert(module != nullptr);
 
 	for (auto it = addon_loaded_info.rbegin(); it != addon_loaded_info.rend(); ++it)
 		if (it->handle == module)
