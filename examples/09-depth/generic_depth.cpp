@@ -372,7 +372,7 @@ static void update_effect_runtime(effect_runtime *runtime)
 {
 	const generic_depth_data &instance = runtime->get_private_data<generic_depth_data>();
 
-	runtime->update_texture_bindings("DEPTH", instance.selected_shader_resource);
+	runtime->update_texture_bindings("DEPTH", instance.selected_shader_resource, instance.selected_shader_resource);
 
 	runtime->enumerate_uniform_variables(nullptr, [&instance](effect_runtime *runtime, effect_uniform_variable variable) {
 		char source[32];
