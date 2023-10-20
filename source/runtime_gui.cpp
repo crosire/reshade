@@ -3120,8 +3120,11 @@ void reshade::runtime::draw_variable_editor()
 				{
 					std::string category_label = current_category;
 					if (!_variable_editor_tabs)
+					{
 						for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
 							category_label.insert(0, " ");
+						category_label += "###" + current_category; // Ensure widget ID does not change with varying width
+					}
 
 					ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
 					if (!variable.annotation_as_int("ui_category_closed"))
@@ -3358,8 +3361,11 @@ void reshade::runtime::draw_variable_editor()
 		{
 			std::string category_label = "Preprocessor definitions";
 			if (!_variable_editor_tabs)
+			{
 				for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.c_str()).x - 45) / 2; x < width; x += space_x)
 					category_label.insert(0, " ");
+				category_label += "###ppdefinitions";
+			}
 
 			if (ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_DefaultOpen))
 			{
